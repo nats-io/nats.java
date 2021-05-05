@@ -4,7 +4,7 @@
 
 ### Running from the Command Line
 
-Change into the nats.java directory, and then using gradle, build the source
+Change into the nats.java directory, and then using gradle, build the source:
 
 ```shell
 gradle build -x test
@@ -14,21 +14,22 @@ Once the code is built, you can run the multi tool by adding the libraries to yo
 or the java command line, with the fully qualified name of the JsMulti program, the required parameters and the optional parameters.
 
 ```shell
-java -cp build/libs/jnats-2.11.1.jar:build/libs/jnats-2.11.1-examples.jar io.nats.examples.jsmulti.JsMulti requireds [optionals]
+java -cp build/libs/jnats-2.11.1.jar:build/libs/jnats-2.11.1-examples.jar io.nats.examples.jsmulti.JsMulti <configuration options>
 ```
 
 ### Running from an IDE
 
-The JsMulti program has a `public static void run(Arguments a)` method, so it's easy enough to run from any ide.
+The JsMulti program has a `main` method so it's easy enough to run from any ide.
+You can also call it from another program using the `public static void run(Arguments a)` method.
 We have provided an `ArgumentBuilder` class to help build configurations.
 You could also use your IDE and build a runtime configuration that passes command line arguments.
 
-The examples below show both command line and builder examples
+The examples below show both command line and builder examples.
 
 ### Number Arguments
 
 Number arguments are all integers. When providing numbers on the command line, you can use underscore `_`, comma `,` or period `.`
-to make it more readable. So these are all valid for 1 million `1000000`, `1,000,000`, `1.000.000`, `1_000_000` and even `1_000.000`
+to make it more readable. So these are all valid for 1 million `1000000`, `1,000,000`, `1.000.000` or `1_000_000`
 
 ### Action Argument
 
@@ -47,12 +48,15 @@ to make it more readable. So these are all valid for 1 million `1000000`, `1,000
 
 #### Using the builder
 
-The builder was created to give another way to build configurations, if you typically run from an IDE. 
+The builder was created to give another way to build configurations if you typically run from an IDE. 
 You could use the builder and modify the `JsMulti` class or just create your own classes that make it easier to run from the command line.
 
 The actions all have smart builder creation methods...
 
 ```java
+Arguments a = ArgumentBuilder.create("stream-name") ... .build();
+Arguments a = ArgumentBuilder.delete("stream-name") ... .build();
+Arguments a = ArgumentBuilder.info("stream-name") ... .build();
 Arguments a = ArgumentBuilder.pubSync("subject-name") ... .build();
 Arguments a = ArgumentBuilder.pubAsync("subject-name") ... .build();
 Arguments a = ArgumentBuilder.pubCore("subject-name") ... .build();
@@ -76,12 +80,11 @@ public class MyMulti {
 
 ### Server Argument
 
-`-s` The url of the server. if not provided, will defaults to `nats://localhost:4222`
+`-s` The url of the server. if not provided, will default to `nats://localhost:4222`
 
 _Command Line_
 
 ```shell
-... JsMulti ... -s localhost ...
 ... JsMulti ... -s nats://myhost:4444 ...
 ```
 
@@ -94,7 +97,7 @@ Arguments a = ArgumentBuilder ... .server("nats://myhost:4444") ...
 ### Report Frequency
 
 `-rf` report frequency (number) how often to print progress, defaults to 1000 messages. <= 0 for no reporting. 
-Reporting time is excluded from timings
+Reporting time is excluded from timings.
 
 _Command Line_
 
@@ -111,7 +114,9 @@ Arguments a = ArgumentBuilder ... .noReporting() ...
 ```
 
 ## Stream Management
-You can do some basic stream management functions with the tool. These functions are provided with our [natscli](https://github.com/nats-io/natscli) command line tool.
+You can do some basic stream management functions with the tool. 
+These functions are provided with our [natscli](https://github.com/nats-io/natscli) command line tool,
+and for create, there are many ore options using the CLI.
 
 #### Stream Actions
 
