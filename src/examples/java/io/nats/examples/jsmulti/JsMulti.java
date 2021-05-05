@@ -90,14 +90,14 @@ public class JsMulti {
 //        args = "-a delete -t multistream".split(" ");
 //        args = "-a info   -t multistream".split(" ");
 //        publish ...
-//        args = "-a pubcore      -u multisubject    -rf -1 -d 4    -m 1_000_000".split(" ");
 //        args = "-a pubSync      -u multisubject        -m 10_000".split(" ");
 //        args = "-a pubSync      -u multisubject        -m 10_000  -j 100".split(" ");
-        args = "-a pubSync      -u multisubject  -d 3  -m 300,000".split(" ");
+//        args = "-a pubSync      -u multisubject  -d 3  -m 300,000".split(" ");
 //        args = "-a pubSync      -u multisubject  -d 4  -m 200.000 -rf 5000 -n individual".split(" ");
 //        args = "-a pubAsync     -u multisubject        -m 1_000_000".split(" ");
 //        args = "-a pubAsync     -u multisubject  -d 3  -m 1_200_000".split(" ");
 //        args = "-a pubAsync     -u multisubject  -d 3  -m 1_200_000  -n individual".split(" ");
+//        args = "-a pubcore      -u multisubject    -rf -1 -d 4    -m 1_000_000".split(" ");
 //        subscribe ...
 //        args = "-a subPush      -u multisubject        -m 500_000".split(" ");
 //        args = "-a subPush      -u multisubject  -d 3  -m 600_000".split(" ");
