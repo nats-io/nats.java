@@ -52,9 +52,9 @@ The java-nats client is provided in a single jar file, with a single external de
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.10.0/jnats-2.10.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.10.0/jnats-2.10.0.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.11.1/jnats-2.11.1.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.11.1/jnats-2.11.1.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.10.0/jnats-2.10.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.10.0/jnats-2.10.0-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.11.1/jnats-2.11.1-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.11.1/jnats-2.11.1-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
@@ -64,7 +64,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.10.0'
+    implementation 'io.nats:jnats:2.11.1'
 }
 ```
 
@@ -90,7 +90,7 @@ The NATS client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.10.0</version>
+    <version>2.11.1</version>
 </dependency>
 ```
 

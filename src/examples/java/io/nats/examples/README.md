@@ -1,3 +1,5 @@
+![NATS](../../../../../../src/main/javadoc/images/large-logo.png)
+
 # Java Nats Examples
 
 This folder contains a number of examples:
@@ -46,6 +48,7 @@ In the `io.nats.examples.jetstream` package...
 1. `benchmark` - benchmark that supports multiple threads
 1. `stan` - A larger example that implements a server that can respond on multiple subjects, and several clients that send requests on those various subjects.
 1. `stability` - a small producer and subscriber that run forever printing some status every so often. These are intended for long running tests without burning the CPU.
+1. `jsmulti` - a multi-faceted tool that allows you to do a variety of publishing and subscribing to both core NATS and JetStream subjects. Please see the [JsMultiTool README](jsmulti/README.md) 
 
 ### Example Support
 1. `ExampleArgs.java` - Helper to manage command line arguments.
@@ -59,7 +62,7 @@ All of these examples take the server URL on the command line, which means that 
 
 * The examples require both the client library and the examples to be compiled and then the jars be used in the classpath.
 When you build locally, `-SNAPSHOT` is appended to the version.
-See the [readme.md](/README.md) for specifics on building these.
+See the project [README](/README.md) for specifics on building these.
 
 * When you run, if you supply an unknown parameter or miss a required parameter, the usage string will be shown and the program will exit.
 
