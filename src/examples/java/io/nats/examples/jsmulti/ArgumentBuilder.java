@@ -26,15 +26,15 @@ class ArgumentBuilder {
     static ArgumentBuilder pubCore(String subject) { return new ArgumentBuilder().action(PUB_CORE).subject(subject); }
     static ArgumentBuilder subPush(String subject) { return new ArgumentBuilder().action(SUB_PUSH).subject(subject); }
     static ArgumentBuilder subQueue(String subject) { return new ArgumentBuilder().action(SUB_QUEUE).subject(subject); }
-    static ArgumentBuilder subPull(String subject) { return new ArgumentBuilder().action(SUB_PUSH).subject(subject); }
+    static ArgumentBuilder subPull(String subject) { return new ArgumentBuilder().action(SUB_PULL).subject(subject); }
     static ArgumentBuilder subPullQueue(String subject) { return new ArgumentBuilder().action(SUB_PULL_QUEUE).subject(subject); }
 
     Arguments build() {
-        return new Arguments(sb.toString().split(" "));
+        return new Arguments(sb.toString().trim().split(" "));
     }
 
     private ArgumentBuilder add(String option, Object value) {
-        sb.append('-').append(option).append(" ").append(value.toString());
+        sb.append('-').append(option).append(" ").append(value.toString()).append(" ");
         return this;
     }
 
@@ -86,11 +86,11 @@ class ArgumentBuilder {
         return add("n", strategy);
     }
 
-    ArgumentBuilder shared() {
+    ArgumentBuilder sharedConnection() {
         return connectionStrategy(SHARED);
     }
 
-    ArgumentBuilder individual() {
+    ArgumentBuilder individualConnection() {
         return connectionStrategy(INDIVIDUAL);
     }
 

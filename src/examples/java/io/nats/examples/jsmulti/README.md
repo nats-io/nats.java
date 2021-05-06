@@ -159,9 +159,7 @@ This would require some concurrent mechanism like the `java.util.concurrent.Link
 Publishing would run on one thread and place the futures in the queue. The second thread would
 be pulling from the queue.
 
-### Subscribe (Consume) Only Optional Arguments
-
-`-pt` pull type (fetch|iterate), fetch all first, or iterate, defaults to iterate
+### Subscribe Push or Pull Optional Arguments
 
 `-kp` ack policy (explicit|none|all) for subscriptions. Ack Policy must be `explicit` on pull subscriptions.
 
@@ -173,6 +171,10 @@ be pulling from the queue.
 For Ack Policy `explicit`, all messages will be acked after kf number of messages are received. 
 For Ack Policy `all`, the last message will be acked once kf number of messages are received.
 Does not apply to Ack Policy `none` 
+
+### Subscribe Pull Optional Arguments
+
+`-pt` pull type (fetch|iterate) defaults to iterate
 
 `-bs` batch size (number) for subPull/subPullQueue, defaults to 10, maximum 256
 
@@ -236,11 +238,12 @@ Arguments a = ArgumentBuilder.pubSync("subject-name")
 * 2 million messages
 * 2 threads
 * payload size of 512 bytes
-* individual connections to the server
+* shared/individual connections to the server
 
 _Command Line_
 
 ```shell
+... JsMulti -a pubAsync -u subject-name -m 2_000_000 -d 2 -p 512 -n shared
 ... JsMulti -a pubAsync -u subject-name -m 2_000_000 -d 2 -p 512 -n individual
 ```
 
@@ -248,11 +251,18 @@ _Builder_
 
 ```java
 Arguments a = ArgumentBuilder.pubSync("subject-name")
-        .messageCount(2_000_000)
-        .threads(2)
-        .payloadSize(512)
-        .individual()
-        .build();
+    .messageCount(2_000_000)
+    .threads(2)
+    .payloadSize(512)
+    .sharedConnection()
+    .build();
+
+Arguments a = ArgumentBuilder.pubSync("subject-name")
+    .messageCount(2_000_000)
+    .threads(2)
+    .payloadSize(512)
+    .individualConnection()
+    .build();
 ```
 
 #### Synchronous core style publishing

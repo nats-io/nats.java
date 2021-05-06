@@ -59,22 +59,37 @@ class Arguments{
 
     @Override
     public String toString() {
-        return "JetStream Multi-Tool Run Config:"
+        String s = "JetStream Multi-Tool Run Config:"
                 + "\n  action (-a):              " + action
-                + "\n  server (-s):              " + server
+                + "\n  server (-s):              " + (server == null ? Options.DEFAULT_URL : server)
                 + "\n  report frequency (-rf):   " + (reportFrequency == Integer.MAX_VALUE ? "no reporting" : "" + reportFrequency)
                 + "\n  subject (-u):             " + subject
                 + "\n  message count (-m):       " + messageCount
                 + "\n  threads (-d):             " + threads
-                + "\n  connection strategy (-n): " + (connShared ? SHARED : INDIVIDUAL)
-                + "\n  jitter (-j):              " + jitter
-                + "\n  payload size (-p):        " + payloadSize + " bytes"
-                + "\n  round size (-r):          " + roundSize
-                + "\n  pull type (-pt):          " + (pullTypeIterate ? ITERATE : FETCH)
-                + "\n  ack policy (-kp):         " + ackPolicy
-                + "\n  ack frequency (-kf):      " + ackFrequency
-                + "\n  batch size (-b):          " + batchSize
-                ;
+                + "\n  jitter (-j):              " + jitter;
+
+        if (threads > 1) {
+            s += "\n  connection strategy (-n): " + (connShared ? SHARED : INDIVIDUAL);
+        }
+
+        if (contains(PUB_ACTIONS, action)) {
+            s += "\n  payload size (-p):        " + payloadSize + " bytes";
+        }
+
+        if (PUB_ASYNC.equals(action)) {
+            s += "\n  round size (-r):          " + roundSize;
+        }
+
+        if (contains(SUB_ACTIONS, action)) {
+            s += "\n  ack policy (-kp):         " + ackPolicy;
+            s += "\n  ack frequency (-kf):      " + ackFrequency;
+        }
+
+        if (contains(PULL_ACTIONS, action)) {
+            s += "\n  pull type (-pt):          " + (pullTypeIterate ? ITERATE : FETCH);
+            s += "\n  batch size (-b):          " + batchSize;
+        }
+        return s;
     }
 
     Arguments(String[] args) {
@@ -144,7 +159,7 @@ class Arguments{
             error("Valid action required!");
         }
 
-        if (subject == null && contains(SUBJECT_ACTIONS, action)) {
+        if (subject == null) {
             error("Publish or Subscribe actions require subject name!");
         }
 
@@ -152,9 +167,9 @@ class Arguments{
             error("Queue subscribing requires multiple threads!");
         }
 
-        if (ackPolicy != AckPolicy.Explicit && contains(PULL_ACTIONS, action)) {
-            error("Consumer in pull mode requires explicit ack policy");
-        }
+//        if (ackPolicy != AckPolicy.Explicit && contains(PULL_ACTIONS, action)) {
+//            error("Consumer in pull mode requires explicit ack policy");
+//        }
 
         try {
             new Options.Builder().build().createURIForServer(server);

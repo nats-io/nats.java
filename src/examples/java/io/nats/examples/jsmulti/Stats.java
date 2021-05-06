@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Locale;
 
 class Stats {
-    private static final String REPORT_SEP_LINE = "| ---------- | ----------------- | --------------- | ----------------------- | ---------------- |";
+    private static final String REPORT_SEP_LINE = "| ---------- | ----------------- | --------------- | ------------------------ | ---------------- |";
     private static final long HUMAN_BYTES_BASE = 1024;
     private static final String[] HUMAN_BYTES_UNITS = new String[] {"b", "kb", "mb", "gb", "tb", "pb", "eb"};
     private static final String ZEROS = "000000";
@@ -39,10 +39,10 @@ class Stats {
         double bytesPerSecond = 1e9 * (stats.bytes)/(stats.elapsed);
         if (header) {
             System.out.println("\n" + REPORT_SEP_LINE);
-            System.out.println("|            |             count |            time |                msgs/sec |        bytes/sec |");
+            System.out.println("|            |             count |            time |                 msgs/sec |        bytes/sec |");
             System.out.println(REPORT_SEP_LINE);
         }
-        System.out.printf("| %-10s | %12s msgs | %12s ms | %14s msgs/sec | %12s/sec |\n", label,
+        System.out.printf("| %-10s | %12s msgs | %12s ms | %15s msgs/sec | %12s/sec |\n", label,
                 format(stats.messageCount),
                 format3(elapsed),
                 format3(messagesPerSecond),

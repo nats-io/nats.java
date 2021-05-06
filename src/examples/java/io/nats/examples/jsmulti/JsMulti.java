@@ -34,20 +34,19 @@ public class JsMulti {
     }
 
     public static void run(Arguments a) {
-        a.print();
         try {
             if (a.threads > 1) {
                 if (a.connShared) {
                     ThreadedRunner tr;
                     switch (a.action) {
-                        case PUB_CORE:
-                            tr = (nc, js, stats, id) -> pubCore(a, nc, stats, "pubCoreShared " + id);
-                            break;
                         case PUB_SYNC:
                             tr = (nc, js, stats, id) -> pubSync(a, js, stats, "pubSyncShared " + id);
                             break;
                         case PUB_ASYNC:
                             tr = (nc, js, stats, id) -> pubAsync(a, js, stats, "pubAsyncShared " + id);
+                            break;
+                        case PUB_CORE:
+                            tr = (nc, js, stats, id) -> pubCore(a, nc, stats, "pubCoreShared " + id);
                             break;
                         case SUB_PUSH:
                             tr = (nc, js, stats, id) -> subPush(a, js, stats, false, "subPushShared " + id);
@@ -69,14 +68,14 @@ public class JsMulti {
                 else {
                     ThreadedRunner tr;
                     switch (a.action) {
-                        case PUB_CORE:
-                            tr = (nc, js, stats, id) -> pubCore(a, nc, stats, "pubCoreIndividual " + id);
-                            break;
                         case PUB_SYNC:
                             tr = (nc, js, stats, id) -> pubSync(a, js, stats, "pubSyncIndividual " + id);
                             break;
                         case PUB_ASYNC:
                             tr = (nc, js, stats, id) -> pubAsync(a, js, stats, "pubAsyncIndividual " + id);
+                            break;
+                        case PUB_CORE:
+                            tr = (nc, js, stats, id) -> pubCore(a, nc, stats, "pubCoreIndividual " + id);
                             break;
                         case SUB_PUSH:
                             tr = (nc, js, stats, id) -> subPush(a, js, stats, false, "subPushIndividual " + id);
@@ -99,14 +98,14 @@ public class JsMulti {
             else {
                 SingleRunner sr;
                 switch (a.action) {
-                    case PUB_CORE:
-                        sr = (nc, js, stats) -> pubCore(a, nc, stats, "pubCore");
-                        break;
                     case PUB_SYNC:
                         sr = (nc, js, stats) -> pubSync(a, js, stats, "pubSync");
                         break;
                     case PUB_ASYNC:
                         sr = (nc, js, stats) -> pubAsync(a, js, stats, "pubAsync");
+                        break;
+                    case PUB_CORE:
+                        sr = (nc, js, stats) -> pubCore(a, nc, stats, "pubCore");
                         break;
                     case SUB_PUSH:
                         sr = (nc, js, stats) -> subPush(a, js, stats, false, "subPush");
@@ -131,12 +130,12 @@ public class JsMulti {
     // ----------------------------------------------------------------------------------------------------
     // Implementation
     // ----------------------------------------------------------------------------------------------------
-    private static void pubCore(Arguments a, final Connection nc, Stats stats, String label) throws Exception {
-        _pub(a, stats, label, () -> nc.publish(a.subject, a.getPayload()));
+    private static void pubSync(Arguments a, final JetStream js, Stats stats, String label) throws Exception {
+        _pub(a, stats, label, () -> js.publish(a.subject, a.getPayload()) );
     }
 
-    private static void pubSync(Arguments a, final JetStream js, Stats stats, String label) throws Exception {
-        _pub(a, stats, label, () -> js.publish(a.subject, a.getPayload()));
+    private static void pubCore(Arguments a, final Connection nc, Stats stats, String label) throws Exception {
+        _pub(a, stats, label, () -> nc.publish(a.subject, a.getPayload()));
     }
 
     interface Publisher {
@@ -207,7 +206,7 @@ public class JsMulti {
                 stats.stop();
             }
         }
-        ackEm(stats, ackList, 1);
+        ackEm(a, stats, ackList, 1);
         System.out.println(label + " finished messages read " + Stats.format(x));
     }
 
@@ -220,26 +219,26 @@ public class JsMulti {
         else {
             switch (a.ackPolicy) {
                 case Explicit:
+                case All:
                     ackList.add(m);
                     break;
-                case All:
-                    if (ackList.isEmpty()) {
-                        ackList.add(m);
-                    }
-                    else {
-                        ackList.set(0, m);
-                    }
-                    break;
             }
-            ackEm(stats, ackList, a.ackFrequency);
+            ackEm(a, stats, ackList, a.ackFrequency);
         }
     }
 
-    private static void ackEm(Stats stats, List<Message> ackList, int thresh) {
+    private static void ackEm(Arguments a, Stats stats, List<Message> ackList, int thresh) {
         if (ackList.size() >= thresh) {
             stats.start();
-            for (Message m : ackList) {
-                m.ack();
+            switch (a.ackPolicy) {
+                case Explicit:
+                    for (Message m : ackList) {
+                        m.ack();
+                    }
+                    break;
+                case All:
+                    ackList.get(ackList.size() - 1).ack();
+                    break;
             }
             stats.stop();
             ackList.clear();
@@ -254,11 +253,9 @@ public class JsMulti {
         JetStreamSubscription sub = js.subscribe(a.subject, pso);
 
         if (a.pullTypeIterate) {
-            System.out.println("ITERATE");
             subPullIterate(a, stats, label, sub);
         }
         else {
-            System.out.println("FETCHING");
             subPullFetch(a, stats, label, sub);
         }
     }
@@ -280,7 +277,7 @@ public class JsMulti {
                 reportMaybe(a, ++x, label, "messages read");
             }
         }
-        ackEm(stats, ackList, 1);
+        ackEm(a, stats, ackList, 1);
         System.out.println(label + " finished messages read " + Stats.format(x));
     }
 
@@ -297,7 +294,7 @@ public class JsMulti {
                 reportMaybe(a, ++x, label, "messages read");
             }
         }
-        ackEm(stats, ackList, 1);
+        ackEm(a, stats, ackList, 1);
         System.out.println(label + " finished messages read " + Stats.format(x));
     }
 
