@@ -22,7 +22,7 @@ import aQute.bnd.gradle.Bundle
 // CHANGELOG.md
 def jarVersion = "2.11.1"
 
-def CI = System.getenv("CI").equals("true") // both travis and github actions
+def CI = System.getenv("TRAVIS_CI").equals("true") // travis
 
 // TRAVIS_BRANCH equals TRAVIS_TAG when a tag exists / a tag event
 def secureEnv = System.getenv("TRAVIS_SECURE_ENV_VARS") != null ? System.getenv("TRAVIS_SECURE_ENV_VARS") : "false"
