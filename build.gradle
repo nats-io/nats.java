@@ -22,6 +22,8 @@ import aQute.bnd.gradle.Bundle
 // CHANGELOG.md
 def jarVersion = "2.11.1"
 
+def CI = System.getenv("CI").equals("true") // both travis and github actions
+
 // TRAVIS_BRANCH equals TRAVIS_TAG when a tag exists / a tag event
 def secureEnv = System.getenv("TRAVIS_SECURE_ENV_VARS") != null ? System.getenv("TRAVIS_SECURE_ENV_VARS") : "false"
 def branch = System.getenv("TRAVIS_BRANCH") != null ? System.getenv("TRAVIS_BRANCH") : ""
@@ -122,13 +124,13 @@ test {
     }
     retry {
         failOnPassedAfterRetry = false
-        if (OperatingSystem.current().isWindows() || OperatingSystem.current().isMacOsX()) {
-            maxFailures = 1
-            maxRetries = 1
-        }
-        else {
+        if (CI) {
             maxFailures = 5
             maxRetries = 5
+        }
+        else {
+            maxFailures = 1
+            maxRetries = 1
         }
     }
     maxParallelForks = Runtime.runtime.availableProcessors()
