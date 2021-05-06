@@ -335,7 +335,7 @@ public class ByteArrayBuilder {
      * @param  len
      *         The number of bytes to be read from the given array;
      *         must be non-negative and no larger than
-     *         <tt>array.length - offset</tt>
+     *         <code>array.length - offset</code>
      * @return this (fluent)
      */
     public ByteArrayBuilder append(byte[] src, int len) {
@@ -353,11 +353,11 @@ public class ByteArrayBuilder {
      *         The array from which bytes are to be read
      * @param  offset
      *         The offset within the array of the first byte to be read;
-     *         must be non-negative and no larger than <tt>array.length</tt>
+     *         must be non-negative and no larger than <code>array.length</code>
      * @param  len
      *         The number of bytes to be read from the given array;
      *         must be non-negative and no larger than
-     *         <tt>array.length - offset</tt>
+     *         <code>array.length - offset</code>
      * @return this (fluent)
      */
     public ByteArrayBuilder append(byte[] src, int offset, int len) {
