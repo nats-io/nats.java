@@ -39,7 +39,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
      * Create PushSubscribeOptions where you are binding to
      * a specific stream, which could be a stream or a mirror
      * @param stream the stream name to bind to
-     * @return subscribe options
+     * @return push subscribe options
      */
     public static PushSubscribeOptions bind(String stream) {
         return new Builder().stream(stream).build();
@@ -74,16 +74,16 @@ public class PushSubscribeOptions extends SubscribeOptions {
         }
 
         /**
-         * Builds the subscribe options.
-         * @return subscribe options
+         * Builds the push subscribe options.
+         * @return push subscribe options
          */
         @Override
         public PushSubscribeOptions build() {
-            validateStreamNameOrEmptyAsNull(stream);
+            stream = validateStreamName(stream, false);
 
-            durable = validateDurableOrEmptyAsNull(durable);
+            durable = validateDurable(durable, false);
             if (durable == null && consumerConfig != null) {
-                durable = validateDurableOrEmptyAsNull(consumerConfig.getDurable());
+                durable = validateDurable(consumerConfig.getDurable(), false);
             }
 
             this.consumerConfig = ConsumerConfiguration.builder(consumerConfig)

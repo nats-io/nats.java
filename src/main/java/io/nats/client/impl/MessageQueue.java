@@ -60,7 +60,7 @@ class MessageQueue {
         this.length = new AtomicLong(0);
 
         // The poisonPill is used to stop poll and accumulate when the queue is stopped
-        this.poisonPill = new NatsMessage("_poison", null, EMPTY_BODY, false);
+        this.poisonPill = new NatsMessage("_poison", null, EMPTY_BODY);
 
         this.filterLock = new ReentrantLock();
         

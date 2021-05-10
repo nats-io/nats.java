@@ -369,8 +369,10 @@ public class Options {
     public static final String PROP_MAX_CONTROL_LINE = "max.control.line";
 
     /**
+     * @deprecated Plans are to remove allowing utf8mode
      * This property is used to enable support for UTF8 subjects. See {@link Builder#supportUTF8Subjects() supportUTF8Subjcts()}
      */
+    @Deprecated
     public static final String PROP_UTF8_SUBJECTS = "allow.utf8.subjects";
 
     /**
@@ -871,8 +873,10 @@ public class Options {
          * performance reasons, the Java client defaults to ASCII. You can enable UTF8
          * with this method. The server, written in go, treats byte to string as UTF8 by default
          * and should allow UTF8 subjects, but make sure to test any clients when using them.
+         * @deprecated Plans are to remove allowing utf8mode
          * @return the Builder for chaining
          */
+        @Deprecated
         public Builder supportUTF8Subjects() {
             this.utf8Support = true;
             return this;
@@ -1471,8 +1475,10 @@ public class Options {
     }
 
     /**
+     * @deprecated Plans are to remove allowing utf8mode
      * @return whether or not utf8 subjects are supported, see {@link Builder#supportUTF8Subjects() supportUTF8Subjects()} in the builder doc.
      */
+    @Deprecated
     public boolean supportUTF8Subjects() {
         return utf8Support;
     }

@@ -66,17 +66,6 @@ public class PublishTests {
     }
 
     @Test
-    public void testThrowsWithoutReplyTo() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                nc.publish("subject", "", null);
-                fail();
-            }
-        });
-    }
-
-    @Test
     public void testThrowsIfTooBig() {
         assertThrows(IllegalArgumentException.class, () -> {
             String customInfo = "{\"server_id\":\"myid\",\"max_payload\": 1000}";

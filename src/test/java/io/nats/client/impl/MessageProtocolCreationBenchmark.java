@@ -25,12 +25,12 @@ public class MessageProtocolCreationBenchmark {
         System.out.printf("### Running benchmarks with %s messages.\n", NumberFormat.getInstance().format(msgCount));
 
         for (int j = 0; j < warmup; j++) {
-            new NatsMessage("subject", "replyTo", EMPTY_BODY, true);
+            new NatsMessage("subject", "replyTo", EMPTY_BODY);
         }
 
         long start = System.nanoTime();
         for (int j = 0; j < msgCount; j++) {
-            new NatsMessage("subject", "replyTo", EMPTY_BODY, false);
+            new NatsMessage("subject", "replyTo", EMPTY_BODY);
         }
         long end = System.nanoTime();
 
@@ -42,7 +42,7 @@ public class MessageProtocolCreationBenchmark {
 
         start = System.nanoTime();
         for (int j = 0; j < msgCount; j++) {
-            new NatsMessage("subject", "replyTo", EMPTY_BODY, true);
+            new NatsMessage("subject", "replyTo", EMPTY_BODY);
         }
         end = System.nanoTime();
 

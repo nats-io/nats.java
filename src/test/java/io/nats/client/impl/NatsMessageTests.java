@@ -43,12 +43,12 @@ public class NatsMessageTests {
         String replyTo = "reply";
         String protocol = "PUB " + subject + " " + replyTo + " " + body.length;
 
-        NatsMessage msg = new NatsMessage(subject, replyTo, body, false);
+        NatsMessage msg = new NatsMessage(subject, replyTo, body);
 
         assertEquals(msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
         assertEquals(protocol.getBytes(StandardCharsets.US_ASCII).length + body.length + 4, msg.getSizeInBytes(), "Size is correct");
 
-        msg = new NatsMessage(subject, replyTo, body, true);
+        msg = new NatsMessage(subject, replyTo, body);
 
         assertEquals(msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
         assertEquals(protocol.getBytes(StandardCharsets.UTF_8).length + body.length + 4, msg.getSizeInBytes(), "Size is correct");

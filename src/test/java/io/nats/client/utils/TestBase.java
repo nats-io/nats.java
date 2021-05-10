@@ -30,17 +30,18 @@ public class TestBase {
 
     public static final String PLAIN      = "plain";
     public static final String HAS_SPACE  = "has space";
-    public static final String HAS_DASH   = "has-dash";
     public static final String HAS_DOT    = "has.dot";
     public static final String HAS_STAR   = "has*star";
     public static final String HAS_GT     = "has>gt";
     public static final String HAS_DOLLAR = "has$dollar";
-    public static final String HAS_TAB    = "has\tgt";
+    public static final String HAS_LOW    = "has\tlower\rthan\nspace";
+    public static final String HAS_127    = "has" + (char)127 + "127";
 
     public static final long STANDARD_CONNECTION_WAIT_MS = 5000;
     public static final long STANDARD_FLUSH_TIMEOUT_MS = 2000;
     public static final long MEDIUM_FLUSH_TIMEOUT_MS = 5000;
-    public static final long LONG_FLUSH_TIMEOUT_MS = 15000;
+    public static final long LONG_TIMEOUT_MS = 15000;
+    public static final long VERY_LONG_TIMEOUT_MS = 20000;
 
     // ----------------------------------------------------------------------------------------------------
     // runners
@@ -159,7 +160,7 @@ public class TestBase {
     }
 
     public static NatsMessage getDataMessage(String data) {
-        return new NatsMessage(SUBJECT, null, data.getBytes(StandardCharsets.US_ASCII), false);
+        return new NatsMessage(SUBJECT, null, data.getBytes(StandardCharsets.US_ASCII));
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -264,7 +265,7 @@ public class TestBase {
     }
 
     public static void flushAndWaitLong(Connection conn, TestHandler handler) {
-        flushAndWait(conn, handler, STANDARD_FLUSH_TIMEOUT_MS, LONG_FLUSH_TIMEOUT_MS);
+        flushAndWait(conn, handler, STANDARD_FLUSH_TIMEOUT_MS, LONG_TIMEOUT_MS);
     }
 
     // ----------------------------------------------------------------------------------------------------

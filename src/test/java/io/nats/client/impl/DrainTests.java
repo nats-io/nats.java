@@ -24,9 +24,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.LockSupport;
 
-import static io.nats.client.utils.TestBase.standardConnection;
+import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class DrainTests {
@@ -522,12 +521,12 @@ public class DrainTests {
     public void testQueueHandoffWithDrain() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
+            assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
             final int total = 5_000;
             final Duration sleepBetweenDrains = Duration.ofMillis(250);
             final Duration sleepBetweenMessages = Duration.ofMillis(1);
-            final Duration testTimeout = Duration.ofMillis(5 * total * sleepBetweenMessages.toMillis());
+            final Duration testTimeout = Duration.ofMillis(5 * total * (sleepBetweenDrains.toMillis() + sleepBetweenMessages.toMillis()));
             final Duration drainTimeout = testTimeout;
             final Duration waitTimeout = drainTimeout.plusSeconds(1);
             AtomicInteger count = new AtomicInteger();
@@ -538,7 +537,7 @@ public class DrainTests {
             NatsDispatcher drainingD = null;
 
             Connection draining = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-            assertTrue(Connection.Status.CONNECTED == draining.getStatus(), "Connected Status");
+            assertSame(Connection.Status.CONNECTED, draining.getStatus(), "Connected Status");
 
             drainingD = (NatsDispatcher) draining.createDispatcher((msg) -> {
                 count.incrementAndGet();
@@ -548,17 +547,9 @@ public class DrainTests {
             Thread pubThread = new Thread(() -> {
                 for (int i = 0; i < total; i++) {
                     pubCon.publish("draintest", null);
-                    try {
-                        LockSupport.parkNanos(sleepBetweenMessages.toNanos()); // use a nice stead pace to avoid slow consumers
-                    } catch (Exception e) {
-
-                    }
+                    park(sleepBetweenMessages);
                 }
-                try {
-                    pubCon.flush(Duration.ofSeconds(5));
-                } catch (Exception e) {
-
-                }
+                flushConnection(pubCon, Duration.ofSeconds(5));
             });
 
             pubThread.start();
@@ -566,17 +557,13 @@ public class DrainTests {
             while (count.get() < total && Duration.between(start, now).compareTo(testTimeout) < 0) {
 
                 working = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                assertTrue(Connection.Status.CONNECTED == working.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, working.getStatus(), "Connected Status");
                 workingD = (NatsDispatcher) working.createDispatcher((msg) -> {
                     count.incrementAndGet();
                 }).subscribe("draintest", "queue");
                 working.flush(Duration.ofSeconds(5));
 
-                try {
-                    LockSupport.parkNanos(sleepBetweenDrains.toNanos()); // let them both work a bit
-                } catch (Exception e) {
-
-                }
+                park(sleepBetweenDrains);
 
                 CompletableFuture<Boolean> tracker = draining.drain(drainTimeout);
 
@@ -593,7 +580,7 @@ public class DrainTests {
             draining.close();
             pubThread.join();
 
-            assertEquals(count.get(), total);
+            assertEquals(total, count.get());
         }
     }
 

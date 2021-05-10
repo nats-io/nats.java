@@ -16,7 +16,7 @@ package io.nats.client;
 import io.nats.client.api.ConsumerConfiguration;
 
 import static io.nats.client.support.Validator.validateDurableRequired;
-import static io.nats.client.support.Validator.validateStreamNameOrEmptyAsNull;
+import static io.nats.client.support.Validator.validateStreamName;
 
 /**
  * The PullSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
@@ -45,12 +45,12 @@ public class PullSubscribeOptions extends SubscribeOptions {
         }
 
         /**
-         * Builds the subscribe options.
-         * @return subscribe options
+         * Builds the pull subscribe options.
+         * @return pull subscribe options
          */
         @Override
         public PullSubscribeOptions build() {
-            validateStreamNameOrEmptyAsNull(stream);
+            validateStreamName(stream, false);
 
             durable = validateDurableRequired(durable, consumerConfig);
 

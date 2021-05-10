@@ -14,78 +14,93 @@
 package io.nats.client.support;
 
 import io.nats.client.api.ConsumerConfiguration;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static io.nats.client.JetStreamSubscription.MAX_PULL_SIZE;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.Validator.*;
+import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ValidatorTests {
+    private static List<String> UTF_ONLY_STRINGS;
 
-    @Test
-    public void testValidateMessageSubjectRequired() {
-        allowed(Validator::validateMessageSubjectRequired, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateMessageSubjectRequired, null, EMPTY);
+    @BeforeAll
+    public static void beforeAll() {
+        UTF_ONLY_STRINGS = dataAsLines("utf8-only-no-ws-test-strings.txt");
     }
 
     @Test
-    public void testValidateJsSubscribeSubjectRequired() {
-        allowed(Validator::validateJsSubscribeSubjectRequired, PLAIN, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateJsSubscribeSubjectRequired, null, EMPTY, HAS_SPACE);
-    }
+    public void testValidateSubject() {
+        allowedRequired(Validator::validateSubject, Arrays.asList(PLAIN, HAS_DOT, HAS_STAR, HAS_GT, HAS_DOLLAR));
+        notAllowedRequired(Validator::validateSubject, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_LOW, HAS_127));
+        notAllowedRequired(Validator::validateSubject, UTF_ONLY_STRINGS);
+        allowedNotRequiredEmptyAsNull(Validator::validateSubject, Arrays.asList(null, EMPTY));
 
-    @Test
-    public void testValidateQueueNameRequired() {
-        allowed(Validator::validateQueueNameRequired, PLAIN, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateQueueNameRequired, null, EMPTY, HAS_SPACE);
+        notAllowedRequired(Validator::validateSubject, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_LOW, HAS_127));
+        allowedNotRequiredEmptyAsNull(Validator::validateSubject, Arrays.asList(null, EMPTY));
     }
 
     @Test
     public void testValidateReplyTo() {
-        allowed(Validator::validateReplyToNullButNotEmpty, null, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateReplyToNullButNotEmpty, EMPTY);
+        allowedRequired(Validator::validateReplyTo, Arrays.asList(PLAIN, HAS_DOT, HAS_DOLLAR));
+        notAllowedRequired(Validator::validateReplyTo, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
+        notAllowedRequired(Validator::validateReplyTo, UTF_ONLY_STRINGS);
+        allowedNotRequiredEmptyAsNull(Validator::validateReplyTo, Arrays.asList(null, EMPTY));
+    }
+
+    @Test
+    public void testValidateQueueName() {
+        // validateQueueName(String s, boolean required)
+        allowedRequired(Validator::validateQueueName, Arrays.asList(PLAIN, HAS_DOLLAR));
+        notAllowedRequired(Validator::validateQueueName, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
+        notAllowedRequired(Validator::validateQueueName, UTF_ONLY_STRINGS);
+        allowedNotRequiredEmptyAsNull(Validator::validateQueueName, Arrays.asList(null, EMPTY));
     }
 
     @Test
     public void testValidateStreamName() {
-        allowed(Validator::validateStreamName, null, EMPTY, PLAIN, HAS_SPACE, HAS_DASH);
-        notAllowed(Validator::validateStreamName, HAS_DOT, HAS_STAR, HAS_GT);
+        allowedRequired(Validator::validateStreamName, Arrays.asList(PLAIN, HAS_DOLLAR));
+        notAllowedRequired(Validator::validateStreamName, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
+        notAllowedRequired(Validator::validateStreamName, UTF_ONLY_STRINGS);
+        allowedNotRequiredEmptyAsNull(Validator::validateStreamName, Arrays.asList(null, EMPTY));
     }
 
     @Test
-    public void testValidateStreamNameRequired() {
-        allowed(Validator::validateStreamNameRequired, PLAIN, HAS_SPACE, HAS_DASH);
-        notAllowed(Validator::validateStreamNameRequired, null, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
-    }
-
-    @Test
-    public void testValidateStreamNameOrEmptyAsNull() {
-        allowed(Validator::validateStreamNameOrEmptyAsNull, PLAIN, HAS_SPACE, HAS_DASH);
-        allowedEmptyAsNull(Validator::validateStreamNameOrEmptyAsNull, null, EMPTY);
-        notAllowed(Validator::validateStreamNameOrEmptyAsNull, HAS_DOT, HAS_STAR, HAS_GT);
-    }
-
-    @Test
-    public void testValidateDurableOrEmptyAsNull() {
-        allowed(Validator::validateDurableOrEmptyAsNull, PLAIN, HAS_SPACE, HAS_DASH);
-        allowedEmptyAsNull(Validator::validateDurableOrEmptyAsNull, null, EMPTY);
-        notAllowed(Validator::validateDurableOrEmptyAsNull, HAS_DOT, HAS_STAR, HAS_GT);
+    public void testValidateDurable() {
+        allowedRequired(Validator::validateDurable, Arrays.asList(PLAIN, HAS_DOLLAR));
+        notAllowedRequired(Validator::validateDurable, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
+        notAllowedRequired(Validator::validateDurable, UTF_ONLY_STRINGS);
+        allowedNotRequiredEmptyAsNull(Validator::validateDurable, Arrays.asList(null, EMPTY));
     }
 
     @Test
     public void testValidateDurableRequired() {
-        allowed(Validator::validateDurableRequired, PLAIN, HAS_SPACE, HAS_DASH);
-        notAllowed(Validator::validateDurableRequired, null, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
-        assertThrows(IllegalArgumentException.class, () -> validateDurableRequired(null, null));
-        assertThrows(IllegalArgumentException.class, () -> validateDurableRequired(HAS_DOT, null));
-        ConsumerConfiguration cc1 = ConsumerConfiguration.builder().build();
-        assertThrows(IllegalArgumentException.class, () -> validateDurableRequired(null, cc1));
-        ConsumerConfiguration cc2 = ConsumerConfiguration.builder().durable(HAS_DOT).build();
-        assertThrows(IllegalArgumentException.class, () -> validateDurableRequired(null, cc2));
+        allowedRequired((s, r) -> Validator.validateDurableRequired(s, null), Arrays.asList(PLAIN, HAS_DOLLAR));
+        notAllowedRequired((s, r) -> Validator.validateDurableRequired(s, null), Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
+        notAllowedRequired((s, r) -> Validator.validateDurableRequired(s, null), UTF_ONLY_STRINGS);
+
+        for (String data : Arrays.asList(PLAIN, HAS_DOLLAR)) {
+            ConsumerConfiguration ccAllowed = ConsumerConfiguration.builder().durable(data).build();
+            assertEquals(data, Validator.validateDurableRequired(null, ccAllowed), allowedMessage(data));
+        }
+
+        for (String data : Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127)) {
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(data).build();
+            notAllowedRequired((s, r) -> Validator.validateDurableRequired(s, cc), Collections.singletonList(null));
+        }
+
+        for (String data : UTF_ONLY_STRINGS) {
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(data).build();
+            notAllowedRequired((s, r) -> Validator.validateDurableRequired(s, cc), Collections.singletonList(null));
+        }
     }
 
     @Test
@@ -163,19 +178,14 @@ public class ValidatorTests {
         assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_GT));
         assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_DOLLAR));
         assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_SPACE));
-        assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_TAB));
+        assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_LOW));
     }
 
     @Test
     public void testNotNull() {
-        final Object o1 = null;
-        final String s1 = null;
-        assertThrows(IllegalArgumentException.class, () -> validateNotNull(o1, "fieldName"));
-        assertThrows(IllegalArgumentException.class, () -> validateNotNull(s1, "fieldName"));
-        final Object o2 = new Object();
-        final String s2 = "";
-        assertEquals(o2, validateNotNull(o2, "fieldName"));
-        assertEquals(s2, validateNotNull(s2, "fieldName"));
+        Object o = new Object();
+        validateNotNull(o, "fieldName");
+        assertThrows(IllegalArgumentException.class, () -> validateNotNull(null, "fieldName"));
     }
 
     @Test
@@ -186,40 +196,23 @@ public class ValidatorTests {
         assertFalse(zeroOrLtMinus1(-1));
     }
 
-    @Test
-    public void testContainsWhitespace() {
-        assertTrue(containsWhitespace(HAS_SPACE));
-        assertFalse(containsWhitespace(PLAIN));
-        assertFalse(containsWhitespace(null));
-    }
+    interface StringTest { String validate(String s, boolean required); }
 
-    @Test
-    public void testContainsWildGtDollarSpaceTab() {
-        assertTrue(containsWildGtDollarSpaceTab(HAS_STAR));
-        assertTrue(containsWildGtDollarSpaceTab(HAS_GT));
-        assertTrue(containsWildGtDollarSpaceTab(HAS_DOLLAR));
-        assertTrue(containsWildGtDollarSpaceTab(HAS_TAB));
-        assertFalse(containsWildGtDollarSpaceTab(PLAIN));
-        assertFalse(containsWildGtDollarSpaceTab(null));
-    }
-
-    interface StringTest { String validate(String s); }
-
-    private void allowed(StringTest test, String... strings) {
+    private void allowedRequired(StringTest test, List<String> strings) {
         for (String s : strings) {
-            assertEquals(s, test.validate(s), allowedMessage(s));
+            assertEquals(s, test.validate(s, true), allowedMessage(s));
         }
     }
 
-    private void allowedEmptyAsNull(StringTest test, String... strings) {
+    private void allowedNotRequiredEmptyAsNull(StringTest test, List<String> strings) {
         for (String s : strings) {
-            assertNull(test.validate(s), allowedMessage(s));
+            assertNull(test.validate(s, false), allowedMessage(s));
         }
     }
 
-    private void notAllowed(StringTest test, String... strings) {
+    private void notAllowedRequired(StringTest test, List<String> strings) {
         for (String s : strings) {
-            assertThrows(IllegalArgumentException.class, () -> test.validate(s), notAllowedMessage(s));
+            assertThrows(IllegalArgumentException.class, () -> test.validate(s, true), notAllowedMessage(s));
         }
     }
 

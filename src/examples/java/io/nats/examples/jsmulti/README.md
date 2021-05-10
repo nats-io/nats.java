@@ -20,7 +20,7 @@ Once the code is built, you can run the multi tool by adding the libraries to yo
 or the java command line, with the fully qualified name of the JsMulti program, the required parameters and the optional parameters.
 
 ```shell
-java -cp build/libs/jnats-2.11.1.jar:build/libs/jnats-2.11.1-examples.jar io.nats.examples.jsmulti.JsMulti <configuration options>
+java -cp build/libs/jnats-2.11.2.jar:build/libs/jnats-2.11.2-examples.jar io.nats.examples.jsmulti.JsMulti <configuration options>
 ```
 
 ### Running from an IDE

@@ -18,11 +18,9 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashSet;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
-import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.TestBase.standardCloseConnection;
 import static io.nats.client.utils.TestBase.standardConnectionWait;
 import static org.junit.jupiter.api.Assertions.*;
@@ -162,32 +160,6 @@ public class SubscriberTests {
             assertNotNull(msg);
             msg = sub.nextMessage(Duration.ofMillis(100));
             assertNull(msg);
-        }
-    }
-
-    @Test
-    public void testUTF8Subjects() throws IOException, TimeoutException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(
-                    new Options.Builder().server(ts.getURI()).supportUTF8Subjects().noReconnect().build())) {
-            standardConnectionWait(nc);
-
-            // Some UTF8 from http://www.columbia.edu/~fdc/utf8/
-            List<String> subjects = dataAsLines("utf8-test-strings.txt");
-
-            for (String subject : subjects) {
-                subject = subject.replace(" ",""); // get rid of spaces
-                Subscription sub = nc.subscribe(subject);
-                nc.flush(Duration.ofSeconds(5));
-                nc.publish(subject, new byte[16]);
-                Message msg = sub.nextMessage(Duration.ofSeconds(5));
-                assertNotNull(msg, subject);
-                assertEquals(subject, msg.getSubject());
-                assertEquals(sub, msg.getSubscription());
-                assertNull(msg.getReplyTo());
-                assertEquals(16, msg.getData().length);
-                sub.unsubscribe();
-            }
         }
     }
 
