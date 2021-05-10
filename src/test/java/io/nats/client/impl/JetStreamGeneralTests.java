@@ -33,9 +33,32 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testJetEnabled() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false, false); Connection nc = Nats.connect(ts.getURI())) {
-            IllegalStateException ise = assertThrows(IllegalStateException.class, nc::jetStream);
+        try (NatsTestServer ts = new NatsTestServer(false, true)) {
+            Connection nc = standardConnection(ts.getURI());
+            nc.jetStreamManagement();
+            nc.jetStream();
+        }
+    }
+
+    @Test
+    public void testJetNotEnabled() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false, false)) {
+            Connection nc = standardConnection(ts.getURI());
+            IllegalStateException ise = assertThrows(IllegalStateException.class, nc::jetStreamManagement);
             assertEquals("JetStream is not enabled.", ise.getMessage());
+            ise = assertThrows(IllegalStateException.class, nc::jetStream);
+            assertEquals("JetStream is not enabled.", ise.getMessage());
+        }
+    }
+
+    @Test
+    public void testJetEnabledGoodAccount() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/js_authorization.conf", false, true)) {
+            Options options = new Options.Builder().server(ts.getURI())
+                    .userInfo("serviceup".toCharArray(), "uppass".toCharArray()).build();
+            Connection nc = standardConnection(options);
+            nc.jetStreamManagement();
+            nc.jetStream();
         }
     }
 
@@ -130,11 +153,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertTrue(iae.getMessage().startsWith("Subject"));
 
             // queue
-            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, null, null));
-            assertTrue(iae.getMessage().startsWith("Queue"));
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, HAS_SPACE, null));
-            assertTrue(iae.getMessage().startsWith("Queue"));
-            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, null, null, null, false, null));
             assertTrue(iae.getMessage().startsWith("Queue"));
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, HAS_SPACE, null, null, false, null));
             assertTrue(iae.getMessage().startsWith("Queue"));

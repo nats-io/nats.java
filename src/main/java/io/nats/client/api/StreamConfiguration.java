@@ -547,7 +547,7 @@ public class StreamConfiguration implements JsonSerializable {
 
         /**
          * Sets the discard policy in the StreamConfiguration.
-         * @param policy the discard policy of the StreamConfguration
+         * @param policy the discard policy of the StreamConfiguration
          * @return Builder
          */
         public Builder discardPolicy(DiscardPolicy policy) {

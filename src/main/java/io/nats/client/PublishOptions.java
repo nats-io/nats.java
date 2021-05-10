@@ -16,8 +16,7 @@ package io.nats.client;
 import java.time.Duration;
 import java.util.Properties;
 
-import static io.nats.client.support.Validator.nullOrEmpty;
-import static io.nats.client.support.Validator.validateStreamName;
+import static io.nats.client.support.Validator.*;
 
 /**
  * The PublishOptions class specifies the options for publishing with JetStream enabled servers.
@@ -162,7 +161,7 @@ public class PublishOptions {
          * @return Builder
          */
         public Builder stream(String stream) {
-            this.stream = nullOrEmpty(stream) ? UNSET_STREAM : validateStreamName(stream);
+            this.stream = validateStreamName(stream, false);
             return this;
         }
 
@@ -184,7 +183,7 @@ public class PublishOptions {
          * @return builder
          */
         public Builder expectedStream(String stream) {
-            expectedStream = stream;
+            expectedStream = validateStreamName(stream, false);
             return this;
         }
 
@@ -195,7 +194,7 @@ public class PublishOptions {
          * @return builder
          */
         public Builder expectedLastMsgId(String lastMsgId) {
-            expectedLastId = lastMsgId;
+            expectedLastId = emptyAsNull(lastMsgId);
             return this;
         }        
 
@@ -205,7 +204,7 @@ public class PublishOptions {
          * @return builder
          */
         public Builder expectedLastSequence(long sequence) {
-            expectedLastSeq = sequence;
+            expectedLastSeq = validateNotNegative(sequence, "Last Sequence");
             return this;
         }
 
@@ -213,7 +212,7 @@ public class PublishOptions {
          * Sets the message id. Message IDs are used for de-duplication
          * and should be unique to each message payload.
          * @param msgId the unique message id.
-         * @return publish options
+         * @return builder
          */
         public Builder messageId(String msgId) {
             this.msgId = msgId;
@@ -223,7 +222,7 @@ public class PublishOptions {
         /**
          * Clears the expected so the build can be re-used.
          * Clears the expectedLastId, expectedLastSequence and messageId fields.
-         * @return publish options
+         * @return builder
          */
         public Builder clearExpected() {
             expectedLastId = null;

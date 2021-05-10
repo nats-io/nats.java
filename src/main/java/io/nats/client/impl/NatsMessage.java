@@ -27,8 +27,8 @@ import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.support.NatsConstants.*;
-import static io.nats.client.support.Validator.validateMessageSubjectRequired;
-import static io.nats.client.support.Validator.validateReplyToNullButNotEmpty;
+import static io.nats.client.support.Validator.validateReplyTo;
+import static io.nats.client.support.Validator.validateSubject;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -72,8 +72,13 @@ public class NatsMessage implements Message {
         this.data = data == null ? EMPTY_BODY : data;
     }
 
+    @Deprecated // Plans are to remove allowing utf8mode
     public NatsMessage(String subject, String replyTo, byte[] data, boolean utf8mode) {
         this(subject, replyTo, null, data, utf8mode);
+    }
+
+    public NatsMessage(String subject, String replyTo, byte[] data) {
+        this(subject, replyTo, null, data, false);
     }
 
     public NatsMessage(Message message) {
@@ -84,16 +89,19 @@ public class NatsMessage implements Message {
                 message.isUtf8mode());
     }
 
-    // Create a message to publish
-    public NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
-        this(data);
-        validateMessageSubjectRequired(subject);
-        validateReplyToNullButNotEmpty(replyTo);
 
-        this.subject = subject;
-        this.replyTo = replyTo;
-        this.headers = headers;
+    @Deprecated // Plans are to remove allowing utf8mode
+    public NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
+        this(subject, replyTo, headers, data);
         this.utf8mode = utf8mode;
+    }
+
+    public NatsMessage(String subject, String replyTo, Headers headers, byte[] data) {
+        this(data);
+        this.subject = validateSubject(subject, true);
+        this.replyTo = validateReplyTo(replyTo, false);
+        this.headers = headers;
+        this.utf8mode = false;
 
         dirty = true;
     }
@@ -436,9 +444,11 @@ public class NatsMessage implements Message {
         /**
          * Set if the subject should be treated as utf
          *
+         * @deprecated Plans are to remove allowing utf8mode
          * @param utf8mode true if utf8 mode for subject
          * @return the builder
          */
+        @Deprecated // Plans are to remove allowing utf8mode
         public Builder utf8mode(final boolean utf8mode) {
             this.utf8mode = utf8mode;
             return this;

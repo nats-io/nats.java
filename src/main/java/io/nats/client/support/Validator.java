@@ -22,74 +22,91 @@ import static io.nats.client.JetStreamSubscription.MAX_PULL_SIZE;
 public abstract class Validator {
     private Validator() {} /* ensures cannot be constructed */
 
-    public static String validateMessageSubjectRequired(String s) {
-        if (nullOrEmpty(s)) {
-            throw new IllegalArgumentException("Subject cannot be null or empty [" + s + "]");
-        }
-        return s;
+    public static String validateSubject(String s, boolean required) {
+        return validatePrintable(s, "Subject", required);
     }
 
-    public static String validateJsSubscribeSubjectRequired(String s) {
-        if (nullOrEmpty(s) || containsWhitespace(s)) {
-            throw new IllegalArgumentException("Subject cannot have whitespace if provided [" + s + "]");
-        }
-        return s;
+    public static String validateReplyTo(String s, boolean required) {
+        return validatePrintableExceptWildGt(s, "Reply To", required);
     }
 
-    public static String validateQueueNameRequired(String s) {
-        if (nullOrEmpty(s) ||containsWhitespace(s)) {
-            throw new IllegalArgumentException("Queue have whitespace [" + s + "]");
-        }
-        return emptyAsNull(s);
+    public static String validateQueueName(String s, boolean required) {
+        return validatePrintableExceptWildDotGt(s, "Queue", required);
     }
 
-    public static String validateReplyToNullButNotEmpty(String s) {
-        if (notNullButEmpty(s)) {
-            throw new IllegalArgumentException("ReplyTo cannot be blank when provided [" + s + "]");
-        }
-        return s;
+    public static String validateStreamName(String s, boolean required) {
+        return validatePrintableExceptWildDotGt(s, "Stream", required);
     }
 
-    public static String validateStreamName(String s) {
-        if (containsDotWildGt(s)) {
-            throw new IllegalArgumentException("Stream cannot contain a '.', '*' or '>' [" + s + "]");
-        }
-        return s;
-    }
-
-    public static String validateStreamNameOrEmptyAsNull(String s) {
-        return emptyAsNull(validateStreamName(s));
-    }
-
-    public static String validateStreamNameRequired(String s) {
-        if (nullOrEmpty(s)) {
-            throw new IllegalArgumentException("Stream cannot be null or empty and cannot contain a '.', '*' or '>' [" + s + "]");
-        }
-        return validateStreamName(s);
-    }
-
-    public static String validateDurableOrEmptyAsNull(String s) {
-        if (containsDotWildGt(s)) {
-            throw new IllegalArgumentException("Durable cannot contain a '.', '*' or '>' [" + s + "]");
-        }
-        return emptyAsNull(s);
+    public static String validateDurable(String s, boolean required) {
+        return validatePrintableExceptWildDotGt(s, "Durable", required);
     }
 
     public static String validateDurableRequired(String durable, ConsumerConfiguration cc) {
         if (durable == null) {
             if (cc == null) {
-                throw new IllegalArgumentException("Durable is required and cannot contain a '.', '*' or '>' [null]");
+                throw new IllegalArgumentException("Durable is required.");
             }
-            return validateDurableRequired(cc.getDurable());
+            return validateDurable(cc.getDurable(), true);
         }
-        return validateDurableRequired(durable);
+        return validateDurable(durable, true);
     }
 
-    public static String validateDurableRequired(String s) {
-        if (nullOrEmpty(s) || containsDotWildGt(s)) {
-            throw new IllegalArgumentException("Durable is required and cannot contain a '.', '*' or '>' [" + s + "]");
+    public static String validateJetStreamPrefix(String s) {
+        return validatePrintableExceptWildGtDollar(s, "Prefix", false);
+    }
+
+    interface Check {
+        String check(String s, String label);
+    }
+
+    public static String _validate(String s, String label, boolean required, Check check) {
+        if (required) {
+            if (nullOrEmpty(s)) {
+                throw new IllegalArgumentException(label + " cannot be null or empty [" + s + "]");
+            }
         }
-        return s;
+        else if (emptyAsNull(s) == null) {
+            return null;
+        }
+
+        return check.check(s, label);
+    }
+
+    public static String validatePrintable(String s, String label, boolean required) {
+        return _validate(s, label, required, (ss, ll) -> {
+            if (notPrintable(s)) {
+                throw new IllegalArgumentException(label + " must be in the printable ASCII range [" + s + "]");
+            }
+            return s;
+        });
+    }
+
+    public static String validatePrintableExceptWildDotGt(String s, String label, boolean required) {
+        return _validate(s, label, required, (ss, ll) -> {
+            if (notPrintableOrHasWildGtDot(s)) {
+                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `.` or `>` [" + s + "]");
+            }
+            return s;
+        });
+    }
+
+    public static String validatePrintableExceptWildGt(String s, String label, boolean required) {
+        return _validate(s, label, required, (ss, ll) -> {
+            if (notPrintableOrHasWildGt(s)) {
+                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `>` or `$` [" + s + "]");
+            }
+            return s;
+        });
+    }
+
+    public static String validatePrintableExceptWildGtDollar(String s, String label, boolean required) {
+        return _validate(s, label, required, (ss, ll) -> {
+            if (notPrintableOrHasWildGtDollar(s)) {
+                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `>` or `$` [" + s + "]");
+            }
+            return s;
+        });
     }
 
     public static int validatePullBatchSize(int pullBatchSize) {
@@ -139,30 +156,22 @@ public abstract class Validator {
         return d;
     }
 
-    public static String validateJetStreamPrefix(String s) {
-        if (containsWildGtDollarSpaceTab(s)) {
-            throw new IllegalArgumentException("Prefix cannot contain a wildcard or dollar sign [" + s + "]");
-        }
-        return s;
-    }
-
-    public static Object validateNotNull(Object o, String fieldName) {
+    public static void validateNotNull(Object o, String fieldName) {
         if (o == null) {
             throw new IllegalArgumentException(fieldName + " cannot be null");
         }
-        return o;
-    }
-
-    public static String validateNotNull(String s, String fieldName) {
-        if (s == null) {
-            throw new IllegalArgumentException(fieldName + " cannot be null");
-        }
-        return s;
     }
 
     public static long validateGtZeroOrMinus1(long l, String label) {
         if (zeroOrLtMinus1(l)) {
             throw new IllegalArgumentException(label + " must be greater than zero or -1 for unlimited");
+        }
+        return l;
+    }
+
+    public static long validateNotNegative(long l, String label) {
+        if (l < 0) {
+            throw new IllegalArgumentException(label + " cannot be negative");
         }
         return l;
     }
@@ -174,14 +183,24 @@ public abstract class Validator {
         return s == null || s.length() == 0;
     }
 
-    public static boolean notNullButEmpty(String s) {
-        return s != null && s.length() == 0;
+    public static boolean notPrintable(String s) {
+        for (int x = 0; x < s.length(); x++) {
+            char c = s.charAt(x);
+            if (c < 33 || c > 126) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    public static boolean containsWhitespace(String s) {
-        if (s != null) {
-            for (int i = 0; i < s.length(); i++) {
-                if (Character.isWhitespace(s.charAt(i))) {
+    public static boolean notPrintableOrHasChars(String s, char[] charsToNotHave) {
+        for (int x = 0; x < s.length(); x++) {
+            char c = s.charAt(x);
+            if (c < 33 || c > 126) {
+                return true;
+            }
+            for (char cx : charsToNotHave) {
+                if (c == cx) {
                     return true;
                 }
             }
@@ -189,34 +208,20 @@ public abstract class Validator {
         return false;
     }
 
-    public static boolean containsDotWildGt(String s) {
-        if (s != null) {
-            for (int i = 0; i < s.length(); i++) {
-                switch (s.charAt(i)) {
-                    case '.':
-                    case '*':
-                    case '>':
-                        return true;
-                }
-            }
-        }
-        return false;
+    static final char[] WILD_GT = {'*', '>'};
+    static final char[] WILD_GT_DOT = {'*', '>', '.'};
+    static final char[] WILD_GT_DOLLAR = {'*', '>', '$'};
+
+    private static boolean notPrintableOrHasWildGt(String s) {
+        return notPrintableOrHasChars(s, WILD_GT);
     }
 
-    public static boolean containsWildGtDollarSpaceTab(String s) {
-        if (s != null) {
-            for (int i = 0; i < s.length(); i++) {
-                switch (s.charAt(i)) {
-                    case '*':
-                    case '>':
-                    case '$':
-                    case ' ':
-                    case '\t':
-                        return true;
-                }
-            }
-        }
-        return false;
+    private static boolean notPrintableOrHasWildGtDot(String s) {
+        return notPrintableOrHasChars(s, WILD_GT_DOT);
+    }
+
+    private static boolean notPrintableOrHasWildGtDollar(String s) {
+        return notPrintableOrHasChars(s, WILD_GT_DOLLAR);
     }
 
     public static String emptyAsNull(String s) {

@@ -19,8 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamOptionsTests extends TestBase {
 
@@ -36,11 +35,14 @@ public class JetStreamOptionsTests extends TestBase {
                 .build();
         assertEquals("pre.", jso.getPrefix());
         assertEquals(Duration.ofSeconds(42), jso.getRequestTimeout());
+        assertFalse(jso.isPublishNoAck());
 
         jso = JetStreamOptions.builder()
                 .prefix("pre.")
+                .publishNoAck(true)
                 .build();
         assertEquals("pre.", jso.getPrefix());
+        assertTrue(jso.isPublishNoAck());
     }
 
 

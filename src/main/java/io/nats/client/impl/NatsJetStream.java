@@ -110,7 +110,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public ConsumerInfo addOrUpdateConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
-        validateStreamNameRequired(streamName);
+        validateStreamName(streamName, true);
         validateNotNull(config, "Config");
         validateNotNull(config.getDurable(), "Durable");
         return addOrUpdateConsumerInternal(streamName, config);
@@ -218,12 +218,13 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     // ----------------------------------------------------------------------------------------------------
     // Publish
     // ---------------------------------------------------------------------------------------------NatsJsPullSub-------
+
     /**
      * {@inheritDoc}
      */
     @Override
     public PublishAck publish(String subject, byte[] body) throws IOException, JetStreamApiException {
-        return publishSyncInternal(subject, null, body, conn.getOptions().supportUTF8Subjects(), null);
+        return publishSyncInternal(subject, null, body, false, null);
     }
 
     /**
@@ -231,7 +232,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public PublishAck publish(String subject, byte[] body, PublishOptions options) throws IOException, JetStreamApiException {
-        return publishSyncInternal(subject, null, body, conn.getOptions().supportUTF8Subjects(), options);
+        return publishSyncInternal(subject, null, body, options);
     }
 
     /**
@@ -257,7 +258,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, byte[] body) {
-        return publishAsyncInternal(subject, null, body, conn.getOptions().supportUTF8Subjects(), null, null);
+        return publishAsyncInternal(subject, null, body, null, null);
     }
 
     /**
@@ -265,7 +266,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, byte[] body, PublishOptions options) {
-        return publishAsyncInternal(subject, null, body, conn.getOptions().supportUTF8Subjects(), options, null);
+        return publishAsyncInternal(subject, null, body, options, null);
     }
 
     /**
@@ -286,6 +287,11 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), options, null);
     }
 
+    private PublishAck publishSyncInternal(String subject, Headers headers, byte[] data, PublishOptions options) throws IOException, JetStreamApiException {
+        return publishSyncInternal(subject, headers, data, false, options);
+    }
+
+    @Deprecated // Plans are to remove allowing utf8mode
     private PublishAck publishSyncInternal(String subject, Headers headers, byte[] data, boolean utf8mode, PublishOptions options) throws IOException, JetStreamApiException {
         Headers merged = mergePublishOptions(headers, options);
 
@@ -300,6 +306,11 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         return processPublishResponse(resp, options);
     }
 
+    private CompletableFuture<PublishAck> publishAsyncInternal(String subject, Headers headers, byte[] data, PublishOptions options, Duration knownTimeout) {
+        return publishAsyncInternal(subject, headers, data, false, options, knownTimeout);
+    }
+
+    @Deprecated // Plans are to remove allowing utf8mode
     private CompletableFuture<PublishAck> publishAsyncInternal(String subject, Headers headers, byte[] data, boolean utf8mode, PublishOptions options, Duration knownTimeout) {
         Headers merged = mergePublishOptions(headers, options);
 
@@ -503,13 +514,13 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public JetStreamSubscription subscribe(String subject) throws IOException, JetStreamApiException {
-        validateJsSubscribeSubjectRequired(subject);
+        validateSubject(subject, true);
         return createSubscription(subject, null, null, null, false, null, null);
     }
 
     @Override
     public JetStreamSubscription subscribe(String subject, PushSubscribeOptions options) throws IOException, JetStreamApiException {
-        validateJsSubscribeSubjectRequired(subject);
+        validateSubject(subject, true);
         return createSubscription(subject, null, null, null, false, options, null);
     }
 
@@ -518,8 +529,8 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public JetStreamSubscription subscribe(String subject, String queue, PushSubscribeOptions options) throws IOException, JetStreamApiException {
-        validateJsSubscribeSubjectRequired(subject);
-        validateQueueNameRequired(queue);
+        validateSubject(subject, true);
+        queue = validateQueueName(queue, false);
         return createSubscription(subject, queue, null, null, false, options, null);
     }
 
@@ -528,7 +539,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck) throws IOException, JetStreamApiException {
-        validateJsSubscribeSubjectRequired(subject);
+        validateSubject(subject, true);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
         return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, null, null);
@@ -539,7 +550,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException {
-        validateJsSubscribeSubjectRequired(subject);
+        validateSubject(subject, true);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
         return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, options, null);
@@ -550,8 +561,8 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException {
-        validateJsSubscribeSubjectRequired(subject);
-        validateQueueNameRequired(queue);
+        validateSubject(subject, true);
+        queue = validateQueueName(queue, false);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
         return createSubscription(subject, queue, (NatsDispatcher) dispatcher, handler, autoAck, options, null);
@@ -562,7 +573,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public JetStreamSubscription subscribe(String subject, PullSubscribeOptions options) throws IOException, JetStreamApiException {
-        validateJsSubscribeSubjectRequired(subject);
+        validateSubject(subject, true);
         validateNotNull(options, "Options");
         validateNotNull(options.getDurable(), "Durable");
         return createSubscription(subject, null, null, null, false, null, options);
