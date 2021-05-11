@@ -296,11 +296,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             assertSource(jsm, R2, 25, null);
 
             MessageInfo info = jsm.getMessage(R2, 1);
-            String hval = info.getHeaders().get("Nats-Stream-Source").get(0);
-            // $JS.ACK.stream-99.sS0mKw3k.1.26.1.1616619886415151100.24
-            String[] parts = hval.split("\\.");
-            assertEquals(S99, parts[2]);
-            assertEquals("26", parts[5]);
+            assertStreamSource(info, S99, 26);
 
             sc = StreamConfiguration.builder()
                     .name(source(3))
@@ -311,10 +307,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             assertSource(jsm, source(3), 20, null);
 
             info = jsm.getMessage(source(3), 1);
-            hval = info.getHeaders().get("Nats-Stream-Source").get(0);
-            parts = hval.split("\\.");
-            assertEquals(S99, parts[2]);
-            assertEquals("11", parts[5]);
+            assertStreamSource(info, S99, 11);
         });
     }
 

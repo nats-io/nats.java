@@ -14,10 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.api.PublishAck;
-import io.nats.client.api.StorageType;
-import io.nats.client.api.StreamConfiguration;
-import io.nats.client.api.StreamInfo;
+import io.nats.client.api.*;
 import io.nats.client.utils.TestBase;
 
 import java.io.IOException;
@@ -227,4 +224,13 @@ public class JetStreamTestBase extends TestBase {
         assertNotNull(statusMsg.getStatus());
         assertEquals(code, statusMsg.getStatus().getCode());
     }
+
+    public static void assertStreamSource(MessageInfo info, String stream, int i) {
+        String hval = info.getHeaders().get("Nats-Stream-Source").get(0);
+        String[] parts = hval.split(" ");
+        assertEquals(stream, parts[0]);
+        assertEquals("" + i, parts[1]);
+
+    }
+
 }
