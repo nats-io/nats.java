@@ -21,8 +21,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 
 import static io.nats.client.utils.ResourceUtils.dataAsString;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ConsumerConfigurationTests extends TestBase {
 
@@ -45,11 +44,12 @@ public class ConsumerConfigurationTests extends TestBase {
                 .startTime(zdt)
                 .deliverSubject(DELIVER)
                 .idleHeartbeat(Duration.ofSeconds(66))
+                .flowControl(true)
                 .build();
 
         assertEquals(AckPolicy.Explicit, c.getAckPolicy());
         assertEquals(Duration.ofSeconds(99), c.getAckWait());
-        assertEquals(Duration.ofSeconds(66), c.getidleHeartbeat());
+        assertEquals(Duration.ofSeconds(66), c.getIdleHeartbeat());
         assertEquals(DeliverPolicy.ByStartSequence, c.getDeliverPolicy());
         assertEquals(DELIVER, c.getDeliverSubject());
         assertEquals(DURABLE, c.getDurable());
@@ -60,6 +60,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
         assertEquals(2001, c.getStartSequence());
         assertEquals(zdt, c.getStartTime());
+        assertTrue(c.getFlowControl());
 
         ConsumerCreateRequest ccr = new ConsumerCreateRequest(STREAM, c);
         assertEquals(STREAM, ccr.getStreamName());
@@ -69,7 +70,7 @@ public class ConsumerConfigurationTests extends TestBase {
         c = new ConsumerConfiguration(json);
         assertEquals(AckPolicy.Explicit, c.getAckPolicy());
         assertEquals(Duration.ofSeconds(99), c.getAckWait());
-        assertEquals(Duration.ofSeconds(66), c.getidleHeartbeat());
+        assertEquals(Duration.ofSeconds(66), c.getIdleHeartbeat());
         assertEquals(DeliverPolicy.ByStartSequence, c.getDeliverPolicy());
         assertEquals(DELIVER, c.getDeliverSubject());
         assertEquals(DURABLE, c.getDurable());
@@ -79,6 +80,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
         assertEquals(2001, c.getStartSequence());
         assertEquals(zdt.toEpochSecond(), c.getStartTime().toEpochSecond());
+        assertTrue(c.getFlowControl());
 
         assertNotNull(ccr.toString()); // COVERAGE
         assertNotNull(c.toString()); // COVERAGE
@@ -91,7 +93,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(DeliverPolicy.All, c.getDeliverPolicy());
         assertEquals(AckPolicy.All, c.getAckPolicy());
         assertEquals(Duration.ofSeconds(30), c.getAckWait());
-        assertEquals(Duration.ofSeconds(20), c.getidleHeartbeat());
+        assertEquals(Duration.ofSeconds(20), c.getIdleHeartbeat());
         assertEquals(10, c.getMaxDeliver());
         assertEquals(73, c.getRateLimit());
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
@@ -102,5 +104,6 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals("foo-filter", c.getFilterSubject());
         assertEquals(42, c.getMaxAckPending());
         assertEquals("sample_freq-value", c.getSampleFrequency());
+        assertTrue(c.getFlowControl());
     }
 }

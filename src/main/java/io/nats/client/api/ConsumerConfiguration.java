@@ -46,6 +46,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     private final long rateLimit;
     private final long maxAckPending;
     private final Duration idleHeartbeat;
+    private final boolean flowControl;
 
     // for the response from the server
     ConsumerConfiguration(String json) {
@@ -70,12 +71,14 @@ public class ConsumerConfiguration implements JsonSerializable {
         rateLimit = JsonUtils.readLong(json, RATE_LIMIT_BPS_RE, 0);
         maxAckPending = JsonUtils.readLong(json, MAX_ACK_PENDING_RE, 0);
         idleHeartbeat = JsonUtils.readNanos(json, IDLE_HEARTBEAT_RE, Duration.ZERO);
+        flowControl = JsonUtils.readBoolean(json, FLOW_CONTROL_RE);
     }
 
     // For the builder
     private ConsumerConfiguration(String durable, DeliverPolicy deliverPolicy, long startSeq,
             ZonedDateTime startTime, AckPolicy ackPolicy, Duration ackWait, long maxDeliver, String filterSubject,
-            ReplayPolicy replayPolicy, String sampleFrequency, long rateLimit, String deliverSubject, long maxAckPending, Duration idleHeartbeat) {
+            ReplayPolicy replayPolicy, String sampleFrequency, long rateLimit, String deliverSubject, long maxAckPending,
+            Duration idleHeartbeat, boolean flowControl) {
                 this.durable = durable;
                 this.deliverPolicy = deliverPolicy;
                 this.startSeq = startSeq;
@@ -90,6 +93,7 @@ public class ConsumerConfiguration implements JsonSerializable {
                 this.deliverSubject = deliverSubject;
                 this.maxAckPending = maxAckPending;
                 this.idleHeartbeat = idleHeartbeat;
+                this.flowControl = flowControl;
     }
 
     /**
@@ -113,6 +117,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, SAMPLE_FREQ, sampleFrequency);
         JsonUtils.addField(sb, RATE_LIMIT_BPS, rateLimit);
         JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
+        JsonUtils.addField(sb, FLOW_CONTROL, flowControl);
         return endJson(sb).toString();
     }
 
@@ -225,8 +230,16 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the idle heart beat wait time
      * @return the idle heart beat wait duration.
      */
-    public Duration getidleHeartbeat() {
+    public Duration getIdleHeartbeat() {
         return idleHeartbeat;
+    }
+
+    /**
+     * Get the flow control flag indicating whether it's on or off
+     * @return the flow control mode
+     */
+    public boolean getFlowControl() {
+        return flowControl;
     }
 
     /**
@@ -269,6 +282,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         private String deliverSubject = null;
         private long maxAckPending = 0;
         private Duration idleHeartbeat = Duration.ZERO;
+        private boolean flowControl;
 
         public String getDurable() {
             return durable;
@@ -303,6 +317,7 @@ public class ConsumerConfiguration implements JsonSerializable {
             this.deliverSubject = cc.deliverSubject;
             this.maxAckPending = cc.maxAckPending;
             this.idleHeartbeat = cc.idleHeartbeat;
+            this.flowControl = cc.flowControl;
         }
 
         /**
@@ -446,6 +461,16 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
+         * set the flow control mode
+         * @param flowControl the flow control mode flag
+         * @return Builder
+         */
+        public Builder flowControl(final boolean flowControl) {
+            this.flowControl = flowControl;
+            return this;
+        }
+
+        /**
          * Builds the ConsumerConfiguration
          * @return a consumer configuration.
          */
@@ -465,7 +490,8 @@ public class ConsumerConfiguration implements JsonSerializable {
                     rateLimit,
                     deliverSubject,
                     maxAckPending,
-                    idleHeartbeat == null ? Duration.ZERO : idleHeartbeat
+                    idleHeartbeat == null ? Duration.ZERO : idleHeartbeat,
+                    flowControl
             );
         }
     }
@@ -487,6 +513,7 @@ public class ConsumerConfiguration implements JsonSerializable {
                 ", rateLimit=" + rateLimit +
                 ", maxAckPending=" + maxAckPending +
                 ", idleHeartbeat=" + idleHeartbeat +
+                ", flowControl=" + flowControl +
                 '}';
     }
 }

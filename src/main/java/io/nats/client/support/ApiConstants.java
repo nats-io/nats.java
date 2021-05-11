@@ -51,6 +51,7 @@ public interface ApiConstants {
     String FILTER_SUBJECT   = "filter_subject";
     String FIRST_SEQ        = "first_seq";
     String FIRST_TS         = "first_ts";
+    String FLOW_CONTROL     = "flow_control";
     String GO               = "go";
     String HDRS             = "hdrs";
     String HEADERS          = "headers";
@@ -148,6 +149,7 @@ public interface ApiConstants {
     Pattern FILTER_SUBJECT_RE   = string_pattern(FILTER_SUBJECT);
     Pattern FIRST_SEQ_RE        = number_pattern(FIRST_SEQ);
     Pattern FIRST_TS_RE         = string_pattern(FIRST_TS);
+    Pattern FLOW_CONTROL_RE     = boolean_pattern(FLOW_CONTROL);
     Pattern GO_RE               = string_pattern(GO);
     Pattern HDRS_RE             = string_pattern(HDRS);
     Pattern HEADERS_RE          = boolean_pattern(HEADERS);

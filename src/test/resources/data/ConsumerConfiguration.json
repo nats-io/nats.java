@@ -12,5 +12,6 @@
   "filter_subject": "foo-filter",
   "sample_freq": "sample_freq-value",
   "rate_limit_bps": 73,
-  "idle_heartbeat": 20000000000
+  "idle_heartbeat": 20000000000,
+  "flow_control": true
 }
