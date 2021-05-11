@@ -55,6 +55,7 @@ public interface ApiConstants {
     String HDRS             = "hdrs";
     String HEADERS          = "headers";
     String HOST             = "host";
+    String IDLE_HEARTBEAT   = "idle_heartbeat";
     String JETSTREAM        = "jetstream";
     String LAG              = "lag";
     String LAME_DUCK_MODE   = "ldm";
@@ -92,7 +93,7 @@ public interface ApiConstants {
     String PORT             = "port";
     String PROTO            = "proto";
     String PURGED           = "purged";
-    String RATE_LIMIT       = "rate_limit";
+    String RATE_LIMIT_BPS   = "rate_limit_bps";
     String REPLAY_POLICY    = "replay_policy";
     String REPLICA          = "replica";
     String REPLICAS         = "replicas";
@@ -151,6 +152,7 @@ public interface ApiConstants {
     Pattern HDRS_RE             = string_pattern(HDRS);
     Pattern HEADERS_RE          = boolean_pattern(HEADERS);
     Pattern HOST_RE             = string_pattern(HOST);
+    Pattern IDLE_HEARTBEAT_RE   = number_pattern(IDLE_HEARTBEAT);
     Pattern JET_STREAM_RE       = boolean_pattern(JETSTREAM);
     Pattern LAG_RE              = number_pattern(LAG);
     Pattern LAME_DUCK_MODE_RE   = boolean_pattern(LAME_DUCK_MODE);
@@ -186,7 +188,7 @@ public interface ApiConstants {
     Pattern PORT_RE             = number_pattern(PORT);
     Pattern PROTO_RE            = number_pattern(PROTO);
     Pattern PURGED_RE           = number_pattern(PURGED);
-    Pattern RATE_LIMIT_RE       = number_pattern(RATE_LIMIT);
+    Pattern RATE_LIMIT_BPS_RE   = number_pattern(RATE_LIMIT_BPS);
     Pattern REPLAY_POLICY_RE    = string_pattern(REPLAY_POLICY);
     Pattern RETENTION_RE        = string_pattern(RETENTION);
     Pattern SAMPLE_FREQ_RE      = string_pattern(SAMPLE_FREQ);

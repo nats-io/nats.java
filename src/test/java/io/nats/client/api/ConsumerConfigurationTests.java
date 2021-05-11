@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class ConsumerConfigurationTests extends TestBase {
+
     @Test
     public void testBuilder() {
         ZonedDateTime zdt = ZonedDateTime.of(2012, 1, 12, 6, 30, 1, 500, DateTimeUtils.ZONE_ID_GMT);
@@ -43,10 +44,12 @@ public class ConsumerConfigurationTests extends TestBase {
                 .startSequence(2001)
                 .startTime(zdt)
                 .deliverSubject(DELIVER)
+                .idleHeartbeat(Duration.ofSeconds(66))
                 .build();
 
         assertEquals(AckPolicy.Explicit, c.getAckPolicy());
         assertEquals(Duration.ofSeconds(99), c.getAckWait());
+        assertEquals(Duration.ofSeconds(66), c.getidleHeartbeat());
         assertEquals(DeliverPolicy.ByStartSequence, c.getDeliverPolicy());
         assertEquals(DELIVER, c.getDeliverSubject());
         assertEquals(DURABLE, c.getDurable());
@@ -66,6 +69,7 @@ public class ConsumerConfigurationTests extends TestBase {
         c = new ConsumerConfiguration(json);
         assertEquals(AckPolicy.Explicit, c.getAckPolicy());
         assertEquals(Duration.ofSeconds(99), c.getAckWait());
+        assertEquals(Duration.ofSeconds(66), c.getidleHeartbeat());
         assertEquals(DeliverPolicy.ByStartSequence, c.getDeliverPolicy());
         assertEquals(DELIVER, c.getDeliverSubject());
         assertEquals(DURABLE, c.getDurable());
@@ -87,6 +91,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(DeliverPolicy.All, c.getDeliverPolicy());
         assertEquals(AckPolicy.All, c.getAckPolicy());
         assertEquals(Duration.ofSeconds(30), c.getAckWait());
+        assertEquals(Duration.ofSeconds(20), c.getidleHeartbeat());
         assertEquals(10, c.getMaxDeliver());
         assertEquals(73, c.getRateLimit());
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
