@@ -189,7 +189,6 @@ public class JsMulti {
                 .configuration(cc)
                 .durable(q ? a.queueDurable : null)
                 .build();
-        System.out.println(label + " " + a.subject + " " + a.queueName + " " + pso);
         JetStreamSubscription sub;
         if (q) {
             // if we don't do this, multiple threads will try to make the same consumer because
