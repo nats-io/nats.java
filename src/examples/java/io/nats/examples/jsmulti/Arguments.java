@@ -19,6 +19,7 @@ import io.nats.client.api.AckPolicy;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 
+import static io.nats.examples.ExampleUtils.uniqueEnough;
 import static io.nats.examples.jsmulti.Constants.*;
 
 // ----------------------------------------------------------------------------------------------------
@@ -40,6 +41,8 @@ class Arguments{
     AckPolicy ackPolicy = AckPolicy.Explicit;
     int ackFrequency = 1;
     int batchSize = 10;
+    final String queueDurable = "qd" + uniqueEnough();
+    final String queueName = "qn" + uniqueEnough();
 
     private byte[] _payload;
     byte[] getPayload() {

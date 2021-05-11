@@ -185,8 +185,22 @@ public class JsMulti {
         ConsumerConfiguration cc = ConsumerConfiguration.builder()
                 .ackPolicy(a.ackPolicy)
                 .build();
-        PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
-        JetStreamSubscription sub = q ? js.subscribe(a.subject, "q" + uniqueEnough(), pso) : js.subscribe(a.subject, pso);
+        PushSubscribeOptions pso = PushSubscribeOptions.builder()
+                .configuration(cc)
+                .durable(q ? a.queueDurable : null)
+                .build();
+        System.out.println(label + " " + a.subject + " " + a.queueName + " " + pso);
+        JetStreamSubscription sub;
+        if (q) {
+            // if we don't do this, multiple threads will try to make the same consumer because
+            // when they start, the consumer does not exist. So force them do it one at a time.
+            synchronized (a.queueName) {
+                sub = js.subscribe(a.subject, a.queueName, pso);
+            }
+        }
+        else {
+            sub = js.subscribe(a.subject, pso);
+        }
         int x = 0;
         List<Message> ackList = new ArrayList<>();
         while (x < a.perThread()) {
