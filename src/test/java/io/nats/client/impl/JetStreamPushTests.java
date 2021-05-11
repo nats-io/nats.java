@@ -13,10 +13,7 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStream;
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.Message;
-import io.nats.client.PushSubscribeOptions;
+import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import org.junit.jupiter.api.Test;
@@ -263,6 +260,84 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             ConsumerInfo ci = sub.getConsumerInfo();
             assertEquals(STREAM, ci.getStreamName());
+        });
+    }
+
+    @Test
+    public void testHeartbeat() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .idleHeartbeat(Duration.ofMillis(250))
+                    .build();
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
+
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            int count = 0;
+            long now = System.currentTimeMillis();
+            long elapsed = System.currentTimeMillis() - now;
+            while (elapsed < 3000) {
+                Message m = sub.nextMessage(Duration.ofMillis(100));
+                if (m != null && m.isStatusMessage() && m.getStatus().isHeartbeat()) {
+                    count++;
+                }
+                elapsed = System.currentTimeMillis() - now;
+            }
+            assertTrue(count > 8);
+        });
+    }
+
+    @Test
+    public void testFlowControl() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .flowControl(true)
+                    .idleHeartbeat(Duration.ofMillis(250))
+                    .build();
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
+
+            // This is configured so the subscriber ends up being considered slow
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            nc.flush(Duration.ofSeconds(5));
+            sub.setPendingLimits(Consumer.DEFAULT_MAX_MESSAGES, 1024);
+
+            // publish more message data than the subscriber will handle
+            byte[] data = new byte[1024];
+            for (int x = 1; x <= 100; x++) {
+                Message msg = NatsMessage.builder()
+                        .subject(SUBJECT)
+                        .data(data)
+                        .build();
+                js.publish(msg);
+            }
+
+            // sleep to let the messages back up
+            sleep(1000);
+
+            int count = 0;
+            long now = System.currentTimeMillis();
+            long elapsed = System.currentTimeMillis() - now;
+            while (elapsed < 3000 && count < 1) {
+                Message m = sub.nextMessage(Duration.ofMillis(100));
+                if (m != null && m.isStatusMessage() && m.getStatus().isFlowControl()) {
+                    count++;
+                }
+                elapsed = System.currentTimeMillis() - now;
+            }
+            assertTrue(count > 0);
         });
     }
 }
