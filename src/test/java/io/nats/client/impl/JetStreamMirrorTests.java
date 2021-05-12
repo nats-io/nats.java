@@ -18,7 +18,6 @@ import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -181,32 +180,6 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
         });
     }
 
-    private void assertMirror(JetStreamManagement jsm, String stream, String mirroring, Number msgCount, Number firstSeq)
-            throws IOException, JetStreamApiException {
-        sleep(1000);
-        StreamInfo si = jsm.getStreamInfo(stream);
-
-        MirrorInfo msi = si.getMirrorInfo();
-        assertNotNull(msi);
-        assertEquals(mirroring, msi.getName());
-
-        assertConfig(stream, msgCount, firstSeq, si);
-    }
-
-    private void assertConfig(String stream, Number msgCount, Number firstSeq, StreamInfo si) {
-        StreamConfiguration sc = si.getConfiguration();
-        assertNotNull(sc);
-        assertEquals(stream, sc.getName());
-
-        StreamState ss = si.getStreamState();
-        if (msgCount != null) {
-            assertEquals(msgCount.longValue(), ss.getMsgCount());
-        }
-        if (firstSeq != null) {
-            assertEquals(firstSeq.longValue(), ss.getFirstSequence());
-        }
-    }
-
     @Test
     public void testMirrorExceptions() throws Exception {
         runInJsServer(nc -> {
@@ -309,13 +282,5 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             info = jsm.getMessage(source(3), 1);
             assertStreamSource(info, S99, 11);
         });
-    }
-
-    private void assertSource(JetStreamManagement jsm, String stream, Number msgCount, Number firstSeq)
-            throws IOException, JetStreamApiException {
-        sleep(1000);
-        StreamInfo si = jsm.getStreamInfo(stream);
-
-        assertConfig(stream, msgCount, firstSeq, si);
     }
 }
