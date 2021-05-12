@@ -141,9 +141,36 @@ public class RequestTests extends TestBase {
         }
     }
 
+    class MultiRepliesErrorListener implements ErrorListener {
+        public AtomicInteger dupes = new AtomicInteger();
+        public AtomicInteger orphans = new AtomicInteger();
+
+        @Override
+        public void errorOccurred(Connection conn, String error) {}
+
+        @Override
+        public void exceptionOccurred(Connection conn, Exception exp) {}
+
+        @Override
+        public void slowConsumerDetected(Connection conn, Consumer consumer) {}
+
+        @Override
+        public void duplicateReply(Connection conn, Message msg) {
+            dupes.incrementAndGet();
+        }
+
+        @Override
+        public void orphanReply(Connection conn, Message msg) {
+            orphans.incrementAndGet();
+        }
+    };
+
     @Test
     public void testMultipleReplies() throws Exception {
-        Options.Builder builder = new Options.Builder().turnOnAdvancedStats();
+        MultiRepliesErrorListener listener = new MultiRepliesErrorListener();
+
+        Options.Builder builder = new Options.Builder().errorListener(listener).turnOnAdvancedStats();
+
         runInServer(builder, nc -> {
             AtomicInteger replies = new AtomicInteger();
             MessageHandler handler = (msg) -> { replies.incrementAndGet(); nc.publish(msg.getReplyTo(), null); };
@@ -160,13 +187,19 @@ public class RequestTests extends TestBase {
             assertNotNull(reply);
             sleep(2000);
             assertEquals(3, replies.get());
-            assertTrue(nc.getStatistics().toString().contains("Replies Received:                3"));
-            assertTrue(nc.getStatistics().toString().contains("Orphan Replies Received:         0"));
+            NatsStatistics stats = (NatsStatistics)nc.getStatistics();
+            assertEquals(3, stats.getRepliesReceived());
+            assertEquals(0, stats.getOrphanRepliesReceived());
+            assertEquals(2, listener.dupes.get());
+            assertEquals(0, listener.orphans.get());
 
             sleep(3000);
             assertEquals(4, replies.get());
-            assertTrue(nc.getStatistics().toString().contains("Replies Received:                3"));
-            assertTrue(nc.getStatistics().toString().contains("Orphan Replies Received:         1"));
+            stats = (NatsStatistics)nc.getStatistics();
+            assertEquals(3, stats.getRepliesReceived());
+            assertEquals(1, stats.getOrphanRepliesReceived());
+            assertEquals(2, listener.dupes.get());
+            assertEquals(1, listener.orphans.get());
         });
     }
 

@@ -198,6 +198,10 @@ class NatsStatistics implements Statistics {
         return outstandingRequests.get();
     }
 
+    public long getRepliesReceived() { return repliesReceived.get(); }
+
+    public long getOrphanRepliesReceived() { return orphanRepliesReceived.get(); }
+
     void appendNumberStat(StringBuilder builder, String name, long value) {
         builder.append(name);
         builder.append(NumberFormat.getNumberInstance().format(value));

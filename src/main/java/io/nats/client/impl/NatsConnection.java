@@ -1081,11 +1081,16 @@ class NatsConnection implements Connection {
             statistics.incrementRepliesReceived();
         }
         else if (responsesRespondedTo.get(key) != null) {
-                statistics.incrementRepliesReceived();
+            statistics.incrementRepliesReceived();
+            if (options.getErrorListener() != null) {
+                options.getErrorListener().duplicateReply(this, msg);
+            }
         }
-        else if (!oldStyle && !subject.startsWith(mainInbox)) {
+        else {
             statistics.incrementOrphanRepliesReceived();
-            System.out.println("ERROR: Subject remapping requires Options.oldRequestStyle() to be set on the Connection " + subject + " " + token);
+            if (options.getErrorListener() != null) {
+                options.getErrorListener().orphanReply(this, msg);
+            }
         }
     }
 
