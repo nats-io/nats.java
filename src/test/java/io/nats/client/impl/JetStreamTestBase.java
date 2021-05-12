@@ -14,10 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.api.PublishAck;
-import io.nats.client.api.StorageType;
-import io.nats.client.api.StreamConfiguration;
-import io.nats.client.api.StreamInfo;
+import io.nats.client.api.*;
 import io.nats.client.utils.TestBase;
 
 import java.io.IOException;
@@ -227,4 +224,47 @@ public class JetStreamTestBase extends TestBase {
         assertNotNull(statusMsg.getStatus());
         assertEquals(code, statusMsg.getStatus().getCode());
     }
+
+    public static void assertSource(JetStreamManagement jsm, String stream, Number msgCount, Number firstSeq)
+            throws IOException, JetStreamApiException {
+        sleep(1000);
+        StreamInfo si = jsm.getStreamInfo(stream);
+
+        assertConfig(stream, msgCount, firstSeq, si);
+    }
+
+    public static  void assertMirror(JetStreamManagement jsm, String stream, String mirroring, Number msgCount, Number firstSeq)
+            throws IOException, JetStreamApiException {
+        sleep(1000);
+        StreamInfo si = jsm.getStreamInfo(stream);
+
+        MirrorInfo msi = si.getMirrorInfo();
+        assertNotNull(msi);
+        assertEquals(mirroring, msi.getName());
+
+        assertConfig(stream, msgCount, firstSeq, si);
+    }
+
+    public static  void assertConfig(String stream, Number msgCount, Number firstSeq, StreamInfo si) {
+        StreamConfiguration sc = si.getConfiguration();
+        assertNotNull(sc);
+        assertEquals(stream, sc.getName());
+
+        StreamState ss = si.getStreamState();
+        if (msgCount != null) {
+            assertEquals(msgCount.longValue(), ss.getMsgCount());
+        }
+        if (firstSeq != null) {
+            assertEquals(firstSeq.longValue(), ss.getFirstSequence());
+        }
+    }
+
+    public static void assertStreamSource(MessageInfo info, String stream, int i) {
+        String hval = info.getHeaders().get("Nats-Stream-Source").get(0);
+        String[] parts = hval.split(" ");
+        assertEquals(stream, parts[0]);
+        assertEquals("" + i, parts[1]);
+
+    }
+
 }

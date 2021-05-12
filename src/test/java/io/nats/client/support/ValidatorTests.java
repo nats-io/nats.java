@@ -39,7 +39,7 @@ public class ValidatorTests {
 
     @Test
     public void testValidateSubject() {
-        allowedRequired(Validator::validateSubject, Arrays.asList(PLAIN, HAS_DOT, HAS_STAR, HAS_GT, HAS_DOLLAR));
+        allowedRequired(Validator::validateSubject, Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOT, HAS_STAR, HAS_GT, HAS_DOLLAR));
         notAllowedRequired(Validator::validateSubject, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_LOW, HAS_127));
         notAllowedRequired(Validator::validateSubject, UTF_ONLY_STRINGS);
         allowedNotRequiredEmptyAsNull(Validator::validateSubject, Arrays.asList(null, EMPTY));
@@ -50,7 +50,7 @@ public class ValidatorTests {
 
     @Test
     public void testValidateReplyTo() {
-        allowedRequired(Validator::validateReplyTo, Arrays.asList(PLAIN, HAS_DOT, HAS_DOLLAR));
+        allowedRequired(Validator::validateReplyTo, Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOT, HAS_DOLLAR));
         notAllowedRequired(Validator::validateReplyTo, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
         notAllowedRequired(Validator::validateReplyTo, UTF_ONLY_STRINGS);
         allowedNotRequiredEmptyAsNull(Validator::validateReplyTo, Arrays.asList(null, EMPTY));
@@ -59,7 +59,7 @@ public class ValidatorTests {
     @Test
     public void testValidateQueueName() {
         // validateQueueName(String s, boolean required)
-        allowedRequired(Validator::validateQueueName, Arrays.asList(PLAIN, HAS_DOLLAR));
+        allowedRequired(Validator::validateQueueName, Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOLLAR));
         notAllowedRequired(Validator::validateQueueName, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
         notAllowedRequired(Validator::validateQueueName, UTF_ONLY_STRINGS);
         allowedNotRequiredEmptyAsNull(Validator::validateQueueName, Arrays.asList(null, EMPTY));
@@ -67,7 +67,7 @@ public class ValidatorTests {
 
     @Test
     public void testValidateStreamName() {
-        allowedRequired(Validator::validateStreamName, Arrays.asList(PLAIN, HAS_DOLLAR));
+        allowedRequired(Validator::validateStreamName, Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOLLAR));
         notAllowedRequired(Validator::validateStreamName, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
         notAllowedRequired(Validator::validateStreamName, UTF_ONLY_STRINGS);
         allowedNotRequiredEmptyAsNull(Validator::validateStreamName, Arrays.asList(null, EMPTY));
@@ -75,7 +75,7 @@ public class ValidatorTests {
 
     @Test
     public void testValidateDurable() {
-        allowedRequired(Validator::validateDurable, Arrays.asList(PLAIN, HAS_DOLLAR));
+        allowedRequired(Validator::validateDurable, Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOLLAR));
         notAllowedRequired(Validator::validateDurable, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
         notAllowedRequired(Validator::validateDurable, UTF_ONLY_STRINGS);
         allowedNotRequiredEmptyAsNull(Validator::validateDurable, Arrays.asList(null, EMPTY));
@@ -83,11 +83,11 @@ public class ValidatorTests {
 
     @Test
     public void testValidateDurableRequired() {
-        allowedRequired((s, r) -> Validator.validateDurableRequired(s, null), Arrays.asList(PLAIN, HAS_DOLLAR));
+        allowedRequired((s, r) -> Validator.validateDurableRequired(s, null), Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOLLAR));
         notAllowedRequired((s, r) -> Validator.validateDurableRequired(s, null), Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
         notAllowedRequired((s, r) -> Validator.validateDurableRequired(s, null), UTF_ONLY_STRINGS);
 
-        for (String data : Arrays.asList(PLAIN, HAS_DOLLAR)) {
+        for (String data : Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOLLAR)) {
             ConsumerConfiguration ccAllowed = ConsumerConfiguration.builder().durable(data).build();
             assertEquals(data, Validator.validateDurableRequired(null, ccAllowed), allowedMessage(data));
         }

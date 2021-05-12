@@ -18,6 +18,12 @@ import java.util.Map;
 
 public class Status {
 
+    public static final String FLOW_CONTROL_TEXT = "FlowControl Request";
+    public static final String HEARTBEAT_TEXT = "Idle Heartbeat";
+    public static final String NO_RESPONDERS_TEXT = "No Responders Available For Request";
+    public static final int FLOW_OR_HEARTBEAT_STATUS_CODE = 100;
+    public static final int NO_RESPONDERS_CODE = 503;
+
     private final int code;
     private final String message;
 
@@ -25,7 +31,7 @@ public class Status {
 
     static {
         MESSAGE_MAP = new HashMap<>();
-        MESSAGE_MAP.put(503, "No Responders Available For Request");
+        MESSAGE_MAP.put(NO_RESPONDERS_CODE, NO_RESPONDERS_TEXT);
     }
 
     public Status(int code, String message) {
@@ -69,5 +75,21 @@ public class Status {
                 "code=" + code +
                 ", message='" + message + '\'' +
                 '}';
+    }
+
+    private boolean isStatus(int code, String text) {
+        return this.code == code && message.equals(text);
+    }
+
+    public boolean isFlowControl() {
+        return isStatus(FLOW_OR_HEARTBEAT_STATUS_CODE, FLOW_CONTROL_TEXT);
+    }
+
+    public boolean isHeartbeat() {
+        return isStatus(FLOW_OR_HEARTBEAT_STATUS_CODE, HEARTBEAT_TEXT);
+    }
+
+    public boolean isNoResponders() {
+        return isStatus(NO_RESPONDERS_CODE, NO_RESPONDERS_TEXT);
     }
 }
