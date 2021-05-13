@@ -19,6 +19,7 @@ import io.nats.client.api.PublishAck;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -33,7 +34,7 @@ public class JsMulti {
         run(new Arguments(args));
     }
 
-    public static void run(Arguments a) {
+    public static List<Stats> run(Arguments a) {
         try {
             if (a.threads > 1) {
                 if (a.connShared) {
@@ -61,9 +62,9 @@ public class JsMulti {
                             tr = (nc, js, stats, id) -> subPull(a, js, stats, 0, "subPullSharedQueue " + id);
                             break;
                         default:
-                            return;
+                            return null;
                     }
-                    runShared(a, tr);
+                    return runShared(a, tr);
                 }
                 else {
                     ThreadedRunner tr;
@@ -90,9 +91,9 @@ public class JsMulti {
                             tr = (nc, js, stats, id) -> subPull(a, js, stats, 0, "subPullIndividualQueue " + id);
                             break;
                         default:
-                            return;
+                            return null;
                     }
-                    runIndividual(a, tr);
+                    return runIndividual(a, tr);
                 }
             }
             else {
@@ -114,9 +115,9 @@ public class JsMulti {
                         sr = (nc, js, stats) -> subPull(a, js, stats, 0, "subPull");
                         break;
                     default:
-                        return;
+                        return null;
                 }
-                runSingle(a, sr);
+                return runSingle(a, sr);
             }
         }
         catch (Exception e) {
@@ -124,6 +125,7 @@ public class JsMulti {
             System.out.println(e);
             e.printStackTrace();
             System.exit(-1);
+            return null;
         }
     }
 
@@ -131,22 +133,23 @@ public class JsMulti {
     // Implementation
     // ----------------------------------------------------------------------------------------------------
     private static void pubSync(Arguments a, final JetStream js, Stats stats, String label) throws Exception {
-        _pub(a, stats, label, () -> js.publish(a.subject, a.getPayload()) );
+        _pub(a, stats, label, (p) -> js.publish(a.subject, p) );
     }
 
     private static void pubCore(Arguments a, final Connection nc, Stats stats, String label) throws Exception {
-        _pub(a, stats, label, () -> nc.publish(a.subject, a.getPayload()));
+        _pub(a, stats, label, (p) -> nc.publish(a.subject, p));
     }
 
     interface Publisher {
-        void publish() throws Exception;
+        void publish(byte[] payload) throws Exception;
     }
 
     private static void _pub(Arguments a, Stats stats, String label, Publisher p) throws Exception {
         for (int x = 1; x <= a.perThread(); x++) {
             jitter(a);
+            byte[] payload = a.getPayload();
             stats.start();
-            p.publish();
+            p.publish(payload);
             stats.stopAndCount(a.payloadSize);
             reportMaybe(a, x, label, "completed publishing");
         }
@@ -162,8 +165,9 @@ public class JsMulti {
                 r = 0;
             }
             jitter(a);
+            byte[] payload = a.getPayload();
             stats.start();
-            futures.add(js.publishAsync(a.subject, a.getPayload()));
+            futures.add(js.publishAsync(a.subject, payload));
             stats.stopAndCount(a.payloadSize);
             reportMaybe(a, x, label, "completed publishing");
         }
@@ -346,15 +350,16 @@ public class JsMulti {
         void run(Connection nc, JetStream js, Stats stats, int id) throws Exception;
     }
 
-    private static void runSingle(Arguments a, SingleRunner runner) throws Exception {
+    private static List<Stats> runSingle(Arguments a, SingleRunner runner) throws Exception {
         Stats stats = new Stats();
         try (Connection nc = connect(a)) {
             runner.run(nc, nc.jetStream(), stats);
         }
-        Stats.report(stats, "Total", true, true);
+        Stats.report(stats);
+        return Collections.singletonList(stats);
     }
 
-    private static void runShared(Arguments a, ThreadedRunner runner) throws Exception {
+    private static List<Stats>  runShared(Arguments a, ThreadedRunner runner) throws Exception {
         List<Thread> threads = new ArrayList<>();
         List<Stats> statsList = new ArrayList<>();
         try (Connection nc = connect(a)) {
@@ -381,9 +386,10 @@ public class JsMulti {
             }
         }
         Stats.report(statsList);
+        return statsList;
     }
 
-    private static void runIndividual(Arguments a, ThreadedRunner runner) throws Exception {
+    private static List<Stats> runIndividual(Arguments a, ThreadedRunner runner) throws Exception {
         List<Thread> threads = new ArrayList<>();
         List<Stats> statsList = new ArrayList<>();
         for (int x = 0; x < a.threads; x++) {
@@ -407,5 +413,6 @@ public class JsMulti {
             t.join();
         }
         Stats.report(statsList);
+        return statsList;
     }
 }
