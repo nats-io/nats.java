@@ -18,7 +18,6 @@ import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -181,32 +180,6 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
         });
     }
 
-    private void assertMirror(JetStreamManagement jsm, String stream, String mirroring, Number msgCount, Number firstSeq)
-            throws IOException, JetStreamApiException {
-        sleep(1000);
-        StreamInfo si = jsm.getStreamInfo(stream);
-
-        MirrorInfo msi = si.getMirrorInfo();
-        assertNotNull(msi);
-        assertEquals(mirroring, msi.getName());
-
-        assertConfig(stream, msgCount, firstSeq, si);
-    }
-
-    private void assertConfig(String stream, Number msgCount, Number firstSeq, StreamInfo si) {
-        StreamConfiguration sc = si.getConfiguration();
-        assertNotNull(sc);
-        assertEquals(stream, sc.getName());
-
-        StreamState ss = si.getStreamState();
-        if (msgCount != null) {
-            assertEquals(msgCount.longValue(), ss.getMsgCount());
-        }
-        if (firstSeq != null) {
-            assertEquals(firstSeq.longValue(), ss.getFirstSequence());
-        }
-    }
-
     @Test
     public void testMirrorExceptions() throws Exception {
         runInJsServer(nc -> {
@@ -296,11 +269,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             assertSource(jsm, R2, 25, null);
 
             MessageInfo info = jsm.getMessage(R2, 1);
-            String hval = info.getHeaders().get("Nats-Stream-Source").get(0);
-            // $JS.ACK.stream-99.sS0mKw3k.1.26.1.1616619886415151100.24
-            String[] parts = hval.split("\\.");
-            assertEquals(S99, parts[2]);
-            assertEquals("26", parts[5]);
+            assertStreamSource(info, S99, 26);
 
             sc = StreamConfiguration.builder()
                     .name(source(3))
@@ -311,18 +280,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             assertSource(jsm, source(3), 20, null);
 
             info = jsm.getMessage(source(3), 1);
-            hval = info.getHeaders().get("Nats-Stream-Source").get(0);
-            parts = hval.split("\\.");
-            assertEquals(S99, parts[2]);
-            assertEquals("11", parts[5]);
+            assertStreamSource(info, S99, 11);
         });
-    }
-
-    private void assertSource(JetStreamManagement jsm, String stream, Number msgCount, Number firstSeq)
-            throws IOException, JetStreamApiException {
-        sleep(1000);
-        StreamInfo si = jsm.getStreamInfo(stream);
-
-        assertConfig(stream, msgCount, firstSeq, si);
     }
 }
