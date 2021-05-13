@@ -1081,16 +1081,10 @@ class NatsConnection implements Connection {
             statistics.incrementRepliesReceived();
         }
         else if (responsesRespondedTo.get(key) != null) {
-            statistics.incrementRepliesReceived();
-            if (options.getErrorListener() != null) {
-                options.getErrorListener().duplicateReply(this, msg);
-            }
+            statistics.incrementDuplicateRepliesReceived();
         }
         else {
             statistics.incrementOrphanRepliesReceived();
-            if (options.getErrorListener() != null) {
-                options.getErrorListener().orphanReply(this, msg);
-            }
         }
     }
 

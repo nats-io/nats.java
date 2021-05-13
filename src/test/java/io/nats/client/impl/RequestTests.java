@@ -141,39 +141,13 @@ public class RequestTests extends TestBase {
         }
     }
 
-    class MultiRepliesErrorListener implements ErrorListener {
-        public AtomicInteger dupes = new AtomicInteger();
-        public AtomicInteger orphans = new AtomicInteger();
-
-        @Override
-        public void errorOccurred(Connection conn, String error) {}
-
-        @Override
-        public void exceptionOccurred(Connection conn, Exception exp) {}
-
-        @Override
-        public void slowConsumerDetected(Connection conn, Consumer consumer) {}
-
-        @Override
-        public void duplicateReply(Connection conn, Message msg) {
-            dupes.incrementAndGet();
-        }
-
-        @Override
-        public void orphanReply(Connection conn, Message msg) {
-            orphans.incrementAndGet();
-        }
-    };
-
     @Test
     public void testMultipleReplies() throws Exception {
-        MultiRepliesErrorListener listener = new MultiRepliesErrorListener();
-
-        Options.Builder builder = new Options.Builder().errorListener(listener).turnOnAdvancedStats();
+        Options.Builder builder = new Options.Builder().turnOnAdvancedStats();
 
         runInServer(builder, nc -> {
-            AtomicInteger replies = new AtomicInteger();
-            MessageHandler handler = (msg) -> { replies.incrementAndGet(); nc.publish(msg.getReplyTo(), null); };
+            AtomicInteger requests = new AtomicInteger();
+            MessageHandler handler = (msg) -> { requests.incrementAndGet(); nc.publish(msg.getReplyTo(), null); };
             Dispatcher d1 = nc.createDispatcher(handler);
             Dispatcher d2 = nc.createDispatcher(handler);
             Dispatcher d3 = nc.createDispatcher(handler);
@@ -186,20 +160,18 @@ public class RequestTests extends TestBase {
             Message reply = nc.request(SUBJECT, null, Duration.ofSeconds(2));
             assertNotNull(reply);
             sleep(2000);
-            assertEquals(3, replies.get());
+            assertEquals(3, requests.get());
             NatsStatistics stats = (NatsStatistics)nc.getStatistics();
-            assertEquals(3, stats.getRepliesReceived());
+            assertEquals(1, stats.getRepliesReceived());
+            assertEquals(2, stats.getDuplicateRepliesReceived());
             assertEquals(0, stats.getOrphanRepliesReceived());
-            assertEquals(2, listener.dupes.get());
-            assertEquals(0, listener.orphans.get());
 
-            sleep(3000);
-            assertEquals(4, replies.get());
+            sleep(3100);
+            assertEquals(4, requests.get());
             stats = (NatsStatistics)nc.getStatistics();
-            assertEquals(3, stats.getRepliesReceived());
+            assertEquals(1, stats.getRepliesReceived());
+            assertEquals(2, stats.getDuplicateRepliesReceived());
             assertEquals(1, stats.getOrphanRepliesReceived());
-            assertEquals(2, listener.dupes.get());
-            assertEquals(1, listener.orphans.get());
         });
     }
 

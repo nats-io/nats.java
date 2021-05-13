@@ -29,6 +29,7 @@ class NatsStatistics implements Statistics {
     private AtomicLong outstandingRequests;
     private AtomicLong requestsSent;
     private AtomicLong repliesReceived;
+    private AtomicLong duplicateRepliesReceived;
     private AtomicLong orphanRepliesReceived;
     private AtomicLong reconnects;
     private AtomicLong inMsgs;
@@ -53,6 +54,7 @@ class NatsStatistics implements Statistics {
         this.outstandingRequests = new AtomicLong();
         this.requestsSent = new AtomicLong();
         this.repliesReceived = new AtomicLong();
+        this.duplicateRepliesReceived = new AtomicLong();
         this.orphanRepliesReceived = new AtomicLong();
         this.reconnects = new AtomicLong();
         this.inMsgs = new AtomicLong();
@@ -92,6 +94,10 @@ class NatsStatistics implements Statistics {
 
     void incrementRepliesReceived() {
         this.repliesReceived.incrementAndGet();
+    }
+
+    void incrementDuplicateRepliesReceived() {
+        this.duplicateRepliesReceived.incrementAndGet();
     }
 
     void incrementOrphanRepliesReceived() {
@@ -200,6 +206,10 @@ class NatsStatistics implements Statistics {
 
     public long getRepliesReceived() { return repliesReceived.get(); }
 
+    public long getDuplicateRepliesReceived() {
+        return duplicateRepliesReceived.get();
+    }
+
     public long getOrphanRepliesReceived() { return orphanRepliesReceived.get(); }
 
     void appendNumberStat(StringBuilder builder, String name, long value) {
@@ -224,6 +234,7 @@ class NatsStatistics implements Statistics {
             if (this.trackAdvanced) {
                 appendNumberStat(builder, "Requests Sent:                   ", this.requestsSent.get());
                 appendNumberStat(builder, "Replies Received:                ", this.repliesReceived.get());
+                appendNumberStat(builder, "Duplicate Replies Received:      ", this.duplicateRepliesReceived.get());
                 appendNumberStat(builder, "Orphan Replies Received:         ", this.orphanRepliesReceived.get());
                 appendNumberStat(builder, "Pings Sent:                      ", this.pingCount.get());
                 appendNumberStat(builder, "+OKs Received:                   ", this.okCount.get());

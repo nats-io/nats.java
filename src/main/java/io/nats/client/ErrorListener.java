@@ -75,20 +75,4 @@ public interface ErrorListener {
      * @param msg The message that is discarded
      */
     default void messageDiscarded(Connection conn, Message msg) {}
-
-    /**
-     * Called by the connection when a duplicate reply is received for a request
-     *
-     * @param conn The connection that discarded the message
-     * @param msg The message that is discarded
-     */
-    default void duplicateReply(Connection conn, Message msg) {}
-
-    /**
-     * Called by the connection when a duplicate reply is received after a long time for a request
-     *
-     * @param conn The connection that discarded the message
-     * @param msg The message that is discarded
-     */
-    default void orphanReply(Connection conn, Message msg) {}
 }
