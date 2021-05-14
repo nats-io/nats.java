@@ -1,73 +1,94 @@
 package io.nats.examples.jsmulti;
 
+import java.io.PrintStream;
 import java.text.NumberFormat;
 import java.util.List;
 import java.util.Locale;
 
-class Stats {
-    private static final String REPORT_SEP_LINE = "| ---------- | ----------------- | --------------- | ------------------------ | ---------------- |";
-    private static final long HUMAN_BYTES_BASE = 1024;
-    private static final String[] HUMAN_BYTES_UNITS = new String[] {"b", "kb", "mb", "gb", "tb", "pb", "eb"};
-    private static final String ZEROS = "000000";
+public class Stats {
+    public static final long HUMAN_BYTES_BASE = 1024;
+    public static final String[] HUMAN_BYTES_UNITS = new String[] {"b", "kb", "mb", "gb", "tb", "pb", "eb"};
+    public static final String ZEROS = "000000000";
 
-    private double elapsed = 0;
-    private double bytes = 0;
-    private int messageCount = 0;
-    private long now;
+    public static final String REPORT_SEP_LINE    = "| --------------- | ----------------- | --------------- | ------------------------ | ---------------- |";
+    public static final String REPORT_LINE_HEADER = "|                 |             count |            time |                 msgs/sec |        bytes/sec |";
+    public static final String REPORT_LINE_FORMAT = "| %-15s | %12s msgs | %12s ms | %15s msgs/sec | %12s/sec |\n";
 
-    void start() {
+    public double elapsed = 0;
+    public double bytes = 0;
+    public int messageCount = 0;
+    public long now;
+
+    public void start() {
         now = System.nanoTime();
     }
 
-    void stop() {
+    public void stop() {
         elapsed += System.nanoTime() - now;
     }
 
-    void count(long bytes) {
+    public void count(long bytes) {
         messageCount++;
         this.bytes += bytes;
     }
 
-    void stopAndCount(long bytes) {
+    public void stopAndCount(long bytes) {
         elapsed += System.nanoTime() - now;
         count(bytes);
     }
 
-    static void report(Stats stats, String label, boolean header, boolean footer) {
+    public static void report(Stats stats) {
+        report(stats, "Total", true, true, System.out);
+    }
+
+    public static void report(Stats stats, String label, boolean header, boolean footer) {
+        report(stats, label, header, footer, System.out);
+    }
+
+    public static void report(Stats stats, String label, boolean header, boolean footer, PrintStream out) {
         double elapsed = stats.elapsed / 1e6;
         double messagesPerSecond = stats.elapsed == 0 ? 0 : stats.messageCount * 1e9 / stats.elapsed;
         double bytesPerSecond = 1e9 * (stats.bytes)/(stats.elapsed);
         if (header) {
-            System.out.println("\n" + REPORT_SEP_LINE);
-            System.out.println("|            |             count |            time |                 msgs/sec |        bytes/sec |");
-            System.out.println(REPORT_SEP_LINE);
+            out.println("\n" + REPORT_SEP_LINE);
+            out.println(REPORT_LINE_HEADER);
+            out.println(REPORT_SEP_LINE);
         }
-        System.out.printf("| %-10s | %12s msgs | %12s ms | %15s msgs/sec | %12s/sec |\n", label,
+        out.printf(REPORT_LINE_FORMAT, label,
                 format(stats.messageCount),
                 format3(elapsed),
                 format3(messagesPerSecond),
                 humanBytes(bytesPerSecond));
 
         if (footer) {
-            System.out.println(REPORT_SEP_LINE);
+            out.println(REPORT_SEP_LINE);
         }
     }
 
-    static void report(List<Stats> statList) {
+    public static Stats total(List<Stats> statList) {
         Stats total = new Stats();
-        int x = 0;
         for (Stats stats : statList) {
-            report(stats, "Thread " + (++x), x == 1, false);
             total.elapsed = Math.max(total.elapsed, stats.elapsed);
             total.messageCount += stats.messageCount;
             total.bytes += stats.bytes;
         }
-
-        System.out.println(REPORT_SEP_LINE);
-        report(total, "Total", false, true);
+        return total;
     }
 
-    static String humanBytes(double bytes) {
+    public static void report(List<Stats> statList) {
+        report(statList, System.out);
+    }
+
+    public static void report(List<Stats> statList, PrintStream out) {
+        Stats total = new Stats();
+        for (int x = 0; x < statList.size(); x++) {
+            report(statList.get(x), "Thread " + (x+1), x == 0, false, out);
+        }
+        out.println(REPORT_SEP_LINE);
+        report(total, "Total", false, true, out);
+    }
+
+    public static String humanBytes(double bytes) {
         if (bytes < HUMAN_BYTES_BASE) {
             return String.format("%.2f b", bytes);
         }
@@ -75,11 +96,11 @@ class Stats {
         return String.format("%.2f %s", bytes / Math.pow(HUMAN_BYTES_BASE, exp), HUMAN_BYTES_UNITS[exp]);
     }
 
-    static String format(Number s) {
+    public static String format(Number s) {
         return NumberFormat.getNumberInstance(Locale.getDefault()).format(s);
     }
 
-    static String format3(Number s) {
+    public static String format3(Number s) {
         String f = format(s);
         int at = f.indexOf('.');
         if (at == 0) {

@@ -52,11 +52,11 @@ class Arguments{
         return _payload;
     }
 
-    int perThread() {
+    public int perThread() {
         return messageCount / threads;
     }
 
-    void print() {
+    public void print() {
         System.out.println(this + "\n");
     }
 
@@ -95,7 +95,7 @@ class Arguments{
         return s;
     }
 
-    Arguments(String[] args) {
+    public Arguments(String[] args) {
         if (args == null || args.length == 0) {
             exit();
         }
@@ -169,10 +169,6 @@ class Arguments{
         if (threads < 2 && contains(QUEUE_ACTIONS, action)) {
             error("Queue subscribing requires multiple threads!");
         }
-
-//        if (ackPolicy != AckPolicy.Explicit && contains(PULL_ACTIONS, action)) {
-//            error("Consumer in pull mode requires explicit ack policy");
-//        }
 
         try {
             new Options.Builder().build().createURIForServer(server);

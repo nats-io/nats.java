@@ -13,6 +13,8 @@
 
 package io.nats.examples.autobench;
 
+import io.nats.client.*;
+
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -21,12 +23,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-
-import io.nats.client.Connection;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.Options;
-import io.nats.client.Subscription;
 
 public class LatencyBenchmark extends AutoBenchmark {
 
@@ -132,6 +128,14 @@ public class LatencyBenchmark extends AutoBenchmark {
         getFutureSafely(subDone);
     }
 
+    @Override
+    public void printHeader() {
+        System.out.println("Latency                |           nanos           |            |");
+        System.out.println("| payload    |   count |    min |  median |    max | std dev ms |");
+        System.out.println("| ---------- | ------- | ------ | ------- | ------ | ---------- |");
+    }
+
+    @Override
     public void printResult() {
         if (this.getException() != null) {
             String message = this.getException().getMessage();
@@ -160,13 +164,12 @@ public class LatencyBenchmark extends AutoBenchmark {
                                             map(d -> ((d-average) * (d-average))).
                                             sum()) / (1e3 * (count-1));
 
-        System.out.printf("%-12s %6s %6s / %6.2f / %3s %6s %.2f  (microseconds)\n",
-                            getName(),
+        System.out.printf("| %-10s | %7s | %6s | %7.2f | %6s | +/- %6.2f |\n",
+                            getName().replaceAll("Latency ", "") + " bytes",
                             NumberFormat.getIntegerInstance().format(count),
                             NumberFormat.getIntegerInstance().format(min),
                             median,
                             NumberFormat.getIntegerInstance().format(max),
-                            "+/-",
                             stdDev);
     }
 
