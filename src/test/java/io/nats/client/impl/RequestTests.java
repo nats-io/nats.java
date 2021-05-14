@@ -144,9 +144,10 @@ public class RequestTests extends TestBase {
     @Test
     public void testMultipleReplies() throws Exception {
         Options.Builder builder = new Options.Builder().turnOnAdvancedStats();
+
         runInServer(builder, nc -> {
-            AtomicInteger replies = new AtomicInteger();
-            MessageHandler handler = (msg) -> { replies.incrementAndGet(); nc.publish(msg.getReplyTo(), null); };
+            AtomicInteger requests = new AtomicInteger();
+            MessageHandler handler = (msg) -> { requests.incrementAndGet(); nc.publish(msg.getReplyTo(), null); };
             Dispatcher d1 = nc.createDispatcher(handler);
             Dispatcher d2 = nc.createDispatcher(handler);
             Dispatcher d3 = nc.createDispatcher(handler);
@@ -159,14 +160,18 @@ public class RequestTests extends TestBase {
             Message reply = nc.request(SUBJECT, null, Duration.ofSeconds(2));
             assertNotNull(reply);
             sleep(2000);
-            assertEquals(3, replies.get());
-            assertTrue(nc.getStatistics().toString().contains("Replies Received:                3"));
-            assertTrue(nc.getStatistics().toString().contains("Orphan Replies Received:         0"));
+            assertEquals(3, requests.get());
+            NatsStatistics stats = (NatsStatistics)nc.getStatistics();
+            assertEquals(1, stats.getRepliesReceived());
+            assertEquals(2, stats.getDuplicateRepliesReceived());
+            assertEquals(0, stats.getOrphanRepliesReceived());
 
-            sleep(3000);
-            assertEquals(4, replies.get());
-            assertTrue(nc.getStatistics().toString().contains("Replies Received:                3"));
-            assertTrue(nc.getStatistics().toString().contains("Orphan Replies Received:         1"));
+            sleep(3100);
+            assertEquals(4, requests.get());
+            stats = (NatsStatistics)nc.getStatistics();
+            assertEquals(1, stats.getRepliesReceived());
+            assertEquals(2, stats.getDuplicateRepliesReceived());
+            assertEquals(1, stats.getOrphanRepliesReceived());
         });
     }
 
