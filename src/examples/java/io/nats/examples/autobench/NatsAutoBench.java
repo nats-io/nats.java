@@ -48,6 +48,7 @@ public class NatsAutoBench {
         // args = "med JsPubAsync".split(" ");
         // args = "help".split(" ");
         // args = "latency large".split(" ");
+        // args = "latency".split(" ");
 
         Arguments a = readArgs(args);
 
@@ -108,12 +109,14 @@ public class NatsAutoBench {
             System.out.println();
             System.out.println();
             
-            Class<? extends AutoBenchmark> testClass = tests.get(0).getClass();
+            Class<? extends AutoBenchmark> lastTestClass = null;
             for (AutoBenchmark test : tests) {
-
-                if (test.getClass() != testClass) {
-                    System.out.println();
-                    testClass = test.getClass();
+                if (test.getClass() != lastTestClass) {
+                    if (lastTestClass != null) {
+                        System.out.println();
+                    }
+                    test.printHeader();
+                    lastTestClass = test.getClass();
                 }
 
                 test.printResult();

@@ -112,6 +112,8 @@ public abstract class AutoBenchmark {
         catch(Exception e) { /* ignore */ }
     }
 
+    public void printHeader() {}
+
     public void printResult() {
         if (this.runtimeNanos == 0) {
             System.out.printf("%-26s %18s\n", name, "no data from test run");
