@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class NatsAutoBench {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsAutoBench [serverURL] [help] [utf8] [tiny|small|med] [conscrypt] [jsfile]" +
+            "\nUsage: java -cp <classpath> NatsAutoBench [serverURL] [help] [utf8] [tiny|small|med|large] [conscrypt] [jsfile]" +
                     "[PubOnly] [PubSub] [PubDispatch] [ReqReply] [Latency] " +
                     "[JsPubSync] [JsPubAsync] [JsSub] [JsPubRounds]\n\n"
             + "If no specific test name(s) are supplied all will be run, otherwise only supplied tests will be run."
@@ -47,6 +47,7 @@ public class NatsAutoBench {
         // args = "small PubOnly".split(" ");
         // args = "med JsPubAsync".split(" ");
         // args = "help".split(" ");
+        // args = "latency large".split(" ");
 
         Arguments a = readArgs(args);
 
@@ -301,6 +302,10 @@ public class NatsAutoBench {
                         break;
                     case "conscrypt":
                         a.conscrypt = true;
+                        break;
+                    case "large":
+                        a.baseMsgs = 500_000;
+                        a.latencyMsgs = 25_000;
                         break;
                     case "med":
                         a.baseMsgs = 50_000;
