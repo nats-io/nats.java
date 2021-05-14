@@ -131,8 +131,7 @@ public class LatencyBenchmark extends AutoBenchmark {
     @Override
     public void printHeader() {
         System.out.println("Latency");
-        System.out.println("                                      microseconds");
-        System.out.println("| -------------------- | -------------------------------------- |");
+        System.out.println("                       |           nanos           |     micros |");
         System.out.println("| payload    |   count |    min |  median |    max |     stdDev |");
         System.out.println("| ---------- | ------- | ------ | ------- | ------ | ---------- |");
     }
