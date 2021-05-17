@@ -67,9 +67,8 @@ public class NatsJsPushSubFlowControl {
                 nc.flush(Duration.ofSeconds(5));
 
                 // ------------------------------------------------------------------------------------------
-                // Flow Control limit is set using pending limits
-                // you can mix and match pending messages with total bytes or rely on one
-                // or the other.
+                // Flow Control limit is set using pending limits. You can mix and match pending messages
+                // with total bytes or rely on one or the other.
                 // ------------------------------------------------------------------------------------------
                 // IMPORTANT!!!! THESE VALUES ARE EXAMPLE ONLY SO THE FLOW CONTROL MESSAGES
                 // SHOWS UP EASILY IN THIS DEMO. IN REAL SYSTEMS YOU WILL TYPICALLY HAVE MANY MORE
@@ -80,6 +79,7 @@ public class NatsJsPushSubFlowControl {
                 // ------------------------------------------------------------------------------------------
                 // The example first version sets pending to 500 message with 1K total bytes
                 // The example second version (commented out) sets pending to 1 message with 500K total bytes
+                // ------------------------------------------------------------------------------------------
                 sub.setPendingLimits(500, 1024);
                 // sub.setPendingLimits(1, 500000);
 
