@@ -13,7 +13,10 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.*;
+import io.nats.client.JetStream;
+import io.nats.client.JetStreamSubscription;
+import io.nats.client.Message;
+import io.nats.client.PushSubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import org.junit.jupiter.api.Test;
@@ -294,8 +297,9 @@ public class JetStreamPushTests extends JetStreamTestBase {
         });
     }
 
-    @Test
-    public void testFlowControl() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"500,1024", "1,500000"})
+    public void testFlowControl(String pendingLimits) throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -312,7 +316,8 @@ public class JetStreamPushTests extends JetStreamTestBase {
             // This is configured so the subscriber ends up being considered slow
             JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
             nc.flush(Duration.ofSeconds(5));
-            sub.setPendingLimits(Consumer.DEFAULT_MAX_MESSAGES, 1024);
+            String[] split = pendingLimits.split(",");
+            sub.setPendingLimits(Integer.parseInt(split[0]), Integer.parseInt(split[1]));
 
             // publish more message data than the subscriber will handle
             byte[] data = new byte[1024];

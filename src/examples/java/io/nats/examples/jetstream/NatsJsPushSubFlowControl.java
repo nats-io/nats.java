@@ -65,7 +65,23 @@ public class NatsJsPushSubFlowControl {
                 // This is configured so the subscriber ends up being considered slow
                 JetStreamSubscription sub = js.subscribe(subject, pso);
                 nc.flush(Duration.ofSeconds(5));
-                sub.setPendingLimits(Consumer.DEFAULT_MAX_MESSAGES, 1024);
+
+                // ------------------------------------------------------------------------------------------
+                // Flow Control limit is set using pending limits. You can mix and match pending messages
+                // with total bytes or rely on one or the other.
+                // ------------------------------------------------------------------------------------------
+                // IMPORTANT!!!! THESE VALUES ARE EXAMPLE ONLY SO THE FLOW CONTROL MESSAGES
+                // SHOWS UP EASILY IN THIS DEMO. IN REAL SYSTEMS YOU WILL TYPICALLY HAVE MANY MORE
+                // MESSAGES AND MANY MORE BYTES AS YOUR LIMITS. FOR EXAMPLE THE DEFAULT VALUES
+                // AS SET IN io.nats.client.Consumer ARE
+                //     public static final long DEFAULT_MAX_MESSAGES = 64 * 1024;
+                //     public static final long DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
+                // ------------------------------------------------------------------------------------------
+                // The example first version sets pending to 500 message with 1K total bytes
+                // The example second version (commented out) sets pending to 1 message with 500K total bytes
+                // ------------------------------------------------------------------------------------------
+                sub.setPendingLimits(500, 1024);
+                // sub.setPendingLimits(1, 500000);
 
                 // publish more message data than the subscriber will handle
                 byte[] data = new byte[1024];
