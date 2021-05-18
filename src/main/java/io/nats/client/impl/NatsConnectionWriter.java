@@ -25,8 +25,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static io.nats.client.support.NatsConstants.CRLF_BYTES;
-
 public class NatsConnectionWriter implements Runnable {
 
     private static final int TOTAL_SLEEP = 40;
@@ -93,6 +91,15 @@ public class NatsConnectionWriter implements Runnable {
     // method does.
     Future<Boolean> stop() {
         this.running.set(false);
+
+        // TODO ???
+//        this.startStopLock.lock();
+//        try {
+//            // remove ping and pong
+//        } finally {
+//            this.startStopLock.unlock();
+//        }
+
         return this.stopped;
     }
 
@@ -179,20 +186,7 @@ public class NatsConnectionWriter implements Runnable {
         buffersAccessLock.lock();
         try {
             long startSize = bab.length();
-            bab.append(msg.getProtocolBytes()).append(CRLF_BYTES);
-
-            if (!msg.isProtocol()) {
-                if (msg.hasHeaders()) {
-                    msg.getHeaders().appendSerialized(bab);
-                }
-
-                if (msg.getData().length > 0) {
-                    bab.append(msg.getData());
-                }
-
-                bab.append(CRLF_BYTES);
-            }
-
+            msg.appendSerialized(bab);
             long added = bab.length() - startSize;
 
             // it's safe check for object equality

@@ -302,6 +302,24 @@ public class NatsMessage implements Message {
         return false;  // overridden in NatsJetStreamMessage
     }
 
+    public ByteArrayBuilder appendSerialized(ByteArrayBuilder bab) {
+        bab.append(getProtocolBytes()).append(CRLF_BYTES);
+
+        if (!isProtocol()) {
+            if (hasHeaders()) {
+                getHeaders().appendSerialized(bab);
+            }
+
+            if (getData().length > 0) {
+                bab.append(getData());
+            }
+
+            bab.append(CRLF_BYTES);
+        }
+
+        return bab;
+    }
+
     @Override
     public String toString() {
         if (subject == null) {
