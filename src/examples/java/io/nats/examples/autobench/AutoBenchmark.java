@@ -112,7 +112,8 @@ public abstract class AutoBenchmark {
         catch(Exception e) { /* ignore */ }
     }
 
-    public void printHeader() {}
+    public void beforePrintFirstOfKind() {}
+    public void afterPrintLastOfKind() {}
 
     public void printResult() {
         if (this.runtimeNanos == 0) {
