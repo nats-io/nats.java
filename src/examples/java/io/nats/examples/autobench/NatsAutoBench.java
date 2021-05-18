@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Implements a benchmark more like the .net client that loops over a number
- * of scenarios benchmarking each one. This class hardcodes most settings to minimize
+ * of scenarios benchmarking each one. This class hard codes most settings to minimize
  * boilerplate and focus on the nats client code (plus measurement).
  * 
  * Each benchmark is implemented in its own class, and this main class just builds instances
@@ -33,9 +33,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class NatsAutoBench {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsAutoBench [serverURL] [help] [utf8] [tiny|small|med|large] [conscrypt] [jsfile]" +
-                    "[PubOnly] [PubSub] [PubDispatch] [ReqReply] [Latency] " +
-                    "[JsPubSync] [JsPubAsync] [JsSub] [JsPubRounds]\n\n"
+            "\nUsage: java -cp <classpath> NatsAutoBench" +
+                    "\n[serverURL] [help] [tiny|small|med|large] [conscrypt] [jsfile]" +
+                    "\n[PubOnly] [PubSub] [PubDispatch] [ReqReply] [Latency] " +
+                    "\n[JsPubSync] [JsPubAsync] [JsSub] [JsPubRounds]" +
+                    "[-lcsvdir <filespec>] \n\n"
             + "If no specific test name(s) are supplied all will be run, otherwise only supplied tests will be run."
             + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\n\ntiny, small and med reduce the number of messages used for tests, which can help on slower machines\n";
@@ -48,7 +50,7 @@ public class NatsAutoBench {
         // args = "med JsPubAsync".split(" ");
         // args = "help".split(" ");
         // args = "latency large".split(" ");
-        // args = "latency".split(" ");
+        // args = "latency large -lcsvdir C:\\nats".split(" ");
 
         Arguments a = readArgs(args);
 
@@ -59,17 +61,12 @@ public class NatsAutoBench {
                                                     server(a.server).
                                                     connectionTimeout(Duration.ofSeconds(1)).
                                                     noReconnect();
-            
-            if (a.utf8) {
-                System.out.println("Enabling UTF-8 subjects");
-                builder.supportUTF8Subjects();
-            }
-            
+
             /**
              * The conscrypt flag is provided for testing with the conscrypt jar. Using it through reflection is
              * deprecated but allows the library to ship without a dependency. Using conscrypt should only require the
              * jar plus the flag. For example, to run after building locally and using the test cert files:
-             * java -cp ./build/libs/jnats-2.5.1-SNAPSHOT-examples.jar:./build/libs/jnats-2.5.1-SNAPSHOT-fat.jar:<path to conscrypt.jar> \
+             * java -cp ./build/libs/jnats-2.11.3-SNAPSHOT-examples.jar:./build/libs/jnats-2.11.3-SNAPSHOT-fat.jar:<path to conscrypt.jar> \
              * -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.keyStorePassword=password \
              * -Djavax.net.ssl.trustStore=src/test/resources/truststore.jks -Djavax.net.ssl.trustStorePassword=password \
              * io.nats.examples.autobench.NatsAutoBench tls://localhost:4443 med conscrypt
@@ -110,17 +107,21 @@ public class NatsAutoBench {
             System.out.println();
             
             Class<? extends AutoBenchmark> lastTestClass = null;
+            AutoBenchmark lastTest = null;
             for (AutoBenchmark test : tests) {
                 if (test.getClass() != lastTestClass) {
                     if (lastTestClass != null) {
+                        test.afterPrintLastOfKind();
                         System.out.println();
                     }
-                    test.printHeader();
+                    test.beforePrintFirstOfKind();
+                    lastTest = test;
                     lastTestClass = test.getClass();
                 }
 
                 test.printResult();
             }
+            lastTest.afterPrintLastOfKind();
 
             System.out.println();
             System.out.printf("Final memory usage is %s / %s / %s free/total/max\n", 
@@ -201,7 +202,7 @@ public class NatsAutoBench {
 
         if (a.allTests || a.latency) {
                 addLatencyTests(a.latencyMsgs, a.maxSize, tests, sizes,
-                    (msize, mcnt) -> new LatencyBenchmark("Latency " + msize, mcnt, msize));
+                    (msize, mcnt) -> new LatencyBenchmark("Latency " + msize, mcnt, msize, a.lcsvdir));
         }
 
         return tests;
@@ -276,7 +277,6 @@ public class NatsAutoBench {
 
     static class Arguments {
         String server = Options.DEFAULT_URL;
-        boolean utf8 = false;
         boolean conscrypt = false;
         int baseMsgs = 100_000;
         int latencyMsgs = 5_000;
@@ -293,16 +293,14 @@ public class NatsAutoBench {
         boolean jsSub = false;
         boolean jsPubRounds = false;
         boolean jsFile = false;
+        String lcsvdir = null;
     }
 
     private static Arguments readArgs(String[] args) {
         Arguments a = new Arguments();
         if (args.length > 0) {
-            for (String s : args) {
-                switch (s.toLowerCase()) {
-                    case "utf8":
-                        a.utf8 = true;
-                        break;
+            for (int x = 0; x < args.length; x++) {
+                switch (args[x].toLowerCase()) {
                     case "conscrypt":
                         a.conscrypt = true;
                         break;
@@ -368,11 +366,14 @@ public class NatsAutoBench {
                     case "jsfile":
                         a.jsFile = true;
                         break;
+                    case "-lcsvdir":
+                        a.lcsvdir = args[++x];
+                        break;
                     case "help":
                         System.err.println(usageString);
                         System.exit(-1);
                     default:
-                        a.server = s;
+                        a.server = args[x];
                         break;
                 }
             }

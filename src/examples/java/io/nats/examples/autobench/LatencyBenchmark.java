@@ -15,6 +15,10 @@ package io.nats.examples.autobench;
 
 import io.nats.client.*;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -28,9 +32,20 @@ public class LatencyBenchmark extends AutoBenchmark {
 
     // We only touch this in subThread, until test is done so no locking
     final ArrayList<Long> measurements = new ArrayList<>((int)this.getMessageCount());
+    FileOutputStream lcsvOut;
 
-    public LatencyBenchmark(String name, long messageCount, long messageSize) {
+    public LatencyBenchmark(String name, long messageCount, long messageSize, String lcsvdir) {
         super(name, messageCount, messageSize);
+        if (lcsvdir != null) {
+            try {
+                if (!lcsvdir.endsWith("\\")) {
+                    lcsvdir += "\\";
+                }
+                lcsvOut = new FileOutputStream(lcsvdir + "latency-nanos-" + messageCount + "-msgs-" + messageSize + "-bytes.csv");
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     public void execute(Options connectOptions) throws InterruptedException {
@@ -129,7 +144,7 @@ public class LatencyBenchmark extends AutoBenchmark {
     }
 
     @Override
-    public void printHeader() {
+    public void beforePrintFirstOfKind() {
         System.out.println("Latency                |           nanos           |            |");
         System.out.println("| payload    |   count |    min |  median |    max | std dev ms |");
         System.out.println("| ---------- | ------- | ------ | ------- | ------ | ---------- |");
@@ -146,6 +161,18 @@ public class LatencyBenchmark extends AutoBenchmark {
 
             System.out.printf("%-18s Exception: %12s\n", getName(), message);
             return;
+        }
+
+        if (lcsvOut != null) {
+            try {
+                for (long measure : measurements) {
+                    lcsvOut.write((measure + "\n").getBytes(StandardCharsets.US_ASCII));
+                }
+                lcsvOut.flush();
+                lcsvOut.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         LongSummaryStatistics stats = measurements.stream().
