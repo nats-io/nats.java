@@ -11,8 +11,7 @@ import java.util.Random;
 
 import static io.nats.client.support.ByteArrayBuilder.DEFAULT_ASCII_ALLOCATION;
 import static io.nats.client.support.ByteArrayBuilder.DEFAULT_OTHER_ALLOCATION;
-import static io.nats.client.support.NatsConstants.OP_PING_BYTES;
-import static io.nats.client.support.NatsConstants.OP_PONG_BYTES;
+import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.RandomUtils.PRAND;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static org.junit.jupiter.api.Assertions.*;
@@ -80,8 +79,8 @@ public class ByteArrayBuilderTests {
     @Test
     public void miscCoverage() {
         ByteArrayBuilder bab = new ByteArrayBuilder(1)
-                .appendSpace()
-                .appendCrLf()
+                .append(SP)
+                .append(CRLF_BYTES)
                 .append((String)null)
                 .append((ByteArrayBuilder)null)
                 .append(new ByteArrayBuilder())

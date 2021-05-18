@@ -337,20 +337,23 @@ public class Headers {
 	 */
 	public byte[] getSerialized() {
 		if (serialized == null) {
-			ByteArrayBuilder bab = new ByteArrayBuilder(dataLength + NON_DATA_BYTES)
-					.append(VERSION_BYTES_PLUS_CRLF);
-			for (String key : valuesMap.keySet()) {
-				for (String value : valuesMap.get(key)) {
-					bab.append(key);
-					bab.append(COLON_BYTES);
-					bab.append(value);
-					bab.append(CRLF_BYTES);
-				}
-			}
-			bab.append(CRLF_BYTES);
-			serialized = bab.toByteArray();
+			serialized = appendSerialized(new ByteArrayBuilder(dataLength + NON_DATA_BYTES)).toByteArray();
 		}
 		return serialized;
+	}
+
+	public ByteArrayBuilder appendSerialized(ByteArrayBuilder bab) {
+		bab.append(VERSION_BYTES_PLUS_CRLF);
+		for (String key : valuesMap.keySet()) {
+			for (String value : valuesMap.get(key)) {
+				bab.append(key);
+				bab.append(COLON_BYTES);
+				bab.append(value);
+				bab.append(CRLF_BYTES);
+			}
+		}
+		bab.append(CRLF_BYTES);
+		return bab;
 	}
 
 	/**
