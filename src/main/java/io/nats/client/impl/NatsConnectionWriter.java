@@ -103,23 +103,24 @@ public class NatsConnectionWriter implements Runnable {
             // --------------------------------------------------------------------------------
             // NOTE
             // --------------------------------------------------------------------------------
-            // flushNow and queuedMessageCount are volatile variables that are read in this
-            // method outside of the buffersAccessLock.lock() block. They are written to
-            // inside the _queue method, inside of a the lock.
+            // regularQueuedMessageCount/reconnectQueuedMessageCount are volatile variables
+            // that are read in this method outside of the buffersAccessLock.lock() block.
+            // They are written to inside the _queue method, inside of a lock.
             // Since we are reading, if we happen to miss a write, we don't care, as the loop
             // will just check (read) those variables again soon.
             // --------------------------------------------------------------------------------
             int waits = 0;
             while (running.get()) {
-                while (waits < TOTAL_SLEEP && regularQueuedMessageCount < MAX_BEFORE_FLUSH) {
+                boolean rmode = reconnectMode.get();
+                long mcount = rmode ? reconnectQueuedMessageCount : regularQueuedMessageCount;
+
+                while (waits < TOTAL_SLEEP && mcount < MAX_BEFORE_FLUSH) {
                     try { //noinspection BusyWait
                         Thread.sleep(EACH_SLEEP);
                     } catch (Exception ignore) { /* don't care */ }
                     waits += EACH_SLEEP;
                 }
 
-                boolean rmode = reconnectMode.get();
-                long mcount = rmode ? reconnectQueuedMessageCount : regularQueuedMessageCount;
                 if (mcount > 0) {
                     buffersAccessLock.lock();
                     try {
