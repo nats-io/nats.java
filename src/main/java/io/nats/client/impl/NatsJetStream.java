@@ -418,6 +418,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
 
         String durable = ccBuilder.getDurable();
         String inbox = ccBuilder.getDeliverSubject();
+        String filterSubject = ccBuilder.getFilterSubject();
 
         boolean createConsumer = true;
 
@@ -436,11 +437,13 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
                 ConsumerConfiguration cc = consumerInfo.getConsumerConfiguration();
 
                 // Make sure the subject matches or is a subset...
-                String filterSub = cc.getFilterSubject();
-                if (filterSub != null && !filterSub.equals(subject)) {
+                String existingFilterSubject = cc.getFilterSubject();
+                if (filterSubject != null && !filterSubject.equals(existingFilterSubject)) {
                     throw new IllegalArgumentException(
-                            String.format("Subject %s mismatches consumer configuration %s.", subject, filterSub));
+                            String.format("Subject %s mismatches consumer configuration %s.", subject, filterSubject));
                 }
+
+                filterSubject = existingFilterSubject;
 
                 // use the deliver subject as the inbox. It may be null, that's ok
                 inbox = cc.getDeliverSubject();
@@ -484,7 +487,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
             }
 
             // being discussed if this is correct, but leave it for now.
-            ccBuilder.filterSubject(subject);
+            ccBuilder.filterSubject(filterSubject == null ? subject : filterSubject);
 
             // createOrUpdateConsumer can fail for security reasons, maybe other reasons?
             ConsumerInfo ci;
