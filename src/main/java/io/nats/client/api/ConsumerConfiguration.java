@@ -292,6 +292,10 @@ public class ConsumerConfiguration implements JsonSerializable {
             return deliverSubject;
         }
 
+        public String getFilterSubject() {
+            return filterSubject;
+        }
+
         public long getMaxAckPending() {
             return maxAckPending;
         }
