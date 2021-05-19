@@ -14,10 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.PublishAck;
-import io.nats.client.api.StorageType;
-import io.nats.client.api.StreamConfiguration;
+import io.nats.client.api.*;
 import io.nats.client.support.JsPrefixManager;
 import io.nats.client.support.NatsJetStreamConstants;
 import org.junit.jupiter.api.Test;
@@ -195,34 +192,127 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testFiltersSubscribing() throws Exception {
+    public void testFilterSubjectEphemeral() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
+            String subject = SUBJECT + ".*";
+            String subjectA = SUBJECT + ".A";
+            String subjectB = SUBJECT + ".B";
+
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT, subject(9));
+            createMemoryStream(nc, STREAM, subject);
 
-            // first pass creates the consumer
-            ConsumerConfiguration cc1 = ConsumerConfiguration.builder().filterSubject(SUBJECT).durable(DURABLE).build();
-            PushSubscribeOptions pso1 = PushSubscribeOptions.builder().configuration(cc1).build();
-            JetStreamSubscription sub = js.subscribe(SUBJECT, pso1);
-            assertSubscription(sub, STREAM, DURABLE, null, false);
+            jsPublish(js, subjectA, 1);
+            jsPublish(js, subjectB, 1);
+            jsPublish(js, subjectA, 1);
+            jsPublish(js, subjectB, 1);
 
-            JetStreamManagement jsm = nc.jetStreamManagement();
+            // subscribe to the wildcard
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().ackPolicy(AckPolicy.None).build();
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
+            JetStreamSubscription sub = js.subscribe(subject, pso);
+            nc.flush(Duration.ofSeconds(1));
 
-            // another subscription with valid filter subject
-            sub = js.subscribe(SUBJECT, pso1);
-            assertSubscription(sub, STREAM, DURABLE, null, false);
+            Message m = sub.nextMessage(Duration.ofSeconds(1));
+            assertEquals(subjectA, m.getSubject());
+            assertEquals(1, m.metaData().streamSequence());
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertEquals(subjectB, m.getSubject());
+            assertEquals(2, m.metaData().streamSequence());
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertEquals(subjectA, m.getSubject());
+            assertEquals(3, m.metaData().streamSequence());
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertEquals(subjectB, m.getSubject());
+            assertEquals(4, m.metaData().streamSequence());
 
-            // filtering on a subject that the durable does not already filter
-            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject(9), pso1));
+            // subscribe to A
+            cc = ConsumerConfiguration.builder().filterSubject(subjectA).ackPolicy(AckPolicy.None).build();
+            pso = PushSubscribeOptions.builder().configuration(cc).build();
+            sub = js.subscribe(subject, pso);
+            nc.flush(Duration.ofSeconds(1));
 
-            // filter subject ignored when consumer already exists
-            ConsumerConfiguration cc2 = ConsumerConfiguration.builder().filterSubject("ignored-bc-not-creating").durable(DURABLE).build();
-            PushSubscribeOptions pso2 = PushSubscribeOptions.builder().configuration(cc2).build();
-            sub = js.subscribe(SUBJECT, pso2);
-            assertSubscription(sub, STREAM, DURABLE, null, false);
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertEquals(subjectA, m.getSubject());
+            assertEquals(1, m.metaData().streamSequence());
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertEquals(subjectA, m.getSubject());
+            assertEquals(3, m.metaData().streamSequence());
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertNull(m);
+
+            // subscribe to B
+            cc = ConsumerConfiguration.builder().filterSubject(subjectB).ackPolicy(AckPolicy.None).build();
+            pso = PushSubscribeOptions.builder().configuration(cc).build();
+            sub = js.subscribe(subject, pso);
+            nc.flush(Duration.ofSeconds(1));
+
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertEquals(subjectB, m.getSubject());
+            assertEquals(2, m.metaData().streamSequence());
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertEquals(subjectB, m.getSubject());
+            assertEquals(4, m.metaData().streamSequence());
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertNull(m);
+        });
+    }
+
+    @Test
+    public void testFilterSubjectDurable() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            String subjectWild = SUBJECT + ".*";
+            String subjectA = SUBJECT + ".A";
+            String subjectB = SUBJECT + ".B";
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, subjectWild);
+
+            jsPublish(js, subjectA, 1);
+            jsPublish(js, subjectB, 1);
+            jsPublish(js, subjectA, 1);
+            jsPublish(js, subjectB, 1);
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().filterSubject(subjectA).ackPolicy(AckPolicy.None).build();
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(DURABLE).configuration(cc).build();
+
+            JetStreamSubscription sub = js.subscribe(subjectWild, pso);
+            nc.flush(Duration.ofSeconds(1));
+
+            Message m = sub.nextMessage(Duration.ofSeconds(1));
+            assertEquals(subjectA, m.getSubject());
+            assertEquals(1, m.metaData().streamSequence());
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertEquals(3, m.metaData().streamSequence());
+            sub.unsubscribe();
+
+            jsPublish(js, subjectA, 1);
+            jsPublish(js, subjectB, 1);
+            jsPublish(js, subjectA, 1);
+            jsPublish(js, subjectB, 1);
+
+            sub = js.subscribe(subjectWild, pso);
+            nc.flush(Duration.ofSeconds(1));
+
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertEquals(subjectA, m.getSubject());
+            assertEquals(5, m.metaData().streamSequence());
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertEquals(7, m.metaData().streamSequence());
+            sub.unsubscribe();
+
+            ConsumerConfiguration cc1 = ConsumerConfiguration.builder().filterSubject(subjectWild).build();
+            PushSubscribeOptions pso1 = PushSubscribeOptions.builder().durable(DURABLE).configuration(cc1).build();
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subjectWild, pso1));
+
+            ConsumerConfiguration cc2 = ConsumerConfiguration.builder().filterSubject(subjectB).build();
+            PushSubscribeOptions pso2 = PushSubscribeOptions.builder().durable(DURABLE).configuration(cc2).build();
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subjectWild, pso2));
         });
     }
 
