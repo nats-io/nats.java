@@ -756,7 +756,7 @@ class NatsConnection implements Connection {
 
         Connection.Status stat = this.status;
         if ((stat == Status.RECONNECTING || stat == Status.DISCONNECTED)
-                && !this.writer.canQueue(nm, options.getReconnectBufferSize())) {
+                && !this.writer.canQueueDuringReconnect(nm)) {
             throw new IllegalStateException(
                     "Unable to queue any more messages during reconnect, max buffer is " + options.getReconnectBufferSize());
         }
@@ -862,7 +862,7 @@ class NatsConnection implements Connection {
                 .append(sub.getSID());
 
         if (after > 0) {
-            bab.appendSpace().append(after);
+            bab.append(SP).append(after);
         }
         queueInternalOutgoing(new ProtocolMessage(bab));
     }
@@ -903,10 +903,10 @@ class NatsConnection implements Connection {
                 .append(subject, StandardCharsets.UTF_8); // utf-8 just in case
 
         if (queueName != null) {
-            bab.appendSpace().append(queueName);
+            bab.append(SP).append(queueName);
         }
 
-        bab.appendSpace().append(sid);
+        bab.append(SP).append(sid);
 
         NatsMessage subMsg = new ProtocolMessage(bab);
 

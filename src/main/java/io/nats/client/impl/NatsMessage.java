@@ -133,19 +133,16 @@ public class NatsMessage implements Message {
             }
 
             // next comes the subject
-            bab.append(subject, utf8mode ? UTF_8 : US_ASCII);
-            bab.appendSpace();
+            bab.append(subject, utf8mode ? UTF_8 : US_ASCII).append(SP);
 
             // reply to if it's there
             if (replyToLen > 0) {
-                bab.append(replyTo);
-                bab.appendSpace();
+                bab.append(replyTo).append(SP);
             }
 
             // header length if there are headers
             if (hdrLen > 0) {
-                bab.append(Integer.toString(hdrLen));
-                bab.appendSpace();
+                bab.append(Integer.toString(hdrLen)).append(SP);
             }
 
             // payload length
@@ -303,6 +300,24 @@ public class NatsMessage implements Message {
     @Override
     public boolean isJetStream() {
         return false;  // overridden in NatsJetStreamMessage
+    }
+
+    public ByteArrayBuilder appendSerialized(ByteArrayBuilder bab) {
+        bab.append(getProtocolBytes()).append(CRLF_BYTES);
+
+        if (!isProtocol()) {
+            if (hasHeaders()) {
+                getHeaders().appendSerialized(bab);
+            }
+
+            if (getData().length > 0) {
+                bab.append(getData());
+            }
+
+            bab.append(CRLF_BYTES);
+        }
+
+        return bab;
     }
 
     @Override
