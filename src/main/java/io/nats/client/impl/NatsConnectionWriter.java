@@ -91,15 +91,6 @@ public class NatsConnectionWriter implements Runnable {
     // method does.
     Future<Boolean> stop() {
         this.running.set(false);
-
-        // TODO ???
-//        this.startStopLock.lock();
-//        try {
-//            // remove ping and pong
-//        } finally {
-//            this.startStopLock.unlock();
-//        }
-
         return this.stopped;
     }
 
