@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CyclicBarrier;
@@ -29,23 +30,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class LatencyBenchmark extends AutoBenchmark {
+    static FileOutputStream lcsvOut;
+    static List<Long> allPayloadSizes;
+    static List<List<Long>> allMeasurements;
 
     // We only touch this in subThread, until test is done so no locking
     final ArrayList<Long> measurements = new ArrayList<>((int)this.getMessageCount());
-    FileOutputStream lcsvOut;
+    final String lcsv;
 
-    public LatencyBenchmark(String name, long messageCount, long messageSize, String lcsvdir) {
+    public LatencyBenchmark(String name, long messageCount, long messageSize, String lcsv) {
         super(name, messageCount, messageSize);
-        if (lcsvdir != null) {
-            try {
-                if (!lcsvdir.endsWith("\\")) {
-                    lcsvdir += "\\";
-                }
-                lcsvOut = new FileOutputStream(lcsvdir + "latency-nanos-" + messageCount + "-msgs-" + messageSize + "-bytes.csv");
-            } catch (FileNotFoundException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        this.lcsv = lcsv;
     }
 
     public void execute(Options connectOptions) throws InterruptedException {
@@ -148,6 +143,16 @@ public class LatencyBenchmark extends AutoBenchmark {
         System.out.println("Latency                |           nanos           |            |");
         System.out.println("| payload    |   count |    min |  median |    max | std dev ms |");
         System.out.println("| ---------- | ------- | ------ | ------- | ------ | ---------- |");
+
+        if (lcsv != null) {
+            try {
+                lcsvOut = new FileOutputStream(lcsv);
+                allPayloadSizes = new ArrayList<>();
+                allMeasurements = new ArrayList<>();
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @Override
@@ -163,16 +168,9 @@ public class LatencyBenchmark extends AutoBenchmark {
             return;
         }
 
-        if (lcsvOut != null) {
-            try {
-                for (long measure : measurements) {
-                    lcsvOut.write((measure + "\n").getBytes(StandardCharsets.US_ASCII));
-                }
-                lcsvOut.flush();
-                lcsvOut.close();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+        if (allMeasurements != null) {
+            allPayloadSizes.add(getMessageSize());
+            allMeasurements.add(measurements);
         }
 
         LongSummaryStatistics stats = measurements.stream().
@@ -198,6 +196,40 @@ public class LatencyBenchmark extends AutoBenchmark {
                             median,
                             NumberFormat.getIntegerInstance().format(max),
                             stdDev);
+    }
+
+    @Override
+    public void afterPrintLastOfKind() {
+        if (allMeasurements != null) {
+            try {
+                int cols = allPayloadSizes.size();
+                int rows = allMeasurements.get(0).size();
+                StringBuilder sb = new StringBuilder();
+                for (int c = 0; c < cols; c++) {
+                    if (c > 0) {
+                        sb.append(",");
+                    }
+                    sb.append(allPayloadSizes.get(c)).append(" bytes");
+                }
+                sb.append("\r\n");
+                lcsvOut.write(sb.toString().getBytes(StandardCharsets.US_ASCII));
+
+                for (int r = 0; r < rows; r++) {
+                    sb.setLength(0);
+                    for (int c = 0; c < cols; c++) {
+                        if (c > 0) {
+                            sb.append(",");
+                        }
+                        sb.append(allMeasurements.get(c).get(r));
+                    }
+                    sb.append("\r\n");
+                    lcsvOut.write(sb.toString().getBytes(StandardCharsets.US_ASCII));
+                }
+
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     public double calcMedian() {
