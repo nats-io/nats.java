@@ -46,9 +46,6 @@ public class NatsJsPushSubFilterSubject {
         String subjectWild = subjectPrefix + ".*";
         String subjectA = subjectPrefix + ".A";
         String subjectB = subjectPrefix + ".B";
-        String durable = "fs-durable-" + ue;
-        String durableA = durable + "A";
-        String durableB = durable + "B";
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
