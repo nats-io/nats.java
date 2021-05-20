@@ -24,8 +24,6 @@ public class ByteArrayBuilder {
     public static final int DEFAULT_ASCII_ALLOCATION = 32;
     public static final int DEFAULT_OTHER_ALLOCATION = 64;
     public static final byte[] NULL = "null".getBytes(US_ASCII);
-    public static final byte[] SPACE = " ".getBytes(US_ASCII);
-    public static final byte[] CRLF = "\r\n".getBytes(US_ASCII);
 
     private final Charset defaultCharset;
     private ByteBuffer buffer;
@@ -213,24 +211,6 @@ public class ByteArrayBuilder {
     public ByteArrayBuilder setAllocationSize(int allocationSize) {
         this.allocationSize = allocationSize;
         return this;
-    }
-
-    /**
-     * Append a space
-     *
-     * @return this (fluent)
-     */
-    public ByteArrayBuilder appendSpace() {
-        return append(SPACE, 0, 1);
-    }
-
-    /**
-     * Append the two characters for CR / LF
-     *
-     * @return this (fluent)
-     */
-    public ByteArrayBuilder appendCrLf() {
-        return append(CRLF, 0, 2);
     }
 
     /**
