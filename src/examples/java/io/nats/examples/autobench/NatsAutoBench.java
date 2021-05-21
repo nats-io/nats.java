@@ -37,7 +37,7 @@ public class NatsAutoBench {
                     "\n[serverURL] [help] [tiny|small|med|large] [conscrypt] [jsfile]" +
                     "\n[PubOnly] [PubSub] [PubDispatch] [ReqReply] [Latency] " +
                     "\n[JsPubSync] [JsPubAsync] [JsSub] [JsPubRounds]" +
-                    "[-lcsvdir <filespec>] \n\n"
+                    "[-lcsv <filespec>] \n\n"
             + "If no specific test name(s) are supplied all will be run, otherwise only supplied tests will be run."
             + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\n\ntiny, small and med reduce the number of messages used for tests, which can help on slower machines\n";
@@ -50,7 +50,7 @@ public class NatsAutoBench {
         // args = "med JsPubAsync".split(" ");
         // args = "help".split(" ");
         // args = "latency large".split(" ");
-        // args = "latency large -lcsvdir C:\\nats".split(" ");
+        // args = "latency large -lcsv C:\\nats\\latency.csv".split(" ");
 
         Arguments a = readArgs(args);
 
@@ -121,7 +121,9 @@ public class NatsAutoBench {
 
                 test.printResult();
             }
-            lastTest.afterPrintLastOfKind();
+            if (lastTest != null) {
+                lastTest.afterPrintLastOfKind();
+            }
 
             System.out.println();
             System.out.printf("Final memory usage is %s / %s / %s free/total/max\n", 
@@ -202,7 +204,7 @@ public class NatsAutoBench {
 
         if (a.allTests || a.latency) {
                 addLatencyTests(a.latencyMsgs, a.maxSize, tests, sizes,
-                    (msize, mcnt) -> new LatencyBenchmark("Latency " + msize, mcnt, msize, a.lcsvdir));
+                    (msize, mcnt) -> new LatencyBenchmark("Latency " + msize, mcnt, msize, a.lcsv));
         }
 
         return tests;
@@ -293,7 +295,7 @@ public class NatsAutoBench {
         boolean jsSub = false;
         boolean jsPubRounds = false;
         boolean jsFile = false;
-        String lcsvdir = null;
+        String lcsv = null;
     }
 
     private static Arguments readArgs(String[] args) {
@@ -366,8 +368,8 @@ public class NatsAutoBench {
                     case "jsfile":
                         a.jsFile = true;
                         break;
-                    case "-lcsvdir":
-                        a.lcsvdir = args[++x];
+                    case "-lcsv":
+                        a.lcsv = args[++x];
                         break;
                     case "help":
                         System.err.println(usageString);
