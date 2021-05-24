@@ -33,7 +33,7 @@ public class NatsJsPushSubFlowControl {
             "\nUsage: java -cp <classpath> NatsJsPushSubFlowControl [-s server]"
                     + "\n\nRun Notes:"
                     + "\n   - THIS EXAMPLE IS NOT INTENDED TO BE CUSTOMIZED."
-                    + "\n     Supply the [-s server] value if not using localhost:4222"
+                    + "\n     Supply the [-s server] value if your server is not at localhost:4222"
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
                     + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
                     + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
