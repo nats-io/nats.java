@@ -8,7 +8,7 @@
 [ENHANCEMENT] PR #472 / #477 benchmark improvements (@scottf)
 [ENHANCEMENT] PR #473 performance improvements(@scottf)
 [FIXED] PR #475 fixed filter subject (@scottf)
-[EXAMPLES] PR #478 fix examples based on better understanding of deliver subject (@scottf) 
+[EXAMPLES] PR #478 Clarify with deliver subjects (@scottf) 
 
 ## Version 2.11.2
 
