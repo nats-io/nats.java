@@ -1,6 +1,27 @@
 
 # Change Log
 
+## Version 2.11.3
+
+#### Pull Requests
+
+[ENHANCEMENT] PR #472 / #477 benchmark improvements (@scottf)
+[ENHANCEMENT] PR #473 performance improvements(@scottf)
+[FIXED] PR #475 fixed filter subject (@scottf)
+[EXAMPLES] PR #478 Clarify with deliver subjects (@scottf) 
+
+## Version 2.11.2
+
+#### Pull Requests
+[ENHANCEMENT] PR #470 JsMultiTool and AutoBench Reporting Enhancements (@scottf)
+[ENHANCEMENT] PR #468 duplicates and orphans (@scottf)
+[FEATURE] PR #467 / #471 Heartbeat and Flow Control (@scottf)
+[FIXED] PR #466 JsMultiTool Queue Fix (@scottf)
+
+## Version 2.11.1
+
+JetStream Multi Tool enhancements and documentation
+
 ## Version 2.11.0
 
 #### Issue Bug Fixes
