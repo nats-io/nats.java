@@ -35,7 +35,8 @@ In the `io.nats.examples.jetstream` package...
 1. `NatsJsPullSubNoWaitUseCases.java` - pull subscription example specifying no wait with examples of manual handling various cases of available messages
 1. `NatsJsPushSub.java` - push subscribing to read messages synchronously and manually acknowledges messages.
 1. `NatsJsPushSubDeliverSubject.java` - push subscribing with a deliver subject and how the subject can be read as a regular Nats Message  
-1. `NatsJsPushSubQueue.java` - push subscribing to read messages in a load balance queue.
+1. `NatsJsPushSubQueueDeliverSubject.java` - push subscribing to read messages in a load balance queue using a deliver subject with ephemeral consumers.
+1. `NatsJsPushSubQueueDurable.java` - push subscribing to read messages in a load balance queue using a durable consumer.
 1. `NatsJsPushSubWithHandler.java` - push subscribing to read messages asynchronously and manually acknowledge messages.
 
 ### JetStream Management / Admin Examples

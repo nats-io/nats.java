@@ -32,7 +32,8 @@ public class NatsJsPushSubFilterSubject {
     static final String usageString =
             "\nUsage: java -cp <classpath> NatsJsPushSubFilterSubject [-s server]"
                     + "\n\nRun Notes:"
-                    + "\n   - THIS EXAMPLE IS NOT INTENDED TO BE CUSTOMIZED. You can still provider the server."
+                    + "\n   - THIS EXAMPLE IS NOT INTENDED TO BE CUSTOMIZED."
+                    + "\n     Supply the [-s server] value if your server is not at localhost:4222"
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
                     + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
                     + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
@@ -46,9 +47,6 @@ public class NatsJsPushSubFilterSubject {
         String subjectWild = subjectPrefix + ".*";
         String subjectA = subjectPrefix + ".A";
         String subjectB = subjectPrefix + ".B";
-        String durable = "fs-durable-" + ue;
-        String durableA = durable + "A";
-        String durableB = durable + "B";
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
