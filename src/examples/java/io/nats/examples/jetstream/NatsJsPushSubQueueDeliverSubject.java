@@ -26,18 +26,18 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * This example will demonstrate JetStream push subscribing. Run NatsJsPub first to setup message data.
+ * This example will demonstrate JetStream push subscribing using a deliver subject for ephemeral consumers.
  */
-public class NatsJsPushSubQueue {
+public class NatsJsPushSubQueueDeliverSubject {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPushSubQueue [-s server] [-strm stream] [-sub subject] [-q queue] [-dur durable] [-mcnt msgCount] [-scnt subCount]"
+            "\nUsage: java -cp <classpath> NatsJsPushSubQueueDeliverSubject [-s server] [-strm stream] [-sub subject] [-q queue] [-dur durable] [-mcnt msgCount] [-scnt subCount]"
                     + "\n\nDefault Values:"
-                    + "\n   [-strm stream]    jsq-stream"
-                    + "\n   [-sub subject]    jsq-subject"
-                    + "\n   [-q queue]        jsq-queue"
-                    + "\n   [-dur durable]    jsq-durable"
-                    + "\n   [-mcnt msgCount]  100"
-                    + "\n   [-scnt subCount]  5"
+                    + "\n   [-strm stream]          jsqds-stream"
+                    + "\n   [-sub subject]          jsqds-subject"
+                    + "\n   [-q queue]              jsqds-queue"
+                    + "\n   [-dlvr deliver-subject] jsqds-dlvr"
+                    + "\n   [-mcnt msgCount]        100"
+                    + "\n   [-scnt subCount]        5"
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
                     + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
                     + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
@@ -45,10 +45,10 @@ public class NatsJsPushSubQueue {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("jsq-stream")
-                .defaultSubject("jsq-subject")
-                .defaultQueue("jsq-queue")
-                .defaultDurable("jsq-durable")
+                .defaultStream("jsqds-stream")
+                .defaultSubject("jsqds-subject")
+                .defaultQueue("jsqds-queue")
+                .defaultDeliver("jsqds-deliver")
                 .defaultMsgCount(100)
                 .defaultSubCount(5)
                 .build(args, usageString);
@@ -65,7 +65,7 @@ public class NatsJsPushSubQueue {
             // - the PushSubscribeOptions can be re-used since all the subscribers are the same
             // - use a concurrent integer to track all the messages received
             // - have a list of subscribers and threads so I can track them
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(exArgs.durable).build();
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().deliverSubject(exArgs.deliver).build();
             AtomicInteger allReceived = new AtomicInteger();
             List<JsQueueSubscriber> subscribers = new ArrayList<>();
             List<Thread> subThreads = new ArrayList<>();
