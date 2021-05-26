@@ -50,7 +50,7 @@ public class NatsAutoBench {
         // args = "med JsPubAsync".split(" ");
         // args = "help".split(" ");
         // args = "latency large".split(" ");
-        // args = "latency large -lcsv C:\\nats\\latency.csv".split(" ");
+         args = "192.168.50.99 latency large -lcsv C:\\nats\\latency.csv".split(" ");
 
         Arguments a = readArgs(args);
 
