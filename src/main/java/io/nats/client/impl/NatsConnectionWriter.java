@@ -218,7 +218,7 @@ class NatsConnectionWriter implements Runnable {
     }
 
     synchronized void flushBuffer() {
-        // Since there is no connection level locking, we rely on syncronization
+        // Since there is no connection level locking, we rely on synchronization
         // of the APIs here.
         try  {
             if (this.running.get()) {
