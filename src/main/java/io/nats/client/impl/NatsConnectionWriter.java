@@ -23,13 +23,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class NatsConnectionWriter implements Runnable {
-
-    private static final int TOTAL_SLEEP = 40;
-    private static final int EACH_SLEEP = 4;
-    private static final int MAX_BEFORE_FLUSH = 10;
 
     private final NatsConnection connection;
 
@@ -45,9 +43,13 @@ public class NatsConnectionWriter implements Runnable {
     private final int discardMessageCountThreshold;
     private final long reconnectBufferSize;
 
-    private final ReentrantLock buffersAccessLock;
     private long regularQueuedMessageCount;
     private long reconnectQueuedMessageCount;
+
+    private boolean lockFlag;
+    private final Lock lock;
+    private final Condition producerFinished;
+    private final Condition consumerFinished;
 
     NatsConnectionWriter(NatsConnection connection) {
         this.connection = connection;
@@ -67,9 +69,13 @@ public class NatsConnectionWriter implements Runnable {
                 ? options.getMaxMessagesInOutgoingQueue() : Integer.MAX_VALUE;
         reconnectBufferSize = options.getReconnectBufferSize();
 
-        buffersAccessLock = new ReentrantLock();
         regularQueuedMessageCount = 0;
         reconnectQueuedMessageCount = 0;
+
+        lockFlag = false;
+        lock = new ReentrantLock();
+        producerFinished = lock.newCondition();
+        consumerFinished = lock.newCondition();
     }
 
     // Should only be called if the current thread has exited.
@@ -91,6 +97,13 @@ public class NatsConnectionWriter implements Runnable {
     // method does.
     Future<Boolean> stop() {
         this.running.set(false);
+        lock.lock();
+        try {
+            lockFlag = true;
+            producerFinished.signal();
+        } finally {
+            lock.unlock();
+        }
         return this.stopped;
     }
 
@@ -98,30 +111,17 @@ public class NatsConnectionWriter implements Runnable {
     public void run() {
         try {
             dataPort = dataPortFuture.get(); // Will wait for the future to complete
-            // --------------------------------------------------------------------------------
-            // NOTE
-            // --------------------------------------------------------------------------------
-            // regularQueuedMessageCount/reconnectQueuedMessageCount are volatile variables
-            // that are read in this method outside of the buffersAccessLock.lock() block.
-            // They are written to inside the _queue method, inside of a lock.
-            // Since we are reading, if we happen to miss a write, we don't care, as the loop
-            // will just check (read) those variables again soon.
-            // --------------------------------------------------------------------------------
-            int waits = 0;
             while (running.get()) {
-                boolean rmode = reconnectMode.get();
-                long mcount = rmode ? reconnectQueuedMessageCount : regularQueuedMessageCount;
+                lock.lock();
+                try {
+                    //no new message wait for new message
+                    while (!lockFlag) {
+                        producerFinished.await();
+                    }
 
-                while (waits < TOTAL_SLEEP && mcount < MAX_BEFORE_FLUSH) {
-                    try { //noinspection BusyWait
-                        Thread.sleep(EACH_SLEEP);
-                    } catch (Exception ignore) { /* don't care */ }
-                    waits += EACH_SLEEP;
-                }
-
-                if (mcount > 0) {
-                    buffersAccessLock.lock();
-                    try {
+                    boolean rmode = reconnectMode.get();
+                    long mcount = rmode ? reconnectQueuedMessageCount : regularQueuedMessageCount;
+                    if (mcount > 0) {
                         ByteArrayBuilder bab = rmode ? reconnectSendBuffer : regularSendBuffer;
                         int byteCount = bab.length();
                         dataPort.write(bab.internalArray(), byteCount);
@@ -133,14 +133,23 @@ public class NatsConnectionWriter implements Runnable {
                         else {
                             regularQueuedMessageCount = 0;
                         }
-                    } finally {
-                        buffersAccessLock.unlock();
                     }
+                    lockFlag = false;
+
+                    //message consumed, notify waiting thread
+                    consumerFinished.signal();
+
+                } catch(InterruptedException ie) {
+                    System.out.println("Thread interrupted - consumer");
+                } finally {
+                    lock.unlock();
                 }
             }
         } catch (IOException | BufferOverflowException io) {
+            System.out.println(io);
             connection.handleCommunicationIssue(io);
         } catch (CancellationException | ExecutionException | InterruptedException ex) {
+            System.out.println(ex);
             // Exit
         } finally {
             running.set(false);
@@ -173,9 +182,13 @@ public class NatsConnectionWriter implements Runnable {
     }
 
     void _queue(NatsMessage msg, ByteArrayBuilder bab) {
-
-        buffersAccessLock.lock();
+        lock.lock();
         try {
+            //last message not consumed, wait for it be consumed
+            while (lockFlag) {
+                consumerFinished.await();
+            }
+
             long startSize = bab.length();
             msg.appendSerialized(bab);
             long added = bab.length() - startSize;
@@ -189,9 +202,16 @@ public class NatsConnectionWriter implements Runnable {
             }
 
             connection.getNatsStatistics().incrementOutMsgsAndBytes(added);
-        }
-        finally {
-            buffersAccessLock.unlock();
+
+            lockFlag = true;
+
+            //new message added, notify waiting thread
+            producerFinished.signal();
+
+        } catch(InterruptedException ie) {
+            System.out.println("Thread interrupted - produce");
+        } finally {
+            lock.unlock();
         }
     }
 
