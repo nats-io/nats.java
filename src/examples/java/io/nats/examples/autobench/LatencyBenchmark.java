@@ -140,9 +140,9 @@ public class LatencyBenchmark extends AutoBenchmark {
 
     @Override
     public void beforePrintFirstOfKind() {
-        System.out.println("Latency                |           nanos           |            |");
-        System.out.println("| payload    |   count |    min |  median |    max | std dev ms |");
-        System.out.println("| ---------- | ------- | ------ | ------- | ------ | ---------- |");
+        System.out.println("Latency                 |           nanos              |            |");
+        System.out.println("| payload     |   count |    min |  median  |      max | std dev ms |");
+        System.out.println("| ----------- | ------- | ------ | -------- | -------- | ---------- |");
 
         if (lcsv != null) {
             try {
@@ -189,7 +189,7 @@ public class LatencyBenchmark extends AutoBenchmark {
                                             map(d -> ((d-average) * (d-average))).
                                             sum()) / (1e3 * (count-1));
 
-        System.out.printf("| %-10s | %7s | %6s | %7.2f | %6s | +/- %6.2f |\n",
+        System.out.printf("| %-11s | %7s | %6s | %8.2f | %8s | +/- %6.2f |\n",
                             getName().replaceAll("Latency ", "") + " bytes",
                             NumberFormat.getIntegerInstance().format(count),
                             NumberFormat.getIntegerInstance().format(min),
