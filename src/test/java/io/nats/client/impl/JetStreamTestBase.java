@@ -199,10 +199,14 @@ public class JetStreamTestBase extends TestBase {
 
     public static void assertAllJetStream(List<Message> messages) {
         for (Message m : messages) {
-            assertTrue(m.isJetStream());
-            assertFalse(m.isStatusMessage());
-            assertNull(m.getStatus());
+            assertIsJetStream(m);
         }
+    }
+
+    public static void assertIsJetStream(Message m) {
+        assertTrue(m.isJetStream());
+        assertFalse(m.isStatusMessage());
+        assertNull(m.getStatus());
     }
 
     public static void assertLastIsStatus(List<Message> messages, int code) {
@@ -211,14 +215,24 @@ public class JetStreamTestBase extends TestBase {
             Message m = messages.get(x);
             assertTrue(m.isJetStream());
         }
-        Message m = messages.get(lastIndex);
-        assertFalse(m.isJetStream());
-        assertIsStatus(messages, code, lastIndex);
+        assertIsStatus(messages.get(lastIndex), code);
     }
 
-    public static void assertIsStatus(List<Message> messages, int code, int index) {
-        assertEquals(index + 1, messages.size());
-        Message statusMsg = messages.get(index);
+    public static void assertStarts408(List<Message> messages, int count408, int countJs) {
+        for (int x = 0; x < count408; x++) {
+            assertIsStatus(messages.get(x), 408);
+        }
+        int countedJs = 0;
+        int lastIndex = messages.size() - 1;
+        for (int x = count408; x < lastIndex; x++) {
+            Message m = messages.get(x);
+            assertTrue(m.isJetStream());
+            countedJs++;
+        }
+        assertEquals(countedJs, countedJs);
+    }
+
+    private static void assertIsStatus(Message statusMsg, int code) {
         assertFalse(statusMsg.isJetStream());
         assertTrue(statusMsg.isStatusMessage());
         assertNotNull(statusMsg.getStatus());

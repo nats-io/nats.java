@@ -13,6 +13,8 @@
 
 package io.nats.client.support;
 
+import io.nats.client.api.SequencePair;
+
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -270,11 +272,11 @@ public abstract class JsonUtils {
      * @param sb string builder
      * @param fname fieldname
      * @param value field value
-     */    
+     */
     public static void addField(StringBuilder sb, String fname, long value) {
         if (value >= 0) {
             sb.append(Q).append(fname).append(QCOLON).append(value).append(COMMA);
-        }      
+        }
     }
 
     /**
@@ -488,7 +490,13 @@ public abstract class JsonUtils {
     }
 
     public static String objectString(String name, Object o) {
-        return o == null ? name + "=null" : o.toString();
+        if (o == null) {
+            return name + "=null";
+        }
+        if (o instanceof SequencePair) {
+            return o.toString().replace("SequencePair", name);
+        }
+        return o.toString();
     }
 
     // ----------------------------------------------------------------------------------------------------

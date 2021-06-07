@@ -313,6 +313,89 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testAfterIncompleteExpiresPulls() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
+
+            // Subscribe synchronously.
+            JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            assertSubscription(sub, STREAM, DURABLE, null, true);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // publish 10 messages
+            // no wait, batch size 10, there are 10 messages, we will read them all and not trip nowait
+            jsPublish(js, SUBJECT, "A", 5);
+            sub.pullExpiresIn(10, Duration.ofSeconds(1));
+            List<Message> messages = readMessagesAck(sub);
+            assertEquals(5, messages.size());
+            assertAllJetStream(messages);
+
+            jsPublish(js, SUBJECT, "B", 10);
+            sub.pullExpiresIn(10, Duration.ofSeconds(1));
+            messages = readMessagesAck(sub);
+            assertEquals(15, messages.size());
+            assertStarts408(messages, 5, 10);
+
+            jsPublish(js, SUBJECT, "C", 5);
+            sub.pullExpiresIn(10, Duration.ofSeconds(1));
+            messages = readMessagesAck(sub);
+            assertEquals(5, messages.size());
+            assertAllJetStream(messages);
+
+            jsPublish(js, SUBJECT, "D", 10);
+            sub.pull(10);
+            messages = readMessagesAck(sub);
+            assertEquals(15, messages.size());
+            assertStarts408(messages, 5, 10);
+
+            jsPublish(js, SUBJECT, "E", 5);
+            sub.pullExpiresIn(10, Duration.ofSeconds(1));
+            messages = readMessagesAck(sub);
+            assertEquals(5, messages.size());
+            assertAllJetStream(messages);
+
+            jsPublish(js, SUBJECT, "F", 10);
+            sub.pullNoWait(10);
+            messages = readMessagesAck(sub);
+            assertEquals(15, messages.size());
+            assertStarts408(messages, 5, 10);
+
+            jsPublish(js, SUBJECT, "G", 5);
+            sub.pullExpiresIn(10, Duration.ofSeconds(1));
+            messages = readMessagesAck(sub);
+            assertEquals(5, messages.size());
+            assertAllJetStream(messages);
+
+            jsPublish(js, SUBJECT, "H", 10);
+            messages = sub.fetch(10, Duration.ofSeconds(1));
+            assertEquals(10, messages.size());
+            assertAllJetStream(messages);
+
+            jsPublish(js, SUBJECT, "I", 5);
+            sub.pullExpiresIn(10, Duration.ofSeconds(1));
+            messages = readMessagesAck(sub);
+            assertEquals(5, messages.size());
+            assertAllJetStream(messages);
+
+            jsPublish(js, SUBJECT, "J", 10);
+            Iterator<Message> i = sub.iterate(10, Duration.ofSeconds(1));
+            int count = 0;
+            while (i.hasNext()) {
+                assertIsJetStream(i.next());
+                ++count;
+            }
+            assertEquals(10, count);
+        });
+    }
+
+    @Test
     public void testAckNak() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
