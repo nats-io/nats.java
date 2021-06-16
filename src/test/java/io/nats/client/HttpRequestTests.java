@@ -17,6 +17,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
 
+import io.nats.client.impl.Headers;
+
 public class HttpRequestTests {
     @Test
     public void testDefaults() {
@@ -24,7 +26,7 @@ public class HttpRequestTests {
         assertEquals("GET", request.getMethod());
         assertEquals("/", request.getURI());
         assertEquals("1.0", request.getVersion());
-        assertEquals(new HttpHeaders(), request.getHeaders());
+        assertEquals(new Headers(), request.getHeaders());
         assertEquals(
             "GET / HTTP/1.0\r\n" +
             "\r\n",

@@ -16,6 +16,8 @@ package io.nats.client.impl;
 import io.nats.client.HttpRequest;
 import io.nats.client.Options;
 import io.nats.client.support.NatsConstants;
+import io.nats.client.support.WebsocketInputStream;
+import io.nats.client.support.WebsocketOutputStream;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
@@ -60,7 +62,6 @@ public class SocketDataPort implements DataPort {
 
     @Override
     public void connect(String serverURI, NatsConnection conn, long timeoutNanos) throws IOException {
-
         try {
             this.connection = conn;
 
@@ -75,7 +76,6 @@ public class SocketDataPort implements DataPort {
             socket.setReceiveBufferSize(2 * 1024 * 1024);
             socket.setSendBufferSize(2 * 1024 * 1024);
             socket.connect(new InetSocketAddress(host, port), (int) timeout);
-
             in = socket.getInputStream();
             out = socket.getOutputStream();
             if (isWebsocketScheme(uri.getScheme())) {

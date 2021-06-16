@@ -11,14 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.impl;
+package io.nats.client.support;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.security.SecureRandom;
 import java.util.Random;
 
-import io.nats.client.impl.WebsocketFrameHeader.OpCode;
+import io.nats.client.support.WebsocketFrameHeader.OpCode;
 
 public class WebsocketOutputStream extends OutputStream {
     private OutputStream wrap;

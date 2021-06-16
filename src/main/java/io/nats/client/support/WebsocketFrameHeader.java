@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.impl;
+package io.nats.client.support;
 
 public class WebsocketFrameHeader {
     public static int MAX_FRAME_HEADER_SIZE = 14;

@@ -1749,6 +1749,18 @@ public class Options {
         return discardMessagesWhenOutgoingQueueFull;
     }
 
+    public static boolean isWebsocket(String serverURI) {
+        if (null == serverURI) {
+            return false;
+        }
+        String lower = serverURI.toLowerCase();
+        if (!lower.startsWith("ws")) {
+            return false;
+        }
+        String part = lower.substring(2, 6);
+        return part.equals("s://") || part.equals("://");
+    }
+
     public URI createURIForServer(String serverURI) throws URISyntaxException {
         return createURIForServer(serverURI, false);
     }

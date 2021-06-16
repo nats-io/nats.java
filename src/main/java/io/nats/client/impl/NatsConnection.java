@@ -40,6 +40,7 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.nats.client.Options.isWebsocket;
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.Validator.validateNotNull;
 
@@ -500,18 +501,6 @@ class NatsConnection implements Connection {
         if (opts.isNoEcho() && info.getProtocolVersion() < 1) {
             throw new IOException("Server does not support no echo.");
         }
-    }
-
-    private static boolean isWebsocket(String serverURI) {
-        if (null == serverURI) {
-            return false;
-        }
-        String lower = serverURI.toLowerCase();
-        if (!lower.startsWith("ws")) {
-            return false;
-        }
-        String part = lower.substring(2, 6);
-        return part.equals("s://") || part.equals("://");
     }
 
     void upgradeToSecureIfNeeded(String serverURI) throws IOException {

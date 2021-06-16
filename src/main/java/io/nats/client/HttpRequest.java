@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.Headers;
+
 /**
  * Encapsulate an HttpRequest, in Java 11 we could use this class:
  * https://docs.oracle.com/en/java/javase/11/docs/api/java.net.http/java/net/http/HttpRequest.html
@@ -23,12 +25,12 @@ public class HttpRequest {
     private String method = "GET";
     private String uri = "/";
     private String version = "1.0";
-    private HttpHeaders headers = new HttpHeaders();
+    private Headers headers = new Headers();
 
     /**
      * @return the attached http headers, defaults to GET
      */
-    public HttpHeaders getHeaders() {
+    public Headers getHeaders() {
         return headers;
     }
 
@@ -113,7 +115,15 @@ public class HttpRequest {
         sb.append(" HTTP/");
         sb.append(version);
         sb.append("\r\n");
-        sb.append(headers.toString());
+        headers.forEach((key, values) -> {
+            values.stream().forEach(value -> {
+                sb.append(key);
+                sb.append(": ");
+                sb.append(value);
+                sb.append("\r\n");
+            });
+        });
+        sb.append("\r\n");
         return sb.toString();
     }
 }
