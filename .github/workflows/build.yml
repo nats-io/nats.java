@@ -1,4 +1,4 @@
-name: GitHub Build Actions For Nats Server Runner
+name: GitHub Build Actions For JNats NATS.io Java Client
 
 on:
   pull_request:
