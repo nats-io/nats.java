@@ -15,7 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
-import io.nats.client.utils.CloseOnUpgradeAttempt;
+
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -49,6 +49,21 @@ public class TLSConnectTests {
                     .server(ts.getURI())
                     .maxReconnects(0)
                     .sslContext(ctx)
+                    .build();
+            assertCanConnectAndPubSub(options);
+        }
+    }
+
+    @Test
+    public void testSimpleTLSConnectionWithLegacyDataPort() throws Exception {
+        //System.setProperty("javax.net.debug", "all");
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            SSLContext ctx = TestSSLUtils.createTestSSLContext();
+            Options options = new Options.Builder()
+                    .server(ts.getURI())
+                    .maxReconnects(0)
+                    .sslContext(ctx)
+                    .dataPortType(Options.DEFAULT_DATA_PORT_TYPE)
                     .build();
             assertCanConnectAndPubSub(options);
         }
@@ -220,7 +235,6 @@ public class TLSConnectTests {
                     reconnectWait(Duration.ofMillis(10)).
                     build();
             nc = standardConnection(options);
-            assertTrue(((NatsConnection)nc).getDataPort() instanceof SocketDataPort, "Correct data port class");
             handler.prepForStatusChange(Events.DISCONNECTED);
         }
 
@@ -232,22 +246,6 @@ public class TLSConnectTests {
         }
 
         standardCloseConnection(nc);
-    }
-
-    @Test
-    public void testDisconnectOnUpgrade() {
-        assertThrows(IOException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
-                SSLContext ctx = TestSSLUtils.createTestSSLContext();
-                Options options = new Options.Builder().
-                                    server(ts.getURI()).
-                                    maxReconnects(0).
-                                    dataPortType(CloseOnUpgradeAttempt.class.getCanonicalName()).
-                                    sslContext(ctx).
-                                    build();
-                Nats.connect(options);
-            }
-        });
     }
 
     @Test

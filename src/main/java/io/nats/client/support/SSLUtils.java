@@ -18,6 +18,8 @@ import io.nats.client.Options;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+
+import java.security.GeneralSecurityException;
 import java.security.cert.X509Certificate;
 
 import static io.nats.client.support.RandomUtils.SRAND;
@@ -35,16 +37,9 @@ public class SSLUtils {
         }
     } };
 
-    public static SSLContext createOpenTLSContext() {
-        SSLContext context = null;
-
-        try {
-            context = SSLContext.getInstance(Options.DEFAULT_SSL_PROTOCOL);
-            context.init(null, trustAllCerts, SRAND);
-        } catch (Exception e) {
-            context = null;
-        }
-
+    public static SSLContext createOpenTLSContext() throws GeneralSecurityException {
+        SSLContext context = SSLContext.getInstance(Options.DEFAULT_SSL_PROTOCOL);
+        context.init(null, trustAllCerts, SRAND);
         return context;
     }
 }

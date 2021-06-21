@@ -229,7 +229,7 @@ public class ErrorListenerTests {
                 for (int i = 0; i < maxMessages + 1; i++) {
                     nc.publish("subject" + i, ("message" + i).getBytes());
                 }
-                nc.getWriter().start(nc.getDataPortFuture());
+                nc.getWriter().start(nc.getNatsChannelFuture());
 
                 nc.flush(Duration.ofSeconds(2));
             } finally {
@@ -238,7 +238,7 @@ public class ErrorListenerTests {
         }
 
         List<Message> discardedMessages = handler.getDiscardedMessages();
-        assertEquals(1, discardedMessages.size());
+        assertEquals(1, discardedMessages.size(), "Discarded messages=" + discardedMessages);
         assertEquals("subject10", discardedMessages.get(0).getSubject());
         assertEquals("message10", new String(discardedMessages.get(0).getData()));
     }

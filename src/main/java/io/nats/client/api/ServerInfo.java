@@ -17,6 +17,9 @@ import io.nats.client.support.JsonUtils;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static io.nats.client.support.ApiConstants.*;
 
@@ -42,6 +45,10 @@ public class ServerInfo {
     private final String cluster;
 
     public ServerInfo(String json) {
+        this(json, null);
+    }
+
+    public ServerInfo(String json, Function<String, String> transformConnectUrl) {
         // INFO<sp>{ INFO<\t>{ or {
         if (json == null || json.length() < 6 || ('{' != json.charAt(0) && '{' != json.charAt(5))) {
             throw new IllegalArgumentException("Invalid Server Info");
@@ -64,7 +71,10 @@ public class ServerInfo {
         clientId = JsonUtils.readInt(json, CLIENT_ID_RE, 0);
         clientIp = JsonUtils.readString(json, CLIENT_IP_RE);
         cluster = JsonUtils.readString(json, CLUSTER_RE);
-        connectURLs = JsonUtils.getStringList(CONNECT_URLS, json);
+        connectURLs = JsonUtils.getStringList(CONNECT_URLS, json)
+            .stream()
+            .map(Optional.ofNullable(transformConnectUrl).orElse(Function.identity()))
+            .collect(Collectors.toList());
     }
 
     public boolean isLameDuckMode() {

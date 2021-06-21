@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2021 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -11,20 +11,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.utils;
+package io.nats.client.channels;
 
 import java.io.IOException;
 
-import io.nats.client.impl.SocketDataPort;
-
-public class CloseOnUpgradeAttempt extends SocketDataPort {
-    public CloseOnUpgradeAttempt() {
-        super(); // Start with a very small buffer size
+/**
+ * Thrown to indicate there was a timeout when trying to connect.
+ */
+public class ConnectTimeoutException extends IOException {
+    public ConnectTimeoutException(String msg, Throwable cause) {
+        super(msg, cause);
     }
 
-    @Override
-    public void upgradeToSecure() throws IOException {
-        this.close();
-        super.upgradeToSecure();
+    public ConnectTimeoutException(String msg) {
+        super(msg);
     }
 }

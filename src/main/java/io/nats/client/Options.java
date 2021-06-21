@@ -13,22 +13,32 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.AdaptDataPortToNatsChannelFactory;
 import io.nats.client.impl.DataPort;
+import io.nats.client.impl.DefaultNatsChannelFactory;
+import io.nats.client.channels.NatsChannelFactory;
 import io.nats.client.impl.SocketDataPort;
 import io.nats.client.support.SSLUtils;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.CharBuffer;
+import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.support.SneakyThrow.sneakyThrow;
+import static io.nats.client.support.URIUtils.withDefaultPort;
 
 /**
  * The Options class specifies the connection options for a new NATs connection, including the default options.
@@ -158,11 +168,11 @@ public class Options {
     public static final int DEFAULT_MAX_CONTROL_LINE = 4096;
 
     /**
-     * Default dataport class, which will use a TCP socket, {@link #getDataPortType() getDataPortType()}.
+     * Default dataport class, which will use a TCP socket, {@link Builder#dataPortType(String) dataPortType()}.
      * 
-     * <p><em>This option is currently provided only for testing, and experimentation, the default 
-     * should be used in almost all cases.</em>
+     * <p><em>This option should NOT be used and will be phased out.</em>
      */
+    @Deprecated
     public static final String DEFAULT_DATA_PORT_TYPE = SocketDataPort.class.getCanonicalName();
 
     /**
@@ -225,8 +235,19 @@ public class Options {
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#dataPortType(String) dataPortType}.
+     * 
+     * Replaced with {@link Builder#natsChannelFactory(Function) natsChannelFactory}.
      */
+    @Deprecated
     public static final String PROP_DATA_PORT_TYPE = PFX + "dataport.type";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see
+     * {@link Builder#natsChannelFactory(Function) natsChannelFactory}.
+     * 
+     * Defaults to "io.nats.client.impl.DefaultNatsChannelFactory::create" value. The resulting
+     * class MUST implement the <code>Function&lt;Options, NatsChannelFactory.Chain&gt;</code> interface.
+     */
+    public static final String PROP_NATS_CHANNEL_FACTORY = PFX + "channel.factory";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#errorListener(ErrorListener) errorListener}.
@@ -501,7 +522,7 @@ public class Options {
 
     private final ErrorListener errorListener;
     private final ConnectionListener connectionListener;
-    private final String dataPortType;
+    private final NatsChannelFactory.Chain natsChannelFactory;
 
     private final boolean trackAdvancedStats;
     private final boolean traceConnection;
@@ -577,7 +598,7 @@ public class Options {
 
         private ErrorListener errorListener = null;
         private ConnectionListener connectionListener = null;
-        private String dataPortType = DEFAULT_DATA_PORT_TYPE;
+        private Function<Options, NatsChannelFactory.Chain> natsChannelFactory = DefaultNatsChannelFactory::create;
         private ExecutorService executor;
 
         /**
@@ -756,7 +777,17 @@ public class Options {
             }
 
             if (props.containsKey(PROP_DATA_PORT_TYPE)) {
-                this.dataPortType = props.getProperty(PROP_DATA_PORT_TYPE);
+                String dataPortType = props.getProperty(PROP_DATA_PORT_TYPE);
+                this.natsChannelFactory = opts -> new AdaptDataPortToNatsChannelFactory(
+                    () -> {
+                        Object instance = createInstanceOf(dataPortType);
+                        return (DataPort) instance;
+                    }, opts);
+            }
+
+            if (props.containsKey(PROP_NATS_CHANNEL_FACTORY)) {
+                Object instance = createInstanceOf(props.getProperty(PROP_NATS_CHANNEL_FACTORY));
+                this.natsChannelFactory = (Function<Options, NatsChannelFactory.Chain>) instance;
             }
 
             if (props.containsKey(PROP_INBOX_PREFIX)) {
@@ -775,15 +806,15 @@ public class Options {
         }
 
         static Object createInstanceOf(String className) {
-            Object instance;
             try {
                 Class<?> clazz = Class.forName(className);
                 Constructor<?> constructor = clazz.getConstructor();
-                instance = constructor.newInstance();
+                return constructor.newInstance();
+            } catch (InvocationTargetException e) {
+                throw sneakyThrow(e.getCause());
             } catch (Exception e) {
-                throw new IllegalArgumentException(e);
+                throw sneakyThrow(e);
             }
-            return instance;
         }
 
         /**
@@ -965,10 +996,10 @@ public class Options {
         /**
          * Set the SSL context to one that accepts any server certificate and has no client certificates.
          * 
-         * @throws NoSuchAlgorithmException If the tls protocol is unavailable.
+         * @throws GeneralSecurityException If the tls protocol is unavailable.
          * @return the Builder for chaining
          */
-        public Builder opentls() throws NoSuchAlgorithmException {
+        public Builder opentls() throws GeneralSecurityException {
             this.sslContext = SSLUtils.createOpenTLSContext();
             return this;
         }
@@ -1290,7 +1321,22 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder dataPortType(String dataPortClassName) {
-            this.dataPortType = dataPortClassName;
+            this.natsChannelFactory = opts -> new AdaptDataPortToNatsChannelFactory(
+                () -> {
+                    Object instance = createInstanceOf(dataPortClassName);
+                    return (DataPort) instance;
+                }, opts);
+            return this;
+        }
+
+        /**
+         * The class used for building the NatsChannel.
+         * 
+         * @param natsChannelFactory is the new NatsChannelFactory instance to use
+         * @return the Builder for chaining
+         */
+        public Builder natsChannelFactory(Function<Options, NatsChannelFactory.Chain> natsChannelFactory) {
+            this.natsChannelFactory = natsChannelFactory;
             return this;
         }
 
@@ -1342,22 +1388,6 @@ public class Options {
             if (servers.size() == 0) {
                 server(DEFAULT_URL);
             }
-            else if (sslContext == null) {
-                for (URI serverURI : servers) {
-                    if (TLS_PROTOCOL.equals(serverURI.getScheme())) {
-                        try {
-                            this.sslContext = SSLContext.getDefault();
-                        } catch (NoSuchAlgorithmException e) {
-                            throw new IllegalStateException("Unable to create default SSL context", e);
-                        }
-                        break;
-                    }
-                    else if (OPENTLS_PROTOCOL.equals(serverURI.getScheme())) {
-                        this.sslContext = SSLUtils.createOpenTLSContext();
-                        break;
-                    }
-                }
-            }
 
             if (this.executor == null) {
                 String threadPrefix = (this.connectionName != null && this.connectionName.length() > 0) ? this.connectionName : DEFAULT_THREAD_NAME_PREFIX;
@@ -1376,7 +1406,6 @@ public class Options {
         this.connectionName = b.connectionName;
         this.verbose = b.verbose;
         this.pedantic = b.pedantic;
-        this.sslContext = b.sslContext;
         this.maxReconnect = b.maxReconnect;
         this.reconnectWait = b.reconnectWait;
         this.reconnectJitter = b.reconnectJitter;
@@ -1406,9 +1435,26 @@ public class Options {
 
         this.errorListener = b.errorListener;
         this.connectionListener = b.connectionListener;
-        this.dataPortType = b.dataPortType;
         this.trackAdvancedStats = b.trackAdvancedStats;
         this.executor = b.executor;
+        SSLContext sslContext = b.sslContext;
+        if (sslContext == null) {
+            for (URI serverURI : servers) {
+                try {
+                    sslContext = b.natsChannelFactory.apply(this).createSSLContext(serverURI);
+                } catch (Exception ex) {
+                    throw new IllegalStateException(
+                        "Specified server=" + serverURI +
+                        " which requires an SSLContext, but one could not be created: " + ex.getMessage(),
+                        ex);
+                }
+                if (null != sslContext) {
+                    break;
+                }
+            }
+        }
+        this.sslContext = sslContext;
+        this.natsChannelFactory = b.natsChannelFactory.apply(this);
     }
 
     /**
@@ -1447,17 +1493,12 @@ public class Options {
     }
 
     /**
-     * @return the dataport type for connections created by this options object, see {@link Builder#dataPortType(String) dataPortType()} in the builder doc
+     * Used to build a {@link io.nats.client.channels.NatsChannel} instance.
+     * 
+     * @return a NatsChannelFactory
      */
-    public String getDataPortType() {
-        return this.dataPortType;
-    }
-
-    /**
-     * @return the data port described by these options
-     */
-    public DataPort buildDataPort() {
-        return (DataPort) Options.Builder.createInstanceOf(dataPortType);
+    public NatsChannelFactory.Chain getNatsChannelFactory() {
+        return natsChannelFactory;
     }
 
     /**
@@ -1566,6 +1607,12 @@ public class Options {
      */
     public int getMaxReconnect() {
         return maxReconnect;
+    }
+
+    public SSLEngine createSSLEngine(URI uri) {
+        return null == sslContext
+            ? null
+            : sslContext.createSSLEngine(uri.getHost(), withDefaultPort(uri, DEFAULT_PORT).getPort());
     }
 
     /**

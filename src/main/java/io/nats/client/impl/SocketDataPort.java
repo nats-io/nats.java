@@ -123,6 +123,6 @@ public class SocketDataPort implements DataPort {
     }
 
     public void flush() throws IOException {
-        out.flush();
+        // Never called
     }
 }

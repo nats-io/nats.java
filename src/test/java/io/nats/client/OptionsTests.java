@@ -15,21 +15,33 @@ package io.nats.client;
 
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.DataPort;
-import io.nats.client.utils.CloseOnUpgradeAttempt;
+import io.nats.client.impl.DefaultNatsChannelFactory;
+import io.nats.client.channels.NatsChannel;
+import io.nats.client.channels.NatsChannelFactory;
+import io.nats.client.channels.NatsChannelFactory.Chain;
+import io.nats.client.impl.SocketDataPort;
+
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
+
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -40,8 +52,6 @@ public class OptionsTests {
 
         assertEquals(1, o.getServers().size(), "default one server");
         assertEquals(Options.DEFAULT_URL, o.getServers().toArray()[0].toString(), "default url");
-
-        assertEquals(Options.DEFAULT_DATA_PORT_TYPE, o.getDataPortType(), "default data port type");
 
         assertFalse(o.isVerbose(), "default verbose");
         assertFalse(o.isPedantic(), "default pedantic");
@@ -407,24 +417,95 @@ public class OptionsTests {
     }
 
     @Test
-    public void testDefaultDataPort() {
-        Options o = new Options.Builder().build();
-        DataPort dataPort = o.buildDataPort();
+    public void testWithTlsServerSetsSslContext() throws Exception {
+        SSLContext ctx = TestSSLUtils.createTestSSLContext();
+        SSLContext.setDefault(ctx);
 
-        assertNotNull(dataPort);
-        assertEquals(Options.DEFAULT_DATA_PORT_TYPE, dataPort.getClass().getCanonicalName(), "default dataPort");
+        Options o = new Options.Builder().server("tls://localhost").build();
+
+        assertEquals(ctx, o.getSslContext());
+    }
+
+    @Test
+    public void testWithOpenTlsServerSetsSslContext() throws Exception {
+        Options o = new Options.Builder().server("tls://localhost").build();
+
+        SSLContext ctx = TestSSLUtils.createTestSSLContext();
+        SSLContext.setDefault(ctx);
+
+        assertNotNull(o.getSslContext());
+        assertNotEquals(
+            ctx,
+            o.getSslContext());
+   }
+
+    private static class CustomConnectException extends RuntimeException {}
+
+    private static SSLContext CUSTOM_SSL_CONTEXT;
+    static {
+        try {
+            CUSTOM_SSL_CONTEXT = SSLContext.getInstance("TLSv1");
+        } catch (NoSuchAlgorithmException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public static class TestPropertyNatsChannelFactory implements NatsChannelFactory.Chain {
+
+        @Override
+        public NatsChannel connect(URI serverURI, Duration timeout) throws IOException {
+            throw new CustomConnectException();
+        }
+
+        @Override
+        public SSLContext createSSLContext(URI serverURI) throws GeneralSecurityException {
+            return CUSTOM_SSL_CONTEXT;
+        }
+    }
+
+    public static class TestPropertyNatsChannelFactoryFn implements Function<Options, NatsChannelFactory.Chain> {
+
+		@Override
+		public Chain apply(Options t) {
+            return new TestPropertyNatsChannelFactory();
+		}
+    }
+
+    @Test
+    public void testPropertyNatsChannelFactory() {
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_NATS_CHANNEL_FACTORY, TestPropertyNatsChannelFactoryFn.class.getTypeName());
+
+        Options o = new Options.Builder(props).build();
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
+
+        assertThrows(CustomConnectException.class, () -> o.getNatsChannelFactory().connect(null, null));
+    }
+
+    @Test
+    public void testNatsChannelFactoryWithCustomCreateSSLContext() {
+        Options o = new Options.Builder()
+            .natsChannelFactory(new TestPropertyNatsChannelFactoryFn())
+            .build();
+
+        assertEquals(CUSTOM_SSL_CONTEXT, o.getSslContext());
+    }
+
+    public static class TestPropertyDataPort extends SocketDataPort {
+        public TestPropertyDataPort() {
+            throw new CustomConnectException();
+        }
     }
 
     @Test
     public void testPropertyDataPortType() {
         Properties props = new Properties();
-        props.setProperty(Options.PROP_DATA_PORT_TYPE, CloseOnUpgradeAttempt.class.getCanonicalName());
+        props.setProperty(Options.PROP_DATA_PORT_TYPE, TestPropertyDataPort.class.getTypeName());
 
         Options o = new Options.Builder(props).build();
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
 
-        assertEquals(CloseOnUpgradeAttempt.class.getCanonicalName(), o.buildDataPort().getClass().getCanonicalName(),
-                "property data port class");
+        assertThrows(CustomConnectException.class, () -> o.getNatsChannelFactory().connect(null, null));
     }
 
     @Test
@@ -537,7 +618,7 @@ public class OptionsTests {
 
     @Test
     public void testBadClassInPropertyConnectionListeners() {
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(ClassNotFoundException.class, () -> {
             Properties props = new Properties();
             props.setProperty(Options.PROP_CONNECTION_CB, "foo");
             new Options.Builder(props);
