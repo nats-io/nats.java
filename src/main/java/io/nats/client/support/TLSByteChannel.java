@@ -32,7 +32,9 @@ public class TLSByteChannel implements ByteChannel {
     private final ByteBuffer inNetBuffer; // ready for write
     private final ByteBuffer inAppBuffer; // ready for read
 
-    private State state = State.OPEN;
+    private State state = State.HANDSHAKING;
+    private Thread readThread = null;
+    private Thread writeThread = null;
 
     private enum State {
         HANDSHAKING,
@@ -41,7 +43,7 @@ public class TLSByteChannel implements ByteChannel {
         CLOSED;
     }
 
-    public TLSByteChannel(ByteChannel wrap, SSLEngine engine) {
+    public TLSByteChannel(ByteChannel wrap, SSLEngine engine) throws IOException {
         this.wrap = wrap;
         this.engine = engine;
 
@@ -54,8 +56,7 @@ public class TLSByteChannel implements ByteChannel {
         inNetBuffer.limit(0);
         inAppBuffer = ByteBuffer.allocate(appBufferSize);
 
-        state = isHandshaking(engine.getHandshakeStatus())
-            ? State.HANDSHAKING : State.OPEN;
+        engine.beginHandshake();
     }
 
     /**
@@ -64,12 +65,18 @@ public class TLSByteChannel implements ByteChannel {
     @Override
     public void close() throws IOException {
         readLock.lock();
+        if (null != readThread) {
+            readThread.interrupt();
+        }
         try {
             writeLock.lock();
+            if (null != writeThread) {
+                writeThread.interrupt();
+            }
             try {
                 closeImpl();
             } finally {
-                writeLock.lock();
+                writeLock.unlock();
             }
         } finally {
             readLock.unlock();
@@ -126,7 +133,7 @@ public class TLSByteChannel implements ByteChannel {
             try {
                 handshakeImpl(true);
             } finally {
-                writeLock.lock();
+                writeLock.unlock();
             }
         } finally {
             readLock.unlock();
@@ -160,6 +167,8 @@ public class TLSByteChannel implements ByteChannel {
                     state = State.OPEN;
                 }
                 return;
+            default:
+                throw new IllegalStateException("Unexpected SSLEngine.HandshakeStatus=" + engine.getHandshakeStatus());
             }
         }
     }
@@ -221,8 +230,8 @@ public class TLSByteChannel implements ByteChannel {
     }
 
     /**
-     * Implement a read into dst buffer, transitioning to HANDSHAKING state
-     * only if stateChange is true and the SSLEngine transitions to HANDSHAKING.
+     * Implement a read into dst buffer, potientially transitioning to
+     * HANDSHAKING or CLOSED state only if stateChange is true.
      * 
      * @param dst is the buffer to write into, if it is empty, an attempt to read
      *     the wrap'ed channel will still be made and this network data will still
@@ -243,48 +252,47 @@ public class TLSByteChannel implements ByteChannel {
             }
         }
 
-        do {
-            int netCount = tryNetRead();
+        if (!inNetBuffer.hasRemaining()) {
+            inNetBuffer.limit(0);
+            int netCount = tryNetRead(stateChange);
             if (netCount < 1) {
                 return count > 0 ? count : netCount;
             }
-            SSLEngineResult result = engine.unwrap(inNetBuffer, dst);
-            if (stateChange && isHandshaking(result.getHandshakeStatus())) {
-                state = State.HANDSHAKING;
+        }
+        SSLEngineResult result = engine.unwrap(inNetBuffer, dst);
+        if (stateChange && isHandshaking(result.getHandshakeStatus())) {
+            state = State.HANDSHAKING;
+        }
+        switch (result.getStatus()) {
+        case BUFFER_OVERFLOW:
+            if (dst == inAppBuffer) {
+                throw new IllegalStateException("SSLEngine.unwrap() returned unexpected BUFFER_OVERFLOW");
             }
-            switch (result.getStatus()) {
-            case BUFFER_OVERFLOW:
-                if (dst == inAppBuffer) {
-                    throw new IllegalStateException("SSLEngine.unwrap() returned unexpected BUFFER_OVERFLOW");
+            // Not enough space in dst, so buffer it into inAppBuffer:
+            readImpl(inAppBuffer, stateChange);
+            // ...and flush the inAppBuffer into dst:
+            return count + flushInAppBuffer(dst);
+
+        case BUFFER_UNDERFLOW:
+            // tryNetRead() didn't return enough, so just return count:
+            return count;
+
+        case CLOSED:
+            if (stateChange) {
+                try {
+                    wrap.close();
+                } finally {
+                    state = State.CLOSED;
                 }
-                // Not enough space in dst, so buffer it into inAppBuffer:
-                readImpl(inAppBuffer, stateChange);
-                // ...and flush the inAppBuffer into dst:
-                return count + flushInAppBuffer(dst);
-
-            case BUFFER_UNDERFLOW:
-                // tryNetRead() didn't return enough, so just return count:
-                return count;
-
-            case CLOSED:
-                if (stateChange) {
-                    try {
-                        wrap.close();
-                    } finally {
-                        state = State.CLOSED;
-                    }
-                }
-                return count > 0 ? count : -1;
-
-            case OK:
-                count += result.bytesProduced();
-                break;
-
-            default:
-                throw new IllegalStateException("Unexpected status=" + result.getStatus());
             }
-        } while (dst.hasRemaining());
-        return count;
+            return count > 0 ? count : -1;
+
+        case OK:
+            return count + result.bytesProduced();
+
+        default:
+            throw new IllegalStateException("Unexpected status=" + result.getStatus());
+        }
     }
 
     private int flushInAppBuffer(ByteBuffer dst) {
@@ -295,17 +303,28 @@ public class TLSByteChannel implements ByteChannel {
         safePut(dst, inAppBuffer);
         int count = inAppBuffer.position();
         inAppBuffer.compact();
-        prepareForAppend(inAppBuffer);
         return count;
     }
 
-    private int tryNetRead() throws IOException {
+    private int tryNetRead(boolean interruptable) throws IOException {
         if (inNetBuffer.limit() >= inNetBuffer.capacity()) {
             // No capacity to read any more.
             return 0;
         }
         prepareForAppend(inNetBuffer);
-        int result = wrap.read(inNetBuffer);
+        int result;
+        if (interruptable) {
+            readThread = Thread.currentThread();
+            readLock.unlock();
+            try {
+                result = wrap.read(inNetBuffer);
+            } finally {
+                readLock.lock();
+                readThread = null;
+            }
+        } else {
+            result = wrap.read(inNetBuffer);
+        }
         inNetBuffer.flip();
         return result;
     }
@@ -316,7 +335,7 @@ public class TLSByteChannel implements ByteChannel {
      * @param src is the source buffer to write
      */
     private int writeImpl(ByteBuffer src, boolean stateChange) throws IOException {
-        if (!flushNetWrite()) {
+        if (!flushNetWrite(stateChange)) {
             // Still waiting for the wrapped byte channel to consume outNetBuffer.
             return 0;
         }
@@ -330,9 +349,10 @@ public class TLSByteChannel implements ByteChannel {
             if (stateChange && isHandshaking(result.getHandshakeStatus())) {
                 state = State.HANDSHAKING;
             }
+
             switch (result.getStatus()) {
             case BUFFER_OVERFLOW:
-                if (!flushNetWrite()) {
+                if (!flushNetWrite(stateChange)) {
                     return count;
                 }
                 break;
@@ -348,6 +368,11 @@ public class TLSByteChannel implements ByteChannel {
                 }
                 return count;
             case OK:
+                flushNetWrite(stateChange);
+                return count;
+
+            default:
+                throw new IllegalStateException("Unexpected status=" + result.getStatus());
             }
         } while (src.hasRemaining());
         return count;
@@ -358,13 +383,27 @@ public class TLSByteChannel implements ByteChannel {
      * 
      * @return false if no capacity remains in the outNetBuffer
      */
-    private boolean flushNetWrite() throws IOException {
+    private boolean flushNetWrite(boolean interruptable) throws IOException {
         if (outNetBuffer.position() > 0) {
             outNetBuffer.flip();
-            wrap.write(outNetBuffer);
+            try {
+                if (interruptable) {
 
-            outNetBuffer.compact();
-            prepareForAppend(outNetBuffer);
+
+                    writeThread = Thread.currentThread();
+                    writeLock.unlock();
+                    try {
+                        wrap.write(outNetBuffer);
+                    } finally {
+                        writeLock.lock();
+                        writeThread = null;
+                    }
+                } else {
+                    wrap.write(outNetBuffer);
+                }
+            } finally {
+                outNetBuffer.compact();
+            }
             if (exhausted(outNetBuffer)) {
                 // Must not have written anything, and the net buffer is full:
                 return false;

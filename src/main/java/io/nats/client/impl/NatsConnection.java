@@ -61,7 +61,7 @@ class NatsConnection implements Connection {
     private final Condition statusChanged;
 
     private CompletableFuture<NatsChannel> natsChannelFuture;
-    private NatsChannel natsChannel;
+    private NatsChannelReference natsChannel;
     private String currentServerURI;
     private CompletableFuture<Boolean> reconnectWaiter;
     private final HashMap<String, String> serverAuthErrors;
@@ -383,12 +383,13 @@ class NatsConnection implements Connection {
 
             timeoutNanos = timeCheck(trace, end, "connecting data port");
             URI uri = this.options.createURIForServer(serverURI);
-            NatsChannel newNatsChannel = this.options.getNatsChannelFactory()
-                .connect(
-                    uri,
-                    this.getOptions(),
-                    this::handleCommunicationIssue,
-                    Duration.ofNanos(timeoutNanos));
+            NatsChannelReference newNatsChannel = new NatsChannelReference(
+                this.options.getNatsChannelFactory()
+                    .connect(
+                        uri,
+                        this.getOptions(),
+                        this::handleCommunicationIssue,
+                        Duration.ofNanos(timeoutNanos)));
 
             // Notify the any threads waiting on the sockets
             this.natsChannel = newNatsChannel;
@@ -419,6 +420,8 @@ class NatsConnection implements Connection {
             } finally {
                 future.cancel(true);
             }
+            // FIXME: connectExecutor may have called handleCommunicationIssue, yet
+            // we are continuing on here...
 
             // start the reader and writer after we secured the connection, if necessary
             timeCheck(trace, end, "starting reader");
@@ -525,12 +528,13 @@ class NatsConnection implements Connection {
         }
 
         if (opts.isTLSRequired()) {
-            this.natsChannel = TLSNatsChannel.wrap(
-                natsChannel,
-                uri,
-                opts,
-                this::handleCommunicationIssue,
-                Duration.ofNanos(timeoutNanos));
+            this.natsChannel.set(
+                TLSNatsChannel.wrap(
+                    natsChannel.get(),
+                    uri,
+                    opts,
+                    this::handleCommunicationIssue,
+                    Duration.ofNanos(timeoutNanos)));
         }
     }
 
@@ -1305,6 +1309,7 @@ class NatsConnection implements Connection {
                     protocolBuffer.put(b);
                 }
             }
+            readBuffer.clear();
         }
 
         if (!gotCRLF) {

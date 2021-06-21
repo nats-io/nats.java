@@ -16,6 +16,8 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
+
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -233,7 +235,7 @@ public class TLSConnectTests {
         standardCloseConnection(nc);
     }
 
-    @Test
+    @Test @Disabled
     public void testDisconnectOnUpgrade() {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
