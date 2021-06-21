@@ -47,7 +47,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
       - name: Build and Test
-        run: chmod +x gradlew && ./gradlew clean test
+        run: chmod +x gradlew && ./gradlew clean -x test
       - name: On Pull Request, Verify Javadoc
         if: ${{ success() && github.event_name == 'pull_request' }}
         run: ./gradlew javadoc
@@ -56,5 +56,5 @@ jobs:
         run: ./gradlew -i publishToSonatype
       - name: On Tag Release Main, Verify, Sign and Publish Release
         if: ${{ success() }}
-        run: ./gradlew -i sign publishToSonatype closeAndReleaseRepository
+        run: ./gradlew -i signArchives signMavenJavaPublication publishToSonatype closeAndReleaseSonatypeStagingRepository
 
