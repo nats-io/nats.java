@@ -188,7 +188,6 @@ if (isRelease) {
         def signingPassword = System.getenv('SIGNING_PASSWORD')
         useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
         sign configurations.archives
-        sign publishing.publications.mavenJava
     }
 }
 
