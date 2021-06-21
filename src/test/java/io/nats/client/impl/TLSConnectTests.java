@@ -57,6 +57,21 @@ public class TLSConnectTests {
     }
 
     @Test
+    public void testSimpleTLSConnectionWithLegacyDataPort() throws Exception {
+        //System.setProperty("javax.net.debug", "all");
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            SSLContext ctx = TestSSLUtils.createTestSSLContext();
+            Options options = new Options.Builder()
+                    .server(ts.getURI())
+                    .maxReconnects(0)
+                    .sslContext(ctx)
+                    .dataPortType(Options.DEFAULT_DATA_PORT_TYPE)
+                    .build();
+            assertCanConnectAndPubSub(options);
+        }
+    }
+
+    @Test
     public void testSimpleUrlTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
