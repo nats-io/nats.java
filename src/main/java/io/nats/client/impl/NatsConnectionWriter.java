@@ -17,6 +17,7 @@ import io.nats.client.Options;
 
 import java.io.IOException;
 import java.nio.BufferOverflowException;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CancellationException;
@@ -34,8 +35,8 @@ class NatsConnectionWriter implements Runnable {
     private final NatsConnection connection;
 
     private Future<Boolean> stopped;
-    private Future<DataPort> dataPortFuture;
-    private DataPort dataPort = null;
+    private Future<NatsChannel> natsChannelFuture;
+    private NatsChannel natsChannel = null;
     private final AtomicBoolean running;
     private final AtomicBoolean reconnectMode;
     private final ReentrantLock startStopLock;
@@ -71,10 +72,10 @@ class NatsConnectionWriter implements Runnable {
     // Should only be called if the current thread has exited.
     // Use the Future from stop() to determine if it is ok to call this.
     // This method resets that future so mistiming can result in badness.
-    void start(Future<DataPort> dataPortFuture) {
+    void start(Future<NatsChannel> natsChannelFuture) {
         this.startStopLock.lock();
         try {
-            this.dataPortFuture = dataPortFuture;
+            this.natsChannelFuture = natsChannelFuture;
             this.running.set(true);
             this.outgoing.resume();
             this.reconnectOutgoing.resume();
@@ -105,7 +106,7 @@ class NatsConnectionWriter implements Runnable {
         return this.stopped;
     }
 
-    synchronized void sendMessageBatch(NatsMessage msg, DataPort dataPort, NatsStatistics stats)
+    synchronized void sendMessageBatch(NatsMessage msg, NatsChannel natsChannel, NatsStatistics stats)
             throws IOException {
 
         int sendPosition = 0;
@@ -117,7 +118,7 @@ class NatsConnectionWriter implements Runnable {
                 if (sendPosition == 0) { // have to resize
                     this.sendBuffer = new byte[(int)Math.max(sendBuffer.length + size, sendBuffer.length * 2L)];
                 } else { // else send and go to next message
-                    dataPort.write(sendBuffer, sendPosition);
+                    natsChannel.write(ByteBuffer.wrap(sendBuffer, 0, sendPosition));
                     connection.getNatsStatistics().registerWrite(sendPosition);
                     sendPosition = 0;
                     msg = msg.next;
@@ -158,7 +159,7 @@ class NatsConnectionWriter implements Runnable {
             msg = msg.next;
         }
 
-        dataPort.write(sendBuffer, sendPosition);
+        natsChannel.write(ByteBuffer.wrap(sendBuffer, 0, sendPosition));
         connection.getNatsStatistics().registerWrite(sendPosition);
     }
 
@@ -168,7 +169,7 @@ class NatsConnectionWriter implements Runnable {
         Duration reconnectWait = Duration.ofMillis(1); // This should be short, since we are trying to get the reconnect through
 
         try {
-            dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
+            natsChannel = this.natsChannelFuture.get(); // Will wait for the future to complete
             NatsStatistics stats = this.connection.getNatsStatistics();
             int maxAccumulate = Options.MAX_MESSAGES_IN_NETWORK_BUFFER;
 
@@ -185,7 +186,7 @@ class NatsConnectionWriter implements Runnable {
                     continue;
                 }
 
-                sendMessageBatch(msg, dataPort, stats);
+                sendMessageBatch(msg, natsChannel, stats);
             }
         } catch (IOException | BufferOverflowException io) {
             this.connection.handleCommunicationIssue(io);
@@ -222,7 +223,7 @@ class NatsConnectionWriter implements Runnable {
         // of the APIs here.
         try  {
             if (this.running.get()) {
-                dataPort.flush();
+                natsChannel.flushOutput();
             }
         } catch (Exception e) {
             // NOOP;

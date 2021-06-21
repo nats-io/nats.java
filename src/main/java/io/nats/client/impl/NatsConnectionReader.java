@@ -64,8 +64,8 @@ class NatsConnectionReader implements Runnable {
     private int bufferPosition;
 
     private Future<Boolean> stopped;
-    private Future<DataPort> dataPortFuture;
-    private DataPort dataPort;
+    private Future<NatsChannel> natsChannelFuture;
+    private NatsChannel natsChannel;
     private final AtomicBoolean running;
 
     private final boolean utf8Mode;
@@ -89,8 +89,8 @@ class NatsConnectionReader implements Runnable {
     // Should only be called if the current thread has exited.
     // Use the Future from stop() to determine if it is ok to call this.
     // This method resets that future so mistiming can result in badness.
-    void start(Future<DataPort> dataPortFuture) {
-        this.dataPortFuture = dataPortFuture;
+    void start(Future<NatsChannel> natsChannelFuture) {
+        this.natsChannelFuture = natsChannelFuture;
         this.running.set(true);
         this.stopped = connection.getExecutor().submit(this, Boolean.TRUE);
     }
@@ -100,9 +100,9 @@ class NatsConnectionReader implements Runnable {
     // method does.
     Future<Boolean> stop() {
         this.running.set(false);
-        if (dataPort != null) {
+        if (natsChannel != null) {
             try {
-                dataPort.shutdownInput();
+                natsChannel.shutdownInput();
             } catch (IOException e) {
                 // we don't care, we are shutting down anyway
             }
@@ -113,14 +113,14 @@ class NatsConnectionReader implements Runnable {
     @Override
     public void run() {
         try {
-            dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
+            natsChannel = this.natsChannelFuture.get(); // Will wait for the future to complete
             this.mode = Mode.GATHER_OP;
             this.gotCR = false;
             this.opPos = 0;
 
             while (this.running.get()) {
                 this.bufferPosition = 0;
-                int bytesRead = dataPort.read(this.buffer, 0, this.buffer.length);
+                int bytesRead = natsChannel.read(ByteBuffer.wrap(this.buffer, 0, this.buffer.length));
 
                 if (bytesRead > 0) {
                     connection.getNatsStatistics().registerRead(bytesRead);

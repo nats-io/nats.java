@@ -586,7 +586,7 @@ public class ReconnectTests {
             for (int i = 0; i < 100; i++) {
                 // stop and start in a loop without waiting for the future to complete
                 nc.getWriter().stop();
-                nc.getWriter().start(nc.getDataPortFuture());
+                nc.getWriter().start(nc.getNatsChannelFuture());
             }
 
             nc.getWriter().stop();

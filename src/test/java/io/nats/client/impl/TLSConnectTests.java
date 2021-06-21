@@ -220,7 +220,6 @@ public class TLSConnectTests {
                     reconnectWait(Duration.ofMillis(10)).
                     build();
             nc = standardConnection(options);
-            assertTrue(((NatsConnection)nc).getDataPort() instanceof SocketDataPort, "Correct data port class");
             handler.prepForStatusChange(Events.DISCONNECTED);
         }
 

@@ -19,7 +19,10 @@ import java.io.IOException;
  * A data port represents the connection to the network. This could have been called
  * transport but that seemed too big a concept. This interface just allows a wrapper around
  * the core communication code.
+ * 
+ * Please see the replacement: {@link NatsChannel}.
  */
+@Deprecated
 public interface DataPort {
     void connect(String serverURI, NatsConnection conn, long timeoutNanos) throws IOException;
 

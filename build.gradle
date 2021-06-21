@@ -119,6 +119,9 @@ test {
     testLogging {
         exceptionFormat = 'full'
         events "started", "passed", "skipped", "failed"
+
+        outputs.upToDateWhen {false}
+        showStandardStreams = true
     }
     retry {
         failOnPassedAfterRetry = false

@@ -30,7 +30,10 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * This class is not theadsafe.  Caller must ensure thread safety.
+ * 
+ * This class has been replaced with {@link SocketNatsChannel}.
  */
+@Deprecated
 public class SocketDataPort implements DataPort {
 
     private NatsConnection connection;

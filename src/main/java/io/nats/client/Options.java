@@ -13,7 +13,10 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.AdaptDataPortToNatsChannelFactory;
 import io.nats.client.impl.DataPort;
+import io.nats.client.impl.DefaultNatsChannelFactory;
+import io.nats.client.impl.NatsChannelFactory;
 import io.nats.client.impl.SocketDataPort;
 import io.nats.client.support.SSLUtils;
 
@@ -163,6 +166,7 @@ public class Options {
      * <p><em>This option is currently provided only for testing, and experimentation, the default 
      * should be used in almost all cases.</em>
      */
+    @Deprecated
     public static final String DEFAULT_DATA_PORT_TYPE = SocketDataPort.class.getCanonicalName();
 
     /**
@@ -225,8 +229,16 @@ public class Options {
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#dataPortType(String) dataPortType}.
+     * 
+     * Replaced with {@link Builder#natsChannelFactory(NatsChannelFactory) natsChannelFactory}.
      */
+    @Deprecated
     public static final String PROP_DATA_PORT_TYPE = PFX + "dataport.type";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see
+     * {@link Builder#natsChannelFactory(NatsChannelFactory) natsChannelFactory}.
+     */
+    public static final String PROP_NATS_CHANNEL_FACTORY = PFX + "channel.factory";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#errorListener(ErrorListener) errorListener}.
@@ -501,7 +513,7 @@ public class Options {
 
     private final ErrorListener errorListener;
     private final ConnectionListener connectionListener;
-    private final String dataPortType;
+    private final NatsChannelFactory natsChannelFactory;
 
     private final boolean trackAdvancedStats;
     private final boolean traceConnection;
@@ -577,7 +589,7 @@ public class Options {
 
         private ErrorListener errorListener = null;
         private ConnectionListener connectionListener = null;
-        private String dataPortType = DEFAULT_DATA_PORT_TYPE;
+        private NatsChannelFactory natsChannelFactory = DefaultNatsChannelFactory.INSTANCE;
         private ExecutorService executor;
 
         /**
@@ -756,7 +768,17 @@ public class Options {
             }
 
             if (props.containsKey(PROP_DATA_PORT_TYPE)) {
-                this.dataPortType = props.getProperty(PROP_DATA_PORT_TYPE);
+                String dataPortType = props.getProperty(PROP_DATA_PORT_TYPE);
+                this.natsChannelFactory = new AdaptDataPortToNatsChannelFactory(
+                    () -> {
+                        Object instance = createInstanceOf(dataPortType);
+                        return (DataPort) instance;
+                    });
+            }
+
+            if (props.containsKey(PROP_NATS_CHANNEL_FACTORY)) {
+                Object instance = createInstanceOf(props.getProperty(PROP_NATS_CHANNEL_FACTORY));
+                this.natsChannelFactory = (NatsChannelFactory) instance;
             }
 
             if (props.containsKey(PROP_INBOX_PREFIX)) {
@@ -1290,7 +1312,19 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder dataPortType(String dataPortClassName) {
-            this.dataPortType = dataPortClassName;
+            this.natsChannelFactory = new AdaptDataPortToNatsChannelFactory(
+                () -> {
+                    Object instance = createInstanceOf(dataPortClassName);
+                    return (DataPort) instance;
+                });
+            return this;
+        }
+
+        /**
+         * The class used for building the NatsChannel.
+         */
+        public Builder natsChannelFactory(NatsChannelFactory natsChannelFactory) {
+            this.natsChannelFactory = natsChannelFactory;
             return this;
         }
 
@@ -1406,7 +1440,7 @@ public class Options {
 
         this.errorListener = b.errorListener;
         this.connectionListener = b.connectionListener;
-        this.dataPortType = b.dataPortType;
+        this.natsChannelFactory = b.natsChannelFactory;
         this.trackAdvancedStats = b.trackAdvancedStats;
         this.executor = b.executor;
     }
@@ -1449,15 +1483,26 @@ public class Options {
     /**
      * @return the dataport type for connections created by this options object, see {@link Builder#dataPortType(String) dataPortType()} in the builder doc
      */
+    @Deprecated
     public String getDataPortType() {
-        return this.dataPortType;
+        // TODO: Should we just delete this method?
+        throw new UnsupportedOperationException();
     }
 
     /**
      * @return the data port described by these options
      */
+    @Deprecated
     public DataPort buildDataPort() {
-        return (DataPort) Options.Builder.createInstanceOf(dataPortType);
+        // TODO: Should we just delete this method?
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Used to build a {@link NatsChannel} instance.
+     */
+    public NatsChannelFactory getNatsChannelFactory() {
+        return natsChannelFactory;
     }
 
     /**

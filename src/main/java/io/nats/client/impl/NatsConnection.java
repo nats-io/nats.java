@@ -21,6 +21,7 @@ import io.nats.client.support.ByteArrayBuilder;
 import io.nats.client.support.NatsRequestCompletableFuture;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -59,8 +60,8 @@ class NatsConnection implements Connection {
     private final ReentrantLock statusLock;
     private final Condition statusChanged;
 
-    private CompletableFuture<DataPort> dataPortFuture;
-    private DataPort dataPort;
+    private CompletableFuture<NatsChannel> natsChannelFuture;
+    private NatsChannel natsChannel;
     private String currentServerURI;
     private CompletableFuture<Boolean> reconnectWaiter;
     private final HashMap<String, String> serverAuthErrors;
@@ -367,9 +368,9 @@ class NatsConnection implements Connection {
                 statusLock.unlock();
             }
 
-            // Create a new future for the dataport, the reader/writer will use this
+            // Create a new future for the NatsChannel, the reader/writer will use this
             // to wait for the connect/failure.
-            this.dataPortFuture = new CompletableFuture<>();
+            this.natsChannelFuture = new CompletableFuture<>();
 
             // Make sure the reader and writer are stopped
             long timeoutNanos = timeCheck(trace, end, "waiting for reader");
@@ -381,20 +382,28 @@ class NatsConnection implements Connection {
             cleanUpPongQueue();
 
             timeoutNanos = timeCheck(trace, end, "connecting data port");
-            DataPort newDataPort = this.options.buildDataPort();
-            newDataPort.connect(serverURI, this, timeoutNanos);
+            URI uri = this.options.createURIForServer(serverURI);
+            NatsChannel newNatsChannel = this.options.getNatsChannelFactory()
+                .connect(
+                    uri,
+                    this.getOptions(),
+                    this::handleCommunicationIssue,
+                    Duration.ofNanos(timeoutNanos));
 
             // Notify the any threads waiting on the sockets
-            this.dataPort = newDataPort;
-            this.dataPortFuture.complete(this.dataPort);
+            this.natsChannel = newNatsChannel;
+            this.natsChannelFuture.complete(this.natsChannel);
+
+            timeoutNanos = timeCheck(trace, end, "reading info, version and upgrading to secure if necessary");
 
             // Wait for the INFO message manually
             // all other traffic will use the reader and writer
+            final long upgradeToSecureTimeoutNanos = timeoutNanos;
             Callable<Object> connectTask = () -> {
                 readInitialInfo();
                 checkVersionRequirements();
                 long start = System.nanoTime();
-                upgradeToSecureIfNeeded();
+                upgradeToSecureIfNeeded(uri, upgradeToSecureTimeoutNanos);
                 if (trace && options.isTLSRequired()) {
                     // If the time appears too long it might be related to
                     // https://github.com/nats-io/nats.java#linux-platform-note
@@ -404,7 +413,6 @@ class NatsConnection implements Connection {
                 return null;
             };
 
-            timeoutNanos = timeCheck(trace, end, "reading info, version and upgrading to secure if necessary");
             Future<Object> future = this.connectExecutor.submit(connectTask);
             try {
                 future.get(timeoutNanos, TimeUnit.NANOSECONDS);
@@ -414,9 +422,9 @@ class NatsConnection implements Connection {
 
             // start the reader and writer after we secured the connection, if necessary
             timeCheck(trace, end, "starting reader");
-            this.reader.start(this.dataPortFuture);
+            this.reader.start(this.natsChannelFuture);
             timeCheck(trace, end, "starting writer");
-            this.writer.start(this.dataPortFuture);
+            this.writer.start(this.natsChannelFuture);
 
             timeCheck(trace, end, "sending connect message");
             this.sendConnect(serverURI);
@@ -502,7 +510,11 @@ class NatsConnection implements Connection {
         }
     }
 
-    void upgradeToSecureIfNeeded() throws IOException {
+    void upgradeToSecureIfNeeded(URI uri, long timeoutNanos) throws IOException {
+        if (this.natsChannel.isSecure()) {
+            // No-op, it is already secure:
+            return;
+        }
         Options opts = getOptions();
         ServerInfo info = getInfo();
 
@@ -513,7 +525,12 @@ class NatsConnection implements Connection {
         }
 
         if (opts.isTLSRequired()) {
-            this.dataPort.upgradeToSecure();
+            this.natsChannel = TLSNatsChannel.wrap(
+                natsChannel,
+                uri,
+                opts,
+                this::handleCommunicationIssue,
+                Duration.ofNanos(timeoutNanos));
         }
     }
 
@@ -687,12 +704,12 @@ class NatsConnection implements Connection {
             //
         }
 
-        this.dataPortFuture.cancel(true);
+        this.natsChannelFuture.cancel(true);
 
         // Close the current socket and cancel anyone waiting for it
         try {
-            if (this.dataPort != null) {
-                this.dataPort.close();
+            if (this.natsChannel != null) {
+                this.natsChannel.close();
             }
 
         } catch (IOException ex) {
@@ -1252,26 +1269,26 @@ class NatsConnection implements Connection {
     }
 
     void readInitialInfo() throws IOException {
-        byte[] readBuffer = new byte[options.getBufferSize()];
+        ByteBuffer readBuffer = ByteBuffer.allocate(options.getBufferSize());
         ByteBuffer protocolBuffer = ByteBuffer.allocate(options.getBufferSize());
         boolean gotCRLF = false;
         boolean gotCR = false;
 
         while (!gotCRLF) {
-            int read = this.dataPort.read(readBuffer, 0, readBuffer.length);
+            int read = this.natsChannel.read(readBuffer);
 
             if (read < 0) {
                 break;
             }
 
-            int i = 0;
-            while (i < read) {
-                byte b = readBuffer[i++];
+            readBuffer.flip();
+            while (readBuffer.hasRemaining()) {
+                byte b = readBuffer.get();
 
                 if (gotCR) {
                     if (b != LF) {
                         throw new IOException("Missed LF after CR waiting for INFO.");
-                    } else if (i < read) {
+                    } else if (readBuffer.hasRemaining()) {
                         throw new IOException("Read past initial info message.");
                     }
 
@@ -1489,8 +1506,8 @@ class NatsConnection implements Connection {
         return this.statistics;
     }
 
-    DataPort getDataPort() {
-        return this.dataPort;
+    NatsChannel getNatsChannel() {
+        return this.natsChannel;
     }
 
     // Used for testing
@@ -1736,8 +1753,8 @@ class NatsConnection implements Connection {
     }
 
     // For testing
-    Future<DataPort> getDataPortFuture() {
-        return this.dataPortFuture;
+    Future<NatsChannel> getNatsChannelFuture() {
+        return this.natsChannelFuture;
     }
 
     boolean isDraining() {

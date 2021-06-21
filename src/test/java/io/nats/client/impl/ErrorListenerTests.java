@@ -229,7 +229,7 @@ public class ErrorListenerTests {
                 for (int i = 0; i < maxMessages + 1; i++) {
                     nc.publish("subject" + i, ("message" + i).getBytes());
                 }
-                nc.getWriter().start(nc.getDataPortFuture());
+                nc.getWriter().start(nc.getNatsChannelFuture());
 
                 nc.flush(Duration.ofSeconds(2));
             } finally {
