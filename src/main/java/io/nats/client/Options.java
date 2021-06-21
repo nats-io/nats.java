@@ -1322,6 +1322,9 @@ public class Options {
 
         /**
          * The class used for building the NatsChannel.
+         * 
+         * @param natsChannelFactory is the new NatsChannelFactory instance to use
+         * @return the Builder for chaining
          */
         public Builder natsChannelFactory(NatsChannelFactory natsChannelFactory) {
             this.natsChannelFactory = natsChannelFactory;
@@ -1499,7 +1502,9 @@ public class Options {
     }
 
     /**
-     * Used to build a {@link NatsChannel} instance.
+     * Used to build a {@link io.nats.client.impl.NatsChannel} instance.
+     * 
+     * @return a NatsChannelFactory
      */
     public NatsChannelFactory getNatsChannelFactory() {
         return natsChannelFactory;
