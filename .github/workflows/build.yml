@@ -1,0 +1,60 @@
+name: GitHub Build Actions For JNats NATS.io Java Client
+
+on:
+  pull_request:
+    types: [opened, synchronize, edited, reopened]
+  push:
+    branches:
+      - main
+  release:
+    branches:
+      - main
+    types: [released]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      BUILD_EVENT: ${{ github.event_name }}
+      OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+      OSSRH_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+      SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+      SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+      SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+    steps:
+      - name: Setup JDK 8
+        uses: actions/setup-java@v2
+        with:
+          java-version: '8'
+          distribution: 'adopt'
+      - name: Setup GO
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16.3
+      - name: Install Nats Server
+        run: |
+          cd $GITHUB_WORKSPACE
+          git clone https://github.com/nats-io/nats-server.git
+          cd nats-server
+          export NS_LATEST_TAG=$(git describe --tags --abbrev=0)
+          git checkout tags/${NS_LATEST_TAG} -b nslatestbranch
+          go build main.go
+          mkdir -p ~/.local/bin
+          cp main ~/.local/bin/nats-server
+          cd ..
+          rm -rf nats-server
+          nats-server -v
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Build and Test
+        run: chmod +x gradlew && ./gradlew clean test
+      - name: On Pull Request, Verify Javadoc
+        if: ${{ success() && github.event_name == 'pull_request' }}
+        run: ./gradlew javadoc
+      - name: On Merge to Main, Verify and Publish Snapshot
+        if: ${{ success() && github.event_name == 'push' }}
+        run: ./gradlew -i publishToSonatype
+      - name: On Tag Release Main, Verify, Sign and Publish Release
+        if: ${{ success() && github.event_name == 'release' }}
+        run: ./gradlew -i sign publishToSonatype closeAndReleaseRepository
+
