@@ -212,19 +212,6 @@ publishing {
                     url = 'https://github.com/nats-io/nats.java'
                 }
             }
-
-            pom.withXml {
-                def pomFile = file("${project.buildDir}/generated-pom.xml")
-                writeTo(pomFile)
-
-                if (isRelease) {
-                    def pomAscFile = signing.sign(pomFile).signatureFiles[0]
-                    artifact(pomAscFile) {
-                        classifier = null
-                        extension = 'pom.asc'
-                    }
-                }
-            }
         }
     }
 }
