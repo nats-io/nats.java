@@ -47,7 +47,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
       - name: Build and Test
-        run: chmod +x gradlew && ./gradlew clean
+        run: chmod +x gradlew && ./gradlew clean test
       - name: On Pull Request, Verify Javadoc
         if: ${{ success() && github.event_name == 'pull_request' }}
         run: ./gradlew javadoc
