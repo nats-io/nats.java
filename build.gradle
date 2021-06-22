@@ -1,16 +1,15 @@
 import org.gradle.internal.os.OperatingSystem
 
 plugins {
-    id 'java-library'
     id 'java'
-    id 'jacoco'
+    id 'java-library'
     id 'maven-publish'
-    id 'signing'
+    id 'jacoco'
     id 'com.github.kt3k.coveralls' version '2.8.4'
     id 'biz.aQute.bnd.builder' version '5.1.2'
-    id 'io.codearte.nexus-staging' version '0.21.0'
-    id "de.marcphilipp.nexus-publish" version "0.3.0"
     id "org.gradle.test-retry" version "1.1.9"
+    id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
+    id 'signing'
 }
 
 import aQute.bnd.gradle.Bundle
@@ -20,7 +19,7 @@ import aQute.bnd.gradle.Bundle
 // src/main/java/io/nats/client/Nats.java
 // src/main/java/io/nats/client/package-info.java
 // CHANGELOG.md
-def jarVersion = "2.11.5.beta1"
+def jarVersion = "2.11.5.beta3"
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 
@@ -29,15 +28,6 @@ version = isRelease ? jarVersion : jarVersion + "-SNAPSHOT"
 
 archivesBaseName = 'jnats'
 group = 'io.nats'
-
-tasks {
-    closeRepository {
-        onlyIf { nexusPublishing.useStaging.get() }
-    }
-    releaseRepository{
-        onlyIf { nexusPublishing.useStaging.get() }
-    }
-}
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -181,21 +171,13 @@ artifacts {
     archives javadocJar, sourcesJar, examplesJar
 }
 
-if (isRelease) {
-    signing {
-        def signingKeyId = System.getenv('SIGNING_KEY_ID')
-        def signingKey = System.getenv('SIGNING_KEY')
-        def signingPassword = System.getenv('SIGNING_PASSWORD')
-        useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
-        sign configurations.archives
-        sign publishing.publications.mavenJava
+nexusPublishing {
+    repositories {
+        sonatype {
+            username = System.getenv('OSSRH_USERNAME')
+            password = System.getenv('OSSRH_PASSWORD')
+        }
     }
-}
-
-nexusStaging {
-    packageGroup = group
-    username = System.getenv('OSSRH_USERNAME')
-    password = System.getenv('OSSRH_PASSWORD')
 }
 
 publishing {
@@ -230,55 +212,17 @@ publishing {
                     url = 'https://github.com/nats-io/nats.java'
                 }
             }
-
-            pom.withXml {
-                def pomFile = file("${project.buildDir}/generated-pom.xml")
-                writeTo(pomFile)
-
-                if (isRelease) {
-                    def pomAscFile = signing.sign(pomFile).signatureFiles[0]
-                    artifact(pomAscFile) {
-                        classifier = null
-                        extension = 'pom.asc'
-                    }
-                }
-            }
-
-            // create the signed artifacts
-            if (isRelease) {
-                project.tasks.signArchives.signatureFiles.each {
-                    artifact(it) {
-                        def matcher = it.file =~ /-(sources|javadoc|examples)\.jar\.asc$/
-                        if (matcher.find()) {
-                            classifier = matcher.group(1)
-                        } else {
-                            classifier = null
-                        }
-                        extension = 'jar.asc'
-                    }
-                }
-            }
         }
     }
+}
 
-    nexusPublishing {
-        repositories {
-            sonatype {
-                username = System.getenv('OSSRH_USERNAME')
-                password = System.getenv('OSSRH_PASSWORD')
-            }
-        }
-    }
-
-    model {
-        tasks.generatePomFileForMavenJavaPublication {
-            destination = file("$buildDir/generated-pom.xml")
-        }
-
-        tasks.publishMavenJavaPublicationToSonatypeRepository {
-            if (isRelease) {
-                dependsOn project.tasks.signArchives
-            }
-        }
+if (isRelease) {
+    signing {
+        def signingKeyId = System.getenv('SIGNING_KEY_ID')
+        def signingKey = System.getenv('SIGNING_KEY')
+        def signingPassword = System.getenv('SIGNING_PASSWORD')
+        useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+        sign configurations.archives
+        sign publishing.publications.mavenJava
     }
 }

@@ -56,5 +56,5 @@ jobs:
         run: ./gradlew -i publishToSonatype
       - name: On Tag Release Main, Verify, Sign and Publish Release
         if: ${{ success() && github.event_name == 'release' }}
-        run: ./gradlew -i sign publishToSonatype closeAndReleaseRepository
+        run: ./gradlew -i signArchives signMavenJavaPublication publishToSonatype closeAndReleaseSonatypeStagingRepository
 
