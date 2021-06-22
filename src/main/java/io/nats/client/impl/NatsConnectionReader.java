@@ -120,7 +120,7 @@ class NatsConnectionReader implements Runnable {
 
             while (this.running.get()) {
                 this.bufferPosition = 0;
-                int bytesRead = natsChannel.read(ByteBuffer.wrap(this.buffer, 0, this.buffer.length));
+                int bytesRead = natsChannel.read(ByteBuffer.wrap(this.buffer, 0, this.buffer.length)).get();
 
                 if (bytesRead > 0) {
                     connection.getNatsStatistics().registerRead(bytesRead);

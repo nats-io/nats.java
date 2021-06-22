@@ -21,6 +21,7 @@ import io.nats.client.support.ByteArrayBuilder;
 import io.nats.client.support.NatsRequestCompletableFuture;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
@@ -383,13 +384,22 @@ class NatsConnection implements Connection {
 
             timeoutNanos = timeCheck(trace, end, "connecting data port");
             URI uri = this.options.createURIForServer(serverURI);
-            NatsChannelReference newNatsChannel = new NatsChannelReference(
-                this.options.getNatsChannelFactory()
-                    .connect(
-                        uri,
-                        this.getOptions(),
-                        this::handleCommunicationIssue,
-                        Duration.ofNanos(timeoutNanos)));
+            CompletableFuture<NatsChannel> natsChannelFuture = this.options.getNatsChannelFactory()
+                .connect(
+                    uri,
+                    this.getOptions());
+            NatsChannelReference newNatsChannel = new NatsChannelReference(null);
+            try {
+                newNatsChannel.set(natsChannelFuture.get(timeoutNanos, TimeUnit.NANOSECONDS));
+            } catch (Exception ex) {
+                try {
+                    natsChannelFuture.cancel(true);
+                } catch (Exception innerEx) {
+                    innerEx.printStackTrace();
+                }
+                handleCommunicationIssue(ex);
+                return;
+            }
 
             // Notify the any threads waiting on the sockets
             this.natsChannel = newNatsChannel;
@@ -528,13 +538,17 @@ class NatsConnection implements Connection {
         }
 
         if (opts.isTLSRequired()) {
-            this.natsChannel.set(
-                TLSNatsChannel.wrap(
-                    natsChannel.get(),
-                    uri,
-                    opts,
-                    this::handleCommunicationIssue,
-                    Duration.ofNanos(timeoutNanos)));
+            CompletableFuture<NatsChannel> future = TLSNatsChannel.wrap(natsChannel.get(), uri, opts);
+            try {
+                this.natsChannel.set(future.get(timeoutNanos, TimeUnit.NANOSECONDS));
+            } catch (Exception ex) {
+                try {
+                    future.cancel(true);
+                } catch (Exception innerEx) {
+                    innerEx.printStackTrace();
+                }
+                handleCommunicationIssue(ex);
+            }
         }
     }
 
@@ -1272,14 +1286,14 @@ class NatsConnection implements Connection {
         }
     }
 
-    void readInitialInfo() throws IOException {
+    void readInitialInfo() throws IOException, InterruptedException, ExecutionException {
         ByteBuffer readBuffer = ByteBuffer.allocate(options.getBufferSize());
         ByteBuffer protocolBuffer = ByteBuffer.allocate(options.getBufferSize());
         boolean gotCRLF = false;
         boolean gotCR = false;
 
         while (!gotCRLF) {
-            int read = this.natsChannel.read(readBuffer);
+            int read = this.natsChannel.read(readBuffer).get();
 
             if (read < 0) {
                 break;

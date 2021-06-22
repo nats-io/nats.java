@@ -2,8 +2,7 @@ package io.nats.client.impl;
 
 import java.io.IOException;
 import java.net.URI;
-import java.time.Duration;
-import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
 
 import io.nats.client.Options;
 
@@ -11,12 +10,10 @@ public class DefaultNatsChannelFactory implements NatsChannelFactory {
     public static final NatsChannelFactory INSTANCE = new DefaultNatsChannelFactory();
 
     @Override
-    public NatsChannel connect(
+    public CompletableFuture<NatsChannel> connect(
         URI serverURI,
-        Options options,
-        Consumer<Exception> handleCommunicationIssue,
-        Duration timeout) throws IOException
+        Options options) throws IOException
     {
-        return SocketNatsChannel.connect(serverURI, timeout);
+        return SocketNatsChannel.connect(serverURI);
     }
 }

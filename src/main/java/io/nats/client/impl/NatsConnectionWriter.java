@@ -24,6 +24,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -107,7 +108,7 @@ class NatsConnectionWriter implements Runnable {
     }
 
     synchronized void sendMessageBatch(NatsMessage msg, NatsChannel natsChannel, NatsStatistics stats)
-            throws IOException {
+            throws IOException, InterruptedException, ExecutionException {
 
         int sendPosition = 0;
 
@@ -118,7 +119,7 @@ class NatsConnectionWriter implements Runnable {
                 if (sendPosition == 0) { // have to resize
                     this.sendBuffer = new byte[(int)Math.max(sendBuffer.length + size, sendBuffer.length * 2L)];
                 } else { // else send and go to next message
-                    natsChannel.write(ByteBuffer.wrap(sendBuffer, 0, sendPosition));
+                    natsChannel.write(ByteBuffer.wrap(sendBuffer, 0, sendPosition)).get();
                     connection.getNatsStatistics().registerWrite(sendPosition);
                     sendPosition = 0;
                     msg = msg.next;
@@ -221,12 +222,7 @@ class NatsConnectionWriter implements Runnable {
     synchronized void flushBuffer() {
         // Since there is no connection level locking, we rely on synchronization
         // of the APIs here.
-        try  {
-            if (this.running.get()) {
-                natsChannel.flushOutput();
-            }
-        } catch (Exception e) {
-            // NOOP;
-        }
+        // The code that was here, did not work. Really we should enqueue a message to send
+        // with a CountDownLatch and then wait for the latch here.
     }
 }

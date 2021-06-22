@@ -2,6 +2,8 @@ package io.nats.client.impl;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.CompletionHandler;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -15,11 +17,6 @@ public class NatsChannelReference implements NatsChannel {
     }
 
     @Override
-    public int read(ByteBuffer dst) throws IOException {
-        return ref.get().read(dst);
-    }
-
-    @Override
     public boolean isOpen() {
         return ref.get().isOpen();
     }
@@ -27,11 +24,6 @@ public class NatsChannelReference implements NatsChannel {
     @Override
     public void close() throws IOException {
         ref.get().close();
-    }
-
-    @Override
-    public int write(ByteBuffer src) throws IOException {
-        return ref.get().write(src);
     }
 
     @Override
@@ -44,16 +36,31 @@ public class NatsChannelReference implements NatsChannel {
         ref.get().shutdownInput();
     }
 
-    @Override
-    public void flushOutput() throws IOException {
-        ref.get().flushOutput();
-    }
-
     public void set(NatsChannel natsChannel) {
         this.ref.set(natsChannel);
     }
 
     public NatsChannel get() {
         return ref.get();
+    }
+
+    @Override
+    public <A> void read(ByteBuffer dst, A attachment, CompletionHandler<Integer, ? super A> handler) {
+        ref.get().read(dst, attachment, handler);
+    }
+
+    @Override
+    public Future<Integer> read(ByteBuffer dst) {
+        return ref.get().read(dst);
+    }
+
+    @Override
+    public <A> void write(ByteBuffer src, A attachment, CompletionHandler<Integer, ? super A> handler) {
+        ref.get().write(src, attachment, handler);
+    }
+
+    @Override
+    public Future<Integer> write(ByteBuffer src) {
+        return ref.get().write(src);
     }
 }

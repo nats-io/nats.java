@@ -1,82 +1,100 @@
 package io.nats.client.impl;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.time.Duration;
+import java.nio.channels.AsynchronousSocketChannel;
+import java.nio.channels.CompletionHandler;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
+import static java.net.StandardSocketOptions.TCP_NODELAY;
+import static java.net.StandardSocketOptions.SO_RCVBUF;
+import static java.net.StandardSocketOptions.SO_SNDBUF;
+
+/**
+ * Simple wrapper around {@link AsynchronousSocketChannel}
+ */
 public class SocketNatsChannel implements NatsChannel {
-    private String host;
-    private int port;
-    private Socket socket;
+    private AsynchronousSocketChannel socket;
 
-    private InputStream in;
-    private OutputStream out;
-    private boolean isOpen = true;
-
-    public static NatsChannel connect(
-        URI serverURI,
-        Duration timeout)
+    public static CompletableFuture<NatsChannel> connect(
+        URI serverURI)
         throws IOException
     {
-        return new SocketNatsChannel(serverURI, timeout);
-    }
-
-    private SocketNatsChannel(URI uri, Duration timeoutDuration) throws IOException {
-        long timeoutNanos = timeoutDuration.getNano();
-        // Code copied from SocketDataPort.connect():
         try {
-            long timeout = timeoutNanos / 1_000_000; // convert to millis
-            this.host = uri.getHost();
-            this.port = uri.getPort();
+            AsynchronousSocketChannel socket = AsynchronousSocketChannel.open();
+            socket.setOption(TCP_NODELAY, true);
+            socket.setOption(SO_RCVBUF, 2 * 1024 * 1024);
+            socket.setOption(SO_SNDBUF, 2 * 1024 * 1024);
 
-            this.socket = new Socket();
-            socket.setTcpNoDelay(true);
-            socket.setReceiveBufferSize(2 * 1024 * 1024);
-            socket.setSendBufferSize(2 * 1024 * 1024);
-            socket.connect(new InetSocketAddress(host, port), (int) timeout);
+            CompletableFuture<NatsChannel> future = new CompletableFuture<NatsChannel>() {
+                @Override
+                public boolean cancel(boolean mayInterruptIfRunning) {
+                    try {
+                        socket.close();
+                    } catch (IOException ex) {
+                        throw new UncheckedIOException(ex);
+                    }
+                    return true;
+                }
+            };
+    
+            socket.connect(
+                new InetSocketAddress(serverURI.getHost(), serverURI.getPort()),
+                null,
+                new CompletionHandler<Void, Void>() {
+                    @Override
+                    public void completed(Void result, Void attachment) {
+                        future.complete(new SocketNatsChannel(socket));
+                    }
 
-            in = socket.getInputStream();
-            out = socket.getOutputStream();
+                @Override
+                public void failed(Throwable exc, Void attachment) {
+                    future.completeExceptionally(exc);
+                }
+
+            });
+            return future;
         } catch (Exception ex) {
             throw new IOException(ex);
         }
     }
 
-    @Override
-    public int read(ByteBuffer dst) throws IOException {
-        // FIXME: Slow!
-        byte[] tmp = new byte[dst.remaining()];
-        int length = in.read(tmp, 0, tmp.length);
-        if (length < 0) {
-            return length;
-        }
-        dst.put(tmp, 0, length);
-        return length;
+    private SocketNatsChannel(AsynchronousSocketChannel socket) {
+        this.socket = socket;
     }
 
     @Override
-    public boolean isOpen() {
-        return isOpen;
+    public <A> void read(ByteBuffer dst, A attachment, CompletionHandler<Integer, ? super A> handler) {
+        socket.read(dst, attachment, handler);
+    }
+
+    @Override
+    public Future<Integer> read(ByteBuffer dst) {
+        return socket.read(dst);
+    }
+
+    @Override
+    public <A> void write(ByteBuffer src, A attachment, CompletionHandler<Integer, ? super A> handler) {
+        socket.write(src, attachment, handler);
+    }
+
+    @Override
+    public Future<Integer> write(ByteBuffer src) {
+        return socket.write(src);
     }
 
     @Override
     public void close() throws IOException {
-        isOpen = false;
         socket.close();
     }
 
     @Override
-    public int write(ByteBuffer src) throws IOException {
-        // FIXME: Slow!
-        byte[] tmp = new byte[src.remaining()];
-        src.get(tmp);
-        out.write(tmp, 0, tmp.length);
-        return tmp.length;
+    public boolean isOpen() {
+        return socket.isOpen();
     }
 
     @Override
@@ -88,10 +106,4 @@ public class SocketNatsChannel implements NatsChannel {
     public void shutdownInput() throws IOException {
         socket.shutdownInput();
     }
-
-    @Override
-    public void flushOutput() throws IOException {
-        out.flush();
-    }
-    
 }
