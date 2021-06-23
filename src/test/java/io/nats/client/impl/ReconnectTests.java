@@ -491,8 +491,8 @@ public class ReconnectTests {
         int ts2CPort = NatsTestServer.nextPort();
 
         String[] tsInserts = {
-                "",
                 "cluster {",
+                "name: testClusterName",
                 "listen: localhost:" + tsCPort,
                 "routes = [",
                 "nats-route://localhost:" + ts2CPort,
@@ -501,6 +501,7 @@ public class ReconnectTests {
         };
         String[] ts2Inserts = {
                 "cluster {",
+                "name: testClusterName",
                 "listen: localhost:" + ts2CPort,
                 "routes = [",
                 "nats-route://127.0.0.1:" + tsCPort,
