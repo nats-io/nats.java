@@ -111,7 +111,7 @@ public class ExampleUtils {
     }
 
     public static ExampleArgs expectSubjectQueueAndMsgCount(String[] args, String usageString) {
-        ExampleArgs ea = new ExampleArgs(args, ExampleArgs.Trail.COUNT, usageString);
+        ExampleArgs ea = new ExampleArgs(args, ExampleArgs.Trail.QUEUE_AND_COUNT, usageString);
         if (ea.containedUnknown || ea.msgCount < 1) {
             usage(usageString);
         }
