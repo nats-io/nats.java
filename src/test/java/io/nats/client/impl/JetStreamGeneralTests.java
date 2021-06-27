@@ -41,10 +41,13 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     public void testJetNotEnabled() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, false)) {
             Connection nc = standardConnection(ts.getURI());
-            IllegalStateException ise = assertThrows(IllegalStateException.class, nc::jetStreamManagement);
-            assertEquals("JetStream is not enabled.", ise.getMessage());
-            ise = assertThrows(IllegalStateException.class, nc::jetStream);
-            assertEquals("JetStream is not enabled.", ise.getMessage());
+
+            // get normal context
+            JetStream js = nc.jetStream();
+            assertThrows(IOException.class, () -> js.subscribe(SUBJECT));
+
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            assertThrows(IOException.class, jsm::getAccountStatistics);
         }
     }
 
