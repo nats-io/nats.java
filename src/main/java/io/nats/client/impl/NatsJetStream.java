@@ -215,9 +215,12 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             so = pushSubscribeOptions == null
                     ? PushSubscribeOptions.builder().build()
                     : pushSubscribeOptions;
-            stream = so.getStream(); // might be null, that's ok
+            stream = so.getStream(); // might be null, that's ok (see direct)
             ccBuilder = ConsumerConfiguration.builder(so.getConsumerConfiguration());
         }
+
+        //
+        boolean direct = so.isDirect();
 
         String durable = ccBuilder.getDurable();
         String inbox = ccBuilder.getDeliverSubject();
@@ -225,7 +228,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         boolean createConsumer = true;
 
-        // 1. Did they tell me what stream? No? look it up
+        // 1. Did they tell me what stream? No? look it up.
+        // subscribe options will have already validated that stream is present for direct mode
         if (stream == null) {
             stream = lookupStreamBySubject(subject);
         }
@@ -250,6 +254,9 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
                 // use the deliver subject as the inbox. It may be null, that's ok
                 inbox = cc.getDeliverSubject();
+            }
+            else if (direct) {
+                throw new IllegalArgumentException("Consumer not found for durable. Required in direct mode.");
             }
         }
 
@@ -381,7 +388,6 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     public JetStreamSubscription subscribe(String subject, PullSubscribeOptions options) throws IOException, JetStreamApiException {
         validateSubject(subject, true);
         validateNotNull(options, "Options");
-        validateNotNull(options.getDurable(), "Durable");
         return createSubscription(subject, null, null, null, false, null, options);
     }
 

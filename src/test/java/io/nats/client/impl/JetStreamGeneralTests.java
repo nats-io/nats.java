@@ -32,7 +32,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     public void testJetEnabled() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, true)) {
             Connection nc = standardConnection(ts.getURI());
-            nc.jetStreamManagement();
+            nc.jetStreamManagement().getAccountStatistics();
             nc.jetStream();
         }
     }
@@ -42,10 +42,11 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         try (NatsTestServer ts = new NatsTestServer(false, false)) {
             Connection nc = standardConnection(ts.getURI());
 
-            // get normal context
+            // get normal context, try to do an operation
             JetStream js = nc.jetStream();
             assertThrows(IOException.class, () -> js.subscribe(SUBJECT));
 
+            // get management context, try to do an operation
             JetStreamManagement jsm = nc.jetStreamManagement();
             assertThrows(IOException.class, jsm::getAccountStatistics);
         }
@@ -404,5 +405,101 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         assertTrue(JsPrefixManager.hasPrefix("foo.blah"));
         assertTrue(JsPrefixManager.hasPrefix("bar.blah"));
         assertFalse(JsPrefixManager.hasPrefix("not"));
+    }
+
+    @Test
+    public void testJetStreamSubscribeDirectPush() throws Exception {
+        runInJsServer(nc -> {
+            createTestStream(nc);
+            JetStream js = nc.jetStream();
+
+            jsPublish(js, SUBJECT, 1, 1);
+            PushSubscribeOptions pso = PushSubscribeOptions.builder()
+                    .durable(DURABLE)
+                    .build();
+            JetStreamSubscription s = js.subscribe(SUBJECT, pso);
+            Message m = s.nextMessage(DEFAULT_TIMEOUT);
+            assertNotNull(m);
+            assertEquals(data(1), new String(m.getData()));
+            m.ack();
+            s.unsubscribe();
+
+            jsPublish(js, SUBJECT, 2, 1);
+            pso = PushSubscribeOptions.builder()
+                    .stream(STREAM)
+                    .durable(DURABLE)
+                    .direct()
+                    .build();
+            s = js.subscribe(SUBJECT, pso);
+            m = s.nextMessage(DEFAULT_TIMEOUT);
+            assertNotNull(m);
+            assertEquals(data(2), new String(m.getData()));
+            m.ack();
+            s.unsubscribe();
+
+            jsPublish(js, SUBJECT, 3, 1);
+            pso = PushSubscribeOptions.direct(STREAM, DURABLE);
+            s = js.subscribe(SUBJECT, pso);
+            m = s.nextMessage(DEFAULT_TIMEOUT);
+            assertNotNull(m);
+            assertEquals(data(3), new String(m.getData()));
+        });
+    }
+
+    @Test
+    public void testJetStreamSubscribeDirectPull() throws Exception {
+        runInJsServer(nc -> {
+            createTestStream(nc);
+            JetStream js = nc.jetStream();
+
+            jsPublish(js, SUBJECT, 1, 1);
+
+            PullSubscribeOptions pso = PullSubscribeOptions.builder()
+                    .durable(DURABLE)
+                    .build();
+            JetStreamSubscription s = js.subscribe(SUBJECT, pso);
+            s.pull(1);
+            Message m = s.nextMessage(DEFAULT_TIMEOUT);
+            assertNotNull(m);
+            assertEquals(data(1), new String(m.getData()));
+            m.ack();
+            s.unsubscribe();
+
+            jsPublish(js, SUBJECT, 2, 1);
+            pso = PullSubscribeOptions.builder()
+                    .stream(STREAM)
+                    .durable(DURABLE)
+                    .direct()
+                    .build();
+            s = js.subscribe(SUBJECT, pso);
+            s.pull(1);
+            m = s.nextMessage(DEFAULT_TIMEOUT);
+            assertNotNull(m);
+            assertEquals(data(2), new String(m.getData()));
+            m.ack();
+            s.unsubscribe();
+
+            jsPublish(js, SUBJECT, 3, 1);
+            pso = PullSubscribeOptions.direct(STREAM, DURABLE);
+            s = js.subscribe(SUBJECT, pso);
+            s.pull(1);
+            m = s.nextMessage(DEFAULT_TIMEOUT);
+            assertNotNull(m);
+            assertEquals(data(3), new String(m.getData()));
+        });
+    }
+
+    @Test
+    public void testJetStreamSubscribeDirectNotCreated() throws Exception {
+        runInJsServer(nc -> {
+            JetStream js = nc.jetStream();
+            createTestStream(nc);
+
+            PushSubscribeOptions pushso = PushSubscribeOptions.direct(STREAM, DURABLE);
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushso));
+
+            PullSubscribeOptions pullso = PullSubscribeOptions.direct(STREAM, DURABLE);
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pullso));
+        });
     }
 }

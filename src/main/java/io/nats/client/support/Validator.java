@@ -56,6 +56,12 @@ public abstract class Validator {
         return validatePrintableExceptWildGtDollar(s, "Prefix", false);
     }
 
+    public static void validateDirect(boolean direct, String stream, String durable) {
+        if (direct && (nullOrEmpty(stream) || nullOrEmpty(durable))) {
+            throw new IllegalArgumentException("Stream and Durable are required for direct mode.");
+        }
+    }
+
     interface Check {
         String check(String s, String label);
     }
