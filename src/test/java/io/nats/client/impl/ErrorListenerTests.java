@@ -27,6 +27,8 @@ import java.util.concurrent.TimeoutException;
 import static io.nats.client.utils.TestBase.standardCloseConnection;
 import static io.nats.client.utils.TestBase.standardConnection;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 public class ErrorListenerTests {
 
@@ -238,9 +240,10 @@ public class ErrorListenerTests {
         }
 
         List<Message> discardedMessages = handler.getDiscardedMessages();
-        assertEquals(1, discardedMessages.size());
-        assertEquals("subject10", discardedMessages.get(0).getSubject());
-        assertEquals("message10", new String(discardedMessages.get(0).getData()));
+        assertThat(discardedMessages.size(), greaterThan(0));
+        int offset = 11 - discardedMessages.size();
+        assertEquals("subject" + offset, discardedMessages.get(0).getSubject());
+        assertEquals("message" + offset, new String(discardedMessages.get(0).getData()));
     }
 
     @Test
