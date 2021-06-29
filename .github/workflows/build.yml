@@ -49,6 +49,7 @@ jobs:
       - name: Build and Test
         run: chmod +x gradlew && ./gradlew clean test jacocoTestReport coveralls
       - name: Coveralls
+        if: ${{ success() }}
         uses: coverallsapp/github-action@master
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
