@@ -283,6 +283,70 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testAddThenUpdateConsumer() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            createMemoryStream(nc, STREAM, SUBJECT_GT);
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .durable(durable(1))
+                    .ackPolicy(AckPolicy.Explicit)
+                    .deliverSubject(deliver(1))
+                    .maxDeliver(3)
+                    .filterSubject(SUBJECT_GT)
+                    .build();
+            validAddThenUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).deliverSubject(deliver(2)).build();
+            validAddThenUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).deliverPolicy(DeliverPolicy.New).build();
+            invalidThenOrUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).ackWait(Duration.ofSeconds(5)).build();
+            invalidThenOrUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).filterSubject(SUBJECT_STAR).build();
+            invalidThenOrUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).rateLimit(100).build();
+            invalidThenOrUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).maxAckPending(100).build();
+            invalidThenOrUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).idleHeartbeat(Duration.ofMillis(111)).build();
+            invalidThenOrUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).flowControl(true).build();
+            invalidThenOrUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).maxDeliver(4).build();
+            invalidThenOrUpdate(jsm, cc);
+        });
+    }
+
+    private void invalidThenOrUpdate(JetStreamManagement jsm, ConsumerConfiguration cc) {
+        JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> jsm.addOrUpdateConsumer(STREAM, cc));
+        assertEquals("consumer already exists", e.getErrorDescription());
+        assertEquals(500, e.getErrorCode());
+    }
+
+    private void validAddThenUpdate(JetStreamManagement jsm, ConsumerConfiguration cc) throws IOException, JetStreamApiException {
+        ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
+        ConsumerConfiguration cicc = ci.getConsumerConfiguration();
+        assertEquals(cc.getDurable(), ci.getName());
+        assertEquals(cc.getDurable(), cicc.getDurable());
+        assertEquals(cc.getDeliverSubject(), cicc.getDeliverSubject());
+        assertEquals(cc.getMaxDeliver(), cicc.getMaxDeliver());
+        assertEquals(cc.getDeliverPolicy(), cicc.getDeliverPolicy());
+
+        List<String> consumers = jsm.getConsumerNames(STREAM);
+        assertEquals(1, consumers.size());
+        assertEquals(cc.getDurable(), consumers.get(0));
+    }
+
+    @Test
     public void testCreateConsumersWithFilters() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
