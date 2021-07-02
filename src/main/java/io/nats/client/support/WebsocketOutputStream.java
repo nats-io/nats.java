@@ -83,7 +83,7 @@ public class WebsocketOutputStream extends OutputStream {
 
     /**
      * NOTE: the buffer will be modified if masking is enabled and the length is greater
-     * than 1432. Regardless of if masking is enabled or not, any writes of length > 1432
+     * than 1432. Regardless of if masking is enabled or not, any writes of length &gt; 1432
      * will be split into two writes to the underlying OutputStream which is being wrapped.
      */
     @Override

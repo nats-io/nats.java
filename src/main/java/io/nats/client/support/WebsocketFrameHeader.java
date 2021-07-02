@@ -105,7 +105,9 @@ public class WebsocketFrameHeader {
      * Decrement the payloadLength by at most maxSize such that payloadLength is non-negative,
      * returning the amount decremented.
      * 
-     * @param maxSize the most to decrement the payloadLength.
+     * @param buffer is the buffer to filter.
+     * @param offset is the start offset within buffer to filter.
+     * @param length is the number of bytes to filter.
      * 
      * @return min(payloadLength, maxSize), decrementing the internal payloadLength by this amount.
      */
@@ -138,6 +140,11 @@ public class WebsocketFrameHeader {
     /**
      * Introspects the first 2 bytes of buffer at the specified offset to
      * determine how large the entire header is.
+     * 
+     * @param buffer is the buffer to introspect
+     * @param offset is the offset within the buffer where the websocket
+     *     header begins.
+     * @return the number of bytes used by the full websocket header.
      */
     public static int size(byte[] buffer, int offset) {
         int size = 2;
