@@ -56,7 +56,11 @@ public class SocketDataPort implements DataPort {
             this.host = uri.getHost();
             this.port = uri.getPort();
 
-            this.socket = new Socket();
+            if (options.getProxy() != null) {
+                this.socket = new Socket(options.getProxy());
+            } else {
+                this.socket = new Socket();
+            }
             socket.setTcpNoDelay(true);
             socket.setReceiveBufferSize(2 * 1024 * 1024);
             socket.setSendBufferSize(2 * 1024 * 1024);

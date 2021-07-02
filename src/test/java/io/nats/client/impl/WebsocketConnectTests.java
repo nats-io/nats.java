@@ -16,11 +16,18 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
+import io.nats.client.utils.RunProxy;
+
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.URI;
 import java.time.Duration;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -65,6 +72,33 @@ public class WebsocketConnectTests {
                                 maxReconnects(0).
                                 sslContext(ctx).
                                 build();
+            try (Connection connection = standardConnection(options)) {
+                Dispatcher dispatcher = connection.createDispatcher(msg -> {
+                    connection.publish(msg.getReplyTo(), (new String(msg.getData()) + ":REPLY").getBytes());
+                });
+                try {
+                    dispatcher.subscribe("TEST");
+                    Message response = connection.request("TEST", "REQUEST".getBytes()).join();
+                    assertEquals("REQUEST:REPLY", new String(response.getData()));
+                } finally {
+                    dispatcher.drain(Duration.ZERO);
+                }
+            }
+        }
+    }
+
+    @Test
+    public void testProxyRequestReply() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(3);
+        RunProxy proxy = new RunProxy(new InetSocketAddress("localhost", 0), null, executor);
+        executor.submit(proxy);
+
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/ws.conf", false)) {
+            Options options = new Options.Builder()
+                .server(ts.getURI("ws"))
+                .maxReconnects(0)
+                .proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress("localhost", proxy.getPort())))
+                .build();
             try (Connection connection = standardConnection(options)) {
                 Dispatcher dispatcher = connection.createDispatcher(msg -> {
                     connection.publish(msg.getReplyTo(), (new String(msg.getData()) + ":REPLY").getBytes());

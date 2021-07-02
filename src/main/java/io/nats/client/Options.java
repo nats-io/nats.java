@@ -19,6 +19,7 @@ import io.nats.client.support.SSLUtils;
 
 import javax.net.ssl.SSLContext;
 import java.lang.reflect.Constructor;
+import java.net.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.CharBuffer;
@@ -509,6 +510,7 @@ public class Options {
 
     private final ExecutorService executor;
     private final List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
+    private final Proxy proxy;
 
     static class DefaultThreadFactory implements ThreadFactory {
         String name;
@@ -582,6 +584,7 @@ public class Options {
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
         private ExecutorService executor;
         private List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
+        private Proxy proxy;
 
         /**
          * Constructs a new Builder with the default values.
@@ -1311,6 +1314,17 @@ public class Options {
         }
 
         /**
+         * Define a proxy to use when connecting.
+         *
+         * @param proxy is the HTTP or socks proxy to use.
+         * @return the Builder for chaining
+         */
+        public Builder proxy(Proxy proxy) {
+            this.proxy = proxy;
+            return this;
+        }
+
+        /**
          * The class to use for this connections data port. This is an advanced setting
          * and primarily useful for testing.
          * 
@@ -1439,6 +1453,7 @@ public class Options {
         this.trackAdvancedStats = b.trackAdvancedStats;
         this.executor = b.executor;
         this.httpRequestInterceptors = b.httpRequestInterceptors;
+        this.proxy = b.proxy;
     }
 
     /**
@@ -1455,6 +1470,13 @@ public class Options {
         return null == this.httpRequestInterceptors
             ? Collections.emptyList()
             : Collections.unmodifiableList(this.httpRequestInterceptors);
+    }
+
+    /**
+     * @return the proxy to used for all sockets.
+     */
+    public Proxy getProxy() {
+        return this.proxy;
     }
 
     /**
