@@ -142,6 +142,24 @@ public final class JsonUtilsTests {
     }
 
     @Test
+    public void testInteger() {
+        Pattern RE = JsonUtils.buildPattern("num", JsonUtils.FieldType.jsonNumber);
+        assertEquals(-1, JsonUtils.readLong("\"num\":-1", RE, 0));
+        assertEquals(12345678, JsonUtils.readLong("\"num\":12345678", RE, 0));
+        assertEquals(2147483647, JsonUtils.readLong("\"num\":2147483647", RE, 0));
+    }
+
+    @Test
+    public void testLong() {
+        Pattern RE = JsonUtils.buildPattern("num", JsonUtils.FieldType.jsonNumber);
+        assertEquals(-1, JsonUtils.readLong("\"num\":-1", RE, 0));
+        assertEquals(12345678, JsonUtils.readLong("\"num\":12345678", RE, 0));
+        assertEquals(9223372036854775807L, JsonUtils.readLong("\"num\":9223372036854775807", RE, 0));
+        assertEquals(-1, JsonUtils.readLong("\"num\":18446744073709551615", RE, 0));
+        assertEquals(-2, JsonUtils.readLong("\"num\":18446744073709551614", RE, 0));
+    }
+
+    @Test
     public void testReads() {
         String json = "\"yes\": true, \"no\": false";
         Pattern YES_RE = JsonUtils.buildPattern("yes", JsonUtils.FieldType.jsonBoolean);
