@@ -18,8 +18,8 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public class Token {
     private final byte[] serialized;
-    private TokenType type;
-    private int start;
+    private final TokenType type;
+    private final int start;
     private int end;
     private boolean hasValue;
 

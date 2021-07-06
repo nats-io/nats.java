@@ -19,7 +19,7 @@ import java.util.List;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public interface NatsConstants {
-    String VERSION = "NATS/1.0";
+    String HEADER_VERSION = "NATS/1.0";
 
     String NATS_PROTOCOL = "nats";
     String TLS_PROTOCOL = "tls";
@@ -39,11 +39,11 @@ public interface NatsConstants {
     byte LF = '\n';
 
     byte[] EMPTY_BODY = new byte[0];
-    byte[] VERSION_BYTES = VERSION.getBytes(US_ASCII);
-    byte[] VERSION_BYTES_PLUS_CRLF = (VERSION + "\r\n").getBytes(US_ASCII);
+    byte[] HEADER_VERSION_BYTES = HEADER_VERSION.getBytes(US_ASCII);
+    byte[] HEADER_VERSION_BYTES_PLUS_CRLF = (HEADER_VERSION + "\r\n").getBytes(US_ASCII);
     byte[] COLON_BYTES = ":".getBytes(US_ASCII);
     byte[] CRLF_BYTES = CRLF.getBytes(US_ASCII);
-    int VERSION_BYTES_LEN = VERSION_BYTES.length;
+    int HEADER_VERSION_BYTES_LEN = HEADER_VERSION_BYTES.length;
 
     String OP_CONNECT = "CONNECT";
     String OP_INFO = "INFO";
