@@ -479,6 +479,7 @@ public class HeadersTests {
         assertValidHeader("NATS/1.0\r\nks1: v1\r\n\r\n", "ks1", "v1");
         assertValidHeader("NATS/1.0\r\nk1:\r\n\r\n", "k1", EMPTY);
         assertValidHeader("NATS/1.0\r\nks1: \r\n\r\n", "ks1", EMPTY);
+        assertValidHeader("NATS/1.0\r\ncolons::::\r\n\r\n", "colons", ":::");
     }
 
     @Test

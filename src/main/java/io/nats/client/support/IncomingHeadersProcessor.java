@@ -31,8 +31,8 @@ public class IncomingHeadersProcessor {
         }
 
         // is tis the correct version
-        for (int x = 0; x < VERSION_BYTES_LEN; x++) {
-            if (serialized[x] != VERSION_BYTES[x]) {
+        for (int x = 0; x < HEADER_VERSION_BYTES_LEN; x++) {
+            if (serialized[x] != HEADER_VERSION_BYTES[x]) {
                 throw new IllegalArgumentException(INVALID_HEADER_VERSION);
             }
         }
@@ -40,7 +40,7 @@ public class IncomingHeadersProcessor {
         // does the header end properly
         serializedLength = serialized.length;
         Token terminus = new Token(serialized, serializedLength, serializedLength - 2, TokenType.CRLF);
-        Token token = new Token(serialized, serializedLength, VERSION_BYTES_LEN, null);
+        Token token = new Token(serialized, serializedLength, HEADER_VERSION_BYTES_LEN, null);
 
         boolean hadStatus = false;
         if (token.isType(TokenType.SPACE)) {

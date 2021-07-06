@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -280,16 +281,35 @@ public class TLSConnectTests {
 
     @Test
     public void testClientServerCertMismatch() {
+        AtomicReference<Exception> listenedException = new AtomicReference<>();
+        ErrorListener el = new ErrorListener() {
+            @Override
+            public void errorOccurred(Connection conn, String error) {}
+
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {
+                listenedException.set(exp);
+            }
+
+            @Override
+            public void slowConsumerDetected(Connection conn, Consumer consumer) {}
+        };
+
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
                 SSLContext ctx = TestSSLUtils.createEmptySSLContext();
-                Options options = new Options.Builder().
-                                    server(ts.getURI()).
-                                    maxReconnects(0).
-                                    sslContext(ctx).
-                                    build();
+                Options options = new Options.Builder()
+                        .server(ts.getURI())
+                        .maxReconnects(0)
+                        .sslContext(ctx)
+                        .errorListener(el)
+                        .build();
                 Nats.connect(options);
             }
         });
+
+        Exception e = listenedException.get();
+        assertNotNull(e);
+        assertTrue(e.getCause().getCause() instanceof java.security.cert.CertificateException);
     }
 }
