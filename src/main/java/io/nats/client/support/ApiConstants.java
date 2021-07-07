@@ -46,6 +46,7 @@ public interface ApiConstants {
     String DUPLICATE        = "duplicate";
     String DUPLICATE_WINDOW = "duplicate_window";
     String DURABLE_NAME     = "durable_name";
+    String ERR_CODE         = "err_code";
     String ERROR            = "error";
     String EXTERNAL         = "external";
     String FILTER_SUBJECT   = "filter_subject";
@@ -146,6 +147,7 @@ public interface ApiConstants {
     Pattern DUPLICATE_RE        = boolean_pattern(DUPLICATE);
     Pattern DUPLICATE_WINDOW_RE = number_pattern(DUPLICATE_WINDOW);
     Pattern DURABLE_NAME_RE     = string_pattern(DURABLE_NAME);
+    Pattern ERR_CODE_RE         = number_pattern(ERR_CODE);
     Pattern FILTER_SUBJECT_RE   = string_pattern(FILTER_SUBJECT);
     Pattern FIRST_SEQ_RE        = number_pattern(FIRST_SEQ);
     Pattern FIRST_TS_RE         = string_pattern(FIRST_TS);

@@ -64,18 +64,6 @@ public class JetStreamTestBase extends TestBase {
         return createMemoryStream(jsm, STREAM, SUBJECT);
     }
 
-    public static StreamInfo getStreamInfo(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
-        try {
-            return jsm.getStreamInfo(streamName);
-        }
-        catch (JetStreamApiException jsae) {
-            if (jsae.getErrorCode() == 404) {
-                return null;
-            }
-            throw jsae;
-        }
-    }
-
     public static void debug(JetStreamManagement jsm, int n) throws IOException, JetStreamApiException {
         System.out.println("\n" + n + ". -------------------------------");
         printStreamInfo(jsm.getStreamInfo(STREAM));
