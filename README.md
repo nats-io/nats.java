@@ -48,7 +48,7 @@ System.setProperty("com.sun.net.ssl.checkRevocation", "true");
 
 For more information, see the Oracle Java documentation page on [Client-Driven OCSP and OCSP Stapling](https://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/ocsp.html)
 
-Also, there is a detailed [OCSP Example](https://github.com/nats-io/java-nats-examples/tree/main/ocsp) that shows how to create SSL contexts.
+Also, there is a detailed [OCSP Example](https://github.com/nats-io/java-nats-examples/tree/main/ocsp) that shows how to create SSL contexts enabling OCSP stapling.
 
 ### UTF-8 Subjects
 
