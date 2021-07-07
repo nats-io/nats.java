@@ -256,12 +256,20 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     public void testDeleteStream() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
-            assertThrows(JetStreamApiException.class, () -> jsm.deleteStream(STREAM));
+            JetStreamApiException jsapiEx =
+                    assertThrows(JetStreamApiException.class, () -> jsm.deleteStream(STREAM));
+            assertEquals(10059, jsapiEx.getApiErrorCode());
+
             createMemoryStream(nc, STREAM, SUBJECT);
-            assertNotNull(getStreamInfo(jsm, STREAM));
+            assertNotNull(jsm.getStreamInfo(STREAM));
             assertTrue(jsm.deleteStream(STREAM));
-            assertNull(getStreamInfo(jsm, STREAM));
-            assertThrows(JetStreamApiException.class, () -> jsm.deleteStream(STREAM));
+
+
+            jsapiEx = assertThrows(JetStreamApiException.class, () -> jsm.getStreamInfo(STREAM));
+            assertEquals(10059, jsapiEx.getApiErrorCode());
+
+            jsapiEx = assertThrows(JetStreamApiException.class, () -> jsm.deleteStream(STREAM));
+            assertEquals(10059, jsapiEx.getApiErrorCode());
         });
     }
 
@@ -375,8 +383,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     private void invalidThenOrUpdate(JetStreamManagement jsm, ConsumerConfiguration cc) {
         JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> jsm.addOrUpdateConsumer(STREAM, cc));
-        assertEquals("consumer already exists", e.getErrorDescription());
-        assertEquals(500, e.getErrorCode());
+        assertEquals(10013, e.getApiErrorCode());
     }
 
     private void validAddThenUpdate(JetStreamManagement jsm, ConsumerConfiguration cc) throws IOException, JetStreamApiException {

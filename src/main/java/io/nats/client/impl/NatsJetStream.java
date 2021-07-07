@@ -590,7 +590,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
             return getConsumerInfo(stream, consumer);
         }
         catch (JetStreamApiException e) {
-            if (e.getErrorCode() == 404 && e.getErrorDescription().contains("consumer")) {
+            if (e.getApiErrorCode() == JS_CONSUMER_NOT_FOUND_ERR) {
                 return null;
             }
             throw e;
