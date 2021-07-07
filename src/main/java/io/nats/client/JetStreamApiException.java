@@ -37,8 +37,17 @@ public class JetStreamApiException extends Exception {
      *
      * @return the code
      */
-    public long getErrorCode() {
+    public int getErrorCode() {
         return apiResponse.getErrorCode();
+    }
+
+    /**
+     * Get the error code from the response
+     *
+     * @return the code
+     */
+    public int getApiErrorCode() {
+        return apiResponse.getApiErrorCode();
     }
 
     /**

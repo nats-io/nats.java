@@ -64,37 +64,35 @@ public class ApiResponseTests {
         assertTrue(jsApiResp.hasError());
         assertEquals("non_zero_code_only_response", jsApiResp.getType());
         assertEquals(500, jsApiResp.getErrorCode());
-        assertNull(jsApiResp.getDescription());
         assertEquals("Unknown JetStream Error (500)", jsApiResp.getError());
         jsApiEx = new JetStreamApiException(jsApiResp);
         assertEquals(500, jsApiEx.getErrorCode());
-        assertNull(jsApiEx.getErrorDescription());
 
         jsApiResp = new TestApiResponse(jsons[3]);
         assertTrue(jsApiResp.hasError());
         assertEquals("no_code_response", jsApiResp.getType());
         assertEquals(Error.NOT_SET, jsApiResp.getErrorCode());
         assertEquals("no code", jsApiResp.getDescription());
-        assertEquals("no code (-1)", jsApiResp.getError());
+        assertEquals("no code", jsApiResp.getError());
         jsApiEx = new JetStreamApiException(jsApiResp);
         assertEquals(-1, jsApiEx.getErrorCode());
+        assertEquals(-1, jsApiEx.getApiErrorCode());
         assertEquals("no code", jsApiEx.getErrorDescription());
 
         jsApiResp = new TestApiResponse(jsons[4]);
         assertTrue(jsApiResp.hasError());
         assertEquals("empty_response", jsApiResp.getType());
         assertEquals(Error.NOT_SET, jsApiResp.getErrorCode());
-        assertNull(jsApiResp.getDescription());
-        assertTrue(jsApiResp.getError().startsWith("Unknown JetStream Error:"));
         jsApiEx = new JetStreamApiException(jsApiResp);
         assertEquals(-1, jsApiEx.getErrorCode());
-        assertNull(jsApiEx.getErrorDescription());
+        assertEquals(-1, jsApiEx.getApiErrorCode());
 
         jsApiResp = new TestApiResponse(jsons[5]);
         assertFalse(jsApiResp.hasError());
         assertEquals("not_error_response", jsApiResp.getType());
         jsApiEx = new JetStreamApiException(jsApiResp);
         assertEquals(-1, jsApiEx.getErrorCode());
+        assertEquals(-1, jsApiEx.getApiErrorCode());
         assertNull(jsApiEx.getErrorDescription());
 
         jsApiResp = new TestApiResponse(jsons[6]);
