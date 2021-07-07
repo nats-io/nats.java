@@ -106,10 +106,6 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return js.lookupConsumerInfo(stream, consumer);
     }
 
-    private interface InternalBatchHandler {
-        boolean onMessage(Message message) throws InterruptedException;
-    }
-
     private static final Duration SUBSEQUENT_WAITS = Duration.ofMillis(500);
 
     @Override
