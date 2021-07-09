@@ -76,14 +76,22 @@ public class WebsocketInputStream extends InputStream {
     }
 
     private boolean readHeader() throws IOException {
-        if (2 != in.read(buffer, 0, 2)) {
-            return false;
+        int len = 0;
+        while (len < 2) {
+            int result = in.read(buffer, len, 2 - len);
+            if (result < 0) {
+                return false;
+            }
+            len += result;
         }
         int headerSize = WebsocketFrameHeader.size(buffer, 0);
         if (headerSize > 2) {
-            int len = headerSize - 2;
-            if (len != in.read(buffer, 2, len)) {
-                return false;
+            while (len < headerSize) {
+                int result = in.read(buffer, len, headerSize - len);
+                if (result < 0) {
+                    return false;
+                }
+                len += result;
             }
         }
         header.write(buffer, 0, headerSize);

@@ -152,6 +152,16 @@ public class WebSocket extends Socket {
     }
 
     @Override
+    public InputStream getInputStream() throws IOException {
+        return in;
+    }
+
+    @Override
+    public OutputStream getOutputStream() throws IOException {
+        return out;
+    }
+
+    @Override
     public void connect(SocketAddress addr) throws IOException {
         throw new UnsupportedOperationException();
     }
@@ -163,6 +173,11 @@ public class WebSocket extends Socket {
 
     @Override
     public void bind(SocketAddress addr) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public SocketChannel getChannel() {
         throw new UnsupportedOperationException();
     }
 
@@ -194,21 +209,6 @@ public class WebSocket extends Socket {
     @Override
     public SocketAddress getLocalSocketAddress() {
         return wrap.getLocalSocketAddress();
-    }
-
-    @Override
-    public SocketChannel getChannel() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public InputStream getInputStream() throws IOException {
-        return in;
-    }
-
-    @Override
-    public OutputStream getOutputStream() throws IOException {
-        return out;
     }
 
     @Override
@@ -308,17 +308,18 @@ public class WebSocket extends Socket {
 
     @Override
     public synchronized void close() throws IOException {
-        // TODO!
+        // TODO: send websocket close:
+        wrap.close();
     }
 
     @Override
     public void shutdownInput() throws IOException {
-        // TODO!
+        wrap.shutdownInput();
     }
 
     @Override
     public void shutdownOutput() throws IOException {
-        // TODO!
+        wrap.shutdownOutput();
     }
 
     @Override
