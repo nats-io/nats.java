@@ -5,11 +5,14 @@ import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.api.PublishAck;
+import io.nats.client.support.JsonUtils;
+import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
+import static io.nats.client.support.ApiConstants.SUBJECT;
 import static io.nats.client.support.Validator.*;
 
 public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
@@ -105,7 +108,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         Duration timeout = options == null ? jso.getRequestTimeout() : options.getStreamTimeout();
 
-        Message resp = makeRequestResponseRequired(subject, merged, data, utf8mode, timeout, false);
+        Message resp = makeInternalRequestResponseRequired(subject, merged, data, utf8mode, timeout, false);
         return processPublishResponse(resp, options);
     }
 
@@ -147,47 +150,45 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         PublishAck ack = new PublishAck(resp);
         String ackStream = ack.getStream();
         String pubStream = options == null ? null : options.getStream();
-        if (isStreamSpecified(pubStream) && !pubStream.equals(ackStream)) {
+        // stream specified in options but different than ack should not happen but...
+        if (pubStream != null && !pubStream.equals(ackStream)) {
             throw new IOException("Expected ack from stream " + pubStream + ", received from: " + ackStream);
         }
         return ack;
     }
 
-    private Headers mergePublishOptions(Headers headers, PublishOptions options) {
-        Headers piHeaders;
+    private Headers mergePublishOptions(Headers headers, PublishOptions opts) {
+        // never touch the user's original headers
+        Headers merged = headers == null ? null : new Headers(headers);
 
-        if (options == null) {
-            piHeaders = headers == null ? null : new Headers(headers);
+        if (opts != null) {
+            merged = mergeNum(merged, EXPECTED_LAST_SEQ_HDR, opts.getExpectedLastSequence());
+            merged = mergeString(merged, EXPECTED_LAST_MSG_ID_HDR, opts.getExpectedLastMsgId());
+            merged = mergeString(merged, EXPECTED_STREAM_HDR, opts.getExpectedStream());
+            merged = mergeString(merged, MSG_ID_HDR, opts.getMessageId());
         }
-        else {
-            piHeaders = new Headers(headers);
 
-            // we know no headers are set with default options
-            long seqno = options.getExpectedLastSequence();
-            if (seqno > 0) {
-                piHeaders.add(EXPECTED_LAST_SEQ_HDR, Long.toString(seqno));
-            }
-
-            String s = options.getExpectedLastMsgId();
-            if (s != null) {
-                piHeaders.add(EXPECTED_LAST_MSG_ID_HDR, s);
-            }
-
-            s = options.getExpectedStream();
-            if (s != null) {
-                piHeaders.add(EXPECTED_STREAM_HDR, s);
-            }
-
-            s = options.getMessageId();
-            if (s != null) {
-                piHeaders.add(MSG_ID_HDR, s);
-            }
-        }
-        return piHeaders;
+        return merged;
     }
 
-    private boolean isStreamSpecified(String streamName) {
-        return streamName != null;
+    private Headers mergeNum(Headers h, String key, long value) {
+        if (value > 0) {
+            if (h == null) {
+                h = new Headers(h);
+            }
+            h.add(key, Long.toString(value));
+        }
+        return h;
+    }
+
+    private Headers mergeString(Headers h, String key, String value) {
+        if (!Validator.nullOrEmpty(value)) {
+            if (h == null) {
+                h = new Headers(h);
+            }
+            h.add(key, value);
+        }
+        return h;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -239,11 +240,11 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             ConsumerInfo consumerInfo =
                     lookupConsumerInfo(stream, durable);
 
-            if (consumerInfo != null) { // consumer for that durable already exists
+            if (consumerInfo != null) { // the consumer for that durable already exists
                 createConsumer = false;
                 ConsumerConfiguration cc = consumerInfo.getConsumerConfiguration();
 
-                // Make sure the subject matches or is a subset...
+                // durable already exists, make sure the filter subject matches
                 String existingFilterSubject = cc.getFilterSubject();
                 if (filterSubject != null && !filterSubject.equals(existingFilterSubject)) {
                     throw new IllegalArgumentException(
@@ -407,9 +408,9 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     }
 
     protected String lookupStreamBySubject(String subject) throws IOException, JetStreamApiException {
-        String streamRequest = String.format("{\"subject\":\"%s\"}", subject);
+        byte[] body = JsonUtils.simpleMessageBody(SUBJECT, subject);
         StreamNamesReader snr = new StreamNamesReader();
-        Message resp = makeRequestResponseRequired(JSAPI_STREAMS, streamRequest.getBytes(), jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(JSAPI_STREAM_NAMES, body, jso.getRequestTimeout());
         snr.process(resp);
         if (snr.getStrings().size() != 1) {
             throw new IllegalStateException("No matching streams for subject: " + subject);

@@ -25,7 +25,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
     }
 
     // ----------------------------------------------------------------------------------------------------
-    // Management that is also needed by pub
+    // Management that is also needed by regular context
     // ----------------------------------------------------------------------------------------------------
     protected ConsumerInfo getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_CONSUMER_INFO, streamName, consumer);
@@ -58,7 +58,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         }
     }
 
-    protected Message makeRequestResponseRequired(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timeout, boolean cancelOn503) throws IOException {
+    protected Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timeout, boolean cancelOn503) throws IOException {
         try {
             return responseRequired(conn.requestInternal(subject, headers, data, utf8mode, timeout, cancelOn503));
         } catch (InterruptedException e) {

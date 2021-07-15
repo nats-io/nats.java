@@ -24,7 +24,7 @@ public interface JetStreamManagement {
 
     /**
      * Gets the account statistics for the logged in account.
-     * @return stream information
+     * @return account statistics
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data

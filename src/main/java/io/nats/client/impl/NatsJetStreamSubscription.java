@@ -51,6 +51,18 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         isPullMode = subscribeOptions instanceof PullSubscribeOptions;
     }
 
+    String getConsumer() {
+        return consumer;
+    }
+
+    String getStream() {
+        return stream;
+    }
+
+    String getDeliverSubject() {
+        return deliver;
+    }
+
     boolean isPullMode() {
         return isPullMode;
     }

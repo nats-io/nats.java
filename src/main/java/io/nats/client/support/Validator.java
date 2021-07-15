@@ -17,7 +17,7 @@ import io.nats.client.api.ConsumerConfiguration;
 
 import java.time.Duration;
 
-import static io.nats.client.JetStreamSubscription.MAX_PULL_SIZE;
+import static io.nats.client.support.NatsJetStreamConstants.MAX_PULL_SIZE;
 
 public abstract class Validator {
     private Validator() {} /* ensures cannot be constructed */

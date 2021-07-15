@@ -29,19 +29,17 @@ import static org.junit.jupiter.api.Assertions.*;
 public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
-    public void testJetEnabled() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false, true)) {
-            Connection nc = standardConnection(ts.getURI());
-            nc.jetStreamManagement().getAccountStatistics();
-            nc.jetStream();
-        }
+    public void testJetStreamContextCreate() throws Exception {
+        runInJsServer(nc -> {
+            createTestStream(nc); // tries management functions
+            nc.jetStreamManagement().getAccountStatistics(); // another management
+            nc.jetStream().publish(SUBJECT, dataBytes(1));
+        });
     }
 
     @Test
     public void testJetNotEnabled() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false, false)) {
-            Connection nc = standardConnection(ts.getURI());
-
+        runInServer(nc -> {
             // get normal context, try to do an operation
             JetStream js = nc.jetStream();
             assertThrows(IOException.class, () -> js.subscribe(SUBJECT));
@@ -49,7 +47,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // get management context, try to do an operation
             JetStreamManagement jsm = nc.jetStreamManagement();
             assertThrows(IOException.class, jsm::getAccountStatistics);
-        }
+        });
     }
 
     @Test
@@ -78,6 +76,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         runInJsServer(nc -> {
             nc.close();
             assertThrows(IOException.class, nc::jetStream);
+            assertThrows(IOException.class, nc::jetStreamManagement);
         });
     }
 
@@ -500,6 +499,23 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             PullSubscribeOptions pullso = PullSubscribeOptions.direct(STREAM, DURABLE);
             assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pullso));
+        });
+    }
+
+    @Test
+    public void testGetConsumerInfo() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            JetStreamSubscription sub = js.subscribe(SUBJECT);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            ConsumerInfo ci = sub.getConsumerInfo();
+            assertEquals(STREAM, ci.getStreamName());
         });
     }
 }

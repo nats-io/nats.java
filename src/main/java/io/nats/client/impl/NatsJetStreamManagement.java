@@ -46,9 +46,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
     }
 
     private StreamInfo addOrUpdateStream(StreamConfiguration config, String template) throws IOException, JetStreamApiException {
-        if (config == null) {
-            throw new IllegalArgumentException("Configuration cannot be null.");
-        }
+        validateNotNull(config, "Configuration");
         String streamName = config.getName();
         if (nullOrEmpty(streamName)) {
             throw new IllegalArgumentException("Configuration must have a valid stream name");
@@ -61,6 +59,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
 
     @Override
     public boolean deleteStream(String streamName) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
         String subj = String.format(JSAPI_STREAM_DELETE, streamName);
         Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
@@ -71,6 +70,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      */
     @Override
     public StreamInfo getStreamInfo(String streamName) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
         String subj = String.format(JSAPI_STREAM_INFO, streamName);
         Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new StreamInfo(resp).throwOnHasError();
@@ -93,7 +93,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
     public ConsumerInfo addOrUpdateConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
         validateStreamName(streamName, true);
         validateNotNull(config, "Config");
-        validateNotNull(config.getDurable(), "Durable");
+        validateNotNull(config.getDurable(), "Durable"); // durable name is required when creating consumers
         return addOrUpdateConsumerInternal(streamName, config);
     }
 
@@ -102,6 +102,8 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      */
     @Override
     public boolean deleteConsumer(String streamName, String consumer) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
+        validateNotNull(consumer, "consumer");
         String subj = String.format(JSAPI_CONSUMER_DELETE, streamName, consumer);
         Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
@@ -150,7 +152,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
     public List<String> getStreamNames() throws IOException, JetStreamApiException {
         StreamNamesReader snr = new StreamNamesReader();
         while (snr.hasMore()) {
-            Message resp = makeRequestResponseRequired(JSAPI_STREAMS, snr.nextJson(), jso.getRequestTimeout());
+            Message resp = makeRequestResponseRequired(JSAPI_STREAM_NAMES, snr.nextJson(), jso.getRequestTimeout());
             snr.process(resp);
         }
         return snr.getStrings();
@@ -168,6 +170,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
 
     @Override
     public MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
         String subj = String.format(JSAPI_MSG_GET, streamName);
         Message resp = makeRequestResponseRequired(subj, simpleMessageBody(SEQ, seq), jso.getRequestTimeout());
         return new MessageInfo(resp).throwOnHasError();
@@ -175,6 +178,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
 
     @Override
     public boolean deleteMessage(String streamName, long seq) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
         String subj = String.format(JSAPI_MSG_DELETE, streamName);
         Message resp = makeRequestResponseRequired(subj, simpleMessageBody(SEQ, seq), jso.getRequestTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
