@@ -65,8 +65,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .duplicateWindow(testSc.getDuplicateWindow())
                 .placement(testSc.getPlacement())
                 .mirror(testSc.getMirror())
-                .sources(testSc.getSources())
-                ;
+                .sources(testSc.getSources());
         validate(builder.build());
         validate(builder.addSources((Source)null).build());
 
@@ -117,6 +116,16 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 }
             }
         }
+
+        // coverage for null StreamConfiguration, millis maxAge, millis duplicateWindow
+        StreamConfiguration scCov = StreamConfiguration.builder(null)
+                .maxAge(1111)
+                .duplicateWindow(2222)
+                .build();
+
+        assertNull(scCov.getName());
+        assertEquals(Duration.ofMillis(1111), scCov.getMaxAge());
+        assertEquals(Duration.ofMillis(2222), scCov.getDuplicateWindow());
     }
 
     @Test

@@ -180,7 +180,12 @@ public class JetStreamTestBase extends TestBase {
         if (deliver != null) {
             assertEquals(deliver, ((NatsJetStreamSubscription)sub).getDeliverSubject());
         }
-        assertEquals(isPullMode, ((NatsJetStreamSubscription)sub).isPullMode());
+
+        boolean pm = ((NatsJetStreamSubscription)sub).isPullMode();
+        assertEquals(isPullMode, pm);
+
+        // coverage
+        assertTrue(sub.toString().contains("isPullMode=" + pm));
     }
 
     public static void assertSameMessages(List<Message> l1, List<Message> l2) {
@@ -215,18 +220,18 @@ public class JetStreamTestBase extends TestBase {
         assertIsStatus(messages.get(lastIndex), code);
     }
 
-    public static void assertStarts408(List<Message> messages, int count408, int countJs) {
+    public static void assertStarts408(List<Message> messages, int count408, int expectedJs) {
         for (int x = 0; x < count408; x++) {
             assertIsStatus(messages.get(x), 408);
         }
         int countedJs = 0;
         int lastIndex = messages.size() - 1;
-        for (int x = count408; x < lastIndex; x++) {
+        for (int x = count408; x <= lastIndex; x++) {
             Message m = messages.get(x);
             assertTrue(m.isJetStream());
             countedJs++;
         }
-        assertEquals(countedJs, countedJs);
+        assertEquals(expectedJs, countedJs);
     }
 
     private static void assertIsStatus(Message statusMsg, int code) {

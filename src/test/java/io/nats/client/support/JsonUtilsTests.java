@@ -157,6 +157,10 @@ public final class JsonUtilsTests {
         assertEquals(9223372036854775807L, JsonUtils.readLong("\"num\":9223372036854775807", RE, 0));
         assertEquals(-1, JsonUtils.readLong("\"num\":18446744073709551615", RE, 0));
         assertEquals(-2, JsonUtils.readLong("\"num\":18446744073709551614", RE, 0));
+        assertEquals("18446744073709551615",
+                Long.toUnsignedString(JsonUtils.readLong("\"num\":18446744073709551615", RE, 0)));
+        assertEquals("18446744073709551614",
+                Long.toUnsignedString(JsonUtils.readLong("\"num\":18446744073709551614", RE, 0)));
     }
 
     @Test

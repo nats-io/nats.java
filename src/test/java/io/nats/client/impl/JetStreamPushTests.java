@@ -308,7 +308,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             }
 
             // sleep to let the messages back up
-            sleep(1000);
+            sleep(1500);
 
             int count = 0;
             long now = System.currentTimeMillis();

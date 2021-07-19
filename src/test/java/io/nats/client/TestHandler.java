@@ -16,32 +16,36 @@ package io.nats.client;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class TestHandler implements ErrorListener, ConnectionListener {
-    private AtomicInteger count = new AtomicInteger();
+    private final AtomicInteger count = new AtomicInteger();
 
-    private HashMap<Events,AtomicInteger> eventCounts = new HashMap<>();
-    private HashMap<String,AtomicInteger> errorCounts = new HashMap<>();
-    private ReentrantLock lock = new ReentrantLock();
+    private final HashMap<Events,AtomicInteger> eventCounts = new HashMap<>();
+    private final HashMap<String,AtomicInteger> errorCounts = new HashMap<>();
+    private final ReentrantLock lock = new ReentrantLock();
 
-    private AtomicInteger exceptionCount = new AtomicInteger();
+    private final AtomicInteger exceptionCount = new AtomicInteger();
 
     private CompletableFuture<Boolean> statusChanged;
     private CompletableFuture<Boolean> slowSubscriber;
     private Events eventToWaitFor;
 
     private Connection connection;
-    private ArrayList<Consumer> slowConsumers = new ArrayList<>();
-    private ArrayList<Message> discardedMessages = new ArrayList<>();
+    private final ArrayList<Consumer> slowConsumers = new ArrayList<>();
+    private final ArrayList<Message> discardedMessages = new ArrayList<>();
 
-    private boolean printExceptions = true;
+    private boolean printExceptions;
+
+    public TestHandler() {
+        this.printExceptions = true;
+    }
+
+    public TestHandler(boolean printExceptions) {
+        this.printExceptions = printExceptions;
+    }
 
     public void prepForStatusChange(Events waitFor) {
         lock.lock();

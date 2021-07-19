@@ -43,3 +43,20 @@
     "description": "didnt have type"
   }
 }
+~
+{
+  "type": "code_desc_err_response",
+  "error": {
+    "code": 500,
+    "description": "the description"
+    "err_code": 12345
+  }
+}
+~
+{
+  "type": "no-code_desc_err_response",
+  "error": {
+    "description": "the description"
+    "err_code": 12345
+  }
+}

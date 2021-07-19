@@ -31,7 +31,7 @@ public class ConsumerConfigurationTests extends TestBase {
 
         ConsumerConfiguration c = ConsumerConfiguration.builder()
                 .ackPolicy(AckPolicy.Explicit)
-                .ackWait(Duration.ofSeconds(99))
+                .ackWait(Duration.ofSeconds(99)) // duration
                 .deliverPolicy(DeliverPolicy.ByStartSequence)
                 .durable(DURABLE)
                 .filterSubject("fs")
@@ -43,7 +43,7 @@ public class ConsumerConfigurationTests extends TestBase {
                 .startSequence(2001)
                 .startTime(zdt)
                 .deliverSubject(DELIVER)
-                .idleHeartbeat(Duration.ofSeconds(66))
+                .idleHeartbeat(Duration.ofSeconds(66)) // duration
                 .flowControl(true)
                 .build();
 
@@ -84,6 +84,22 @@ public class ConsumerConfigurationTests extends TestBase {
 
         assertNotNull(ccr.toString()); // COVERAGE
         assertNotNull(c.toString()); // COVERAGE
+
+        // millis instead of duration coverage
+        // supply null as deliverPolicy, ackPolicy , replayPolicy,
+        c = ConsumerConfiguration.builder()
+                .deliverPolicy(null)
+                .ackPolicy(null)
+                .replayPolicy(null)
+                .ackWait(9000) // millis
+                .idleHeartbeat(6000) // millis
+                .build();
+
+        assertEquals(AckPolicy.Explicit, c.getAckPolicy());
+        assertEquals(DeliverPolicy.All, c.getDeliverPolicy());
+        assertEquals(ReplayPolicy.Instant, c.getReplayPolicy());
+        assertEquals(Duration.ofSeconds(9), c.getAckWait());
+        assertEquals(Duration.ofSeconds(6), c.getIdleHeartbeat());
     }
 
     @Test

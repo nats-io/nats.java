@@ -81,14 +81,11 @@ public class NatsJsPushSub {
             // A push subscription means the server will "push" us messages.
             // Build our subscription options. We'll create a durable subscription.
             // Durable means the server will remember where we are if we use that name.
-            PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder();
-            if (exArgs.durable != null) {
-                builder.durable(exArgs.durable);
-            }
-            if (exArgs.deliver != null) {
-                builder.deliverSubject(exArgs.deliver);
-            }
-            PushSubscribeOptions so = builder.build();
+            PushSubscribeOptions so = PushSubscribeOptions.builder()
+                    .stream(exArgs.stream) // saves a lookup
+                    .durable(exArgs.durable)
+                    .deliverSubject(exArgs.deliver)
+                    .build();
 
             // Subscribe synchronously, then just wait for messages.
             JetStreamSubscription sub = js.subscribe(exArgs.subject, so);

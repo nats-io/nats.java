@@ -15,6 +15,7 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.Validator;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -30,6 +31,11 @@ import static io.nats.client.support.JsonUtils.endJson;
  * Options are created using a PublishOptions.Builder.
  */
 public class ConsumerConfiguration implements JsonSerializable {
+
+    private static final long MIN_ACK_WAIT_MILLIS = 1;
+    private static final long MIN_IDLE_HEARTBEAT_MILLIS = 0;
+    private static final Duration DEFAULT_ACK_WAIT = Duration.ofSeconds(30);
+    private static final Duration DEFAULT_IDLE_HEARTBEAT = Duration.ZERO;
 
     private final DeliverPolicy deliverPolicy;
     private final AckPolicy ackPolicy;
@@ -62,7 +68,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         durable = JsonUtils.readString(json, DURABLE_NAME_RE);
         deliverSubject = JsonUtils.readString(json, DELIVER_SUBJECT_RE);
-        startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, 0);
+        startSeq = JsonUtils.readUnsignedLong(json, OPT_START_SEQ_RE, 0);
         startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
         ackWait = JsonUtils.readNanos(json, ACK_WAIT_RE, Duration.ofSeconds(30));
         maxDeliver = JsonUtils.readLong(json, MAX_DELIVER_RE, -1);
@@ -106,7 +112,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, DURABLE_NAME, durable);
         JsonUtils.addField(sb, DELIVER_SUBJECT, deliverSubject);
         JsonUtils.addField(sb, DELIVER_POLICY, deliverPolicy.toString());
-        JsonUtils.addField(sb, OPT_START_SEQ, startSeq);
+        JsonUtils.addFieldAsUnsigned(sb, OPT_START_SEQ, startSeq);
         JsonUtils.addField(sb, OPT_START_TIME, startTime);
         JsonUtils.addField(sb, ACK_POLICY, ackPolicy.toString());
         JsonUtils.addFieldAsNanos(sb, ACK_WAIT, ackWait);
@@ -270,7 +276,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         private String durable = null;
         private DeliverPolicy deliverPolicy = DeliverPolicy.All;
-        private long startSeq = 0;
+        private long startSeq = 0L;
         private ZonedDateTime startTime = null;
         private AckPolicy ackPolicy = AckPolicy.Explicit;
         private Duration ackWait = Duration.ofSeconds(30);
@@ -340,7 +346,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder deliverPolicy(DeliverPolicy policy) {
-            this.deliverPolicy = policy;
+            this.deliverPolicy = policy == null ? DeliverPolicy.All : policy;
             return this;
         }
 
@@ -356,6 +362,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * Sets the start sequence of the ConsumerConfiguration.
+         * This ling will be treated as unsigned
          * @param sequence the start sequence
          * @return Builder
          */
@@ -380,7 +387,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */        
         public Builder ackPolicy(AckPolicy policy) {
-            this.ackPolicy = policy;
+            this.ackPolicy = policy == null ? AckPolicy.Explicit : policy;
             return this;
         }
 
@@ -388,9 +395,19 @@ public class ConsumerConfiguration implements JsonSerializable {
          * Sets the acknowledgement wait duration of the ConsumerConfiguration.
          * @param timeout the wait timeout
          * @return Builder
-         */ 
+         */
         public Builder ackWait(Duration timeout) {
-            this.ackWait = timeout;
+            this.ackWait = Validator.ensureNotNullAndNotLessThanMin(timeout, DEFAULT_ACK_WAIT, MIN_ACK_WAIT_MILLIS);
+            return this;
+        }
+
+        /**
+         * Sets the acknowledgement wait duration of the ConsumerConfiguration.
+         * @param timeoutMillis the wait timeout in milliseconds
+         * @return Builder
+         */
+        public Builder ackWait(long timeoutMillis) {
+            this.ackWait = Validator.ensureDurationNotLessThanMin(timeoutMillis, DEFAULT_ACK_WAIT, MIN_ACK_WAIT_MILLIS);
             return this;
         }
 
@@ -420,7 +437,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */         
         public Builder replayPolicy(ReplayPolicy policy) {
-            this.replayPolicy = policy;
+            this.replayPolicy = policy == null ? ReplayPolicy.Instant : policy;
             return this;
         }
 
@@ -459,8 +476,18 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @param idleHeartbeat the idle heart beat duration
          * @return Builder
          */
-        public Builder idleHeartbeat(final Duration idleHeartbeat) {
-            this.idleHeartbeat = idleHeartbeat;
+        public Builder idleHeartbeat(Duration idleHeartbeat) {
+            this.idleHeartbeat = Validator.ensureNotNullAndNotLessThanMin(idleHeartbeat, Duration.ZERO, MIN_IDLE_HEARTBEAT_MILLIS);
+            return this;
+        }
+
+        /**
+         * sets the idle heart beat wait time
+         * @param idleHeartbeatMillis the idle heart beat duration in milliseconds
+         * @return Builder
+         */
+        public Builder idleHeartbeat(long idleHeartbeatMillis) {
+            this.idleHeartbeat = Validator.ensureDurationNotLessThanMin(idleHeartbeatMillis, Duration.ZERO, MIN_IDLE_HEARTBEAT_MILLIS);
             return this;
         }
 
@@ -482,19 +509,19 @@ public class ConsumerConfiguration implements JsonSerializable {
 
             return new ConsumerConfiguration(
                     durable,
-                    deliverPolicy == null ? DeliverPolicy.All : deliverPolicy,
+                    deliverPolicy,
                     startSeq,
                     startTime,
-                    ackPolicy == null ? AckPolicy.Explicit : ackPolicy,
-                    ackWait == null ? Duration.ofSeconds(30) : ackWait,
+                    ackPolicy,
+                    ackWait,
                     maxDeliver,
                     filterSubject,
-                    replayPolicy == null ? ReplayPolicy.Instant : replayPolicy,
+                    replayPolicy,
                     sampleFrequency,
                     rateLimit,
                     deliverSubject,
                     maxAckPending,
-                    idleHeartbeat == null ? Duration.ZERO : idleHeartbeat,
+                    idleHeartbeat,
                     flowControl
             );
         }

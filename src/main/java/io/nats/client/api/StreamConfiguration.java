@@ -488,9 +488,19 @@ public class StreamConfiguration implements JsonSerializable {
          * Sets the maximum age in the StreamConfiguration.
          * @param maxAge the maximum message age
          * @return Builder
-         */        
+         */
         public Builder maxAge(Duration maxAge) {
             this.maxAge = validateDurationNotRequiredGtOrEqZero(maxAge);
+            return this;
+        }
+
+        /**
+         * Sets the maximum age in the StreamConfiguration.
+         * @param maxAgeMillis the maximum message age
+         * @return Builder
+         */
+        public Builder maxAge(long maxAgeMillis) {
+            this.maxAge = validateDurationNotRequiredGtOrEqZero(maxAgeMillis);
             return this;
         }
 
@@ -560,9 +570,20 @@ public class StreamConfiguration implements JsonSerializable {
          * disables duplicate checking.  Duplicate checking is disabled by default.
          * @param window duration to hold message ids for duplicate checking.
          * @return Builder
-         */        
+         */
         public Builder duplicateWindow(Duration window) {
             this.duplicateWindow = validateDurationNotRequiredGtOrEqZero(window);
+            return this;
+        }
+
+        /**
+         * Sets the duplicate checking window in the the StreamConfiguration.  A Duration.Zero
+         * disables duplicate checking.  Duplicate checking is disabled by default.
+         * @param windowMillis duration to hold message ids for duplicate checking.
+         * @return Builder
+         */
+        public Builder duplicateWindow(long windowMillis) {
+            this.duplicateWindow = validateDurationNotRequiredGtOrEqZero(windowMillis);
             return this;
         }
 

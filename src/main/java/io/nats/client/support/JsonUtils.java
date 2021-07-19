@@ -287,6 +287,16 @@ public abstract class JsonUtils {
      * Appends a json field to a string builder.
      * @param sb string builder
      * @param fname fieldname
+     * @param value field value
+     */
+    public static void addFieldAsUnsigned(StringBuilder sb, String fname, long value) {
+        sb.append(Q).append(fname).append(QCOLON).append(Long.toUnsignedString(value)).append(COMMA);
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
      * @param value duration value
      */
     public static void addFieldAsNanos(StringBuilder sb, String fname, Duration value) {
@@ -430,22 +440,36 @@ public abstract class JsonUtils {
         }
     }
 
+    public static long readUnsignedLong(String json, Pattern pattern, long dflt) {
+        Matcher m = pattern.matcher(json);
+        return m.find() ? safeParseUnsignedLong(m.group(1), dflt) : dflt;
+    }
+
     public static Long safeParseLong(String s) {
         try {
             return Long.parseLong(s);
         }
-        catch (Exception e1) {
-            try {
-                return Long.parseUnsignedLong(s);
-            }
-            catch (Exception e2) {
-                return null;
-            }
+        catch (Exception e) {
+            return safeParseUnsignedLong(s);
+        }
+    }
+
+    private static Long safeParseUnsignedLong(String s) {
+        try {
+            return Long.parseUnsignedLong(s);
+        }
+        catch (Exception e) {
+            return null;
         }
     }
 
     public static long safeParseLong(String s, long dflt) {
         Long l = safeParseLong(s);
+        return l == null ? dflt : l;
+    }
+
+    public static long safeParseUnsignedLong(String s, long dflt) {
+        Long l = safeParseUnsignedLong(s);
         return l == null ? dflt : l;
     }
 
