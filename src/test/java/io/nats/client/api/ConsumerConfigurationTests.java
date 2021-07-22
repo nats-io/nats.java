@@ -121,5 +121,6 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(42, c.getMaxAckPending());
         assertEquals("sample_freq-value", c.getSampleFrequency());
         assertTrue(c.getFlowControl());
+        assertEquals(128, c.getMaxPullWaiting());
     }
 }

@@ -76,6 +76,7 @@ public interface ApiConstants {
     String MAX_PAYLOAD      = "max_payload";
     String MAX_STORAGE      = "max_storage";
     String MAX_STREAMS      = "max_streams";
+    String MAX_WAITING      = "max_waiting";
     String MEMORY           = "memory";
     String MESSAGES         = "messages";
     String MIRROR           = "mirror";
@@ -175,6 +176,7 @@ public interface ApiConstants {
     Pattern MAX_PAYLOAD_RE      = number_pattern(MAX_PAYLOAD);
     Pattern MAX_STORAGE_RE      = number_pattern(MAX_STORAGE);
     Pattern MAX_STREAMS_RE      = number_pattern(MAX_STREAMS);
+    Pattern MAX_WAITING_RE      = number_pattern(MAX_WAITING);
     Pattern MEMORY_RE           = number_pattern(MEMORY);
     Pattern MESSAGES_RE         = number_pattern(MESSAGES);
     Pattern NAME_RE             = string_pattern(NAME);

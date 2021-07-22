@@ -172,13 +172,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     }
 
     private Headers mergeNum(Headers h, String key, long value) {
-        if (value > 0) {
-            if (h == null) {
-                h = new Headers(h);
-            }
-            h.add(key, Long.toString(value));
-        }
-        return h;
+        return value > 0 ? mergeString(h, key, Long.toString(value)): h;
     }
 
     private Headers mergeString(Headers h, String key, String value) {

@@ -182,6 +182,13 @@ public abstract class Validator {
         return l;
     }
 
+    public static long validateGtEqZero(long l, String label) {
+        if (l < 0) {
+            throw new IllegalArgumentException(label + " must be greater than or equal to zero");
+        }
+        return l;
+    }
+
     public static long validateNotNegative(long l, String label) {
         if (l < 0) {
             throw new IllegalArgumentException(label + " cannot be negative");
@@ -245,15 +252,13 @@ public abstract class Validator {
         return l == 0 || l < -1;
     }
 
-    public static Duration ensureNotNullAndNotLessThanMin(Duration provided, Duration dflt, long minMillis)
+    public static Duration ensureNotNullAndNotLessThanMin(Duration provided, Duration minimum, Duration dflt)
     {
-        return provided == null || provided.toMillis() < minMillis ? dflt : provided;
-
+        return provided == null || provided.toNanos() < minimum.toNanos() ? dflt : provided;
     }
 
-    public static Duration ensureDurationNotLessThanMin(long providedMillis, Duration dflt, long minMillis)
+    public static Duration ensureDurationNotLessThanMin(long providedMillis, Duration minimum, Duration dflt)
     {
-        return providedMillis < minMillis ? dflt : Duration.ofMillis(providedMillis);
-
+        return ensureNotNullAndNotLessThanMin(Duration.ofMillis(providedMillis), minimum, dflt);
     }
 }

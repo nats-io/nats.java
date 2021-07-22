@@ -59,7 +59,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
 
         numAckPending = JsonUtils.readLong(json, NUM_ACK_PENDING_RE, 0);
         numRedelivered = JsonUtils.readLong(json, NUM_REDELIVERED_RE, 0);
-        numPending = JsonUtils.readLong(json, NUM_PENDING_RE, 0);
+        numPending = JsonUtils.readUnsignedLong(json, NUM_PENDING_RE, 0);
         numWaiting = JsonUtils.readLong(json, NUM_WAITING_RE, 0);
     }
     

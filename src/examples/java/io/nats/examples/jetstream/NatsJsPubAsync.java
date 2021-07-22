@@ -100,7 +100,7 @@ public class NatsJsPubAsync {
                     }
                 }
                 else {
-                    // re queue it and try again
+                    // re queue so will be checked for done again
                     futures.add(f);
                 }
             }

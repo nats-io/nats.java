@@ -242,23 +242,23 @@ The Java NATS library provides two mechanisms to listen for messages, three if y
     d.unsubscribe(s, 100);
     ```
 
-## Jetstream
+## JetStream
 
-Publishing and subscribing to Jetstream enabled servers is straightforward.  A 
-Jetstream enabled application will connect to a server, establish a Jetstream 
+Publishing and subscribing to JetStream enabled servers is straightforward.  A 
+JetStream enabled application will connect to a server, establish a JetStream 
 context, and then publish or subscribe.  This can be mixed and matched with standard
 NATS subject, and JetStream subscribers, depending on configuration, receive messages
 from both streams and directly from other NATS producers.
 
-### The Jetstream Context
+### The JetStream Context
 
-After establishing a connection as described above, create a Jetstream Context.
+After establishing a connection as described above, create a JetStream Context.
    
    ```java
-   JetStream js = nc.jetStream();
+   JetStream js = nc.JetStream();
    ```
 
-You can pass options to configure the Jetstream client, although the defaults should
+You can pass options to configure the JetStream client, although the defaults should
 suffice for most users.  See the `JetStreamOptions` class.
 
 There is no limit to the number of contexts used, although normally one would only
@@ -267,7 +267,7 @@ NATS authorization.
 
 ### Publishing
 
-To publish messages, use the `JetStream.Publish(...)` API.  A stream must be established
+To publish messages, use the `JetStream.publish(...)` API.  A stream must be established
 before publishing. You can publish in either a synchronous or asynchronous manner.
 
 **Synchronous:**
@@ -376,16 +376,36 @@ See the `NatsJsPushSubWithHandler.java` in the JetStream examples for a detailed
 
 See `NatsJsPushSub.java` in the JetStream examples for a detailed and runnable example.
 
+```java
+         PushSubscribeOptions so = PushSubscribeOptions.builder()
+                 .durable("optional-durable-name")
+                 .build();
+
+         // Subscribe synchronously, then just wait for messages.
+         JetStreamSubscription sub = js.subscribe("subject", so);
+         nc.flush(Duration.ofSeconds(5));
+
+         Message msg = sub.nextMessage(Duration.ofSeconds(1));
+```
+
 ### Pull Subscribing
 
 Pull subscriptions are always synchronous. The server organizes messages into a batch
 which it sends when requested.
 
+```java
+        PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
+            .durable("durable-name-is-required")
+            .build();
+
+        JetStreamSubscription sub = js.subscribe("subject", pullOptions);
+```
+
 **Fetch:**
 
 ```java
         List<Message> message = sub.fetch(100, Duration.ofSeconds(1));
-        for (Message m : message) {
+        for (Message m : messages) {
             // process message
             m.ack();
         }
@@ -436,7 +456,7 @@ The client may time out before that time. If there are less than the batch size 
 you can ask for more later. Once the entire batch size has been filled, you must make another pull request. 
 
 See `NatsJsPullSubBatchSize.java` and `NatsJsPullSubBatchSizeUseCases.java` 
-in the JetStream examples for detailed and runnable examples.
+in the JetStream examples for detailed and runnable example.
 
 **No Wait and Batch Size:**
 
@@ -474,7 +494,7 @@ in the JetStream examples for detailed and runnable examples.
 
 ### Message Acknowledgements
 
-There are multiple types of acknowledgements in Jetstream:
+There are multiple types of acknowledgements in JetStream:
 
 * `Message.ack()`: Acknowledges a message.
 * `Message.ackSync(Duration)`: Acknowledges a message and waits for a confirmation. When used with deduplications this creates exactly once delivery guarantees (within the deduplication window).  This may significantly impact performance of the system.
