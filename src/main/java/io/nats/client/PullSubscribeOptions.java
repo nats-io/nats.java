@@ -15,16 +15,14 @@ package io.nats.client;
 
 import io.nats.client.api.ConsumerConfiguration;
 
-import static io.nats.client.support.Validator.*;
-
 /**
  * The PullSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
  * Options are created using the constructors or a {@link Builder}.
  */
 public class PullSubscribeOptions extends SubscribeOptions {
 
-    private PullSubscribeOptions(String stream, boolean direct, ConsumerConfiguration consumerConfig) {
-        super(stream, direct, consumerConfig);
+    private PullSubscribeOptions(String stream, String durable, boolean direct, ConsumerConfiguration consumerConfig) {
+        super(stream, durable, null, direct, true, consumerConfig);
     }
 
     public static Builder builder() {
@@ -60,19 +58,7 @@ public class PullSubscribeOptions extends SubscribeOptions {
          */
         @Override
         public PullSubscribeOptions build() {
-            // stream not required when not direct (direct is checked later)
-            stream = validateStreamName(stream, false);
-
-            // durable is required for pull
-            durable = validateDurableRequired(durable, consumerConfig);
-
-            validateDirect(direct, stream, durable);
-
-            ConsumerConfiguration cc = ConsumerConfiguration.builder(consumerConfig)
-                    .durable(durable)
-                    .build();
-
-            return new PullSubscribeOptions(stream, direct, cc);
+            return new PullSubscribeOptions(stream, durable, direct, consumerConfig);
         }
     }
 }

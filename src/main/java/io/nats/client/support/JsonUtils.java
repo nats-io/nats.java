@@ -433,10 +433,7 @@ public abstract class JsonUtils {
     public static void readLong(String json, Pattern pattern, LongConsumer c) {
         Matcher m = pattern.matcher(json);
         if (m.find()) {
-            Long l = safeParseLong(m.group(1));
-            if (l != null) {
-                c.accept(l);
-            }
+            c.accept(safeParseLong(m.group(1)));
         }
     }
 
@@ -454,7 +451,7 @@ public abstract class JsonUtils {
         }
     }
 
-    private static Long safeParseUnsignedLong(String s) {
+    public static Long safeParseUnsignedLong(String s) {
         try {
             return Long.parseUnsignedLong(s);
         }

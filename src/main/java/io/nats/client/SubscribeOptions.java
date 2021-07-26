@@ -15,6 +15,8 @@ package io.nats.client;
 
 import io.nats.client.api.ConsumerConfiguration;
 
+import static io.nats.client.support.Validator.*;
+
 /**
  * The PushSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
  * Options are created using the constructors or a {@link Builder}.
@@ -25,10 +27,20 @@ public abstract class SubscribeOptions {
     protected final boolean direct;
     protected final ConsumerConfiguration consumerConfig;
 
-    protected SubscribeOptions(String stream, boolean direct, ConsumerConfiguration consumerConfig) {
-        this.stream = stream;
+    protected SubscribeOptions(String stream, String durable, String deliverSubject,
+                               boolean direct, boolean pull, ConsumerConfiguration cc) {
+
+        this.stream = validateStreamName(stream, direct);
+
+        durable = durable == null && cc != null ? cc.getDurable() : durable;
+        durable = validateDurable(durable, pull || direct);
+
+        this.consumerConfig = ConsumerConfiguration.builder(cc)
+                .durable(emptyAsNull(durable))
+                .deliverSubject(emptyAsNull(deliverSubject))
+                .build();
+
         this.direct = direct;
-        this.consumerConfig = consumerConfig;
     }
 
     /**

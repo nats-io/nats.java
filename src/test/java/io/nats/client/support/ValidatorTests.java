@@ -13,13 +13,11 @@
 
 package io.nats.client.support;
 
-import io.nats.client.api.ConsumerConfiguration;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static io.nats.client.support.NatsConstants.EMPTY;
@@ -79,28 +77,6 @@ public class ValidatorTests {
         notAllowedRequired(Validator::validateDurable, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
         notAllowedRequired(Validator::validateDurable, UTF_ONLY_STRINGS);
         allowedNotRequiredEmptyAsNull(Validator::validateDurable, Arrays.asList(null, EMPTY));
-    }
-
-    @Test
-    public void testValidateDurableRequired() {
-        allowedRequired((s, r) -> Validator.validateDurableRequired(s, null), Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOLLAR));
-        notAllowedRequired((s, r) -> Validator.validateDurableRequired(s, null), Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
-        notAllowedRequired((s, r) -> Validator.validateDurableRequired(s, null), UTF_ONLY_STRINGS);
-
-        for (String data : Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOLLAR)) {
-            ConsumerConfiguration ccAllowed = ConsumerConfiguration.builder().durable(data).build();
-            assertEquals(data, Validator.validateDurableRequired(null, ccAllowed), allowedMessage(data));
-        }
-
-        for (String data : Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127)) {
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(data).build();
-            notAllowedRequired((s, r) -> Validator.validateDurableRequired(s, cc), Collections.singletonList(null));
-        }
-
-        for (String data : UTF_ONLY_STRINGS) {
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(data).build();
-            notAllowedRequired((s, r) -> Validator.validateDurableRequired(s, cc), Collections.singletonList(null));
-        }
     }
 
     @Test

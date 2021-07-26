@@ -13,8 +13,6 @@
 
 package io.nats.client.support;
 
-import io.nats.client.api.ConsumerConfiguration;
-
 import java.time.Duration;
 
 import static io.nats.client.support.NatsJetStreamConstants.MAX_PULL_SIZE;
@@ -42,24 +40,8 @@ public abstract class Validator {
         return validatePrintableExceptWildDotGt(s, "Durable", required);
     }
 
-    public static String validateDurableRequired(String durable, ConsumerConfiguration cc) {
-        if (durable == null) {
-            if (cc == null) {
-                throw new IllegalArgumentException("Durable is required.");
-            }
-            return validateDurable(cc.getDurable(), true);
-        }
-        return validateDurable(durable, true);
-    }
-
     public static String validateJetStreamPrefix(String s) {
         return validatePrintableExceptWildGtDollar(s, "Prefix", false);
-    }
-
-    public static void validateDirect(boolean direct, String stream, String durable) {
-        if (direct && (nullOrEmpty(stream) || nullOrEmpty(durable))) {
-            throw new IllegalArgumentException("Stream and Durable are required for direct mode.");
-        }
     }
 
     interface Check {

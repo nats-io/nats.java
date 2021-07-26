@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
 import static io.nats.client.utils.ResourceUtils.dataAsString;
@@ -144,9 +145,9 @@ public final class JsonUtilsTests {
     @Test
     public void testInteger() {
         Pattern RE = JsonUtils.buildPattern("num", JsonUtils.FieldType.jsonNumber);
-        assertEquals(-1, JsonUtils.readLong("\"num\":-1", RE, 0));
-        assertEquals(12345678, JsonUtils.readLong("\"num\":12345678", RE, 0));
-        assertEquals(2147483647, JsonUtils.readLong("\"num\":2147483647", RE, 0));
+        assertEquals(-1, JsonUtils.readInt("\"num\":-1", RE, 0));
+        assertEquals(12345678, JsonUtils.readInt("\"num\":12345678", RE, 0));
+        assertEquals(2147483647, JsonUtils.readInt("\"num\":2147483647", RE, 0));
     }
 
     @Test
@@ -161,6 +162,34 @@ public final class JsonUtilsTests {
                 Long.toUnsignedString(JsonUtils.readLong("\"num\":18446744073709551615", RE, 0)));
         assertEquals("18446744073709551614",
                 Long.toUnsignedString(JsonUtils.readLong("\"num\":18446744073709551614", RE, 0)));
+
+        AtomicLong al = new AtomicLong();
+        JsonUtils.readLong("\"num\":999", RE, al::set);
+        assertEquals(999, al.get());
+
+        JsonUtils.readLong("\"num\":invalid", RE, al::set);
+        assertEquals(999, al.get());
+
+        JsonUtils.readLong("\"num\":18446744073709551615", RE, al::set);
+        assertEquals(-1, al.get());
+
+        assertNotNull(JsonUtils.safeParseLong("1"));
+        assertNull(JsonUtils.safeParseLong("invalid"));
+        assertEquals(1, JsonUtils.safeParseLong("1", 0));
+        assertEquals(0, JsonUtils.safeParseLong("invalid", 0));
+    }
+
+    @Test
+    public void testUnsignedLong() {
+        Pattern RE = JsonUtils.buildPattern("num", JsonUtils.FieldType.jsonNumber);
+        assertEquals("18446744073709551615",
+                Long.toUnsignedString(JsonUtils.readUnsignedLong("\"num\":18446744073709551615", RE, 0)));
+        assertEquals("18446744073709551614",
+                Long.toUnsignedString(JsonUtils.readUnsignedLong("\"num\":18446744073709551614", RE, 0)));
+        assertEquals(0, JsonUtils.readUnsignedLong("\"num\":-1", RE, 0));
+        assertEquals(0, JsonUtils.readUnsignedLong("\"num\":invalid", RE, 0));
+        assertNull(JsonUtils.safeParseUnsignedLong("invalid"));
+        assertNull(JsonUtils.safeParseUnsignedLong("-1"));
     }
 
     @Test
