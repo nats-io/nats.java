@@ -38,7 +38,7 @@ public abstract class JsonUtils {
 
     private static final String STRING_RE  = "\\s*\"(.+?)\"";
     private static final String BOOLEAN_RE =  "\\s*(true|false)";
-    private static final String NUMBER_RE =  "\\s*(-?\\d+)";
+    private static final String INTEGER_RE =  "\\s*(-?\\d+)";
     private static final String STRING_ARRAY_RE = "\\s*\\[\\s*(\".+?\")\\s*\\]";
     private static final String BEFORE_FIELD_RE = "\"";
     private static final String AFTER_FIELD_RE = "\"\\s*:\\s*";
@@ -56,7 +56,8 @@ public abstract class JsonUtils {
     public enum FieldType {
         jsonString(STRING_RE),
         jsonBoolean(BOOLEAN_RE),
-        jsonNumber(NUMBER_RE),
+        jsonInteger(INTEGER_RE),
+        jsonNumber(INTEGER_RE),
         jsonStringArray(STRING_ARRAY_RE);
 
         final String re;
@@ -69,8 +70,8 @@ public abstract class JsonUtils {
         return buildPattern(field, STRING_RE);
     }
 
-    public static Pattern number_pattern(String field) {
-        return buildPattern(field, NUMBER_RE);
+    public static Pattern integer_pattern(String field) {
+        return buildPattern(field, INTEGER_RE);
     }
 
     public static Pattern boolean_pattern(String field) {
@@ -297,6 +298,18 @@ public abstract class JsonUtils {
      * Appends a json field to a string builder.
      * @param sb string builder
      * @param fname fieldname
+     * @param value field value
+     */
+    public static void addField(StringBuilder sb, String fname, Ulong value) {
+        if (!value.equals(Ulong.ZERO)) {
+            sb.append(Q).append(fname).append(QCOLON).append(value.toString()).append(COMMA);
+        }
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
      * @param value duration value
      */
     public static void addFieldAsNanos(StringBuilder sb, String fname, Duration value) {
@@ -427,47 +440,40 @@ public abstract class JsonUtils {
 
     public static long readLong(String json, Pattern pattern, long dflt) {
         Matcher m = pattern.matcher(json);
-        return m.find() ? safeParseLong(m.group(1), dflt) : dflt;
+        return m.find() ? parseLong(m.group(1), dflt) : dflt;
     }
 
     public static void readLong(String json, Pattern pattern, LongConsumer c) {
         Matcher m = pattern.matcher(json);
         if (m.find()) {
-            c.accept(safeParseLong(m.group(1)));
+            Long l = parseLong(m.group(1), null);
+            if (l != null) {
+                c.accept(l);
+            }
+        }
+    }
+
+    public static Long parseLong(String s, Long dflt) {
+        try {
+            return Long.parseLong(s);
+        }
+        catch (Exception e) {
+            return dflt;
         }
     }
 
     public static long readUnsignedLong(String json, Pattern pattern, long dflt) {
         Matcher m = pattern.matcher(json);
-        return m.find() ? safeParseUnsignedLong(m.group(1), dflt) : dflt;
+        return m.find() ? parseUnsignedLong(m.group(1), dflt) : dflt;
     }
 
-    public static Long safeParseLong(String s) {
-        try {
-            return Long.parseLong(s);
-        }
-        catch (Exception e) {
-            return safeParseUnsignedLong(s);
-        }
-    }
-
-    public static Long safeParseUnsignedLong(String s) {
+    public static long parseUnsignedLong(String s, long dflt) {
         try {
             return Long.parseUnsignedLong(s);
         }
-        catch (Exception e) {
-            return null;
+        catch (NumberFormatException e) {
+            return dflt;
         }
-    }
-
-    public static long safeParseLong(String s, long dflt) {
-        Long l = safeParseLong(s);
-        return l == null ? dflt : l;
-    }
-
-    public static long safeParseUnsignedLong(String s, long dflt) {
-        Long l = safeParseUnsignedLong(s);
-        return l == null ? dflt : l;
     }
 
     public static ZonedDateTime readDate(String json, Pattern pattern) {

@@ -157,6 +157,13 @@ public class ValidatorTests {
     }
 
     @Test
+    public void testNotNegative() {
+        assertEquals(0, validateNotNegative(0, "test"));
+        assertEquals(1, validateNotNegative(1, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateNotNegative(-1, "test"));
+    }
+
+    @Test
     public void testEnsureDuration() {
         assertEquals(Duration.ofMillis(10), ensureNotNullAndNotLessThanMin(null, Duration.ofMillis(2), Duration.ofMillis(10)));
         assertEquals(Duration.ofMillis(10), ensureNotNullAndNotLessThanMin(Duration.ofMillis(1), Duration.ofMillis(2), Duration.ofMillis(10)));

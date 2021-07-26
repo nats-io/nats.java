@@ -16,6 +16,7 @@ package io.nats.client.support;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -130,9 +131,32 @@ public final class JsonUtilsTests {
         JsonUtils.addFldWhenTrue(sb, "n/a", false);
         assertEquals(0, sb.length());
 
-        sb = new StringBuilder();
+        JsonUtils.addField(sb, "lminusone", -1);
+        assertEquals(0, sb.length());
+
+        JsonUtils.addField(sb, "uzero", Ulong.ZERO);
+        assertEquals(0, sb.length());
+
+        JsonUtils.addField(sb, "uone", Ulong.ONE);
+        assertEquals(9, sb.length());
+
+        JsonUtils.addField(sb, "umax", Ulong.MAX_VALUE);
+        assertEquals(37, sb.length());
+
+        JsonUtils.addFieldAsUnsigned(sb, "uzero", 0);
+        assertEquals(47, sb.length());
+
         JsonUtils.addStrings(sb, "foo", new String[]{"bar"});
-        assertEquals(14, sb.length());
+        assertEquals(61, sb.length());
+
+        JsonUtils.addField(sb, "zero", 0);
+        assertEquals(70, sb.length());
+
+        JsonUtils.addField(sb, "lone", 1);
+        assertEquals(79, sb.length());
+
+        JsonUtils.addField(sb, "lmax", Long.MAX_VALUE);
+        assertEquals(106, sb.length());
     }
 
     @Test
@@ -144,7 +168,7 @@ public final class JsonUtilsTests {
 
     @Test
     public void testInteger() {
-        Pattern RE = JsonUtils.buildPattern("num", JsonUtils.FieldType.jsonNumber);
+        Pattern RE = JsonUtils.buildPattern("num", JsonUtils.FieldType.jsonInteger);
         assertEquals(-1, JsonUtils.readInt("\"num\":-1", RE, 0));
         assertEquals(12345678, JsonUtils.readInt("\"num\":12345678", RE, 0));
         assertEquals(2147483647, JsonUtils.readInt("\"num\":2147483647", RE, 0));
@@ -152,16 +176,10 @@ public final class JsonUtilsTests {
 
     @Test
     public void testLong() {
-        Pattern RE = JsonUtils.buildPattern("num", JsonUtils.FieldType.jsonNumber);
+        Pattern RE = JsonUtils.buildPattern("num", JsonUtils.FieldType.jsonInteger);
         assertEquals(-1, JsonUtils.readLong("\"num\":-1", RE, 0));
         assertEquals(12345678, JsonUtils.readLong("\"num\":12345678", RE, 0));
         assertEquals(9223372036854775807L, JsonUtils.readLong("\"num\":9223372036854775807", RE, 0));
-        assertEquals(-1, JsonUtils.readLong("\"num\":18446744073709551615", RE, 0));
-        assertEquals(-2, JsonUtils.readLong("\"num\":18446744073709551614", RE, 0));
-        assertEquals("18446744073709551615",
-                Long.toUnsignedString(JsonUtils.readLong("\"num\":18446744073709551615", RE, 0)));
-        assertEquals("18446744073709551614",
-                Long.toUnsignedString(JsonUtils.readLong("\"num\":18446744073709551614", RE, 0)));
 
         AtomicLong al = new AtomicLong();
         JsonUtils.readLong("\"num\":999", RE, al::set);
@@ -171,25 +189,46 @@ public final class JsonUtilsTests {
         assertEquals(999, al.get());
 
         JsonUtils.readLong("\"num\":18446744073709551615", RE, al::set);
-        assertEquals(-1, al.get());
+        assertEquals(999, al.get());
 
-        assertNotNull(JsonUtils.safeParseLong("1"));
-        assertNull(JsonUtils.safeParseLong("invalid"));
-        assertEquals(1, JsonUtils.safeParseLong("1", 0));
-        assertEquals(0, JsonUtils.safeParseLong("invalid", 0));
+        assertNotNull(JsonUtils.parseLong("1", null));
+        assertNull(JsonUtils.parseLong("invalid", null));
+        assertNull(JsonUtils.parseLong("18446744073709551615", null));
+        assertNull(JsonUtils.parseLong("18446744073709551614", null));
     }
 
     @Test
     public void testUnsignedLong() {
-        Pattern RE = JsonUtils.buildPattern("num", JsonUtils.FieldType.jsonNumber);
+        Pattern RE = JsonUtils.buildPattern("num", JsonUtils.FieldType.jsonInteger);
         assertEquals("18446744073709551615",
                 Long.toUnsignedString(JsonUtils.readUnsignedLong("\"num\":18446744073709551615", RE, 0)));
         assertEquals("18446744073709551614",
                 Long.toUnsignedString(JsonUtils.readUnsignedLong("\"num\":18446744073709551614", RE, 0)));
-        assertEquals(0, JsonUtils.readUnsignedLong("\"num\":-1", RE, 0));
-        assertEquals(0, JsonUtils.readUnsignedLong("\"num\":invalid", RE, 0));
-        assertNull(JsonUtils.safeParseUnsignedLong("invalid"));
-        assertNull(JsonUtils.safeParseUnsignedLong("-1"));
+        assertEquals(0, JsonUtils.parseUnsignedLong("18446744073709551616", 0));
+        assertEquals(0, JsonUtils.parseUnsignedLong("invalid", 0));
+        assertEquals(0, JsonUtils.parseUnsignedLong("-1", 0));
+        assertEquals(0, JsonUtils.parseUnsignedLong("0", 1));
+        assertEquals(1, JsonUtils.parseUnsignedLong("1", 0));
+
+        // TODO when converting to Ulong
+        /*
+        Pattern RE = JsonUtils.buildPattern("num", JsonUtils.FieldType.jsonInteger);
+        assertEquals(new Ulong("18446744073709551615"),
+                JsonUtils.readUnsignedLong("\"num\":18446744073709551615", RE, Ulong.ZERO));
+        assertEquals(new Ulong("18446744073709551614"),
+                JsonUtils.readUnsignedLong("\"num\":18446744073709551614", RE, Ulong.ZERO));
+        assertEquals(Ulong.ZERO, JsonUtils.readUnsignedLong("\"num\":0", RE, Ulong.MAX_VALUE));
+        assertEquals(Ulong.ZERO, JsonUtils.readUnsignedLong("\"num\":-1", RE, Ulong.ZERO));
+        assertEquals(Ulong.ZERO, JsonUtils.readUnsignedLong("\"num\":invalid", RE, Ulong.ZERO));
+        assertNull(JsonUtils.parseUnsignedLong("18446744073709551616", null));
+        assertNull(JsonUtils.parseUnsignedLong("invalid", null));
+        assertNull(JsonUtils.parseUnsignedLong("-1", null));
+        assertNull(JsonUtils.parseUnsignedLong("1.2", null));
+        assertEquals(Ulong.ZERO, JsonUtils.parseUnsignedLong("0", null));
+        assertEquals(Ulong.ONE, JsonUtils.parseUnsignedLong("1", null));
+        assertEquals(new Ulong("18446744073709551614"), JsonUtils.parseUnsignedLong("18446744073709551614", null));
+        assertEquals(new Ulong("18446744073709551615"), JsonUtils.parseUnsignedLong("18446744073709551615", null));
+        */
     }
 
     @Test
@@ -224,5 +263,42 @@ public final class JsonUtilsTests {
         assertEquals("blah\t", JsonUtils.decode("blah\\t"));
         assertEquals("blah\\", JsonUtils.decode("blah\\x"));
         assertEquals("blah\\", JsonUtils.decode("blah\\"));
+    }
+
+    @Test
+    public void testUlong() {
+        assertEquals(Ulong.ZERO, new Ulong("0"));
+        assertEquals(Ulong.ONE, new Ulong("1"));
+        assertEquals(Ulong.ZERO, new Ulong(0));
+        assertEquals(Ulong.ONE, new Ulong(1));
+        assertEquals(Ulong.MAX_VALUE, new Ulong("18446744073709551615"));
+        assertThrows(NullPointerException.class, () -> new Ulong((String)null));
+        assertThrows(NumberFormatException.class, () -> new Ulong("-1"));
+        assertThrows(NumberFormatException.class, () -> new Ulong("2.1"));
+        assertThrows(NullPointerException.class, () -> new Ulong((BigDecimal)null));
+        assertThrows(NumberFormatException.class, () -> new Ulong(new BigDecimal("-1")));
+        assertThrows(NumberFormatException.class, () -> new Ulong(new BigDecimal("2.1")));
+        assertThrows(NumberFormatException.class, () -> new Ulong(new BigDecimal("18446744073709551616")));
+
+        assertEquals(0, Ulong.ZERO.longValue());
+        assertEquals(1, Ulong.ONE.longValue());
+        assertEquals(BigDecimal.ZERO, Ulong.ZERO.value());
+        assertEquals(BigDecimal.ONE, Ulong.ONE.value());
+        assertEquals(new BigDecimal("18446744073709551615"), Ulong.MAX_VALUE.value());
+
+        assertEquals(-1, Ulong.MAX_VALUE.longValue());
+        assertEquals("18446744073709551615", Ulong.MAX_VALUE.toString());
+
+        // coverage
+        assertEquals(0, Ulong.ZERO.hashCode());
+        assertEquals(Ulong.ZERO, Ulong.ZERO);
+        assertNotEquals(Ulong.ZERO, null);
+
+        //noinspection SimplifiableAssertion it's not really since I want to force call to equals
+        assertFalse(Ulong.ZERO.equals(new Object()));
+
+        assertEquals(0, Ulong.ZERO.compareTo(new Ulong(0)));
+        assertEquals(1, Ulong.ONE.compareTo(new Ulong(0)));
+        assertEquals(-1, Ulong.ZERO.compareTo(new Ulong(1)));
     }
 }
