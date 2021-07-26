@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
+import static io.nats.client.support.NatsConstants.EMPTY;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamGeneralTests extends JetStreamTestBase {
@@ -442,6 +443,18 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(data(3), new String(m.getData()));
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> PushSubscribeOptions.builder().stream(STREAM).direct().build());
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> PushSubscribeOptions.builder().durable(DURABLE).direct().build());
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> PushSubscribeOptions.builder().stream(EMPTY).direct().build());
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> PushSubscribeOptions.builder().stream(STREAM).durable(EMPTY).direct().build());
         });
     }
 
