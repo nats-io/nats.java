@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.Ulong;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -40,7 +41,7 @@ public class ConsumerConfigurationTests extends TestBase {
                 .rateLimit(4242)
                 .replayPolicy(ReplayPolicy.Original)
                 .sampleFrequency("10s")
-                .startSequence(2001)
+                .startSequence(new Ulong(2001))
                 .startTime(zdt)
                 .deliverSubject(DELIVER)
                 .idleHeartbeat(Duration.ofSeconds(66)) // duration
@@ -58,7 +59,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(6666, c.getMaxAckPending());
         assertEquals(4242, c.getRateLimit());
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
-        assertEquals(2001, c.getStartSequence());
+        assertEquals(new Ulong(2001), c.getStartSequenceNum());
         assertEquals(zdt, c.getStartTime());
         assertTrue(c.getFlowControl());
 
@@ -78,7 +79,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(5555, c.getMaxDeliver());
         assertEquals(4242, c.getRateLimit());
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
-        assertEquals(2001, c.getStartSequence());
+        assertEquals(new Ulong(2001), c.getStartSequenceNum());
         assertEquals(zdt.toEpochSecond(), c.getStartTime().toEpochSecond());
         assertTrue(c.getFlowControl());
 

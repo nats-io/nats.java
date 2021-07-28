@@ -1,3 +1,16 @@
+// Copyright 2021 The NATS Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package io.nats.client.support;
 
 import java.math.BigDecimal;
@@ -14,9 +27,6 @@ public class Ulong implements Comparable<Ulong> {
     }
 
     public Ulong(String s) {
-        if (s == null) {
-            throw new NullPointerException();
-        }
         if (!s.startsWith("-") && !s.contains(".")) {
             try {
                 BigDecimal bd = new BigDecimal(s);
@@ -35,19 +45,14 @@ public class Ulong implements Comparable<Ulong> {
     }
 
     public Ulong(long value) {
-        this(Long.toString(value));
+        if (value < 0) {
+            throw invalid();
+        }
+        this.value = BigDecimal.valueOf(value);
     }
 
     private NumberFormatException invalid() {
         return new NumberFormatException("Ulong must be an integer between 0 and " + MAX_VALUE.toString() + " inclusive.");
-    }
-
-    public BigDecimal value() {
-        return value;
-    }
-
-    public long longValue() {
-        return value.longValue();
     }
 
     @Override
@@ -57,10 +62,7 @@ public class Ulong implements Comparable<Ulong> {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        return value.equals(((Ulong)o).value);
+        return (o instanceof Ulong) && equalTo((Ulong)o);
     }
 
     @Override
@@ -71,5 +73,21 @@ public class Ulong implements Comparable<Ulong> {
     @Override
     public int compareTo(Ulong o) {
         return value.compareTo(o.value);
+    }
+
+    public BigDecimal value() {
+        return value;
+    }
+
+    public boolean equalTo(Ulong u) {
+        return value.compareTo(u.value) == 0;
+    }
+
+    public boolean lessThan(Ulong u) {
+        return value.compareTo(u.value) < 0;
+    }
+
+    public boolean greaterThan(Ulong u) {
+        return value.compareTo(u.value) > 0;
     }
 }

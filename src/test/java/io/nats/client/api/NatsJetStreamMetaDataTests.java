@@ -17,6 +17,7 @@ import io.nats.client.Message;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.impl.NatsJetStreamMetaData;
 import io.nats.client.impl.NatsMessage;
+import io.nats.client.support.Ulong;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -36,6 +37,10 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
         assertEquals(1, jsmd.deliveredCount());
         assertEquals(2, jsmd.streamSequence());
         assertEquals(3, jsmd.consumerSequence());
+        assertEquals(new Ulong(1), jsmd.getDelivered());
+        assertEquals(new Ulong(2), jsmd.getStreamSequence());
+        assertEquals(new Ulong(3), jsmd.getConsumerSequence());
+
         assertEquals(2020, jsmd.timestamp().getYear());
         assertEquals(6, jsmd.timestamp().getMinute());
         assertEquals(113260000, jsmd.timestamp().getNano());

@@ -249,7 +249,7 @@ public class JetStreamTestBase extends TestBase {
         assertConfig(stream, msgCount, firstSeq, si);
     }
 
-    public static  void assertMirror(JetStreamManagement jsm, String stream, String mirroring, Number msgCount, Number firstSeq)
+    public static void assertMirror(JetStreamManagement jsm, String stream, String mirroring, Number msgCount, Number firstSeq)
             throws IOException, JetStreamApiException {
         sleep(1000);
         StreamInfo si = jsm.getStreamInfo(stream);
@@ -261,7 +261,7 @@ public class JetStreamTestBase extends TestBase {
         assertConfig(stream, msgCount, firstSeq, si);
     }
 
-    public static  void assertConfig(String stream, Number msgCount, Number firstSeq, StreamInfo si) {
+    public static void assertConfig(String stream, Number msgCount, Number firstSeq, StreamInfo si) {
         StreamConfiguration sc = si.getConfiguration();
         assertNotNull(sc);
         assertEquals(stream, sc.getName());

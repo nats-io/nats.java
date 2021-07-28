@@ -15,6 +15,7 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.Ulong;
 import io.nats.client.support.Validator;
 
 import java.time.Duration;
@@ -42,7 +43,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     private final String durable;
     private final String deliverSubject;
-    private final long startSeq;
+    private final Ulong startSeq;
     private final ZonedDateTime startTime;
     private final Duration ackWait;
     private final long maxDeliver;
@@ -68,7 +69,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         durable = JsonUtils.readString(json, DURABLE_NAME_RE);
         deliverSubject = JsonUtils.readString(json, DELIVER_SUBJECT_RE);
-        startSeq = JsonUtils.readUnsignedLong(json, OPT_START_SEQ_RE, 0);
+        startSeq = JsonUtils.readUlong(json, OPT_START_SEQ_RE, Ulong.ZERO);
         startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
         ackWait = JsonUtils.readNanos(json, ACK_WAIT_RE, Duration.ofSeconds(30));
         maxDeliver = JsonUtils.readLong(json, MAX_DELIVER_RE, -1);
@@ -82,7 +83,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     // For the builder
-    private ConsumerConfiguration(String durable, DeliverPolicy deliverPolicy, long startSeq,
+    private ConsumerConfiguration(String durable, DeliverPolicy deliverPolicy, Ulong startSeq,
             ZonedDateTime startTime, AckPolicy ackPolicy, Duration ackWait, long maxDeliver, String filterSubject,
             ReplayPolicy replayPolicy, String sampleFrequency, long rateLimit, String deliverSubject, long maxAckPending,
             Duration idleHeartbeat, boolean flowControl, long maxPullWaiting) {
@@ -114,7 +115,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, DURABLE_NAME, durable);
         JsonUtils.addField(sb, DELIVER_SUBJECT, deliverSubject);
         JsonUtils.addField(sb, DELIVER_POLICY, deliverPolicy.toString());
-        JsonUtils.addFieldAsUnsigned(sb, OPT_START_SEQ, startSeq);
+        JsonUtils.addField(sb, OPT_START_SEQ, startSeq);
         JsonUtils.addField(sb, OPT_START_TIME, startTime);
         JsonUtils.addField(sb, ACK_POLICY, ackPolicy.toString());
         JsonUtils.addFieldAsNanos(sb, ACK_WAIT, ackWait);
@@ -156,8 +157,17 @@ public class ConsumerConfiguration implements JsonSerializable {
     /**
      * Gets the start sequence of this consumer configuration.
      * @return the start sequence.
-     */    
+     */
+    @Deprecated
     public long getStartSequence() {
+        return startSeq.value().longValueExact();
+    }
+
+    /**
+     * Gets the start sequence of this consumer configuration.
+     * @return the start sequence.
+     */
+    public Ulong getStartSequenceNum() {
         return startSeq;
     }
 
@@ -286,7 +296,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         private String durable = null;
         private DeliverPolicy deliverPolicy = DeliverPolicy.All;
-        private long startSeq = 0L;
+        private Ulong startSeq = Ulong.ZERO;
         private ZonedDateTime startTime = null;
         private AckPolicy ackPolicy = AckPolicy.Explicit;
         private Duration ackWait = Duration.ofSeconds(30);
@@ -370,7 +380,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         public Builder deliverSubject(String subject) {
             this.deliverSubject = subject;
             return this;
-        }  
+        }
 
         /**
          * Sets the start sequence of the ConsumerConfiguration.
@@ -378,8 +388,20 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @param sequence the start sequence
          * @return Builder
          */
+        @Deprecated
         public Builder startSequence(long sequence) {
-            this.startSeq = sequence;
+            this.startSeq = new Ulong(sequence);
+            return this;
+        }
+
+        /**
+         * Sets the start sequence of the ConsumerConfiguration.
+         * This ling will be treated as unsigned
+         * @param sequence the start sequence
+         * @return Builder
+         */
+        public Builder startSequence(Ulong sequence) {
+            this.startSeq = sequence == null ? Ulong.ZERO : sequence;
             return this;
         }
 

@@ -195,6 +195,30 @@ public class NatsMessageTests {
         NatsMessage.InternalMessage scm = new NatsMessage.InternalMessage() {};
         assertNull(scm.protocolBytes);
         assertEquals(-1, scm.getControlLineLength());
+
+        // coverage coverage coverage
+        NatsMessage nmCov = new NatsMessage("sub", "reply", null, true);
+        assertTrue(nmCov.isUtf8mode());
+
+        nmCov.dirty = false;
+        nmCov.calculateIfDirty();
+
+        nmCov.dirty = false;
+        nmCov.headers = new Headers().add("foo", "bar");
+        nmCov.calculateIfDirty();
+
+        nmCov.dirty = false;
+        nmCov.headers = new Headers().add("foo", "bar");
+        nmCov.headers.getSerialized();
+        nmCov.calculateIfDirty();
+
+        assertTrue(nmCov.toDetailString().contains("HPUB sub reply 21 21"));
+        assertTrue(nmCov.toDetailString().contains("next=No"));
+
+        nmCov.protocolBytes = null;
+        nmCov.next = nmCov;
+        assertTrue(nmCov.toDetailString().contains("protocolBytes=null"));
+        assertTrue(nmCov.toDetailString().contains("next=Yes"));
     }
 
     @Test

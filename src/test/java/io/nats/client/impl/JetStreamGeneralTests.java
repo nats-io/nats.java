@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static org.junit.jupiter.api.Assertions.*;
@@ -529,6 +531,76 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             ConsumerInfo ci = sub.getConsumerInfo();
             assertEquals(STREAM, ci.getStreamName());
+        });
+    }
+
+    @Test
+    public void testInternalLookupConsumerInfoCoverage() throws Exception {
+        runInJsServer(nc -> {
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            // - consumer not found
+            // - stream does not exist
+            assertNull(((NatsJetStream)js).lookupConsumerInfo(STREAM, DURABLE));
+            assertThrows(JetStreamApiException.class,
+                    () -> ((NatsJetStream)js).lookupConsumerInfo(stream(999), DURABLE));
+        });
+    }
+
+    @Test
+    public void testGetJetStreamValidatedConnectionCoverage() {
+        NatsJetStreamMessage njsm = new NatsJetStreamMessage();
+
+        IllegalStateException ise = assertThrows(IllegalStateException.class, njsm::getJetStreamValidatedConnection);
+        assertTrue(ise.getMessage().contains("subscription"));
+
+        njsm.subscription = new NatsSubscription("sid", "sub", "q", null, null);
+        ise = assertThrows(IllegalStateException.class, njsm::getJetStreamValidatedConnection);
+        assertTrue(ise.getMessage().contains("connection"));
+    }
+
+    @Test
+    public void testAutoAckMessageHandlerCoverage() throws Exception {
+        AtomicReference<Exception> errorListenerRef = new AtomicReference<>();
+
+        ErrorListener el = new ErrorListener() {
+
+            @Override
+            public void errorOccurred(Connection conn, String error) {
+            }
+
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {
+                errorListenerRef.set(exp);
+            }
+
+            @Override
+            public void slowConsumerDetected(Connection conn, Consumer consumer) {
+            }
+        };
+
+        Options.Builder builder = new Options.Builder().errorListener(el);
+
+        runInJsServer(builder, nc -> {
+
+            NatsJetStream.AutoAckMessageHandler aamh =
+                    new NatsJetStream.AutoAckMessageHandler((NatsConnection) nc, (msg) -> {}) ;
+
+            AtomicBoolean messageHandlerFlag = new AtomicBoolean();
+            NatsJetStream.AutoAckMessageHandler aamhEx =
+                    new NatsJetStream.AutoAckMessageHandler((NatsConnection) nc, (msg) -> {
+                        messageHandlerFlag.set(true);
+                        msg.ack();
+                    });
+
+            Message m = new NatsMessage(SUBJECT, null, null);
+            aamh.onMessage(m); // not a JetStream is handled by not acking
+            aamhEx.onMessage(m);
+            assertTrue(messageHandlerFlag.get());
+            assertTrue(errorListenerRef.get() instanceof IllegalStateException);
         });
     }
 }

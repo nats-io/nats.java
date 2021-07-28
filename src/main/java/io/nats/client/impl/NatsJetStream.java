@@ -1,3 +1,16 @@
+// Copyright 2021 The NATS Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package io.nats.client.impl;
 
 import io.nats.client.*;
@@ -6,6 +19,7 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.api.PublishAck;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.Ulong;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
@@ -162,7 +176,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         Headers merged = headers == null ? null : new Headers(headers);
 
         if (opts != null) {
-            merged = mergeNum(merged, EXPECTED_LAST_SEQ_HDR, opts.getExpectedLastSequence());
+            merged = mergeNum(merged, EXPECTED_LAST_SEQ_HDR, opts.getExpectedLastSequenceNum());
             merged = mergeString(merged, EXPECTED_LAST_MSG_ID_HDR, opts.getExpectedLastMsgId());
             merged = mergeString(merged, EXPECTED_STREAM_HDR, opts.getExpectedStream());
             merged = mergeString(merged, MSG_ID_HDR, opts.getMessageId());
@@ -171,18 +185,19 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         return merged;
     }
 
-    private Headers mergeNum(Headers h, String key, long value) {
-        return value > 0 ? mergeString(h, key, Long.toString(value)): h;
+    private Headers mergeNum(Headers h, String key, Ulong value) {
+        return value.greaterThan(Ulong.ZERO) ? _mergeNum(h, key, value.toString()): h;
     }
 
     private Headers mergeString(Headers h, String key, String value) {
-        if (!Validator.nullOrEmpty(value)) {
-            if (h == null) {
-                h = new Headers(h);
-            }
-            h.add(key, value);
+        return Validator.nullOrEmpty(value) ? h : _mergeNum(h, key, value);
+    }
+
+    private Headers _mergeNum(Headers h, String key, String value) {
+        if (h == null) {
+            h = new Headers();
         }
-        return h;
+        return h.add(key, value);
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -268,7 +283,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         else {
             MessageHandler mh;
             if (autoAck) {
-                mh = new AutoAckMessageHandler(handler);
+                mh = new AutoAckMessageHandler(conn, handler);
             } else {
                 mh = handler;
             }
@@ -413,20 +428,28 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     }
 
     protected static class AutoAckMessageHandler implements MessageHandler {
+        NatsConnection conn;
         MessageHandler userMH;
 
         // caller must ensure userMH is not null
-        AutoAckMessageHandler(MessageHandler userMH) {
+        AutoAckMessageHandler(NatsConnection conn, MessageHandler userMH) {
+            this.conn = conn;
             this.userMH = userMH;
         }
 
         @Override
         public void onMessage(Message msg) throws InterruptedException {
             try  {
+                // don't ack if not JetStream
+                if (msg.isJetStream()) {
+                    msg.ack();
+                }
                 userMH.onMessage(msg);
-                msg.ack();
             } catch (Exception e) {
-                // TODO ignore??  schedule async error?
+                ErrorListener el = conn.getOptions().getErrorListener();
+                if (el != null) {
+                    el.exceptionOccurred(conn, e);
+                }
             }
         }
     }

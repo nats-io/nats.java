@@ -48,7 +48,7 @@
   "type": "code_desc_err_response",
   "error": {
     "code": 500,
-    "description": "the description"
+    "description": "the description",
     "err_code": 12345
   }
 }

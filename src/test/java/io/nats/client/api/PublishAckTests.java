@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.JetStreamApiException;
+import io.nats.client.support.Ulong;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -29,7 +30,7 @@ public class PublishAckTests {
         try {
             PublishAck ack = new PublishAck(getDataMessage(json));
             assertEquals("test", ack.getStream());
-            assertEquals(42, ack.getSeqno());
+            assertEquals(new Ulong(42), ack.getSequenceNum());
             assertTrue(ack.isDuplicate());
         }
         catch (Exception e) {

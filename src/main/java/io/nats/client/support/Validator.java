@@ -171,13 +171,6 @@ public abstract class Validator {
         return l;
     }
 
-    public static long validateNotNegative(long l, String label) {
-        if (l < 0) {
-            throw new IllegalArgumentException(label + " cannot be negative");
-        }
-        return l;
-    }
-
     // ----------------------------------------------------------------------------------------------------
     // Helpers
     // ----------------------------------------------------------------------------------------------------

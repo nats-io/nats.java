@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import io.nats.client.support.Ulong;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -23,33 +24,34 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class PublishOptionsTests extends TestBase {
+
     @Test
     public void testBuilder() {
         PublishOptions.Builder builder = PublishOptions.builder();
         PublishOptions po = builder.build();
         assertEquals(PublishOptions.UNSET_STREAM, po.getStream(), "default stream");
         assertEquals(PublishOptions.DEFAULT_TIMEOUT, po.getStreamTimeout(), "default timeout");
-        assertEquals(PublishOptions.UNSET_LAST_SEQUENCE, po.getExpectedLastSequence());
+        assertEquals(PublishOptions.UNSET_LAST_SEQUENCE_NUM, po.getExpectedLastSequenceNum());
 
         po = builder
                 .stream(STREAM)
                 .streamTimeout(Duration.ofSeconds(99))
                 .expectedLastMsgId("1")
                 .expectedStream("bar")
-                .expectedLastSequence(42)
+                .expectedLastSequence(new Ulong(42))
                 .messageId("msgId")
                 .build();
 
         assertEquals(STREAM, po.getStream(), "stream");
         assertEquals(Duration.ofSeconds(99), po.getStreamTimeout(), "timeout");
         assertEquals("1", po.getExpectedLastMsgId(), "expected msgid");
-        assertEquals(42, po.getExpectedLastSequence(), "expected last seqno");
+        assertEquals(new Ulong(42), po.getExpectedLastSequenceNum(), "expected last seqno");
         assertEquals("bar", po.getExpectedStream(), "expected stream");
         assertEquals("msgId", po.getMessageId(), "expected message id");
 
         po = builder.clearExpected().build();
         assertNull(po.getExpectedLastMsgId(), "expected msgid");
-        assertEquals(PublishOptions.UNSET_LAST_SEQUENCE, po.getExpectedLastSequence(), "expected last seqno");
+        assertEquals(PublishOptions.UNSET_LAST_SEQUENCE_NUM, po.getExpectedLastSequenceNum(), "expected last seqno");
         assertEquals("bar", po.getExpectedStream(), "expected stream");
         assertNull(po.getMessageId(), "expected message id");
 

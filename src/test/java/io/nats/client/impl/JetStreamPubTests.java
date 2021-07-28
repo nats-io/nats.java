@@ -17,6 +17,7 @@ import io.nats.client.*;
 import io.nats.client.api.PublishAck;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
+import io.nats.client.support.Ulong;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -202,7 +203,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
             assertPublishAck(pa, 2);
 
             po = PublishOptions.builder()
-                    .expectedLastSequence(2)
+                    .expectedLastSequence(new Ulong(2))
                     .messageId(messageId(3))
                     .build();
             pa = js.publish(SUBJECT, dataBytes(3), po);
@@ -214,7 +215,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
             PublishOptions po2 = PublishOptions.builder().expectedLastMsgId(messageId(999)).build();
             assertThrows(JetStreamApiException.class, () -> js.publish(SUBJECT, dataBytes(999), po2));
 
-            PublishOptions po3 = PublishOptions.builder().expectedLastSequence(999).build();
+            PublishOptions po3 = PublishOptions.builder().expectedLastSequence(new Ulong(999)).build();
             assertThrows(JetStreamApiException.class, () -> js.publish(SUBJECT, dataBytes(999), po3));
         });
     }

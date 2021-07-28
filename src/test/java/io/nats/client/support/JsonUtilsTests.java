@@ -16,7 +16,6 @@ package io.nats.client.support;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -263,42 +262,5 @@ public final class JsonUtilsTests {
         assertEquals("blah\t", JsonUtils.decode("blah\\t"));
         assertEquals("blah\\", JsonUtils.decode("blah\\x"));
         assertEquals("blah\\", JsonUtils.decode("blah\\"));
-    }
-
-    @Test
-    public void testUlong() {
-        assertEquals(Ulong.ZERO, new Ulong("0"));
-        assertEquals(Ulong.ONE, new Ulong("1"));
-        assertEquals(Ulong.ZERO, new Ulong(0));
-        assertEquals(Ulong.ONE, new Ulong(1));
-        assertEquals(Ulong.MAX_VALUE, new Ulong("18446744073709551615"));
-        assertThrows(NullPointerException.class, () -> new Ulong((String)null));
-        assertThrows(NumberFormatException.class, () -> new Ulong("-1"));
-        assertThrows(NumberFormatException.class, () -> new Ulong("2.1"));
-        assertThrows(NullPointerException.class, () -> new Ulong((BigDecimal)null));
-        assertThrows(NumberFormatException.class, () -> new Ulong(new BigDecimal("-1")));
-        assertThrows(NumberFormatException.class, () -> new Ulong(new BigDecimal("2.1")));
-        assertThrows(NumberFormatException.class, () -> new Ulong(new BigDecimal("18446744073709551616")));
-
-        assertEquals(0, Ulong.ZERO.longValue());
-        assertEquals(1, Ulong.ONE.longValue());
-        assertEquals(BigDecimal.ZERO, Ulong.ZERO.value());
-        assertEquals(BigDecimal.ONE, Ulong.ONE.value());
-        assertEquals(new BigDecimal("18446744073709551615"), Ulong.MAX_VALUE.value());
-
-        assertEquals(-1, Ulong.MAX_VALUE.longValue());
-        assertEquals("18446744073709551615", Ulong.MAX_VALUE.toString());
-
-        // coverage
-        assertEquals(0, Ulong.ZERO.hashCode());
-        assertEquals(Ulong.ZERO, Ulong.ZERO);
-        assertNotEquals(Ulong.ZERO, null);
-
-        //noinspection SimplifiableAssertion it's not really since I want to force call to equals
-        assertFalse(Ulong.ZERO.equals(new Object()));
-
-        assertEquals(0, Ulong.ZERO.compareTo(new Ulong(0)));
-        assertEquals(1, Ulong.ONE.compareTo(new Ulong(0)));
-        assertEquals(-1, Ulong.ZERO.compareTo(new Ulong(1)));
     }
 }

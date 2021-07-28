@@ -15,6 +15,7 @@ package io.nats.examples.jetstream;
 
 import io.nats.client.*;
 import io.nats.client.api.PublishAck;
+import io.nats.client.support.Ulong;
 import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
 
@@ -52,8 +53,8 @@ public class NatsJsPubWithOptionsUseCases {
                     .expectedStream(exArgs.stream)
                     .messageId("mid1");
             PublishAck pa = js.publish(exArgs.subject, "message1".getBytes(), pubOptsBuilder.build());
-            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
-                    exArgs.subject, pa.getStream(), pa.getSeqno());
+            System.out.printf("Published message on subject %s, stream %s, seqno %s.\n",
+                    exArgs.subject, pa.getStream(), pa.getSequenceNum());
 
             // IMPORTANT!
             // You can reuse the builder in 2 ways.
@@ -63,28 +64,28 @@ public class NatsJsPubWithOptionsUseCases {
             // Manual re-use 1. Clearing some fields
             pubOptsBuilder
                     .expectedLastMsgId("mid1")
-                    .expectedLastSequence(PublishOptions.UNSET_LAST_SEQUENCE)
+                    .expectedLastSequence(PublishOptions.UNSET_LAST_SEQUENCE_NUM)
                     .messageId(null);
             pa = js.publish(exArgs.subject, "message2".getBytes(), pubOptsBuilder.build());
-            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
-                    exArgs.subject, pa.getStream(), pa.getSeqno());
+            System.out.printf("Published message on subject %s, stream %s, seqno %s.\n",
+                    exArgs.subject, pa.getStream(), pa.getSequenceNum());
 
             // Manual re-use 2. Setting all the expected fields again
             pubOptsBuilder
                     .expectedLastMsgId(null)
-                    .expectedLastSequence(pa.getSeqno()) // last sequence can be found in last ack
+                    .expectedLastSequence(pa.getSequenceNum()) // last sequence can be found in last ack
                     .messageId("mid3");
             pa = js.publish(exArgs.subject, "message3".getBytes(), pubOptsBuilder.build());
-            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
-                    exArgs.subject, pa.getStream(), pa.getSeqno());
+            System.out.printf("Published message on subject %s, stream %s, seqno %s.\n",
+                    exArgs.subject, pa.getStream(), pa.getSequenceNum());
 
             // reuse() method clears all the fields, then we set some fields.
             pubOptsBuilder.clearExpected()
-                    .expectedLastSequence(pa.getSeqno()) // last sequence can be found in last ack
+                    .expectedLastSequence(pa.getSequenceNum()) // last sequence can be found in last ack
                     .messageId("mid4");
             pa = js.publish(exArgs.subject, "message4".getBytes(), pubOptsBuilder.build());
-            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
-                    exArgs.subject, pa.getStream(), pa.getSeqno());
+            System.out.printf("Published message on subject %s, stream %s, seqno %s.\n",
+                    exArgs.subject, pa.getStream(), pa.getSequenceNum());
 
             // exception when the expected stream does not match
             try {
@@ -104,7 +105,7 @@ public class NatsJsPubWithOptionsUseCases {
 
             // exception with wrong last sequence
             try {
-                PublishOptions opts = PublishOptions.builder().expectedLastSequence(999).build();
+                PublishOptions opts = PublishOptions.builder().expectedLastSequence(new Ulong(999)).build();
                 js.publish(exArgs.subject, "ex3".getBytes(), opts);
             } catch (JetStreamApiException e) {
                 System.out.println(e);

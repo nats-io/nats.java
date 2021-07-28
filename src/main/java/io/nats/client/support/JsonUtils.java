@@ -476,6 +476,20 @@ public abstract class JsonUtils {
         }
     }
 
+    public static Ulong readUlong(String json, Pattern pattern, Ulong dflt) {
+        Matcher m = pattern.matcher(json);
+        return m.find() ? parseUlong(m.group(1), dflt) : dflt;
+    }
+
+    public static Ulong parseUlong(String s, Ulong dflt) {
+        try {
+            return new Ulong(s);
+        }
+        catch (NumberFormatException e) {
+            return dflt;
+        }
+    }
+
     public static ZonedDateTime readDate(String json, Pattern pattern) {
         Matcher m = pattern.matcher(json);
         return m.find() ? DateTimeUtils.parseDateTime(m.group(1)) : null;

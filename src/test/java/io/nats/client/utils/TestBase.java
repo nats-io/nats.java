@@ -68,6 +68,10 @@ public class TestBase {
         runInServer(false, true, inServerTest);
     }
 
+    public static void runInJsServer(Options.Builder builder, InServerTest inServerTest) throws Exception {
+        runInServer(false, true, builder, inServerTest);
+    }
+
     public static void runInJsServer(boolean debug, InServerTest inServerTest) throws Exception {
         runInServer(debug, true, inServerTest);
     }

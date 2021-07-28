@@ -13,10 +13,13 @@
 
 package io.nats.client;
 
+import io.nats.client.support.Ulong;
+
 import java.time.Duration;
 import java.util.Properties;
 
-import static io.nats.client.support.Validator.*;
+import static io.nats.client.support.Validator.emptyAsNull;
+import static io.nats.client.support.Validator.validateStreamName;
 
 /**
  * The PublishOptions class specifies the options for publishing with JetStream enabled servers.
@@ -36,16 +39,22 @@ public class PublishOptions {
     /**
      * Use this variable to unset a sequence number in publish options.
      */
-    public static final long UNSET_LAST_SEQUENCE = -1;
+    @Deprecated
+    public static final long UNSET_LAST_SEQUENCE = 0;
+
+    /**
+     * Use this variable to unset a sequence number in publish options.
+     */
+    public static final Ulong UNSET_LAST_SEQUENCE_NUM = Ulong.ZERO;
 
     private final String stream;
     private final Duration streamTimeout;
     private final String expectedStream;
     private final String expectedLastId;
-    private final long expectedLastSeq;
+    private final Ulong expectedLastSeq;
     private final String msgId;
 
-    private PublishOptions(String stream, Duration streamTimeout, String expectedStream, String expectedLastId, long expectedLastSeq, String msgId) {
+    private PublishOptions(String stream, Duration streamTimeout, String expectedStream, String expectedLastId, Ulong expectedLastSeq, String msgId) {
         this.stream = stream;
         this.streamTimeout = streamTimeout;
         this.expectedStream = expectedStream;
@@ -98,9 +107,19 @@ public class PublishOptions {
 
     /**
      * Gets the expected last sequence number of the stream.
+     * Deprecated because a sequence number is an unsigned long
      * @return sequence number
      */
+    @Deprecated
     public long getExpectedLastSequence() {
+        return expectedLastSeq.value().longValueExact();
+    }
+
+    /**
+     * Gets the expected last sequence number of the stream.
+     * @return sequence number
+     */
+    public Ulong getExpectedLastSequenceNum() {
         return expectedLastSeq;
     }
 
@@ -131,7 +150,7 @@ public class PublishOptions {
         Duration streamTimeout = DEFAULT_TIMEOUT;
         String expectedStream;
         String expectedLastId;
-        long expectedLastSeq = UNSET_LAST_SEQUENCE;
+        Ulong expectedLastSeq = UNSET_LAST_SEQUENCE_NUM;
         String msgId;
 
         /**
@@ -196,15 +215,26 @@ public class PublishOptions {
         public Builder expectedLastMsgId(String lastMsgId) {
             expectedLastId = emptyAsNull(lastMsgId);
             return this;
-        }        
+        }
 
         /**
          * Sets the expected message ID of the publish
          * @param sequence the expected last sequence number
          * @return builder
          */
+        @Deprecated
         public Builder expectedLastSequence(long sequence) {
-            expectedLastSeq = validateNotNegative(sequence, "Last Sequence");
+            expectedLastSeq = new Ulong(sequence);
+            return this;
+        }
+
+        /**
+         * Sets the expected message ID of the publish
+         * @param sequence the expected last sequence number
+         * @return builder
+         */
+        public Builder expectedLastSequence(Ulong sequence) {
+            expectedLastSeq = sequence == null ? UNSET_LAST_SEQUENCE_NUM : sequence;
             return this;
         }
 
@@ -226,10 +256,11 @@ public class PublishOptions {
          */
         public Builder clearExpected() {
             expectedLastId = null;
-            expectedLastSeq = UNSET_LAST_SEQUENCE;
+            expectedLastSeq = UNSET_LAST_SEQUENCE_NUM;
             msgId = null;
             return this;
         }
+
         /**
          * Builds the publish options.
          * @return publish options
