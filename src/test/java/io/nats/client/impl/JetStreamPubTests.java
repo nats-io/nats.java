@@ -207,7 +207,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
                     .messageId(messageId(3))
                     .build();
             pa = js.publish(SUBJECT, dataBytes(3), po);
-            assertPublishAck(pa, new Ulong(2));
+            assertPublishAck(pa, new Ulong(3));
 
             PublishOptions po1 = PublishOptions.builder().expectedStream(stream(999)).build();
             assertThrows(JetStreamApiException.class, () -> js.publish(SUBJECT, dataBytes(999), po1));

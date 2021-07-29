@@ -32,7 +32,7 @@ public class ConsumerInfoTests {
         assertEquals("foo-consumer", ci.getName());
 
         assertEquals(new Ulong(1), ci.getDelivered().getConsumerSequenceNum());
-        assertEquals(new Ulong(1), ci.getDelivered().getStreamSequenceNum());
+        assertEquals(new Ulong(2), ci.getDelivered().getStreamSequenceNum());
         assertEquals(3, ci.getAckFloor().getConsumerSequence()); // coverage for deprecated
         assertEquals(4, ci.getAckFloor().getStreamSequence()); // coverage for deprecated
 
