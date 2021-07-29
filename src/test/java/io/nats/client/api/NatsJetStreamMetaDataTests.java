@@ -34,9 +34,9 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
 
         assertEquals("test-stream", jsmd.getStream());
         assertEquals("test-consumer", jsmd.getConsumer());
-        assertEquals(1, jsmd.deliveredCount());
-        assertEquals(2, jsmd.streamSequence());
-        assertEquals(3, jsmd.consumerSequence());
+        assertEquals(1, jsmd.deliveredCount()); // coverage for deprecated
+        assertEquals(2, jsmd.streamSequence()); // coverage for deprecated
+        assertEquals(3, jsmd.consumerSequence()); // coverage for deprecated
         assertEquals(new Ulong(1), jsmd.getDelivered());
         assertEquals(new Ulong(2), jsmd.getStreamSequence());
         assertEquals(new Ulong(3), jsmd.getConsumerSequence());

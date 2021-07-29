@@ -16,17 +16,25 @@ package io.nats.client.support;
 import java.math.BigDecimal;
 
 public class Ulong implements Comparable<Ulong> {
-    public static final Ulong ZERO = new Ulong("0", true);
-    public static final Ulong ONE = new Ulong("1", true);
+    public static final Ulong ZERO = new Ulong(BigDecimal.ZERO, true);
+    public static final Ulong ONE = new Ulong(BigDecimal.ONE, true);
     public static final Ulong MAX_VALUE = new Ulong("18446744073709551615", true);
 
-    private final BigDecimal value;
+    private BigDecimal value;
+    private final boolean isConstant;
 
-    private Ulong(String s, Object neededToMakeUniqueSignatureToInitializeStatics) {
+    private Ulong(String s, boolean isConstant) {
         value = new BigDecimal(s);
+        this.isConstant = isConstant;
+    }
+
+    private Ulong(BigDecimal bd, boolean isConstant) {
+        value = bd;
+        this.isConstant = isConstant;
     }
 
     public Ulong(String s) {
+        this.isConstant = false;
         if (!s.startsWith("-") && !s.contains(".")) {
             try {
                 BigDecimal bd = new BigDecimal(s);
@@ -34,8 +42,7 @@ public class Ulong implements Comparable<Ulong> {
                     value = bd;
                     return;
                 }
-            }
-            catch (NumberFormatException nfe) { /* fall through */ }
+            } catch (NumberFormatException nfe) { /* fall through */ }
         }
         throw invalid();
     }
@@ -49,6 +56,7 @@ public class Ulong implements Comparable<Ulong> {
             throw invalid();
         }
         this.value = BigDecimal.valueOf(value);
+        this.isConstant = false;
     }
 
     private NumberFormatException invalid() {
@@ -62,7 +70,7 @@ public class Ulong implements Comparable<Ulong> {
 
     @Override
     public boolean equals(Object o) {
-        return (o instanceof Ulong) && equalTo((Ulong)o);
+        return (o instanceof Ulong) && equalTo((Ulong) o);
     }
 
     @Override
@@ -89,5 +97,44 @@ public class Ulong implements Comparable<Ulong> {
 
     public boolean greaterThan(Ulong u) {
         return value.compareTo(u.value) > 0;
+    }
+
+    public void increment() {
+        if (isConstant) {
+            throw new IllegalStateException("Illegal to increment Ulong constant");
+        }
+        value = value.add(Ulong.ONE.value());
+        if (value.compareTo(Ulong.MAX_VALUE.value) > 0) {
+            value = Ulong.ZERO.value;
+        }
+    }
+
+    public void decrement() {
+        if (isConstant) {
+            throw new IllegalStateException("Illegal to decrement Ulong constant");
+        }
+        value = value.subtract(Ulong.ONE.value());
+        if (BigDecimal.ZERO.compareTo(value) > 0) {
+            value = Ulong.MAX_VALUE.value;
+        }
+    }
+
+    public Ulong add(Ulong augend) {
+        BigDecimal bd = value.add(augend.value());
+        if (bd.compareTo(Ulong.MAX_VALUE.value) > 0) {
+            return new Ulong(bd.subtract(Ulong.MAX_VALUE.value).subtract(BigDecimal.ONE), false);
+        }
+        return new Ulong(bd, false);
+    }
+
+    public Ulong subtract(Ulong subtrahend) {
+        if (subtrahend.greaterThan(this)) {
+            return new Ulong(
+                    Ulong.MAX_VALUE.value
+                            .subtract(subtrahend.value.subtract(value))
+                            .add(BigDecimal.ONE),
+                    false);
+        }
+        return new Ulong(value.subtract(subtrahend.value), false);
     }
 }

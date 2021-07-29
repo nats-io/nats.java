@@ -79,5 +79,43 @@ public final class UlongTests {
         assertEquals(0, Ulong.ZERO.compareTo(new Ulong(0)));
         assertEquals(1, Ulong.ONE.compareTo(Ulong.ZERO));
         assertEquals(-1, Ulong.ZERO.compareTo(Ulong.ONE));
+
+        Ulong incdec = new Ulong(0);
+        incdec.increment();
+        assertEquals(Ulong.ONE, incdec);
+        incdec.decrement();
+        assertEquals(Ulong.ZERO, incdec);
+        incdec.decrement();
+        assertEquals(Ulong.MAX_VALUE, incdec);
+        incdec.increment();
+        assertEquals(Ulong.ZERO, incdec);
+
+        assertThrows(IllegalStateException.class, Ulong.ZERO::increment);
+        assertThrows(IllegalStateException.class, Ulong.ONE::increment);
+        assertThrows(IllegalStateException.class, Ulong.MAX_VALUE::increment);
+        assertThrows(IllegalStateException.class, Ulong.ZERO::decrement);
+        assertThrows(IllegalStateException.class, Ulong.ONE::decrement);
+        assertThrows(IllegalStateException.class, Ulong.MAX_VALUE::decrement);
+
+        assertEquals(Ulong.ZERO, Ulong.ONE.add(Ulong.MAX_VALUE));
+        assertEquals(Ulong.ZERO, Ulong.MAX_VALUE.add(Ulong.ONE));
+        assertEquals(Ulong.ONE, Ulong.MAX_VALUE.add(new Ulong(2)));
+        assertEquals(Ulong.MAX_VALUE, Ulong.ZERO.add(Ulong.MAX_VALUE));
+
+        assertEquals(Ulong.ONE, Ulong.ZERO.subtract(Ulong.MAX_VALUE));
+        assertEquals(new Ulong(2), Ulong.ONE.subtract(Ulong.MAX_VALUE));
+        assertEquals(new Ulong(3), new Ulong(2).subtract(Ulong.MAX_VALUE));
+        assertEquals(Ulong.MAX_VALUE, Ulong.ZERO.subtract(Ulong.ONE));
+        assertEquals(Ulong.MAX_VALUE, Ulong.ONE.subtract(new Ulong(2)));
+        assertEquals(Ulong.MAX_VALUE, new Ulong(2).subtract(new Ulong(3)));
+
+        assertEquals(Ulong.MAX_VALUE.subtract(Ulong.ONE), Ulong.ZERO.subtract(new Ulong(2)));
+
+        assertEquals(Ulong.ZERO, Ulong.ONE.subtract(Ulong.ONE));
+        assertEquals(Ulong.ONE, new Ulong(2).subtract(Ulong.ONE));
+        assertEquals(new Ulong(2), new Ulong(2).subtract(Ulong.ZERO));
+        assertEquals(new Ulong(2), new Ulong(3).subtract(Ulong.ONE));
+        assertEquals(Ulong.MAX_VALUE.subtract(Ulong.ONE), Ulong.MAX_VALUE.subtract(new Ulong(1)));
+        assertEquals(Ulong.MAX_VALUE.subtract(new Ulong(2)), Ulong.MAX_VALUE.subtract(new Ulong(2)));
     }
 }

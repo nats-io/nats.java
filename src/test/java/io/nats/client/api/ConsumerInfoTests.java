@@ -13,6 +13,7 @@
 
 package io.nats.client.api;
 
+import io.nats.client.support.Ulong;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -30,10 +31,10 @@ public class ConsumerInfoTests {
         assertEquals("foo-stream", ci.getStreamName());
         assertEquals("foo-consumer", ci.getName());
 
-        assertEquals(1, ci.getDelivered().getConsumerSequence());
-        assertEquals(2, ci.getDelivered().getStreamSequence());
-        assertEquals(3, ci.getAckFloor().getConsumerSequence());
-        assertEquals(4, ci.getAckFloor().getStreamSequence());
+        assertEquals(new Ulong(1), ci.getDelivered().getConsumerSequenceNum());
+        assertEquals(new Ulong(1), ci.getDelivered().getStreamSequenceNum());
+        assertEquals(3, ci.getAckFloor().getConsumerSequence()); // coverage for deprecated
+        assertEquals(4, ci.getAckFloor().getStreamSequence()); // coverage for deprecated
 
         assertEquals(24, ci.getNumPending());
         assertEquals(42, ci.getNumAckPending());

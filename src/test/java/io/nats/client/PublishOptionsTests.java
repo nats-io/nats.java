@@ -32,6 +32,7 @@ public class PublishOptionsTests extends TestBase {
         assertEquals(PublishOptions.UNSET_STREAM, po.getStream(), "default stream");
         assertEquals(PublishOptions.DEFAULT_TIMEOUT, po.getStreamTimeout(), "default timeout");
         assertEquals(PublishOptions.UNSET_LAST_SEQUENCE_NUM, po.getExpectedLastSequenceNum());
+        assertEquals(PublishOptions.UNSET_LAST_SEQUENCE_NUM.value().longValue(), po.getExpectedLastSequence()); // coverage for deprecated
 
         po = builder
                 .stream(STREAM)
