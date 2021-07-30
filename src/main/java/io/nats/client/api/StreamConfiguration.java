@@ -14,7 +14,6 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.Ulong;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -38,8 +37,8 @@ public class StreamConfiguration implements JsonSerializable {
     private final List<String> subjects;
     private final RetentionPolicy retentionPolicy;
     private final long maxConsumers;
-    private final Ulong maxMsgs;
-    private final Ulong maxBytes;
+    private final long maxMsgs;
+    private final long maxBytes;
     private final Duration maxAge;
     private final long maxMsgSize;
     private final StorageType storageType;
@@ -73,8 +72,8 @@ public class StreamConfiguration implements JsonSerializable {
 
         builder.name(readString(json, NAME_RE));
         readLong(json, MAX_CONSUMERS_RE, builder::maxConsumers);
-        builder.maxMessages(readUlong(json, MAX_MSGS_RE, Ulong.ZERO));
-        builder.maxBytes(readUlong(json, MAX_BYTES_RE, Ulong.ZERO));
+        readLong(json, MAX_MSGS_RE, builder::maxMessages);
+        readLong(json, MAX_BYTES_RE, builder::maxBytes);
         readNanos(json, MAX_AGE_RE, builder::maxAge);
         readLong(json, MAX_MSG_SIZE_RE, builder::maxMsgSize);
         readInt(json, NUM_REPLICAS_RE, builder::replicas);
@@ -92,7 +91,7 @@ public class StreamConfiguration implements JsonSerializable {
     // For the builder, assumes all validations are already done in builder
     StreamConfiguration(
             String name, List<String> subjects, RetentionPolicy retentionPolicy,
-            long maxConsumers, Ulong maxMsgs, Ulong maxBytes,
+            long maxConsumers, long maxMsgs, long maxBytes,
             Duration maxAge, long maxMsgSize, StorageType storageType,
             int replicas, boolean noAck, String templateOwner,
             DiscardPolicy discardPolicy, Duration duplicateWindow,
@@ -195,16 +194,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the maximum messages for this stream configuration.
      * @return the maximum number of messages for this stream.
      */
-    @Deprecated
     public long getMaxMsgs() {
-        return maxMsgs.value().longValueExact();
-    }
-
-    /**
-     * Gets the maximum messages for this stream configuration.
-     * @return the maximum number of messages for this stream.
-     */
-    public Ulong getMaximumMessages() {
         return maxMsgs;
     }
 
@@ -212,16 +202,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the maximum number of bytes for this stream configuration.
      * @return the maximum number of bytes for this stream.
      */
-    @Deprecated
     public long getMaxBytes() {
-        return maxBytes.value().longValueExact();
-    }
-
-    /**
-     * Gets the maximum number of bytes for this stream configuration.
-     * @return the maximum number of bytes for this stream.
-     */
-    public Ulong getMaximumBytes() {
         return maxBytes;
     }
 
@@ -360,8 +341,8 @@ public class StreamConfiguration implements JsonSerializable {
         private final List<String> subjects = new ArrayList<>();
         private RetentionPolicy retentionPolicy = RetentionPolicy.Limits;
         private long maxConsumers = -1;
-        private Ulong maxMsgs = Ulong.ZERO;
-        private Ulong maxBytes = Ulong.ZERO;
+        private long maxMsgs = -1;
+        private long maxBytes = -1;
         private Duration maxAge = Duration.ZERO;
         private long maxMsgSize = -1;
         private StorageType storageType = StorageType.File;
@@ -488,19 +469,8 @@ public class StreamConfiguration implements JsonSerializable {
          * @param maxMsgs the maximum number of messages
          * @return Builder
          */
-        @Deprecated
         public Builder maxMessages(long maxMsgs) {
-            this.maxMsgs = new Ulong(validateMaxMessages(maxMsgs));
-            return this;
-        }
-
-        /**
-         * Sets the maximum number of consumers in the StreamConfiguration.
-         * @param maxMsgs the maximum number of messages
-         * @return Builder
-         */
-        public Builder maxMessages(Ulong maxMsgs) {
-            this.maxMsgs = maxMsgs;
+            this.maxMsgs = validateMaxMessages(maxMsgs);
             return this;
         }
 
@@ -509,19 +479,8 @@ public class StreamConfiguration implements JsonSerializable {
          * @param maxBytes the maximum number of bytes
          * @return Builder
          */
-        @Deprecated
         public Builder maxBytes(long maxBytes) {
-            this.maxBytes = new Ulong(validateMaxBytes(maxBytes));
-            return this;
-        }
-
-        /**
-         * Sets the maximum number of bytes in the StreamConfiguration.
-         * @param maxBytes the maximum number of bytes
-         * @return Builder
-         */
-        public Builder maxBytes(Ulong maxBytes) {
-            this.maxBytes = maxBytes;
+            this.maxBytes = validateMaxBytes(maxBytes);
             return this;
         }
 

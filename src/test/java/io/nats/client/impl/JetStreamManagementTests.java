@@ -58,8 +58,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             assertNotNull(si.getStreamState());
             assertEquals(-1, sc.getMaxConsumers());
-            assertEquals(Ulong.ZERO, sc.getMaximumMessages());
-            assertEquals(Ulong.ZERO, sc.getMaximumBytes());
+            assertEquals(-1, sc.getMaxMsgs());
+            assertEquals(-1, sc.getMaxBytes());
             assertEquals(-1, sc.getMaxMsgSize());
             assertEquals(1, sc.getReplicas());
 
@@ -105,10 +105,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertNotNull(si.getConfiguration());
             assertNotNull(si.getStreamState());
             assertEquals(-1, sc.getMaxConsumers());
-            assertEquals(Ulong.ZERO, sc.getMaximumMessages());
-            assertEquals(Ulong.ZERO, sc.getMaximumBytes());
-            assertEquals(0, sc.getMaxMsgs()); // coverage for deprecated
-            assertEquals(0, sc.getMaxBytes()); // coverage for deprecated
+            assertEquals(-1, sc.getMaxMsgs());
+            assertEquals(-1, sc.getMaxBytes());
             assertEquals(-1, sc.getMaxMsgSize());
             assertEquals(1, sc.getReplicas());
 
@@ -138,7 +136,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(2, sc.getSubjects().size());
             assertEquals(subject(0), sc.getSubjects().get(0));
             assertEquals(subject(1), sc.getSubjects().get(1));
-            assertEquals(Ulong.ZERO, sc.getMaximumBytes());
+            assertEquals(-1, sc.getMaxMsgs());
+            assertEquals(-1, sc.getMaxBytes());
             assertEquals(-1, sc.getMaxMsgSize());
             assertEquals(Duration.ZERO, sc.getMaxAge());
             assertEquals(StorageType.Memory, sc.getStorageType());
@@ -152,8 +151,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .name(STREAM)
                     .storageType(StorageType.Memory)
                     .subjects(subject(0), subject(1), subject(2))
-                    .maxMessages(new Ulong(42))
-                    .maxBytes(new Ulong(43))
+                    .maxMessages(42)
+                    .maxBytes(43)
                     .maxMsgSize(44)
                     .maxAge(Duration.ofDays(100))
                     .discardPolicy(DiscardPolicy.New)
@@ -171,8 +170,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(subject(0), sc.getSubjects().get(0));
             assertEquals(subject(1), sc.getSubjects().get(1));
             assertEquals(subject(2), sc.getSubjects().get(2));
-            assertEquals(new Ulong(42), sc.getMaximumMessages());
-            assertEquals(new Ulong(43), sc.getMaximumBytes());
+            assertEquals(42, sc.getMaxMsgs());
+            assertEquals(43, sc.getMaxBytes());
             assertEquals(44, sc.getMaxMsgSize());
             assertEquals(Duration.ofDays(100), sc.getMaxAge());
             assertEquals(StorageType.Memory, sc.getStorageType());

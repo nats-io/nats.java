@@ -54,8 +54,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .subjects(testSc.getSubjects())
                 .retentionPolicy(testSc.getRetentionPolicy())
                 .maxConsumers(testSc.getMaxConsumers())
-                .maxMessages(testSc.getMaximumMessages())
-                .maxBytes(testSc.getMaximumBytes())
+                .maxMessages(testSc.getMaxMsgs())
+                .maxBytes(testSc.getMaxBytes())
                 .maxAge(testSc.getMaxAge())
                 .maxMsgSize(testSc.getMaxMsgSize())
                 .storageType(testSc.getStorageType())
@@ -123,15 +123,11 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         StreamConfiguration scCov = StreamConfiguration.builder(null)
                 .maxAge(1111)
                 .duplicateWindow(2222)
-                .maxMessages(3333)
-                .maxBytes(4444)
                 .build();
 
         assertNull(scCov.getName());
         assertEquals(Duration.ofMillis(1111), scCov.getMaxAge());
         assertEquals(Duration.ofMillis(2222), scCov.getDuplicateWindow());
-        assertEquals(new Ulong(3333), scCov.getMaximumMessages());
-        assertEquals(new Ulong(4444), scCov.getMaximumBytes());
     }
 
     @Test
@@ -300,8 +296,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(730, sc.getMaxConsumers());
         assertEquals(731, sc.getMaxMsgs()); // coverage for deprecated
         assertEquals(732, sc.getMaxBytes()); // coverage for deprecated
-        assertEquals(new Ulong(731), sc.getMaximumMessages());
-        assertEquals(new Ulong(732), sc.getMaximumBytes());
+        assertEquals(731, sc.getMaxMsgs());
+        assertEquals(732, sc.getMaxBytes());
         assertEquals(Duration.ofNanos(42000000000L), sc.getMaxAge());
         assertEquals(734, sc.getMaxMsgSize());
         assertEquals(StorageType.Memory, sc.getStorageType());
