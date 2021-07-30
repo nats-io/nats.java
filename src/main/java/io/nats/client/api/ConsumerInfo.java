@@ -15,6 +15,7 @@ package io.nats.client.api;
 
 import io.nats.client.Message;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.Ulong;
 
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
@@ -33,7 +34,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
     private final ZonedDateTime created;
     private final SequencePair delivered;
     private final SequencePair ackFloor;
-    private final long numPending;
+    private final Ulong numPending;
     private final long numWaiting;
     private final long numAckPending;
     private final long numRedelivered;
@@ -59,7 +60,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
 
         numAckPending = JsonUtils.readLong(json, NUM_ACK_PENDING_RE, 0);
         numRedelivered = JsonUtils.readLong(json, NUM_REDELIVERED_RE, 0);
-        numPending = JsonUtils.readUnsignedLong(json, NUM_PENDING_RE, 0);
+        numPending = JsonUtils.readUlong(json, NUM_PENDING_RE, Ulong.ZERO);
         numWaiting = JsonUtils.readLong(json, NUM_WAITING_RE, 0);
     }
     
@@ -87,7 +88,12 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
         return ackFloor;
     }
 
+    @Deprecated
     public long getNumPending() {
+        return numPending.value().longValueExact();
+    }
+
+    public Ulong getNumPendingMessages() {
         return numPending;
     }
 

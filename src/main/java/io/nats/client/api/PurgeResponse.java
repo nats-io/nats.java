@@ -15,6 +15,7 @@ package io.nats.client.api;
 
 import io.nats.client.Message;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.Ulong;
 
 import static io.nats.client.support.ApiConstants.PURGED_RE;
 import static io.nats.client.support.ApiConstants.SUCCESS_RE;
@@ -22,12 +23,12 @@ import static io.nats.client.support.ApiConstants.SUCCESS_RE;
 public class PurgeResponse extends ApiResponse<PurgeResponse> {
 
     private final boolean success;
-    private final int purged;
+    private final Ulong purged;
 
     public PurgeResponse(Message msg) {
         super(msg);
         success = JsonUtils.readBoolean(json, SUCCESS_RE);
-        purged = JsonUtils.readInt(json, PURGED_RE, 0);
+        purged = JsonUtils.readUlong(json, PURGED_RE, Ulong.ZERO);
     }
 
     /**
@@ -42,7 +43,16 @@ public class PurgeResponse extends ApiResponse<PurgeResponse> {
      * Returns the number of items purged from the stream
      * @return the count
      */
+    @Deprecated
     public int getPurgedCount() {
+        return purged.value().intValueExact();
+    }
+
+    /**
+     * Returns the number of items purged from the stream
+     * @return the count
+     */
+    public Ulong getPurged() {
         return purged;
     }
 

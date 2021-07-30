@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.Ulong;
 
 import java.time.ZonedDateTime;
 
@@ -34,7 +35,7 @@ public class Mirror extends SourceBase {
         super(MIRROR, json);
     }
 
-    Mirror(String name, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
+    Mirror(String name, Ulong startSeq, ZonedDateTime startTime, String filterSubject, External external) {
         super(MIRROR, name, startSeq, startTime, filterSubject, external);
     }
 

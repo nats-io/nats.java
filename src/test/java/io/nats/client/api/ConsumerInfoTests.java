@@ -36,7 +36,8 @@ public class ConsumerInfoTests {
         assertEquals(3, ci.getAckFloor().getConsumerSequence()); // coverage for deprecated
         assertEquals(4, ci.getAckFloor().getStreamSequence()); // coverage for deprecated
 
-        assertEquals(24, ci.getNumPending());
+        assertEquals(24, ci.getNumPending());  // coverage for deprecated
+        assertEquals(new Ulong(24), ci.getNumPendingMessages());
         assertEquals(42, ci.getNumAckPending());
         assertEquals(42, ci.getRedelivered());
 

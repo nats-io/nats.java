@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.Ulong;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -63,10 +64,15 @@ public class StreamInfoTests {
         assertEquals(Duration.ofSeconds(120), sc.getDuplicateWindow());
 
         StreamState ss = si.getStreamState();
-        assertEquals(11, ss.getMsgCount());
-        assertEquals(12, ss.getByteCount());
-        assertEquals(13, ss.getFirstSequence());
-        assertEquals(14, ss.getLastSequence());
+        assertEquals(new Ulong(11), ss.getMessages());
+        assertEquals(new Ulong(12), ss.getBytes());
+        assertEquals(new Ulong(13), ss.getFirstSequenceNum());
+        assertEquals(new Ulong(14), ss.getLastSequenceNum());
+        assertEquals(11, ss.getMsgCount()); // coverage for deprecated
+        assertEquals(12, ss.getByteCount()); // coverage for deprecated
+        assertEquals(13, ss.getFirstSequence()); // coverage for deprecated
+        assertEquals(14, ss.getLastSequence()); // coverage for deprecated
+
         assertEquals(15, ss.getConsumerCount());
 
         assertEquals(DateTimeUtils.parseDateTime("0001-01-01T00:00:00Z"), ss.getFirstTime());
@@ -100,16 +106,18 @@ public class StreamInfoTests {
         MirrorInfo mi = si.getMirrorInfo();
         assertNotNull(mi);
         assertEquals("mname", mi.getName());
-        assertEquals(16, mi.getLag());
+        assertEquals(16, mi.getLag()); // coverage for deprecated
+        assertEquals(new Ulong(16), mi.getLagCount());
         assertEquals(Duration.ofNanos(160000000000L), mi.getActive());
         assertNull(mi.getError());
 
         assertEquals(2, si.getSourceInfos().size());
         assertEquals("sname17", si.getSourceInfos().get(0).getName());
-        assertEquals(17, si.getSourceInfos().get(0).getLag());
+        assertEquals(17, si.getSourceInfos().get(0).getLag()); // coverage for deprecated
+        assertEquals(new Ulong(17), si.getSourceInfos().get(0).getLagCount());
         assertEquals(Duration.ofNanos(170000000000L), si.getSourceInfos().get(0).getActive());
         assertEquals("sname18", si.getSourceInfos().get(1).getName());
-        assertEquals(18, si.getSourceInfos().get(1).getLag());
+        assertEquals(new Ulong(18), si.getSourceInfos().get(1).getLagCount());
         assertEquals(Duration.ofNanos(180000000000L), si.getSourceInfos().get(1).getActive());
 
         si = new StreamInfo(EMPTY_JSON);

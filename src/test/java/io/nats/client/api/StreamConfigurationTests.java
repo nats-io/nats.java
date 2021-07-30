@@ -15,6 +15,7 @@ package io.nats.client.api;
 
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.Ulong;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
@@ -53,8 +54,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .subjects(testSc.getSubjects())
                 .retentionPolicy(testSc.getRetentionPolicy())
                 .maxConsumers(testSc.getMaxConsumers())
-                .maxMessages(testSc.getMaxMsgs())
-                .maxBytes(testSc.getMaxBytes())
+                .maxMessages(testSc.getMaximumMessages())
+                .maxBytes(testSc.getMaximumBytes())
                 .maxAge(testSc.getMaxAge())
                 .maxMsgSize(testSc.getMaxMsgSize())
                 .storageType(testSc.getStorageType())
@@ -118,14 +119,19 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         }
 
         // coverage for null StreamConfiguration, millis maxAge, millis duplicateWindow
+        // coverage for deprecated
         StreamConfiguration scCov = StreamConfiguration.builder(null)
                 .maxAge(1111)
                 .duplicateWindow(2222)
+                .maxMessages(3333)
+                .maxBytes(4444)
                 .build();
 
         assertNull(scCov.getName());
         assertEquals(Duration.ofMillis(1111), scCov.getMaxAge());
         assertEquals(Duration.ofMillis(2222), scCov.getDuplicateWindow());
+        assertEquals(new Ulong(3333), scCov.getMaximumMessages());
+        assertEquals(new Ulong(4444), scCov.getMaximumBytes());
     }
 
     @Test
@@ -151,7 +157,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         // STEPPED like this so the equals returns false on different portion of the object
         // by the end I've built an equal object
         assertNotEqualsEqualsHashcode(s1, m1, sb.startSeq(999), mb.startSeq(999));
-        assertNotEqualsEqualsHashcode(s1, m1, sb.startSeq(m.getStartSeq()), mb.startSeq(m.getStartSeq()));
+        assertNotEqualsEqualsHashcode(s1, m1, sb.startSeq(m.getStartSeq()), mb.startSeq(m.getStartSeq())); // coverage for deprecated
+        assertNotEqualsEqualsHashcode(s1, m1, sb.startSeq(m.getOptionalStartSequence()), mb.startSeq(m.getOptionalStartSequence())); // coverage for deprecated
 
         assertNotEqualsEqualsHashcode(s1, m1, sb.sourceName(null), mb.sourceName(null));
         assertNotEqualsEqualsHashcode(s1, m1, sb.sourceName("not"), mb.sourceName("not"));
@@ -291,8 +298,10 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         assertSame(RetentionPolicy.Interest, sc.getRetentionPolicy());
         assertEquals(730, sc.getMaxConsumers());
-        assertEquals(731, sc.getMaxMsgs());
-        assertEquals(732, sc.getMaxBytes());
+        assertEquals(731, sc.getMaxMsgs()); // coverage for deprecated
+        assertEquals(732, sc.getMaxBytes()); // coverage for deprecated
+        assertEquals(new Ulong(731), sc.getMaximumMessages());
+        assertEquals(new Ulong(732), sc.getMaximumBytes());
         assertEquals(Duration.ofNanos(42000000000L), sc.getMaxAge());
         assertEquals(734, sc.getMaxMsgSize());
         assertEquals(StorageType.Memory, sc.getStorageType());
@@ -312,7 +321,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         assertNotNull(sc.getMirror());
         assertEquals("eman", sc.getMirror().getSourceName());
-        assertEquals(736, sc.getMirror().getStartSeq());
+        assertEquals(new Ulong(736), sc.getMirror().getOptionalStartSequence());
         assertEquals(zdt, sc.getMirror().getStartTime());
         assertEquals("mfsub", sc.getMirror().getFilterSubject());
 
@@ -322,13 +331,13 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         assertEquals(2, sc.getSources().size());
 
-        validateSource(sc.getSources().get(0), "s0", 737, "s0sub", "s0api", "s0dlvrsub", zdt);
-        validateSource(sc.getSources().get(1), "s1", 738, "s1sub", "s1api", "s1dlvrsub", zdt);
+        validateSource(sc.getSources().get(0), "s0", new Ulong(737), "s0sub", "s0api", "s0dlvrsub", zdt);
+        validateSource(sc.getSources().get(1), "s1", new Ulong(738), "s1sub", "s1api", "s1dlvrsub", zdt);
     }
 
-    private void validateSource(Source source, String name, int seq, String filter, String api, String deliver, ZonedDateTime zdt) {
+    private void validateSource(Source source, String name, Ulong seq, String filter, String api, String deliver, ZonedDateTime zdt) {
         assertEquals(name, source.getSourceName());
-        assertEquals(seq, source.getStartSeq());
+        assertEquals(seq, source.getOptionalStartSequence());
         assertEquals(zdt, source.getStartTime());
         assertEquals(filter, source.getFilterSubject());
 

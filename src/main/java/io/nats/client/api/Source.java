@@ -13,6 +13,8 @@
 
 package io.nats.client.api;
 
+import io.nats.client.support.Ulong;
+
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +41,7 @@ public class Source extends SourceBase {
         super(SOURCE, json);
     }
 
-    Source(String name, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
+    Source(String name, Ulong startSeq, ZonedDateTime startTime, String filterSubject, External external) {
         super(SOURCE, name, startSeq, startTime, filterSubject, external);
     }
 

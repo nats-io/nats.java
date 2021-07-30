@@ -301,7 +301,7 @@ public abstract class JsonUtils {
      * @param value field value
      */
     public static void addField(StringBuilder sb, String fname, Ulong value) {
-        if (!value.equals(Ulong.ZERO)) {
+        if (value != null && value.greaterThan(Ulong.ZERO)) {
             sb.append(Q).append(fname).append(QCOLON).append(value.toString()).append(COMMA);
         }
     }

@@ -15,6 +15,7 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.Ulong;
 
 import java.time.ZonedDateTime;
 
@@ -23,7 +24,7 @@ import static io.nats.client.support.JsonUtils.*;
 
 abstract class SourceBase implements JsonSerializable {
     private final String sourceName;
-    private final long startSeq;
+    private final Ulong optStartSeq;
     private final ZonedDateTime startTime;
     private final String filterSubject;
     private final External external;
@@ -31,16 +32,16 @@ abstract class SourceBase implements JsonSerializable {
 
     SourceBase(String objectName, String json) {
         sourceName = JsonUtils.readString(json, NAME_RE);
-        startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, 0);
+        optStartSeq = JsonUtils.readUlong(json, OPT_START_SEQ_RE, Ulong.ZERO);
         startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
         filterSubject = JsonUtils.readString(json, FILTER_SUBJECT_RE);
         external = External.optionalInstance(json);
         this.objectName = normalize(objectName);
     }
 
-    SourceBase(String objectName, String sourceName, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
+    SourceBase(String objectName, String sourceName, Ulong optStartSeq, ZonedDateTime startTime, String filterSubject, External external) {
         this.sourceName = sourceName;
-        this.startSeq = startSeq;
+        this.optStartSeq = optStartSeq;
         this.startTime = startTime;
         this.filterSubject = filterSubject;
         this.external = external;
@@ -55,9 +56,7 @@ abstract class SourceBase implements JsonSerializable {
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, sourceName);
-        if (startSeq > 0) {
-            JsonUtils.addField(sb, OPT_START_SEQ, startSeq);
-        }
+        JsonUtils.addField(sb, OPT_START_SEQ, optStartSeq);
         JsonUtils.addField(sb, OPT_START_TIME, startTime);
         JsonUtils.addField(sb, FILTER_SUBJECT, filterSubject);
         JsonUtils.addField(sb, EXTERNAL, external);
@@ -68,8 +67,13 @@ abstract class SourceBase implements JsonSerializable {
         return sourceName;
     }
 
+    @Deprecated
     public long getStartSeq() {
-        return startSeq;
+        return optStartSeq.value().longValueExact();
+    }
+
+    public Ulong getOptionalStartSequence() {
+        return optStartSeq;
     }
 
     public ZonedDateTime getStartTime() {
@@ -88,7 +92,7 @@ abstract class SourceBase implements JsonSerializable {
     public String toString() {
         return objectName + "{" +
                 "sourceName='" + sourceName + '\'' +
-                ", startSeq=" + startSeq +
+                ", optStartSeq=" + optStartSeq +
                 ", startTime=" + startTime +
                 ", filterSubject='" + filterSubject + '\'' +
                 ", " + objectString("external", external) +
@@ -97,7 +101,7 @@ abstract class SourceBase implements JsonSerializable {
 
     public abstract static class SourceBaseBuilder<T> {
         String sourceName;
-        long startSeq;
+        Ulong startSeq;
         ZonedDateTime startTime;
         String filterSubject;
         External external;
@@ -110,6 +114,11 @@ abstract class SourceBase implements JsonSerializable {
         }
 
         public T startSeq(long startSeq) {
+            this.startSeq = new Ulong(startSeq);
+            return getThis();
+        }
+
+        public T startSeq(Ulong startSeq) {
             this.startSeq = startSeq;
             return getThis();
         }
@@ -137,23 +146,23 @@ abstract class SourceBase implements JsonSerializable {
 
         SourceBase that = (SourceBase) o;
 
-        if (startSeq != that.startSeq) return false;
         if (sourceName != null ? !sourceName.equals(that.sourceName) : that.sourceName != null) return false;
+        if (optStartSeq != null ? !optStartSeq.equals(that.optStartSeq) : that.optStartSeq != null) return false;
         if (startTime != null ? !startTime.equals(that.startTime) : that.startTime != null) return false;
         if (filterSubject != null ? !filterSubject.equals(that.filterSubject) : that.filterSubject != null)
             return false;
         if (external != null ? !external.equals(that.external) : that.external != null) return false;
-        return objectName.equals(that.objectName);
+        return objectName != null ? objectName.equals(that.objectName) : that.objectName == null;
     }
 
     @Override
     public int hashCode() {
         int result = sourceName != null ? sourceName.hashCode() : 0;
-        result = 31 * result + (int) (startSeq ^ (startSeq >>> 32));
+        result = 31 * result + (optStartSeq != null ? optStartSeq.hashCode() : 0);
         result = 31 * result + (startTime != null ? startTime.hashCode() : 0);
         result = 31 * result + (filterSubject != null ? filterSubject.hashCode() : 0);
         result = 31 * result + (external != null ? external.hashCode() : 0);
-        result = 31 * result + objectName.hashCode();
+        result = 31 * result + (objectName != null ? objectName.hashCode() : 0);
         return result;
     }
 }

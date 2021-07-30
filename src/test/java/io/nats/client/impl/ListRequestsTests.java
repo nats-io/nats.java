@@ -44,7 +44,7 @@ public class ListRequestsTests extends JetStreamTestBase {
         assertEquals(5, ci.getNumAckPending());
         assertEquals(6, ci.getRedelivered());
         assertEquals(7, ci.getNumWaiting());
-        assertEquals(8, ci.getNumPending());
+        assertEquals(new Ulong(8), ci.getNumPendingMessages());
 
         ConsumerConfiguration cc = ci.getConsumerConfiguration();
         assertEquals("cname1", cc.getDurable());

@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.Ulong;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -57,8 +58,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             assertNotNull(si.getStreamState());
             assertEquals(-1, sc.getMaxConsumers());
-            assertEquals(-1, sc.getMaxMsgs());
-            assertEquals(-1, sc.getMaxBytes());
+            assertEquals(Ulong.ZERO, sc.getMaximumMessages());
+            assertEquals(Ulong.ZERO, sc.getMaximumBytes());
             assertEquals(-1, sc.getMaxMsgSize());
             assertEquals(1, sc.getReplicas());
 
@@ -68,10 +69,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertNull(sc.getTemplateOwner());
 
             StreamState ss = si.getStreamState();
-            assertEquals(0, ss.getMsgCount());
-            assertEquals(0, ss.getByteCount());
-            assertEquals(0, ss.getFirstSequence());
-            assertEquals(0, ss.getLastSequence());
+            assertEquals(Ulong.ZERO, ss.getMessages());
+            assertEquals(Ulong.ZERO, ss.getBytes());
+            assertEquals(Ulong.ZERO, ss.getFirstSequenceNum());
+            assertEquals(Ulong.ZERO, ss.getLastSequenceNum());
             assertEquals(0, ss.getConsumerCount());
         });
     }
@@ -104,8 +105,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertNotNull(si.getConfiguration());
             assertNotNull(si.getStreamState());
             assertEquals(-1, sc.getMaxConsumers());
-            assertEquals(-1, sc.getMaxMsgs());
-            assertEquals(-1, sc.getMaxBytes());
+            assertEquals(Ulong.ZERO, sc.getMaximumMessages());
+            assertEquals(Ulong.ZERO, sc.getMaximumBytes());
+            assertEquals(0, sc.getMaxMsgs()); // coverage for deprecated
+            assertEquals(0, sc.getMaxBytes()); // coverage for deprecated
             assertEquals(-1, sc.getMaxMsgSize());
             assertEquals(1, sc.getReplicas());
 
@@ -115,10 +118,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertNull(sc.getTemplateOwner());
 
             StreamState ss = si.getStreamState();
-            assertEquals(0, ss.getMsgCount());
-            assertEquals(0, ss.getByteCount());
-            assertEquals(0, ss.getFirstSequence());
-            assertEquals(0, ss.getLastSequence());
+            assertEquals(Ulong.ZERO, ss.getMessages());
+            assertEquals(Ulong.ZERO, ss.getBytes());
+            assertEquals(Ulong.ZERO, ss.getFirstSequenceNum());
+            assertEquals(Ulong.ZERO, ss.getLastSequenceNum());
             assertEquals(0, ss.getConsumerCount());
         });
     }
@@ -135,7 +138,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(2, sc.getSubjects().size());
             assertEquals(subject(0), sc.getSubjects().get(0));
             assertEquals(subject(1), sc.getSubjects().get(1));
-            assertEquals(-1, sc.getMaxBytes());
+            assertEquals(Ulong.ZERO, sc.getMaximumBytes());
             assertEquals(-1, sc.getMaxMsgSize());
             assertEquals(Duration.ZERO, sc.getMaxAge());
             assertEquals(StorageType.Memory, sc.getStorageType());
@@ -149,7 +152,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .name(STREAM)
                     .storageType(StorageType.Memory)
                     .subjects(subject(0), subject(1), subject(2))
-                    .maxBytes(43)
+                    .maxMessages(new Ulong(42))
+                    .maxBytes(new Ulong(43))
                     .maxMsgSize(44)
                     .maxAge(Duration.ofDays(100))
                     .discardPolicy(DiscardPolicy.New)
@@ -167,7 +171,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(subject(0), sc.getSubjects().get(0));
             assertEquals(subject(1), sc.getSubjects().get(1));
             assertEquals(subject(2), sc.getSubjects().get(2));
-            assertEquals(43, sc.getMaxBytes());
+            assertEquals(new Ulong(42), sc.getMaximumMessages());
+            assertEquals(new Ulong(43), sc.getMaximumBytes());
             assertEquals(44, sc.getMaxMsgSize());
             assertEquals(Duration.ofDays(100), sc.getMaxAge());
             assertEquals(StorageType.Memory, sc.getStorageType());
@@ -268,15 +273,15 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             createMemoryStream(jsm, STREAM, SUBJECT);
 
             StreamInfo si = jsm.getStreamInfo(STREAM);
-            assertEquals(0, si.getStreamState().getMsgCount());
+            assertEquals(Ulong.ZERO, si.getStreamState().getMessages());
 
             jsPublish(nc, SUBJECT, 1);
             si = jsm.getStreamInfo(STREAM);
-            assertEquals(1, si.getStreamState().getMsgCount());
+            assertEquals(Ulong.ONE, si.getStreamState().getMessages());
 
             PurgeResponse pr = jsm.purgeStream(STREAM);
             assertTrue(pr.isSuccess());
-            assertEquals(1, pr.getPurgedCount());
+            assertEquals(Ulong.ONE, pr.getPurged());
         });
     }
 
@@ -572,7 +577,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             jsPublish(js, U2, 100);
 
             // Check the state
-            assertMirror(jsm, mirror(1), S1, 100, null);
+            assertMirror(jsm, mirror(1), S1, new Ulong(100), null);
 
             // Purge the source stream.
             jsm.purgeStream(S1);
@@ -588,7 +593,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             jsm.addStream(sc);
 
             // Check the state
-            assertMirror(jsm, mirror(2), S1, 50, 101);
+            assertMirror(jsm, mirror(2), S1, new Ulong(50), new Ulong(101));
 
             jsPublish(js, U3, 100);
 
@@ -601,7 +606,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             jsm.addStream(sc);
 
             // Check the state
-            assertMirror(jsm, mirror(3), S1, 101, 150);
+            assertMirror(jsm, mirror(3), S1, new Ulong(101), new Ulong(150));
 
             // third mirror checks start seq
             ZonedDateTime zdt = DateTimeUtils.fromNow(Duration.ofHours(-2));
@@ -613,7 +618,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             jsm.addStream(sc);
 
             // Check the state
-            assertMirror(jsm, mirror(4), S1, 150, 101);
+            assertMirror(jsm, mirror(4), S1, new Ulong(150), new Ulong(101));
         });
     }
 
@@ -679,7 +684,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             jsm.addStream(sc);
 
-            assertSource(jsm, source(1), 50, null);
+            assertSource(jsm, source(1), new Ulong(50), null);
 
             sc = StreamConfiguration.builder()
                     .name(source(1))
@@ -708,7 +713,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .sources(Source.builder().sourceName(stream(99)).startSeq(26).build())
                     .build();
             jsm.addStream(sc);
-            assertSource(jsm, source(2), 25, null);
+            assertSource(jsm, source(2), new Ulong(25), null);
 
             MessageInfo info = jsm.getMessage(source(2), 1);
             assertStreamSource(info, stream(99), 26);
@@ -719,7 +724,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .sources(Source.builder().sourceName(stream(99)).startSeq(11).filterSubject(S4).build())
                     .build();
             jsm.addStream(sc);
-            assertSource(jsm, source(3), 20, null);
+            assertSource(jsm, source(3), new Ulong(20), null);
 
             info = jsm.getMessage(source(3), 1);
             assertStreamSource(info, stream(99), 11);
