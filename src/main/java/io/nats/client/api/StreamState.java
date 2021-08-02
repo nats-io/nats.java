@@ -66,21 +66,21 @@ public class StreamState {
     }
 
     /**
-     * Gets the last sequence of a message in the stream
-     *
-     * @return a sequence number
-     */
-    public long getLastSequence() {
-        return lastSeq;
-    }
-
-    /**
      * Gets the time stamp of the first message in the stream
      *
      * @return the first time
      */
     public ZonedDateTime getFirstTime() {
         return firstTime;
+    }
+
+    /**
+     * Gets the last sequence of a message in the stream
+     *
+     * @return a sequence number
+     */
+    public long getLastSequence() {
+        return lastSeq;
     }
 
     /**

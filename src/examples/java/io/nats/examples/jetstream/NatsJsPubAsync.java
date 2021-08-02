@@ -92,7 +92,7 @@ public class NatsJsPubAsync {
                 if (f.isDone()) {
                     try {
                         PublishAck pa = f.get();
-                        System.out.printf("Publish Succeeded on subject %s, stream %s, seqno %s.\n",
+                        System.out.printf("Publish Succeeded on subject %s, stream %s, seqno %d.\n",
                                 exArgs.subject, pa.getStream(), pa.getSeqno());
                     }
                     catch (ExecutionException ee) {
@@ -100,7 +100,7 @@ public class NatsJsPubAsync {
                     }
                 }
                 else {
-                    // re queue so will be checked for done again
+                    // re queue it and try again
                     futures.add(f);
                 }
             }

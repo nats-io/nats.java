@@ -292,16 +292,6 @@ public abstract class JsonUtils {
      * Appends a json field to a string builder.
      * @param sb string builder
      * @param fname fieldname
-     * @param value field value
-     */
-    public static void addFieldAsUnsigned(StringBuilder sb, String fname, long value) {
-        sb.append(Q).append(fname).append(QCOLON).append(Long.toUnsignedString(value)).append(COMMA);
-    }
-
-    /**
-     * Appends a json field to a string builder.
-     * @param sb string builder
-     * @param fname fieldname
      * @param value duration value
      */
     public static void addFieldAsNanos(StringBuilder sb, String fname, Duration value) {
@@ -462,20 +452,6 @@ public abstract class JsonUtils {
     public static long safeParseLong(String s, long dflt) {
         Long l = safeParseLong(s);
         return l == null ? dflt : l;
-    }
-
-    public static long readUnsignedLong(String json, Pattern pattern, long dflt) {
-        Matcher m = pattern.matcher(json);
-        return m.find() ? parseUnsignedLong(m.group(1), dflt) : dflt;
-    }
-
-    public static long parseUnsignedLong(String s, long dflt) {
-        try {
-            return Long.parseUnsignedLong(s);
-        }
-        catch (NumberFormatException e) {
-            return dflt;
-        }
     }
 
     public static ZonedDateTime readDate(String json, Pattern pattern) {

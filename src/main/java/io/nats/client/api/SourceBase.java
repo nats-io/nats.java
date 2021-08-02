@@ -23,7 +23,7 @@ import static io.nats.client.support.JsonUtils.*;
 
 abstract class SourceBase implements JsonSerializable {
     private final String sourceName;
-    private final long optStartSeq;
+    private final long startSeq;
     private final ZonedDateTime startTime;
     private final String filterSubject;
     private final External external;
@@ -31,16 +31,16 @@ abstract class SourceBase implements JsonSerializable {
 
     SourceBase(String objectName, String json) {
         sourceName = JsonUtils.readString(json, NAME_RE);
-        optStartSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, 0);
+        startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, 0);
         startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
         filterSubject = JsonUtils.readString(json, FILTER_SUBJECT_RE);
         external = External.optionalInstance(json);
         this.objectName = normalize(objectName);
     }
 
-    SourceBase(String objectName, String sourceName, long optStartSeq, ZonedDateTime startTime, String filterSubject, External external) {
+    SourceBase(String objectName, String sourceName, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
         this.sourceName = sourceName;
-        this.optStartSeq = optStartSeq;
+        this.startSeq = startSeq;
         this.startTime = startTime;
         this.filterSubject = filterSubject;
         this.external = external;
@@ -55,7 +55,9 @@ abstract class SourceBase implements JsonSerializable {
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, sourceName);
-        JsonUtils.addField(sb, OPT_START_SEQ, optStartSeq);
+        if (startSeq > 0) {
+            JsonUtils.addField(sb, OPT_START_SEQ, startSeq);
+        }
         JsonUtils.addField(sb, OPT_START_TIME, startTime);
         JsonUtils.addField(sb, FILTER_SUBJECT, filterSubject);
         JsonUtils.addField(sb, EXTERNAL, external);
@@ -67,7 +69,7 @@ abstract class SourceBase implements JsonSerializable {
     }
 
     public long getStartSeq() {
-        return optStartSeq;
+        return startSeq;
     }
 
     public ZonedDateTime getStartTime() {
@@ -86,7 +88,7 @@ abstract class SourceBase implements JsonSerializable {
     public String toString() {
         return objectName + "{" +
                 "sourceName='" + sourceName + '\'' +
-                ", optStartSeq=" + optStartSeq +
+                ", startSeq=" + startSeq +
                 ", startTime=" + startTime +
                 ", filterSubject='" + filterSubject + '\'' +
                 ", " + objectString("external", external) +
@@ -135,7 +137,7 @@ abstract class SourceBase implements JsonSerializable {
 
         SourceBase that = (SourceBase) o;
 
-        if (optStartSeq != that.optStartSeq) return false;
+        if (startSeq != that.startSeq) return false;
         if (sourceName != null ? !sourceName.equals(that.sourceName) : that.sourceName != null) return false;
         if (startTime != null ? !startTime.equals(that.startTime) : that.startTime != null) return false;
         if (filterSubject != null ? !filterSubject.equals(that.filterSubject) : that.filterSubject != null)
@@ -147,7 +149,7 @@ abstract class SourceBase implements JsonSerializable {
     @Override
     public int hashCode() {
         int result = sourceName != null ? sourceName.hashCode() : 0;
-        result = 31 * result + (int) (optStartSeq ^ (optStartSeq >>> 32));
+        result = 31 * result + (int) (startSeq ^ (startSeq >>> 32));
         result = 31 * result + (startTime != null ? startTime.hashCode() : 0);
         result = 31 * result + (filterSubject != null ? filterSubject.hashCode() : 0);
         result = 31 * result + (external != null ? external.hashCode() : 0);

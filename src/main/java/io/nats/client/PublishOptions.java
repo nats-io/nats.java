@@ -16,8 +16,7 @@ package io.nats.client;
 import java.time.Duration;
 import java.util.Properties;
 
-import static io.nats.client.support.Validator.emptyAsNull;
-import static io.nats.client.support.Validator.validateStreamName;
+import static io.nats.client.support.Validator.*;
 
 /**
  * The PublishOptions class specifies the options for publishing with JetStream enabled servers.
@@ -99,7 +98,6 @@ public class PublishOptions {
 
     /**
      * Gets the expected last sequence number of the stream.
-     * Deprecated because a sequence number is an unsigned long
      * @return sequence number
      */
     public long getExpectedLastSequence() {
@@ -206,7 +204,7 @@ public class PublishOptions {
          * @return builder
          */
         public Builder expectedLastSequence(long sequence) {
-            expectedLastSeq = sequence;
+            expectedLastSeq = validateNotNegative(sequence, "Last Sequence");
             return this;
         }
 

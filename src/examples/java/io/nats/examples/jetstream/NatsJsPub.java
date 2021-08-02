@@ -82,7 +82,7 @@ public class NatsJsPub {
                 // more. See the NatsJsPubWithOptionsUseCases.java example for details.
                 // An exception will be thrown if there is a failure.
                 PublishAck pa = js.publish(msg);
-                System.out.printf("Published message %s on subject %s, stream %s, seqno %s.\n",
+                System.out.printf("Published message %s on subject %s, stream %s, seqno %d.\n",
                        data, exArgs.subject, pa.getStream(), pa.getSeqno());
             }
         }
