@@ -118,7 +118,6 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         }
 
         // coverage for null StreamConfiguration, millis maxAge, millis duplicateWindow
-        // coverage for deprecated
         StreamConfiguration scCov = StreamConfiguration.builder(null)
                 .maxAge(1111)
                 .duplicateWindow(2222)
@@ -292,8 +291,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         assertSame(RetentionPolicy.Interest, sc.getRetentionPolicy());
         assertEquals(730, sc.getMaxConsumers());
-        assertEquals(731, sc.getMaxMsgs()); // coverage for deprecated
-        assertEquals(732, sc.getMaxBytes()); // coverage for deprecated
+        assertEquals(731, sc.getMaxMsgs());
+        assertEquals(732, sc.getMaxBytes());
         assertEquals(731, sc.getMaxMsgs());
         assertEquals(732, sc.getMaxBytes());
         assertEquals(Duration.ofNanos(42000000000L), sc.getMaxAge());

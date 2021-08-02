@@ -42,7 +42,16 @@ public class PurgeResponse extends ApiResponse<PurgeResponse> {
      * Returns the number of items purged from the stream
      * @return the count
      */
-    public long getPurgedCount() {
+    @Deprecated
+    public int getPurgedCount() {
+        return new Long(purged).intValue();
+    }
+
+    /**
+     * Returns the number of items purged from the stream
+     * @return the count
+     */
+    public long getPurged() {
         return purged;
     }
 

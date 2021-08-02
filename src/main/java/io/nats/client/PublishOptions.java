@@ -37,13 +37,7 @@ public class PublishOptions {
     /**
      * Use this variable to unset a sequence number in publish options.
      */
-    @Deprecated
-    public static final long UNSET_LAST_SEQUENCE = 0;
-
-    /**
-     * Use this variable to unset a sequence number in publish options.
-     */
-    public static final long UNSET_LAST_SEQUENCE_NUM = -1;
+    public static final long UNSET_LAST_SEQUENCE = -1;
 
     private final String stream;
     private final Duration streamTimeout;
@@ -139,7 +133,7 @@ public class PublishOptions {
         Duration streamTimeout = DEFAULT_TIMEOUT;
         String expectedStream;
         String expectedLastId;
-        long expectedLastSeq = UNSET_LAST_SEQUENCE_NUM;
+        long expectedLastSeq = UNSET_LAST_SEQUENCE;
         String msgId;
 
         /**
@@ -234,7 +228,7 @@ public class PublishOptions {
          */
         public Builder clearExpected() {
             expectedLastId = null;
-            expectedLastSeq = UNSET_LAST_SEQUENCE_NUM;
+            expectedLastSeq = UNSET_LAST_SEQUENCE;
             msgId = null;
             return this;
         }

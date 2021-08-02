@@ -279,7 +279,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             PurgeResponse pr = jsm.purgeStream(STREAM);
             assertTrue(pr.isSuccess());
-            assertEquals(1, pr.getPurgedCount());
+            assertEquals(1, pr.getPurged());
         });
     }
 

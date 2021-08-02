@@ -63,7 +63,7 @@ public class NatsJsPubWithOptionsUseCases {
             // Manual re-use 1. Clearing some fields
             pubOptsBuilder
                     .expectedLastMsgId("mid1")
-                    .expectedLastSequence(PublishOptions.UNSET_LAST_SEQUENCE_NUM)
+                    .expectedLastSequence(PublishOptions.UNSET_LAST_SEQUENCE)
                     .messageId(null);
             pa = js.publish(exArgs.subject, "message2".getBytes(), pubOptsBuilder.build());
             System.out.printf("Published message on subject %s, stream %s, seqno %s.\n",
