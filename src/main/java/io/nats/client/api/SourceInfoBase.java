@@ -14,7 +14,6 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonUtils;
-import io.nats.client.support.Ulong;
 
 import java.time.Duration;
 
@@ -23,14 +22,14 @@ import static io.nats.client.support.JsonUtils.*;
 
 abstract class SourceInfoBase {
     private final String name;
-    private final Ulong lag;
+    private final long lag;
     private final Duration active;
     private final Error error;
     private final String objectName;
 
     SourceInfoBase(String json, String objectName) {
         name = readString(json, NAME_RE);
-        lag = JsonUtils.readUlong(json, LAG_RE, Ulong.ZERO);
+        lag = JsonUtils.readLong(json, LAG_RE, 0);
         active = JsonUtils.readNanos(json, ACTIVE_RE, Duration.ZERO);
         error = Error.optionalInstance(json);
         this.objectName = normalize(objectName);
@@ -45,12 +44,7 @@ abstract class SourceInfoBase {
         return name;
     }
 
-    @Deprecated
     public long getLag() {
-        return lag.value().longValueExact();
-    }
-
-    public Ulong getLagCount() {
         return lag;
     }
 

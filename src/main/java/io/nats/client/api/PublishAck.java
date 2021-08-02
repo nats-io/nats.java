@@ -15,7 +15,6 @@ package io.nats.client.api;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
 import io.nats.client.support.JsonUtils;
-import io.nats.client.support.Ulong;
 
 import java.io.IOException;
 
@@ -27,7 +26,7 @@ import static io.nats.client.support.ApiConstants.*;
 public class PublishAck extends ApiResponse<PublishAck> {
 
     private final String stream;
-    private final Ulong seq;
+    private final long seq;
     private final boolean duplicate;
 
     public PublishAck(Message msg) throws IOException, JetStreamApiException {
@@ -37,8 +36,8 @@ public class PublishAck extends ApiResponse<PublishAck> {
         if (stream == null) {
             throw new IOException("Invalid JetStream ack.");
         }
-        seq = JsonUtils.readUlong(json, SEQ_RE, Ulong.ZERO);
-        if (seq.equalTo(Ulong.ZERO)) {
+        seq = JsonUtils.readLong(json, SEQ_RE, 0);
+        if (seq == 0) {
             throw new IOException("Invalid JetStream ack.");
         }
         duplicate = JsonUtils.readBoolean(json, DUPLICATE_RE);
@@ -48,16 +47,7 @@ public class PublishAck extends ApiResponse<PublishAck> {
      * Get the stream sequence number for the corresponding published message.
      * @return the sequence number for the stored message.
      */
-    @Deprecated
     public long getSeqno() {
-        return seq.value().longValueExact();
-    }
-
-    /**
-     * Get the stream sequence number for the corresponding published message.
-     * @return the sequence number for the stored message.
-     */
-    public Ulong getSequenceNum() {
         return seq;
     }
 

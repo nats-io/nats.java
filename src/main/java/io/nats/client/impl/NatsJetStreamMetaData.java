@@ -13,8 +13,6 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.support.Ulong;
-
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -29,9 +27,9 @@ public class NatsJetStreamMetaData {
 
     private final String stream;
     private final String consumer;
-    private final Ulong delivered;
-    private final Ulong streamSeq;
-    private final Ulong consumerSeq;
+    private final long delivered;
+    private final long streamSeq;
+    private final long consumerSeq;
     private final ZonedDateTime timestamp;
     private long pending = -1;
 
@@ -60,9 +58,9 @@ public class NatsJetStreamMetaData {
 
         stream = parts[2];
         consumer = parts[3];
-        delivered = new Ulong(parts[4]);
-        streamSeq = new Ulong(parts[5]);
-        consumerSeq = new Ulong(parts[6]);
+        delivered = Long.parseLong(parts[4]);
+        streamSeq = Long.parseLong(parts[5]);
+        consumerSeq = Long.parseLong(parts[6]);
 
         // not so clever way to separate nanos from seconds
         long tsi = Long.parseLong(parts[7]);
@@ -99,17 +97,7 @@ public class NatsJetStreamMetaData {
      *
      * @return delivered count.
      */
-    @Deprecated
     public long deliveredCount() {
-        return delivered.value().longValueExact();
-    }
-
-    /**
-     * Gets the number of times this message has been delivered.
-     *
-     * @return delivered count.
-     */
-    public Ulong getDelivered() {
         return delivered;
     }
 
@@ -118,17 +106,7 @@ public class NatsJetStreamMetaData {
      *
      * @return sequence number
      */
-    @Deprecated
     public long streamSequence() {
-        return streamSeq.value().longValueExact();
-    }
-
-    /**
-     * Gets the stream sequence number of the message.
-     *
-     * @return sequence number
-     */
-    public Ulong getStreamSequence() {
         return streamSeq;
     }
 
@@ -137,17 +115,7 @@ public class NatsJetStreamMetaData {
      *
      * @return sequence number
      */
-    @Deprecated
     public long consumerSequence() {
-        return consumerSeq.value().longValueExact();
-    }
-
-    /**
-     * Gets consumer sequence number of this message.
-     *
-     * @return sequence number
-     */
-    public Ulong getConsumerSequence() {
         return consumerSeq;
     }
 

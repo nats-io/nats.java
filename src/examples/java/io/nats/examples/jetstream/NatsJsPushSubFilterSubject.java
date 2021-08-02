@@ -76,19 +76,19 @@ public class NatsJsPushSubFilterSubject {
 
                 Message m = sub.nextMessage(Duration.ofSeconds(1));
                 System.out.println("1A1. Message should be from " + subjectA + ": " + m.getSubject()
-                        + " sequence # 1: " + m.metaData().getStreamSequence());
+                        + " sequence # 1: " + m.metaData().streamSequence());
 
                 m = sub.nextMessage(Duration.ofSeconds(1));
                 System.out.println("1B2. Message should be from " + subjectB + ": " + m.getSubject()
-                        + " sequence # 2: " + m.metaData().getStreamSequence());
+                        + " sequence # 2: " + m.metaData().streamSequence());
 
                 m = sub.nextMessage(Duration.ofSeconds(1));
                 System.out.println("1A3. Message should be from " + subjectA + ": " + m.getSubject()
-                        + " sequence # 3: " + m.metaData().getStreamSequence());
+                        + " sequence # 3: " + m.metaData().streamSequence());
 
                 m = sub.nextMessage(Duration.ofSeconds(1));
                 System.out.println("1B4. Message should be from " + subjectB + ": " + m.getSubject()
-                        + " sequence # 4: " + m.metaData().getStreamSequence());
+                        + " sequence # 4: " + m.metaData().streamSequence());
 
                 // 2. create a subscription that subscribes only to the A subject
                 cc = ConsumerConfiguration.builder()
@@ -103,11 +103,11 @@ public class NatsJsPushSubFilterSubject {
 
                 m = sub.nextMessage(Duration.ofSeconds(1));
                 System.out.println("2A1. Message should be from " + subjectA + ": " + m.getSubject()
-                        + " sequence # 1: " + m.metaData().getStreamSequence());
+                        + " sequence # 1: " + m.metaData().streamSequence());
 
                 m = sub.nextMessage(Duration.ofSeconds(1));
                 System.out.println("2A3. Message should be from " + subjectA + ": " + m.getSubject()
-                        + " sequence # 3: " + m.metaData().getStreamSequence());
+                        + " sequence # 3: " + m.metaData().streamSequence());
 
                 m = sub.nextMessage(Duration.ofSeconds(1));
                 System.out.println("2x. Message should be null: " + m);
@@ -125,11 +125,11 @@ public class NatsJsPushSubFilterSubject {
 
                 m = sub.nextMessage(Duration.ofSeconds(1));
                 System.out.println("3A2. Message should be from " + subjectB + ": " + m.getSubject()
-                        + " sequence # 2: " + m.metaData().getStreamSequence());
+                        + " sequence # 2: " + m.metaData().streamSequence());
 
                 m = sub.nextMessage(Duration.ofSeconds(1));
                 System.out.println("3A4. Message should be from " + subjectB + ": " + m.getSubject()
-                        + " sequence # 4: " + m.metaData().getStreamSequence());
+                        + " sequence # 4: " + m.metaData().streamSequence());
 
                 m = sub.nextMessage(Duration.ofSeconds(1));
                 System.out.println("3x. Message should be null: " + m);

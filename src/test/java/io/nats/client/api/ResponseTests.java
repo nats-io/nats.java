@@ -14,7 +14,6 @@
 package io.nats.client.api;
 
 import io.nats.client.impl.JetStreamTestBase;
-import io.nats.client.support.Ulong;
 import org.junit.jupiter.api.Test;
 
 import static io.nats.client.utils.ResourceUtils.dataAsString;
@@ -27,8 +26,7 @@ public class ResponseTests extends JetStreamTestBase {
         String json = dataAsString("PurgeResponse.json");
         PurgeResponse pr = new PurgeResponse(getDataMessage(json));
         assertTrue(pr.isSuccess());
-        assertEquals(5, pr.getPurgedCount()); // coverage for deprecated
-        assertEquals(new Ulong(5), pr.getPurged());
+        assertEquals(5, pr.getPurgedCount());
         assertNotNull(pr.toString()); // COVERAGE
     }
 }

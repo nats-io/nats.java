@@ -133,29 +133,20 @@ public final class JsonUtilsTests {
         JsonUtils.addField(sb, "lminusone", -1);
         assertEquals(0, sb.length());
 
-        JsonUtils.addField(sb, "uzero", Ulong.ZERO);
-        assertEquals(0, sb.length());
-
-        JsonUtils.addField(sb, "uone", Ulong.ONE);
-        assertEquals(9, sb.length());
-
-        JsonUtils.addField(sb, "umax", Ulong.MAX_VALUE);
-        assertEquals(37, sb.length());
-
         JsonUtils.addFieldAsUnsigned(sb, "uzero", 0);
-        assertEquals(47, sb.length());
+        assertEquals(10, sb.length());
 
         JsonUtils.addStrings(sb, "foo", new String[]{"bar"});
-        assertEquals(61, sb.length());
+        assertEquals(24, sb.length());
 
         JsonUtils.addField(sb, "zero", 0);
-        assertEquals(70, sb.length());
+        assertEquals(33, sb.length());
 
         JsonUtils.addField(sb, "lone", 1);
-        assertEquals(79, sb.length());
+        assertEquals(42, sb.length());
 
         JsonUtils.addField(sb, "lmax", Long.MAX_VALUE);
-        assertEquals(106, sb.length());
+        assertEquals(69, sb.length());
     }
 
     @Test
@@ -188,12 +179,7 @@ public final class JsonUtilsTests {
         assertEquals(999, al.get());
 
         JsonUtils.readLong("\"num\":18446744073709551615", RE, al::set);
-        assertEquals(999, al.get());
-
-        assertNotNull(JsonUtils.parseLong("1", null));
-        assertNull(JsonUtils.parseLong("invalid", null));
-        assertNull(JsonUtils.parseLong("18446744073709551615", null));
-        assertNull(JsonUtils.parseLong("18446744073709551614", null));
+        assertEquals(-1, al.get());
     }
 
     @Test

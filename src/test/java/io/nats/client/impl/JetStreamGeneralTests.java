@@ -17,7 +17,6 @@ import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.JsPrefixManager;
 import io.nats.client.support.NatsJetStreamConstants;
-import io.nats.client.support.Ulong;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -71,8 +70,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             createTestStream(nc);
             JetStream js = nc.jetStream();
             PublishAck ack = jsPublish(js);
-            assertEquals(Ulong.ONE, ack.getSequenceNum());
-            assertEquals(1, ack.getSeqno()); // coverage for deprecated
+            assertEquals(1, ack.getSeqno());
         });
     }
 
@@ -225,16 +223,16 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             Message m = sub.nextMessage(Duration.ofSeconds(1));
             assertEquals(subjectA, m.getSubject());
-            assertEquals(Ulong.ONE, m.metaData().getStreamSequence());
+            assertEquals(1, m.metaData().streamSequence());
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertEquals(subjectB, m.getSubject());
-            assertEquals(new Ulong(2), m.metaData().getStreamSequence());
+            assertEquals(2, m.metaData().streamSequence());
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertEquals(subjectA, m.getSubject());
-            assertEquals(new Ulong(3), m.metaData().getStreamSequence());
+            assertEquals(3, m.metaData().streamSequence());
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertEquals(subjectB, m.getSubject());
-            assertEquals(new Ulong(4), m.metaData().getStreamSequence());
+            assertEquals(4, m.metaData().streamSequence());
 
             // subscribe to A
             cc = ConsumerConfiguration.builder().filterSubject(subjectA).ackPolicy(AckPolicy.None).build();
@@ -244,10 +242,10 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertEquals(subjectA, m.getSubject());
-            assertEquals(new Ulong(1), m.metaData().getStreamSequence());
+            assertEquals(1, m.metaData().streamSequence());
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertEquals(subjectA, m.getSubject());
-            assertEquals(new Ulong(3), m.metaData().getStreamSequence());
+            assertEquals(3, m.metaData().streamSequence());
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertNull(m);
 
@@ -259,10 +257,10 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertEquals(subjectB, m.getSubject());
-            assertEquals(new Ulong(2), m.metaData().getStreamSequence());
+            assertEquals(2, m.metaData().streamSequence());
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertEquals(subjectB, m.getSubject());
-            assertEquals(new Ulong(4), m.metaData().getStreamSequence());
+            assertEquals(4, m.metaData().streamSequence());
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertNull(m);
         });
@@ -294,9 +292,9 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             Message m = sub.nextMessage(Duration.ofSeconds(1));
             assertEquals(subjectA, m.getSubject());
-            assertEquals(new Ulong(1), m.metaData().getStreamSequence());
+            assertEquals(1, m.metaData().streamSequence());
             m = sub.nextMessage(Duration.ofSeconds(1));
-            assertEquals(new Ulong(3), m.metaData().getStreamSequence());
+            assertEquals(3, m.metaData().streamSequence());
             sub.unsubscribe();
 
             jsPublish(js, subjectA, 1);
@@ -309,9 +307,9 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertEquals(subjectA, m.getSubject());
-            assertEquals(new Ulong(5), m.metaData().getStreamSequence());
+            assertEquals(5, m.metaData().streamSequence());
             m = sub.nextMessage(Duration.ofSeconds(1));
-            assertEquals(new Ulong(7), m.metaData().getStreamSequence());
+            assertEquals(7, m.metaData().streamSequence());
             sub.unsubscribe();
 
             ConsumerConfiguration cc1 = ConsumerConfiguration.builder().filterSubject(subjectWild).build();
@@ -442,7 +440,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             s.unsubscribe();
 
             jsPublish(js, SUBJECT, 3, 1);
-            pso = PushSubscribeOptions.directBind(STREAM, DURABLE);
+            pso = PushSubscribeOptions.bindDirect(STREAM, DURABLE);
             s = js.subscribe(SUBJECT, pso);
             m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
@@ -511,7 +509,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
             createTestStream(nc);
 
-            PushSubscribeOptions pushso = PushSubscribeOptions.directBind(STREAM, DURABLE);
+            PushSubscribeOptions pushso = PushSubscribeOptions.bindDirect(STREAM, DURABLE);
             assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushso));
 
             PullSubscribeOptions pullso = PullSubscribeOptions.directBind(STREAM, DURABLE);

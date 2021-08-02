@@ -15,7 +15,6 @@ package io.nats.client.api;
 
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.Ulong;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
@@ -153,8 +152,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         // STEPPED like this so the equals returns false on different portion of the object
         // by the end I've built an equal object
         assertNotEqualsEqualsHashcode(s1, m1, sb.startSeq(999), mb.startSeq(999));
-        assertNotEqualsEqualsHashcode(s1, m1, sb.startSeq(m.getStartSeq()), mb.startSeq(m.getStartSeq())); // coverage for deprecated
-        assertNotEqualsEqualsHashcode(s1, m1, sb.startSeq(m.getOptionalStartSequence()), mb.startSeq(m.getOptionalStartSequence())); // coverage for deprecated
+        assertNotEqualsEqualsHashcode(s1, m1, sb.startSeq(m.getStartSeq()), mb.startSeq(m.getStartSeq()));
 
         assertNotEqualsEqualsHashcode(s1, m1, sb.sourceName(null), mb.sourceName(null));
         assertNotEqualsEqualsHashcode(s1, m1, sb.sourceName("not"), mb.sourceName("not"));
@@ -317,7 +315,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         assertNotNull(sc.getMirror());
         assertEquals("eman", sc.getMirror().getSourceName());
-        assertEquals(new Ulong(736), sc.getMirror().getOptionalStartSequence());
+        assertEquals(736, sc.getMirror().getStartSeq());
         assertEquals(zdt, sc.getMirror().getStartTime());
         assertEquals("mfsub", sc.getMirror().getFilterSubject());
 
@@ -327,13 +325,13 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         assertEquals(2, sc.getSources().size());
 
-        validateSource(sc.getSources().get(0), "s0", new Ulong(737), "s0sub", "s0api", "s0dlvrsub", zdt);
-        validateSource(sc.getSources().get(1), "s1", new Ulong(738), "s1sub", "s1api", "s1dlvrsub", zdt);
+        validateSource(sc.getSources().get(0), "s0", 737, "s0sub", "s0api", "s0dlvrsub", zdt);
+        validateSource(sc.getSources().get(1), "s1", 738, "s1sub", "s1api", "s1dlvrsub", zdt);
     }
 
-    private void validateSource(Source source, String name, Ulong seq, String filter, String api, String deliver, ZonedDateTime zdt) {
+    private void validateSource(Source source, String name, long seq, String filter, String api, String deliver, ZonedDateTime zdt) {
         assertEquals(name, source.getSourceName());
-        assertEquals(seq, source.getOptionalStartSequence());
+        assertEquals(seq, source.getStartSeq());
         assertEquals(zdt, source.getStartTime());
         assertEquals(filter, source.getFilterSubject());
 

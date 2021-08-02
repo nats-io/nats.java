@@ -70,6 +70,10 @@ public abstract class JsonUtils {
         return buildPattern(field, STRING_RE);
     }
 
+    public static Pattern number_pattern(String field) {
+        return integer_pattern(field);
+    }
+
     public static Pattern integer_pattern(String field) {
         return buildPattern(field, INTEGER_RE);
     }
@@ -298,18 +302,6 @@ public abstract class JsonUtils {
      * Appends a json field to a string builder.
      * @param sb string builder
      * @param fname fieldname
-     * @param value field value
-     */
-    public static void addField(StringBuilder sb, String fname, Ulong value) {
-        if (value != null && value.greaterThan(Ulong.ZERO)) {
-            sb.append(Q).append(fname).append(QCOLON).append(value.toString()).append(COMMA);
-        }
-    }
-
-    /**
-     * Appends a json field to a string builder.
-     * @param sb string builder
-     * @param fname fieldname
      * @param value duration value
      */
     public static void addFieldAsNanos(StringBuilder sb, String fname, Duration value) {
@@ -440,26 +432,36 @@ public abstract class JsonUtils {
 
     public static long readLong(String json, Pattern pattern, long dflt) {
         Matcher m = pattern.matcher(json);
-        return m.find() ? parseLong(m.group(1), dflt) : dflt;
+        return m.find() ? safeParseLong(m.group(1), dflt) : dflt;
     }
 
     public static void readLong(String json, Pattern pattern, LongConsumer c) {
         Matcher m = pattern.matcher(json);
         if (m.find()) {
-            Long l = parseLong(m.group(1), null);
+            Long l = safeParseLong(m.group(1));
             if (l != null) {
                 c.accept(l);
             }
         }
     }
 
-    public static Long parseLong(String s, Long dflt) {
+    public static Long safeParseLong(String s) {
         try {
             return Long.parseLong(s);
         }
-        catch (Exception e) {
-            return dflt;
+        catch (Exception e1) {
+            try {
+                return Long.parseUnsignedLong(s);
+            }
+            catch (Exception e2) {
+                return null;
+            }
         }
+    }
+
+    public static long safeParseLong(String s, long dflt) {
+        Long l = safeParseLong(s);
+        return l == null ? dflt : l;
     }
 
     public static long readUnsignedLong(String json, Pattern pattern, long dflt) {
@@ -470,20 +472,6 @@ public abstract class JsonUtils {
     public static long parseUnsignedLong(String s, long dflt) {
         try {
             return Long.parseUnsignedLong(s);
-        }
-        catch (NumberFormatException e) {
-            return dflt;
-        }
-    }
-
-    public static Ulong readUlong(String json, Pattern pattern, Ulong dflt) {
-        Matcher m = pattern.matcher(json);
-        return m.find() ? parseUlong(m.group(1), dflt) : dflt;
-    }
-
-    public static Ulong parseUlong(String s, Ulong dflt) {
-        try {
-            return new Ulong(s);
         }
         catch (NumberFormatException e) {
             return dflt;

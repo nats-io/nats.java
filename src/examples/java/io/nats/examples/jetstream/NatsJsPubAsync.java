@@ -93,7 +93,7 @@ public class NatsJsPubAsync {
                     try {
                         PublishAck pa = f.get();
                         System.out.printf("Publish Succeeded on subject %s, stream %s, seqno %s.\n",
-                                exArgs.subject, pa.getStream(), pa.getSequenceNum());
+                                exArgs.subject, pa.getStream(), pa.getSeqno());
                     }
                     catch (ExecutionException ee) {
                         System.out.println("Publish Failed " + ee);

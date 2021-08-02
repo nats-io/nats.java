@@ -15,7 +15,6 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
-import io.nats.client.support.Ulong;
 
 import java.time.ZonedDateTime;
 
@@ -24,7 +23,7 @@ import static io.nats.client.support.JsonUtils.*;
 
 abstract class SourceBase implements JsonSerializable {
     private final String sourceName;
-    private final Ulong optStartSeq;
+    private final long optStartSeq;
     private final ZonedDateTime startTime;
     private final String filterSubject;
     private final External external;
@@ -32,14 +31,14 @@ abstract class SourceBase implements JsonSerializable {
 
     SourceBase(String objectName, String json) {
         sourceName = JsonUtils.readString(json, NAME_RE);
-        optStartSeq = JsonUtils.readUlong(json, OPT_START_SEQ_RE, Ulong.ZERO);
+        optStartSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, 0);
         startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
         filterSubject = JsonUtils.readString(json, FILTER_SUBJECT_RE);
         external = External.optionalInstance(json);
         this.objectName = normalize(objectName);
     }
 
-    SourceBase(String objectName, String sourceName, Ulong optStartSeq, ZonedDateTime startTime, String filterSubject, External external) {
+    SourceBase(String objectName, String sourceName, long optStartSeq, ZonedDateTime startTime, String filterSubject, External external) {
         this.sourceName = sourceName;
         this.optStartSeq = optStartSeq;
         this.startTime = startTime;
@@ -67,12 +66,7 @@ abstract class SourceBase implements JsonSerializable {
         return sourceName;
     }
 
-    @Deprecated
     public long getStartSeq() {
-        return optStartSeq.value().longValueExact();
-    }
-
-    public Ulong getOptionalStartSequence() {
         return optStartSeq;
     }
 
@@ -101,7 +95,7 @@ abstract class SourceBase implements JsonSerializable {
 
     public abstract static class SourceBaseBuilder<T> {
         String sourceName;
-        Ulong startSeq;
+        long startSeq;
         ZonedDateTime startTime;
         String filterSubject;
         External external;
@@ -114,11 +108,6 @@ abstract class SourceBase implements JsonSerializable {
         }
 
         public T startSeq(long startSeq) {
-            this.startSeq = new Ulong(startSeq);
-            return getThis();
-        }
-
-        public T startSeq(Ulong startSeq) {
             this.startSeq = startSeq;
             return getThis();
         }
@@ -146,8 +135,8 @@ abstract class SourceBase implements JsonSerializable {
 
         SourceBase that = (SourceBase) o;
 
+        if (optStartSeq != that.optStartSeq) return false;
         if (sourceName != null ? !sourceName.equals(that.sourceName) : that.sourceName != null) return false;
-        if (optStartSeq != null ? !optStartSeq.equals(that.optStartSeq) : that.optStartSeq != null) return false;
         if (startTime != null ? !startTime.equals(that.startTime) : that.startTime != null) return false;
         if (filterSubject != null ? !filterSubject.equals(that.filterSubject) : that.filterSubject != null)
             return false;
@@ -158,7 +147,7 @@ abstract class SourceBase implements JsonSerializable {
     @Override
     public int hashCode() {
         int result = sourceName != null ? sourceName.hashCode() : 0;
-        result = 31 * result + (optStartSeq != null ? optStartSeq.hashCode() : 0);
+        result = 31 * result + (int) (optStartSeq ^ (optStartSeq >>> 32));
         result = 31 * result + (startTime != null ? startTime.hashCode() : 0);
         result = 31 * result + (filterSubject != null ? filterSubject.hashCode() : 0);
         result = 31 * result + (external != null ? external.hashCode() : 0);

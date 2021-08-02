@@ -19,7 +19,6 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.api.PublishAck;
 import io.nats.client.support.JsonUtils;
-import io.nats.client.support.Ulong;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
@@ -176,7 +175,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         Headers merged = headers == null ? null : new Headers(headers);
 
         if (opts != null) {
-            merged = mergeNum(merged, EXPECTED_LAST_SEQ_HDR, opts.getExpectedLastSequenceNum());
+            merged = mergeNum(merged, EXPECTED_LAST_SEQ_HDR, opts.getExpectedLastSequence());
             merged = mergeString(merged, EXPECTED_LAST_MSG_ID_HDR, opts.getExpectedLastMsgId());
             merged = mergeString(merged, EXPECTED_STREAM_HDR, opts.getExpectedStream());
             merged = mergeString(merged, MSG_ID_HDR, opts.getMessageId());
@@ -185,8 +184,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         return merged;
     }
 
-    private Headers mergeNum(Headers h, String key, Ulong value) {
-        return value.greaterThan(Ulong.ZERO) ? _mergeNum(h, key, value.toString()): h;
+    private Headers mergeNum(Headers h, String key, long value) {
+        return value > 0 ? _mergeNum(h, key, Long.toString(value)): h;
     }
 
     private Headers mergeString(Headers h, String key, String value) {
@@ -440,11 +439,11 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         @Override
         public void onMessage(Message msg) throws InterruptedException {
             try  {
+                userMH.onMessage(msg);
                 // don't ack if not JetStream
                 if (msg.isJetStream()) {
                     msg.ack();
                 }
-                userMH.onMessage(msg);
             } catch (Exception e) {
                 ErrorListener el = conn.getOptions().getErrorListener();
                 if (el != null) {

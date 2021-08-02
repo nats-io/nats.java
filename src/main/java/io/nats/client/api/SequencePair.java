@@ -14,7 +14,6 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonUtils;
-import io.nats.client.support.Ulong;
 
 import static io.nats.client.support.ApiConstants.CONSUMER_SEQ_RE;
 import static io.nats.client.support.ApiConstants.STREAM_SEQ_RE;
@@ -24,12 +23,12 @@ import static io.nats.client.support.ApiConstants.STREAM_SEQ_RE;
  * stream.
  */
 public class SequencePair {
-    private final Ulong consumerSeq;
-    private final Ulong streamSeq;
+    private final long consumerSeq;
+    private final long streamSeq;
 
     SequencePair(String json) {
-        consumerSeq = JsonUtils.readUlong(json, CONSUMER_SEQ_RE, Ulong.ZERO);
-        streamSeq = JsonUtils.readUlong(json, STREAM_SEQ_RE, Ulong.ZERO);
+        consumerSeq = JsonUtils.readLong(json, CONSUMER_SEQ_RE, 0);
+        streamSeq = JsonUtils.readLong(json, STREAM_SEQ_RE, 0);
     }
 
     /**
@@ -37,17 +36,7 @@ public class SequencePair {
      *
      * @return sequence number.
      */
-    @Deprecated
     public long getConsumerSequence() {
-        return consumerSeq.value().longValueExact();
-    }
-
-    /**
-     * Gets the consumer sequence number.
-     *
-     * @return sequence number.
-     */
-    public Ulong getConsumerSequenceNum() {
         return consumerSeq;
     }
 
@@ -56,17 +45,7 @@ public class SequencePair {
      *
      * @return sequence number.
      */
-    @Deprecated
     public long getStreamSequence() {
-        return streamSeq.value().longValueExact();
-    }
-
-    /**
-     * Gets the stream sequence number.
-     *
-     * @return sequence number.
-     */
-    public Ulong getStreamSequenceNum() {
         return streamSeq;
     }
 

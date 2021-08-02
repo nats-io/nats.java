@@ -17,7 +17,6 @@ import io.nats.client.*;
 import io.nats.client.api.PublishAck;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
-import io.nats.client.support.Ulong;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -39,33 +38,33 @@ public class JetStreamPubTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             PublishAck pa = js.publish(SUBJECT, dataBytes(1));
-            assertPublishAck(pa, new Ulong(1));
+            assertPublishAck(pa, 1);
 
             Message msg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
             pa = js.publish(msg);
-            assertPublishAck(pa, new Ulong(2));
+            assertPublishAck(pa, 2);
 
             PublishOptions po = PublishOptions.builder().build();
             pa = js.publish(SUBJECT, dataBytes(3), po);
-            assertPublishAck(pa, new Ulong(3));
+            assertPublishAck(pa, 3);
 
             msg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(4)).build();
             pa = js.publish(msg, po);
-            assertPublishAck(pa, new Ulong(4));
+            assertPublishAck(pa, 4);
 
             pa = js.publish(SUBJECT, null);
-            assertPublishAck(pa, new Ulong(5));
+            assertPublishAck(pa, 5);
 
             msg = NatsMessage.builder().subject(SUBJECT).build();
             pa = js.publish(msg);
-            assertPublishAck(pa, new Ulong(6));
+            assertPublishAck(pa, 6);
 
             pa = js.publish(SUBJECT, null, po);
-            assertPublishAck(pa, new Ulong(7));
+            assertPublishAck(pa, 7);
 
             msg = NatsMessage.builder().subject(SUBJECT).build();
             pa = js.publish(msg, po);
-            assertPublishAck(pa, new Ulong(8));
+            assertPublishAck(pa, 8);
 
             Subscription s = js.subscribe(SUBJECT);
             assertNextMessage(s, data(1));
@@ -92,10 +91,10 @@ public class JetStreamPubTests extends JetStreamTestBase {
         }
     }
 
-    private void assertPublishAck(PublishAck pa, Ulong seqno) {
+    private void assertPublishAck(PublishAck pa, long seqno) {
         assertEquals(STREAM, pa.getStream());
-        if (seqno.greaterThan(Ulong.ZERO)) {
-            assertEquals(seqno, pa.getSequenceNum());
+        if (seqno != -1) {
+            assertEquals(seqno, pa.getSeqno());
         }
         assertFalse(pa.isDuplicate());
     }
@@ -127,7 +126,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
             assertContainsMessage(s, datas);
             assertEquals(0, datas.size());
 
-            List<Ulong> seqnos = new ArrayList<>(Arrays.asList(new Ulong(1), new Ulong(2), new Ulong(3), new Ulong(4)));
+            List<Long> seqnos = new ArrayList<>(Arrays.asList(1L, 2L, 3L, 4L));
             for (CompletableFuture<PublishAck> future : futures) {
                 assertContainsPublishAck(future.get(), seqnos);
             }
@@ -175,11 +174,11 @@ public class JetStreamPubTests extends JetStreamTestBase {
         datas.remove(data);
     }
 
-    private void assertContainsPublishAck(PublishAck pa, List<Ulong> seqnos) {
+    private void assertContainsPublishAck(PublishAck pa, List<Long> seqnos) {
         assertEquals(STREAM, pa.getStream());
         assertFalse(pa.isDuplicate());
-        assertTrue(seqnos.contains(pa.getSequenceNum()));
-        seqnos.remove(pa.getSequenceNum());
+        assertTrue(seqnos.contains(pa.getSeqno()));
+        seqnos.remove(pa.getSeqno());
     }
 
     @Test
@@ -193,21 +192,21 @@ public class JetStreamPubTests extends JetStreamTestBase {
                     .messageId(messageId(1))
                     .build();
             PublishAck pa = js.publish(SUBJECT, dataBytes(1), po);
-            assertPublishAck(pa, new Ulong(1));
+            assertPublishAck(pa, 1);
 
             po = PublishOptions.builder()
                     .expectedLastMsgId(messageId(1))
                     .messageId(messageId(2))
                     .build();
             pa = js.publish(SUBJECT, dataBytes(2), po);
-            assertPublishAck(pa, new Ulong(2));
+            assertPublishAck(pa, 2);
 
             po = PublishOptions.builder()
-                    .expectedLastSequence(new Ulong(2))
+                    .expectedLastSequence(2)
                     .messageId(messageId(3))
                     .build();
             pa = js.publish(SUBJECT, dataBytes(3), po);
-            assertPublishAck(pa, new Ulong(3));
+            assertPublishAck(pa, 3);
 
             PublishOptions po1 = PublishOptions.builder().expectedStream(stream(999)).build();
             assertThrows(JetStreamApiException.class, () -> js.publish(SUBJECT, dataBytes(999), po1));
@@ -215,7 +214,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
             PublishOptions po2 = PublishOptions.builder().expectedLastMsgId(messageId(999)).build();
             assertThrows(JetStreamApiException.class, () -> js.publish(SUBJECT, dataBytes(999), po2));
 
-            PublishOptions po3 = PublishOptions.builder().expectedLastSequence(new Ulong(999)).build();
+            PublishOptions po3 = PublishOptions.builder().expectedLastSequence(999).build();
             assertThrows(JetStreamApiException.class, () -> js.publish(SUBJECT, dataBytes(999), po3));
         });
     }
@@ -244,7 +243,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
         String json = "{\"stream\":\"sname\", \"seq\":42, \"duplicate\":false}";
         PublishAck pa = new PublishAck(getDataMessage(json));
         assertEquals("sname", pa.getStream());
-        assertEquals(new Ulong(42), pa.getSequenceNum());
+        assertEquals(42, pa.getSeqno());
         assertFalse(pa.isDuplicate());
         assertNotNull(pa.toString());
     }

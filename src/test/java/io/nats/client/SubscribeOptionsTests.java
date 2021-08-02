@@ -105,10 +105,10 @@ public class SubscribeOptionsTests extends TestBase {
 
     @Test
     public void testDirectBindCreationErrors() {
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.directBind(null, DURABLE));
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.directBind(EMPTY, DURABLE));
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.directBind(STREAM, null));
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.directBind(STREAM, EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bindDirect(null, DURABLE));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bindDirect(EMPTY, DURABLE));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bindDirect(STREAM, null));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bindDirect(STREAM, EMPTY));
         assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(STREAM).directBind().build());
         assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(EMPTY).durable(DURABLE).directBind().build());
         assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().durable(DURABLE).directBind().build());

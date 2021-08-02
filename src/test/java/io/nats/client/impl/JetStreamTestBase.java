@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
-import io.nats.client.support.Ulong;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.function.Executable;
 
@@ -242,7 +241,7 @@ public class JetStreamTestBase extends TestBase {
         assertEquals(code, statusMsg.getStatus().getCode());
     }
 
-    public static void assertSource(JetStreamManagement jsm, String stream, Ulong msgCount, Ulong firstSeq)
+    public static void assertSource(JetStreamManagement jsm, String stream, Long msgCount, Long firstSeq)
             throws IOException, JetStreamApiException {
         sleep(1000);
         StreamInfo si = jsm.getStreamInfo(stream);
@@ -250,7 +249,7 @@ public class JetStreamTestBase extends TestBase {
         assertConfig(stream, msgCount, firstSeq, si);
     }
 
-    public static void assertMirror(JetStreamManagement jsm, String stream, String mirroring, Ulong msgCount, Ulong firstSeq)
+    public static void assertMirror(JetStreamManagement jsm, String stream, String mirroring, Long msgCount, Long firstSeq)
             throws IOException, JetStreamApiException {
         sleep(1000);
         StreamInfo si = jsm.getStreamInfo(stream);
@@ -262,17 +261,17 @@ public class JetStreamTestBase extends TestBase {
         assertConfig(stream, msgCount, firstSeq, si);
     }
 
-    public static void assertConfig(String stream, Ulong msgCount, Ulong firstSeq, StreamInfo si) {
+    public static void assertConfig(String stream, Long msgCount, Long firstSeq, StreamInfo si) {
         StreamConfiguration sc = si.getConfiguration();
         assertNotNull(sc);
         assertEquals(stream, sc.getName());
 
         StreamState ss = si.getStreamState();
         if (msgCount != null) {
-            assertEquals(msgCount, ss.getMessages());
+            assertEquals(msgCount, ss.getMsgCount());
         }
         if (firstSeq != null) {
-            assertEquals(firstSeq, ss.getFirstSequenceNum());
+            assertEquals(firstSeq, ss.getFirstSequence());
         }
     }
 

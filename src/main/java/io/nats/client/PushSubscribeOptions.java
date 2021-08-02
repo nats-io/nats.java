@@ -61,7 +61,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
      * @param durable the durable name
      * @return push subscribe options
      */
-    public static PushSubscribeOptions directBind(String stream, String durable) {
+    public static PushSubscribeOptions bindDirect(String stream, String durable) {
         return new PushSubscribeOptions.Builder().stream(stream).durable(durable).directBind().build();
     }
 

@@ -17,7 +17,6 @@ import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.Ulong;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +43,7 @@ public class ListRequestsTests extends JetStreamTestBase {
         assertEquals(5, ci.getNumAckPending());
         assertEquals(6, ci.getRedelivered());
         assertEquals(7, ci.getNumWaiting());
-        assertEquals(new Ulong(8), ci.getNumPendingMessages());
+        assertEquals(8, ci.getNumPending());
 
         ConsumerConfiguration cc = ci.getConsumerConfiguration();
         assertEquals("cname1", cc.getDurable());
@@ -56,12 +55,12 @@ public class ListRequestsTests extends JetStreamTestBase {
         assertEquals(ReplayPolicy.Instant, cc.getReplayPolicy());
 
         SequencePair sp = ci.getDelivered();
-        assertEquals(new Ulong(1), sp.getConsumerSequenceNum());
-        assertEquals(new Ulong(2), sp.getStreamSequenceNum());
+        assertEquals(1, sp.getConsumerSequence());
+        assertEquals(2, sp.getStreamSequence());
 
         sp = ci.getAckFloor();
-        assertEquals(new Ulong(3), sp.getConsumerSequenceNum());
-        assertEquals(new Ulong(4), sp.getStreamSequenceNum());
+        assertEquals(3, sp.getConsumerSequence());
+        assertEquals(4, sp.getStreamSequence());
 
         clr = new ConsumerListReader();
         clr.process(getDataMessage(EMPTY_JSON));
