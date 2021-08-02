@@ -412,7 +412,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testJetStreamSubscribeDirectPush() throws Exception {
+    public void testJetStreamSubscribeDirectBindPush() throws Exception {
         runInJsServer(nc -> {
             createTestStream(nc);
             JetStream js = nc.jetStream();
@@ -432,7 +432,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             pso = PushSubscribeOptions.builder()
                     .stream(STREAM)
                     .durable(DURABLE)
-                    .direct()
+                    .directBind()
                     .build();
             s = js.subscribe(SUBJECT, pso);
             m = s.nextMessage(DEFAULT_TIMEOUT);
@@ -442,28 +442,28 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             s.unsubscribe();
 
             jsPublish(js, SUBJECT, 3, 1);
-            pso = PushSubscribeOptions.direct(STREAM, DURABLE);
+            pso = PushSubscribeOptions.directBind(STREAM, DURABLE);
             s = js.subscribe(SUBJECT, pso);
             m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(data(3), new String(m.getData()));
 
             assertThrows(IllegalArgumentException.class,
-                    () -> PushSubscribeOptions.builder().stream(STREAM).direct().build());
+                    () -> PushSubscribeOptions.builder().stream(STREAM).directBind().build());
 
             assertThrows(IllegalArgumentException.class,
-                    () -> PushSubscribeOptions.builder().durable(DURABLE).direct().build());
+                    () -> PushSubscribeOptions.builder().durable(DURABLE).directBind().build());
 
             assertThrows(IllegalArgumentException.class,
-                    () -> PushSubscribeOptions.builder().stream(EMPTY).direct().build());
+                    () -> PushSubscribeOptions.builder().stream(EMPTY).directBind().build());
 
             assertThrows(IllegalArgumentException.class,
-                    () -> PushSubscribeOptions.builder().stream(STREAM).durable(EMPTY).direct().build());
+                    () -> PushSubscribeOptions.builder().stream(STREAM).durable(EMPTY).directBind().build());
         });
     }
 
     @Test
-    public void testJetStreamSubscribeDirectPull() throws Exception {
+    public void testJetStreamSubscribeDirectBindPull() throws Exception {
         runInJsServer(nc -> {
             createTestStream(nc);
             JetStream js = nc.jetStream();
@@ -485,7 +485,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             pso = PullSubscribeOptions.builder()
                     .stream(STREAM)
                     .durable(DURABLE)
-                    .direct()
+                    .directBind()
                     .build();
             s = js.subscribe(SUBJECT, pso);
             s.pull(1);
@@ -496,7 +496,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             s.unsubscribe();
 
             jsPublish(js, SUBJECT, 3, 1);
-            pso = PullSubscribeOptions.direct(STREAM, DURABLE);
+            pso = PullSubscribeOptions.directBind(STREAM, DURABLE);
             s = js.subscribe(SUBJECT, pso);
             s.pull(1);
             m = s.nextMessage(DEFAULT_TIMEOUT);
@@ -506,15 +506,15 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testJetStreamSubscribeDirectNotCreated() throws Exception {
+    public void testJetStreamSubscribeDirectBindNotCreated() throws Exception {
         runInJsServer(nc -> {
             JetStream js = nc.jetStream();
             createTestStream(nc);
 
-            PushSubscribeOptions pushso = PushSubscribeOptions.direct(STREAM, DURABLE);
+            PushSubscribeOptions pushso = PushSubscribeOptions.directBind(STREAM, DURABLE);
             assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushso));
 
-            PullSubscribeOptions pullso = PullSubscribeOptions.direct(STREAM, DURABLE);
+            PullSubscribeOptions pullso = PullSubscribeOptions.directBind(STREAM, DURABLE);
             assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pullso));
         });
     }

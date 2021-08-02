@@ -21,8 +21,8 @@ import io.nats.client.api.ConsumerConfiguration;
  */
 public class PushSubscribeOptions extends SubscribeOptions {
 
-    private PushSubscribeOptions(String stream, String durable, String deliverSubject, boolean direct, ConsumerConfiguration consumerConfig) {
-        super(stream, durable, deliverSubject, direct, false, consumerConfig);
+    private PushSubscribeOptions(String stream, String durable, String deliverSubject, boolean directBind, ConsumerConfiguration consumerConfig) {
+        super(stream, durable, deliverSubject, directBind, false, consumerConfig);
     }
 
     /**
@@ -39,7 +39,18 @@ public class PushSubscribeOptions extends SubscribeOptions {
      * @param stream the stream name to bind to
      * @return push subscribe options
      */
+    @Deprecated
     public static PushSubscribeOptions bind(String stream) {
+        return new Builder().stream(stream).build();
+    }
+
+    /**
+     * Create PushSubscribeOptions where you are binding to
+     * a specific stream, which could be a stream or a mirror
+     * @param stream the stream name to bind to
+     * @return push subscribe options
+     */
+    public static PushSubscribeOptions stream(String stream) {
         return new Builder().stream(stream).build();
     }
 
@@ -50,8 +61,8 @@ public class PushSubscribeOptions extends SubscribeOptions {
      * @param durable the durable name
      * @return push subscribe options
      */
-    public static PushSubscribeOptions direct(String stream, String durable) {
-        return new PushSubscribeOptions.Builder().stream(stream).durable(durable).direct().build();
+    public static PushSubscribeOptions directBind(String stream, String durable) {
+        return new PushSubscribeOptions.Builder().stream(stream).durable(durable).directBind().build();
     }
 
     public static Builder builder() {
@@ -88,7 +99,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
          */
         @Override
         public PushSubscribeOptions build() {
-            return new PushSubscribeOptions(stream, durable, deliverSubject, direct, consumerConfig);
+            return new PushSubscribeOptions(stream, durable, deliverSubject, directBind, consumerConfig);
         }
     }
 }

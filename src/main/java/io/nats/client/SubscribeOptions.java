@@ -24,23 +24,23 @@ import static io.nats.client.support.Validator.*;
 public abstract class SubscribeOptions {
 
     protected final String stream;
-    protected final boolean direct;
+    protected final boolean directBind;
     protected final ConsumerConfiguration consumerConfig;
 
     protected SubscribeOptions(String stream, String durable, String deliverSubject,
-                               boolean direct, boolean pull, ConsumerConfiguration cc) {
+                               boolean directBind, boolean pull, ConsumerConfiguration cc) {
 
-        this.stream = validateStreamName(stream, direct);
+        this.stream = validateStreamName(stream, directBind);
 
         durable = durable == null && cc != null ? cc.getDurable() : durable;
-        durable = validateDurable(durable, pull || direct);
+        durable = validateDurable(durable, pull || directBind);
 
         this.consumerConfig = ConsumerConfiguration.builder(cc)
                 .durable(emptyAsNull(durable))
                 .deliverSubject(emptyAsNull(deliverSubject))
                 .build();
 
-        this.direct = direct;
+        this.directBind = directBind;
     }
 
     /**
@@ -63,8 +63,8 @@ public abstract class SubscribeOptions {
      * Gets whether this subscription is expected to be direct
      * @return the direct flag
      */
-    public boolean isDirect() {
-        return direct;
+    public boolean isDirectBind() {
+        return directBind;
     }
 
     /**
@@ -79,7 +79,7 @@ public abstract class SubscribeOptions {
     public String toString() {
         return getClass().getSimpleName() + "{" +
                 "stream='" + stream + '\'' +
-                "direct=" + direct +
+                "directBind=" + directBind +
                 ", " + consumerConfig +
                 '}';
     }
@@ -90,7 +90,7 @@ public abstract class SubscribeOptions {
      */
     protected static abstract class Builder<B, SO> {
         protected String stream;
-        protected boolean direct;
+        protected boolean directBind;
         protected String durable;
         protected ConsumerConfiguration consumerConfig;
 
@@ -111,8 +111,8 @@ public abstract class SubscribeOptions {
          * Specify the to attach in direct mode
          * @return the builder
          */
-        public B direct() {
-            this.direct = true;
+        public B directBind() {
+            this.directBind = true;
             return getThis();
         }
 

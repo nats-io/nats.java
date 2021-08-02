@@ -225,12 +225,12 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             so = pushSubscribeOptions == null
                     ? PushSubscribeOptions.builder().build()
                     : pushSubscribeOptions;
-            stream = so.getStream(); // might be null, that's ok (see direct)
+            stream = so.getStream(); // might be null, that's ok (see directBind)
             ccBuilder = ConsumerConfiguration.builder(so.getConsumerConfiguration());
         }
 
         //
-        boolean direct = so.isDirect();
+        boolean directBind = so.isDirectBind();
 
         String durable = ccBuilder.getDurable();
         String inbox = ccBuilder.getDeliverSubject();
@@ -265,7 +265,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 // use the deliver subject as the inbox. It may be null, that's ok
                 inbox = cc.getDeliverSubject();
             }
-            else if (direct) {
+            else if (directBind) {
                 throw new IllegalArgumentException("Consumer not found for durable. Required in direct mode.");
             }
         }
