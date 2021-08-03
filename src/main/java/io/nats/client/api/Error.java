@@ -25,7 +25,8 @@ public class Error {
     public static final int NOT_SET = -1;
 
     private final String json;
-    private final Integer code;
+    private final int code;
+    private final int apiErrorCode;
     private final String desc;
 
     static Error optionalInstance(String json) {
@@ -36,11 +37,16 @@ public class Error {
     Error(String json) {
         this.json = json;
         code = JsonUtils.readInt(json, CODE_RE, NOT_SET);
-        desc = JsonUtils.readString(json, DESCRIPTION_RE, null);
+        apiErrorCode = JsonUtils.readInt(json, ERR_CODE_RE, NOT_SET);
+        desc = JsonUtils.readString(json, DESCRIPTION_RE, "Unknown JetStream Error");
     }
 
-    public long getCode() {
+    public int getCode() {
         return code;
+    }
+
+    public int getApiErrorCode() {
+        return apiErrorCode;
     }
 
     public String getDescription() {
@@ -49,12 +55,17 @@ public class Error {
 
     @Override
     public String toString() {
-        if (desc == null) {
-            return code == NOT_SET
-                    ? "Unknown JetStream Error: " + json
-                    : "Unknown JetStream Error (" + code + ")";
+        if (code == NOT_SET) {
+            if (apiErrorCode == NOT_SET) {
+                return desc;
+            }
+            return desc + " [" + apiErrorCode + "]";
         }
 
-        return desc+ " (" + code + ")";
+        if (apiErrorCode == NOT_SET) {
+            return desc + " (" + code + ")";
+        }
+
+        return desc + " (" + code + ") [" + apiErrorCode + "]";
     }
 }

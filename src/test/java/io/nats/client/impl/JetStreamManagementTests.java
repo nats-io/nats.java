@@ -78,6 +78,53 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testStreamCreateWithNoSubject() throws Exception {
+        runInJsServer(nc -> {
+            long now = ZonedDateTime.now().toEpochSecond();
+
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            StreamConfiguration sc = StreamConfiguration.builder()
+                    .name(STREAM)
+                    .storageType(StorageType.Memory)
+                    .build();
+
+            StreamInfo si = jsm.addStream(sc);
+            assertTrue(now <= si.getCreateTime().toEpochSecond());
+
+            sc = si.getConfiguration();
+            assertEquals(STREAM, sc.getName());
+
+            assertEquals(1, sc.getSubjects().size());
+            assertEquals(STREAM, sc.getSubjects().get(0));
+
+            assertEquals(RetentionPolicy.Limits, sc.getRetentionPolicy());
+            assertEquals(DiscardPolicy.Old, sc.getDiscardPolicy());
+            assertEquals(StorageType.Memory, sc.getStorageType());
+
+            assertNotNull(si.getConfiguration());
+            assertNotNull(si.getStreamState());
+            assertEquals(-1, sc.getMaxConsumers());
+            assertEquals(-1, sc.getMaxMsgs());
+            assertEquals(-1, sc.getMaxBytes());
+            assertEquals(-1, sc.getMaxMsgSize());
+            assertEquals(1, sc.getReplicas());
+
+            assertEquals(Duration.ZERO, sc.getMaxAge());
+            assertEquals(Duration.ofSeconds(120), sc.getDuplicateWindow());
+            assertFalse(sc.getNoAck());
+            assertNull(sc.getTemplateOwner());
+
+            StreamState ss = si.getStreamState();
+            assertEquals(0, ss.getMsgCount());
+            assertEquals(0, ss.getByteCount());
+            assertEquals(0, ss.getFirstSequence());
+            assertEquals(0, ss.getLastSequence());
+            assertEquals(0, ss.getConsumerCount());
+        });
+    }
+
+    @Test
     public void updateStream() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -209,12 +256,20 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     public void testDeleteStream() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
-            assertThrows(JetStreamApiException.class, () -> jsm.deleteStream(STREAM));
+            JetStreamApiException jsapiEx =
+                    assertThrows(JetStreamApiException.class, () -> jsm.deleteStream(STREAM));
+            assertEquals(10059, jsapiEx.getApiErrorCode());
+
             createMemoryStream(nc, STREAM, SUBJECT);
-            assertNotNull(getStreamInfo(jsm, STREAM));
+            assertNotNull(jsm.getStreamInfo(STREAM));
             assertTrue(jsm.deleteStream(STREAM));
-            assertNull(getStreamInfo(jsm, STREAM));
-            assertThrows(JetStreamApiException.class, () -> jsm.deleteStream(STREAM));
+
+
+            jsapiEx = assertThrows(JetStreamApiException.class, () -> jsm.getStreamInfo(STREAM));
+            assertEquals(10059, jsapiEx.getApiErrorCode());
+
+            jsapiEx = assertThrows(JetStreamApiException.class, () -> jsm.deleteStream(STREAM));
+            assertEquals(10059, jsapiEx.getApiErrorCode());
         });
     }
 
@@ -280,6 +335,69 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(1, consumers.size());
             assertThrows(JetStreamApiException.class, () -> jsm.deleteConsumer(STREAM, cc1.getDurable()));
         });
+    }
+
+    @Test
+    public void testAddThenUpdateConsumer() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            createMemoryStream(nc, STREAM, SUBJECT_GT);
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .durable(durable(1))
+                    .ackPolicy(AckPolicy.Explicit)
+                    .deliverSubject(deliver(1))
+                    .maxDeliver(3)
+                    .filterSubject(SUBJECT_GT)
+                    .build();
+            validAddThenUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).deliverSubject(deliver(2)).build();
+            validAddThenUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).deliverPolicy(DeliverPolicy.New).build();
+            invalidThenOrUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).ackWait(Duration.ofSeconds(5)).build();
+            invalidThenOrUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).filterSubject(SUBJECT_STAR).build();
+            invalidThenOrUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).rateLimit(100).build();
+            invalidThenOrUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).maxAckPending(100).build();
+            invalidThenOrUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).idleHeartbeat(Duration.ofMillis(111)).build();
+            invalidThenOrUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).flowControl(true).build();
+            invalidThenOrUpdate(jsm, cc);
+
+            cc = ConsumerConfiguration.builder(cc).maxDeliver(4).build();
+            invalidThenOrUpdate(jsm, cc);
+        });
+    }
+
+    private void invalidThenOrUpdate(JetStreamManagement jsm, ConsumerConfiguration cc) {
+        JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> jsm.addOrUpdateConsumer(STREAM, cc));
+        assertEquals(10013, e.getApiErrorCode());
+    }
+
+    private void validAddThenUpdate(JetStreamManagement jsm, ConsumerConfiguration cc) throws IOException, JetStreamApiException {
+        ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
+        ConsumerConfiguration cicc = ci.getConsumerConfiguration();
+        assertEquals(cc.getDurable(), ci.getName());
+        assertEquals(cc.getDurable(), cicc.getDurable());
+        assertEquals(cc.getDeliverSubject(), cicc.getDeliverSubject());
+        assertEquals(cc.getMaxDeliver(), cicc.getMaxDeliver());
+        assertEquals(cc.getDeliverPolicy(), cicc.getDeliverPolicy());
+
+        List<String> consumers = jsm.getConsumerNames(STREAM);
+        assertEquals(1, consumers.size());
+        assertEquals(cc.getDurable(), consumers.get(0));
     }
 
     @Test

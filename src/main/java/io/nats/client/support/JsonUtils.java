@@ -38,7 +38,7 @@ public abstract class JsonUtils {
 
     private static final String STRING_RE  = "\\s*\"(.+?)\"";
     private static final String BOOLEAN_RE =  "\\s*(true|false)";
-    private static final String NUMBER_RE =  "\\s*(\\d+)";
+    private static final String NUMBER_RE =  "\\s*(-?\\d+)";
     private static final String STRING_ARRAY_RE = "\\s*\\[\\s*(\".+?\")\\s*\\]";
     private static final String BEFORE_FIELD_RE = "\"";
     private static final String AFTER_FIELD_RE = "\"\\s*:\\s*";
@@ -413,14 +413,36 @@ public abstract class JsonUtils {
 
     public static long readLong(String json, Pattern pattern, long dflt) {
         Matcher m = pattern.matcher(json);
-        return m.find() ? Long.parseLong(m.group(1)) : dflt;
+        return m.find() ? safeParseLong(m.group(1), dflt) : dflt;
     }
 
     public static void readLong(String json, Pattern pattern, LongConsumer c) {
         Matcher m = pattern.matcher(json);
         if (m.find()) {
-            c.accept(Long.parseLong(m.group(1)));
+            Long l = safeParseLong(m.group(1));
+            if (l != null) {
+                c.accept(l);
+            }
         }
+    }
+
+    public static Long safeParseLong(String s) {
+        try {
+            return Long.parseLong(s);
+        }
+        catch (Exception e1) {
+            try {
+                return Long.parseUnsignedLong(s);
+            }
+            catch (Exception e2) {
+                return null;
+            }
+        }
+    }
+
+    public static long safeParseLong(String s, long dflt) {
+        Long l = safeParseLong(s);
+        return l == null ? dflt : l;
     }
 
     public static ZonedDateTime readDate(String json, Pattern pattern) {

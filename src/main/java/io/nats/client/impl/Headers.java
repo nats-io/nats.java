@@ -328,7 +328,7 @@ public class Headers {
 		return dataLength + NON_DATA_BYTES;
 	}
 
-	private static final int NON_DATA_BYTES = VERSION_BYTES_PLUS_CRLF.length + 2;
+	private static final int NON_DATA_BYTES = HEADER_VERSION_BYTES_PLUS_CRLF.length + 2;
 
 	/**
 	 * Returns the serialized bytes.
@@ -343,7 +343,7 @@ public class Headers {
 	}
 
 	public ByteArrayBuilder appendSerialized(ByteArrayBuilder bab) {
-		bab.append(VERSION_BYTES_PLUS_CRLF);
+		bab.append(HEADER_VERSION_BYTES_PLUS_CRLF);
 		for (String key : valuesMap.keySet()) {
 			for (String value : valuesMap.get(key)) {
 				bab.append(key);
