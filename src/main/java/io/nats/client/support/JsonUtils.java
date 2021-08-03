@@ -70,6 +70,7 @@ public abstract class JsonUtils {
         return buildPattern(field, STRING_RE);
     }
 
+    @Deprecated
     public static Pattern number_pattern(String field) {
         return integer_pattern(field);
     }

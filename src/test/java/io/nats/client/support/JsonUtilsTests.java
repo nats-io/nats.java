@@ -177,6 +177,19 @@ public final class JsonUtilsTests {
 
         JsonUtils.readLong("\"num\":18446744073709551615", RE, al::set);
         assertEquals(-1, al.get());
+
+        JsonUtils.readLong("\"num\":18446744073709551614", RE, al::set);
+        assertEquals(-2, al.get());
+
+        al.set(-999);
+        JsonUtils.readLong("\"num\":18446744073709551616", RE, al::set);
+        assertEquals(-999, al.get());
+
+        assertEquals(-1, JsonUtils.safeParseLong("18446744073709551615", -999));
+        assertEquals(-2, JsonUtils.safeParseLong("18446744073709551614", -999));
+        assertEquals(-999, JsonUtils.safeParseLong("18446744073709551616", -999));
+        assertEquals(-999, JsonUtils.safeParseLong(null, -999));
+        assertEquals(-999, JsonUtils.safeParseLong("notanumber", -999));
     }
 
     @Test
@@ -189,6 +202,13 @@ public final class JsonUtilsTests {
         assertTrue(JsonUtils.readBoolean(json, YES_RE));
         assertFalse(JsonUtils.readBoolean(json, NO_RE));
         assertFalse((JsonUtils.readBoolean(json, MISSING_RE)));
+    }
+
+    @Test
+    public void testCoverage() {
+        Pattern ipattern = JsonUtils.integer_pattern("foo");
+        Pattern npattern = JsonUtils.number_pattern("foo"); // coverage for deprecated
+        assertEquals(ipattern.pattern(), npattern.pattern());
     }
 
     @Test

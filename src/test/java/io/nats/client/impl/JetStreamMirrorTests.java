@@ -163,6 +163,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
                 assertEquals(S1, m.metaData().getStream());
             }
 
+            PushSubscribeOptions.bind(M1); // coverage for deprecated
             PushSubscribeOptions pso = PushSubscribeOptions.stream(M1);
             sub = js.subscribe(U1, pso);
             list = readMessagesAck(sub);

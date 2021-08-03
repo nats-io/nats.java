@@ -105,22 +105,22 @@ public class SubscribeOptionsTests extends TestBase {
 
     @Test
     public void testDirectBindCreationErrors() {
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bindDirect(null, DURABLE));
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bindDirect(EMPTY, DURABLE));
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bindDirect(STREAM, null));
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bindDirect(STREAM, EMPTY));
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(STREAM).directBind().build());
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(EMPTY).durable(DURABLE).directBind().build());
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().durable(DURABLE).directBind().build());
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(STREAM).durable(EMPTY).directBind().build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bindMode(null, DURABLE));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bindMode(EMPTY, DURABLE));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bindMode(STREAM, null));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bindMode(STREAM, EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(STREAM).bindMode().build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(EMPTY).durable(DURABLE).bindMode().build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().durable(DURABLE).bindMode().build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(STREAM).durable(EMPTY).bindMode().build());
 
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.directBind(null, DURABLE));
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.directBind(EMPTY, DURABLE));
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.directBind(STREAM, null));
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.directBind(STREAM, EMPTY));
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).directBind().build());
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(EMPTY).durable(DURABLE).directBind().build());
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().durable(DURABLE).directBind().build());
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).durable(EMPTY).directBind().build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bindMode(null, DURABLE));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bindMode(EMPTY, DURABLE));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bindMode(STREAM, null));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bindMode(STREAM, EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).bindMode().build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(EMPTY).durable(DURABLE).bindMode().build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().durable(DURABLE).bindMode().build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).durable(EMPTY).bindMode().build());
     }
 }

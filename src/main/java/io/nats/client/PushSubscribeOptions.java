@@ -21,8 +21,8 @@ import io.nats.client.api.ConsumerConfiguration;
  */
 public class PushSubscribeOptions extends SubscribeOptions {
 
-    private PushSubscribeOptions(String stream, String durable, String deliverSubject, boolean directBind, ConsumerConfiguration consumerConfig) {
-        super(stream, durable, deliverSubject, directBind, false, consumerConfig);
+    private PushSubscribeOptions(String stream, String durable, String deliverSubject, boolean bindMode, ConsumerConfiguration consumerConfig) {
+        super(stream, durable, deliverSubject, bindMode, false, consumerConfig);
     }
 
     /**
@@ -36,6 +36,9 @@ public class PushSubscribeOptions extends SubscribeOptions {
     /**
      * Create PushSubscribeOptions where you are binding to
      * a specific stream, which could be a stream or a mirror
+     * @deprecated
+     * This method is no longer used as bind has a different meaning.
+     * See {@link #stream(String)} instead.
      * @param stream the stream name to bind to
      * @return push subscribe options
      */
@@ -61,8 +64,8 @@ public class PushSubscribeOptions extends SubscribeOptions {
      * @param durable the durable name
      * @return push subscribe options
      */
-    public static PushSubscribeOptions bindDirect(String stream, String durable) {
-        return new PushSubscribeOptions.Builder().stream(stream).durable(durable).directBind().build();
+    public static PushSubscribeOptions bindMode(String stream, String durable) {
+        return new PushSubscribeOptions.Builder().stream(stream).durable(durable).bindMode().build();
     }
 
     public static Builder builder() {
@@ -99,7 +102,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
          */
         @Override
         public PushSubscribeOptions build() {
-            return new PushSubscribeOptions(stream, durable, deliverSubject, directBind, consumerConfig);
+            return new PushSubscribeOptions(stream, durable, deliverSubject, bindMode, consumerConfig);
         }
     }
 }

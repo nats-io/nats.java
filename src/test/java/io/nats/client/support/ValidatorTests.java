@@ -189,6 +189,20 @@ public class ValidatorTests {
         assertFalse(zeroOrLtMinus1(-1));
     }
 
+    @Test
+    public void testValidateGtZeroOrMinus1() {
+        assertEquals(1, validateGtZeroOrMinus1(1, "test"));
+        assertEquals(-1, validateGtZeroOrMinus1(-1, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateGtZeroOrMinus1(0, "test"));
+    }
+
+    @Test
+    public void testValidateNotNegative() {
+        assertEquals(0, validateNotNegative(0, "test"));
+        assertEquals(1, validateNotNegative(1, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateNotNegative(-1, "test"));
+    }
+
     interface StringTest { String validate(String s, boolean required); }
 
     private void allowedRequired(StringTest test, List<String> strings) {

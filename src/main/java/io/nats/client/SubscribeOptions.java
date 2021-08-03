@@ -24,23 +24,23 @@ import static io.nats.client.support.Validator.*;
 public abstract class SubscribeOptions {
 
     protected final String stream;
-    protected final boolean directBind;
+    protected final boolean bindMode;
     protected final ConsumerConfiguration consumerConfig;
 
     protected SubscribeOptions(String stream, String durable, String deliverSubject,
-                               boolean directBind, boolean pull, ConsumerConfiguration cc) {
+                               boolean bindMode, boolean pull, ConsumerConfiguration cc) {
 
-        this.stream = validateStreamName(stream, directBind);
+        this.stream = validateStreamName(stream, bindMode); // required when bind mode
 
         durable = durable == null && cc != null ? cc.getDurable() : durable;
-        durable = validateDurable(durable, pull || directBind);
+        durable = validateDurable(durable, pull || bindMode); // required when pull or bind mode
 
         this.consumerConfig = ConsumerConfiguration.builder(cc)
                 .durable(emptyAsNull(durable))
                 .deliverSubject(emptyAsNull(deliverSubject))
                 .build();
 
-        this.directBind = directBind;
+        this.bindMode = bindMode;
     }
 
     /**
@@ -60,11 +60,11 @@ public abstract class SubscribeOptions {
     }
 
     /**
-     * Gets whether this subscription is expected to be direct
+     * Gets whether this subscription is expected to bind to an existing stream and durable consumer
      * @return the direct flag
      */
-    public boolean isDirectBind() {
-        return directBind;
+    public boolean isBindMode() {
+        return bindMode;
     }
 
     /**
@@ -79,7 +79,7 @@ public abstract class SubscribeOptions {
     public String toString() {
         return getClass().getSimpleName() + "{" +
                 "stream='" + stream + '\'' +
-                "directBind=" + directBind +
+                "bindMode=" + bindMode +
                 ", " + consumerConfig +
                 '}';
     }
@@ -90,7 +90,7 @@ public abstract class SubscribeOptions {
      */
     protected static abstract class Builder<B, SO> {
         protected String stream;
-        protected boolean directBind;
+        protected boolean bindMode;
         protected String durable;
         protected ConsumerConfiguration consumerConfig;
 
@@ -111,8 +111,8 @@ public abstract class SubscribeOptions {
          * Specify the to attach in direct mode
          * @return the builder
          */
-        public B directBind() {
-            this.directBind = true;
+        public B bindMode() {
+            this.bindMode = true;
             return getThis();
         }
 

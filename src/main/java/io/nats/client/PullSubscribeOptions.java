@@ -21,8 +21,8 @@ import io.nats.client.api.ConsumerConfiguration;
  */
 public class PullSubscribeOptions extends SubscribeOptions {
 
-    private PullSubscribeOptions(String stream, String durable, boolean directBind, ConsumerConfiguration consumerConfig) {
-        super(stream, durable, null, directBind, true, consumerConfig);
+    private PullSubscribeOptions(String stream, String durable, boolean bindMode, ConsumerConfiguration consumerConfig) {
+        super(stream, durable, null, bindMode, true, consumerConfig);
     }
 
     public static Builder builder() {
@@ -36,8 +36,8 @@ public class PullSubscribeOptions extends SubscribeOptions {
      * @param durable the durable name
      * @return push subscribe options
      */
-    public static PullSubscribeOptions directBind(String stream, String durable) {
-        return new PullSubscribeOptions.Builder().stream(stream).durable(durable).directBind().build();
+    public static PullSubscribeOptions bindMode(String stream, String durable) {
+        return new PullSubscribeOptions.Builder().stream(stream).durable(durable).bindMode().build();
     }
 
     /**
@@ -58,7 +58,7 @@ public class PullSubscribeOptions extends SubscribeOptions {
          */
         @Override
         public PullSubscribeOptions build() {
-            return new PullSubscribeOptions(stream, durable, directBind, consumerConfig);
+            return new PullSubscribeOptions(stream, durable, bindMode, consumerConfig);
         }
     }
 }
