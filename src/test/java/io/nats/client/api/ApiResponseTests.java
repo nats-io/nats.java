@@ -83,6 +83,7 @@ public class ApiResponseTests {
         assertTrue(jsApiResp.hasError());
         assertEquals("empty_response", jsApiResp.getType());
         assertEquals(Error.NOT_SET, jsApiResp.getErrorCode());
+        assertEquals("Unknown JetStream Error", jsApiResp.getError());
         jsApiEx = new JetStreamApiException(jsApiResp);
         assertEquals(-1, jsApiEx.getErrorCode());
         assertEquals(-1, jsApiEx.getApiErrorCode());
@@ -99,5 +100,27 @@ public class ApiResponseTests {
         assertTrue(jsApiResp.hasError());
         assertEquals(NO_TYPE, jsApiResp.getType());
         assertEquals(NO_TYPE, jsApiResp.getType()); // coverage!
+
+        jsApiResp = new TestApiResponse(jsons[7]);
+        assertTrue(jsApiResp.hasError());
+        assertEquals("code_desc_err_response", jsApiResp.getType());
+        assertEquals(500, jsApiResp.getErrorCode());
+        assertEquals("the description", jsApiResp.getDescription());
+        assertEquals("the description (500) [12345]", jsApiResp.getError());
+        jsApiEx = new JetStreamApiException(jsApiResp);
+        assertEquals(500, jsApiEx.getErrorCode());
+        assertEquals("the description", jsApiEx.getErrorDescription());
+        assertEquals(12345, jsApiEx.getApiErrorCode());
+
+        jsApiResp = new TestApiResponse(jsons[8]);
+        assertTrue(jsApiResp.hasError());
+        assertEquals("no-code_desc_err_response", jsApiResp.getType());
+        assertEquals(-1, jsApiResp.getErrorCode());
+        assertEquals("the description", jsApiResp.getDescription());
+        assertEquals("the description [12345]", jsApiResp.getError());
+        jsApiEx = new JetStreamApiException(jsApiResp);
+        assertEquals(-1, jsApiEx.getErrorCode());
+        assertEquals("the description", jsApiEx.getErrorDescription());
+        assertEquals(12345, jsApiEx.getApiErrorCode());
     }
 }

@@ -90,7 +90,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
         }
     }
 
-    private void assertPublishAck(PublishAck pa, int seqno) {
+    private void assertPublishAck(PublishAck pa, long seqno) {
         assertEquals(STREAM, pa.getStream());
         if (seqno != -1) {
             assertEquals(seqno, pa.getSeqno());
@@ -224,7 +224,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
             createTestStream(nc);
             JetStream js = nc.jetStream();
 
-            // stream supplied but matches
+            // stream supplied and matches
             PublishOptions po = PublishOptions.builder().stream(STREAM).build();
             js.publish(SUBJECT, dataBytes(999), po);
 

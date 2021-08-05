@@ -17,6 +17,7 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
+import static io.nats.client.support.NatsConstants.EMPTY;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SubscribeOptionsTests extends TestBase {
@@ -100,5 +101,26 @@ public class SubscribeOptionsTests extends TestBase {
         // in configuration
         ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
         PullSubscribeOptions.builder().configuration(cc).build();
+    }
+
+    @Test
+    public void testBindCreationErrors() {
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(null, DURABLE));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(EMPTY, DURABLE));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(STREAM, null));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(STREAM, EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(STREAM).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(EMPTY).durable(DURABLE).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().durable(DURABLE).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(STREAM).durable(EMPTY).bind(true).build());
+
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(null, DURABLE));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(EMPTY, DURABLE));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(STREAM, null));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(STREAM, EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(EMPTY).durable(DURABLE).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().durable(DURABLE).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).durable(EMPTY).bind(true).build());
     }
 }

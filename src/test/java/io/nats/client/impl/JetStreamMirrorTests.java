@@ -70,7 +70,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             jsPublish(js, U2, 100);
 
             // Check the state
-            assertMirror(jsm, M1, S1, 100, null);
+            assertMirror(jsm, M1, S1, 100L, null);
 
             // Purge the source stream.
             jsm.purgeStream(S1);
@@ -86,7 +86,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             jsm.addStream(sc);
 
             // Check the state
-            assertMirror(jsm, mirror(2), S1, 50, 101);
+            assertMirror(jsm, mirror(2), S1, 50L, 101L);
 
             jsPublish(js, U3, 100);
 
@@ -99,7 +99,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             jsm.addStream(sc);
 
             // Check the state
-            assertMirror(jsm, mirror(3), S1, 101, 150);
+            assertMirror(jsm, mirror(3), S1, 101L, 150L);
 
             // third mirror checks start seq
             ZonedDateTime zdt = DateTimeUtils.fromNow(Duration.ofHours(-2));
@@ -111,7 +111,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             jsm.addStream(sc);
 
             // Check the state
-            assertMirror(jsm, mirror(4), S1, 150, 101);
+            assertMirror(jsm, mirror(4), S1, 150L, 101L);
         });
     }
 
@@ -147,7 +147,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             jsPublish(js, U1, 10);
             jsPublish(js, U2, 20);
 
-            assertMirror(jsm, M1, S1, 30, null);
+            assertMirror(jsm, M1, S1, 30L, null);
 
             JetStreamSubscription sub = js.subscribe(U1);
             List<Message> list = readMessagesAck(sub);
@@ -163,7 +163,8 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
                 assertEquals(S1, m.metaData().getStream());
             }
 
-            PushSubscribeOptions pso = PushSubscribeOptions.bind(M1);
+            PushSubscribeOptions.bind(M1); // coverage for deprecated
+            PushSubscribeOptions pso = PushSubscribeOptions.stream(M1);
             sub = js.subscribe(U1, pso);
             list = readMessagesAck(sub);
             assertEquals(10, list.size());
@@ -237,7 +238,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
 
             jsm.addStream(sc);
 
-            assertSource(jsm, R1, 50, null);
+            assertSource(jsm, R1, 50L, null);
 
             sc = StreamConfiguration.builder()
                     .name(R1)
@@ -266,7 +267,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
                     .sources(Source.builder().sourceName(S99).startSeq(26).build())
                     .build();
             jsm.addStream(sc);
-            assertSource(jsm, R2, 25, null);
+            assertSource(jsm, R2, 25L, null);
 
             MessageInfo info = jsm.getMessage(R2, 1);
             assertStreamSource(info, S99, 26);
@@ -277,7 +278,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
                     .sources(Source.builder().sourceName(S99).startSeq(11).filterSubject(S4).build())
                     .build();
             jsm.addStream(sc);
-            assertSource(jsm, source(3), 20, null);
+            assertSource(jsm, source(3), 20L, null);
 
             info = jsm.getMessage(source(3), 1);
             assertStreamSource(info, S99, 11);

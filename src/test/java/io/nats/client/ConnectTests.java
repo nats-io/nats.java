@@ -288,15 +288,15 @@ public class ConnectTests {
 
     @Test
     public void testErrorOnAsync() throws IOException, InterruptedException {
-        TestHandler handler = new TestHandler();
+        TestHandler handler = new TestHandler(false);
         Options options = new Options.Builder().server("nats://localhost:" + NatsTestServer.nextPort())
                 .connectionListener(handler).errorListener(handler).noReconnect().build();
         handler.prepForStatusChange(Events.CLOSED);
         Nats.connectAsynchronously(options, false);
         handler.waitForStatusChange(10, TimeUnit.SECONDS);
 
-        assertTrue(1 <= handler.getExceptionCount());
-        assertTrue(handler.getConnection() == null || Connection.Status.CLOSED == handler.getConnection().getStatus());
+        assertTrue(handler.getExceptionCount() > 0);
+        assertTrue(handler.getEventCount(Events.CLOSED) > 0);
     }
 
     @Test

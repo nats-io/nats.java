@@ -48,6 +48,8 @@ System.setProperty("com.sun.net.ssl.checkRevocation", "true");
 
 For more information, see the Oracle Java documentation page on [Client-Driven OCSP and OCSP Stapling](https://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/ocsp.html)
 
+Also, there is a detailed [OCSP Example](https://github.com/nats-io/java-nats-examples/tree/main/ocsp) that shows how to create SSL contexts enabling OCSP stapling.
+
 ### UTF-8 Subjects
 
 The client protocol spec doesn't explicitly state the encoding on subjects. Some clients use ASCII and some use UTF-8 which matches ASCII for a-Z and 0-9. Until 2.1.2 the 2.0+ version of the Java client used ASCII for performance reasons. As of 2.1.2 you can choose to support UTF-8 subjects via the Options. Keep in mind that there is a small performance penalty for UTF-8 encoding and decoding in benchmarks, but depending on your application this cost may be negligible. Also, keep in mind that not all clients support UTF-8 and test accordingly.
@@ -240,23 +242,23 @@ The Java NATS library provides two mechanisms to listen for messages, three if y
     d.unsubscribe(s, 100);
     ```
 
-## Jetstream
+## JetStream
 
-Publishing and subscribing to Jetstream enabled servers is straightforward.  A 
-Jetstream enabled application will connect to a server, establish a Jetstream 
+Publishing and subscribing to JetStream enabled servers is straightforward.  A 
+JetStream enabled application will connect to a server, establish a JetStream 
 context, and then publish or subscribe.  This can be mixed and matched with standard
 NATS subject, and JetStream subscribers, depending on configuration, receive messages
 from both streams and directly from other NATS producers.
 
-### The Jetstream Context
+### The JetStream Context
 
-After establishing a connection as described above, create a Jetstream Context.
+After establishing a connection as described above, create a JetStream Context.
    
    ```java
-   JetStream js = nc.jetStream();
+   JetStream js = nc.JetStream();
    ```
 
-You can pass options to configure the Jetstream client, although the defaults should
+You can pass options to configure the JetStream client, although the defaults should
 suffice for most users.  See the `JetStreamOptions` class.
 
 There is no limit to the number of contexts used, although normally one would only
@@ -265,7 +267,7 @@ NATS authorization.
 
 ### Publishing
 
-To publish messages, use the `JetStream.Publish(...)` API.  A stream must be established
+To publish messages, use the `JetStream.publish(...)` API.  A stream must be established
 before publishing. You can publish in either a synchronous or asynchronous manner.
 
 **Synchronous:**
@@ -374,16 +376,36 @@ See the `NatsJsPushSubWithHandler.java` in the JetStream examples for a detailed
 
 See `NatsJsPushSub.java` in the JetStream examples for a detailed and runnable example.
 
+```java
+         PushSubscribeOptions so = PushSubscribeOptions.builder()
+                 .durable("optional-durable-name")
+                 .build();
+
+         // Subscribe synchronously, then just wait for messages.
+         JetStreamSubscription sub = js.subscribe("subject", so);
+         nc.flush(Duration.ofSeconds(5));
+
+         Message msg = sub.nextMessage(Duration.ofSeconds(1));
+```
+
 ### Pull Subscribing
 
 Pull subscriptions are always synchronous. The server organizes messages into a batch
 which it sends when requested.
 
+```java
+        PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
+            .durable("durable-name-is-required")
+            .build();
+
+        JetStreamSubscription sub = js.subscribe("subject", pullOptions);
+```
+
 **Fetch:**
 
 ```java
         List<Message> message = sub.fetch(100, Duration.ofSeconds(1));
-        for (Message m : message) {
+        for (Message m : messages) {
             // process message
             m.ack();
         }
@@ -434,7 +456,7 @@ The client may time out before that time. If there are less than the batch size 
 you can ask for more later. Once the entire batch size has been filled, you must make another pull request. 
 
 See `NatsJsPullSubBatchSize.java` and `NatsJsPullSubBatchSizeUseCases.java` 
-in the JetStream examples for detailed and runnable examples.
+in the JetStream examples for detailed and runnable example.
 
 **No Wait and Batch Size:**
 
@@ -472,7 +494,7 @@ in the JetStream examples for detailed and runnable examples.
 
 ### Message Acknowledgements
 
-There are multiple types of acknowledgements in Jetstream:
+There are multiple types of acknowledgements in JetStream:
 
 * `Message.ack()`: Acknowledges a message.
 * `Message.ackSync(Duration)`: Acknowledges a message and waits for a confirmation. When used with deduplications this creates exactly once delivery guarantees (within the deduplication window).  This may significantly impact performance of the system.

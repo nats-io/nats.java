@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
+import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.examples.ExampleUtils.uniqueEnough;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -65,6 +66,10 @@ public class TestBase {
 
     public static void runInJsServer(InServerTest inServerTest) throws Exception {
         runInServer(false, true, inServerTest);
+    }
+
+    public static void runInJsServer(Options.Builder builder, InServerTest inServerTest) throws Exception {
+        runInServer(false, true, builder, inServerTest);
     }
 
     public static void runInJsServer(boolean debug, InServerTest inServerTest) throws Exception {
@@ -128,8 +133,8 @@ public class TestBase {
         return SUBJECT + "-" + seq;
     }
 
-    public static String subject(String... fields) {
-        return SUBJECT + "." + String.join(".", fields);
+    public static String subjectDot(String field) {
+        return SUBJECT + DOT + field;
     }
 
     public static String queue(int seq) {

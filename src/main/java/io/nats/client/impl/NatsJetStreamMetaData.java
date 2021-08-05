@@ -48,12 +48,12 @@ public class NatsJetStreamMetaData {
 
     public NatsJetStreamMetaData(NatsMessage natsMessage) {
         if (!natsMessage.isJetStream()) {
-            throwNotAJetStreamMessage(natsMessage.getReplyTo());
+            throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
         }
 
         String[] parts = natsMessage.getReplyTo().split("\\.");
         if (parts.length < 8 || parts.length > 9 || !"ACK".equals(parts[1])) {
-            throwNotAJetStreamMessage(natsMessage.getReplyTo());
+            throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
         }
 
         stream = parts[2];
@@ -137,7 +137,7 @@ public class NatsJetStreamMetaData {
         return timestamp;
     }
 
-    private void throwNotAJetStreamMessage(String subject) {
-        throw new IllegalArgumentException("Message is not a JetStream message.  ReplySubject: <" + subject + ">");
+    private String notAJetStreamMessage(String reply) {
+        return "Message is not a JetStream message.  ReplySubject: <" + reply + ">";
     }
 }

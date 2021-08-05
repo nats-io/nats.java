@@ -38,7 +38,7 @@ public abstract class JsonUtils {
 
     private static final String STRING_RE  = "\\s*\"(.+?)\"";
     private static final String BOOLEAN_RE =  "\\s*(true|false)";
-    private static final String NUMBER_RE =  "\\s*(-?\\d+)";
+    private static final String INTEGER_RE =  "\\s*(-?\\d+)";
     private static final String STRING_ARRAY_RE = "\\s*\\[\\s*(\".+?\")\\s*\\]";
     private static final String BEFORE_FIELD_RE = "\"";
     private static final String AFTER_FIELD_RE = "\"\\s*:\\s*";
@@ -56,7 +56,8 @@ public abstract class JsonUtils {
     public enum FieldType {
         jsonString(STRING_RE),
         jsonBoolean(BOOLEAN_RE),
-        jsonNumber(NUMBER_RE),
+        jsonInteger(INTEGER_RE),
+        jsonNumber(INTEGER_RE),
         jsonStringArray(STRING_ARRAY_RE);
 
         final String re;
@@ -69,8 +70,13 @@ public abstract class JsonUtils {
         return buildPattern(field, STRING_RE);
     }
 
+    @Deprecated
     public static Pattern number_pattern(String field) {
-        return buildPattern(field, NUMBER_RE);
+        return integer_pattern(field);
+    }
+
+    public static Pattern integer_pattern(String field) {
+        return buildPattern(field, INTEGER_RE);
     }
 
     public static Pattern boolean_pattern(String field) {
@@ -203,8 +209,12 @@ public abstract class JsonUtils {
         return list;
     }
 
-    public static byte[] simpleMessageBody(String name, Object value) {
+    public static byte[] simpleMessageBody(String name, Number value) {
         return (OPENQ + name + QCOLON + value + CLOSE).getBytes();
+    }
+
+    public static byte[] simpleMessageBody(String name, String value) {
+        return (OPENQ + name + QCOLONQ + value + Q + CLOSE).getBytes();
     }
 
     public static StringBuilder beginJson() {
