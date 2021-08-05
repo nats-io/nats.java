@@ -24,6 +24,7 @@ import java.util.regex.Matcher;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.Validator.emptyAsNull;
 
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and
@@ -349,7 +350,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return the builder
          */
         public Builder durable(String durable) {
-            this.durable = durable;
+            this.durable = emptyAsNull(durable);
             return this;
         }      
 
@@ -369,13 +370,12 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return the builder
          */
         public Builder deliverSubject(String subject) {
-            this.deliverSubject = subject;
+            this.deliverSubject = emptyAsNull(subject);
             return this;
         }
 
         /**
          * Sets the start sequence of the ConsumerConfiguration.
-         * This ling will be treated as unsigned
          * @param sequence the start sequence
          * @return Builder
          */
@@ -440,7 +440,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */         
         public Builder filterSubject(String filterSubject) {
-            this.filterSubject = filterSubject;
+            this.filterSubject = emptyAsNull(filterSubject);
             return this;
         }
 
@@ -460,7 +460,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder sampleFrequency(String frequency) {
-            this.sampleFrequency = frequency;
+            this.sampleFrequency = emptyAsNull(frequency);
             return this;
         }
 
@@ -509,7 +509,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @param flowControl the flow control mode flag
          * @return Builder
          */
-        public Builder flowControl(final boolean flowControl) {
+        public Builder flowControl(boolean flowControl) {
             this.flowControl = flowControl;
             return this;
         }

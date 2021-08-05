@@ -18,7 +18,8 @@ import java.time.Duration;
 import static io.nats.client.support.NatsJetStreamConstants.MAX_PULL_SIZE;
 
 public abstract class Validator {
-    private Validator() {} /* ensures cannot be constructed */
+    private Validator() {
+    } /* ensures cannot be constructed */
 
     public static String validateSubject(String s, boolean required) {
         return validatePrintable(s, "Subject", required);
@@ -53,8 +54,7 @@ public abstract class Validator {
             if (nullOrEmpty(s)) {
                 throw new IllegalArgumentException(label + " cannot be null or empty [" + s + "]");
             }
-        }
-        else if (emptyAsNull(s) == null) {
+        } else if (emptyAsNull(s) == null) {
             return null;
         }
 
@@ -134,9 +134,9 @@ public abstract class Validator {
         return d;
     }
 
-    public static Duration validateDurationNotRequiredGtOrEqZero(Duration d) {
+    public static Duration validateDurationNotRequiredGtOrEqZero(Duration d, Duration ifNull) {
         if (d == null) {
-            return Duration.ZERO;
+            return ifNull;
         }
         if (d.isNegative()) {
             throw new IllegalArgumentException("Duration must be greater than or equal to 0.");
@@ -182,7 +182,7 @@ public abstract class Validator {
     // Helpers
     // ----------------------------------------------------------------------------------------------------
     public static boolean nullOrEmpty(String s) {
-        return s == null || s.length() == 0;
+        return s == null || s.trim().length() == 0;
     }
 
     public static boolean notPrintable(String s) {
@@ -228,6 +228,10 @@ public abstract class Validator {
 
     public static String emptyAsNull(String s) {
         return nullOrEmpty(s) ? null : s;
+    }
+
+    public static String emptyOrNullAs(String s, String ifEmpty) {
+        return nullOrEmpty(s) ? ifEmpty : s;
     }
 
     public static boolean zeroOrLtMinus1(long l) {

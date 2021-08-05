@@ -36,8 +36,8 @@ public class PullSubscribeOptions extends SubscribeOptions {
      * @param durable the durable name
      * @return push subscribe options
      */
-    public static PullSubscribeOptions bindMode(String stream, String durable) {
-        return new PullSubscribeOptions.Builder().stream(stream).durable(durable).bindMode().build();
+    public static PullSubscribeOptions bind(String stream, String durable) {
+        return new PullSubscribeOptions.Builder().stream(stream).durable(durable).bind(true).build();
     }
 
     /**
@@ -58,7 +58,7 @@ public class PullSubscribeOptions extends SubscribeOptions {
          */
         @Override
         public PullSubscribeOptions build() {
-            return new PullSubscribeOptions(stream, durable, bindMode, consumerConfig);
+            return new PullSubscribeOptions(stream, durable, isBind, consumerConfig);
         }
     }
 }

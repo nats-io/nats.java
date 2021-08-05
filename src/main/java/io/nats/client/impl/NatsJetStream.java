@@ -229,7 +229,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
 
         //
-        boolean bindMode = so.isBindMode();
+        boolean bindMode = so.isBind();
 
         String durable = ccBuilder.getDurable();
         String inbox = ccBuilder.getDeliverSubject();

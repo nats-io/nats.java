@@ -49,7 +49,7 @@ public interface NatsJetStreamConstants {
     // JSAPI_STREAM_PURGE is the endpoint to purge streams.
     String JSAPI_STREAM_PURGE = "STREAM.PURGE.%s";
 
-    // JSAPI_STREAM_NAMES.
+    // JSAPI_STREAM_NAMES is the endpoint that will return a list of stream names
     String JSAPI_STREAM_NAMES = "STREAM.NAMES";
 
     // JSAPI_STREAM_LIST is the endpoint that will return all detailed stream information

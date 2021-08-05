@@ -80,7 +80,6 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     private void assertNextMessage(Subscription s, String data) throws InterruptedException {
         Message m = s.nextMessage(DEFAULT_TIMEOUT);
-        System.out.println(m.getClass() + " " + m);
         assertNotNull(m);
         if (data == null) {
             assertNotNull(m.getData());

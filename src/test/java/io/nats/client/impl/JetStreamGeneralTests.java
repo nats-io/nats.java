@@ -430,7 +430,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             pso = PushSubscribeOptions.builder()
                     .stream(STREAM)
                     .durable(DURABLE)
-                    .bindMode()
+                    .bind(true)
                     .build();
             s = js.subscribe(SUBJECT, pso);
             m = s.nextMessage(DEFAULT_TIMEOUT);
@@ -440,23 +440,23 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             s.unsubscribe();
 
             jsPublish(js, SUBJECT, 3, 1);
-            pso = PushSubscribeOptions.bindMode(STREAM, DURABLE);
+            pso = PushSubscribeOptions.bind(STREAM, DURABLE);
             s = js.subscribe(SUBJECT, pso);
             m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(data(3), new String(m.getData()));
 
             assertThrows(IllegalArgumentException.class,
-                    () -> PushSubscribeOptions.builder().stream(STREAM).bindMode().build());
+                    () -> PushSubscribeOptions.builder().stream(STREAM).bind(true).build());
 
             assertThrows(IllegalArgumentException.class,
-                    () -> PushSubscribeOptions.builder().durable(DURABLE).bindMode().build());
+                    () -> PushSubscribeOptions.builder().durable(DURABLE).bind(true).build());
 
             assertThrows(IllegalArgumentException.class,
-                    () -> PushSubscribeOptions.builder().stream(EMPTY).bindMode().build());
+                    () -> PushSubscribeOptions.builder().stream(EMPTY).bind(true).build());
 
             assertThrows(IllegalArgumentException.class,
-                    () -> PushSubscribeOptions.builder().stream(STREAM).durable(EMPTY).bindMode().build());
+                    () -> PushSubscribeOptions.builder().stream(STREAM).durable(EMPTY).bind(true).build());
         });
     }
 
@@ -483,7 +483,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             pso = PullSubscribeOptions.builder()
                     .stream(STREAM)
                     .durable(DURABLE)
-                    .bindMode()
+                    .bind(true)
                     .build();
             s = js.subscribe(SUBJECT, pso);
             s.pull(1);
@@ -494,7 +494,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             s.unsubscribe();
 
             jsPublish(js, SUBJECT, 3, 1);
-            pso = PullSubscribeOptions.bindMode(STREAM, DURABLE);
+            pso = PullSubscribeOptions.bind(STREAM, DURABLE);
             s = js.subscribe(SUBJECT, pso);
             s.pull(1);
             m = s.nextMessage(DEFAULT_TIMEOUT);
@@ -509,10 +509,10 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
             createTestStream(nc);
 
-            PushSubscribeOptions pushso = PushSubscribeOptions.bindMode(STREAM, DURABLE);
+            PushSubscribeOptions pushso = PushSubscribeOptions.bind(STREAM, DURABLE);
             assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushso));
 
-            PullSubscribeOptions pullso = PullSubscribeOptions.bindMode(STREAM, DURABLE);
+            PullSubscribeOptions pullso = PullSubscribeOptions.bind(STREAM, DURABLE);
             assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pullso));
         });
     }

@@ -52,7 +52,7 @@ public class NatsJsPubWithOptionsUseCases {
                     .expectedStream(exArgs.stream)
                     .messageId("mid1");
             PublishAck pa = js.publish(exArgs.subject, "message1".getBytes(), pubOptsBuilder.build());
-            System.out.printf("Published message on subject %s, stream %s, seqno %s.\n",
+            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
                     exArgs.subject, pa.getStream(), pa.getSeqno());
 
             // IMPORTANT!
@@ -66,7 +66,7 @@ public class NatsJsPubWithOptionsUseCases {
                     .expectedLastSequence(PublishOptions.UNSET_LAST_SEQUENCE)
                     .messageId(null);
             pa = js.publish(exArgs.subject, "message2".getBytes(), pubOptsBuilder.build());
-            System.out.printf("Published message on subject %s, stream %s, seqno %s.\n",
+            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
                     exArgs.subject, pa.getStream(), pa.getSeqno());
 
             // Manual re-use 2. Setting all the expected fields again
@@ -75,7 +75,7 @@ public class NatsJsPubWithOptionsUseCases {
                     .expectedLastSequence(pa.getSeqno()) // last sequence can be found in last ack
                     .messageId("mid3");
             pa = js.publish(exArgs.subject, "message3".getBytes(), pubOptsBuilder.build());
-            System.out.printf("Published message on subject %s, stream %s, seqno %s.\n",
+            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
                     exArgs.subject, pa.getStream(), pa.getSeqno());
 
             // reuse() method clears all the fields, then we set some fields.
@@ -83,7 +83,7 @@ public class NatsJsPubWithOptionsUseCases {
                     .expectedLastSequence(pa.getSeqno()) // last sequence can be found in last ack
                     .messageId("mid4");
             pa = js.publish(exArgs.subject, "message4".getBytes(), pubOptsBuilder.build());
-            System.out.printf("Published message on subject %s, stream %s, seqno %s.\n",
+            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
                     exArgs.subject, pa.getStream(), pa.getSeqno());
 
             // exception when the expected stream does not match

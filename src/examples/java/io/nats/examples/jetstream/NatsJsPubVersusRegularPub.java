@@ -31,9 +31,9 @@ import static io.nats.examples.jetstream.NatsJsUtils.createOrUpdateStream;
  * The difference lies in the whether it's important to your application to receive
  * a publish ack and whether or not you want to set publish expectations.
  */
-public class NatsJsPubVsRegularPub {
+public class NatsJsPubVersusRegularPub {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPubVsRegularPub [-s server] [-strm stream] [-sub subject]"
+            "\nUsage: java -cp <classpath> NatsJsPubVersusRegularPub [-s server] [-strm stream] [-sub subject]"
                     + "\n\nDefault Values:"
                     + "\n   [-strm stream]     regular-stream"
                     + "\n   [-sub subject]     regular-subject"
@@ -44,8 +44,8 @@ public class NatsJsPubVsRegularPub {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("js-vs-reg-stream")
-                .defaultSubject("js-vs-reg-subject")
+                .defaultStream("js-or-reg-stream")
+                .defaultSubject("js-or-reg-subject")
                 .build(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {

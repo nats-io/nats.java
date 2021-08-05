@@ -15,6 +15,8 @@ package io.nats.client;
 
 import io.nats.client.api.ConsumerConfiguration;
 
+import static io.nats.client.support.Validator.emptyAsNull;
+
 /**
  * The PushSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
  * Options are created using the constructors or a {@link Builder}.
@@ -34,12 +36,13 @@ public class PushSubscribeOptions extends SubscribeOptions {
     }
 
     /**
-     * Create PushSubscribeOptions where you are binding to
-     * a specific stream, which could be a stream or a mirror
+     * Macro to create a default PushSubscribeOptions except for
+     * where you must specify the stream because
+     * the subject could apply to both a stream and a mirror.
      * @deprecated
      * This method is no longer used as bind has a different meaning.
      * See {@link #stream(String)} instead.
-     * @param stream the stream name to bind to
+     * @param stream the stream name
      * @return push subscribe options
      */
     @Deprecated
@@ -48,9 +51,10 @@ public class PushSubscribeOptions extends SubscribeOptions {
     }
 
     /**
-     * Create PushSubscribeOptions where you are binding to
-     * a specific stream, which could be a stream or a mirror
-     * @param stream the stream name to bind to
+     * Macro to create a default PushSubscribeOptions except for
+     * where you must specify the stream because
+     * the subject could apply to both a stream and a mirror.
+     * @param stream the stream name
      * @return push subscribe options
      */
     public static PushSubscribeOptions stream(String stream) {
@@ -58,14 +62,14 @@ public class PushSubscribeOptions extends SubscribeOptions {
     }
 
     /**
-     * Create PushSubscribeOptions where you are binding to
-     * a specific stream, specific durable and are using direct mode
-     * @param stream the stream name to bind to
+     * Macro to create a PushSubscribeOptions where you are
+     * binding to an existing stream and durable consumer.
+     * @param stream the stream name
      * @param durable the durable name
      * @return push subscribe options
      */
-    public static PushSubscribeOptions bindMode(String stream, String durable) {
-        return new PushSubscribeOptions.Builder().stream(stream).durable(durable).bindMode().build();
+    public static PushSubscribeOptions bind(String stream, String durable) {
+        return new PushSubscribeOptions.Builder().stream(stream).durable(durable).bind(true).build();
     }
 
     public static Builder builder() {
@@ -92,7 +96,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
          * @return the builder.
          */
         public Builder deliverSubject(String deliverSubject) {
-            this.deliverSubject = deliverSubject;
+            this.deliverSubject = emptyAsNull(deliverSubject);
             return this;
         }
 
@@ -102,7 +106,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
          */
         @Override
         public PushSubscribeOptions build() {
-            return new PushSubscribeOptions(stream, durable, deliverSubject, bindMode, consumerConfig);
+            return new PushSubscribeOptions(stream, durable, deliverSubject, isBind, consumerConfig);
         }
     }
 }

@@ -138,10 +138,11 @@ public class ValidatorTests {
 
     @Test
     public void testValidateDurationNotRequiredGtOrEqZero() {
-        assertEquals(Duration.ZERO, validateDurationNotRequiredGtOrEqZero(null));
-        assertEquals(Duration.ZERO, validateDurationNotRequiredGtOrEqZero(Duration.ZERO));
-        assertEquals(Duration.ofNanos(1), validateDurationNotRequiredGtOrEqZero(Duration.ofNanos(1)));
-        assertThrows(IllegalArgumentException.class, () -> validateDurationNotRequiredGtOrEqZero(Duration.ofNanos(-1)));
+        Duration ifNull = Duration.ofMillis(999);
+        assertEquals(ifNull, validateDurationNotRequiredGtOrEqZero(null, ifNull));
+        assertEquals(Duration.ZERO, validateDurationNotRequiredGtOrEqZero(Duration.ZERO, ifNull));
+        assertEquals(Duration.ofNanos(1), validateDurationNotRequiredGtOrEqZero(Duration.ofNanos(1), ifNull));
+        assertThrows(IllegalArgumentException.class, () -> validateDurationNotRequiredGtOrEqZero(Duration.ofNanos(-1), ifNull));
 
         assertEquals(Duration.ZERO, validateDurationNotRequiredGtOrEqZero(0));
         assertEquals(Duration.ofMillis(1), validateDurationNotRequiredGtOrEqZero(1));
@@ -201,6 +202,30 @@ public class ValidatorTests {
         assertEquals(0, validateNotNegative(0, "test"));
         assertEquals(1, validateNotNegative(1, "test"));
         assertThrows(IllegalArgumentException.class, () -> validateNotNegative(-1, "test"));
+    }
+
+    @Test
+    public void testEmptyAsNull() {
+        assertEquals("test", emptyAsNull("test"));
+        assertNull(emptyAsNull(null));
+        assertNull(emptyAsNull(""));
+        assertNull(emptyAsNull(" "));
+        assertNull(emptyAsNull("\t"));
+    }
+
+    @Test
+    public void testEmptyOrNullAs() {
+        assertEquals("test", emptyOrNullAs("test", null));
+        assertNull(emptyOrNullAs(null, null));
+        assertNull(emptyOrNullAs("", null));
+        assertNull(emptyOrNullAs(" ", null));
+        assertNull(emptyOrNullAs("\t", null));
+
+        assertEquals("test", emptyOrNullAs("test", "as"));
+        assertEquals("as", emptyOrNullAs(null, "as"));
+        assertEquals("as", emptyOrNullAs("", "as"));
+        assertEquals("as", emptyOrNullAs(" ", "as"));
+        assertEquals("as", emptyOrNullAs("\t", "as"));
     }
 
     interface StringTest { String validate(String s, boolean required); }

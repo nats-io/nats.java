@@ -24,23 +24,23 @@ import static io.nats.client.support.Validator.*;
 public abstract class SubscribeOptions {
 
     protected final String stream;
-    protected final boolean bindMode;
+    protected final boolean isBind;
     protected final ConsumerConfiguration consumerConfig;
 
     protected SubscribeOptions(String stream, String durable, String deliverSubject,
-                               boolean bindMode, boolean pull, ConsumerConfiguration cc) {
+                               boolean isBind, boolean pull, ConsumerConfiguration cc) {
 
-        this.stream = validateStreamName(stream, bindMode); // required when bind mode
+        this.stream = validateStreamName(stream, isBind); // required when bind mode
 
-        durable = durable == null && cc != null ? cc.getDurable() : durable;
-        durable = validateDurable(durable, pull || bindMode); // required when pull or bind mode
+        durable = durable == null && cc != null ? emptyAsNull(cc.getDurable()) : durable;
+        durable = validateDurable(durable, pull || isBind); // required when pull or bind mode
 
         this.consumerConfig = ConsumerConfiguration.builder(cc)
-                .durable(emptyAsNull(durable))
-                .deliverSubject(emptyAsNull(deliverSubject))
+                .durable(durable)
+                .deliverSubject(deliverSubject)
                 .build();
 
-        this.bindMode = bindMode;
+        this.isBind = isBind;
     }
 
     /**
@@ -63,8 +63,8 @@ public abstract class SubscribeOptions {
      * Gets whether this subscription is expected to bind to an existing stream and durable consumer
      * @return the direct flag
      */
-    public boolean isBindMode() {
-        return bindMode;
+    public boolean isBind() {
+        return isBind;
     }
 
     /**
@@ -79,7 +79,7 @@ public abstract class SubscribeOptions {
     public String toString() {
         return getClass().getSimpleName() + "{" +
                 "stream='" + stream + '\'' +
-                "bindMode=" + bindMode +
+                "bind=" + isBind +
                 ", " + consumerConfig +
                 '}';
     }
@@ -90,7 +90,7 @@ public abstract class SubscribeOptions {
      */
     protected static abstract class Builder<B, SO> {
         protected String stream;
-        protected boolean bindMode;
+        protected boolean isBind;
         protected String durable;
         protected ConsumerConfiguration consumerConfig;
 
@@ -103,16 +103,17 @@ public abstract class SubscribeOptions {
          * @return the builder
          */
         public B stream(String stream) {
-            this.stream = stream;
+            this.stream = emptyAsNull(stream);
             return getThis();
         }
 
         /**
          * Specify the to attach in direct mode
          * @return the builder
+         * @param isBind whether to bind or not
          */
-        public B bindMode() {
-            this.bindMode = true;
+        public B bind(boolean isBind) {
+            this.isBind = isBind;
             return getThis();
         }
 
@@ -123,7 +124,7 @@ public abstract class SubscribeOptions {
          * @return the builder
          */
         public B durable(String durable) {
-            this.durable = durable;
+            this.durable = emptyAsNull(durable);
             return getThis();
         }
 

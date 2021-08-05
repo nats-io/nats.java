@@ -361,7 +361,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertStarts408(messages, 5, 10);
 
             jsPublish(js, SUBJECT, "E", 5);
-            sub.pullExpiresIn(10, expires);
+            sub.pullExpiresIn(10, expires); // using millis version here
             messages = readMessagesAck(sub);
             assertEquals(5, messages.size());
             assertAllJetStream(messages);
@@ -374,7 +374,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertStarts408(messages, 5, 10);
 
             jsPublish(js, SUBJECT, "G", 5);
-            sub.pullExpiresIn(10, expires);
+            sub.pullExpiresIn(10, expires); // using millis version here
             messages = readMessagesAck(sub);
             assertEquals(5, messages.size());
             assertAllJetStream(messages);

@@ -143,7 +143,7 @@ abstract class SourceBase implements JsonSerializable {
         if (filterSubject != null ? !filterSubject.equals(that.filterSubject) : that.filterSubject != null)
             return false;
         if (external != null ? !external.equals(that.external) : that.external != null) return false;
-        return objectName != null ? objectName.equals(that.objectName) : that.objectName == null;
+        return objectName.equals(that.objectName);
     }
 
     @Override
@@ -153,7 +153,7 @@ abstract class SourceBase implements JsonSerializable {
         result = 31 * result + (startTime != null ? startTime.hashCode() : 0);
         result = 31 * result + (filterSubject != null ? filterSubject.hashCode() : 0);
         result = 31 * result + (external != null ? external.hashCode() : 0);
-        result = 31 * result + (objectName != null ? objectName.hashCode() : 0);
+        result = 31 * result + objectName.hashCode();
         return result;
     }
 }

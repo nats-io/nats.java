@@ -490,7 +490,7 @@ public class StreamConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxAge(Duration maxAge) {
-            this.maxAge = validateDurationNotRequiredGtOrEqZero(maxAge);
+            this.maxAge = validateDurationNotRequiredGtOrEqZero(maxAge, Duration.ZERO);
             return this;
         }
 
@@ -572,7 +572,7 @@ public class StreamConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder duplicateWindow(Duration window) {
-            this.duplicateWindow = validateDurationNotRequiredGtOrEqZero(window);
+            this.duplicateWindow = validateDurationNotRequiredGtOrEqZero(window, Duration.ZERO);
             return this;
         }
 
