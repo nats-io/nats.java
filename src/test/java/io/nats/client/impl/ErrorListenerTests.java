@@ -233,7 +233,7 @@ public class ErrorListenerTests {
 
         List<Message> discardedMessages = handler.getDiscardedMessages();
         assertTrue(discardedMessages.size() > 0,  "expected discardedMessages > 0, got " + discardedMessages.size());
-        int offset = 11 - discardedMessages.size();
+        int offset = maxMessages + 1 - discardedMessages.size();
         assertEquals("subject" + offset, discardedMessages.get(0).getSubject());
         assertEquals("message" + offset, new String(discardedMessages.get(0).getData()));
     }
