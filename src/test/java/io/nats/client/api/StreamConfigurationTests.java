@@ -65,8 +65,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .duplicateWindow(testSc.getDuplicateWindow())
                 .placement(testSc.getPlacement())
                 .mirror(testSc.getMirror())
-                .sources(testSc.getSources())
-                ;
+                .sources(testSc.getSources());
         validate(builder.build());
         validate(builder.addSources((Source)null).build());
 
@@ -117,6 +116,16 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 }
             }
         }
+
+        // coverage for null StreamConfiguration, millis maxAge, millis duplicateWindow
+        StreamConfiguration scCov = StreamConfiguration.builder(null)
+                .maxAge(1111)
+                .duplicateWindow(2222)
+                .build();
+
+        assertNull(scCov.getName());
+        assertEquals(Duration.ofMillis(1111), scCov.getMaxAge());
+        assertEquals(Duration.ofMillis(2222), scCov.getDuplicateWindow());
     }
 
     @Test
@@ -284,6 +293,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(730, sc.getMaxConsumers());
         assertEquals(731, sc.getMaxMsgs());
         assertEquals(732, sc.getMaxBytes());
+        assertEquals(731, sc.getMaxMsgs());
+        assertEquals(732, sc.getMaxBytes());
         assertEquals(Duration.ofNanos(42000000000L), sc.getMaxAge());
         assertEquals(734, sc.getMaxMsgSize());
         assertEquals(StorageType.Memory, sc.getStorageType());
@@ -317,7 +328,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         validateSource(sc.getSources().get(1), "s1", 738, "s1sub", "s1api", "s1dlvrsub", zdt);
     }
 
-    private void validateSource(Source source, String name, int seq, String filter, String api, String deliver, ZonedDateTime zdt) {
+    private void validateSource(Source source, String name, long seq, String filter, String api, String deliver, ZonedDateTime zdt) {
         assertEquals(name, source.getSourceName());
         assertEquals(seq, source.getStartSeq());
         assertEquals(zdt, source.getStartTime());

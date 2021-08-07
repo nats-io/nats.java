@@ -36,6 +36,7 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
         assertEquals(1, jsmd.deliveredCount());
         assertEquals(2, jsmd.streamSequence());
         assertEquals(3, jsmd.consumerSequence());
+
         assertEquals(2020, jsmd.timestamp().getYear());
         assertEquals(6, jsmd.timestamp().getMinute());
         assertEquals(113260000, jsmd.timestamp().getNano());

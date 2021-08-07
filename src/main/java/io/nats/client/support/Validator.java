@@ -13,14 +13,13 @@
 
 package io.nats.client.support;
 
-import io.nats.client.api.ConsumerConfiguration;
-
 import java.time.Duration;
 
-import static io.nats.client.JetStreamSubscription.MAX_PULL_SIZE;
+import static io.nats.client.support.NatsJetStreamConstants.MAX_PULL_SIZE;
 
 public abstract class Validator {
-    private Validator() {} /* ensures cannot be constructed */
+    private Validator() {
+    } /* ensures cannot be constructed */
 
     public static String validateSubject(String s, boolean required) {
         return validatePrintable(s, "Subject", required);
@@ -42,16 +41,6 @@ public abstract class Validator {
         return validatePrintableExceptWildDotGt(s, "Durable", required);
     }
 
-    public static String validateDurableRequired(String durable, ConsumerConfiguration cc) {
-        if (durable == null) {
-            if (cc == null) {
-                throw new IllegalArgumentException("Durable is required.");
-            }
-            return validateDurable(cc.getDurable(), true);
-        }
-        return validateDurable(durable, true);
-    }
-
     public static String validateJetStreamPrefix(String s) {
         return validatePrintableExceptWildGtDollar(s, "Prefix", false);
     }
@@ -65,8 +54,7 @@ public abstract class Validator {
             if (nullOrEmpty(s)) {
                 throw new IllegalArgumentException(label + " cannot be null or empty [" + s + "]");
             }
-        }
-        else if (emptyAsNull(s) == null) {
+        } else if (emptyAsNull(s) == null) {
             return null;
         }
 
@@ -146,14 +134,21 @@ public abstract class Validator {
         return d;
     }
 
-    public static Duration validateDurationNotRequiredGtOrEqZero(Duration d) {
+    public static Duration validateDurationNotRequiredGtOrEqZero(Duration d, Duration ifNull) {
         if (d == null) {
-            return Duration.ZERO;
+            return ifNull;
         }
         if (d.isNegative()) {
             throw new IllegalArgumentException("Duration must be greater than or equal to 0.");
         }
         return d;
+    }
+
+    public static Duration validateDurationNotRequiredGtOrEqZero(long millis) {
+        if (millis < 0) {
+            throw new IllegalArgumentException("Duration must be greater than or equal to 0.");
+        }
+        return Duration.ofMillis(millis);
     }
 
     public static void validateNotNull(Object o, String fieldName) {
@@ -176,11 +171,18 @@ public abstract class Validator {
         return l;
     }
 
+    public static long validateGtEqZero(long l, String label) {
+        if (l < 0) {
+            throw new IllegalArgumentException(label + " must be greater than or equal to zero");
+        }
+        return l;
+    }
+
     // ----------------------------------------------------------------------------------------------------
     // Helpers
     // ----------------------------------------------------------------------------------------------------
     public static boolean nullOrEmpty(String s) {
-        return s == null || s.length() == 0;
+        return s == null || s.trim().length() == 0;
     }
 
     public static boolean notPrintable(String s) {
@@ -228,7 +230,21 @@ public abstract class Validator {
         return nullOrEmpty(s) ? null : s;
     }
 
+    public static String emptyOrNullAs(String s, String ifEmpty) {
+        return nullOrEmpty(s) ? ifEmpty : s;
+    }
+
     public static boolean zeroOrLtMinus1(long l) {
         return l == 0 || l < -1;
+    }
+
+    public static Duration ensureNotNullAndNotLessThanMin(Duration provided, Duration minimum, Duration dflt)
+    {
+        return provided == null || provided.toNanos() < minimum.toNanos() ? dflt : provided;
+    }
+
+    public static Duration ensureDurationNotLessThanMin(long providedMillis, Duration minimum, Duration dflt)
+    {
+        return ensureNotNullAndNotLessThanMin(Duration.ofMillis(providedMillis), minimum, dflt);
     }
 }

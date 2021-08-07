@@ -161,7 +161,7 @@ public class PublishOptions {
          * @return Builder
          */
         public Builder stream(String stream) {
-            this.stream = validateStreamName(stream, false);
+            this.stream = validateStreamName(emptyOrNullAs(stream, UNSET_STREAM), false);
             return this;
         }
 
@@ -172,7 +172,7 @@ public class PublishOptions {
          * @return Builder
          */
         public Builder streamTimeout(Duration timeout) {
-            this.streamTimeout = timeout == null ? DEFAULT_TIMEOUT : timeout;
+            this.streamTimeout = validateDurationNotRequiredGtOrEqZero(timeout, DEFAULT_TIMEOUT);
             return this;
         }
 
@@ -183,7 +183,7 @@ public class PublishOptions {
          * @return builder
          */
         public Builder expectedStream(String stream) {
-            expectedStream = validateStreamName(stream, false);
+            expectedStream = validateStreamName(emptyOrNullAs(stream, UNSET_STREAM), false);
             return this;
         }
 
@@ -196,7 +196,7 @@ public class PublishOptions {
         public Builder expectedLastMsgId(String lastMsgId) {
             expectedLastId = emptyAsNull(lastMsgId);
             return this;
-        }        
+        }
 
         /**
          * Sets the expected message ID of the publish
@@ -204,7 +204,7 @@ public class PublishOptions {
          * @return builder
          */
         public Builder expectedLastSequence(long sequence) {
-            expectedLastSeq = validateNotNegative(sequence, "Last Sequence");
+            expectedLastSeq = validateGtZeroOrMinus1(sequence, "Last Sequence");
             return this;
         }
 
@@ -215,7 +215,7 @@ public class PublishOptions {
          * @return builder
          */
         public Builder messageId(String msgId) {
-            this.msgId = msgId;
+            this.msgId = emptyAsNull(msgId);
             return this;
         }
 
@@ -230,6 +230,7 @@ public class PublishOptions {
             msgId = null;
             return this;
         }
+
         /**
          * Builds the publish options.
          * @return publish options

@@ -20,6 +20,7 @@ import io.nats.client.support.DateTimeUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 import static io.nats.client.support.JsonUtils.EMPTY_JSON;
@@ -111,5 +112,9 @@ public class ListRequestsTests extends JetStreamTestBase {
         assertFalse(tlr.hasMore());
         assertNull(tlr.internalNextJson());
         assertNull(tlr.internalNextJson("name", "value"));
+
+        String json = dataAsString("GenericErrorResponse.json");
+        NatsMessage m = new NatsMessage("sub", null, json.getBytes(StandardCharsets.US_ASCII));
+        assertThrows(JetStreamApiException.class, () -> new ListRequestEngine(m));
     }
 }

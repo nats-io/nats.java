@@ -302,6 +302,7 @@ public class NatsMessage implements Message {
         return false;  // overridden in NatsJetStreamMessage
     }
 
+    /* Keep this around for reference even though it's no longer used.
     public ByteArrayBuilder appendSerialized(ByteArrayBuilder bab) {
         bab.append(getProtocolBytes()).append(CRLF_BYTES);
 
@@ -319,6 +320,7 @@ public class NatsMessage implements Message {
 
         return bab;
     }
+    */
 
     @Override
     public String toString() {

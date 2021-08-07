@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -329,25 +330,29 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertSubscription(sub, STREAM, DURABLE, null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
+            long expires = 500; // millis
+
             // publish 10 messages
-            // no wait, batch size 10, there are 10 messages, we will read them all and not trip nowait
             jsPublish(js, SUBJECT, "A", 5);
-            sub.pullExpiresIn(10, Duration.ofSeconds(1));
+            sub.pullExpiresIn(10, Duration.ofMillis(expires)); // using Duration version here
             List<Message> messages = readMessagesAck(sub);
             assertEquals(5, messages.size());
             assertAllJetStream(messages);
+            sleep(expires); // make sure the pull actually expires
 
             jsPublish(js, SUBJECT, "B", 10);
-            sub.pullExpiresIn(10, Duration.ofSeconds(1));
+            sub.pullExpiresIn(10, Duration.ofMillis(expires)); // using Duration version here
             messages = readMessagesAck(sub);
             assertEquals(15, messages.size());
             assertStarts408(messages, 5, 10);
+            sleep(expires); // make sure the pull actually expires
 
             jsPublish(js, SUBJECT, "C", 5);
-            sub.pullExpiresIn(10, Duration.ofSeconds(1));
+            sub.pullExpiresIn(10, Duration.ofMillis(expires)); // using Duration version here
             messages = readMessagesAck(sub);
             assertEquals(5, messages.size());
             assertAllJetStream(messages);
+            sleep(expires); // make sure the pull actually expires
 
             jsPublish(js, SUBJECT, "D", 10);
             sub.pull(10);
@@ -356,10 +361,11 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertStarts408(messages, 5, 10);
 
             jsPublish(js, SUBJECT, "E", 5);
-            sub.pullExpiresIn(10, Duration.ofSeconds(1));
+            sub.pullExpiresIn(10, expires); // using millis version here
             messages = readMessagesAck(sub);
             assertEquals(5, messages.size());
             assertAllJetStream(messages);
+            sleep(expires); // make sure the pull actually expires
 
             jsPublish(js, SUBJECT, "F", 10);
             sub.pullNoWait(10);
@@ -368,24 +374,26 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertStarts408(messages, 5, 10);
 
             jsPublish(js, SUBJECT, "G", 5);
-            sub.pullExpiresIn(10, Duration.ofSeconds(1));
+            sub.pullExpiresIn(10, expires); // using millis version here
             messages = readMessagesAck(sub);
             assertEquals(5, messages.size());
             assertAllJetStream(messages);
+            sleep(expires); // make sure the pull actually expires
 
             jsPublish(js, SUBJECT, "H", 10);
-            messages = sub.fetch(10, Duration.ofSeconds(1));
+            messages = sub.fetch(10, expires);
             assertEquals(10, messages.size());
             assertAllJetStream(messages);
 
             jsPublish(js, SUBJECT, "I", 5);
-            sub.pullExpiresIn(10, Duration.ofSeconds(1));
+            sub.pullExpiresIn(10, expires);
             messages = readMessagesAck(sub);
             assertEquals(5, messages.size());
             assertAllJetStream(messages);
+            sleep(expires); // make sure the pull actually expires
 
             jsPublish(js, SUBJECT, "J", 10);
-            Iterator<Message> i = sub.iterate(10, Duration.ofSeconds(1));
+            Iterator<Message> i = sub.iterate(10, expires);
             int count = 0;
             while (i.hasNext()) {
                 assertIsJetStream(i.next());
@@ -460,37 +468,26 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testAckWaitTimeout() throws Exception {
+    public void testAckReplySyncCoverage() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);
-
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().ackWait(Duration.ofMillis(1500)).build();
-            PullSubscribeOptions pso = PullSubscribeOptions.builder().durable(DURABLE).configuration(cc).build();
-            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            JetStreamSubscription sub = js.subscribe(SUBJECT);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
-            // Ack Wait timeout
-            jsPublish(js, SUBJECT, "WAIT", 1);
+            jsPublish(js, SUBJECT, "COVERAGE", 1);
 
-            sub.pull(1);
             Message message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
-            String data = new String(message.getData());
-            assertEquals("WAIT1", data);
-            sleep(2000);
 
-            sub.pull(1);
-            message = sub.nextMessage(Duration.ofSeconds(1));
-            assertNotNull(message);
-            data = new String(message.getData());
-            assertEquals("WAIT1", data);
+            NatsJetStreamMessage njsm = (NatsJetStreamMessage)message;
 
-            sub.pull(1);
-            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+            njsm.replyTo = "$JS.ACK.stream.LS0k4eeN.1.1.1.1627472530542070600.0";
+
+            assertThrows(TimeoutException.class, () -> njsm.ackSync(Duration.ofSeconds(1)));
         });
     }
 
@@ -537,7 +534,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
-//    @Test
+//    @Test2
     public void testAckSync() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.

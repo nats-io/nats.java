@@ -51,6 +51,18 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         isPullMode = subscribeOptions instanceof PullSubscribeOptions;
     }
 
+    String getConsumer() {
+        return consumer;
+    }
+
+    String getStream() {
+        return stream;
+    }
+
+    String getDeliverSubject() {
+        return deliver;
+    }
+
     boolean isPullMode() {
         return isPullMode;
     }
@@ -79,6 +91,14 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         _pull(batchSize, false, expiresIn);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pullExpiresIn(int batchSize, long expiresInMillis) {
+        _pull(batchSize, false, Duration.ofMillis(expiresInMillis));
+    }
+
     private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
         if (!isPullMode()) {
             throw new IllegalStateException("Subscription type does not support pull.");
@@ -86,12 +106,12 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
 
         int batch = validatePullBatchSize(batchSize);
         String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
-        connection.publish(publishSubject, getSubject(), getPullJson(batch, noWait, expiresIn, null));
+        connection.publish(publishSubject, getSubject(), getPullJson(batch, noWait, expiresIn));
         connection.lenientFlushBuffer();
     }
 
-    byte[] getPullJson(int batch, boolean noWait, Duration expiresIn, String prefix) {
-        StringBuilder sb = JsonUtils.beginJsonPrefixed(prefix);
+    byte[] getPullJson(int batch, boolean noWait, Duration expiresIn) {
+        StringBuilder sb = JsonUtils.beginJson();
         JsonUtils.addField(sb, "batch", batch);
         JsonUtils.addFldWhenTrue(sb, "no_wait", noWait);
         JsonUtils.addFieldAsNanos(sb, "expires", expiresIn);
@@ -106,12 +126,19 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return js.lookupConsumerInfo(stream, consumer);
     }
 
-    private interface InternalBatchHandler {
-        boolean onMessage(Message message) throws InterruptedException;
-    }
-
     private static final Duration SUBSEQUENT_WAITS = Duration.ofMillis(500);
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<Message> fetch(int batchSize, long maxWaitMillis) {
+        return fetch(batchSize, Duration.ofMillis(maxWaitMillis));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<Message> fetch(int batchSize, Duration maxWait) {
         List<Message> messages = new ArrayList<>(batchSize);
@@ -143,8 +170,19 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public Iterator<Message> iterate(final int batchSize, Duration maxWait) {
+    public Iterator<Message> iterate(final int batchSize, long maxWaitMillis) {
+        return iterate(batchSize, Duration.ofMillis(maxWaitMillis));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Iterator<Message> iterate(int batchSize, Duration maxWait) {
         pullNoWait(batchSize);
 
         return new Iterator<Message>() {
@@ -199,7 +237,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 "consumer='" + consumer + '\'' +
                 ", stream='" + stream + '\'' +
                 ", deliver='" + deliver + '\'' +
-                ", isPullMode='" + isPullMode() +
+                ", isPullMode=" + isPullMode() +
                 '}';
     }
 }

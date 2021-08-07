@@ -26,7 +26,8 @@ public class ResponseTests extends JetStreamTestBase {
         String json = dataAsString("PurgeResponse.json");
         PurgeResponse pr = new PurgeResponse(getDataMessage(json));
         assertTrue(pr.isSuccess());
-        assertEquals(5, pr.getPurgedCount());
+        assertEquals(5, pr.getPurged());
+        assertEquals(5, pr.getPurgedCount()); // coverage for deprecated
         assertNotNull(pr.toString()); // COVERAGE
     }
 }

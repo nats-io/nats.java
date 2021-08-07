@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.utils.TestBase;
+import org.junit.jupiter.api.function.Executable;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -68,6 +69,12 @@ public class JetStreamTestBase extends TestBase {
         System.out.println("\n" + n + ". -------------------------------");
         printStreamInfo(jsm.getStreamInfo(STREAM));
         printConsumerInfo(jsm.getConsumerInfo(STREAM, DURABLE));
+    }
+
+    public static <T extends Throwable> T assertThrowsPrint(Class<T> expectedType, Executable executable) {
+        T t = org.junit.jupiter.api.Assertions.assertThrows(expectedType, executable);
+        t.printStackTrace();
+        return t;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -163,15 +170,22 @@ public class JetStreamTestBase extends TestBase {
     }
 
     public static void assertSubscription(JetStreamSubscription sub, String stream, String consumer, String deliver, boolean isPullMode) {
-        String s = sub.toString();
-        assertTrue(s.contains("stream='" + stream));
-        if (consumer != null) {
-            assertTrue(s.contains("consumer='" + consumer));
+        assertEquals(stream, ((NatsJetStreamSubscription)sub).getStream());
+        if (consumer == null) {
+            assertNotNull(((NatsJetStreamSubscription)sub).getConsumer());
+        }
+        else {
+            assertEquals(consumer, ((NatsJetStreamSubscription) sub).getConsumer());
         }
         if (deliver != null) {
-            assertTrue(s.contains("deliver='" + deliver));
+            assertEquals(deliver, ((NatsJetStreamSubscription)sub).getDeliverSubject());
         }
-        assertTrue(s.contains("isPullMode='" + isPullMode));
+
+        boolean pm = ((NatsJetStreamSubscription)sub).isPullMode();
+        assertEquals(isPullMode, pm);
+
+        // coverage
+        assertTrue(sub.toString().contains("isPullMode=" + pm));
     }
 
     public static void assertSameMessages(List<Message> l1, List<Message> l2) {
@@ -206,18 +220,18 @@ public class JetStreamTestBase extends TestBase {
         assertIsStatus(messages.get(lastIndex), code);
     }
 
-    public static void assertStarts408(List<Message> messages, int count408, int countJs) {
+    public static void assertStarts408(List<Message> messages, int count408, int expectedJs) {
         for (int x = 0; x < count408; x++) {
             assertIsStatus(messages.get(x), 408);
         }
         int countedJs = 0;
         int lastIndex = messages.size() - 1;
-        for (int x = count408; x < lastIndex; x++) {
+        for (int x = count408; x <= lastIndex; x++) {
             Message m = messages.get(x);
             assertTrue(m.isJetStream());
             countedJs++;
         }
-        assertEquals(countedJs, countedJs);
+        assertEquals(expectedJs, countedJs);
     }
 
     private static void assertIsStatus(Message statusMsg, int code) {
@@ -227,7 +241,7 @@ public class JetStreamTestBase extends TestBase {
         assertEquals(code, statusMsg.getStatus().getCode());
     }
 
-    public static void assertSource(JetStreamManagement jsm, String stream, Number msgCount, Number firstSeq)
+    public static void assertSource(JetStreamManagement jsm, String stream, Long msgCount, Long firstSeq)
             throws IOException, JetStreamApiException {
         sleep(1000);
         StreamInfo si = jsm.getStreamInfo(stream);
@@ -235,7 +249,7 @@ public class JetStreamTestBase extends TestBase {
         assertConfig(stream, msgCount, firstSeq, si);
     }
 
-    public static  void assertMirror(JetStreamManagement jsm, String stream, String mirroring, Number msgCount, Number firstSeq)
+    public static void assertMirror(JetStreamManagement jsm, String stream, String mirroring, Long msgCount, Long firstSeq)
             throws IOException, JetStreamApiException {
         sleep(1000);
         StreamInfo si = jsm.getStreamInfo(stream);
@@ -247,17 +261,17 @@ public class JetStreamTestBase extends TestBase {
         assertConfig(stream, msgCount, firstSeq, si);
     }
 
-    public static  void assertConfig(String stream, Number msgCount, Number firstSeq, StreamInfo si) {
+    public static void assertConfig(String stream, Long msgCount, Long firstSeq, StreamInfo si) {
         StreamConfiguration sc = si.getConfiguration();
         assertNotNull(sc);
         assertEquals(stream, sc.getName());
 
         StreamState ss = si.getStreamState();
         if (msgCount != null) {
-            assertEquals(msgCount.longValue(), ss.getMsgCount());
+            assertEquals(msgCount, ss.getMsgCount());
         }
         if (firstSeq != null) {
-            assertEquals(firstSeq.longValue(), ss.getFirstSequence());
+            assertEquals(firstSeq, ss.getFirstSequence());
         }
     }
 

@@ -38,9 +38,6 @@ public class NatsJsPubWithOptionsUseCases {
                 .defaultSubject("pubopts-subject")
                 .build(args, usageString);
 
-        String hdrNote = exArgs.hasHeaders() ? ", with " + exArgs.headers.size() + " header(s)" : "";
-        System.out.printf("\nPublishing to %s%s. Server is %s\n\n", exArgs.subject, hdrNote, exArgs.server);
-
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
 
             // Create a JetStream context.  This hangs off the original connection
@@ -52,7 +49,7 @@ public class NatsJsPubWithOptionsUseCases {
             NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
 
             PublishOptions.Builder pubOptsBuilder = PublishOptions.builder()
-                    .expectedStream("pubopts-stream")
+                    .expectedStream(exArgs.stream)
                     .messageId("mid1");
             PublishAck pa = js.publish(exArgs.subject, "message1".getBytes(), pubOptsBuilder.build());
             System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",

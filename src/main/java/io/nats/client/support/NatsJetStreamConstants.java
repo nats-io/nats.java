@@ -1,6 +1,10 @@
 package io.nats.client.support;
 
 public interface NatsJetStreamConstants {
+    /**
+     * The maximum pull size
+     */
+    int MAX_PULL_SIZE = 256;
 
     String JS_PREFIX = "$JS.";
 
@@ -29,9 +33,6 @@ public interface NatsJetStreamConstants {
 
     // JSAPI_CONSUMER_LIST is used to return all detailed consumer information
     String JSAPI_CONSUMER_LIST = "CONSUMER.LIST.%s";
-
-    // JSAPI_STREAMS can lookup a stream by subject.
-    String JSAPI_STREAMS = "STREAM.NAMES";
 
     // JSAPI_STREAM_CREATE is the endpoint to create new streams.
     String JSAPI_STREAM_CREATE = "STREAM.CREATE.%s";

@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class PublishOptionsTests extends TestBase {
+
     @Test
     public void testBuilder() {
         PublishOptions.Builder builder = PublishOptions.builder();

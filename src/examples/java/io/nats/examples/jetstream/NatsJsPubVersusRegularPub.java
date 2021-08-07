@@ -31,9 +31,9 @@ import static io.nats.examples.jetstream.NatsJsUtils.createOrUpdateStream;
  * The difference lies in the whether it's important to your application to receive
  * a publish ack and whether or not you want to set publish expectations.
  */
-public class NatsJsPubVsRegularPub {
+public class NatsJsPubVersusRegularPub {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPubVsRegularPub [-s server] [-strm stream] [-sub subject]"
+            "\nUsage: java -cp <classpath> NatsJsPubVersusRegularPub [-s server] [-strm stream] [-sub subject]"
                     + "\n\nDefault Values:"
                     + "\n   [-strm stream]     regular-stream"
                     + "\n   [-sub subject]     regular-subject"
@@ -44,16 +44,13 @@ public class NatsJsPubVsRegularPub {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("regular-stream")
-                .defaultSubject("regular-subject")
+                .defaultStream("js-or-reg-stream")
+                .defaultSubject("js-or-reg-subject")
                 .build(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
             JetStream js = nc.jetStream();
             createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
-
-            JetStreamSubscription sub = js.subscribe(exArgs.subject);
-            nc.flush(Duration.ofSeconds(5));
 
             // Regular Nats publish is straightforward
             nc.publish(exArgs.subject, "regular-message".getBytes(StandardCharsets.UTF_8));
@@ -77,13 +74,18 @@ public class NatsJsPubVsRegularPub {
             PublishAck pa = js.publish(msg, po);
             System.out.println(pa);
 
-            // But both messages appear in the stream
+            // set up the subscription
+            JetStreamSubscription sub = js.subscribe(exArgs.subject);
+            nc.flush(Duration.ofSeconds(5));
+
+            // Both messages appear in the stream
             msg = sub.nextMessage(Duration.ofSeconds(1));
-            System.out.println("Received: " + new String(msg.getData()));
+            msg.ack();
+            System.out.println("Received Data: " + new String(msg.getData()) + "\n          " + msg.metaData());
 
             msg = sub.nextMessage(Duration.ofSeconds(1));
-            System.out.println("Received: " + new String(msg.getData()));
-
+            msg.ack();
+            System.out.println("Received Data: " + new String(msg.getData()) + "\n          " + msg.metaData());
         }
         catch (Exception e) {
             e.printStackTrace();

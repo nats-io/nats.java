@@ -15,6 +15,7 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.Validator;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -23,6 +24,7 @@ import java.util.regex.Matcher;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.Validator.emptyAsNull;
 
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and
@@ -30,6 +32,11 @@ import static io.nats.client.support.JsonUtils.endJson;
  * Options are created using a PublishOptions.Builder.
  */
 public class ConsumerConfiguration implements JsonSerializable {
+
+    private static final Duration MIN_ACK_WAIT = Duration.ofNanos(1);
+    private static final Duration MIN_DEFAULT_IDLE_HEARTBEAT = Duration.ZERO;
+    private static final Duration DEFAULT_ACK_WAIT = Duration.ofSeconds(30);
+    private static final long DEFAULT_MAX_PULL_WAITING = 512;
 
     private final DeliverPolicy deliverPolicy;
     private final AckPolicy ackPolicy;
@@ -47,6 +54,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     private final long maxAckPending;
     private final Duration idleHeartbeat;
     private final boolean flowControl;
+    private final long maxPullWaiting;
 
     // for the response from the server
     ConsumerConfiguration(String json) {
@@ -72,13 +80,14 @@ public class ConsumerConfiguration implements JsonSerializable {
         maxAckPending = JsonUtils.readLong(json, MAX_ACK_PENDING_RE, 0);
         idleHeartbeat = JsonUtils.readNanos(json, IDLE_HEARTBEAT_RE, Duration.ZERO);
         flowControl = JsonUtils.readBoolean(json, FLOW_CONTROL_RE);
+        maxPullWaiting = JsonUtils.readLong(json, MAX_WAITING_RE, DEFAULT_MAX_PULL_WAITING);
     }
 
     // For the builder
     private ConsumerConfiguration(String durable, DeliverPolicy deliverPolicy, long startSeq,
             ZonedDateTime startTime, AckPolicy ackPolicy, Duration ackWait, long maxDeliver, String filterSubject,
             ReplayPolicy replayPolicy, String sampleFrequency, long rateLimit, String deliverSubject, long maxAckPending,
-            Duration idleHeartbeat, boolean flowControl) {
+            Duration idleHeartbeat, boolean flowControl, long maxPullWaiting) {
                 this.durable = durable;
                 this.deliverPolicy = deliverPolicy;
                 this.startSeq = startSeq;
@@ -94,6 +103,7 @@ public class ConsumerConfiguration implements JsonSerializable {
                 this.maxAckPending = maxAckPending;
                 this.idleHeartbeat = idleHeartbeat;
                 this.flowControl = flowControl;
+                this.maxPullWaiting = maxPullWaiting;
     }
 
     /**
@@ -148,7 +158,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     /**
      * Gets the start sequence of this consumer configuration.
      * @return the start sequence.
-     */    
+     */
     public long getStartSequence() {
         return startSeq;
     }
@@ -243,6 +253,14 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
+     * Get the number of pulls that can be outstanding on a pull consumer
+     * @return the max pull waiting
+     */
+    public long getMaxPullWaiting() {
+        return maxPullWaiting;
+    }
+
+    /**
      * Creates a builder for the publish options.
      * @return a publish options builder
      */
@@ -283,6 +301,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         private long maxAckPending = 0;
         private Duration idleHeartbeat = Duration.ZERO;
         private boolean flowControl;
+        private long maxPullWaiting = DEFAULT_MAX_PULL_WAITING;
 
         public String getDurable() {
             return durable;
@@ -322,6 +341,7 @@ public class ConsumerConfiguration implements JsonSerializable {
             this.maxAckPending = cc.maxAckPending;
             this.idleHeartbeat = cc.idleHeartbeat;
             this.flowControl = cc.flowControl;
+            this.maxPullWaiting = cc.maxPullWaiting;
         }
 
         /**
@@ -330,7 +350,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return the builder
          */
         public Builder durable(String durable) {
-            this.durable = durable;
+            this.durable = emptyAsNull(durable);
             return this;
         }      
 
@@ -340,7 +360,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder deliverPolicy(DeliverPolicy policy) {
-            this.deliverPolicy = policy;
+            this.deliverPolicy = policy == null ? DeliverPolicy.All : policy;
             return this;
         }
 
@@ -350,9 +370,9 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return the builder
          */
         public Builder deliverSubject(String subject) {
-            this.deliverSubject = subject;
+            this.deliverSubject = emptyAsNull(subject);
             return this;
-        }  
+        }
 
         /**
          * Sets the start sequence of the ConsumerConfiguration.
@@ -380,7 +400,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */        
         public Builder ackPolicy(AckPolicy policy) {
-            this.ackPolicy = policy;
+            this.ackPolicy = policy == null ? AckPolicy.Explicit : policy;
             return this;
         }
 
@@ -388,9 +408,19 @@ public class ConsumerConfiguration implements JsonSerializable {
          * Sets the acknowledgement wait duration of the ConsumerConfiguration.
          * @param timeout the wait timeout
          * @return Builder
-         */ 
+         */
         public Builder ackWait(Duration timeout) {
-            this.ackWait = timeout;
+            this.ackWait = Validator.ensureNotNullAndNotLessThanMin(timeout, MIN_ACK_WAIT, DEFAULT_ACK_WAIT);
+            return this;
+        }
+
+        /**
+         * Sets the acknowledgement wait duration of the ConsumerConfiguration.
+         * @param timeoutMillis the wait timeout in milliseconds
+         * @return Builder
+         */
+        public Builder ackWait(long timeoutMillis) {
+            this.ackWait = Validator.ensureDurationNotLessThanMin(timeoutMillis, MIN_ACK_WAIT, DEFAULT_ACK_WAIT);
             return this;
         }
 
@@ -410,7 +440,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */         
         public Builder filterSubject(String filterSubject) {
-            this.filterSubject = filterSubject;
+            this.filterSubject = emptyAsNull(filterSubject);
             return this;
         }
 
@@ -420,7 +450,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */         
         public Builder replayPolicy(ReplayPolicy policy) {
-            this.replayPolicy = policy;
+            this.replayPolicy = policy == null ? ReplayPolicy.Instant : policy;
             return this;
         }
 
@@ -430,7 +460,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder sampleFrequency(String frequency) {
-            this.sampleFrequency = frequency;
+            this.sampleFrequency = emptyAsNull(frequency);
             return this;
         }
 
@@ -459,8 +489,18 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @param idleHeartbeat the idle heart beat duration
          * @return Builder
          */
-        public Builder idleHeartbeat(final Duration idleHeartbeat) {
-            this.idleHeartbeat = idleHeartbeat;
+        public Builder idleHeartbeat(Duration idleHeartbeat) {
+            this.idleHeartbeat = Validator.ensureNotNullAndNotLessThanMin(idleHeartbeat, MIN_DEFAULT_IDLE_HEARTBEAT, MIN_DEFAULT_IDLE_HEARTBEAT);
+            return this;
+        }
+
+        /**
+         * sets the idle heart beat wait time
+         * @param idleHeartbeatMillis the idle heart beat duration in milliseconds
+         * @return Builder
+         */
+        public Builder idleHeartbeat(long idleHeartbeatMillis) {
+            this.idleHeartbeat = Validator.ensureDurationNotLessThanMin(idleHeartbeatMillis, MIN_DEFAULT_IDLE_HEARTBEAT, MIN_DEFAULT_IDLE_HEARTBEAT);
             return this;
         }
 
@@ -469,8 +509,18 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @param flowControl the flow control mode flag
          * @return Builder
          */
-        public Builder flowControl(final boolean flowControl) {
+        public Builder flowControl(boolean flowControl) {
             this.flowControl = flowControl;
+            return this;
+        }
+
+        /**
+         * sets the max pull waiting
+         * @param maxPullWaiting the max pull waiting milliseconds
+         * @return Builder
+         */
+        public Builder maxPullWaiting(long maxPullWaiting) {
+            this.maxPullWaiting = Validator.validateGtEqZero(maxPullWaiting, "Max Pull Waiting");
             return this;
         }
 
@@ -482,20 +532,21 @@ public class ConsumerConfiguration implements JsonSerializable {
 
             return new ConsumerConfiguration(
                     durable,
-                    deliverPolicy == null ? DeliverPolicy.All : deliverPolicy,
+                    deliverPolicy,
                     startSeq,
                     startTime,
-                    ackPolicy == null ? AckPolicy.Explicit : ackPolicy,
-                    ackWait == null ? Duration.ofSeconds(30) : ackWait,
+                    ackPolicy,
+                    ackWait,
                     maxDeliver,
                     filterSubject,
-                    replayPolicy == null ? ReplayPolicy.Instant : replayPolicy,
+                    replayPolicy,
                     sampleFrequency,
                     rateLimit,
                     deliverSubject,
                     maxAckPending,
-                    idleHeartbeat == null ? Duration.ZERO : idleHeartbeat,
-                    flowControl
+                    idleHeartbeat,
+                    flowControl,
+                    maxPullWaiting
             );
         }
     }
@@ -518,6 +569,7 @@ public class ConsumerConfiguration implements JsonSerializable {
                 ", maxAckPending=" + maxAckPending +
                 ", idleHeartbeat=" + idleHeartbeat +
                 ", flowControl=" + flowControl +
+                ", maxPullWaiting=" + maxPullWaiting +
                 '}';
     }
 }

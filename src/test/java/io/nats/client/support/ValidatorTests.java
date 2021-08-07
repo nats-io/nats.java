@@ -13,17 +13,15 @@
 
 package io.nats.client.support;
 
-import io.nats.client.api.ConsumerConfiguration;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
-import static io.nats.client.JetStreamSubscription.MAX_PULL_SIZE;
 import static io.nats.client.support.NatsConstants.EMPTY;
+import static io.nats.client.support.NatsJetStreamConstants.MAX_PULL_SIZE;
 import static io.nats.client.support.Validator.*;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.TestBase.*;
@@ -79,28 +77,6 @@ public class ValidatorTests {
         notAllowedRequired(Validator::validateDurable, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
         notAllowedRequired(Validator::validateDurable, UTF_ONLY_STRINGS);
         allowedNotRequiredEmptyAsNull(Validator::validateDurable, Arrays.asList(null, EMPTY));
-    }
-
-    @Test
-    public void testValidateDurableRequired() {
-        allowedRequired((s, r) -> Validator.validateDurableRequired(s, null), Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOLLAR));
-        notAllowedRequired((s, r) -> Validator.validateDurableRequired(s, null), Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
-        notAllowedRequired((s, r) -> Validator.validateDurableRequired(s, null), UTF_ONLY_STRINGS);
-
-        for (String data : Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOLLAR)) {
-            ConsumerConfiguration ccAllowed = ConsumerConfiguration.builder().durable(data).build();
-            assertEquals(data, Validator.validateDurableRequired(null, ccAllowed), allowedMessage(data));
-        }
-
-        for (String data : Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127)) {
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(data).build();
-            notAllowedRequired((s, r) -> Validator.validateDurableRequired(s, cc), Collections.singletonList(null));
-        }
-
-        for (String data : UTF_ONLY_STRINGS) {
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(data).build();
-            notAllowedRequired((s, r) -> Validator.validateDurableRequired(s, cc), Collections.singletonList(null));
-        }
     }
 
     @Test
@@ -162,14 +138,32 @@ public class ValidatorTests {
 
     @Test
     public void testValidateDurationNotRequiredGtOrEqZero() {
-        assertEquals(Duration.ZERO, validateDurationNotRequiredGtOrEqZero(null));
-        assertEquals(Duration.ZERO, validateDurationNotRequiredGtOrEqZero(null));
-        assertEquals(Duration.ZERO, validateDurationNotRequiredGtOrEqZero(Duration.ZERO));
-        assertEquals(Duration.ZERO, validateDurationNotRequiredGtOrEqZero(Duration.ZERO));
-        assertEquals(Duration.ofNanos(1), validateDurationNotRequiredGtOrEqZero(Duration.ofNanos(1)));
-        assertEquals(Duration.ofSeconds(1), validateDurationNotRequiredGtOrEqZero(Duration.ofSeconds(1)));
-        assertThrows(IllegalArgumentException.class, () -> validateDurationNotRequiredGtOrEqZero(Duration.ofNanos(-1)));
-        assertThrows(IllegalArgumentException.class, () -> validateDurationNotRequiredGtOrEqZero(Duration.ofSeconds(-1)));
+        Duration ifNull = Duration.ofMillis(999);
+        assertEquals(ifNull, validateDurationNotRequiredGtOrEqZero(null, ifNull));
+        assertEquals(Duration.ZERO, validateDurationNotRequiredGtOrEqZero(Duration.ZERO, ifNull));
+        assertEquals(Duration.ofNanos(1), validateDurationNotRequiredGtOrEqZero(Duration.ofNanos(1), ifNull));
+        assertThrows(IllegalArgumentException.class, () -> validateDurationNotRequiredGtOrEqZero(Duration.ofNanos(-1), ifNull));
+
+        assertEquals(Duration.ZERO, validateDurationNotRequiredGtOrEqZero(0));
+        assertEquals(Duration.ofMillis(1), validateDurationNotRequiredGtOrEqZero(1));
+        assertEquals(Duration.ofSeconds(1), validateDurationNotRequiredGtOrEqZero(1000));
+        assertThrows(IllegalArgumentException.class, () -> validateDurationNotRequiredGtOrEqZero(-1));
+    }
+
+    @Test
+    public void testValidateGtEqZero() {
+        assertEquals(0, validateGtEqZero(0, "test"));
+        assertEquals(1, validateGtEqZero(1, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateGtEqZero(-1, "test"));
+    }
+
+    @Test
+    public void testEnsureDuration() {
+        assertEquals(Duration.ofMillis(10), ensureNotNullAndNotLessThanMin(null, Duration.ofMillis(2), Duration.ofMillis(10)));
+        assertEquals(Duration.ofMillis(10), ensureNotNullAndNotLessThanMin(Duration.ofMillis(1), Duration.ofMillis(2), Duration.ofMillis(10)));
+        assertEquals(Duration.ofMillis(100), ensureNotNullAndNotLessThanMin(Duration.ofMillis(100), Duration.ofMillis(2), Duration.ofMillis(10)));
+        assertEquals(Duration.ofMillis(10), ensureDurationNotLessThanMin(1, Duration.ofMillis(2), Duration.ofMillis(10)));
+        assertEquals(Duration.ofMillis(100), ensureDurationNotLessThanMin(100, Duration.ofMillis(2), Duration.ofMillis(10)));
     }
 
     @Test
@@ -194,6 +188,44 @@ public class ValidatorTests {
         assertTrue(zeroOrLtMinus1(-2));
         assertFalse(zeroOrLtMinus1(1));
         assertFalse(zeroOrLtMinus1(-1));
+    }
+
+    @Test
+    public void testValidateGtZeroOrMinus1() {
+        assertEquals(1, validateGtZeroOrMinus1(1, "test"));
+        assertEquals(-1, validateGtZeroOrMinus1(-1, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateGtZeroOrMinus1(0, "test"));
+    }
+
+    @Test
+    public void testValidateNotNegative() {
+        assertEquals(0, validateNotNegative(0, "test"));
+        assertEquals(1, validateNotNegative(1, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateNotNegative(-1, "test"));
+    }
+
+    @Test
+    public void testEmptyAsNull() {
+        assertEquals("test", emptyAsNull("test"));
+        assertNull(emptyAsNull(null));
+        assertNull(emptyAsNull(""));
+        assertNull(emptyAsNull(" "));
+        assertNull(emptyAsNull("\t"));
+    }
+
+    @Test
+    public void testEmptyOrNullAs() {
+        assertEquals("test", emptyOrNullAs("test", null));
+        assertNull(emptyOrNullAs(null, null));
+        assertNull(emptyOrNullAs("", null));
+        assertNull(emptyOrNullAs(" ", null));
+        assertNull(emptyOrNullAs("\t", null));
+
+        assertEquals("test", emptyOrNullAs("test", "as"));
+        assertEquals("as", emptyOrNullAs(null, "as"));
+        assertEquals("as", emptyOrNullAs("", "as"));
+        assertEquals("as", emptyOrNullAs(" ", "as"));
+        assertEquals("as", emptyOrNullAs("\t", "as"));
     }
 
     interface StringTest { String validate(String s, boolean required); }

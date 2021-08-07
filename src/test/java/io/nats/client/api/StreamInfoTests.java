@@ -67,6 +67,7 @@ public class StreamInfoTests {
         assertEquals(12, ss.getByteCount());
         assertEquals(13, ss.getFirstSequence());
         assertEquals(14, ss.getLastSequence());
+
         assertEquals(15, ss.getConsumerCount());
 
         assertEquals(DateTimeUtils.parseDateTime("0001-01-01T00:00:00Z"), ss.getFirstTime());

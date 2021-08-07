@@ -15,21 +15,29 @@ package io.nats.client;
 
 import io.nats.client.api.ConsumerConfiguration;
 
-import static io.nats.client.support.Validator.validateDurableRequired;
-import static io.nats.client.support.Validator.validateStreamName;
-
 /**
  * The PullSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
  * Options are created using the constructors or a {@link Builder}.
  */
 public class PullSubscribeOptions extends SubscribeOptions {
 
-    private PullSubscribeOptions(String stream, ConsumerConfiguration consumerConfig) {
-        super(stream, consumerConfig);
+    private PullSubscribeOptions(String stream, String durable, boolean bindMode, ConsumerConfiguration consumerConfig) {
+        super(stream, durable, null, bindMode, true, consumerConfig);
     }
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    /**
+     * Create PullSubscribeOptions where you are binding to
+     * a specific stream, specific durable and are using direct mode
+     * @param stream the stream name to bind to
+     * @param durable the durable name
+     * @return push subscribe options
+     */
+    public static PullSubscribeOptions bind(String stream, String durable) {
+        return new PullSubscribeOptions.Builder().stream(stream).durable(durable).bind(true).build();
     }
 
     /**
@@ -50,15 +58,7 @@ public class PullSubscribeOptions extends SubscribeOptions {
          */
         @Override
         public PullSubscribeOptions build() {
-            validateStreamName(stream, false);
-
-            durable = validateDurableRequired(durable, consumerConfig);
-
-            ConsumerConfiguration cc = ConsumerConfiguration.builder(consumerConfig)
-                    .durable(durable)
-                    .build();
-
-            return new PullSubscribeOptions(stream, cc);
+            return new PullSubscribeOptions(stream, durable, isBind, consumerConfig);
         }
     }
 }
