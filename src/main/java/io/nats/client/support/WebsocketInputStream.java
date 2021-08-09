@@ -16,6 +16,8 @@ package io.nats.client.support;
 import java.io.IOException;
 import java.io.InputStream;
 
+import io.nats.client.support.WebsocketFrameHeader.OpCode;
+
 public class WebsocketInputStream extends InputStream {
     private byte[] buffer = new byte[WebsocketFrameHeader.MAX_FRAME_HEADER_SIZE];
     private WebsocketFrameHeader header = new WebsocketFrameHeader();
@@ -58,6 +60,11 @@ public class WebsocketInputStream extends InputStream {
             if (!readHeader()) {
                 return -1;
             }
+        }
+        if (header.getOpCode() == OpCode.CLOSE) {
+            // Ignore the websocket close message body:
+            in.skip(header.getPayloadLength());
+            return -1;
         }
         length = in.read(buffer, offset, length);
         if (-1 == length) {
