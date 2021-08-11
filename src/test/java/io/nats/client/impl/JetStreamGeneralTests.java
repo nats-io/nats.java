@@ -268,7 +268,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testFilterSubjectDurable() throws Exception {
-        runInJsServer(true, nc -> {
+        runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
