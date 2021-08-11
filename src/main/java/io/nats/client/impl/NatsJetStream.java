@@ -14,7 +14,6 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.api.PublishAck;
@@ -292,15 +291,6 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         // 5-Consumer didn't exist. It's either ephemeral or a durable that didn't already exist.
         if (createConsumer) {
-            // Defaults should set the right ack pending.
-            // if we have acks and the maxAckPending is not set, set it
-            // to the internal Max.
-            // TODO: too high value?
-            if (ccBuilder.getMaxAckPending() == 0
-                    && ccBuilder.getAckPolicy() != AckPolicy.None) {
-                ccBuilder.maxAckPending(sub.getPendingMessageLimit());
-            }
-
             // Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
             if (!isPullMode) {
                 ccBuilder.deliverSubject(inbox);
@@ -409,7 +399,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             return getConsumerInfo(stream, consumer);
         }
         catch (JetStreamApiException e) {
-            if (e.getApiErrorCode() == JS_CONSUMER_NOT_FOUND_ERR) {
+            // the right side of this condition...  ( starting here \/ ) is for backward compatibility with server versions that did not provide api error codes
+            if (e.getApiErrorCode() == JS_CONSUMER_NOT_FOUND_ERR || (e.getErrorCode() == 404 && e.getErrorDescription().contains("consumer"))) {
                 return null;
             }
             throw e;
