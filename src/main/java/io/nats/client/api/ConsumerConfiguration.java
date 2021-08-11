@@ -33,10 +33,10 @@ import static io.nats.client.support.Validator.emptyAsNull;
  */
 public class ConsumerConfiguration implements JsonSerializable {
 
-    private static final Duration MIN_ACK_WAIT = Duration.ofNanos(1);
-    private static final Duration MIN_DEFAULT_IDLE_HEARTBEAT = Duration.ZERO;
-    private static final Duration DEFAULT_ACK_WAIT = Duration.ofSeconds(30);
-    private static final long DEFAULT_MAX_PULL_WAITING = 512;
+    public static final Duration MIN_ACK_WAIT = Duration.ofNanos(1);
+    public static final Duration MIN_DEFAULT_IDLE_HEARTBEAT = Duration.ZERO;
+    public static final Duration DEFAULT_ACK_WAIT = Duration.ofSeconds(30);
+    public static final long DEFAULT_MAX_PULL_WAITING = 512;
 
     private final DeliverPolicy deliverPolicy;
     private final AckPolicy ackPolicy;
@@ -80,7 +80,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         maxAckPending = JsonUtils.readLong(json, MAX_ACK_PENDING_RE, 0);
         idleHeartbeat = JsonUtils.readNanos(json, IDLE_HEARTBEAT_RE, Duration.ZERO);
         flowControl = JsonUtils.readBoolean(json, FLOW_CONTROL_RE);
-        maxPullWaiting = JsonUtils.readLong(json, MAX_WAITING_RE, DEFAULT_MAX_PULL_WAITING);
+        maxPullWaiting = JsonUtils.readLong(json, MAX_PULL_WAITING_RE, 0);
     }
 
     // For the builder
@@ -128,6 +128,9 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, RATE_LIMIT_BPS, rateLimit);
         JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
         JsonUtils.addField(sb, FLOW_CONTROL, flowControl);
+        if (maxPullWaiting != 0 && maxPullWaiting != DEFAULT_MAX_PULL_WAITING) {
+            JsonUtils.addField(sb, MAX_PULL_WAITING, maxPullWaiting);
+        }
         return endJson(sb).toString();
     }
 
@@ -301,7 +304,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         private long maxAckPending = 0;
         private Duration idleHeartbeat = Duration.ZERO;
         private boolean flowControl;
-        private long maxPullWaiting = DEFAULT_MAX_PULL_WAITING;
+        private long maxPullWaiting = 0;
 
         public String getDurable() {
             return durable;
@@ -480,7 +483,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxAckPending(long maxAckPending) {
-            this.maxAckPending = maxAckPending;
+            this.maxAckPending = Validator.validateGtEqZero(maxAckPending, "Max Ack Pending");
             return this;
         }
 
@@ -515,8 +518,8 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
-         * sets the max pull waiting
-         * @param maxPullWaiting the max pull waiting milliseconds
+         * sets the max pull waiting, the number of pulls that can be outstanding on a pull consumer, pulls received after this is reached are ignored
+         * @param maxPullWaiting the max pull waiting
          * @return Builder
          */
         public Builder maxPullWaiting(long maxPullWaiting) {

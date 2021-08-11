@@ -540,37 +540,41 @@ public abstract class JsonUtils {
         return level == 0 ? "" : INDENT.substring(0, level * 4);
     }
 
-    public static void printFormatted(Object o) {
+    public static String getFormatted(Object o) {
+        StringBuilder sb = new StringBuilder();
         int level = 0;
         boolean indentNext = true;
         String s = o.toString();
         for (int x = 0; x < s.length(); x++) {
             char c = s.charAt(x);
             if (c == '{') {
-                System.out.print(c + "\n");
+                sb.append(c).append('\n');
                 ++level;
                 indentNext = true;
             }
             else if (c == '}') {
-                System.out.print("\n" + indent(--level) + c);
+                sb.append('\n').append(indent(--level)).append(c);
             }
             else if (c == ',') {
-                System.out.print("\n");
+                sb.append('\n');
                 indentNext = true;
             }
             else {
                 if (indentNext) {
                     if (c != ' ') {
-                        System.out.print(indent(level) + c);
+                        sb.append(indent(level)).append(c);
                         indentNext = false;
                     }
                 }
                 else {
-                    System.out.print(c);
+                    sb.append(c);
                 }
             }
         }
+        return sb.toString();
+    }
 
-        System.out.println();
+    public static void printFormatted(Object o) {
+        System.out.println(getFormatted(o));
     }
 }

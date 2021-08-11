@@ -45,6 +45,7 @@ public class ConsumerConfigurationTests extends TestBase {
                 .deliverSubject(DELIVER)
                 .idleHeartbeat(Duration.ofSeconds(66)) // duration
                 .flowControl(true)
+                .maxPullWaiting(73)
                 .build();
 
         assertEquals(AckPolicy.Explicit, c.getAckPolicy());
@@ -61,6 +62,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(2001, c.getStartSequence());
         assertEquals(zdt, c.getStartTime());
         assertTrue(c.getFlowControl());
+        assertEquals(73, c.getMaxPullWaiting());
 
         ConsumerCreateRequest ccr = new ConsumerCreateRequest(STREAM, c);
         assertEquals(STREAM, ccr.getStreamName());
@@ -81,6 +83,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(2001, c.getStartSequence());
         assertEquals(zdt.toEpochSecond(), c.getStartTime().toEpochSecond());
         assertTrue(c.getFlowControl());
+        assertEquals(73, c.getMaxPullWaiting());
 
         assertNotNull(ccr.toString()); // COVERAGE
         assertNotNull(c.toString()); // COVERAGE

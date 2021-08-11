@@ -85,6 +85,17 @@ public interface JetStreamManagement {
     PurgeResponse purgeStream(String streamName) throws IOException, JetStreamApiException;
 
     /**
+     * Purge messages for a specific subject
+     * @param streamName the stream name to use.
+     * @param subject the subject
+     * @return PurgeResponse the purge response
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    PurgeResponse purgeSubject(String streamName, String subject) throws IOException, JetStreamApiException;
+
+    /**
      * Loads or creates a consumer.
      * @param streamName name of the stream
      * @param config the consumer configuration to use.

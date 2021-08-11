@@ -47,7 +47,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
      */
     @Deprecated
     public static PushSubscribeOptions bind(String stream) {
-        return new Builder().stream(stream).build();
+        return stream(stream);
     }
 
     /**

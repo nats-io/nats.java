@@ -491,6 +491,28 @@ public class HeadersTests {
     }
 
     @Test
+    public void verifyStatusBooleans() {
+        Status status = new Status(Status.FLOW_OR_HEARTBEAT_STATUS_CODE, Status.FLOW_CONTROL_TEXT);
+        assertTrue(status.isFlowControl());
+        assertFalse(status.isHeartbeat());
+        assertFalse(status.isNoResponders());
+
+        status = new Status(Status.FLOW_OR_HEARTBEAT_STATUS_CODE, Status.HEARTBEAT_TEXT);
+        assertFalse(status.isFlowControl());
+        assertTrue(status.isHeartbeat());
+        assertFalse(status.isNoResponders());
+
+        status = new Status(Status.NO_RESPONDERS_CODE, Status.NO_RESPONDERS_TEXT);
+        assertFalse(status.isFlowControl());
+        assertFalse(status.isHeartbeat());
+        assertTrue(status.isNoResponders());
+
+        // path coverage
+        status = new Status(Status.NO_RESPONDERS_CODE, "not no responders text");
+        assertFalse(status.isNoResponders());
+    }
+
+    @Test
     public void constructHasStatusAndHeaders() {
         IncomingHeadersProcessor ihp = assertValidStatus("NATS/1.0 503\r\nfoo:bar\r\n\r\n", 503, "No Responders Available For Request"); // status made message
         assertValidHeader(ihp, "foo", "bar");

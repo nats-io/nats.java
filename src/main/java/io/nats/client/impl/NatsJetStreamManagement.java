@@ -22,6 +22,7 @@ import io.nats.client.api.*;
 import java.io.IOException;
 import java.util.List;
 
+import static io.nats.client.support.ApiConstants.FILTER;
 import static io.nats.client.support.ApiConstants.SEQ;
 import static io.nats.client.support.JsonUtils.simpleMessageBody;
 import static io.nats.client.support.Validator.*;
@@ -95,6 +96,16 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
     public PurgeResponse purgeStream(String streamName) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_STREAM_PURGE, streamName);
         Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
+        return new PurgeResponse(resp).throwOnHasError();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public PurgeResponse purgeSubject(String streamName, String subject) throws IOException, JetStreamApiException {
+        String subj = String.format(JSAPI_STREAM_PURGE, streamName);
+        Message resp = makeRequestResponseRequired(subj, simpleMessageBody(FILTER, subject), jso.getRequestTimeout());
         return new PurgeResponse(resp).throwOnHasError();
     }
 

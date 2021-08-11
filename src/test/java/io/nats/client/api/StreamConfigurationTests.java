@@ -54,6 +54,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .retentionPolicy(testSc.getRetentionPolicy())
                 .maxConsumers(testSc.getMaxConsumers())
                 .maxMessages(testSc.getMaxMsgs())
+                .maxMessagesPerSubject(testSc.getMaxMsgsPerSubject())
                 .maxBytes(testSc.getMaxBytes())
                 .maxAge(testSc.getMaxAge())
                 .maxMsgSize(testSc.getMaxMsgSize())
@@ -292,6 +293,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertSame(RetentionPolicy.Interest, sc.getRetentionPolicy());
         assertEquals(730, sc.getMaxConsumers());
         assertEquals(731, sc.getMaxMsgs());
+        assertEquals(741, sc.getMaxMsgsPerSubject());
         assertEquals(732, sc.getMaxBytes());
         assertEquals(731, sc.getMaxMsgs());
         assertEquals(732, sc.getMaxBytes());

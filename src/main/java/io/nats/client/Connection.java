@@ -434,7 +434,7 @@ public interface Connection extends AutoCloseable {
     /**
      * Gets a context for managing Jetstream streams
      * and consumers.
-     * @return a JetStream instance.
+     * @return a JetStreamManagement instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
     JetStreamManagement jetStreamManagement() throws IOException;
@@ -443,9 +443,46 @@ public interface Connection extends AutoCloseable {
      * Gets a context for managing Jetstream streams
      * and consumers.
      * @param options JetStream options.
-     * @return a JetStream instance.
+     * @return a JetStreamManagement instance.
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      */
     JetStreamManagement jetStreamManagement(JetStreamOptions options) throws IOException;
+
+    /**
+     * Gets a context for working with an Key Value bucket
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @param bucket the bucket
+     * @return a KeyValue instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    KeyValue keyValue(String bucket) throws IOException;
+
+    /**
+     * Gets a context for working with an Key Value bucket
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @param bucket the bucket
+     * @param options JetStream options.
+     * @return a KeyValue instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    KeyValue keyValue(String bucket, JetStreamOptions options) throws IOException;
+
+    /**
+     * Gets a context for managing Key Value buckets
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @return a KeyValueManagement instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    KeyValueManagement keyValueManagement() throws IOException;
+
+    /**
+     * Gets a context for managing Key Value buckets
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @param options JetStream options.
+     * @return a KeyValueManagement instance.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     */
+    KeyValueManagement keyValueManagement(JetStreamOptions options) throws IOException;
 }

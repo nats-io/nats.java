@@ -112,12 +112,42 @@ public abstract class Validator {
         return validateGtZeroOrMinus1(max, "Max Messages");
     }
 
+    public static long validateMaxBucketValues(long max) {
+        return validateGtZeroOrMinus1(max, "Max Bucket Values");
+    }
+
+    public static long validateMaxMessagesPerSubject(long max) {
+        if (max < -1) {
+            throw new IllegalArgumentException("Max Messages per Subject must be greater than or equal to zero");
+        }
+        return max;
+        // TODO Waiting on a server change take that /\ out, put this \/ back in
+//        return validateGtZeroOrMinus1(max, "Max Messages per Subject");
+    }
+
+    public static long validateMaxValuesPerKey(long max) {
+        if (max < -1) {
+            throw new IllegalArgumentException("Max Values per Key must be greater than or equal to zero");
+        }
+        return max;
+        // TODO Waiting on a server change take that /\ out, put this \/ back in
+//        return validateGtZeroOrMinus1(max, "Max Values per Key");
+    }
+
     public static long validateMaxBytes(long max) {
         return validateGtZeroOrMinus1(max, "Max Bytes");
     }
 
+    public static long validateMaxBucketBytes(long max) {
+        return validateGtZeroOrMinus1(max, "Max Bucket Bytes");
+    }
+
     public static long validateMaxMessageSize(long max) {
-        return validateGtZeroOrMinus1(max, "Max message size");
+        return validateGtZeroOrMinus1(max, "Max Message size");
+    }
+
+    public static long validateMaxValueSize(long max) {
+        return validateGtZeroOrMinus1(max, "Max Value Bytes");
     }
 
     public static int validateNumberOfReplicas(int replicas) {
@@ -176,6 +206,10 @@ public abstract class Validator {
             throw new IllegalArgumentException(label + " must be greater than or equal to zero");
         }
         return l;
+    }
+
+    public static String validateBucketNameRequired(String s) {
+        return validatePrintableExceptWildDotGt(s, "Bucket name", true);
     }
 
     // ----------------------------------------------------------------------------------------------------

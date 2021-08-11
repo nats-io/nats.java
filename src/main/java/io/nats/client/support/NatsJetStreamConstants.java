@@ -67,4 +67,11 @@ public interface NatsJetStreamConstants {
     String EXPECTED_LAST_MSG_ID_HDR = "Nats-Expected-Last-Msg-Id";
 
     int JS_CONSUMER_NOT_FOUND_ERR = 10014;
+    int JS_NO_MESSAGE_FOUND_ERR = 10037;
+
+    String KV_STREAM_PREFIX = "KV_";
+    int KV_STREAM_PREFIX_LEN = KV_STREAM_PREFIX.length();
+    String KV_SUBJECT_PREFIX = "$KV.";
+    String KV_SUBJECT_SUFFIX = ".>";
+    String KV_OPERATION_HEADER_KEY = "KV-Operation";
 }
