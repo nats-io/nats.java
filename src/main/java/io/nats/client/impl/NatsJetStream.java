@@ -408,7 +408,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             return getConsumerInfo(stream, consumer);
         }
         catch (JetStreamApiException e) {
-            if (e.getApiErrorCode() == JS_CONSUMER_NOT_FOUND_ERR) {
+            // the right side of this condition...  ( starting here \/ ) is for backward compatibility with server versions that did not provide api error codes
+            if (e.getApiErrorCode() == JS_CONSUMER_NOT_FOUND_ERR || (e.getErrorCode() == 404 && e.getErrorDescription().contains("consumer"))) {
                 return null;
             }
             throw e;
