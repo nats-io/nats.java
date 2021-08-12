@@ -114,8 +114,7 @@ public class NatsKeyValueFull {
                 System.out.println(STRING_KEY + " value is not a long!");
             }
 
-            // entry gives detail about latest entry of the key
-            // this might mean
+            // entry gives detail about latest record of the key
             System.out.println("\n5. Get Entry");
 
             KvEntry entry = kv.getEntry(BYTE_KEY);
@@ -189,7 +188,6 @@ public class NatsKeyValueFull {
             bi = kvm.getBucketInfo(BUCKET_NAME);
             System.out.println(bi);
 
-            if (true) return;
             // delete the bucket
             System.out.println("\n9.2 Delete");
             kvm.deleteBucket(BUCKET_NAME);

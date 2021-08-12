@@ -13,6 +13,7 @@
 
 package io.nats.client.support;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 import static io.nats.client.support.NatsJetStreamConstants.MAX_PULL_SIZE;
@@ -46,23 +47,31 @@ public abstract class Validator {
     }
 
     interface Check {
-        String check(String s, String label);
+        String check();
     }
 
-    public static String _validate(String s, String label, boolean required, Check check) {
-        if (required) {
-            if (nullOrEmpty(s)) {
-                throw new IllegalArgumentException(label + " cannot be null or empty [" + s + "]");
+    public static String _validate(String s, boolean required, String label, Check check) {
+        if (emptyAsNull(s) == null) {
+            if (required) {
+                throw new IllegalArgumentException(label + " cannot be null or empty.");
             }
-        } else if (emptyAsNull(s) == null) {
             return null;
         }
+        return check.check();
+    }
 
-        return check.check(s, label);
+    public static String validateMaxLength(String s, int maxLength, boolean required, String label) {
+        return _validate(s, required, label, () -> {
+            int len = s.getBytes(StandardCharsets.UTF_8).length;
+            if (len > maxLength) {
+                throw new IllegalArgumentException(label + " cannot be longer than " + maxLength + " bytes but was " + len + " bytes");
+            }
+            return s;
+        });
     }
 
     public static String validatePrintable(String s, String label, boolean required) {
-        return _validate(s, label, required, (ss, ll) -> {
+        return _validate(s, required, label, () -> {
             if (notPrintable(s)) {
                 throw new IllegalArgumentException(label + " must be in the printable ASCII range [" + s + "]");
             }
@@ -71,7 +80,7 @@ public abstract class Validator {
     }
 
     public static String validatePrintableExceptWildDotGt(String s, String label, boolean required) {
-        return _validate(s, label, required, (ss, ll) -> {
+        return _validate(s, required, label, () -> {
             if (notPrintableOrHasWildGtDot(s)) {
                 throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `.` or `>` [" + s + "]");
             }
@@ -80,7 +89,7 @@ public abstract class Validator {
     }
 
     public static String validatePrintableExceptWildGt(String s, String label, boolean required) {
-        return _validate(s, label, required, (ss, ll) -> {
+        return _validate(s, required, label, () -> {
             if (notPrintableOrHasWildGt(s)) {
                 throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `>` or `$` [" + s + "]");
             }
@@ -89,7 +98,7 @@ public abstract class Validator {
     }
 
     public static String validatePrintableExceptWildGtDollar(String s, String label, boolean required) {
-        return _validate(s, label, required, (ss, ll) -> {
+        return _validate(s, required, label, () -> {
             if (notPrintableOrHasWildGtDollar(s)) {
                 throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `>` or `$` [" + s + "]");
             }

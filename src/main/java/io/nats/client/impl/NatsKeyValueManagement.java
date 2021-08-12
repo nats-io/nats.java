@@ -13,25 +13,24 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamApiException;
-import io.nats.client.JetStreamManagement;
-import io.nats.client.JetStreamOptions;
-import io.nats.client.KeyValueManagement;
-import io.nats.client.api.BucketConfiguration;
-import io.nats.client.api.BucketInfo;
-import io.nats.client.api.KvEntry;
-import io.nats.client.api.PurgeResponse;
+import io.nats.client.*;
+import io.nats.client.api.*;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 
 public class NatsKeyValueManagement extends NatsKeyValueImplBase implements KeyValueManagement {
+    private static PushSubscribeOptions historyPso;
 
     private final JetStreamManagement jsm;
+    private final JetStream js;
 
     public NatsKeyValueManagement(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
         super(connection, jsOptions);
         jsm = new NatsJetStreamManagement(connection, jsOptions);
+        js = new NatsJetStream(connection, jsOptions);
     }
 
     /**
@@ -78,8 +77,18 @@ public class NatsKeyValueManagement extends NatsKeyValueImplBase implements KeyV
      * {@inheritDoc}
      */
     @Override
-    public List<KvEntry> history(String bucketName, String key) throws IOException, JetStreamApiException {
-        throw new UnsupportedOperationException("Key Value Management 'history' function is not implemented");
+    public List<KvEntry> getHistory(String bucketName, String key) throws IOException, JetStreamApiException, InterruptedException {
+
+        List<KvEntry> list = new ArrayList<>();
+        JetStreamSubscription sub = js.subscribe(toSubject(bucketName, key), getHistoryPso());
+        Message m = sub.nextMessage(Duration.ofMillis(1000)); // give a little time for the first
+        while (m != null) {
+            list.add(new KvEntry(m, bucketName, key));
+            m = sub.nextMessage(Duration.ofMillis(100)); // the rest should come pretty quick
+        }
+
+        return list;
+//        throw new UnsupportedOperationException("Key Value Management 'history' function is not implemented");
     }
 
     /**
@@ -88,5 +97,18 @@ public class NatsKeyValueManagement extends NatsKeyValueImplBase implements KeyV
     @Override
     public List<String> keys(String bucketName) throws IOException, JetStreamApiException {
         throw new UnsupportedOperationException("Key Value Management 'keys' function is not implemented");
+    }
+
+    private static PushSubscribeOptions getHistoryPso() {
+        if (historyPso == null) {
+            historyPso = PushSubscribeOptions.builder()
+                    .configuration(
+                            ConsumerConfiguration.builder()
+                                    .ackPolicy(AckPolicy.None)
+                                    .build()
+                    )
+                    .build();
+        }
+        return historyPso;
     }
 }

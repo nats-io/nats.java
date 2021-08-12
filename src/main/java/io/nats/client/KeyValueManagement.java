@@ -92,7 +92,7 @@ public interface KeyValueManagement {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    List<KvEntry> history(String bucketName, String key) throws IOException, JetStreamApiException;
+    List<KvEntry> getHistory(String bucketName, String key) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
      * Get the list of the keys in a bucket.
