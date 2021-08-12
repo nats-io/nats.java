@@ -80,6 +80,13 @@ public class NatsServerProtocolMock implements Closeable{
         start();
     }
 
+    public NatsServerProtocolMock(Customizer custom, int port, ExitAt exitAt) {
+        this.port = port;
+        this.exitAt = exitAt;
+        this.customizer = custom;
+        start();
+    }
+
     public NatsServerProtocolMock(Customizer custom, int port, boolean exitAfterCustom) {
         this.port = port;
 
@@ -204,6 +211,12 @@ public class NatsServerProtocolMock implements Closeable{
             }
 
             if (exitAt == ExitAt.EXIT_AFTER_CONNECT) {
+                if (this.customizer != null) {
+                    this.progress = Progress.STARTED_CUSTOM_CODE;
+                    System.out.println("*** Mock Server @" + this.port + " starting custom code...");
+                    this.customizer.customizeTest(this, reader, writer);
+                    this.progress = Progress.COMPLETED_CUSTOM_CODE;
+                }
                 throw new Exception("exit");
             }
 

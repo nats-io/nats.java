@@ -15,13 +15,20 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.NatsServerProtocolMock.ExitAt;
+
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -389,6 +396,69 @@ public class ReconnectTests {
         }
 
         standardCloseConnection(nc);
+    }
+
+    // Regression test for when a connection is immediately closed by the
+    // nats-server (auth violation for example). Previously, the NatsConnectionReader
+    // would set the exceptionDuringConnectChange field, but the thread running
+    // tryToConnect() would not "see" this exception since it is waiting for a PONG
+    // which will never occur.
+    @Test
+    public void testReconnectDoesNotTriggerTimeout() throws Exception {
+        NatsConnection nc;
+        List<Exception> exceptions = Collections.synchronizedList(new ArrayList<>());
+        TestHandler handler = new TestHandler();
+        ErrorListener errorListener = new ErrorListener() {
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {
+                if (exp instanceof IOException && "Read channel closed.".equals(exp.getMessage())) {
+                    return;
+                }
+                exceptions.add(exp);
+            }
+
+            @Override
+            public void errorOccurred(Connection conn, String error) {
+            }
+
+            @Override
+            public void slowConsumerDetected(Connection conn, Consumer consumer) {
+            }
+        };
+        int port = NatsTestServer.nextPort();
+
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(port, ExitAt.NO_EXIT)) {
+            Options options = new Options.Builder().
+                errorListener(errorListener).
+                connectionTimeout(Duration.ofSeconds(4)).
+                server(ts.getURI()).
+                maxReconnects(-1).
+                // Give us time to start the second mock server:
+                reconnectWait(Duration.ofMillis(100)).
+                connectionListener(handler).
+                build();
+            nc = (NatsConnection) Nats.connect(options);
+            assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+            ts.close();
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        NatsServerProtocolMock.Customizer errCustomizer = (ts, r,w) -> {
+            w.write("-ERR 'Custom Error'\r\n");
+            w.close();
+            latch.countDown();
+        };
+        // Simulate an -ERR after connect:
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(errCustomizer, port, ExitAt.EXIT_AFTER_CONNECT)) {
+            latch.await();
+        }
+        handler.prepForStatusChange(Events.RECONNECTED);
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(port, ExitAt.NO_EXIT)) {
+            flushAndWaitLong(nc, handler);
+            assertEquals(Collections.emptyList(), exceptions);
+            standardCloseConnection(nc);
+            ts.close();
+        }
     }
 
     @Test

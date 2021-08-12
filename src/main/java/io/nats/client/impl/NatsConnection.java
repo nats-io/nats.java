@@ -424,8 +424,21 @@ class NatsConnection implements Connection {
             timeoutNanos = timeCheck(trace, end, "sending initial ping");
             Future<Boolean> pongFuture = sendPing();
 
+            // Don't wait on a pong future if we already got an exception:
+            if (this.exceptionDuringConnectChange != null) {
+                throw this.exceptionDuringConnectChange;
+            }
+
             if (pongFuture != null) {
-                pongFuture.get(timeoutNanos, TimeUnit.NANOSECONDS);
+                try {
+                    pongFuture.get(timeoutNanos, TimeUnit.NANOSECONDS);
+                } catch (CancellationException ex) {
+                    // Pong was cancel'ed due to exception:
+                    if (this.exceptionDuringConnectChange != null) {
+                        throw this.exceptionDuringConnectChange;
+                    }
+                    throw ex;
+                }
             }
 
             if (this.timer == null) {
@@ -524,6 +537,10 @@ class NatsConnection implements Connection {
         try {
             if (this.connecting || this.disconnecting || this.status == Status.CLOSED || this.isDraining()) {
                 this.exceptionDuringConnectChange = io;
+                if (this.connecting) {
+                    // This forces the pongFuture to be cancelled immediately:
+                    cleanUpPongQueue();
+                }
                 return;
             }
         } finally {
