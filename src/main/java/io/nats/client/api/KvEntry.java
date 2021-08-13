@@ -18,7 +18,7 @@ import io.nats.client.Message;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 
-import static io.nats.client.support.NatsJetStreamConstants.KV_OPERATION_HEADER_KEY;
+import static io.nats.client.support.NatsKeyValueUtil.getHeader;
 
 /**
  * The MessageInfo class contains information about a JetStream message.
@@ -32,26 +32,24 @@ public class KvEntry extends ApiResponse<KvEntry> {
     private final ZonedDateTime created;
     private final KvOperation kvOperation;
 
-    public KvEntry(MessageInfo mi, String bucket, String key) {
-        this.bucket = bucket;
-        this.key = key;
+    public KvEntry(MessageInfo mi) {
+        String[] bk = extractBK(mi.getSubject());
+        this.bucket = bk[1];
+        this.key = bk[2];
         seq = mi.getSeq();
-        byte[] temp = mi.getData();
-        data = temp == null || temp.length == 0 ? null : temp;
+        data = extractData(mi.getData());
         created = mi.getTime();
-        String operation = mi.getHeaders() == null ? null : mi.getHeaders().getFirst(KV_OPERATION_HEADER_KEY);
-        kvOperation = KvOperation.getOrDefault(operation, KvOperation.PUT);
+        kvOperation = KvOperation.getOrDefault(getHeader(mi.getHeaders()), KvOperation.PUT);
     }
 
-    public KvEntry(Message m, String bucket, String key) {
-        this.bucket = bucket;
-        this.key = key;
+    public KvEntry(Message m) {
+        String[] bk = extractBK(m.getSubject());
+        this.bucket = bk[1];
+        this.key = bk[2];
         seq = m.metaData().streamSequence();
-        byte[] temp = m.getData();
-        data = temp == null || temp.length == 0 ? null : temp;
+        data = extractData(m.getData());
         created = m.metaData().timestamp();
-        String operation = m.getHeaders() == null ? null : m.getHeaders().getFirst(KV_OPERATION_HEADER_KEY);
-        kvOperation = KvOperation.getOrDefault(operation, KvOperation.PUT);
+        kvOperation = KvOperation.getOrDefault(getHeader(m.getHeaders()), KvOperation.PUT);
     }
 
     public String getBucket() {
@@ -116,5 +114,13 @@ public class KvEntry extends ApiResponse<KvEntry> {
         result = 31 * result + (created != null ? Long.hashCode(created.toEpochSecond()) : 0);
         result = 31 * result + (kvOperation != null ? kvOperation.hashCode() : 0);
         return result;
+    }
+
+    private static byte[] extractData(byte[] data) {
+        return data == null || data.length == 0 ? null : data;
+    }
+
+    private static String[] extractBK(String subject) {
+        return subject.split("\\Q.\\E");
     }
 }

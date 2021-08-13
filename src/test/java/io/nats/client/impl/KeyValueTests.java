@@ -17,14 +17,15 @@ import io.nats.client.JetStreamApiException;
 import io.nats.client.KeyValue;
 import io.nats.client.KeyValueManagement;
 import io.nats.client.api.*;
-import io.nats.client.support.NatsJetStreamConstants;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
+import static io.nats.client.support.NatsKeyValueUtil.streamName;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class KeyValueTests extends JetStreamTestBase {
@@ -57,7 +58,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
             bc = bi.getConfiguration();
             assertEquals(BUCKET, bc.getName());
-            assertEquals(NatsJetStreamConstants.KV_STREAM_PREFIX + BUCKET, bc.getBackingConfig().getName());
+            assertEquals(streamName(BUCKET), bc.getBackingConfig().getName());
             assertEquals(-1, bc.getMaxValues());
             assertEquals(3, bc.getMaxHistory());
             assertEquals(-1, bc.getMaxBucketSize());
@@ -210,6 +211,9 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(8, bi.getRecordCount());
             assertEquals(9, bi.getLastSequence());
 
+            // should have exactly these 3 keys
+            assertKeys(kvm.keys(BUCKET), byteKey, stringKey, longKey);
+
             // purge
             PurgeResponse pr = kvm.purgeKey(BUCKET, longKey);
             assertEquals(3, pr.getPurged()); // put, put, put
@@ -221,6 +225,9 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(5, bi.getRecordCount());
             assertEquals(9, bi.getLastSequence());
 
+            // only 2 keys now
+            assertKeys(kvm.keys(BUCKET), byteKey, stringKey);
+
             pr = kvm.purgeKey(BUCKET, byteKey);
             assertEquals(3, pr.getPurged());  // put, put, delete
 
@@ -231,6 +238,9 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(2, bi.getRecordCount());
             assertEquals(9, bi.getLastSequence());
 
+            // only 1 key now
+            assertKeys(kvm.keys(BUCKET), stringKey);
+
             pr = kvm.purgeKey(BUCKET, stringKey);
             assertEquals(2, pr.getPurged());  // put, put
 
@@ -240,6 +250,9 @@ public class KeyValueTests extends JetStreamTestBase {
             bi = kvm.getBucketInfo(BUCKET);
             assertEquals(0, bi.getRecordCount());
             assertEquals(9, bi.getLastSequence());
+
+            // no more keys left
+            assertKeys(kvm.keys(BUCKET));
 
             // put some more
             assertEquals(10, kv.put(longKey, 110));
@@ -276,6 +289,13 @@ public class KeyValueTests extends JetStreamTestBase {
             // coverage
             assertNotNull(bi.toString());
         });
+    }
+
+    private void assertKeys(Set<String> apiKeys, String... manualKeys) {
+        assertEquals(manualKeys.length, apiKeys.size());
+        for (String k : manualKeys) {
+            assertTrue(apiKeys.contains(k));
+        }
     }
 
     private void assertHistory(List<KvEntry> manualHistory, List<KvEntry> apiHistory) {

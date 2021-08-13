@@ -19,6 +19,7 @@ import io.nats.client.api.PurgeResponse;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Key Value Store Management context for creation and access to key value buckets.
@@ -95,13 +96,13 @@ public interface KeyValueManagement {
     List<KvEntry> getHistory(String bucketName, String key) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
-     * Get the list of the keys in a bucket.
+     * Get the set of the keys in a bucket.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param bucketName the bucket name
-     * @return List of keys
+     * @return Set of keys
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    List<String> keys(String bucketName) throws IOException, JetStreamApiException;
+    Set<String> keys(String bucketName) throws IOException, JetStreamApiException, InterruptedException;
 }

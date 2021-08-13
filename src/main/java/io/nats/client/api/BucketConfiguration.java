@@ -15,7 +15,7 @@ package io.nats.client.api;
 
 import java.time.Duration;
 
-import static io.nats.client.support.NatsJetStreamConstants.*;
+import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
 
 /**
@@ -31,7 +31,7 @@ public class BucketConfiguration {
 
     BucketConfiguration(StreamConfiguration sc) {
         this.sc = sc;
-        name = sc.getName().substring(KV_STREAM_PREFIX_LEN);
+        name = extractBucketName(sc.getName());
     }
 
     public StreamConfiguration getBackingConfig() {
@@ -285,8 +285,8 @@ public class BucketConfiguration {
          */
         public BucketConfiguration build() {
             name = validateBucketNameRequired(name);
-            scBuilder.name(KV_STREAM_PREFIX + name);
-            scBuilder.subjects(KV_SUBJECT_PREFIX + name + KV_SUBJECT_SUFFIX);
+            scBuilder.name(streamName(name));
+            scBuilder.subjects(streamSubject(name));
             return new BucketConfiguration(scBuilder.build());
         }
     }

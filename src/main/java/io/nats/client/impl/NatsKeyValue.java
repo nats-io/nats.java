@@ -21,8 +21,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import static io.nats.client.support.ApiConstants.LAST_BY_SUBJECT;
+import static io.nats.client.support.NatsKeyValueUtil.*;
 
-public class NatsKeyValue extends NatsKeyValueImplBase implements KeyValue {
+public class NatsKeyValue extends NatsJetStreamImplBase implements KeyValue {
 
     private final static Headers DELETE_HEADERS;
 
@@ -32,14 +33,14 @@ public class NatsKeyValue extends NatsKeyValueImplBase implements KeyValue {
     private final PushSubscribeOptions psoGet;
 
     static {
-        DELETE_HEADERS = new Headers().put(KV_OPERATION_HEADER_KEY, KvOperation.DEL.name());
+        DELETE_HEADERS = addDeleteHeader(new Headers());
     }
 
     public NatsKeyValue(String bucket, NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
         super(connection, jsOptions);
         js = new NatsJetStream(connection, jsOptions);
         this.bucket = bucket;
-        stream = KV_STREAM_PREFIX + bucket;
+        stream = streamName(bucket);
         psoGet = PushSubscribeOptions.builder()
                 .stream(stream)
                 .configuration(ConsumerConfiguration.builder().ackPolicy(AckPolicy.None).build())
@@ -76,7 +77,7 @@ public class NatsKeyValue extends NatsKeyValueImplBase implements KeyValue {
     @Override
     public KvEntry getEntry(String key) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_MSG_GET, stream);
-        Message resp = makeRequestResponseRequired(subj, JsonUtils.simpleMessageBody(LAST_BY_SUBJECT, toSubject(bucket, key)), jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(subj, JsonUtils.simpleMessageBody(LAST_BY_SUBJECT, keySubject(bucket, key)), jso.getRequestTimeout());
         MessageInfo mi = new MessageInfo(resp);
         if (mi.hasError()) {
             if (mi.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {
@@ -85,7 +86,7 @@ public class NatsKeyValue extends NatsKeyValueImplBase implements KeyValue {
             }
             mi.throwOnHasError();
         }
-        return new KvEntry(mi, bucket, key);
+        return new KvEntry(mi);
     }
 
     /**
@@ -94,7 +95,7 @@ public class NatsKeyValue extends NatsKeyValueImplBase implements KeyValue {
     @Override
     public long put(String key, byte[] value) throws IOException, JetStreamApiException {
         PublishAck pa = js.publish(NatsMessage.builder()
-                .subject(toSubject(bucket, key))
+                .subject(keySubject(bucket, key))
                 .data(value)
                 .build());
         return pa.getSeqno();
@@ -122,7 +123,7 @@ public class NatsKeyValue extends NatsKeyValueImplBase implements KeyValue {
     @Override
     public long delete(String key) throws IOException, JetStreamApiException {
         PublishAck pa = js.publish(NatsMessage.builder()
-                .subject(toSubject(bucket, key))
+                .subject(keySubject(bucket, key))
                 .headers(DELETE_HEADERS)
                 .build());
         return pa.getSeqno();

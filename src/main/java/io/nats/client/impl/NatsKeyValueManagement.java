@@ -19,11 +19,13 @@ import io.nats.client.api.*;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-public class NatsKeyValueManagement extends NatsKeyValueImplBase implements KeyValueManagement {
-    private static PushSubscribeOptions historyPso;
+import static io.nats.client.support.NatsKeyValueUtil.*;
 
+public class NatsKeyValueManagement extends NatsJetStreamImplBase implements KeyValueManagement {
     private final JetStreamManagement jsm;
     private final JetStream js;
 
@@ -46,7 +48,7 @@ public class NatsKeyValueManagement extends NatsKeyValueImplBase implements KeyV
      */
     @Override
     public boolean deleteBucket(String bucketName) throws IOException, JetStreamApiException {
-        return jsm.deleteStream(toStreamName(bucketName));
+        return jsm.deleteStream(streamName(bucketName));
     }
 
     /**
@@ -54,7 +56,7 @@ public class NatsKeyValueManagement extends NatsKeyValueImplBase implements KeyV
      */
     @Override
     public BucketInfo getBucketInfo(String bucketName) throws IOException, JetStreamApiException {
-        return new BucketInfo(jsm.getStreamInfo(toStreamName(bucketName)));
+        return new BucketInfo(jsm.getStreamInfo(streamName(bucketName)));
     }
 
     /**
@@ -62,7 +64,7 @@ public class NatsKeyValueManagement extends NatsKeyValueImplBase implements KeyV
      */
     @Override
     public PurgeResponse purgeBucket(String bucketName) throws IOException, JetStreamApiException {
-        return jsm.purgeStream(toStreamName(bucketName));
+        return jsm.purgeStream(streamName(bucketName));
     }
 
     /**
@@ -70,7 +72,7 @@ public class NatsKeyValueManagement extends NatsKeyValueImplBase implements KeyV
      */
     @Override
     public PurgeResponse purgeKey(String bucketName, String key) throws IOException, JetStreamApiException {
-        return jsm.purgeSubject(toStreamName(bucketName), toSubject(bucketName, key));
+        return jsm.purgeSubject(streamName(bucketName), keySubject(bucketName, key));
     }
 
     /**
@@ -78,37 +80,42 @@ public class NatsKeyValueManagement extends NatsKeyValueImplBase implements KeyV
      */
     @Override
     public List<KvEntry> getHistory(String bucketName, String key) throws IOException, JetStreamApiException, InterruptedException {
-
         List<KvEntry> list = new ArrayList<>();
-        JetStreamSubscription sub = js.subscribe(toSubject(bucketName, key), getHistoryPso());
-        Message m = sub.nextMessage(Duration.ofMillis(1000)); // give a little time for the first
-        while (m != null) {
-            list.add(new KvEntry(m, bucketName, key));
-            m = sub.nextMessage(Duration.ofMillis(100)); // the rest should come pretty quick
-        }
-
+        visit(keySubject(bucketName, key), kve -> {
+            list.add(kve);
+            return true;
+        });
         return list;
-//        throw new UnsupportedOperationException("Key Value Management 'history' function is not implemented");
     }
 
     /**
      * {@inheritDoc}
+     * @return
      */
     @Override
-    public List<String> keys(String bucketName) throws IOException, JetStreamApiException {
-        throw new UnsupportedOperationException("Key Value Management 'keys' function is not implemented");
+    public Set<String> keys(String bucketName) throws IOException, JetStreamApiException, InterruptedException {
+        Set<String> set = new HashSet<>();
+        visit(streamSubject(bucketName), kve -> {
+            set.add(kve.getKey());
+            return true;
+        });
+        return set;
     }
 
-    private static PushSubscribeOptions getHistoryPso() {
-        if (historyPso == null) {
-            historyPso = PushSubscribeOptions.builder()
-                    .configuration(
-                            ConsumerConfiguration.builder()
-                                    .ackPolicy(AckPolicy.None)
-                                    .build()
-                    )
-                    .build();
+    private void visit(String subject, EntryVisitor visitor) throws IOException, JetStreamApiException, InterruptedException {
+        PushSubscribeOptions pso = PushSubscribeOptions.builder()
+                .configuration(ConsumerConfiguration.builder().ackPolicy(AckPolicy.None).build())
+                .build();
+        JetStreamSubscription sub = js.subscribe(subject, pso);
+        Message m = sub.nextMessage(Duration.ofMillis(1000)); // give a little time for the first
+        while (m != null) {
+            boolean keepGoing = visitor.visit(new KvEntry(m));
+            m = keepGoing ? sub.nextMessage(Duration.ofMillis(100)) : null; // the rest should come pretty quick
         }
-        return historyPso;
+        sub.unsubscribe();
+    }
+
+    interface EntryVisitor {
+        boolean visit(KvEntry entry);
     }
 }
