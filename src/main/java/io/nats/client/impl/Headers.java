@@ -277,7 +277,7 @@ public class Headers {
 	 */
 	public String getFirst(String key) {
 		List<String> values = valuesMap.get(key);
-		return values == null || values.isEmpty() ? null : values.get(0);
+		return values == null ? null : values.get(0);
 	}
 
 	/**

@@ -356,6 +356,18 @@ public class HeadersTests {
         );
     }
 
+    @Test
+    public void getFirsts() {
+        Headers headers = new Headers();
+        assertNull(headers.getFirst(KEY1));
+        headers.add(KEY1, VAL1);
+        assertEquals(VAL1, headers.getFirst(KEY1));
+        headers.add(KEY1, VAL2);
+        assertEquals(VAL1, headers.getFirst(KEY1));
+        headers.put(KEY1, VAL3);
+        assertEquals(VAL3, headers.getFirst(KEY1));
+    }
+
     private void remove(
             Consumer<Headers> step1RemoveKey1,
             Consumer<Headers> step2RemoveKey1A,

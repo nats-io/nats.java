@@ -13,6 +13,7 @@
 
 package io.nats.client.api;
 
+import io.nats.client.support.ApiConstants;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
@@ -106,6 +107,34 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(ReplayPolicy.Instant, c.getReplayPolicy());
         assertEquals(Duration.ofSeconds(9), c.getAckWait());
         assertEquals(Duration.ofSeconds(6), c.getIdleHeartbeat());
+
+        // test builder getters
+        ConsumerConfiguration.Builder b = ConsumerConfiguration.builder();
+        assertNull(b.getDurable());
+        assertNull(b.getDeliverSubject());
+        assertNull(b.getFilterSubject());
+        assertEquals(0, b.getMaxAckPending());
+        assertEquals(AckPolicy.Explicit, b.getAckPolicy());
+
+        b.durable(DURABLE)
+                .deliverSubject(subject(888))
+                .filterSubject(subject(887))
+                .maxAckPending(886)
+                .ackPolicy(AckPolicy.None);
+        assertEquals(DURABLE, b.getDurable());
+        assertEquals(subject(888), b.getDeliverSubject());
+        assertEquals(subject(887), b.getFilterSubject());
+        assertEquals(886, b.getMaxAckPending());
+        assertEquals(AckPolicy.None, b.getAckPolicy());
+
+
+        // 3 x MAX_PULL_WAITING toJson COVERAGE
+        assertFalse(ConsumerConfiguration.builder().maxPullWaiting(0).build()
+                .toJson().contains(ApiConstants.MAX_PULL_WAITING));
+        assertFalse(ConsumerConfiguration.builder().maxPullWaiting(ConsumerConfiguration.DEFAULT_MAX_PULL_WAITING).build()
+                .toJson().contains(ApiConstants.MAX_PULL_WAITING));
+        assertTrue(ConsumerConfiguration.builder().maxPullWaiting(42).build()
+                .toJson().contains(ApiConstants.MAX_PULL_WAITING));
     }
 
     @Test

@@ -83,7 +83,6 @@ public class NatsKeyValueManagement extends NatsJetStreamImplBase implements Key
         List<KvEntry> list = new ArrayList<>();
         visit(keySubject(bucketName, key), kve -> {
             list.add(kve);
-            return true;
         });
         return list;
     }
@@ -97,7 +96,6 @@ public class NatsKeyValueManagement extends NatsJetStreamImplBase implements Key
         Set<String> set = new HashSet<>();
         visit(streamSubject(bucketName), kve -> {
             set.add(kve.getKey());
-            return true;
         });
         return set;
     }
@@ -109,13 +107,13 @@ public class NatsKeyValueManagement extends NatsJetStreamImplBase implements Key
         JetStreamSubscription sub = js.subscribe(subject, pso);
         Message m = sub.nextMessage(Duration.ofMillis(1000)); // give a little time for the first
         while (m != null) {
-            boolean keepGoing = visitor.visit(new KvEntry(m));
-            m = keepGoing ? sub.nextMessage(Duration.ofMillis(100)) : null; // the rest should come pretty quick
+            visitor.visit(new KvEntry(m));
+            m = sub.nextMessage(Duration.ofMillis(100)); // the rest should come pretty quick
         }
         sub.unsubscribe();
     }
 
     interface EntryVisitor {
-        boolean visit(KvEntry entry);
+        void visit(KvEntry entry);
     }
 }

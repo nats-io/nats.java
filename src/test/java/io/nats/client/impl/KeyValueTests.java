@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -216,6 +217,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // purge
             PurgeResponse pr = kvm.purgeKey(BUCKET, longKey);
+            assertTrue(pr.isSuccess());
             assertEquals(3, pr.getPurged()); // put, put, put
 
             longHistory.clear();
@@ -229,6 +231,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertKeys(kvm.keys(BUCKET), byteKey, stringKey);
 
             pr = kvm.purgeKey(BUCKET, byteKey);
+            assertTrue(pr.isSuccess());
             assertEquals(3, pr.getPurged());  // put, put, delete
 
             byteHistory.clear();
@@ -242,6 +245,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertKeys(kvm.keys(BUCKET), stringKey);
 
             pr = kvm.purgeKey(BUCKET, stringKey);
+            assertTrue(pr.isSuccess());
             assertEquals(2, pr.getPurged());  // put, put
 
             stringHistory.clear();
@@ -282,6 +286,14 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(5, bi.getRecordCount());
             assertEquals(14, bi.getLastSequence());
 
+            pr = kvm.purgeBucket(BUCKET);
+            assertTrue(pr.isSuccess());
+            assertEquals(5, pr.getPurged());
+
+            bi = kvm.getBucketInfo(BUCKET);
+            assertEquals(0, bi.getRecordCount());
+            assertEquals(14, bi.getLastSequence());
+
             // delete the bucket
             kvm.deleteBucket(BUCKET);
             assertThrows(JetStreamApiException.class, () -> kvm.getBucketInfo(BUCKET));
@@ -301,7 +313,7 @@ public class KeyValueTests extends JetStreamTestBase {
     private void assertHistory(List<KvEntry> manualHistory, List<KvEntry> apiHistory) {
         assertEquals(apiHistory.size(), manualHistory.size());
         for (int x = 0; x < apiHistory.size(); x++) {
-            assertEquals(apiHistory.get(x), manualHistory.get(x));
+            assertKvEquals(apiHistory.get(x), manualHistory.get(x));
         }
     }
 
@@ -322,5 +334,16 @@ public class KeyValueTests extends JetStreamTestBase {
         // coverage
         assertNotNull(entry.toString());
         return entry;
+    }
+
+    private void assertKvEquals(KvEntry kv1, KvEntry kv2) {
+        assertEquals(kv1.getKvOperation(), kv2.getKvOperation());
+        assertEquals(kv1.getSeq(), kv2.getSeq());
+        assertEquals(kv1.getBucket(), kv2.getBucket());
+        assertEquals(kv1.getKey(), kv2.getKey());
+        assertTrue(Arrays.equals(kv1.getData(), kv2.getData()));
+        long es1 = kv1.getCreated().toEpochSecond();
+        long es2 = kv2.getCreated().toEpochSecond();
+        assertEquals(es1, es2);
     }
 }

@@ -16,7 +16,6 @@ package io.nats.client.api;
 import io.nats.client.Message;
 
 import java.time.ZonedDateTime;
-import java.util.Arrays;
 
 import static io.nats.client.support.NatsKeyValueUtil.getHeader;
 
@@ -86,34 +85,6 @@ public class KvEntry extends ApiResponse<KvEntry> {
                 ", data=" + (data == null ? "null" : "[" + data.length + " bytes]") +
                 ", created=" + created +
                 '}';
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        KvEntry kvEntry = (KvEntry) o;
-
-        if (kvOperation != kvEntry.kvOperation) return false;
-        if (seq != kvEntry.seq) return false;
-        if (bucket != null ? !bucket.equals(kvEntry.bucket) : kvEntry.bucket != null) return false;
-        if (key != null ? !key.equals(kvEntry.key) : kvEntry.key != null) return false;
-        if (!Arrays.equals(data, kvEntry.data)) return false;
-        long createdEs = created == null ? 0 : created.toEpochSecond();
-        long thatEs = kvEntry.created == null ? 0 : kvEntry.created.toEpochSecond();
-        return createdEs == thatEs;
-    }
-
-    @Override
-    public int hashCode() {
-        int result = bucket != null ? bucket.hashCode() : 0;
-        result = 31 * result + (key != null ? key.hashCode() : 0);
-        result = 31 * result + (int) (seq ^ (seq >>> 32));
-        result = 31 * result + Arrays.hashCode(data);
-        result = 31 * result + (created != null ? Long.hashCode(created.toEpochSecond()) : 0);
-        result = 31 * result + (kvOperation != null ? kvOperation.hashCode() : 0);
-        return result;
     }
 
     private static byte[] extractData(byte[] data) {
