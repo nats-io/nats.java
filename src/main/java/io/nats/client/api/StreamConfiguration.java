@@ -344,7 +344,7 @@ public class StreamConfiguration implements JsonSerializable {
      * StreamConfiguration is created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      * 
-     * <p>{@code new StreamConfiguration.Builder().build()} will create a new ConsumerConfiguration.
+     * <p>{@code new StreamConfiguration.Builder().build()} will create a new StreamConfiguration.
      * 
      */
     public static class Builder {

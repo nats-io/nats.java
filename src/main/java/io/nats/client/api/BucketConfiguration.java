@@ -143,10 +143,10 @@ public class BucketConfiguration {
     }
 
     /**
-     * StreamConfiguration is created using a Builder. The builder supports chaining and will
+     * BucketConfiguration is created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      *
-     * <p>{@code new StreamConfiguration.Builder().build()} will create a new ConsumerConfiguration.
+     * <p>{@code new BucketConfiguration.Builder().build()} will create a new BucketConfiguration.
      *
      */
     public static class Builder {
