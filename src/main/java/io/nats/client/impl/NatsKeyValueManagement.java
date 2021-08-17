@@ -81,22 +81,17 @@ public class NatsKeyValueManagement extends NatsJetStreamImplBase implements Key
     @Override
     public List<KvEntry> getHistory(String bucketName, String key) throws IOException, JetStreamApiException, InterruptedException {
         List<KvEntry> list = new ArrayList<>();
-        visit(keySubject(bucketName, key), kve -> {
-            list.add(kve);
-        });
+        visit(keySubject(bucketName, key), list::add);
         return list;
     }
 
     /**
      * {@inheritDoc}
-     * @return
      */
     @Override
     public Set<String> keys(String bucketName) throws IOException, JetStreamApiException, InterruptedException {
         Set<String> set = new HashSet<>();
-        visit(streamSubject(bucketName), kve -> {
-            set.add(kve.getKey());
-        });
+        visit(streamSubject(bucketName), kve -> set.add(kve.getKey()));
         return set;
     }
 
