@@ -14,8 +14,11 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.api.*;
+import io.nats.client.api.KvEntry;
+import io.nats.client.api.MessageInfo;
+import io.nats.client.api.PublishAck;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -25,26 +28,21 @@ import static io.nats.client.support.NatsKeyValueUtil.*;
 
 public class NatsKeyValue extends NatsJetStreamImplBase implements KeyValue {
 
-    private final static Headers DELETE_HEADERS;
+    private final static Headers HEADERS_DELETE_INSTRUCTION;
 
-    private final JetStream js;
     private final String bucket;
     private final String stream;
-    private final PushSubscribeOptions psoGet;
+    private final JetStream js;
 
     static {
-        DELETE_HEADERS = addDeleteHeader(new Headers());
+        HEADERS_DELETE_INSTRUCTION = addDeleteHeader(new Headers());
     }
 
     public NatsKeyValue(String bucket, NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
         super(connection, jsOptions);
+        this.bucket = Validator.validateBucketNameRequired(bucket);
+        stream = streamName(this.bucket);
         js = new NatsJetStream(connection, jsOptions);
-        this.bucket = bucket;
-        stream = streamName(bucket);
-        psoGet = PushSubscribeOptions.builder()
-                .stream(stream)
-                .configuration(ConsumerConfiguration.builder().ackPolicy(AckPolicy.None).build())
-                .build();
     }
 
     /**
@@ -76,6 +74,7 @@ public class NatsKeyValue extends NatsJetStreamImplBase implements KeyValue {
 
     @Override
     public KvEntry getEntry(String key) throws IOException, JetStreamApiException {
+        Validator.validateKeyRequired(key);
         String subj = String.format(JSAPI_MSG_GET, stream);
         Message resp = makeRequestResponseRequired(subj, JsonUtils.simpleMessageBody(LAST_BY_SUBJECT, keySubject(bucket, key)), jso.getRequestTimeout());
         MessageInfo mi = new MessageInfo(resp);
@@ -94,6 +93,7 @@ public class NatsKeyValue extends NatsJetStreamImplBase implements KeyValue {
      */
     @Override
     public long put(String key, byte[] value) throws IOException, JetStreamApiException {
+        Validator.validateKeyRequired(key);
         PublishAck pa = js.publish(NatsMessage.builder()
                 .subject(keySubject(bucket, key))
                 .data(value)
@@ -122,9 +122,10 @@ public class NatsKeyValue extends NatsJetStreamImplBase implements KeyValue {
      */
     @Override
     public long delete(String key) throws IOException, JetStreamApiException {
+        Validator.validateKeyRequired(key);
         PublishAck pa = js.publish(NatsMessage.builder()
                 .subject(keySubject(bucket, key))
-                .headers(DELETE_HEADERS)
+                .headers(HEADERS_DELETE_INSTRUCTION)
                 .build());
         return pa.getSeqno();
     }

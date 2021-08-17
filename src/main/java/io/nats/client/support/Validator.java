@@ -46,6 +46,14 @@ public abstract class Validator {
         return validatePrintableExceptWildGtDollar(s, "Prefix", false);
     }
 
+    public static String validateBucketNameRequired(String s) {
+        return validateLettersDigitsDashUnderscore(s, "Bucket name", true);
+    }
+
+    public static String validateKeyRequired(String s) {
+        return validatePrintableExceptWildGtDollar(s, "Key", true);
+    }
+
     interface Check {
         String check();
     }
@@ -87,6 +95,17 @@ public abstract class Validator {
             return s;
         });
     }
+
+    public static String validateLettersDigitsDashUnderscore(String s, String label, boolean required) {
+        return _validate(s, required, label, () -> {
+            if (notLettersDigitsDashOrUnderscore(s)) {
+                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `.` or `>` [" + s + "]");
+            }
+            return s;
+        });
+    }
+
+
 
     public static String validatePrintableExceptWildGt(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
@@ -217,10 +236,6 @@ public abstract class Validator {
         return l;
     }
 
-    public static String validateBucketNameRequired(String s) {
-        return validatePrintableExceptWildDotGt(s, "Bucket name", true);
-    }
-
     // ----------------------------------------------------------------------------------------------------
     // Helpers
     // ----------------------------------------------------------------------------------------------------
@@ -248,6 +263,37 @@ public abstract class Validator {
                 if (c == cx) {
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+
+    public static boolean notLettersDigitsDashOrUnderscore(String s) {
+        for (int x = 0; x < s.length(); x++) {
+            char c = s.charAt(x);
+            if (c < '-' || c > 'z') { // 45 is dash, 122 is z, characters outside of them are "not"
+                return true;
+            }
+            if (c < '0') { // before 0
+                if (c == '-') { // only dash is accepted
+                    continue;
+                }
+                return true; // "not"
+            }
+            if (c < ':') {
+                continue; // means it's 0 - 9
+            }
+            if (c < 'A') {
+                return true; // between 9 and A is "not"
+            }
+            if (c < '[') {
+                continue; // means it's A - Z
+            }
+            if (c < 'a') { // before a
+                if (c == '_') { // only underscore is accepted
+                    continue;
+                }
+                return true; // "not"
             }
         }
         return false;

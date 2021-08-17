@@ -228,6 +228,24 @@ public class ValidatorTests {
     }
 
     @Test
+    public void testValidateBucketNameRequired() {
+        validateBucketNameRequired(PLAIN);
+        validateBucketNameRequired(PLAIN.toUpperCase());
+        validateBucketNameRequired(HAS_DASH);
+        validateBucketNameRequired(HAS_UNDER);
+        validateBucketNameRequired("numbers9ok");
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(null));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_DOT));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_STAR));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_GT));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired("tic`not`allowed"));
+    }
+
+    @Test
     public void testNotNull() {
         Object o = new Object();
         validateNotNull(o, "fieldName");
