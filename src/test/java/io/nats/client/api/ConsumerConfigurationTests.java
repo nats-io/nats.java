@@ -13,7 +13,6 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.ApiConstants;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
@@ -126,13 +125,6 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(subject(887), b.getFilterSubject());
         assertEquals(886, b.getMaxAckPending());
         assertEquals(AckPolicy.None, b.getAckPolicy());
-
-
-        // 3 x MAX_PULL_WAITING toJson COVERAGE
-        assertFalse(ConsumerConfiguration.builder().maxPullWaiting(0).build()
-                .toJson().contains(ApiConstants.MAX_PULL_WAITING));
-        assertTrue(ConsumerConfiguration.builder().maxPullWaiting(42).build()
-                .toJson().contains(ApiConstants.MAX_PULL_WAITING));
     }
 
     @Test
