@@ -92,6 +92,7 @@ public interface KeyValueManagement {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
      */
     List<KvEntry> getHistory(String bucketName, String key) throws IOException, JetStreamApiException, InterruptedException;
 
@@ -103,6 +104,7 @@ public interface KeyValueManagement {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
      */
     Set<String> keys(String bucketName) throws IOException, JetStreamApiException, InterruptedException;
 }
