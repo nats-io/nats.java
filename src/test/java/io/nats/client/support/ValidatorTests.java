@@ -246,6 +246,14 @@ public class ValidatorTests {
     }
 
     @Test
+    public void testValidateMaxLength() {
+        validateMaxLength("test", 5, true, "label");
+        validateMaxLength(null, 5, false, "label");
+        assertThrows(IllegalArgumentException.class, () -> validateMaxLength("test", 3, true, "label"));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxLength(null, 5, true, "label"));
+    }
+
+    @Test
     public void testNotNull() {
         Object o = new Object();
         validateNotNull(o, "fieldName");
