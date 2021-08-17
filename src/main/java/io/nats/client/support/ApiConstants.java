@@ -49,6 +49,7 @@ public interface ApiConstants {
     String ERR_CODE         = "err_code";
     String ERROR            = "error";
     String EXTERNAL         = "external";
+    String FILTER           = "filter";
     String FILTER_SUBJECT   = "filter_subject";
     String FIRST_SEQ        = "first_seq";
     String FIRST_TS         = "first_ts";
@@ -61,6 +62,7 @@ public interface ApiConstants {
     String JETSTREAM        = "jetstream";
     String LAG              = "lag";
     String LAME_DUCK_MODE   = "ldm";
+    String LAST_BY_SUBJECT  = "last_by_subj";
     String LAST_SEQ         = "last_seq";
     String LAST_TS          = "last_ts";
     String LEADER           = "leader";
@@ -73,10 +75,11 @@ public interface ApiConstants {
     String MAX_MEMORY       = "max_memory";
     String MAX_MSG_SIZE     = "max_msg_size";
     String MAX_MSGS         = "max_msgs";
+    String MAX_MSGS_PER_SUB = "max_msgs_per_subject";
     String MAX_PAYLOAD      = "max_payload";
     String MAX_STORAGE      = "max_storage";
     String MAX_STREAMS      = "max_streams";
-    String MAX_WAITING      = "max_waiting";
+    String MAX_PULL_WAITING = "max_waiting"; // this is correct! the meaning name is different than the field name
     String MEMORY           = "memory";
     String MESSAGES         = "messages";
     String MIRROR           = "mirror";
@@ -173,10 +176,11 @@ public interface ApiConstants {
     Pattern MAX_MEMORY_RE       = integer_pattern(MAX_MEMORY);
     Pattern MAX_MSG_SIZE_RE     = integer_pattern(MAX_MSG_SIZE);
     Pattern MAX_MSGS_RE         = integer_pattern(MAX_MSGS);
+    Pattern MAX_MSGS_PER_SUB_RE = integer_pattern(MAX_MSGS_PER_SUB);
     Pattern MAX_PAYLOAD_RE      = integer_pattern(MAX_PAYLOAD);
     Pattern MAX_STORAGE_RE      = integer_pattern(MAX_STORAGE);
     Pattern MAX_STREAMS_RE      = integer_pattern(MAX_STREAMS);
-    Pattern MAX_WAITING_RE      = integer_pattern(MAX_WAITING);
+    Pattern MAX_PULL_WAITING_RE = integer_pattern(MAX_PULL_WAITING);
     Pattern MEMORY_RE           = integer_pattern(MEMORY);
     Pattern MESSAGES_RE         = integer_pattern(MESSAGES);
     Pattern NAME_RE             = string_pattern(NAME);

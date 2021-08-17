@@ -1885,28 +1885,76 @@ class NatsConnection implements Connection {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public JetStream jetStream() throws IOException {
         ensureNotClosing();
         return new NatsJetStream(this, null);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public JetStream jetStream(JetStreamOptions options) throws IOException {
         ensureNotClosing();
         return new NatsJetStream(this, options);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public JetStreamManagement jetStreamManagement() throws IOException {
         ensureNotClosing();
         return new NatsJetStreamManagement(this, null);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public JetStreamManagement jetStreamManagement(JetStreamOptions options) throws IOException {
         ensureNotClosing();
         return new NatsJetStreamManagement(this, options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public KeyValue keyValue(String bucket) throws IOException {
+        ensureNotClosing();
+        return new NatsKeyValue(bucket, this, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public KeyValue keyValue(String bucket, JetStreamOptions options) throws IOException {
+        ensureNotClosing();
+        return new NatsKeyValue(bucket, this, options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public KeyValueManagement keyValueManagement() throws IOException {
+        ensureNotClosing();
+        return new NatsKeyValueManagement(this, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public KeyValueManagement keyValueManagement(JetStreamOptions options) throws IOException {
+        ensureNotClosing();
+        return new NatsKeyValueManagement(this, options);
     }
 
     private void ensureNotClosing() throws IOException {

@@ -225,6 +225,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                     : pushSubscribeOptions;
             stream = so.getStream(); // might be null, that's ok (see directBind)
             ccBuilder = ConsumerConfiguration.builder(so.getConsumerConfiguration());
+            ccBuilder.maxPullWaiting(0); // this does not apply to push, in fact will error b/c deliver subject will be set
         }
 
         //

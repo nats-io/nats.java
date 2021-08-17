@@ -356,6 +356,18 @@ public class HeadersTests {
         );
     }
 
+    @Test
+    public void getFirsts() {
+        Headers headers = new Headers();
+        assertNull(headers.getFirst(KEY1));
+        headers.add(KEY1, VAL1);
+        assertEquals(VAL1, headers.getFirst(KEY1));
+        headers.add(KEY1, VAL2);
+        assertEquals(VAL1, headers.getFirst(KEY1));
+        headers.put(KEY1, VAL3);
+        assertEquals(VAL3, headers.getFirst(KEY1));
+    }
+
     private void remove(
             Consumer<Headers> step1RemoveKey1,
             Consumer<Headers> step2RemoveKey1A,
@@ -488,6 +500,28 @@ public class HeadersTests {
         assertValidStatus("NATS/1.0 404\r\n", 404, "Server Status Message: 404");         // status made message
         assertValidStatus("NATS/1.0 503 No Responders\r\n", 503, "No Responders");         // from data
         assertValidStatus("NATS/1.0   503   No Responders\r\n", 503, "No Responders");
+    }
+
+    @Test
+    public void verifyStatusBooleans() {
+        Status status = new Status(Status.FLOW_OR_HEARTBEAT_STATUS_CODE, Status.FLOW_CONTROL_TEXT);
+        assertTrue(status.isFlowControl());
+        assertFalse(status.isHeartbeat());
+        assertFalse(status.isNoResponders());
+
+        status = new Status(Status.FLOW_OR_HEARTBEAT_STATUS_CODE, Status.HEARTBEAT_TEXT);
+        assertFalse(status.isFlowControl());
+        assertTrue(status.isHeartbeat());
+        assertFalse(status.isNoResponders());
+
+        status = new Status(Status.NO_RESPONDERS_CODE, Status.NO_RESPONDERS_TEXT);
+        assertFalse(status.isFlowControl());
+        assertFalse(status.isHeartbeat());
+        assertTrue(status.isNoResponders());
+
+        // path coverage
+        status = new Status(Status.NO_RESPONDERS_CODE, "not no responders text");
+        assertFalse(status.isNoResponders());
     }
 
     @Test

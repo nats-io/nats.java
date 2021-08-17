@@ -13,6 +13,7 @@
 
 package io.nats.client.support;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 import static io.nats.client.support.NatsJetStreamConstants.MAX_PULL_SIZE;
@@ -45,24 +46,40 @@ public abstract class Validator {
         return validatePrintableExceptWildGtDollar(s, "Prefix", false);
     }
 
-    interface Check {
-        String check(String s, String label);
+    public static String validateBucketNameRequired(String s) {
+        return validateLettersDigitsDashUnderscore(s, "Bucket name", true);
     }
 
-    public static String _validate(String s, String label, boolean required, Check check) {
-        if (required) {
-            if (nullOrEmpty(s)) {
-                throw new IllegalArgumentException(label + " cannot be null or empty [" + s + "]");
+    public static String validateKeyRequired(String s) {
+        return validatePrintableExceptWildGtDollar(s, "Key", true);
+    }
+
+    interface Check {
+        String check();
+    }
+
+    public static String _validate(String s, boolean required, String label, Check check) {
+        if (emptyAsNull(s) == null) {
+            if (required) {
+                throw new IllegalArgumentException(label + " cannot be null or empty.");
             }
-        } else if (emptyAsNull(s) == null) {
             return null;
         }
+        return check.check();
+    }
 
-        return check.check(s, label);
+    public static String validateMaxLength(String s, int maxLength, boolean required, String label) {
+        return _validate(s, required, label, () -> {
+            int len = s.getBytes(StandardCharsets.UTF_8).length;
+            if (len > maxLength) {
+                throw new IllegalArgumentException(label + " cannot be longer than " + maxLength + " bytes but was " + len + " bytes");
+            }
+            return s;
+        });
     }
 
     public static String validatePrintable(String s, String label, boolean required) {
-        return _validate(s, label, required, (ss, ll) -> {
+        return _validate(s, required, label, () -> {
             if (notPrintable(s)) {
                 throw new IllegalArgumentException(label + " must be in the printable ASCII range [" + s + "]");
             }
@@ -71,7 +88,7 @@ public abstract class Validator {
     }
 
     public static String validatePrintableExceptWildDotGt(String s, String label, boolean required) {
-        return _validate(s, label, required, (ss, ll) -> {
+        return _validate(s, required, label, () -> {
             if (notPrintableOrHasWildGtDot(s)) {
                 throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `.` or `>` [" + s + "]");
             }
@@ -79,8 +96,19 @@ public abstract class Validator {
         });
     }
 
+    public static String validateLettersDigitsDashUnderscore(String s, String label, boolean required) {
+        return _validate(s, required, label, () -> {
+            if (notLettersDigitsDashOrUnderscore(s)) {
+                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `.` or `>` [" + s + "]");
+            }
+            return s;
+        });
+    }
+
+
+
     public static String validatePrintableExceptWildGt(String s, String label, boolean required) {
-        return _validate(s, label, required, (ss, ll) -> {
+        return _validate(s, required, label, () -> {
             if (notPrintableOrHasWildGt(s)) {
                 throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `>` or `$` [" + s + "]");
             }
@@ -89,7 +117,7 @@ public abstract class Validator {
     }
 
     public static String validatePrintableExceptWildGtDollar(String s, String label, boolean required) {
-        return _validate(s, label, required, (ss, ll) -> {
+        return _validate(s, required, label, () -> {
             if (notPrintableOrHasWildGtDollar(s)) {
                 throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `>` or `$` [" + s + "]");
             }
@@ -112,12 +140,42 @@ public abstract class Validator {
         return validateGtZeroOrMinus1(max, "Max Messages");
     }
 
+    public static long validateMaxBucketValues(long max) {
+        return validateGtZeroOrMinus1(max, "Max Bucket Values");
+    }
+
+    public static long validateMaxMessagesPerSubject(long max) {
+        if (max < -1) {
+            throw new IllegalArgumentException("Max Messages per Subject must be greater than or equal to zero");
+        }
+        return max;
+        // TODO Waiting on a server change take that /\ out, put this \/ back in
+//        return validateGtZeroOrMinus1(max, "Max Messages per Subject");
+    }
+
+    public static long validateMaxValuesPerKey(long max) {
+        if (max < -1) {
+            throw new IllegalArgumentException("Max Values per Key must be greater than or equal to zero");
+        }
+        return max;
+        // TODO Waiting on a server change take that /\ out, put this \/ back in
+//        return validateGtZeroOrMinus1(max, "Max Values per Key");
+    }
+
     public static long validateMaxBytes(long max) {
         return validateGtZeroOrMinus1(max, "Max Bytes");
     }
 
+    public static long validateMaxBucketBytes(long max) {
+        return validateGtZeroOrMinus1(max, "Max Bucket Bytes");
+    }
+
     public static long validateMaxMessageSize(long max) {
-        return validateGtZeroOrMinus1(max, "Max message size");
+        return validateGtZeroOrMinus1(max, "Max Message size");
+    }
+
+    public static long validateMaxValueSize(long max) {
+        return validateGtZeroOrMinus1(max, "Max Value Bytes");
     }
 
     public static int validateNumberOfReplicas(int replicas) {
@@ -205,6 +263,37 @@ public abstract class Validator {
                 if (c == cx) {
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+
+    public static boolean notLettersDigitsDashOrUnderscore(String s) {
+        for (int x = 0; x < s.length(); x++) {
+            char c = s.charAt(x);
+            if (c < '-' || c > 'z') { // 45 is dash, 122 is z, characters outside of them are "not"
+                return true;
+            }
+            if (c < '0') { // before 0
+                if (c == '-') { // only dash is accepted
+                    continue;
+                }
+                return true; // "not"
+            }
+            if (c < ':') {
+                continue; // means it's 0 - 9
+            }
+            if (c < 'A') {
+                return true; // between 9 and A is "not"
+            }
+            if (c < '[') {
+                continue; // means it's A - Z
+            }
+            if (c < 'a') { // before a
+                if (c == '_') { // only underscore is accepted
+                    continue;
+                }
+                return true; // "not"
             }
         }
         return false;

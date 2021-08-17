@@ -93,6 +93,7 @@ public class ValidatorTests {
         assertEquals(1, validateMaxConsumers(1));
         assertEquals(-1, validateMaxConsumers(-1));
         assertThrows(IllegalArgumentException.class, () -> validateMaxConsumers(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(-2));
     }
 
     @Test
@@ -100,6 +101,39 @@ public class ValidatorTests {
         assertEquals(1, validateMaxMessages(1));
         assertEquals(-1, validateMaxMessages(-1));
         assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(-2));
+    }
+
+    @Test
+    public void testValidateMaxBucketValues() {
+        assertEquals(1, validateMaxBucketValues(1));
+        assertEquals(-1, validateMaxBucketValues(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxBucketValues(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxBucketValues(-2));
+    }
+
+    @Test
+    public void testValidateMaxMessagesPerSubject() {
+        assertEquals(1, validateMaxMessagesPerSubject(1));
+        assertEquals(-1, validateMaxMessagesPerSubject(-1));
+
+        assertEquals(0, validateMaxMessagesPerSubject(0));
+        // TODO Waiting on a server change take that /\ out, put this \/ back in
+//        assertThrows(IllegalArgumentException.class, () -> validateMaxMessagesPerSubject(0));
+
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessagesPerSubject(-2));
+    }
+
+    @Test
+    public void testValidateMaxValuesPerKey() {
+        assertEquals(1, validateMaxValuesPerKey(1));
+        assertEquals(-1, validateMaxValuesPerKey(-1));
+
+        assertEquals(0, validateMaxValuesPerKey(0));
+        // TODO Waiting on a server change take that /\ out, put this \/ back in
+//        assertThrows(IllegalArgumentException.class, () -> validateMaxValuesPerKey(0));
+
+        assertThrows(IllegalArgumentException.class, () -> validateMaxValuesPerKey(-2));
     }
 
     @Test
@@ -107,6 +141,15 @@ public class ValidatorTests {
         assertEquals(1, validateMaxBytes(1));
         assertEquals(-1, validateMaxBytes(-1));
         assertThrows(IllegalArgumentException.class, () -> validateMaxBytes(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(-2));
+    }
+
+    @Test
+    public void testValidateMaxBucketBytes() {
+        assertEquals(1, validateMaxBucketBytes(1));
+        assertEquals(-1, validateMaxBucketBytes(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxBucketBytes(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(-2));
     }
 
     @Test
@@ -114,6 +157,15 @@ public class ValidatorTests {
         assertEquals(1, validateMaxMessageSize(1));
         assertEquals(-1, validateMaxMessageSize(-1));
         assertThrows(IllegalArgumentException.class, () -> validateMaxMessageSize(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(-2));
+    }
+
+    @Test
+    public void testValidateMaxValueSize() {
+        assertEquals(1, validateMaxValueSize(1));
+        assertEquals(-1, validateMaxValueSize(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxValueSize(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(-2));
     }
 
     @Test
@@ -173,6 +225,32 @@ public class ValidatorTests {
         assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_DOLLAR));
         assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_SPACE));
         assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_LOW));
+    }
+
+    @Test
+    public void testValidateBucketNameRequired() {
+        validateBucketNameRequired(PLAIN);
+        validateBucketNameRequired(PLAIN.toUpperCase());
+        validateBucketNameRequired(HAS_DASH);
+        validateBucketNameRequired(HAS_UNDER);
+        validateBucketNameRequired("numbers9ok");
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(null));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_DOT));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_STAR));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_GT));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired("tic`not`allowed"));
+    }
+
+    @Test
+    public void testValidateMaxLength() {
+        validateMaxLength("test", 5, true, "label");
+        validateMaxLength(null, 5, false, "label");
+        assertThrows(IllegalArgumentException.class, () -> validateMaxLength("test", 3, true, "label"));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxLength(null, 5, true, "label"));
     }
 
     @Test

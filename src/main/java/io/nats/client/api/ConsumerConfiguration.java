@@ -25,6 +25,7 @@ import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.Validator.emptyAsNull;
+import static io.nats.client.support.Validator.validateMaxLength;
 
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and
@@ -33,15 +34,15 @@ import static io.nats.client.support.Validator.emptyAsNull;
  */
 public class ConsumerConfiguration implements JsonSerializable {
 
-    private static final Duration MIN_ACK_WAIT = Duration.ofNanos(1);
-    private static final Duration MIN_DEFAULT_IDLE_HEARTBEAT = Duration.ZERO;
-    private static final Duration DEFAULT_ACK_WAIT = Duration.ofSeconds(30);
-    private static final long DEFAULT_MAX_PULL_WAITING = 512;
+    public static final Duration MIN_ACK_WAIT = Duration.ofNanos(1);
+    public static final Duration MIN_DEFAULT_IDLE_HEARTBEAT = Duration.ZERO;
+    public static final Duration DEFAULT_ACK_WAIT = Duration.ofSeconds(30);
 
     private final DeliverPolicy deliverPolicy;
     private final AckPolicy ackPolicy;
     private final ReplayPolicy replayPolicy;
 
+    private final String description;
     private final String durable;
     private final String deliverSubject;
     private final long startSeq;
@@ -68,6 +69,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         m = REPLAY_POLICY_RE.matcher(json);
         replayPolicy = m.find() ? ReplayPolicy.get(m.group(1)) : ReplayPolicy.Instant;
 
+        description = JsonUtils.readString(json, DESCRIPTION_RE);
         durable = JsonUtils.readString(json, DURABLE_NAME_RE);
         deliverSubject = JsonUtils.readString(json, DELIVER_SUBJECT_RE);
         startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, 0);
@@ -80,30 +82,32 @@ public class ConsumerConfiguration implements JsonSerializable {
         maxAckPending = JsonUtils.readLong(json, MAX_ACK_PENDING_RE, 0);
         idleHeartbeat = JsonUtils.readNanos(json, IDLE_HEARTBEAT_RE, Duration.ZERO);
         flowControl = JsonUtils.readBoolean(json, FLOW_CONTROL_RE);
-        maxPullWaiting = JsonUtils.readLong(json, MAX_WAITING_RE, DEFAULT_MAX_PULL_WAITING);
+        maxPullWaiting = JsonUtils.readLong(json, MAX_PULL_WAITING_RE, 0);
     }
 
     // For the builder
-    private ConsumerConfiguration(String durable, DeliverPolicy deliverPolicy, long startSeq,
+    private ConsumerConfiguration(String description, String durable, DeliverPolicy deliverPolicy, long startSeq,
             ZonedDateTime startTime, AckPolicy ackPolicy, Duration ackWait, long maxDeliver, String filterSubject,
             ReplayPolicy replayPolicy, String sampleFrequency, long rateLimit, String deliverSubject, long maxAckPending,
-            Duration idleHeartbeat, boolean flowControl, long maxPullWaiting) {
-                this.durable = durable;
-                this.deliverPolicy = deliverPolicy;
-                this.startSeq = startSeq;
-                this.startTime = startTime;
-                this.ackPolicy = ackPolicy;
-                this.ackWait = ackWait;
-                this.maxDeliver = maxDeliver;
-                this.filterSubject = filterSubject;
-                this.replayPolicy = replayPolicy;
-                this.sampleFrequency = sampleFrequency;
-                this.rateLimit = rateLimit;
-                this.deliverSubject = deliverSubject;
-                this.maxAckPending = maxAckPending;
-                this.idleHeartbeat = idleHeartbeat;
-                this.flowControl = flowControl;
-                this.maxPullWaiting = maxPullWaiting;
+            Duration idleHeartbeat, boolean flowControl, long maxPullWaiting)
+    {
+        this.description = description;
+        this.durable = durable;
+        this.deliverPolicy = deliverPolicy;
+        this.startSeq = startSeq;
+        this.startTime = startTime;
+        this.ackPolicy = ackPolicy;
+        this.ackWait = ackWait;
+        this.maxDeliver = maxDeliver;
+        this.filterSubject = filterSubject;
+        this.replayPolicy = replayPolicy;
+        this.sampleFrequency = sampleFrequency;
+        this.rateLimit = rateLimit;
+        this.deliverSubject = deliverSubject;
+        this.maxAckPending = maxAckPending;
+        this.idleHeartbeat = idleHeartbeat;
+        this.flowControl = flowControl;
+        this.maxPullWaiting = maxPullWaiting;
     }
 
     /**
@@ -113,6 +117,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      */
     public String toJson() {
         StringBuilder sb = beginJson();
+        JsonUtils.addField(sb, DESCRIPTION, description);
         JsonUtils.addField(sb, DURABLE_NAME, durable);
         JsonUtils.addField(sb, DELIVER_SUBJECT, deliverSubject);
         JsonUtils.addField(sb, DELIVER_POLICY, deliverPolicy.toString());
@@ -128,7 +133,16 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, RATE_LIMIT_BPS, rateLimit);
         JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
         JsonUtils.addField(sb, FLOW_CONTROL, flowControl);
+        JsonUtils.addField(sb, MAX_PULL_WAITING, maxPullWaiting);
         return endJson(sb).toString();
+    }
+
+    /**
+     * Gets the name of the description of this consumer configuration.
+     * @return name of the description.
+     */
+    public String getDescription() {
+        return description;
     }
 
     /**
@@ -286,6 +300,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      */
     public static class Builder {
 
+        private String description = null;
         private String durable = null;
         private DeliverPolicy deliverPolicy = DeliverPolicy.All;
         private long startSeq = 0;
@@ -301,7 +316,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         private long maxAckPending = 0;
         private Duration idleHeartbeat = Duration.ZERO;
         private boolean flowControl;
-        private long maxPullWaiting = DEFAULT_MAX_PULL_WAITING;
+        private long maxPullWaiting = 0;
 
         public String getDurable() {
             return durable;
@@ -326,6 +341,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         public Builder() {}
 
         public Builder(ConsumerConfiguration cc) {
+            this.description = cc.description;
             this.durable = cc.durable;
             this.deliverPolicy = cc.deliverPolicy;
             this.startSeq = cc.startSeq;
@@ -345,6 +361,16 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
+         * Sets the description
+         * @param description the description
+         * @return the builder
+         */
+        public Builder description(String description) {
+            this.description = validateMaxLength(description, 4096, false, "Description");
+            return this;
+        }
+
+        /**
          * Sets the name of the durable subscription.
          * @param durable name of the durable subscription.
          * @return the builder
@@ -352,7 +378,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         public Builder durable(String durable) {
             this.durable = emptyAsNull(durable);
             return this;
-        }      
+        }
 
         /**
          * Sets the delivery policy of the ConsumerConfiguration.
@@ -480,7 +506,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxAckPending(long maxAckPending) {
-            this.maxAckPending = maxAckPending;
+            this.maxAckPending = Validator.validateGtEqZero(maxAckPending, "Max Ack Pending");
             return this;
         }
 
@@ -515,8 +541,8 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
-         * sets the max pull waiting
-         * @param maxPullWaiting the max pull waiting milliseconds
+         * sets the max pull waiting, the number of pulls that can be outstanding on a pull consumer, pulls received after this is reached are ignored
+         * @param maxPullWaiting the max pull waiting
          * @return Builder
          */
         public Builder maxPullWaiting(long maxPullWaiting) {
@@ -531,6 +557,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         public ConsumerConfiguration build() {
 
             return new ConsumerConfiguration(
+                    description,
                     durable,
                     deliverPolicy,
                     startSeq,
@@ -554,7 +581,8 @@ public class ConsumerConfiguration implements JsonSerializable {
     @Override
     public String toString() {
         return "ConsumerConfiguration{" +
-                "durable='" + durable + '\'' +
+                "description='" + description + '\'' +
+                ", durable='" + durable + '\'' +
                 ", deliverPolicy=" + deliverPolicy +
                 ", deliverSubject='" + deliverSubject + '\'' +
                 ", startSeq=" + startSeq +

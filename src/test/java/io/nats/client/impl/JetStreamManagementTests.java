@@ -284,6 +284,30 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testPurgeSubject() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            assertThrows(JetStreamApiException.class, () -> jsm.purgeStream(STREAM));
+            createMemoryStream(jsm, STREAM, subject(1), subject(2));
+
+            StreamInfo si = jsm.getStreamInfo(STREAM);
+            assertEquals(0, si.getStreamState().getMsgCount());
+
+            jsPublish(nc, subject(1), 1);
+            jsPublish(nc, subject(2), 1);
+            si = jsm.getStreamInfo(STREAM);
+            assertEquals(2, si.getStreamState().getMsgCount());
+
+            PurgeResponse pr = jsm.purgeSubject(STREAM, subject(1));
+            assertTrue(pr.isSuccess());
+            assertEquals(1, pr.getPurged());
+
+            si = jsm.getStreamInfo(STREAM);
+            assertEquals(1, si.getStreamState().getMsgCount());
+        });
+    }
+
+    @Test
     public void testAddDeleteConsumer() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
