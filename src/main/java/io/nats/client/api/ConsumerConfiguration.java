@@ -37,7 +37,6 @@ public class ConsumerConfiguration implements JsonSerializable {
     public static final Duration MIN_ACK_WAIT = Duration.ofNanos(1);
     public static final Duration MIN_DEFAULT_IDLE_HEARTBEAT = Duration.ZERO;
     public static final Duration DEFAULT_ACK_WAIT = Duration.ofSeconds(30);
-    public static final long DEFAULT_MAX_PULL_WAITING = 512;
 
     private final DeliverPolicy deliverPolicy;
     private final AckPolicy ackPolicy;
@@ -134,9 +133,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, RATE_LIMIT_BPS, rateLimit);
         JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
         JsonUtils.addField(sb, FLOW_CONTROL, flowControl);
-        if (maxPullWaiting != 0 && maxPullWaiting != DEFAULT_MAX_PULL_WAITING) {
-            JsonUtils.addField(sb, MAX_PULL_WAITING, maxPullWaiting);
-        }
+        JsonUtils.addField(sb, MAX_PULL_WAITING, maxPullWaiting);
         return endJson(sb).toString();
     }
 

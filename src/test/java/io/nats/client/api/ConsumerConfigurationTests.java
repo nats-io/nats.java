@@ -131,8 +131,6 @@ public class ConsumerConfigurationTests extends TestBase {
         // 3 x MAX_PULL_WAITING toJson COVERAGE
         assertFalse(ConsumerConfiguration.builder().maxPullWaiting(0).build()
                 .toJson().contains(ApiConstants.MAX_PULL_WAITING));
-        assertFalse(ConsumerConfiguration.builder().maxPullWaiting(ConsumerConfiguration.DEFAULT_MAX_PULL_WAITING).build()
-                .toJson().contains(ApiConstants.MAX_PULL_WAITING));
         assertTrue(ConsumerConfiguration.builder().maxPullWaiting(42).build()
                 .toJson().contains(ApiConstants.MAX_PULL_WAITING));
     }
