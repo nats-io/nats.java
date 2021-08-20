@@ -28,9 +28,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class JetStreamPushQueueTests extends JetStreamTestBase {
 
-    @Test
+     @Test
     public void testQueueSub() throws Exception {
         runInJsServer(nc -> {
+            // This test will not work after server version v2.3.4
+            int sv = getVersionAsNumber(nc);
+            int v234 = getVersionAsNumber("2.3.4");
+            if (sv > v234) {
+                return;
+            }
+
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
