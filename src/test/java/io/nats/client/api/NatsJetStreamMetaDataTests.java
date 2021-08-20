@@ -25,27 +25,40 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
 
     @Test
     public void testMetaData() {
-        Message msg = getJsMessage(JS_REPLY_TO);
+        Message msg = getTestMessage(TestMetaV0);
+        NatsJetStreamMetaData meta = msg.metaData(); // first time, coverage lazy check is null
+        assertNotNull(msg.metaData()); // 2nd time, coverage lazy check is not null
+        assertNotNull(meta.toString()); // COVERAGE toString
 
-        // two calls to msg.metaData are for coverage to test lazy initializer
-        NatsJetStreamMetaData jsmd = msg.metaData(); // this call takes a different path
-        assertNotNull(msg.metaData()); // this call shows that the lazy will work
+        validateMeta(false, false, getTestMessage(TestMetaV0).metaData());
+        validateMeta(true, false, getTestMessage(TestMetaV1).metaData());
+        validateMeta(true, true, getTestMessage(TestMetaV2).metaData());
+    }
 
-        assertEquals("test-stream", jsmd.getStream());
-        assertEquals("test-consumer", jsmd.getConsumer());
-        assertEquals(1, jsmd.deliveredCount());
-        assertEquals(2, jsmd.streamSequence());
-        assertEquals(3, jsmd.consumerSequence());
+    private void validateMeta(boolean pending, boolean v2, NatsJetStreamMetaData meta) {
+        assertEquals("test-stream", meta.getStream());
+        assertEquals("test-consumer", meta.getConsumer());
+        assertEquals(1, meta.deliveredCount());
+        assertEquals(2, meta.streamSequence());
+        assertEquals(3, meta.consumerSequence());
 
-        assertEquals(2020, jsmd.timestamp().getYear());
-        assertEquals(6, jsmd.timestamp().getMinute());
-        assertEquals(113260000, jsmd.timestamp().getNano());
-        assertEquals(-1, jsmd.pendingCount());
+        assertEquals(2020, meta.timestamp().getYear());
+        assertEquals(6, meta.timestamp().getMinute());
+        assertEquals(113260000, meta.timestamp().getNano());
 
-        jsmd = getJsMessage(JS_REPLY_TO + ".555").metaData();
-        assertEquals(555, jsmd.pendingCount());
+        assertEquals(pending ? 4L : -1L, meta.pendingCount());
 
-        assertNotNull(jsmd.toString()); // COVERAGE
+        if (v2) {
+            assertEquals("v2Domain", meta.getDomain());
+            assertEquals("v2Hash", meta.getAccountHash());
+            assertEquals("v2Token", meta.getToken());
+
+        }
+        else {
+            assertNull(meta.getDomain());
+            assertNull(meta.getAccountHash());
+            assertNull(meta.getToken());
+        }
     }
 
     @Test
@@ -54,13 +67,13 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
                 () -> new NatsJetStreamMetaData(NatsMessage.builder().subject("test").build()));
 
         assertThrows(IllegalArgumentException.class,
-                () -> new NatsJetStreamMetaData(getJsMessage("$JS.ACK.not.enough.parts")));
+                () -> new NatsJetStreamMetaData(getTestMessage("$JS.ACK.not.enough.parts")));
 
         assertThrows(IllegalArgumentException.class,
-                () -> new NatsJetStreamMetaData(getJsMessage(JS_REPLY_TO + ".too.many.parts")));
+                () -> new NatsJetStreamMetaData(getTestMessage(TestMetaV0 + ".too.many.parts")));
 
         assertThrows(IllegalArgumentException.class,
-                () -> new NatsJetStreamMetaData(getJsMessage("$JS.ZZZ.enough.parts.though.need.three.more")));
+                () -> new NatsJetStreamMetaData(getTestMessage("$JS.ZZZ.enough.parts.though.need.three.more")));
 
         assertThrows(IllegalArgumentException.class,
                 () -> new NatsJetStreamMetaData(new NatsMessage("sub", null, new byte[0])));

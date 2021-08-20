@@ -400,6 +400,11 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         // 10013 consumer name already in use
         // 10105 consumer already exists and is still active
         assertTrue(e.getApiErrorCode() == 10013 || e.getApiErrorCode() == 10105);
+        assertEquals(400, e.getErrorCode());
+        assertEquals("consumer name already in use", e.getErrorDescription());
+        // \/ This is just a reminder that the server changed \/
+        // assertEquals(500, e.getErrorCode());
+        // assertEquals("consumer already exists", e.getErrorDescription());
     }
 
     private void assertValidAddOrUpdate(JetStreamManagement jsm, ConsumerConfiguration cc) throws IOException, JetStreamApiException {
