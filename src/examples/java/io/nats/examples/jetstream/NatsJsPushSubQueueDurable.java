@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.examples.ExampleUtils.serverIsNewerThan;
+
 /**
  * This example will demonstrate JetStream push subscribing using a durable consumer which
  * sets up a deliver subject for you.
@@ -55,6 +57,13 @@ public class NatsJsPushSubQueueDurable {
                 .build(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
+
+            // This test will not work after server version v2.3.4
+            if (serverIsNewerThan(nc, "v2.3.4")) {
+                System.out.println("QUEUE BEHAVIOR WAS CHANGED at v2.3.5 of the server." +
+                        "\nThis example will only run properly with server v2.3.4 or before.");
+                System.exit(-1);
+            }
 
             // Create the stream.
             NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);

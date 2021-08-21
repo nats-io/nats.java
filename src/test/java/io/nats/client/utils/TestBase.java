@@ -369,4 +369,8 @@ public class TestBase {
         String[] v = vString.replaceAll("v", "").replaceAll("-", ".").split("\\Q.\\E");
         return (Integer.parseInt(v[0]) * 10000) + (Integer.parseInt(v[1]) * 100) + Integer.parseInt(v[2]);
     }
+
+    public boolean serverIsNewerThan(Connection nc, String vTarget) {
+        return getVersionAsNumber(nc) > getVersionAsNumber(vTarget);
+    }
 }
