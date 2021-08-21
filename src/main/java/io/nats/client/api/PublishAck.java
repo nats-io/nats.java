@@ -27,12 +27,14 @@ public class PublishAck extends ApiResponse<PublishAck> {
 
     private final String stream;
     private final long seq;
+    private final String domain;
     private final boolean duplicate;
 
     public PublishAck(Message msg) throws IOException, JetStreamApiException {
         super(msg);
         throwOnHasError();
         stream = JsonUtils.readString(json, STREAM_RE, null);
+        domain = JsonUtils.readString(json, DOMAIN_RE, null);
         if (stream == null) {
             throw new IOException("Invalid JetStream ack.");
         }
@@ -53,10 +55,18 @@ public class PublishAck extends ApiResponse<PublishAck> {
 
     /**
      * Get the name of the stream a published message was stored in.
-     * @return the the name of the stream.
+     * @return the name of the stream.
      */
     public String getStream() {
         return stream;
+    }
+
+    /**
+     * Gets the domain of a stream
+     * @return the domain name
+     */
+    public String getDomain() {
+        return domain;
     }
 
     /**
@@ -71,6 +81,7 @@ public class PublishAck extends ApiResponse<PublishAck> {
     public String toString() {
         return "PublishAck{" +
                 "stream='" + stream + '\'' +
+                "domain='" + domain + '\'' +
                 ", seq=" + seq +
                 ", duplicate=" + duplicate +
                 "}";
