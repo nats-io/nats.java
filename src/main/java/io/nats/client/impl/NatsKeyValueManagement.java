@@ -116,4 +116,19 @@ public class NatsKeyValueManagement extends NatsJetStreamImplBase implements Key
         }
         sub.unsubscribe();
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<String> bucketsNames() throws IOException, JetStreamApiException, InterruptedException {
+        List<String> buckets = new ArrayList<>();
+        List<String> all = jsm.getStreamNames();
+        for (String a : all) {
+            if (a.startsWith(KV_STREAM_PREFIX)) {
+                buckets.add(a.substring(KV_STREAM_PREFIX_LEN));
+            }
+        }
+        return buckets;
+    }
 }
