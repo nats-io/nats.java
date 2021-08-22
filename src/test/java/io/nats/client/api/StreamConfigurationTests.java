@@ -13,6 +13,7 @@
 
 package io.nats.client.api;
 
+import io.nats.client.JetStreamManagement;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.utils.ResourceUtils;
@@ -36,16 +37,31 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testRoundTrip() throws Exception {
+        StreamConfiguration sc = StreamConfiguration.builder(getTestConfiguration())
+                .mirror(null)
+                .sources()
+                .replicas(1)
+                .templateOwner(null)
+                .build();
+
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            validate(jsm.addStream(sc).getConfiguration(), true);
+        });
+    }
+
+    @Test
     public void testConstruction() {
         StreamConfiguration testSc = getTestConfiguration();
         // from json
-        validate(testSc);
+        validate(testSc, false);
 
         // test toJson
-        validate(StreamConfiguration.instance(testSc.toJson()));
+        validate(StreamConfiguration.instance(testSc.toJson()), false);
 
         // copy constructor
-        validate(StreamConfiguration.builder(testSc).build());
+        validate(StreamConfiguration.builder(testSc).build(), false);
 
         // builder
         StreamConfiguration.Builder builder = StreamConfiguration.builder()
@@ -68,14 +84,14 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .placement(testSc.getPlacement())
                 .mirror(testSc.getMirror())
                 .sources(testSc.getSources());
-        validate(builder.build());
-        validate(builder.addSources((Source)null).build());
+        validate(builder.build(), false);
+        validate(builder.addSources((Source)null).build(), false);
 
         List<Source> sources = new ArrayList<>(testSc.getSources());
         sources.add(null);
         Source copy = new Source(sources.get(0).toJson());
         sources.add(copy);
-        validate(builder.addSources(sources).build());
+        validate(builder.addSources(sources).build(), false);
 
         // equals and hashcode coverage
         External external = copy.getExternal();
@@ -285,7 +301,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(DiscardPolicy.Old, builder.build().getDiscardPolicy());
     }
 
-    private void validate(StreamConfiguration sc) {
+    private void validate(StreamConfiguration sc, boolean serverTest) {
         assertEquals("sname", sc.getName());
         assertEquals("blah blah", sc.getDescription());
         assertEquals(2, sc.getSubjects().size());
@@ -299,14 +315,12 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(732, sc.getMaxBytes());
         assertEquals(731, sc.getMaxMsgs());
         assertEquals(732, sc.getMaxBytes());
-        assertEquals(Duration.ofNanos(42000000000L), sc.getMaxAge());
+        assertEquals(Duration.ofNanos(43000000000L), sc.getMaxAge());
+        assertEquals(Duration.ofNanos(42000000000L), sc.getDuplicateWindow());
         assertEquals(734, sc.getMaxMsgSize());
         assertEquals(StorageType.Memory, sc.getStorageType());
-        assertEquals(5, sc.getReplicas());
         assertFalse(sc.getNoAck());
-        assertEquals("twnr", sc.getTemplateOwner());
         assertSame(DiscardPolicy.New, sc.getDiscardPolicy());
-        assertEquals(Duration.ofNanos(73000000000L), sc.getDuplicateWindow());
 
         assertNotNull(sc.getPlacement());
         assertEquals("clstr", sc.getPlacement().getCluster());
@@ -316,20 +330,27 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         ZonedDateTime zdt = DateTimeUtils.parseDateTime("2020-11-05T19:33:21.163377Z");
 
-        assertNotNull(sc.getMirror());
-        assertEquals("eman", sc.getMirror().getSourceName());
-        assertEquals(736, sc.getMirror().getStartSeq());
-        assertEquals(zdt, sc.getMirror().getStartTime());
-        assertEquals("mfsub", sc.getMirror().getFilterSubject());
+        if (serverTest) {
+            assertEquals(1, sc.getReplicas());
+        }
+        else {
+            assertEquals(5, sc.getReplicas());
+            assertEquals("twnr", sc.getTemplateOwner());
+            assertNotNull(sc.getMirror());
+            assertEquals("eman", sc.getMirror().getSourceName());
+            assertEquals(736, sc.getMirror().getStartSeq());
+            assertEquals(zdt, sc.getMirror().getStartTime());
+            assertEquals("mfsub", sc.getMirror().getFilterSubject());
 
-        assertNotNull(sc.getMirror().getExternal());
-        assertEquals("apithing", sc.getMirror().getExternal().getApi());
-        assertEquals("dlvrsub", sc.getMirror().getExternal().getDeliver());
+            assertNotNull(sc.getMirror().getExternal());
+            assertEquals("apithing", sc.getMirror().getExternal().getApi());
+            assertEquals("dlvrsub", sc.getMirror().getExternal().getDeliver());
 
-        assertEquals(2, sc.getSources().size());
+            assertEquals(2, sc.getSources().size());
 
-        validateSource(sc.getSources().get(0), "s0", 737, "s0sub", "s0api", "s0dlvrsub", zdt);
-        validateSource(sc.getSources().get(1), "s1", 738, "s1sub", "s1api", "s1dlvrsub", zdt);
+            validateSource(sc.getSources().get(0), "s0", 737, "s0sub", "s0api", "s0dlvrsub", zdt);
+            validateSource(sc.getSources().get(1), "s1", 738, "s1sub", "s1api", "s1dlvrsub", zdt);
+        }
     }
 
     private void validateSource(Source source, String name, long seq, String filter, String api, String deliver, ZonedDateTime zdt) {
