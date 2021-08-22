@@ -65,6 +65,7 @@ public interface NatsJetStreamConstants {
     String EXPECTED_STREAM_HDR = "Nats-Expected-Stream";
     String EXPECTED_LAST_SEQ_HDR = "Nats-Expected-Last-Sequence";
     String EXPECTED_LAST_MSG_ID_HDR = "Nats-Expected-Last-Msg-Id";
+    String NATS_EXPECTED_LAST_SUBJECT_SEQUENCE = "Nats-Expected-Last-Subject-Sequence";
 
     int JS_CONSUMER_NOT_FOUND_ERR = 10014;
     int JS_NO_MESSAGE_FOUND_ERR = 10037;

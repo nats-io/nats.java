@@ -183,38 +183,59 @@ public class JetStreamPubTests extends JetStreamTestBase {
     @Test
     public void testPublishExpectations() throws Exception {
         runInJsServer(nc -> {
-            createTestStream(nc);
+            createMemoryStream(nc, STREAM, subject(1), subject(2));
             JetStream js = nc.jetStream();
 
             PublishOptions po = PublishOptions.builder()
                     .expectedStream(STREAM)
                     .messageId(messageId(1))
                     .build();
-            PublishAck pa = js.publish(SUBJECT, dataBytes(1), po);
+            PublishAck pa = js.publish(subject(1), dataBytes(1), po);
             assertPublishAck(pa, 1);
 
             po = PublishOptions.builder()
                     .expectedLastMsgId(messageId(1))
                     .messageId(messageId(2))
                     .build();
-            pa = js.publish(SUBJECT, dataBytes(2), po);
+            pa = js.publish(subject(1), dataBytes(2), po);
             assertPublishAck(pa, 2);
 
             po = PublishOptions.builder()
                     .expectedLastSequence(2)
                     .messageId(messageId(3))
                     .build();
-            pa = js.publish(SUBJECT, dataBytes(3), po);
+            pa = js.publish(subject(1), dataBytes(3), po);
             assertPublishAck(pa, 3);
 
+            po = PublishOptions.builder()
+                    .expectedLastSequence(3)
+                    .messageId(messageId(4))
+                    .build();
+            pa = js.publish(subject(2), dataBytes(4), po);
+            assertPublishAck(pa, 4);
+
+            po = PublishOptions.builder()
+                    .expectedLastSubjectSequence(2)
+                    .messageId(messageId(5))
+                    .build();
+            pa = js.publish(subject(2), dataBytes(5), po);
+            assertPublishAck(pa, 5);
+
+            po = PublishOptions.builder()
+                    .expectedLastSubjectSequence(4)
+                    .messageId(messageId(6))
+                    .build();
+            pa = js.publish(subject(1), dataBytes(6), po);
+            assertPublishAck(pa, 6);
+
             PublishOptions po1 = PublishOptions.builder().expectedStream(stream(999)).build();
-            assertThrows(JetStreamApiException.class, () -> js.publish(SUBJECT, dataBytes(999), po1));
+            assertThrows(JetStreamApiException.class, () -> js.publish(subject(1), dataBytes(999), po1));
 
             PublishOptions po2 = PublishOptions.builder().expectedLastMsgId(messageId(999)).build();
-            assertThrows(JetStreamApiException.class, () -> js.publish(SUBJECT, dataBytes(999), po2));
+            assertThrows(JetStreamApiException.class, () -> js.publish(subject(1), dataBytes(999), po2));
 
             PublishOptions po3 = PublishOptions.builder().expectedLastSequence(999).build();
-            assertThrows(JetStreamApiException.class, () -> js.publish(SUBJECT, dataBytes(999), po3));
+            assertThrows(JetStreamApiException.class, () -> js.publish(subject(1), dataBytes(999), po3));
         });
     }
 
