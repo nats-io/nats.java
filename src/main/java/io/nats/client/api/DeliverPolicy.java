@@ -27,7 +27,7 @@ public enum DeliverPolicy {
     ByStartTime("by_start_time"),
     LastPerSubject("last_per_subject");
 
-    private String policy;
+    private final String policy;
 
     DeliverPolicy(String p) {
         policy = p;
