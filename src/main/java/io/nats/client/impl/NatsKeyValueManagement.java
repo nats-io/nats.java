@@ -78,7 +78,8 @@ public class NatsKeyValueManagement extends NatsJetStreamImplBase implements Key
     public PurgeResponse purgeKey(String bucketName, String key) throws IOException, JetStreamApiException {
         Validator.validateBucketNameRequired(bucketName);
         Validator.validateKeyRequired(key);
-        return jsm.purgeSubject(streamName(bucketName), keySubject(bucketName, key));
+        PurgeOptions options = PurgeOptions.builder().subject(keySubject(bucketName, key)).build();
+        return jsm.purgeStream(streamName(bucketName), options);
     }
 
     /**

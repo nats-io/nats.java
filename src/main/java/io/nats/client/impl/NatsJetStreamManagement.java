@@ -13,16 +13,13 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamApiException;
-import io.nats.client.JetStreamManagement;
-import io.nats.client.JetStreamOptions;
-import io.nats.client.Message;
+import io.nats.client.*;
 import io.nats.client.api.*;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import static io.nats.client.support.ApiConstants.FILTER;
 import static io.nats.client.support.ApiConstants.SEQ;
 import static io.nats.client.support.JsonUtils.simpleMessageBody;
 import static io.nats.client.support.Validator.*;
@@ -66,7 +63,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         }
 
         String subj = String.format(template, streamName);
-        Message resp = makeRequestResponseRequired(subj, config.toJson().getBytes(), jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(subj, config.toJson().getBytes(StandardCharsets.UTF_8), jso.getRequestTimeout());
         return new StreamInfo(resp).throwOnHasError();
     }
 
@@ -103,9 +100,10 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      * {@inheritDoc}
      */
     @Override
-    public PurgeResponse purgeSubject(String streamName, String subject) throws IOException, JetStreamApiException {
+    public PurgeResponse purgeStream(String streamName, PurgeOptions options) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_STREAM_PURGE, streamName);
-        Message resp = makeRequestResponseRequired(subj, simpleMessageBody(FILTER, subject), jso.getRequestTimeout());
+        byte[] body = options.toJson().getBytes(StandardCharsets.UTF_8);
+        Message resp = makeRequestResponseRequired(subj, body, jso.getRequestTimeout());
         return new PurgeResponse(resp).throwOnHasError();
     }
 
