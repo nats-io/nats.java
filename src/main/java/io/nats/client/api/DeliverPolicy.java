@@ -24,7 +24,8 @@ public enum DeliverPolicy {
     Last("last"),
     New("new"),
     ByStartSequence("by_start_sequence"),
-    ByStartTime("by_start_time");
+    ByStartTime("by_start_time"),
+    LastPerSubject("last_per_subject");
 
     private String policy;
 
