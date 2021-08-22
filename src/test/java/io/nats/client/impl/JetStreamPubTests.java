@@ -215,17 +215,17 @@ public class JetStreamPubTests extends JetStreamTestBase {
             assertPublishAck(pa, 4);
 
             po = PublishOptions.builder()
-                    .expectedLastSubjectSequence(2)
+                    .expectedLastSubjectSequence(3)
                     .messageId(messageId(5))
                     .build();
-            pa = js.publish(subject(2), dataBytes(5), po);
+            pa = js.publish(subject(1), dataBytes(5), po);
             assertPublishAck(pa, 5);
 
             po = PublishOptions.builder()
                     .expectedLastSubjectSequence(4)
                     .messageId(messageId(6))
                     .build();
-            pa = js.publish(subject(1), dataBytes(6), po);
+            pa = js.publish(subject(2), dataBytes(6), po);
             assertPublishAck(pa, 6);
 
             PublishOptions po1 = PublishOptions.builder().expectedStream(stream(999)).build();
@@ -236,6 +236,9 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
             PublishOptions po3 = PublishOptions.builder().expectedLastSequence(999).build();
             assertThrows(JetStreamApiException.class, () -> js.publish(subject(1), dataBytes(999), po3));
+
+            PublishOptions po4 = PublishOptions.builder().expectedLastSubjectSequence(999).build();
+            assertThrows(JetStreamApiException.class, () -> js.publish(subject(1), dataBytes(999), po4));
         });
     }
 
