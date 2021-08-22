@@ -26,7 +26,7 @@ public enum DeliverPolicy {
     ByStartSequence("by_start_sequence"),
     ByStartTime("by_start_time");
 
-    private final String policy;
+    private String policy;
 
     DeliverPolicy(String p) {
         policy = p;
