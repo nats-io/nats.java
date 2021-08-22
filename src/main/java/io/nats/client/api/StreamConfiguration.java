@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonUtils;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -34,6 +35,7 @@ public class StreamConfiguration implements JsonSerializable {
 
     // see builder for defaults
     private final String name;
+    private final String description;
     private final List<String> subjects;
     private final RetentionPolicy retentionPolicy;
     private final long maxConsumers;
@@ -72,6 +74,7 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         builder.name(readString(json, NAME_RE));
+        builder.description(readString(json, DESCRIPTION_RE));
         readLong(json, MAX_CONSUMERS_RE, builder::maxConsumers);
         readLong(json, MAX_MSGS_RE, builder::maxMessages);
         readLong(json, MAX_MSGS_PER_SUB_RE, builder::maxMessagesPerSubject);
@@ -92,7 +95,7 @@ public class StreamConfiguration implements JsonSerializable {
 
     // For the builder, assumes all validations are already done in builder
     StreamConfiguration(
-            String name, List<String> subjects, RetentionPolicy retentionPolicy,
+            String name, String description, List<String> subjects, RetentionPolicy retentionPolicy,
             long maxConsumers, long maxMsgs, long maxMsgsPerSubject, long maxBytes,
             Duration maxAge, long maxMsgSize, StorageType storageType,
             int replicas, boolean noAck, String templateOwner,
@@ -100,6 +103,7 @@ public class StreamConfiguration implements JsonSerializable {
             Placement placement, Mirror mirror, List<Source> sources)
     {
         this.name = name;
+        this.description = description;
         this.subjects = subjects;
         this.retentionPolicy = retentionPolicy;
         this.maxConsumers = maxConsumers;
@@ -129,6 +133,7 @@ public class StreamConfiguration implements JsonSerializable {
         StringBuilder sb = beginJson();
 
         addField(sb, NAME, name);
+        JsonUtils.addField(sb, DESCRIPTION, description);
         addStrings(sb, SUBJECTS, subjects);
         addField(sb, RETENTION, retentionPolicy.toString());
         addField(sb, MAX_CONSUMERS, maxConsumers);
@@ -160,6 +165,14 @@ public class StreamConfiguration implements JsonSerializable {
      */
     public String getName() {
         return name;
+    }
+
+    /**
+     * Gets the description of this stream configuration.
+     * @return the description of the stream.
+     */
+    public String getDescription() {
+        return description;
     }
 
     /**
@@ -304,6 +317,7 @@ public class StreamConfiguration implements JsonSerializable {
     public String toString() {
         return "StreamConfiguration{" +
                 "name='" + name + '\'' +
+                "description='" + description + '\'' +
                 ", subjects=" + subjects +
                 ", retentionPolicy=" + retentionPolicy +
                 ", maxConsumers=" + maxConsumers +
@@ -350,6 +364,7 @@ public class StreamConfiguration implements JsonSerializable {
     public static class Builder {
 
         private String name = null;
+        private String description = null;
         private final List<String> subjects = new ArrayList<>();
         private RetentionPolicy retentionPolicy = RetentionPolicy.Limits;
         private long maxConsumers = -1;
@@ -380,6 +395,7 @@ public class StreamConfiguration implements JsonSerializable {
         public Builder(StreamConfiguration sc) {
             if (sc != null) {
                 this.name = sc.name;
+                this.description = sc.description;
                 subjects(sc.subjects);
                 this.retentionPolicy = sc.retentionPolicy;
                 this.maxConsumers = sc.maxConsumers;
@@ -407,6 +423,16 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder name(String name) {
             this.name = name;
+            return this;
+        }
+
+        /**
+         * Sets the description
+         * @param description the description
+         * @return the builder
+         */
+        public Builder description(String description) {
+            this.description = validateMaxLength(description, 4096, false, "Description");
             return this;
         }
 
@@ -683,6 +709,7 @@ public class StreamConfiguration implements JsonSerializable {
         public StreamConfiguration build() {
             return new StreamConfiguration(
                     name,
+                    description,
                     subjects,
                     retentionPolicy,
                     maxConsumers,

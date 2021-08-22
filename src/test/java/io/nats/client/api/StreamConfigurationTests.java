@@ -50,6 +50,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         // builder
         StreamConfiguration.Builder builder = StreamConfiguration.builder()
                 .name(testSc.getName())
+                .description(testSc.getDescription())
                 .subjects(testSc.getSubjects())
                 .retentionPolicy(testSc.getRetentionPolicy())
                 .maxConsumers(testSc.getMaxConsumers())
@@ -286,6 +287,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     private void validate(StreamConfiguration sc) {
         assertEquals("sname", sc.getName());
+        assertEquals("blah blah", sc.getDescription());
         assertEquals(2, sc.getSubjects().size());
         assertEquals("foo", sc.getSubjects().get(0));
         assertEquals("bar", sc.getSubjects().get(1));

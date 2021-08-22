@@ -1,5 +1,6 @@
 {
   "name": "sname",
+  "description": "blah blah",
   "subjects": ["foo", "bar"],
   "retention": "interest",
   "max_consumers": 730,
