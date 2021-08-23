@@ -13,6 +13,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.JetStreamApiException;
+import io.nats.client.JetStreamManagement;
 import io.nats.client.KeyValue;
 import io.nats.client.KeyValueManagement;
 import io.nats.client.api.*;
@@ -31,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class KeyValueTests extends JetStreamTestBase {
 
     @Test
-    public void testBasic() throws Exception {
+    public void testWorkflow() throws Exception {
         long now = ZonedDateTime.now().toEpochSecond();
 
         String byteKey = "byteKey";
@@ -171,11 +172,11 @@ public class KeyValueTests extends JetStreamTestBase {
             assertHistory(byteHistory, kvm.getHistory(BUCKET, byteKey));
 
             stringHistory.add(
-                assertEntry(BUCKET, stringKey, KvOperation.PUT, 6, stringValue2, now, kv.getEntry(stringKey)));
+                    assertEntry(BUCKET, stringKey, KvOperation.PUT, 6, stringValue2, now, kv.getEntry(stringKey)));
             assertHistory(stringHistory, kvm.getHistory(BUCKET, stringKey));
 
             longHistory.add(
-                assertEntry(BUCKET, longKey, KvOperation.PUT, 7, Long.toString(2), now, kv.getEntry(longKey)));
+                    assertEntry(BUCKET, longKey, KvOperation.PUT, 7, Long.toString(2), now, kv.getEntry(longKey)));
             assertHistory(longHistory, kvm.getHistory(BUCKET, longKey));
 
             // let's check the bucket info
@@ -299,6 +300,38 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // coverage
             assertNotNull(bi.toString());
+        });
+    }
+
+    @Test
+    public void testManageGetBucketNames() throws Exception {
+
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            // create a regular stream;
+            createMemoryStream(jsm, stream(1));
+
+            // create bucket 1
+            kvm.createBucket(BucketConfiguration.builder()
+                    .name(bucket(1))
+                    .storageType(StorageType.Memory)
+                    .build());
+
+            // create a regular stream;
+            createMemoryStream(jsm, stream(2));
+
+            // create bucket 2
+            kvm.createBucket(BucketConfiguration.builder()
+                    .name(bucket(2))
+                    .storageType(StorageType.Memory)
+                    .build());
+
+            List<String> buckets = kvm.bucketsNames();
+            assertEquals(2, buckets.size());
+            assertTrue(buckets.contains(bucket(1)));
+            assertTrue(buckets.contains(bucket(2)));
         });
     }
 
