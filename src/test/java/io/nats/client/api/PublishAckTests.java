@@ -24,11 +24,12 @@ import static org.junit.jupiter.api.Assertions.*;
 public class PublishAckTests {
     @Test
     public void testValidAck() {
-        String json = "{\"stream\":\"test\",\"seq\":42, \"duplicate\" : true }";
+        String json = "{\"stream\":\"test-stream\",\"seq\":42,\"domain\":\"test-domain\", \"duplicate\" : true }";
 
         try {
             PublishAck ack = new PublishAck(getDataMessage(json));
-            assertEquals("test", ack.getStream());
+            assertEquals("test-stream", ack.getStream());
+            assertEquals("test-domain", ack.getDomain());
             assertEquals(42, ack.getSeqno());
             assertTrue(ack.isDuplicate());
         }
