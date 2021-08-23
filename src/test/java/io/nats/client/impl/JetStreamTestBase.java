@@ -31,10 +31,21 @@ import static io.nats.examples.jetstream.NatsJsUtils.printStreamInfo;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamTestBase extends TestBase {
-    public static final String JS_REPLY_TO = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000";
+    public static final String TestMetaV0 = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000";
+    public static final String TestMetaV1 = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000.4";
+    public static final String TestMetaV2 = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.4.v2Token";
+
     public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(500);
 
-    public NatsMessage getJsMessage(String replyTo) {
+    public NatsMessage getTestNatsMessage() {
+        return getTestMessage("replyTo");
+    }
+
+    public NatsMessage getTestJsMessage() {
+        return getTestMessage(TestMetaV2);
+    }
+
+    public NatsMessage getTestMessage(String replyTo) {
         return new NatsMessage.InternalMessageFactory("sid", "subj", replyTo, 0, false).getMessage();
     }
 
