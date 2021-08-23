@@ -175,6 +175,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         if (opts != null) {
             merged = mergeNum(merged, EXPECTED_LAST_SEQ_HDR, opts.getExpectedLastSequence());
+            merged = mergeNum(merged, EXPECTED_LAST_SUB_SEQ_HDR, opts.getExpectedLastSubjectSequence());
             merged = mergeString(merged, EXPECTED_LAST_MSG_ID_HDR, opts.getExpectedLastMsgId());
             merged = mergeString(merged, EXPECTED_STREAM_HDR, opts.getExpectedStream());
             merged = mergeString(merged, MSG_ID_HDR, opts.getMessageId());
