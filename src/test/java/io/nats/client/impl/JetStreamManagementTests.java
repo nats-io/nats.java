@@ -264,7 +264,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testPurgeStream() throws Exception {
+    public void testPurgeStreamAndOptions() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             assertThrows(JetStreamApiException.class, () -> jsm.purgeStream(STREAM));
@@ -273,18 +273,35 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             StreamInfo si = jsm.getStreamInfo(STREAM);
             assertEquals(0, si.getStreamState().getMsgCount());
 
-            jsPublish(nc, SUBJECT, 1);
+            jsPublish(nc, SUBJECT, 10);
             si = jsm.getStreamInfo(STREAM);
-            assertEquals(1, si.getStreamState().getMsgCount());
+            assertEquals(10, si.getStreamState().getMsgCount());
 
-            PurgeResponse pr = jsm.purgeStream(STREAM);
+            PurgeOptions options = PurgeOptions.builder().keep(7).build();
+            PurgeResponse pr = jsm.purgeStream(STREAM, options);
             assertTrue(pr.isSuccess());
-            assertEquals(1, pr.getPurged());
+            assertEquals(3, pr.getPurged());
+
+            options = PurgeOptions.builder().seq(9).build();
+            pr = jsm.purgeStream(STREAM, options);
+            assertTrue(pr.isSuccess());
+            assertEquals(5, pr.getPurged());
+            si = jsm.getStreamInfo(STREAM);
+            assertEquals(2, si.getStreamState().getMsgCount());
+
+            pr = jsm.purgeStream(STREAM);
+            assertTrue(pr.isSuccess());
+            assertEquals(2, pr.getPurged());
+            si = jsm.getStreamInfo(STREAM);
+            assertEquals(0, si.getStreamState().getMsgCount());
         });
+
+        assertThrows(IllegalArgumentException.class,
+                () -> PurgeOptions.builder().keep(1).seq(1).build());
     }
 
     @Test
-    public void testPurgeSubject() throws Exception {
+    public void testPurgeStreamSubjectOptions() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             assertThrows(JetStreamApiException.class, () -> jsm.purgeStream(STREAM));
@@ -293,17 +310,38 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             StreamInfo si = jsm.getStreamInfo(STREAM);
             assertEquals(0, si.getStreamState().getMsgCount());
 
-            jsPublish(nc, subject(1), 1);
+            jsPublish(nc, subject(1), 10);
             jsPublish(nc, subject(2), 1);
             si = jsm.getStreamInfo(STREAM);
-            assertEquals(2, si.getStreamState().getMsgCount());
+            assertEquals(11, si.getStreamState().getMsgCount());
 
-            PurgeResponse pr = jsm.purgeSubject(STREAM, subject(1));
+            PurgeOptions options = PurgeOptions.builder().subject(subject(2)).build();
+            PurgeResponse pr = jsm.purgeStream(STREAM, options);
             assertTrue(pr.isSuccess());
             assertEquals(1, pr.getPurged());
 
             si = jsm.getStreamInfo(STREAM);
-            assertEquals(1, si.getStreamState().getMsgCount());
+            assertEquals(10, si.getStreamState().getMsgCount());
+
+            options = PurgeOptions.builder()
+                    .subject(subject(1))
+                    .keep(7)
+                    .build();
+            pr = jsm.purgeStream(STREAM, options);
+            assertTrue(pr.isSuccess());
+            assertEquals(3, pr.getPurged());
+            si = jsm.getStreamInfo(STREAM);
+            assertEquals(7, si.getStreamState().getMsgCount());
+
+            options = PurgeOptions.builder()
+                    .subject(subject(1))
+                    .seq(9)
+                    .build();
+            pr = jsm.purgeStream(STREAM, options);
+            assertTrue(pr.isSuccess());
+            assertEquals(5, pr.getPurged());
+            si = jsm.getStreamInfo(STREAM);
+            assertEquals(2, si.getStreamState().getMsgCount());
         });
     }
 
