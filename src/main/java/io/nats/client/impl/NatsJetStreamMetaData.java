@@ -42,7 +42,6 @@ public class NatsJetStreamMetaData {
         return "NatsJetStreamMetaData{" +
                 "prefix='" + prefix + '\'' +
                 "domain='" + domain + '\'' +
-                ", accountHash='" + accountHash + '\'' +
                 ", stream='" + stream + '\'' +
                 ", consumer='" + consumer + '\'' +
                 ", delivered=" + delivered +
@@ -50,7 +49,6 @@ public class NatsJetStreamMetaData {
                 ", consumerSeq=" + consumerSeq +
                 ", timestamp=" + timestamp +
                 ", pending=" + pending +
-                ", token=" + token +
                 '}';
     }
 
@@ -83,7 +81,7 @@ public class NatsJetStreamMetaData {
             hasPending = true;
             hasDomainHashToken = false;
         }
-        else if (parts.length == 12) {
+        else if (parts.length >= 12) {
             streamIndex = 4;
             hasPending = true;
             hasDomainHashToken = true;
@@ -119,14 +117,6 @@ public class NatsJetStreamMetaData {
      */
     public String getDomain() {
         return domain;
-    }
-
-    /**
-     * Get the hash of the account. Might be null
-     * @return the hash
-     */
-    public String getAccountHash() {
-        return accountHash;
     }
 
     /**
@@ -192,11 +182,11 @@ public class NatsJetStreamMetaData {
         return timestamp;
     }
 
-    /**
-     * Get the ack token
-     * @return the token
-     */
-    public String getToken() {
+    String getAccountHash() {
+        return accountHash;
+    }
+
+    String getToken() {
         return token;
     }
 

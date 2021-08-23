@@ -11,12 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.api;
+package io.nats.client.impl;
 
 import io.nats.client.Message;
-import io.nats.client.impl.JetStreamTestBase;
-import io.nats.client.impl.NatsJetStreamMetaData;
-import io.nats.client.impl.NatsMessage;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
