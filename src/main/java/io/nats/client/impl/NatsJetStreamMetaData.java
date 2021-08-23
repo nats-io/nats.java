@@ -17,8 +17,6 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Jetstream meta data about a message, when applicable.
@@ -62,67 +60,57 @@ public class NatsJetStreamMetaData {
     v2 <prefix>.ACK.<domain>.<account hash>.<stream name>.<consumer name>.<num delivered>.<stream sequence>.<consumer sequence>.<timestamp>.<num pending>.<a token with a random value>
      */
 
-    enum AckReplyToVer {
-        V0(8, 2, false, false),
-        V1(9, 2, true, false),
-        V2(12, 4, true, true);
-
-        final static Map<Integer, AckReplyToVer> byNumParts;
-
-        final int parts;
-        final int streamIndex;
-        final boolean pending;
-        final boolean domainHashToken;
-
-        static {
-            byNumParts = new HashMap<>();
-            for (AckReplyToVer v : AckReplyToVer.values()) {
-                byNumParts.put(v.parts, v);
-            }
-        }
-
-        AckReplyToVer(int parts, int streamIndex, boolean pending, boolean domainHashToken) {
-            this.parts = parts;
-            this.streamIndex = streamIndex;
-            this.pending = pending;
-            this.domainHashToken = domainHashToken;
-        }
-
-        public static AckReplyToVer byNumParts(int parts) {
-            return byNumParts.get(parts);
-        }
-    }
-
     public NatsJetStreamMetaData(NatsMessage natsMessage) {
         if (!natsMessage.isJetStream()) {
             throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
         }
 
         String[] parts = natsMessage.getReplyTo().split("\\.");
-        AckReplyToVer ver = AckReplyToVer.byNumParts(parts.length);
-        if (ver == null || !"ACK".equals(parts[1])) {
+        if (parts.length < 8 || !"ACK".equals(parts[1])) {
+            throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
+        }
+
+        int streamIndex;
+        boolean hasPending;
+        boolean hasDomainHashToken;
+        if (parts.length == 8) {
+            streamIndex = 2;
+            hasPending = false;
+            hasDomainHashToken = false;
+        }
+        else if (parts.length == 9) {
+            streamIndex = 2;
+            hasPending = true;
+            hasDomainHashToken = false;
+        }
+        else if (parts.length == 12) {
+            streamIndex = 4;
+            hasPending = true;
+            hasDomainHashToken = true;
+        }
+        else {
             throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
         }
 
         prefix = parts[0];
-        // "ack" <= parts[1]
-        domain = ver.domainHashToken ? parts[2] : null;
-        accountHash = ver.domainHashToken ? parts[3] : null;
-        stream = parts[ver.streamIndex];
-        consumer = parts[ver.streamIndex + 1];
-        delivered = Long.parseLong(parts[ver.streamIndex + 2]);
-        streamSeq = Long.parseLong(parts[ver.streamIndex + 3]);
-        consumerSeq = Long.parseLong(parts[ver.streamIndex + 4]);
+        // "ack" = parts[1]
+        domain = hasDomainHashToken ? parts[2] : null;
+        accountHash = hasDomainHashToken ? parts[3] : null;
+        stream = parts[streamIndex];
+        consumer = parts[streamIndex + 1];
+        delivered = Long.parseLong(parts[streamIndex + 2]);
+        streamSeq = Long.parseLong(parts[streamIndex + 3]);
+        consumerSeq = Long.parseLong(parts[streamIndex + 4]);
 
         // not so clever way to separate nanos from seconds
-        long tsi = Long.parseLong(parts[ver.streamIndex + 5]);
+        long tsi = Long.parseLong(parts[streamIndex + 5]);
         long seconds = tsi / NANO_FACTOR;
         int nanos = (int) (tsi - ((tsi / NANO_FACTOR) * NANO_FACTOR));
         LocalDateTime ltd = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
         timestamp = ZonedDateTime.of(ltd, ZoneId.systemDefault()); // I think this is safe b/c the zone should match local
 
-        pending = ver.pending ? Long.parseLong(parts[ver.streamIndex + 6]) : -1L;
-        token = ver.domainHashToken ? parts[ver.streamIndex + 7] : null;
+        this.pending = hasPending ? Long.parseLong(parts[streamIndex + 6]) : -1L;
+        token = hasDomainHashToken ? parts[streamIndex + 7] : null;
     }
 
     /**

@@ -35,7 +35,7 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
         validateMeta(true, true, getTestMessage(TestMetaV2).metaData());
     }
 
-    private void validateMeta(boolean pending, boolean v2, NatsJetStreamMetaData meta) {
+    private void validateMeta(boolean hasPending, boolean hasDomainHashToken, NatsJetStreamMetaData meta) {
         assertEquals("test-stream", meta.getStream());
         assertEquals("test-consumer", meta.getConsumer());
         assertEquals(1, meta.deliveredCount());
@@ -46,9 +46,9 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
         assertEquals(6, meta.timestamp().getMinute());
         assertEquals(113260000, meta.timestamp().getNano());
 
-        assertEquals(pending ? 4L : -1L, meta.pendingCount());
+        assertEquals(hasPending ? 4L : -1L, meta.pendingCount());
 
-        if (v2) {
+        if (hasDomainHashToken) {
             assertEquals("v2Domain", meta.getDomain());
             assertEquals("v2Hash", meta.getAccountHash());
             assertEquals("v2Token", meta.getToken());
