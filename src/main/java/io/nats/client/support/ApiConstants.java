@@ -43,6 +43,7 @@ public interface ApiConstants {
     String DELIVERED        = "delivered";
     String DESCRIPTION      = "description";
     String DISCARD          = "discard";
+    String DOMAIN           = "domain";
     String DUPLICATE        = "duplicate";
     String DUPLICATE_WINDOW = "duplicate_window";
     String DURABLE_NAME     = "durable_name";
@@ -149,6 +150,7 @@ public interface ApiConstants {
     Pattern DELIVER_SUBJECT_RE  = string_pattern(DELIVER_SUBJECT);
     Pattern DESCRIPTION_RE      = string_pattern(DESCRIPTION);
     Pattern DISCARD_RE          = string_pattern(DISCARD);
+    Pattern DOMAIN_RE           = string_pattern(DOMAIN);
     Pattern DUPLICATE_RE        = boolean_pattern(DUPLICATE);
     Pattern DUPLICATE_WINDOW_RE = integer_pattern(DUPLICATE_WINDOW);
     Pattern DURABLE_NAME_RE     = string_pattern(DURABLE_NAME);
