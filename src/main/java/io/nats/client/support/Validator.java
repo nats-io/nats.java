@@ -78,6 +78,10 @@ public abstract class Validator {
         });
     }
 
+    public static String validateDescription(String description, boolean required) {
+        return validateMaxLength(description, 4096, required, "Description");
+    }
+
     public static String validatePrintable(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
             if (notPrintable(s)) {
