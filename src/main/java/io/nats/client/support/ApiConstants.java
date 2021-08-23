@@ -60,6 +60,7 @@ public interface ApiConstants {
     String HOST             = "host";
     String IDLE_HEARTBEAT   = "idle_heartbeat";
     String JETSTREAM        = "jetstream";
+    String KEEP             = "keep";
     String LAG              = "lag";
     String LAME_DUCK_MODE   = "ldm";
     String LAST_BY_SUBJECT  = "last_by_subj";
