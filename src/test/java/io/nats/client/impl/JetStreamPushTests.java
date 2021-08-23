@@ -18,6 +18,7 @@ import io.nats.client.JetStreamSubscription;
 import io.nats.client.Message;
 import io.nats.client.PushSubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.DeliverPolicy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
@@ -151,7 +152,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertThrows(IllegalStateException.class, () -> sub.pull(1));
             assertThrows(IllegalStateException.class, () -> sub.pullNoWait(1));
             // TODO pullExpiresIn
-//            assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, Duration.ofSeconds(1)));
+            assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, Duration.ofSeconds(1)));
         });
     }
 
@@ -242,5 +243,102 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             assertNull(sub.nextMessage(Duration.ofSeconds(1)));
         });
+    }
+
+    @Test
+    public void testDeliveryPolicy() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT_STAR);
+
+            String subjectA = subjectDot("A");
+            String subjectB = subjectDot("B");
+
+            js.publish(subjectA, dataBytes(1));
+            js.publish(subjectA, dataBytes(2));
+            sleep(1500);
+            js.publish(subjectA, dataBytes(3));
+            js.publish(subjectB, dataBytes(91));
+            js.publish(subjectB, dataBytes(92));
+
+            // DeliverPolicy.All
+            PushSubscribeOptions pso = PushSubscribeOptions.builder()
+                    .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.All).build())
+                    .build();
+            JetStreamSubscription sub = js.subscribe(subjectA, pso);
+            Message m1 = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m1, 1);
+            Message m2 = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m2, 2);
+            Message m3 = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m3, 3);
+
+            // DeliverPolicy.Last
+            pso = PushSubscribeOptions.builder()
+                    .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.Last).build())
+                    .build();
+            sub = js.subscribe(subjectA, pso);
+            Message m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 3);
+            assertNull(sub.nextMessage(Duration.ofMillis(200)));
+
+            // DeliverPolicy.New - No new messages between subscribe and next message
+            pso = PushSubscribeOptions.builder()
+                    .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.New).build())
+                    .build();
+            sub = js.subscribe(subjectA, pso);
+            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+
+            // DeliverPolicy.New - New message between subscribe and next message
+            sub = js.subscribe(subjectA, pso);
+            js.publish(subjectA, dataBytes(4));
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 4);
+
+            // DeliverPolicy.ByStartSequence
+            pso = PushSubscribeOptions.builder()
+                    .configuration(ConsumerConfiguration.builder()
+                            .deliverPolicy(DeliverPolicy.ByStartSequence)
+                            .startSequence(3)
+                            .build())
+                    .build();
+            sub = js.subscribe(subjectA, pso);
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 3);
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 4);
+
+            // DeliverPolicy.ByStartTime
+            pso = PushSubscribeOptions.builder()
+                    .configuration(ConsumerConfiguration.builder()
+                            .deliverPolicy(DeliverPolicy.ByStartTime)
+                            .startTime(m3.metaData().timestamp().minusSeconds(1))
+                            .build())
+                    .build();
+            sub = js.subscribe(subjectA, pso);
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 3);
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 4);
+
+            // DeliverPolicy.LastPerSubject
+            pso = PushSubscribeOptions.builder()
+                    .configuration(ConsumerConfiguration.builder()
+                            .deliverPolicy(DeliverPolicy.LastPerSubject)
+                            .filterSubject(subjectA)
+                            .build())
+                    .build();
+            sub = js.subscribe(subjectA, pso);
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 4);
+        });
+    }
+
+    private void assertMessage(Message m, int i) {
+        assertNotNull(m);
+        assertEquals(data(i), new String(m.getData()));
     }
 }
