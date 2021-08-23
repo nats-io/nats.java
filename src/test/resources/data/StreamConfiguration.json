@@ -1,19 +1,20 @@
 {
   "name": "sname",
+  "description": "blah blah",
   "subjects": ["foo", "bar"],
   "retention": "interest",
   "max_consumers": 730,
   "max_msgs": 731,
   "max_msgs_per_subject": 741,
   "max_bytes": 732,
-  "max_age": 42000000000,
+  "max_age": 43000000000,
   "max_msg_size": 734,
   "storage": "memory",
   "num_replicas": 5,
   "no_ack": false,
   "template_owner": "twnr",
   "discard": "new",
-  "duplicate_window": 73000000000,
+  "duplicate_window": 42000000000,
   "placement": {
     "cluster": "clstr",
     "tags": ["tag1", "tag2"]
