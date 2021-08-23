@@ -25,7 +25,6 @@ import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.Validator.emptyAsNull;
-import static io.nats.client.support.Validator.validateDescription;
 
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and
@@ -366,7 +365,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return the builder
          */
         public Builder description(String description) {
-            this.description = validateDescription(description, false);
+            this.description = description;
             return this;
         }
 
