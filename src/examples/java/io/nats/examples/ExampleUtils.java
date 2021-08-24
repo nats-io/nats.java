@@ -163,21 +163,4 @@ public class ExampleUtils {
         }
         return sb.toString();
     }
-
-    // ----------------------------------------------------------------------------------------------------
-    // server info
-    // ----------------------------------------------------------------------------------------------------
-    public static int getVersionAsNumber(Connection nc) {
-        String vString = nc.getServerInfo().getVersion();
-        return getVersionAsNumber(vString);
-    }
-
-    public static int getVersionAsNumber(String vString) {
-        String[] v = vString.replaceAll("v", "").replaceAll("-", ".").split("\\Q.\\E");
-        return (Integer.parseInt(v[0]) * 10000) + (Integer.parseInt(v[1]) * 100) + Integer.parseInt(v[2]);
-    }
-
-    public static boolean serverIsNewerThan(Connection nc, String vTarget) {
-        return getVersionAsNumber(nc) > getVersionAsNumber(vTarget);
-    }
 }

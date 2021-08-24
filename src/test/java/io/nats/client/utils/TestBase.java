@@ -356,21 +356,4 @@ public class TestBase {
     private static String expectingMessage(Connection conn, Connection.Status expecting) {
         return "Failed expecting Connection Status " + expecting.name() + " but was " + conn.getStatus();
     }
-
-    // ----------------------------------------------------------------------------------------------------
-    // server info
-    // ----------------------------------------------------------------------------------------------------
-    public int getVersionAsNumber(Connection nc) {
-        String vString = nc.getServerInfo().getVersion();
-        return getVersionAsNumber(vString);
-    }
-
-    public int getVersionAsNumber(String vString) {
-        String[] v = vString.replaceAll("v", "").replaceAll("-", ".").split("\\Q.\\E");
-        return (Integer.parseInt(v[0]) * 10000) + (Integer.parseInt(v[1]) * 100) + Integer.parseInt(v[2]);
-    }
-
-    public boolean serverIsNewerThan(Connection nc, String vTarget) {
-        return getVersionAsNumber(nc) > getVersionAsNumber(vTarget);
-    }
 }
