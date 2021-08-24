@@ -107,4 +107,15 @@ public interface KeyValueManagement {
      * @throws InterruptedException if the thread is interrupted
      */
     Set<String> keys(String bucketName) throws IOException, JetStreamApiException, InterruptedException;
+
+    /**
+     * Get the list of bucket names
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @return list of bucket names
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
+     */
+    List<String> bucketsNames() throws IOException, JetStreamApiException, InterruptedException;
 }

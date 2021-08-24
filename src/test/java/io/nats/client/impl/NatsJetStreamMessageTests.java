@@ -24,30 +24,30 @@ public class NatsJetStreamMessageTests extends JetStreamTestBase {
 
     @Test
     public void testMiscCoverage() {
-        Message msg = getJsMessage(JS_REPLY_TO);
-        assertTrue(msg.isJetStream());
+        Message jsMsg = getTestJsMessage();
+        assertTrue(jsMsg.isJetStream());
 
         // two calls to msg.metaData are for coverage to test lazy initializer
-        assertNotNull(msg.metaData()); // this call takes a different path
-        assertNotNull(msg.metaData()); // this call shows that the lazy will work
+        assertNotNull(jsMsg.metaData()); // this call takes a different path
+        assertNotNull(jsMsg.metaData()); // this call shows that the lazy will work
 
-        assertThrows(IllegalArgumentException.class, () -> msg.ackSync(null));
+        assertThrows(IllegalArgumentException.class, () -> jsMsg.ackSync(null));
 
         // cannot ackSync with no or negative duration
-        assertThrows(IllegalArgumentException.class, () -> msg.ackSync(Duration.ZERO));
-        assertThrows(IllegalArgumentException.class, () -> msg.ackSync(Duration.ofSeconds(-1)));
+        assertThrows(IllegalArgumentException.class, () -> jsMsg.ackSync(Duration.ZERO));
+        assertThrows(IllegalArgumentException.class, () -> jsMsg.ackSync(Duration.ofSeconds(-1)));
 
-        assertThrows(IllegalStateException.class, () -> msg.ackSync(Duration.ofSeconds(1)));
+        assertThrows(IllegalStateException.class, () -> jsMsg.ackSync(Duration.ofSeconds(1)));
     }
 
     @Test
     public void testInvalid() {
-        Message m = new NatsMessage.InternalMessageFactory("sid", "subj", "replyTo", 0, false).getMessage();
-        assertFalse(m.isJetStream());
-        assertThrows(IllegalStateException.class, m::ack);
-        assertThrows(IllegalStateException.class, m::nak);
-        assertThrows(IllegalStateException.class, () -> m.ackSync(Duration.ofSeconds(42)));
-        assertThrows(IllegalStateException.class, m::inProgress);
-        assertThrows(IllegalStateException.class, m::term);
+        Message natsMsg = getTestNatsMessage();
+        assertFalse(natsMsg.isJetStream());
+        assertThrows(IllegalStateException.class, natsMsg::ack);
+        assertThrows(IllegalStateException.class, natsMsg::nak);
+        assertThrows(IllegalStateException.class, () -> natsMsg.ackSync(Duration.ofSeconds(42)));
+        assertThrows(IllegalStateException.class, natsMsg::inProgress);
+        assertThrows(IllegalStateException.class, natsMsg::term);
     }
 }
