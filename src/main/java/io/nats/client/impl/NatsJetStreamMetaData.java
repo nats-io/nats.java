@@ -25,18 +25,24 @@ public class NatsJetStreamMetaData {
 
     private static final long NANO_FACTOR = 10_00_000_000;
 
+    private final String prefix;
+    private final String domain;
+    private final String accountHash;
     private final String stream;
     private final String consumer;
     private final long delivered;
     private final long streamSeq;
     private final long consumerSeq;
     private final ZonedDateTime timestamp;
-    private long pending = -1;
+    private final long pending;
+    private final String token;
 
     @Override
     public String toString() {
         return "NatsJetStreamMetaData{" +
-                "stream='" + stream + '\'' +
+                "prefix='" + prefix + '\'' +
+                "domain='" + domain + '\'' +
+                ", stream='" + stream + '\'' +
                 ", consumer='" + consumer + '\'' +
                 ", delivered=" + delivered +
                 ", streamSeq=" + streamSeq +
@@ -46,32 +52,71 @@ public class NatsJetStreamMetaData {
                 '}';
     }
 
+    /*
+    v0 <prefix>.ACK.<stream name>.<consumer name>.<num delivered>.<stream sequence>.<consumer sequence>.<timestamp>
+    v1 <prefix>.ACK.<stream name>.<consumer name>.<num delivered>.<stream sequence>.<consumer sequence>.<timestamp>.<num pending>
+    v2 <prefix>.ACK.<domain>.<account hash>.<stream name>.<consumer name>.<num delivered>.<stream sequence>.<consumer sequence>.<timestamp>.<num pending>.<a token with a random value>
+     */
+
     public NatsJetStreamMetaData(NatsMessage natsMessage) {
         if (!natsMessage.isJetStream()) {
             throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
         }
 
         String[] parts = natsMessage.getReplyTo().split("\\.");
-        if (parts.length < 8 || parts.length > 9 || !"ACK".equals(parts[1])) {
+        if (parts.length < 8 || !"ACK".equals(parts[1])) {
             throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
         }
 
-        stream = parts[2];
-        consumer = parts[3];
-        delivered = Long.parseLong(parts[4]);
-        streamSeq = Long.parseLong(parts[5]);
-        consumerSeq = Long.parseLong(parts[6]);
+        int streamIndex;
+        boolean hasPending;
+        boolean hasDomainHashToken;
+        if (parts.length == 8) {
+            streamIndex = 2;
+            hasPending = false;
+            hasDomainHashToken = false;
+        }
+        else if (parts.length == 9) {
+            streamIndex = 2;
+            hasPending = true;
+            hasDomainHashToken = false;
+        }
+        else if (parts.length >= 12) {
+            streamIndex = 4;
+            hasPending = true;
+            hasDomainHashToken = true;
+        }
+        else {
+            throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
+        }
+
+        prefix = parts[0];
+        // "ack" = parts[1]
+        domain = hasDomainHashToken ? parts[2] : null;
+        accountHash = hasDomainHashToken ? parts[3] : null;
+        stream = parts[streamIndex];
+        consumer = parts[streamIndex + 1];
+        delivered = Long.parseLong(parts[streamIndex + 2]);
+        streamSeq = Long.parseLong(parts[streamIndex + 3]);
+        consumerSeq = Long.parseLong(parts[streamIndex + 4]);
 
         // not so clever way to separate nanos from seconds
-        long tsi = Long.parseLong(parts[7]);
+        long tsi = Long.parseLong(parts[streamIndex + 5]);
         long seconds = tsi / NANO_FACTOR;
         int nanos = (int) (tsi - ((tsi / NANO_FACTOR) * NANO_FACTOR));
         LocalDateTime ltd = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
         timestamp = ZonedDateTime.of(ltd, ZoneId.systemDefault()); // I think this is safe b/c the zone should match local
 
-        if (parts.length == 9) {
-            pending = Long.parseLong(parts[8]);
-        }
+        this.pending = hasPending ? Long.parseLong(parts[streamIndex + 6]) : -1L;
+        token = hasDomainHashToken ? parts[streamIndex + 7] : null;
+    }
+
+    /**
+     * Get the domain for the message. Might be null
+     * @return the domain
+     */
+    public String getDomain() {
+        return domain;
     }
 
     /**
@@ -135,6 +180,14 @@ public class NatsJetStreamMetaData {
      */
     public ZonedDateTime timestamp() {
         return timestamp;
+    }
+
+    String getAccountHash() {
+        return accountHash;
+    }
+
+    String getToken() {
+        return token;
     }
 
     private String notAJetStreamMessage(String reply) {
