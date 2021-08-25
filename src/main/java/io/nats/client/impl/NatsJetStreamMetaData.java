@@ -89,24 +89,29 @@ public class NatsJetStreamMetaData {
             throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
         }
 
-        prefix = parts[0];
-        // "ack" = parts[1]
-        domain = hasDomainAndHash ? parts[2] : null;
-        accountHash = hasDomainAndHash ? parts[3] : null;
-        stream = parts[streamIndex];
-        consumer = parts[streamIndex + 1];
-        delivered = Long.parseLong(parts[streamIndex + 2]);
-        streamSeq = Long.parseLong(parts[streamIndex + 3]);
-        consumerSeq = Long.parseLong(parts[streamIndex + 4]);
+        try {
+            prefix = parts[0];
+            // "ack" = parts[1]
+            domain = hasDomainAndHash ? parts[2] : null;
+            accountHash = hasDomainAndHash ? parts[3] : null;
+            stream = parts[streamIndex];
+            consumer = parts[streamIndex + 1];
+            delivered = Long.parseLong(parts[streamIndex + 2]);
+            streamSeq = Long.parseLong(parts[streamIndex + 3]);
+            consumerSeq = Long.parseLong(parts[streamIndex + 4]);
 
-        // not so clever way to separate nanos from seconds
-        long tsi = Long.parseLong(parts[streamIndex + 5]);
-        long seconds = tsi / NANO_FACTOR;
-        int nanos = (int) (tsi - ((tsi / NANO_FACTOR) * NANO_FACTOR));
-        LocalDateTime ltd = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
-        timestamp = ZonedDateTime.of(ltd, ZoneId.systemDefault()); // I think this is safe b/c the zone should match local
+            // not so clever way to separate nanos from seconds
+            long tsi = Long.parseLong(parts[streamIndex + 5]);
+            long seconds = tsi / NANO_FACTOR;
+            int nanos = (int) (tsi - ((tsi / NANO_FACTOR) * NANO_FACTOR));
+            LocalDateTime ltd = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
+            timestamp = ZonedDateTime.of(ltd, ZoneId.systemDefault()); // I think this is safe b/c the zone should match local
 
-        this.pending = hasPending ? Long.parseLong(parts[streamIndex + 6]) : -1L;
+            this.pending = hasPending ? Long.parseLong(parts[streamIndex + 6]) : -1L;
+        }
+        catch (Exception e) {
+            throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
+        }
     }
 
     /**
