@@ -23,16 +23,24 @@ import static io.nats.client.support.Validator.emptyAsNull;
  */
 public class PushSubscribeOptions extends SubscribeOptions {
 
-    private PushSubscribeOptions(String stream, String durable, String deliverSubject, boolean bindMode, ConsumerConfiguration consumerConfig) {
-        super(stream, durable, deliverSubject, bindMode, false, consumerConfig);
+    private PushSubscribeOptions(String stream, String durable, String deliverSubject, String deliverGroup, boolean bindMode, ConsumerConfiguration consumerConfig) {
+        super(stream, durable, deliverSubject, deliverGroup, bindMode, false, consumerConfig);
     }
 
     /**
      * Gets the deliver subject held in the consumer configuration.
-     * @return the Deliver subject
+     * @return the deliver subject
      */
     public String getDeliverSubject() {
         return consumerConfig.getDeliverSubject();
+    }
+
+    /**
+     * Gets the deliver group held in the consumer configuration.
+     * @return the deliver group
+     */
+    public String getDeliverGroup() {
+        return consumerConfig.getDeliverGroup();
     }
 
     /**
@@ -83,6 +91,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
     public static class Builder
             extends SubscribeOptions.Builder<Builder, PushSubscribeOptions> {
         private String deliverSubject;
+        private String deliverGroup;
 
         @Override
         protected Builder getThis() {
@@ -94,9 +103,22 @@ public class PushSubscribeOptions extends SubscribeOptions {
          * Null or empty clears the field.
          * @param deliverSubject the subject to deliver on.
          * @return the builder.
+         * @deprecated This is being considered for removal
          */
+        @Deprecated
         public Builder deliverSubject(String deliverSubject) {
             this.deliverSubject = emptyAsNull(deliverSubject);
+            return this;
+        }
+
+        /**
+         * Setting this specifies deliver group. Must matach queue is both are supplied.
+         * Null or empty clears the field.
+         * @param deliverGroup the subject to deliver on.
+         * @return the builder.
+         */
+        public Builder deliverGroup(String deliverGroup) {
+            this.deliverGroup = emptyAsNull(deliverGroup);
             return this;
         }
 
@@ -106,7 +128,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
          */
         @Override
         public PushSubscribeOptions build() {
-            return new PushSubscribeOptions(stream, durable, deliverSubject, isBind, consumerConfig);
+            return new PushSubscribeOptions(stream, durable, deliverSubject, deliverGroup, isBind, consumerConfig);
         }
     }
 }

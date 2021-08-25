@@ -44,6 +44,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     private final String description;
     private final String durable;
     private final String deliverSubject;
+    private final String deliverGroup;
     private final long startSeq;
     private final ZonedDateTime startTime;
     private final Duration ackWait;
@@ -71,6 +72,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         description = JsonUtils.readString(json, DESCRIPTION_RE);
         durable = JsonUtils.readString(json, DURABLE_NAME_RE);
         deliverSubject = JsonUtils.readString(json, DELIVER_SUBJECT_RE);
+        deliverGroup = JsonUtils.readString(json, DELIVER_GROUP_RE);
         startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, 0);
         startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
         ackWait = JsonUtils.readNanos(json, ACK_WAIT_RE, Duration.ofSeconds(30));
@@ -87,7 +89,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     // For the builder
     private ConsumerConfiguration(String description, String durable, DeliverPolicy deliverPolicy, long startSeq,
             ZonedDateTime startTime, AckPolicy ackPolicy, Duration ackWait, long maxDeliver, String filterSubject,
-            ReplayPolicy replayPolicy, String sampleFrequency, long rateLimit, String deliverSubject, long maxAckPending,
+            ReplayPolicy replayPolicy, String sampleFrequency, long rateLimit, String deliverSubject, String deliverGroup, long maxAckPending,
             Duration idleHeartbeat, boolean flowControl, long maxPullWaiting)
     {
         this.description = description;
@@ -103,6 +105,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.sampleFrequency = sampleFrequency;
         this.rateLimit = rateLimit;
         this.deliverSubject = deliverSubject;
+        this.deliverGroup = deliverGroup;
         this.maxAckPending = maxAckPending;
         this.idleHeartbeat = idleHeartbeat;
         this.flowControl = flowControl;
@@ -119,6 +122,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, DESCRIPTION, description);
         JsonUtils.addField(sb, DURABLE_NAME, durable);
         JsonUtils.addField(sb, DELIVER_SUBJECT, deliverSubject);
+        JsonUtils.addField(sb, DELIVER_GROUP, deliverGroup);
         JsonUtils.addField(sb, DELIVER_POLICY, deliverPolicy.toString());
         JsonUtils.addField(sb, OPT_START_SEQ, startSeq);
         JsonUtils.addField(sb, OPT_START_TIME, startTime);
@@ -158,6 +162,14 @@ public class ConsumerConfiguration implements JsonSerializable {
      */    
     public String getDeliverSubject() {
         return deliverSubject;
+    }
+
+    /**
+     * Gets the deliver group of this consumer configuration.
+     * @return the deliver group.
+     */
+    public String getDeliverGroup() {
+        return deliverGroup;
     }
 
     /**
@@ -312,6 +324,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         private String sampleFrequency = null;
         private long rateLimit = 0;
         private String deliverSubject = null;
+        private String deliverGroup = null;
         private long maxAckPending = 0;
         private Duration idleHeartbeat = Duration.ZERO;
         private boolean flowControl;
@@ -323,6 +336,10 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         public String getDeliverSubject() {
             return deliverSubject;
+        }
+
+        public String getDeliverGroup() {
+            return deliverGroup;
         }
 
         public String getFilterSubject() {
@@ -353,6 +370,7 @@ public class ConsumerConfiguration implements JsonSerializable {
             this.sampleFrequency = cc.sampleFrequency;
             this.rateLimit = cc.rateLimit;
             this.deliverSubject = cc.deliverSubject;
+            this.deliverGroup = cc.deliverGroup;
             this.maxAckPending = cc.maxAckPending;
             this.idleHeartbeat = cc.idleHeartbeat;
             this.flowControl = cc.flowControl;
@@ -396,6 +414,16 @@ public class ConsumerConfiguration implements JsonSerializable {
          */
         public Builder deliverSubject(String subject) {
             this.deliverSubject = emptyAsNull(subject);
+            return this;
+        }
+
+        /**
+         * Sets the group to deliver messages to.
+         * @param group the delivery group.
+         * @return the builder
+         */
+        public Builder deliverGroup(String group) {
+            this.deliverGroup = emptyAsNull(group);
             return this;
         }
 
@@ -569,6 +597,7 @@ public class ConsumerConfiguration implements JsonSerializable {
                     sampleFrequency,
                     rateLimit,
                     deliverSubject,
+                    deliverGroup,
                     maxAckPending,
                     idleHeartbeat,
                     flowControl,
@@ -584,6 +613,7 @@ public class ConsumerConfiguration implements JsonSerializable {
                 ", durable='" + durable + '\'' +
                 ", deliverPolicy=" + deliverPolicy +
                 ", deliverSubject='" + deliverSubject + '\'' +
+                ", deliverGroup='" + deliverGroup + '\'' +
                 ", startSeq=" + startSeq +
                 ", startTime=" + startTime +
                 ", ackPolicy=" + ackPolicy +

@@ -38,6 +38,7 @@ public interface ApiConstants {
     String CURRENT          = "current";
     String DATA             = "data";
     String DELIVER          = "deliver";
+    String DELIVER_GROUP    = "deliver_group";
     String DELIVER_POLICY   = "deliver_policy";
     String DELIVER_SUBJECT  = "deliver_subject";
     String DELIVERED        = "delivered";
@@ -146,6 +147,7 @@ public interface ApiConstants {
     Pattern CREATED_RE          = string_pattern(CREATED);
     Pattern DATA_RE             = string_pattern(DATA);
     Pattern DELIVER_RE          = string_pattern(DELIVER);
+    Pattern DELIVER_GROUP_RE    = string_pattern(DELIVER_GROUP);
     Pattern DELIVER_POLICY_RE   = string_pattern(DELIVER_POLICY);
     Pattern DELIVER_SUBJECT_RE  = string_pattern(DELIVER_SUBJECT);
     Pattern DESCRIPTION_RE      = string_pattern(DESCRIPTION);

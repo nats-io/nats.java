@@ -20,7 +20,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,11 +33,6 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
     @Test
     public void testQueueSub() throws Exception {
         runInJsServer(nc -> {
-            if (nc.getServerInfo().isNewerVersionThan("2.3.4")) {
-                System.out.println("This test will not work after server version v2.3.4");
-                return;
-            }
-
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
@@ -68,17 +65,21 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
             pubThread.start();
 
             // wait for all threads to finish
-            pubThread.join(1000, 0);
+            pubThread.join(5000, 0);
             for (Thread t : subThreads) {
-                t.join(1000, 0);
+                t.join(5000, 0);
             }
 
+            Set<String> uniqueDatas = new HashSet<>();
             // count
             int count = 0;
             for (JsQueueSubscriber qs : subscribers) {
-                int c = qs.thisReceived.get();
+                int c = qs.thisReceived;
                 assertTrue(c > 0);
                 count += c;
+                for (String s : qs.datas) {
+                    assertTrue(uniqueDatas.add(s));
+                }
             }
 
             assertEquals(100, count);
@@ -111,14 +112,16 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
         JetStream js;
         JetStreamSubscription sub;
         AtomicInteger allReceived;
-        AtomicInteger thisReceived;
+        int thisReceived;
+        List<String> datas;
 
         public JsQueueSubscriber(int msgCount, JetStream js, JetStreamSubscription sub, AtomicInteger allReceived) {
             this.msgCount = msgCount;
             this.js = js;
             this.sub = sub;
             this.allReceived = allReceived;
-            this.thisReceived = new AtomicInteger();
+            this.thisReceived = 0;
+            datas = new ArrayList<>();
         }
 
         @Override
@@ -127,8 +130,9 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
                 try {
                     Message msg = sub.nextMessage(Duration.ofMillis(500));
                     while (msg != null) {
-                        thisReceived.incrementAndGet();
+                        thisReceived++;
                         allReceived.incrementAndGet();
+                        datas.add(new String(msg.getData()));
                         msg.ack();
                         msg = sub.nextMessage(Duration.ofMillis(500));
                     }

@@ -27,7 +27,7 @@ public abstract class SubscribeOptions {
     protected final boolean isBind;
     protected final ConsumerConfiguration consumerConfig;
 
-    protected SubscribeOptions(String stream, String durable, String deliverSubject,
+    protected SubscribeOptions(String stream, String durable, String deliverSubject, String deliverGroup,
                                boolean isBind, boolean pull, ConsumerConfiguration cc) {
 
         this.stream = validateStreamName(stream, isBind); // required when bind mode
@@ -38,6 +38,7 @@ public abstract class SubscribeOptions {
         this.consumerConfig = ConsumerConfiguration.builder(cc)
                 .durable(durable)
                 .deliverSubject(deliverSubject)
+                .deliverGroup(deliverGroup)
                 .build();
 
         this.isBind = isBind;

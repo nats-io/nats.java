@@ -81,7 +81,7 @@ public class PublishAck extends ApiResponse<PublishAck> {
     public String toString() {
         return "PublishAck{" +
                 "stream='" + stream + '\'' +
-                "domain='" + domain + '\'' +
+                ", domain='" + domain + '\'' +
                 ", seq=" + seq +
                 ", duplicate=" + duplicate +
                 "}";
