@@ -33,7 +33,11 @@ import static org.junit.jupiter.api.Assertions.*;
 public class JetStreamTestBase extends TestBase {
     public static final String TestMetaV0 = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000";
     public static final String TestMetaV1 = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000.4";
-    public static final String TestMetaV2 = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.4.v2Token";
+    public static final String TestMetaV2 = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.4";
+    public static final String TestMetaVFuture = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.4.dont.care.how.many.more";
+    public static final String InvalidMetaNoAck = "$JS.nope.test-stream.test-consumer.1.2.3.1605139610113260000";
+    public static final String InvalidMetaLt9Tokens = "$JS.ACK.less-than.9-tokens.1.2.3";
+    public static final String InvalidMeta10Tokens = "$JS.ACK.exactly.10-tokens.1.2.3.1605139610113260000.token10";
 
     public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(500);
 
