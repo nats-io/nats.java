@@ -69,21 +69,21 @@ public class NatsJetStreamMetaData {
 
         int streamIndex;
         boolean hasPending;
-        boolean hasDomainHashToken;
+        boolean hasDomainAndHash;
         if (parts.length == 8) {
             streamIndex = 2;
             hasPending = false;
-            hasDomainHashToken = false;
+            hasDomainAndHash = false;
         }
         else if (parts.length == 9) {
             streamIndex = 2;
             hasPending = true;
-            hasDomainHashToken = false;
+            hasDomainAndHash = false;
         }
         else if (parts.length >= 11) {
             streamIndex = 4;
             hasPending = true;
-            hasDomainHashToken = true;
+            hasDomainAndHash = true;
         }
         else {
             throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
@@ -91,8 +91,8 @@ public class NatsJetStreamMetaData {
 
         prefix = parts[0];
         // "ack" = parts[1]
-        domain = hasDomainHashToken ? parts[2] : null;
-        accountHash = hasDomainHashToken ? parts[3] : null;
+        domain = hasDomainAndHash ? parts[2] : null;
+        accountHash = hasDomainAndHash ? parts[3] : null;
         stream = parts[streamIndex];
         consumer = parts[streamIndex + 1];
         delivered = Long.parseLong(parts[streamIndex + 2]);
