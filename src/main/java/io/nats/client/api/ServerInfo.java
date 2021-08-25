@@ -137,6 +137,30 @@ public class ServerInfo {
         return cluster;
     }
 
+    private String getComparableVersion(String vString) {
+        try {
+            String[] v = vString.replaceAll("v", "").replaceAll("-", ".").split("\\Q.\\E");
+            int at = vString.indexOf("-");
+            return "" + (Integer.parseInt(v[0]) * 10000) + (Integer.parseInt(v[1]) * 100) + Integer.parseInt(v[2])
+                    + (at == -1 ? "" : vString.substring(at));
+        }
+        catch (NumberFormatException nfe) {
+            return "";
+        }
+    }
+
+    public boolean isNewerVersionThan(String vTarget) {
+        return getComparableVersion(version).compareTo(getComparableVersion(vTarget)) > 0;
+    }
+
+    public boolean isSameVersion(String vTarget) {
+        return getComparableVersion(version).compareTo(getComparableVersion(vTarget)) == 0;
+    }
+
+    public boolean isOlderThanVersion(String vTarget) {
+        return getComparableVersion(version).compareTo(getComparableVersion(vTarget)) < 0;
+    }
+
     @Override
     public String toString() {
         return "ServerInfo{" +

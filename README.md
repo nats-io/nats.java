@@ -24,6 +24,17 @@ Version 2.5.0 adds some back pressure to publish calls to alleviate issues when 
 
 Previous versions are still available in the repo.
 
+### Versions 2.11.6 and server versions
+
+Version 2.11.6 is the last java-nats version which is supported to work with server v2.3.4 and earlier.
+It will not be officially supported to work with servers after v2.3.4, but _should be fine_ if you don't use
+the queue behavior advertised in example code `NatsJsPushSubQueueDurable.java` and provided with java-nats 2.11.5. 
+The example does not work correctly against server versions after server v2.3.4 
+due to a significant change made to correct _queue_ behavior that was considered wrong.
+
+If you want to take advantage of the fixes and features provided in the server after v2.3.4, 
+you __must__ upgrade to the upcoming client release, version 2.12.0
+
 ### SSL/TLS Performance
 
 After recent tests we realized that TLS performance is lower than we would like. After researching the problem and possible solutions we came to a few conclusions:

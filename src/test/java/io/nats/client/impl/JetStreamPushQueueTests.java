@@ -31,6 +31,11 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
     @Test
     public void testQueueSub() throws Exception {
         runInJsServer(nc -> {
+            if (nc.getServerInfo().isNewerVersionThan("2.3.4")) {
+                System.out.println("This test will not work after server version v2.3.4");
+                return;
+            }
+
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
