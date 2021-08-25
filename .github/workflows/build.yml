@@ -37,9 +37,6 @@ jobs:
           cd $GITHUB_WORKSPACE
           git clone https://github.com/nats-io/nats-server.git
           cd nats-server
-# for right now use head
-#          export NS_LATEST_TAG=$(git describe --tags --abbrev=0)
-#          git checkout tags/${NS_LATEST_TAG} -b nslatestbranch
           go build main.go
           mkdir -p ~/.local/bin
           cp main ~/.local/bin/nats-server
