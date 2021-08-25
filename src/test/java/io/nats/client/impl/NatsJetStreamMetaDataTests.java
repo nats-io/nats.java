@@ -33,7 +33,7 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
         validateMeta(true, true, getTestMessage(TestMetaVFuture).metaData());
 
         assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMetaNoAck).metaData());
-        assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMetaLt9Tokens).metaData());
+        assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMetaLt8Tokens).metaData());
         assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMeta10Tokens).metaData());
     }
 
