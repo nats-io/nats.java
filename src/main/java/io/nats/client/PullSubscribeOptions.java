@@ -21,8 +21,8 @@ import io.nats.client.api.ConsumerConfiguration;
  */
 public class PullSubscribeOptions extends SubscribeOptions {
 
-    private PullSubscribeOptions(String stream, String durable, boolean bindMode, ConsumerConfiguration consumerConfig) {
-        super(stream, durable, null, null, bindMode, true, consumerConfig);
+    private PullSubscribeOptions(String stream, String durable, boolean bind, ConsumerConfiguration cc) {
+        super(stream, durable, true, bind, null, null, cc);
     }
 
     public static Builder builder() {

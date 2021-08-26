@@ -23,8 +23,8 @@ import static io.nats.client.support.Validator.emptyAsNull;
  */
 public class PushSubscribeOptions extends SubscribeOptions {
 
-    private PushSubscribeOptions(String stream, String durable, String deliverSubject, String deliverGroup, boolean bindMode, ConsumerConfiguration consumerConfig) {
-        super(stream, durable, deliverSubject, deliverGroup, bindMode, false, consumerConfig);
+    private PushSubscribeOptions(String stream, String durable, boolean bind, String deliverSubject, String deliverGroup, ConsumerConfiguration cc) {
+        super(stream, durable, false, bind, deliverSubject, deliverGroup, cc);
     }
 
     /**
@@ -128,7 +128,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
          */
         @Override
         public PushSubscribeOptions build() {
-            return new PushSubscribeOptions(stream, durable, deliverSubject, deliverGroup, isBind, consumerConfig);
+            return new PushSubscribeOptions(stream, durable, isBind, deliverSubject, deliverGroup, consumerConfig);
         }
     }
 }

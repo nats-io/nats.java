@@ -24,16 +24,16 @@ import static io.nats.client.support.Validator.*;
 public abstract class SubscribeOptions {
 
     protected final String stream;
-    protected final boolean isBind;
+    protected final boolean bind;
     protected final ConsumerConfiguration consumerConfig;
 
-    protected SubscribeOptions(String stream, String durable, String deliverSubject, String deliverGroup,
-                               boolean isBind, boolean pull, ConsumerConfiguration cc) {
+    protected SubscribeOptions(String stream, String durable, boolean pull, boolean bind,
+                               String deliverSubject, String deliverGroup, ConsumerConfiguration cc) {
 
-        this.stream = validateStreamName(stream, isBind); // required when bind mode
+        this.stream = validateStreamName(stream, bind); // required when bind mode
 
         durable = validateMustMatchIfBothSupplied(durable, cc == null ? null : cc.getDurable(), "Builder Durable", "Consumer Configuration Durable");
-        durable = validateDurable(durable, pull || isBind); // required when pull or bind mode
+        durable = validateDurable(durable, pull || bind); // required when pull or bind
 
         deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, cc == null ? null : cc.getDeliverGroup(), "Builder Deliver Group", "Consumer Configuration Deliver Group");
 
@@ -43,7 +43,7 @@ public abstract class SubscribeOptions {
                 .deliverGroup(deliverGroup)
                 .build();
 
-        this.isBind = isBind;
+        this.bind = bind;
     }
 
     /**
@@ -67,7 +67,7 @@ public abstract class SubscribeOptions {
      * @return the direct flag
      */
     public boolean isBind() {
-        return isBind;
+        return bind;
     }
 
     /**
@@ -82,7 +82,7 @@ public abstract class SubscribeOptions {
     public String toString() {
         return getClass().getSimpleName() + "{" +
                 "stream='" + stream + '\'' +
-                "bind=" + isBind +
+                "bind=" + bind +
                 ", " + consumerConfig +
                 '}';
     }
