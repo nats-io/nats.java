@@ -112,9 +112,9 @@ public class PushSubscribeOptions extends SubscribeOptions {
         }
 
         /**
-         * Setting this specifies deliver group. Must matach queue is both are supplied.
+         * Setting this specifies deliver group. Must match queue is both are supplied.
          * Null or empty clears the field.
-         * @param deliverGroup the subject to deliver on.
+         * @param deliverGroup the group to queue on
          * @return the builder.
          */
         public Builder deliverGroup(String deliverGroup) {

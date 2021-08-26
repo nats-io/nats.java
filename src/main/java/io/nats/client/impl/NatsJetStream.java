@@ -213,34 +213,25 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         String stream;
         ConsumerConfiguration.Builder ccBuilder;
         SubscribeOptions so;
-        String deliverGroup = null;
 
         if (isPullMode) {
-            so = pullSubscribeOptions;
+            so = pullSubscribeOptions; // options must have already been checked to be non null
             stream = pullSubscribeOptions.getStream();
             ccBuilder = ConsumerConfiguration.builder(pullSubscribeOptions.getConsumerConfiguration());
             ccBuilder.deliverSubject(null); // pull mode can't have a deliver subject
+            // queueName is already null
             ccBuilder.deliverGroup(null);   // pull mode can't have a deliver group
         }
         else {
-            so = pushSubscribeOptions == null
-                    ? PushSubscribeOptions.builder().build()
-                    : pushSubscribeOptions;
+            so = pushSubscribeOptions == null ? PushSubscribeOptions.builder().build() : pushSubscribeOptions;
             stream = so.getStream(); // might be null, that's ok (see directBind)
             ccBuilder = ConsumerConfiguration.builder(so.getConsumerConfiguration());
             ccBuilder.maxPullWaiting(0); // this does not apply to push, in fact will error b/c deliver subject will be set
-
-            deliverGroup = ccBuilder.getDeliverGroup(); // start with what was in the consumer config, might be null
-            if (queueName != null) { // queue name must match deliver group if provided
-                if (deliverGroup == null) { // deliver group wasn't provided, use the queueName
-                    ccBuilder.deliverGroup(queueName);
-                    deliverGroup = queueName;
-                }
-                else if (!deliverGroup.equals(queueName)){
-                    throw new IllegalArgumentException(
-                            String.format("Consumer Configuration [%s] must match the queue name [%s] if both are provided.", deliverGroup, queueName));
-                }
-            }
+            // deliver subject does not have to be cleared
+            // figure out the queue name
+            queueName = validateMustMatchIfBothSupplied(ccBuilder.getDeliverGroup(), queueName,
+                    "Consumer Configuration DeliverGroup", "Queue Name");
+            ccBuilder.deliverGroup(queueName); // and set it in case the deliver group was null
         }
 
         boolean bindMode = so.isBind();
@@ -259,10 +250,10 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         // 2. Is this a durable or ephemeral
         if (durable != null) {
-            ConsumerInfo lookedUpInfo =
-                    lookupConsumerInfo(stream, durable);
+            ConsumerInfo lookedUpInfo = lookupConsumerInfo(stream, durable);
 
             if (lookedUpInfo != null) { // the consumer for that durable already exists
+                createConsumer = false;
                 ConsumerConfiguration lookedUpConfig = lookedUpInfo.getConsumerConfiguration();
 
                 // durable already exists, make sure the filter subject matches
@@ -271,26 +262,31 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                     throw new IllegalArgumentException(
                             String.format("Subject %s mismatches consumer configuration %s.", subject, filterSubject));
                 }
+                filterSubject = lookedUp;
 
                 lookedUp = lookedUpConfig.getDeliverGroup();
-                boolean dgMatch = false;
                 if (lookedUp == null) {
-                    dgMatch = deliverGroup == null;
+                    // lookedUp was null, means existing consumer is not a queue consumer
+                    if (queueName == null) {
+                        // ok fine, no queue requested and the existing consumer is also not a queue consumer
+                        // we must check if the consumer is in use though
+                        if (lookedUpInfo.isPushBound()) {
+                            throw new IllegalArgumentException(String.format("Consumer [%s] is already bound to a subscription.", durable));
+                        }
+                    }
+                    else { // else they requested a queue but this durable was not configured as queue
+                        throw new IllegalArgumentException(String.format("Existing consumer [%s] is not configured as a queue / deliver group.", durable));
+                    }
                 }
-                else {
-                    dgMatch = lookedUp.equals(deliverGroup);
-                }
-                if (!dgMatch) {
+                else if (!lookedUp.equals(queueName)){
                     throw new IllegalArgumentException(
-                            String.format("Existing deliver group %s does not match requested queue / deliver group %s.", lookedUp, deliverGroup));
+                            String.format("Existing consumer deliver group %s does not match requested queue / deliver group %s.", lookedUp, queueName));
                 }
 
-                createConsumer = false;
-                filterSubject = lookedUp;
                 inbox = lookedUpConfig.getDeliverSubject(); // use the deliver subject as the inbox. It may be null, that's ok, we'll fix that later
             }
             else if (bindMode) {
-                throw new IllegalArgumentException("Consumer not found for durable. Required in direct mode.");
+                throw new IllegalArgumentException("Consumer not found for durable. Required in bind mode.");
             }
         }
 
@@ -302,7 +298,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         // 4. create the subscription
         NatsJetStreamSubscription sub;
         if (dispatcher == null) {
-            sub = (NatsJetStreamSubscription) conn.createSubscription(inbox, deliverGroup, null, true);
+            sub = (NatsJetStreamSubscription) conn.createSubscription(inbox, queueName, null, true);
         }
         else {
             MessageHandler mh;
@@ -311,7 +307,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             } else {
                 mh = handler;
             }
-            sub = (NatsJetStreamSubscription) dispatcher.subscribeImpl(inbox, deliverGroup, mh, true);
+            sub = (NatsJetStreamSubscription) dispatcher.subscribeImpl(inbox, queueName, mh, true);
         }
 
         // 5-Consumer didn't exist. It's either ephemeral or a durable that didn't already exist.
@@ -368,7 +364,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     @Override
     public JetStreamSubscription subscribe(String subject, String queue, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         validateSubject(subject, true);
-        queue = validateQueueName(queue, false);
+        queue = emptyAsNull(validateQueueName(queue, false));
         return createSubscription(subject, queue, null, null, false, options, null);
     }
 
@@ -400,7 +396,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     @Override
     public JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         validateSubject(subject, true);
-        queue = validateQueueName(queue, false);
+        queue = emptyAsNull(validateQueueName(queue, false));
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
         return createSubscription(subject, queue, (NatsDispatcher) dispatcher, handler, autoAck, options, null);

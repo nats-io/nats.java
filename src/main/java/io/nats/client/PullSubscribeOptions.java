@@ -31,7 +31,7 @@ public class PullSubscribeOptions extends SubscribeOptions {
 
     /**
      * Create PullSubscribeOptions where you are binding to
-     * a specific stream, specific durable and are using direct mode
+     * a specific stream, specific durable and are using bind mode
      * @param stream the stream name to bind to
      * @param durable the durable name
      * @return push subscribe options

@@ -91,7 +91,7 @@ public class JetStreamPushHandlerTests extends JetStreamTestBase {
 
             // subscribe using the handler, auto ack true
             PushSubscribeOptions pso1 = PushSubscribeOptions.builder().durable(durable(1)).build();
-            js.subscribe(SUBJECT, dispatcher, handler1, true, pso1);
+            JetStreamSubscription sub  = js.subscribe(SUBJECT, dispatcher, handler1, true, pso1);
 
             // wait for messages to arrive using the countdown latch.
             msgLatch1.await();
@@ -99,7 +99,8 @@ public class JetStreamPushHandlerTests extends JetStreamTestBase {
             assertEquals(10, received1.get());
 
             // check that all the messages were read by the durable
-            JetStreamSubscription sub = js.subscribe(SUBJECT, pso1);
+            dispatcher.unsubscribe(sub);
+            sub = js.subscribe(SUBJECT, pso1);
             assertNull(sub.nextMessage(Duration.ofSeconds(1)));
 
             // 2. auto ack false
@@ -115,7 +116,7 @@ public class JetStreamPushHandlerTests extends JetStreamTestBase {
             // subscribe using the handler, auto ack false
             ConsumerConfiguration cc = ConsumerConfiguration.builder().ackWait(Duration.ofMillis(500)).build();
             PushSubscribeOptions pso2 = PushSubscribeOptions.builder().durable(durable(2)).configuration(cc).build();
-            js.subscribe(SUBJECT, dispatcher, handler2, false, pso2);
+            sub = js.subscribe(SUBJECT, dispatcher, handler2, false, pso2);
 
             // wait for messages to arrive using the countdown latch.
             msgLatch2.await();
@@ -123,6 +124,7 @@ public class JetStreamPushHandlerTests extends JetStreamTestBase {
 
             sleep(1000); // just give it time for the server to realize the messages are not ack'ed
 
+            dispatcher.unsubscribe(sub);
             sub = js.subscribe(SUBJECT, pso2);
             assertNotNull(sub.nextMessage(Duration.ofSeconds(5)));
         });

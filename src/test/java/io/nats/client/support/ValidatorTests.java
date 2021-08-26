@@ -246,6 +246,17 @@ public class ValidatorTests {
     }
 
     @Test
+    public void testValidateMustMatchIfBothSupplied() {
+        assertNull(validateMustMatchIfBothSupplied(null, null, "", ""));
+        assertEquals("y", validateMustMatchIfBothSupplied(null, "y", "", ""));
+        assertEquals("y", validateMustMatchIfBothSupplied("", "y", "", ""));
+        assertEquals("x", validateMustMatchIfBothSupplied("x", null, "", ""));
+        assertEquals("x", validateMustMatchIfBothSupplied("x", " ", "", ""));
+        assertEquals("x", validateMustMatchIfBothSupplied("x", "x", "", ""));
+        assertThrows(IllegalArgumentException.class, () -> validateMustMatchIfBothSupplied("x", "y", "", ""));
+    }
+
+    @Test
     public void testValidateMaxLength() {
         validateMaxLength("test", 5, true, "label");
         validateMaxLength(null, 5, false, "label");

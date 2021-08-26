@@ -32,8 +32,10 @@ public abstract class SubscribeOptions {
 
         this.stream = validateStreamName(stream, isBind); // required when bind mode
 
-        durable = durable == null && cc != null ? emptyAsNull(cc.getDurable()) : durable;
+        durable = validateMustMatchIfBothSupplied(durable, cc == null ? null : cc.getDurable(), "Builder Durable", "Consumer Configuration Durable");
         durable = validateDurable(durable, pull || isBind); // required when pull or bind mode
+
+        deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, cc == null ? null : cc.getDeliverGroup(), "Builder Deliver Group", "Consumer Configuration Deliver Group");
 
         this.consumerConfig = ConsumerConfiguration.builder(cc)
                 .durable(durable)

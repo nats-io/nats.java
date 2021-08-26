@@ -25,13 +25,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPushQueueTests extends JetStreamTestBase {
 
     @Test
-    public void testQueueSub() throws Exception {
+    public void testQueueSubWorkflow() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -141,5 +140,44 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
                 }
             }
         }
+    }
+
+    @Test
+    public void testQueueSubErrors() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            // create a durable that is not a queue
+            PushSubscribeOptions pso1 = PushSubscribeOptions.builder().durable(durable(1)).build();
+            js.subscribe(SUBJECT, pso1);
+
+            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pso1));
+            String expected = String.format("Consumer [%s] is already bound to a subscription.", durable(1));
+            assertEquals(expected, iae.getMessage());
+
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, queue(1), pso1));
+            expected = String.format("Existing consumer [%s] is not configured as a queue / deliver group.", durable(1));
+            assertEquals(expected, iae.getMessage());
+
+            PushSubscribeOptions pso21 = PushSubscribeOptions.builder().durable(durable(2)).build();
+            js.subscribe(SUBJECT, queue(21), pso21);
+
+            PushSubscribeOptions pso22 = PushSubscribeOptions.builder().durable(durable(2)).build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, queue(22), pso22));
+            expected = String.format("Existing consumer deliver group %s does not match requested queue / deliver group %s.", queue(21), queue(22));
+            assertEquals(expected, iae.getMessage());
+
+            PushSubscribeOptions pso3 = PushSubscribeOptions.builder()
+                    .durable(durable(3))
+                    .deliverGroup(queue(31))
+                    .build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, queue(32), pso3));
+            expected = String.format("Consumer Configuration DeliverGroup [%s] must match the Queue Name [%s] if both are provided.", queue(31), queue(32));
+            assertEquals(expected, iae.getMessage());
+        });
     }
 }
