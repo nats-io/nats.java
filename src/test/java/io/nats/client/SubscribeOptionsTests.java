@@ -49,6 +49,105 @@ public class SubscribeOptionsTests extends TestBase {
     }
 
     @Test
+    public void testDurableValidation() {
+        // push
+        assertNull(PushSubscribeOptions.builder()
+                .durable(null)
+                .configuration(ConsumerConfiguration.builder().durable(null).build())
+                .build()
+                .getDurable());
+
+        assertEquals("y", PushSubscribeOptions.builder()
+                .durable(null)
+                .configuration(ConsumerConfiguration.builder().durable("y").build())
+                .build()
+                .getDurable());
+
+        assertEquals("x", PushSubscribeOptions.builder()
+                .durable("x")
+                .configuration(ConsumerConfiguration.builder().durable(null).build())
+                .build()
+                .getDurable());
+
+        assertEquals("x", PushSubscribeOptions.builder()
+                .durable("x")
+                .configuration(ConsumerConfiguration.builder().durable("x").build())
+                .build()
+                .getDurable());
+
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder()
+                .durable("x")
+                .configuration(ConsumerConfiguration.builder().durable("y").build())
+                .build());
+
+        assertNull(PushSubscribeOptions.builder().build().getDurable());
+
+        // pull
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder()
+                .durable(null)
+                .configuration(ConsumerConfiguration.builder().durable(null).build())
+                .build()
+                .getDurable());
+
+        assertEquals("y", PullSubscribeOptions.builder()
+                .durable(null)
+                .configuration(ConsumerConfiguration.builder().durable("y").build())
+                .build()
+                .getDurable());
+
+        assertEquals("x", PullSubscribeOptions.builder()
+                .durable("x")
+                .configuration(ConsumerConfiguration.builder().durable(null).build())
+                .build()
+                .getDurable());
+
+        assertEquals("x", PullSubscribeOptions.builder()
+                .durable("x")
+                .configuration(ConsumerConfiguration.builder().durable("x").build())
+                .build()
+                .getDurable());
+
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder()
+                .durable("x")
+                .configuration(ConsumerConfiguration.builder().durable("y").build())
+                .build());
+
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().build());
+    }
+
+    @Test
+    public void testDeliverGroupValidation() {
+        assertNull(PushSubscribeOptions.builder()
+                .deliverGroup(null)
+                .configuration(ConsumerConfiguration.builder().deliverGroup(null).build())
+                .build()
+                .getDeliverGroup());
+
+        assertEquals("y", PushSubscribeOptions.builder()
+                .deliverGroup(null)
+                .configuration(ConsumerConfiguration.builder().deliverGroup("y").build())
+                .build()
+                .getDeliverGroup());
+
+        assertEquals("x", PushSubscribeOptions.builder()
+                .deliverGroup("x")
+                .configuration(ConsumerConfiguration.builder().deliverGroup(null).build())
+                .build()
+                .getDeliverGroup());
+
+        assertEquals("x", PushSubscribeOptions.builder()
+                .deliverGroup("x")
+                .configuration(ConsumerConfiguration.builder().deliverGroup("x").build())
+                .build()
+                .getDeliverGroup());
+
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder()
+                .deliverGroup("x")
+                .configuration(ConsumerConfiguration.builder().deliverGroup("y").build())
+                .build());
+    }
+
+    @Test
     public void testPullAffirmative() {
         PullSubscribeOptions.Builder builder = PullSubscribeOptions.builder()
                 .stream(STREAM)

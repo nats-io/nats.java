@@ -215,21 +215,25 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         SubscribeOptions so;
 
         if (isPullMode) {
-            so = pullSubscribeOptions;
+            so = pullSubscribeOptions; // options must have already been checked to be non null
             stream = pullSubscribeOptions.getStream();
             ccBuilder = ConsumerConfiguration.builder(pullSubscribeOptions.getConsumerConfiguration());
             ccBuilder.deliverSubject(null); // pull mode can't have a deliver subject
+            // queueName is already null
+            ccBuilder.deliverGroup(null);   // pull mode can't have a deliver group
         }
         else {
-            so = pushSubscribeOptions == null
-                    ? PushSubscribeOptions.builder().build()
-                    : pushSubscribeOptions;
+            so = pushSubscribeOptions == null ? PushSubscribeOptions.builder().build() : pushSubscribeOptions;
             stream = so.getStream(); // might be null, that's ok (see directBind)
             ccBuilder = ConsumerConfiguration.builder(so.getConsumerConfiguration());
             ccBuilder.maxPullWaiting(0); // this does not apply to push, in fact will error b/c deliver subject will be set
+            // deliver subject does not have to be cleared
+            // figure out the queue name
+            queueName = validateMustMatchIfBothSupplied(ccBuilder.getDeliverGroup(), queueName,
+                    "Consumer Configuration DeliverGroup", "Queue Name");
+            ccBuilder.deliverGroup(queueName); // and set it in case the deliver group was null
         }
 
-        //
         boolean bindMode = so.isBind();
 
         String durable = ccBuilder.getDurable();
@@ -246,27 +250,46 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         // 2. Is this a durable or ephemeral
         if (durable != null) {
-            ConsumerInfo consumerInfo =
-                    lookupConsumerInfo(stream, durable);
+            ConsumerInfo lookedUpInfo = lookupConsumerInfo(stream, durable);
 
-            if (consumerInfo != null) { // the consumer for that durable already exists
+            if (lookedUpInfo != null) { // the consumer for that durable already exists
                 createConsumer = false;
-                ConsumerConfiguration cc = consumerInfo.getConsumerConfiguration();
+                ConsumerConfiguration lookedUpConfig = lookedUpInfo.getConsumerConfiguration();
 
                 // durable already exists, make sure the filter subject matches
-                String existingFilterSubject = cc.getFilterSubject();
-                if (filterSubject != null && !filterSubject.equals(existingFilterSubject)) {
+                String lookedUp = lookedUpConfig.getFilterSubject();
+                if (filterSubject != null && !filterSubject.equals(lookedUp)) {
                     throw new IllegalArgumentException(
                             String.format("Subject %s mismatches consumer configuration %s.", subject, filterSubject));
                 }
+                filterSubject = lookedUp;
 
-                filterSubject = existingFilterSubject;
+                lookedUp = lookedUpConfig.getDeliverGroup();
+                if (lookedUp == null) {
+                    // lookedUp was null, means existing consumer is not a queue consumer
+                    if (queueName == null) {
+                        // ok fine, no queue requested and the existing consumer is also not a queue consumer
+                        // we must check if the consumer is in use though
+                        if (lookedUpInfo.isPushBound()) {
+                            throw new IllegalArgumentException(String.format("Consumer [%s] is already bound to a subscription.", durable));
+                        }
+                    }
+                    else { // else they requested a queue but this durable was not configured as queue
+                        throw new IllegalArgumentException(String.format("Existing consumer [%s] is not configured as a queue / deliver group.", durable));
+                    }
+                }
+                else if (queueName == null) {
+                    throw new IllegalArgumentException(String.format("Existing consumer [%s] is configured as a queue / deliver group.", durable));
+                }
+                else if (!lookedUp.equals(queueName)) {
+                    throw new IllegalArgumentException(
+                            String.format("Existing consumer deliver group %s does not match requested queue / deliver group %s.", lookedUp, queueName));
+                }
 
-                // use the deliver subject as the inbox. It may be null, that's ok
-                inbox = cc.getDeliverSubject();
+                inbox = lookedUpConfig.getDeliverSubject(); // use the deliver subject as the inbox. It may be null, that's ok, we'll fix that later
             }
             else if (bindMode) {
-                throw new IllegalArgumentException("Consumer not found for durable. Required in direct mode.");
+                throw new IllegalArgumentException("Consumer not found for durable. Required in bind mode.");
             }
         }
 
@@ -344,7 +367,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     @Override
     public JetStreamSubscription subscribe(String subject, String queue, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         validateSubject(subject, true);
-        queue = validateQueueName(queue, false);
+        queue = emptyAsNull(validateQueueName(queue, false));
         return createSubscription(subject, queue, null, null, false, options, null);
     }
 
@@ -376,7 +399,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     @Override
     public JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         validateSubject(subject, true);
-        queue = validateQueueName(queue, false);
+        queue = emptyAsNull(validateQueueName(queue, false));
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
         return createSubscription(subject, queue, (NatsDispatcher) dispatcher, handler, autoAck, options, null);

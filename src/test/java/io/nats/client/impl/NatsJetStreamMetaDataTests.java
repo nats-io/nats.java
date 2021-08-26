@@ -30,6 +30,12 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
         validateMeta(false, false, getTestMessage(TestMetaV0).metaData());
         validateMeta(true, false, getTestMessage(TestMetaV1).metaData());
         validateMeta(true, true, getTestMessage(TestMetaV2).metaData());
+        validateMeta(true, true, getTestMessage(TestMetaVFuture).metaData());
+
+        assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMetaNoAck).metaData());
+        assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMetaLt8Tokens).metaData());
+        assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMeta10Tokens).metaData());
+        assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMetaData).metaData());
     }
 
     private void validateMeta(boolean hasPending, boolean hasDomainHashToken, NatsJetStreamMetaData meta) {
@@ -48,13 +54,10 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
         if (hasDomainHashToken) {
             assertEquals("v2Domain", meta.getDomain());
             assertEquals("v2Hash", meta.getAccountHash());
-            assertEquals("v2Token", meta.getToken());
-
         }
         else {
             assertNull(meta.getDomain());
             assertNull(meta.getAccountHash());
-            assertNull(meta.getToken());
         }
     }
 

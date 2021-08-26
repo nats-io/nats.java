@@ -84,7 +84,7 @@ You can also just insert some code before the arguments are processed to set the
 In the examples, the usage will show `java <program> -cp <classpath> ...` Make sure you add both the client library and examples into the classpath. For example:
 
 ```bash
-java -cp build/libs/jnats-2.11.6-SNAPSHOT.jar:build/libs/jnats-2.11.6-SNAPSHOT-examples.jar io.nats.examples.NatsPub nats://localhost:4222 test "hello world"
+java -cp build/libs/jnats-2.12.0-SNAPSHOT.jar:build/libs/jnats-2.12.0-SNAPSHOT-examples.jar io.nats.examples.NatsPub nats://localhost:4222 test "hello world"
 ```
 
 ### Some examples depend on others
@@ -102,7 +102,7 @@ java -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.ke
 To run with the completely unverified client:
 
 ```bash
-java -cp build/libs/jnats-2.11.6-SNAPSHOT.jar:build/libs/jnats-2.11.6-SNAPSHOT-examples.jar io.nats.examples.NatsSub opentls://localhost:4443 test 3
+java -cp build/libs/jnats-2.12.0-SNAPSHOT.jar:build/libs/jnats-2.12.0-SNAPSHOT-examples.jar io.nats.examples.NatsSub opentls://localhost:4443 test 3
 ```
 
 There are a set tls configuration for the server in the test files that can be used to run the NATS server.

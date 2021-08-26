@@ -54,6 +54,28 @@ public abstract class Validator {
         return validatePrintableExceptWildGtDollar(s, "Key", true);
     }
 
+    public static String validateMustMatchIfBothSupplied(String s1, String s2, String label1, String label2) {
+        // s1   | s2   || result
+        // ---- | ---- || --------------
+        // null | null || valid, null s2
+        // null | y    || valid, y s2
+        // x    | null || valid, x s1
+        // x    | x    || valid, x s1
+        // x    | y    || invalid
+        s1 = emptyAsNull(s1);
+        s2 = emptyAsNull(s2);
+        if (s1 == null) {
+            return s2; // s2 can be either null or y
+        }
+
+        // x / null or x / x
+        if (s2 == null || s1.equals(s2)) {
+            return s1;
+        }
+
+        throw new IllegalArgumentException(String.format("%s [%s] must match the %s [%s] if both are provided.", label1, s1, label2, s2));
+    }
+
     interface Check {
         String check();
     }

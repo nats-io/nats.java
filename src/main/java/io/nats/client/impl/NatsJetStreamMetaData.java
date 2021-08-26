@@ -35,7 +35,6 @@ public class NatsJetStreamMetaData {
     private final long consumerSeq;
     private final ZonedDateTime timestamp;
     private final long pending;
-    private final String token;
 
     @Override
     public String toString() {
@@ -55,7 +54,7 @@ public class NatsJetStreamMetaData {
     /*
     v0 <prefix>.ACK.<stream name>.<consumer name>.<num delivered>.<stream sequence>.<consumer sequence>.<timestamp>
     v1 <prefix>.ACK.<stream name>.<consumer name>.<num delivered>.<stream sequence>.<consumer sequence>.<timestamp>.<num pending>
-    v2 <prefix>.ACK.<domain>.<account hash>.<stream name>.<consumer name>.<num delivered>.<stream sequence>.<consumer sequence>.<timestamp>.<num pending>.<a token with a random value>
+    v2 <prefix>.ACK.<domain>.<account hash>.<stream name>.<consumer name>.<num delivered>.<stream sequence>.<consumer sequence>.<timestamp>.<num pending>
      */
 
     public NatsJetStreamMetaData(NatsMessage natsMessage) {
@@ -70,45 +69,49 @@ public class NatsJetStreamMetaData {
 
         int streamIndex;
         boolean hasPending;
-        boolean hasDomainHashToken;
+        boolean hasDomainAndHash;
         if (parts.length == 8) {
             streamIndex = 2;
             hasPending = false;
-            hasDomainHashToken = false;
+            hasDomainAndHash = false;
         }
         else if (parts.length == 9) {
             streamIndex = 2;
             hasPending = true;
-            hasDomainHashToken = false;
+            hasDomainAndHash = false;
         }
-        else if (parts.length >= 12) {
+        else if (parts.length >= 11) {
             streamIndex = 4;
             hasPending = true;
-            hasDomainHashToken = true;
+            hasDomainAndHash = true;
         }
         else {
             throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
         }
 
-        prefix = parts[0];
-        // "ack" = parts[1]
-        domain = hasDomainHashToken ? parts[2] : null;
-        accountHash = hasDomainHashToken ? parts[3] : null;
-        stream = parts[streamIndex];
-        consumer = parts[streamIndex + 1];
-        delivered = Long.parseLong(parts[streamIndex + 2]);
-        streamSeq = Long.parseLong(parts[streamIndex + 3]);
-        consumerSeq = Long.parseLong(parts[streamIndex + 4]);
+        try {
+            prefix = parts[0];
+            // "ack" = parts[1]
+            domain = hasDomainAndHash ? parts[2] : null;
+            accountHash = hasDomainAndHash ? parts[3] : null;
+            stream = parts[streamIndex];
+            consumer = parts[streamIndex + 1];
+            delivered = Long.parseLong(parts[streamIndex + 2]);
+            streamSeq = Long.parseLong(parts[streamIndex + 3]);
+            consumerSeq = Long.parseLong(parts[streamIndex + 4]);
 
-        // not so clever way to separate nanos from seconds
-        long tsi = Long.parseLong(parts[streamIndex + 5]);
-        long seconds = tsi / NANO_FACTOR;
-        int nanos = (int) (tsi - ((tsi / NANO_FACTOR) * NANO_FACTOR));
-        LocalDateTime ltd = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
-        timestamp = ZonedDateTime.of(ltd, ZoneId.systemDefault()); // I think this is safe b/c the zone should match local
+            // not so clever way to separate nanos from seconds
+            long tsi = Long.parseLong(parts[streamIndex + 5]);
+            long seconds = tsi / NANO_FACTOR;
+            int nanos = (int) (tsi - ((tsi / NANO_FACTOR) * NANO_FACTOR));
+            LocalDateTime ltd = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
+            timestamp = ZonedDateTime.of(ltd, ZoneId.systemDefault()); // I think this is safe b/c the zone should match local
 
-        this.pending = hasPending ? Long.parseLong(parts[streamIndex + 6]) : -1L;
-        token = hasDomainHashToken ? parts[streamIndex + 7] : null;
+            this.pending = hasPending ? Long.parseLong(parts[streamIndex + 6]) : -1L;
+        }
+        catch (Exception e) {
+            throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
+        }
     }
 
     /**
@@ -184,10 +187,6 @@ public class NatsJetStreamMetaData {
 
     String getAccountHash() {
         return accountHash;
-    }
-
-    String getToken() {
-        return token;
     }
 
     private String notAJetStreamMessage(String reply) {
