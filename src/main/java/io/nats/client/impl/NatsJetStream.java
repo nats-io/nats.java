@@ -278,7 +278,10 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                         throw new IllegalArgumentException(String.format("Existing consumer [%s] is not configured as a queue / deliver group.", durable));
                     }
                 }
-                else if (!lookedUp.equals(queueName)){
+                else if (queueName == null) {
+                    throw new IllegalArgumentException(String.format("Existing consumer [%s] is configured as a queue / deliver group.", durable));
+                }
+                else if (!lookedUp.equals(queueName)) {
                     throw new IllegalArgumentException(
                             String.format("Existing consumer deliver group %s does not match requested queue / deliver group %s.", lookedUp, queueName));
                 }

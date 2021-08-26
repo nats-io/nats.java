@@ -171,6 +171,11 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
             expected = String.format("Existing consumer deliver group %s does not match requested queue / deliver group %s.", queue(21), queue(22));
             assertEquals(expected, iae.getMessage());
 
+            PushSubscribeOptions pso23 = PushSubscribeOptions.builder().durable(durable(2)).build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pso23));
+            expected = String.format("Existing consumer [%s] is configured as a queue / deliver group.", durable(2));
+            assertEquals(expected, iae.getMessage());
+
             PushSubscribeOptions pso3 = PushSubscribeOptions.builder()
                     .durable(durable(3))
                     .deliverGroup(queue(31))
