@@ -37,6 +37,8 @@ public abstract class SubscribeOptions {
 
         deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, cc == null ? null : cc.getDeliverGroup(), "Builder Deliver Group", "Consumer Configuration Deliver Group");
 
+        deliverSubject = validateMustMatchIfBothSupplied(deliverSubject, cc == null ? null : cc.getDeliverSubject(), "Builder Deliver Subject", "Consumer Configuration Deliver Subject");
+
         this.consumerConfig = ConsumerConfiguration.builder(cc)
                 .durable(durable)
                 .deliverSubject(deliverSubject)

@@ -14,24 +14,29 @@
 package io.nats.examples.jetstream;
 
 import io.nats.client.*;
+import io.nats.client.api.ConsumerConfiguration;
 import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
+import static io.nats.client.support.JsonUtils.printFormatted;
 import static io.nats.examples.jetstream.NatsJsUtils.streamExists;
 
 /**
- * This example will demonstrate JetStream push subscribing. Run NatsJsPub first to setup message data.
+ * This example will demonstrate JetStream push subscribing with binding to an existing durable.
+ * Run NatsJsPub first to setup message data.
  */
-public class NatsJsPushSub {
+public class NatsJsPushSubBindDurable {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPushSub [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable] [-dlvr deliver]"
+            "\nUsage: java -cp <classpath> NatsJsPushSubBindDurable [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable] [-dlvr deliver]"
                     + "\n\nDefault Values:"
-                    + "\n   [-strm stream]     example-stream"
-                    + "\n   [-sub subject]     example-subject"
-                    + "\n   [-mcnt msgCount]   0"
+                    + "\n   [-strm stream]           example-stream"
+                    + "\n   [-sub subject]           example-subject"
+                    + "\n   [-dlvr deliver_subject]  psbind-deliver"
+                    + "\n   [-dur durable]           psbind-durable"
+                    + "\n   [-mcnt msgCount]         0"
                     + "\n\nRun Notes:"
                     + "\n   - durable is optional, durable behaves differently, try it by running this twice with durable set"
                     + "\n   - deliver is optional"
@@ -42,17 +47,18 @@ public class NatsJsPushSub {
                     + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
+
         ExampleArgs exArgs = ExampleArgs.builder()
                 .defaultStream("example-stream")
                 .defaultSubject("example-subject")
+                .defaultDeliver("psbind-deliver")
+                .defaultDurable("psbind-durable")
                 .defaultMsgCount(0)
-//                .defaultDurable("push-sub-durable")
                 .build(args, usageString);
 
         int count = exArgs.msgCount < 1 ? Integer.MAX_VALUE : exArgs.msgCount;
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
-
             if (!streamExists(nc, exArgs.stream)) {
                 System.out.println("Stopping program, stream does not exist: " + exArgs.stream);
                 return;
@@ -61,9 +67,7 @@ public class NatsJsPushSub {
             // just some reporting
             System.out.println("\nConnected to server " + exArgs.server + ". Listening to...");
             System.out.println("  Subject: " + exArgs.subject);
-            if (exArgs.durable != null) {
-                System.out.println("  Durable: " + exArgs.durable);
-            }
+            System.out.println("  Durable: " + exArgs.durable);
             if (count == Integer.MAX_VALUE) {
                 System.out.println("  Until there are no more messages");
             }
@@ -71,25 +75,24 @@ public class NatsJsPushSub {
                 System.out.println("  For " + count + " messages max");
             }
 
+            // The durable consumer must already exist. Usually it would be made in configuration
+            // or via the cli but we are making it here.
+            // Important: The consumer must have a deliver subject when made this way or it will be
+            // understood to be a pull consumer by the server.
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .durable(exArgs.durable)
+//                    .deliverSubject(exArgs.deliver)
+                    .build();
+            nc.jetStreamManagement().addOrUpdateConsumer(exArgs.stream, cc);
+
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
-            // A push subscription means the server will "push" us messages.
-            // Build our subscription options. We'll create a durable subscription.
-            // Durable means the server will remember where we are if we use that name.
-            //
-            // * The stream is not technically required. If it is not provided, the
-            // code building the subscription will look it up by making a request to the server.
-            // If you know the stream, you might as well supply it.
-            //
-            // * Durable can by null or empty, the build treats them the same.
-            PushSubscribeOptions so = PushSubscribeOptions.builder()
-                    .stream(exArgs.stream)
-                    .durable(exArgs.durable)
-                    .build();
-
-            // Subscribe synchronously, then just wait for messages.
+            // bind subscribe to the stream
+//            PushSubscribeOptions so = PushSubscribeOptions.bind(exArgs.stream, exArgs.durable);
+            PushSubscribeOptions so = PushSubscribeOptions.builder().bind(true).stream(exArgs.stream).durable(exArgs.durable).deliverSubject(exArgs.deliver).build();
             JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
+            printFormatted(sub.getConsumerInfo());
             nc.flush(Duration.ofSeconds(5));
 
             int red = 0;
@@ -131,6 +134,7 @@ public class NatsJsPushSub {
 
             System.out.println("\n" + red + " message(s) were received.\n");
 
+            printFormatted(sub.getConsumerInfo());
             sub.unsubscribe();
             nc.flush(Duration.ofSeconds(5));
         }
