@@ -268,7 +268,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 }
                 else if (inboxDeliver != null && !inboxDeliver.equals(lookedUp)) {
                     throw new IllegalArgumentException(
-                            String.format("[SUB-DS03] Existing consumer deliver subject '%s] does not match requested deliver subject '%s].", lookedUp, inboxDeliver));
+                            String.format("[SUB-DS03] Existing consumer deliver subject '%s' does not match requested deliver subject '%s'.", lookedUp, inboxDeliver));
                 }
 
                 // durable already exists, make sure the filter subject matches
