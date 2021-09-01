@@ -490,6 +490,37 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             assertThrows(JetStreamApiException.class,
                     () -> jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("not-match")).build()));
+
+            // try to filter against durable with mismatch, pull
+            JetStream js = nc.jetStream();
+
+            jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder()
+                    .durable(durable(42))
+                    .filterSubject(subjectDot("F"))
+                    .build()
+            );
+
+            ConsumerConfiguration ccBadFilter = ConsumerConfiguration.builder().durable(durable(42)).filterSubject("x").build();
+
+            PullSubscribeOptions pullOptsBadFilter = PullSubscribeOptions.builder().configuration(ccBadFilter).build();
+            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+                    () -> js.subscribe(subjectDot("F"), pullOptsBadFilter));
+            assertTrue(iae.getMessage().contains("[SUB-FS01]"));
+
+            // try to filter against durable with mismatch, push
+            jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder()
+                    .durable(durable(43))
+                    .deliverSubject(deliver(43))
+                    .filterSubject(subjectDot("F"))
+                    .build()
+            );
+
+            ccBadFilter = ConsumerConfiguration.builder().durable(durable(43)).filterSubject("x").build();
+
+            PushSubscribeOptions pushOptsBadFilter = PushSubscribeOptions.builder().configuration(ccBadFilter).build();
+            iae = assertThrows(IllegalArgumentException.class,
+                    () -> js.subscribe(subjectDot("F"), pushOptsBadFilter));
+            assertTrue(iae.getMessage().contains("[SUB-FS01]"));
         });
     }
 

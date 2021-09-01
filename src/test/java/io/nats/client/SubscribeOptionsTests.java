@@ -148,6 +148,38 @@ public class SubscribeOptionsTests extends TestBase {
     }
 
     @Test
+    public void testDeliverSubjectValidation() {
+        assertNull(PushSubscribeOptions.builder()
+                .deliverSubject(null)
+                .configuration(ConsumerConfiguration.builder().deliverSubject(null).build())
+                .build()
+                .getDeliverSubject());
+
+        assertEquals("y", PushSubscribeOptions.builder()
+                .deliverSubject(null)
+                .configuration(ConsumerConfiguration.builder().deliverSubject("y").build())
+                .build()
+                .getDeliverSubject());
+
+        assertEquals("x", PushSubscribeOptions.builder()
+                .deliverSubject("x")
+                .configuration(ConsumerConfiguration.builder().deliverSubject(null).build())
+                .build()
+                .getDeliverSubject());
+
+        assertEquals("x", PushSubscribeOptions.builder()
+                .deliverSubject("x")
+                .configuration(ConsumerConfiguration.builder().deliverSubject("x").build())
+                .build()
+                .getDeliverSubject());
+
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder()
+                .deliverSubject("x")
+                .configuration(ConsumerConfiguration.builder().deliverSubject("y").build())
+                .build());
+    }
+
+    @Test
     public void testPullAffirmative() {
         PullSubscribeOptions.Builder builder = PullSubscribeOptions.builder()
                 .stream(STREAM)

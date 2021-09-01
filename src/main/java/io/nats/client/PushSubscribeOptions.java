@@ -103,9 +103,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
          * Null or empty clears the field.
          * @param deliverSubject the subject to deliver on.
          * @return the builder.
-         * @deprecated This is being considered for removal
          */
-        @Deprecated
         public Builder deliverSubject(String deliverSubject) {
             this.deliverSubject = emptyAsNull(deliverSubject);
             return this;

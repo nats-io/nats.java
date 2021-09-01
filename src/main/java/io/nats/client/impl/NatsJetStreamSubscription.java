@@ -47,8 +47,8 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         this.js = js;
         this.consumer = consumer;
         this.stream = stream;
-        this.deliver = deliver;
         isPullMode = subscribeOptions instanceof PullSubscribeOptions;
+        this.deliver = isPullMode ? null : deliver;
     }
 
     String getConsumer() {
