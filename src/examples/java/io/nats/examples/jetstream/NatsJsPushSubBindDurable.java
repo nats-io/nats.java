@@ -21,7 +21,6 @@ import io.nats.examples.ExampleUtils;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
-import static io.nats.client.support.JsonUtils.printFormatted;
 import static io.nats.examples.jetstream.NatsJsUtils.streamExists;
 
 /**
@@ -81,18 +80,17 @@ public class NatsJsPushSubBindDurable {
             // understood to be a pull consumer by the server.
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                     .durable(exArgs.durable)
-//                    .deliverSubject(exArgs.deliver)
+                    .deliverSubject(exArgs.deliver)
                     .build();
             nc.jetStreamManagement().addOrUpdateConsumer(exArgs.stream, cc);
 
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
-            // bind subscribe to the stream
-//            PushSubscribeOptions so = PushSubscribeOptions.bind(exArgs.stream, exArgs.durable);
-            PushSubscribeOptions so = PushSubscribeOptions.builder().bind(true).stream(exArgs.stream).durable(exArgs.durable).deliverSubject(exArgs.deliver).build();
+            // bind subscribe to the stream - either variety will work
+            PushSubscribeOptions so = PushSubscribeOptions.bind(exArgs.stream, exArgs.durable);
+//            PushSubscribeOptions so = PushSubscribeOptions.builder().bind(true).stream(exArgs.stream).durable(exArgs.durable).deliverSubject(exArgs.deliver).build();
             JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
-            printFormatted(sub.getConsumerInfo());
             nc.flush(Duration.ofSeconds(5));
 
             int red = 0;
@@ -134,7 +132,6 @@ public class NatsJsPushSubBindDurable {
 
             System.out.println("\n" + red + " message(s) were received.\n");
 
-            printFormatted(sub.getConsumerInfo());
             sub.unsubscribe();
             nc.flush(Duration.ofSeconds(5));
         }
