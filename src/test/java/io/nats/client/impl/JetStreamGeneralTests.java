@@ -581,7 +581,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testGetConsumerInfo() throws Exception {
+    public void testGetConsumerInfoFromSubscription() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
