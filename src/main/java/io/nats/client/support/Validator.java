@@ -47,11 +47,11 @@ public abstract class Validator {
     }
 
     public static String validateBucketNameRequired(String s) {
-        return validateLettersDigitsDashUnderscore(s, "Bucket name", true);
+        return validateKvBucketName(s, "Bucket name", true);
     }
 
     public static String validateKeyRequired(String s) {
-        return validatePrintableExceptWildGtDollar(s, "Key", true);
+        return validateKvKey(s, "Key", true);
     }
 
     public static String validateMustMatchIfBothSupplied(String s1, String s2, String label1, String label2) {
@@ -118,16 +118,23 @@ public abstract class Validator {
         });
     }
 
-    public static String validateLettersDigitsDashUnderscore(String s, String label, boolean required) {
+    public static String validateKvBucketName(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
-            if (notLettersDigitsDashOrUnderscore(s)) {
-                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `.` or `>` [" + s + "]");
+            if (notRestrictedTerm(s)) {
+                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `-` or `_` [" + s + "]");
             }
             return s;
         });
     }
 
-
+    public static String validateKvKey(String s, String label, boolean required) {
+        return _validate(s, required, label, () -> {
+            if (notKvKey(s)) {
+                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `-`, `_`, `/`, `=` or `.` and cannot start with `.` [" + s + "]");
+            }
+            return s;
+        });
+    }
 
     public static String validatePrintableExceptWildGt(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
@@ -290,12 +297,10 @@ public abstract class Validator {
         return false;
     }
 
-    public static boolean notLettersDigitsDashOrUnderscore(String s) {
+    // restricted-term  = (A-Z, a-z, 0-9, dash 45, underscore 95)+
+    public static boolean notRestrictedTerm(String s) {
         for (int x = 0; x < s.length(); x++) {
             char c = s.charAt(x);
-            if (c < '-' || c > 'z') { // 45 is dash, 122 is z, characters outside of them are "not"
-                return true;
-            }
             if (c < '0') { // before 0
                 if (c == '-') { // only dash is accepted
                     continue;
@@ -306,7 +311,7 @@ public abstract class Validator {
                 continue; // means it's 0 - 9
             }
             if (c < 'A') {
-                return true; // between 9 and A is "not"
+                return true; // between 9 and A is "not restricted"
             }
             if (c < '[') {
                 continue; // means it's A - Z
@@ -316,6 +321,48 @@ public abstract class Validator {
                     continue;
                 }
                 return true; // "not"
+            }
+            if (c > 'z') { // 122 is z, characters after of them are "not restricted"
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // limited-term = (A-Z, a-z, 0-9, dash 45, underscore 95, fwd-slash 47, equals 61)+
+    // kv-key-name = limited-term (dot limited-term)*
+    public static boolean notKvKey(String s) {
+        if (s.charAt(0) == '.') {
+            return true; // can't start with dot
+        }
+        for (int x = 0; x < s.length(); x++) {
+            char c = s.charAt(x);
+            if (c < '0') { // before 0
+                if (c == '-' || c == '.' || c == '/') { // only dash dot and and fwd slash are accepted
+                    continue;
+                }
+                return true; // "not"
+            }
+            if (c < ':') {
+                continue; // means it's 0 - 9
+            }
+            if (c < 'A') {
+                if (c == '=') { // equals is accepted
+                    continue;
+                }
+                return true; // between 9 and A is "not limited"
+            }
+            if (c < '[') {
+                continue; // means it's A - Z
+            }
+            if (c < 'a') { // before a
+                if (c == '_') { // only underscore is accepted
+                    continue;
+                }
+                return true; // "not"
+            }
+            if (c > 'z') { // 122 is z, characters after of them are "not limited"
+                return true;
             }
         }
         return false;

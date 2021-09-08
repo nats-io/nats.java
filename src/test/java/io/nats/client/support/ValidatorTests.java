@@ -242,7 +242,29 @@ public class ValidatorTests {
         assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_DOLLAR));
         assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_LOW));
         assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_FWD_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_EQUALS));
         assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired("tic`not`allowed"));
+    }
+
+    @Test
+    public void testValidateKeyRequired() {
+        validateKeyRequired(PLAIN);
+        validateKeyRequired(PLAIN.toUpperCase());
+        validateKeyRequired(HAS_DASH);
+        validateKeyRequired(HAS_UNDER);
+        validateKeyRequired(HAS_FWD_SLASH);
+        validateKeyRequired(HAS_EQUALS);
+        validateKeyRequired(HAS_DOT);
+        validateKeyRequired("numbers9ok");
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(null));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_STAR));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_GT));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired("tic`not`allowed"));
     }
 
     @Test
