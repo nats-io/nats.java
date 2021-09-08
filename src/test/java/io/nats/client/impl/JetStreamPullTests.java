@@ -318,6 +318,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
+            boolean serverHasExpireChange = nc.getServerInfo().isNewerVersionThan("2.4.0");
 
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);
@@ -343,8 +344,13 @@ public class JetStreamPullTests extends JetStreamTestBase {
             jsPublish(js, SUBJECT, "B", 10);
             sub.pullExpiresIn(10, Duration.ofMillis(expires)); // using Duration version here
             messages = readMessagesAck(sub);
-            assertEquals(15, messages.size());
-            assertStarts408(messages, 5, 10);
+            if (serverHasExpireChange) {
+                assertEquals(10, messages.size());
+            }
+            else {
+                assertEquals(15, messages.size());
+                assertStarts408(messages, 5, 10);
+            }
             sleep(expires); // make sure the pull actually expires
 
             jsPublish(js, SUBJECT, "C", 5);
@@ -357,8 +363,13 @@ public class JetStreamPullTests extends JetStreamTestBase {
             jsPublish(js, SUBJECT, "D", 10);
             sub.pull(10);
             messages = readMessagesAck(sub);
-            assertEquals(15, messages.size());
-            assertStarts408(messages, 5, 10);
+            if (serverHasExpireChange) {
+                assertEquals(10, messages.size());
+            }
+            else {
+                assertEquals(15, messages.size());
+                assertStarts408(messages, 5, 10);
+            }
 
             jsPublish(js, SUBJECT, "E", 5);
             sub.pullExpiresIn(10, expires); // using millis version here
@@ -370,8 +381,13 @@ public class JetStreamPullTests extends JetStreamTestBase {
             jsPublish(js, SUBJECT, "F", 10);
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
-            assertEquals(15, messages.size());
-            assertStarts408(messages, 5, 10);
+            if (serverHasExpireChange) {
+                assertEquals(10, messages.size());
+            }
+            else {
+                assertEquals(15, messages.size());
+                assertStarts408(messages, 5, 10);
+            }
 
             jsPublish(js, SUBJECT, "G", 5);
             sub.pullExpiresIn(10, expires); // using millis version here

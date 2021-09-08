@@ -101,9 +101,21 @@ repositories {
     maven {
         url "https://oss.sonatype.org/content/repositories/releases"
     }
+}
+```
+
+If you need a snapshot version, you must add the url for the snapshots and change your dependency.
+
+```groovy
+repositories {
+    ...
     maven {
         url "https://oss.sonatype.org/content/repositories/snapshots"
     }
+}
+
+dependencies {
+   implementation 'io.nats:jnats:2.12.0-SNAPSHOT'
 }
 ```
 
@@ -126,10 +138,34 @@ If you need the absolute latest, before it propagates to maven central, you can 
     <repository>
         <id>latest-repo</id>
         <url>https://oss.sonatype.org/content/repositories/releases</url>
-        <releases><enabled>true</enabled></releases>
-        <snapshots><enabled>false</enabled></snapshots>
+        <releases>
+           <enabled>true</enabled>
+        </releases>
     </repository>
 </repositories>
+```
+
+If you need a snapshot version, you must enable snapshots and change your dependency.
+
+```xml
+<repositories>
+    <repository>
+        <id>latest-repo</id>
+        <url>https://oss.sonatype.org/content/repositories/releases</url>
+        <releases>
+            <enabled>true</enabled>
+        </releases>
+        <snapshots>
+            <enabled>true</enabled>
+        </snapshots>
+    </repository>
+</repositories>
+
+<dependency>
+    <groupId>io.nats</groupId>
+    <artifactId>jnats</artifactId>
+    <version>2.12.0-SNAPSHOT</version>
+</dependency>
 ```
 
 If you are using the 1.x version of java-nats and don't want to upgrade to 2.0.0 please use ranges in your POM file, java-nats-streaming 1.x is using [1.1, 1.9.9) for this.
