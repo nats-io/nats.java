@@ -33,7 +33,7 @@ The example does not work correctly against server versions after server v2.3.4
 due to a significant change made to correct _queue_ behavior that was considered wrong.
 
 If you want to take advantage of the fixes and features provided in the server after v2.3.4, 
-you __must__ upgrade to the upcoming client release, version 2.12.1
+you __must__ upgrade to the release version 2.12.0 or later.
 
 ### SSL/TLS Performance
 
