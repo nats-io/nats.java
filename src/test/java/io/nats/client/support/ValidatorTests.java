@@ -265,6 +265,7 @@ public class ValidatorTests {
         assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_LOW));
         assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_127));
         assertThrows(IllegalArgumentException.class, () -> validateKeyRequired("tic`not`allowed"));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(".starts.with.dot.not.allowed"));
     }
 
     @Test
