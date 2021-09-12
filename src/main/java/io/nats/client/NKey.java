@@ -225,7 +225,7 @@ public class NKey {
         }
     }
 
-    static char[] base32Encode(final byte[] bytes) {
+    public static char[] base32Encode(final byte[] bytes) {
         int last = bytes.length;
         char[] charBuff = new char[(last + 7) * 8 / SHIFT];
         int offset = 0;
