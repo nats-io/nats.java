@@ -244,7 +244,7 @@ public class ValidatorTests {
         assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_127));
         assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_FWD_SLASH));
         assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_EQUALS));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired("tic`not`allowed"));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_TIC));
     }
 
     @Test
@@ -264,7 +264,7 @@ public class ValidatorTests {
         assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_DOLLAR));
         assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_LOW));
         assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_127));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired("tic`not`allowed"));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_TIC));
         assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(".starts.with.dot.not.allowed"));
     }
 
@@ -307,6 +307,14 @@ public class ValidatorTests {
         assertEquals(1, validateGtZeroOrMinus1(1, "test"));
         assertEquals(-1, validateGtZeroOrMinus1(-1, "test"));
         assertThrows(IllegalArgumentException.class, () -> validateGtZeroOrMinus1(0, "test"));
+    }
+
+    @Test
+    public void testValidateGtEqMinus1() {
+        assertEquals(1, validateGtEqMinus1(1, "test"));
+        assertEquals(0, validateGtEqMinus1(0, "test"));
+        assertEquals(-1, validateGtEqMinus1(-1, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateGtEqMinus1(-2, "test"));
     }
 
     @Test

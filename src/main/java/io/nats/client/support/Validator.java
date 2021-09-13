@@ -251,6 +251,13 @@ public abstract class Validator {
         return l;
     }
 
+    public static long validateGtEqMinus1(long l, String label) {
+        if (l < -1) {
+            throw new IllegalArgumentException(label + " must be greater than zero or -1 for unlimited");
+        }
+        return l;
+    }
+
     public static long validateNotNegative(long l, String label) {
         if (l < 0) {
             throw new IllegalArgumentException(label + " cannot be negative");

@@ -215,7 +215,8 @@ public class PublishOptions {
          * @return builder
          */
         public Builder expectedLastSequence(long sequence) {
-            expectedLastSeq = validateGtZeroOrMinus1(sequence, "Last Sequence");
+            // 0 has NO meaning to expectedLastSequence but we except 0 b/c the sequence is really a ulong
+            expectedLastSeq = validateGtEqMinus1(sequence, "Last Sequence");
             return this;
         }
 
@@ -225,7 +226,7 @@ public class PublishOptions {
          * @return builder
          */
         public Builder expectedLastSubjectSequence(long sequence) {
-            expectedLastSubSeq = validateGtZeroOrMinus1(sequence, "Last Subject Sequence");
+            expectedLastSubSeq = validateGtEqMinus1(sequence, "Last Subject Sequence");
             return this;
         }
 

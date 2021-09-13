@@ -42,6 +42,7 @@ public class TestBase {
     public static final String HAS_127       = "has" + (char)127 + "127";
     public static final String HAS_FWD_SLASH = "has/fwd/slash";
     public static final String HAS_EQUALS    = "has=equals";
+    public static final String HAS_TIC       = "has`tic";
 
     public static final long STANDARD_CONNECTION_WAIT_MS = 5000;
     public static final long STANDARD_FLUSH_TIMEOUT_MS = 2000;
