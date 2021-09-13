@@ -242,7 +242,30 @@ public class ValidatorTests {
         assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_DOLLAR));
         assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_LOW));
         assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_127));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired("tic`not`allowed"));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_FWD_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_EQUALS));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_TIC));
+    }
+
+    @Test
+    public void testValidateKeyRequired() {
+        validateKeyRequired(PLAIN);
+        validateKeyRequired(PLAIN.toUpperCase());
+        validateKeyRequired(HAS_DASH);
+        validateKeyRequired(HAS_UNDER);
+        validateKeyRequired(HAS_FWD_SLASH);
+        validateKeyRequired(HAS_EQUALS);
+        validateKeyRequired(HAS_DOT);
+        validateKeyRequired("numbers9ok");
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(null));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_STAR));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_GT));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_TIC));
+        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(".starts.with.dot.not.allowed"));
     }
 
     @Test
@@ -284,6 +307,14 @@ public class ValidatorTests {
         assertEquals(1, validateGtZeroOrMinus1(1, "test"));
         assertEquals(-1, validateGtZeroOrMinus1(-1, "test"));
         assertThrows(IllegalArgumentException.class, () -> validateGtZeroOrMinus1(0, "test"));
+    }
+
+    @Test
+    public void testValidateGtEqMinus1() {
+        assertEquals(1, validateGtEqMinus1(1, "test"));
+        assertEquals(0, validateGtEqMinus1(0, "test"));
+        assertEquals(-1, validateGtEqMinus1(-1, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateGtEqMinus1(-2, "test"));
     }
 
     @Test

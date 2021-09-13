@@ -33,7 +33,7 @@ The example does not work correctly against server versions after server v2.3.4
 due to a significant change made to correct _queue_ behavior that was considered wrong.
 
 If you want to take advantage of the fixes and features provided in the server after v2.3.4, 
-you __must__ upgrade to the upcoming client release, version 2.12.0
+you __must__ upgrade to the release version 2.12.0 or later.
 
 ### SSL/TLS Performance
 
@@ -77,9 +77,9 @@ The java-nats client is provided in a single jar file, with a single external de
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.0/jnats-2.12.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.0/jnats-2.12.0.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.1/jnats-2.12.1.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.1/jnats-2.12.1.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.0/jnats-2.12.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.0/jnats-2.12.0-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.1/jnats-2.12.1-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.1/jnats-2.12.1-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
@@ -89,7 +89,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.12.0'
+    implementation 'io.nats:jnats:2.12.1'
 }
 ```
 
@@ -115,7 +115,7 @@ repositories {
 }
 
 dependencies {
-   implementation 'io.nats:jnats:2.12.0-SNAPSHOT'
+   implementation 'io.nats:jnats:2.12.1-SNAPSHOT'
 }
 ```
 
@@ -127,7 +127,7 @@ The NATS client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.12.0</version>
+    <version>2.12.1</version>
 </dependency>
 ```
 
@@ -136,7 +136,7 @@ If you need the absolute latest, before it propagates to maven central, you can 
 ```xml
 <repositories>
     <repository>
-        <id>latest-repo</id>
+        <id>sonatype releases</id>
         <url>https://oss.sonatype.org/content/repositories/releases</url>
         <releases>
            <enabled>true</enabled>
@@ -150,11 +150,8 @@ If you need a snapshot version, you must enable snapshots and change your depend
 ```xml
 <repositories>
     <repository>
-        <id>latest-repo</id>
-        <url>https://oss.sonatype.org/content/repositories/releases</url>
-        <releases>
-            <enabled>true</enabled>
-        </releases>
+        <id>sonatype snapshots</id>
+        <url>https://oss.sonatype.org/content/repositories/snapshots</url>
         <snapshots>
             <enabled>true</enabled>
         </snapshots>
@@ -164,7 +161,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.12.0-SNAPSHOT</version>
+    <version>2.12.1-SNAPSHOT</version>
 </dependency>
 ```
 

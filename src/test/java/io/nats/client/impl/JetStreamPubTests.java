@@ -91,7 +91,11 @@ public class JetStreamPubTests extends JetStreamTestBase {
     }
 
     private void assertPublishAck(PublishAck pa, long seqno) {
-        assertEquals(STREAM, pa.getStream());
+        assertPublishAck(pa, STREAM, seqno);
+    }
+
+    private void assertPublishAck(PublishAck pa, String stream, long seqno) {
+        assertEquals(stream, pa.getStream());
         if (seqno != -1) {
             assertEquals(seqno, pa.getSeqno());
         }
@@ -183,50 +187,52 @@ public class JetStreamPubTests extends JetStreamTestBase {
     @Test
     public void testPublishExpectations() throws Exception {
         runInJsServer(nc -> {
-            createMemoryStream(nc, STREAM, subject(1), subject(2));
             JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            createMemoryStream(jsm, stream(1), subject(1), subject(2));
 
             PublishOptions po = PublishOptions.builder()
-                    .expectedStream(STREAM)
+                    .expectedStream(stream(1))
                     .messageId(messageId(1))
                     .build();
             PublishAck pa = js.publish(subject(1), dataBytes(1), po);
-            assertPublishAck(pa, 1);
+            assertPublishAck(pa, stream(1), 1);
 
             po = PublishOptions.builder()
                     .expectedLastMsgId(messageId(1))
                     .messageId(messageId(2))
                     .build();
             pa = js.publish(subject(1), dataBytes(2), po);
-            assertPublishAck(pa, 2);
+            assertPublishAck(pa, stream(1), 2);
 
             po = PublishOptions.builder()
                     .expectedLastSequence(2)
                     .messageId(messageId(3))
                     .build();
             pa = js.publish(subject(1), dataBytes(3), po);
-            assertPublishAck(pa, 3);
+            assertPublishAck(pa, stream(1), 3);
 
             po = PublishOptions.builder()
                     .expectedLastSequence(3)
                     .messageId(messageId(4))
                     .build();
             pa = js.publish(subject(2), dataBytes(4), po);
-            assertPublishAck(pa, 4);
+            assertPublishAck(pa, stream(1), 4);
 
             po = PublishOptions.builder()
                     .expectedLastSubjectSequence(3)
                     .messageId(messageId(5))
                     .build();
             pa = js.publish(subject(1), dataBytes(5), po);
-            assertPublishAck(pa, 5);
+            assertPublishAck(pa, stream(1), 5);
 
             po = PublishOptions.builder()
                     .expectedLastSubjectSequence(4)
                     .messageId(messageId(6))
                     .build();
             pa = js.publish(subject(2), dataBytes(6), po);
-            assertPublishAck(pa, 6);
+            assertPublishAck(pa, stream(1), 6);
 
             PublishOptions po1 = PublishOptions.builder().expectedStream(stream(999)).build();
             assertThrows(JetStreamApiException.class, () -> js.publish(subject(1), dataBytes(999), po1));
@@ -239,6 +245,22 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
             PublishOptions po4 = PublishOptions.builder().expectedLastSubjectSequence(999).build();
             assertThrows(JetStreamApiException.class, () -> js.publish(subject(1), dataBytes(999), po4));
+
+            // 0 has meaning to expectedLastSubjectSequence
+            createMemoryStream(jsm, stream(2), subject(22));
+            PublishOptions poLss = PublishOptions.builder().expectedLastSubjectSequence(0).build();
+            pa = js.publish(subject(22), dataBytes(22), poLss);
+            assertPublishAck(pa, stream(2), 1);
+
+            assertThrows(JetStreamApiException.class, () -> js.publish(subject(22), dataBytes(999), poLss));
+
+            // 0 has NO meaning to expectedLastSequence
+            createMemoryStream(jsm, stream(3), subject(33));
+            PublishOptions poLs = PublishOptions.builder().expectedLastSequence(0).build();
+            pa = js.publish(subject(33), dataBytes(331), poLs);
+            assertPublishAck(pa, stream(3), 1);
+            pa = js.publish(subject(33), dataBytes(332), poLs);
+            assertPublishAck(pa, stream(3), 2);
         });
     }
 

@@ -310,17 +310,11 @@ public class KeyValueTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
             KeyValueManagement kvm = nc.keyValueManagement();
 
-            // create a regular stream;
-            createMemoryStream(jsm, stream(1));
-
             // create bucket 1
             kvm.createBucket(BucketConfiguration.builder()
                     .name(bucket(1))
                     .storageType(StorageType.Memory)
                     .build());
-
-            // create a regular stream;
-            createMemoryStream(jsm, stream(2));
 
             // create bucket 2
             kvm.createBucket(BucketConfiguration.builder()

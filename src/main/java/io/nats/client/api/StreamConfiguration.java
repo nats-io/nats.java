@@ -317,7 +317,7 @@ public class StreamConfiguration implements JsonSerializable {
     public String toString() {
         return "StreamConfiguration{" +
                 "name='" + name + '\'' +
-                "description='" + description + '\'' +
+                ", description='" + description + '\'' +
                 ", subjects=" + subjects +
                 ", retentionPolicy=" + retentionPolicy +
                 ", maxConsumers=" + maxConsumers +
