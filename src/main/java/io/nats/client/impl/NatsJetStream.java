@@ -185,7 +185,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     }
 
     private Headers mergeNum(Headers h, String key, long value) {
-        return value > 0 ? _mergeNum(h, key, Long.toString(value)): h;
+        return value > -1 ? _mergeNum(h, key, Long.toString(value)): h;
     }
 
     private Headers mergeString(Headers h, String key, String value) {
