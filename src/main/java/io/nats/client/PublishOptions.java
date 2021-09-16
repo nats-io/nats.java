@@ -43,14 +43,16 @@ public class PublishOptions {
     private final String expectedStream;
     private final String expectedLastId;
     private final long expectedLastSeq;
+    private final long expectedLastSubSeq;
     private final String msgId;
 
-    private PublishOptions(String stream, Duration streamTimeout, String expectedStream, String expectedLastId, long expectedLastSeq, String msgId) {
+    private PublishOptions(String stream, Duration streamTimeout, String expectedStream, String expectedLastId, long expectedLastSeq, long expectedLastSubSeq, String msgId) {
         this.stream = stream;
         this.streamTimeout = streamTimeout;
         this.expectedStream = expectedStream;
         this.expectedLastId = expectedLastId;
         this.expectedLastSeq = expectedLastSeq;
+        this.expectedLastSubSeq = expectedLastSubSeq;
         this.msgId = msgId;
     }
 
@@ -62,7 +64,7 @@ public class PublishOptions {
     /**
      * Property used to configure a builder from a Properties object..
      */
-    public static final String PROP_PUBLISH_TIMEOUT = Options.PFX + "publish.timeout";       
+    public static final String PROP_PUBLISH_TIMEOUT = Options.PFX + "publish.timeout";
 
     /**
      * Gets the name of the stream.
@@ -105,6 +107,14 @@ public class PublishOptions {
     }
 
     /**
+     * Gets the expected last subject sequence number of the stream.
+     * @return sequence number
+     */
+    public long getExpectedLastSubjectSequence() {
+        return expectedLastSubSeq;
+    }
+
+    /**
      * Gets the message ID
      * @return the message id;
      */
@@ -132,13 +142,14 @@ public class PublishOptions {
         String expectedStream;
         String expectedLastId;
         long expectedLastSeq = UNSET_LAST_SEQUENCE;
+        long expectedLastSubSeq = UNSET_LAST_SEQUENCE;
         String msgId;
 
         /**
          * Constructs a new publish options Builder with the default values.
          */
         public Builder() {}
-        
+
         /**
          * Constructs a builder from properties
          * @param properties properties
@@ -161,7 +172,7 @@ public class PublishOptions {
          * @return Builder
          */
         public Builder stream(String stream) {
-            this.stream = validateStreamName(stream, false);
+            this.stream = validateStreamName(emptyOrNullAs(stream, UNSET_STREAM), false);
             return this;
         }
 
@@ -172,23 +183,23 @@ public class PublishOptions {
          * @return Builder
          */
         public Builder streamTimeout(Duration timeout) {
-            this.streamTimeout = timeout == null ? DEFAULT_TIMEOUT : timeout;
+            this.streamTimeout = validateDurationNotRequiredGtOrEqZero(timeout, DEFAULT_TIMEOUT);
             return this;
         }
 
         /**
-         * Sets the expected stream of the publish. If the 
+         * Sets the expected stream of the publish. If the
          * stream does not match the server will not save the message.
          * @param stream expected stream
          * @return builder
          */
         public Builder expectedStream(String stream) {
-            expectedStream = validateStreamName(stream, false);
+            expectedStream = validateStreamName(emptyOrNullAs(stream, UNSET_STREAM), false);
             return this;
         }
 
         /**
-         * Sets the expected last ID of the previously published message.  If the 
+         * Sets the expected last ID of the previously published message.  If the
          * message ID does not match the server will not save the message.
          * @param lastMsgId the stream
          * @return builder
@@ -196,15 +207,26 @@ public class PublishOptions {
         public Builder expectedLastMsgId(String lastMsgId) {
             expectedLastId = emptyAsNull(lastMsgId);
             return this;
-        }        
+        }
 
         /**
-         * Sets the expected message ID of the publish
+         * Sets the expected message sequence of the publish
          * @param sequence the expected last sequence number
          * @return builder
          */
         public Builder expectedLastSequence(long sequence) {
-            expectedLastSeq = validateNotNegative(sequence, "Last Sequence");
+            // 0 has NO meaning to expectedLastSequence but we except 0 b/c the sequence is really a ulong
+            expectedLastSeq = validateGtEqMinus1(sequence, "Last Sequence");
+            return this;
+        }
+
+        /**
+         * Sets the expected subject message sequence of the publish
+         * @param sequence the expected last subject sequence number
+         * @return builder
+         */
+        public Builder expectedLastSubjectSequence(long sequence) {
+            expectedLastSubSeq = validateGtEqMinus1(sequence, "Last Subject Sequence");
             return this;
         }
 
@@ -215,7 +237,7 @@ public class PublishOptions {
          * @return builder
          */
         public Builder messageId(String msgId) {
-            this.msgId = msgId;
+            this.msgId = emptyAsNull(msgId);
             return this;
         }
 
@@ -227,15 +249,17 @@ public class PublishOptions {
         public Builder clearExpected() {
             expectedLastId = null;
             expectedLastSeq = UNSET_LAST_SEQUENCE;
+            expectedLastSubSeq = UNSET_LAST_SEQUENCE;
             msgId = null;
             return this;
         }
+
         /**
          * Builds the publish options.
          * @return publish options
          */
         public PublishOptions build() {
-            return new PublishOptions(stream, streamTimeout, expectedStream, expectedLastId, expectedLastSeq, msgId);
+            return new PublishOptions(stream, streamTimeout, expectedStream, expectedLastId, expectedLastSeq, expectedLastSubSeq, msgId);
         }
     }
 }

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
 import static io.nats.client.utils.ResourceUtils.dataAsString;
@@ -129,9 +130,20 @@ public final class JsonUtilsTests {
         JsonUtils.addFldWhenTrue(sb, "n/a", false);
         assertEquals(0, sb.length());
 
-        sb = new StringBuilder();
+        JsonUtils.addField(sb, "lminusone", -1);
+        assertEquals(0, sb.length());
+
         JsonUtils.addStrings(sb, "foo", new String[]{"bar"});
         assertEquals(14, sb.length());
+
+        JsonUtils.addField(sb, "zero", 0);
+        assertEquals(23, sb.length());
+
+        JsonUtils.addField(sb, "lone", 1);
+        assertEquals(32, sb.length());
+
+        JsonUtils.addField(sb, "lmax", Long.MAX_VALUE);
+        assertEquals(59, sb.length());
     }
 
     @Test
@@ -139,6 +151,45 @@ public final class JsonUtilsTests {
         assertEquals(1611186068, DateTimeUtils.parseDateTime("2021-01-20T23:41:08.579594Z").toEpochSecond());
         assertEquals(1612293508, DateTimeUtils.parseDateTime("2021-02-02T11:18:28.347722551-08:00").toEpochSecond());
         assertEquals(-62135596800L, DateTimeUtils.parseDateTime("anything-not-valid").toEpochSecond());
+    }
+
+    @Test
+    public void testInteger() {
+        Pattern RE = JsonUtils.buildPattern("num", JsonUtils.FieldType.jsonInteger);
+        assertEquals(-1, JsonUtils.readInt("\"num\":-1", RE, 0));
+        assertEquals(12345678, JsonUtils.readInt("\"num\":12345678", RE, 0));
+        assertEquals(2147483647, JsonUtils.readInt("\"num\":2147483647", RE, 0));
+    }
+
+    @Test
+    public void testLong() {
+        Pattern RE = JsonUtils.buildPattern("num", JsonUtils.FieldType.jsonInteger);
+        assertEquals(-1, JsonUtils.readLong("\"num\":-1", RE, 0));
+        assertEquals(12345678, JsonUtils.readLong("\"num\":12345678", RE, 0));
+        assertEquals(9223372036854775807L, JsonUtils.readLong("\"num\":9223372036854775807", RE, 0));
+
+        AtomicLong al = new AtomicLong();
+        JsonUtils.readLong("\"num\":999", RE, al::set);
+        assertEquals(999, al.get());
+
+        JsonUtils.readLong("\"num\":invalid", RE, al::set);
+        assertEquals(999, al.get());
+
+        JsonUtils.readLong("\"num\":18446744073709551615", RE, al::set);
+        assertEquals(-1, al.get());
+
+        JsonUtils.readLong("\"num\":18446744073709551614", RE, al::set);
+        assertEquals(-2, al.get());
+
+        al.set(-999);
+        JsonUtils.readLong("\"num\":18446744073709551616", RE, al::set);
+        assertEquals(-999, al.get());
+
+        assertEquals(-1, JsonUtils.safeParseLong("18446744073709551615", -999));
+        assertEquals(-2, JsonUtils.safeParseLong("18446744073709551614", -999));
+        assertEquals(-999, JsonUtils.safeParseLong("18446744073709551616", -999));
+        assertEquals(-999, JsonUtils.safeParseLong(null, -999));
+        assertEquals(-999, JsonUtils.safeParseLong("notanumber", -999));
     }
 
     @Test
@@ -151,6 +202,13 @@ public final class JsonUtilsTests {
         assertTrue(JsonUtils.readBoolean(json, YES_RE));
         assertFalse(JsonUtils.readBoolean(json, NO_RE));
         assertFalse((JsonUtils.readBoolean(json, MISSING_RE)));
+    }
+
+    @Test
+    public void testCoverage() {
+        Pattern ipattern = JsonUtils.integer_pattern("foo");
+        Pattern npattern = JsonUtils.number_pattern("foo"); // coverage for deprecated
+        assertEquals(ipattern.pattern(), npattern.pattern());
     }
 
     @Test

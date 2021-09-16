@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class PublishOptionsTests extends TestBase {
+
     @Test
     public void testBuilder() {
         PublishOptions.Builder builder = PublishOptions.builder();
@@ -30,6 +31,7 @@ public class PublishOptionsTests extends TestBase {
         assertEquals(PublishOptions.UNSET_STREAM, po.getStream(), "default stream");
         assertEquals(PublishOptions.DEFAULT_TIMEOUT, po.getStreamTimeout(), "default timeout");
         assertEquals(PublishOptions.UNSET_LAST_SEQUENCE, po.getExpectedLastSequence());
+        assertEquals(PublishOptions.UNSET_LAST_SEQUENCE, po.getExpectedLastSubjectSequence());
 
         po = builder
                 .stream(STREAM)
@@ -37,6 +39,7 @@ public class PublishOptionsTests extends TestBase {
                 .expectedLastMsgId("1")
                 .expectedStream("bar")
                 .expectedLastSequence(42)
+                .expectedLastSubjectSequence(43)
                 .messageId("msgId")
                 .build();
 
@@ -44,12 +47,14 @@ public class PublishOptionsTests extends TestBase {
         assertEquals(Duration.ofSeconds(99), po.getStreamTimeout(), "timeout");
         assertEquals("1", po.getExpectedLastMsgId(), "expected msgid");
         assertEquals(42, po.getExpectedLastSequence(), "expected last seqno");
+        assertEquals(43, po.getExpectedLastSubjectSequence(), "expected last sub seqno");
         assertEquals("bar", po.getExpectedStream(), "expected stream");
         assertEquals("msgId", po.getMessageId(), "expected message id");
 
         po = builder.clearExpected().build();
         assertNull(po.getExpectedLastMsgId(), "expected msgid");
         assertEquals(PublishOptions.UNSET_LAST_SEQUENCE, po.getExpectedLastSequence(), "expected last seqno");
+        assertEquals(PublishOptions.UNSET_LAST_SEQUENCE, po.getExpectedLastSubjectSequence(), "expected last sub seqno");
         assertEquals("bar", po.getExpectedStream(), "expected stream");
         assertNull(po.getMessageId(), "expected message id");
 

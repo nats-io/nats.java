@@ -63,8 +63,12 @@ public abstract class ApiResponse<T> {
         return type;
     }
 
-    public long getErrorCode() {
+    public int getErrorCode() {
         return error == null ? NOT_SET : error.getCode();
+    }
+
+    public int getApiErrorCode() {
+        return error == null ? NOT_SET : error.getApiErrorCode();
     }
 
     public String getDescription() {

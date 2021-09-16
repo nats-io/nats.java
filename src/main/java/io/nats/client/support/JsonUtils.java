@@ -38,7 +38,7 @@ public abstract class JsonUtils {
 
     private static final String STRING_RE  = "\\s*\"(.+?)\"";
     private static final String BOOLEAN_RE =  "\\s*(true|false)";
-    private static final String NUMBER_RE =  "\\s*(\\d+)";
+    private static final String INTEGER_RE =  "\\s*(-?\\d+)";
     private static final String STRING_ARRAY_RE = "\\s*\\[\\s*(\".+?\")\\s*\\]";
     private static final String BEFORE_FIELD_RE = "\"";
     private static final String AFTER_FIELD_RE = "\"\\s*:\\s*";
@@ -56,7 +56,8 @@ public abstract class JsonUtils {
     public enum FieldType {
         jsonString(STRING_RE),
         jsonBoolean(BOOLEAN_RE),
-        jsonNumber(NUMBER_RE),
+        jsonInteger(INTEGER_RE),
+        jsonNumber(INTEGER_RE),
         jsonStringArray(STRING_ARRAY_RE);
 
         final String re;
@@ -69,8 +70,13 @@ public abstract class JsonUtils {
         return buildPattern(field, STRING_RE);
     }
 
+    @Deprecated
     public static Pattern number_pattern(String field) {
-        return buildPattern(field, NUMBER_RE);
+        return integer_pattern(field);
+    }
+
+    public static Pattern integer_pattern(String field) {
+        return buildPattern(field, INTEGER_RE);
     }
 
     public static Pattern boolean_pattern(String field) {
@@ -203,8 +209,12 @@ public abstract class JsonUtils {
         return list;
     }
 
-    public static byte[] simpleMessageBody(String name, Object value) {
+    public static byte[] simpleMessageBody(String name, Number value) {
         return (OPENQ + name + QCOLON + value + CLOSE).getBytes();
+    }
+
+    public static byte[] simpleMessageBody(String name, String value) {
+        return (OPENQ + name + QCOLONQ + value + Q + CLOSE).getBytes();
     }
 
     public static StringBuilder beginJson() {
@@ -413,14 +423,36 @@ public abstract class JsonUtils {
 
     public static long readLong(String json, Pattern pattern, long dflt) {
         Matcher m = pattern.matcher(json);
-        return m.find() ? Long.parseLong(m.group(1)) : dflt;
+        return m.find() ? safeParseLong(m.group(1), dflt) : dflt;
     }
 
     public static void readLong(String json, Pattern pattern, LongConsumer c) {
         Matcher m = pattern.matcher(json);
         if (m.find()) {
-            c.accept(Long.parseLong(m.group(1)));
+            Long l = safeParseLong(m.group(1));
+            if (l != null) {
+                c.accept(l);
+            }
         }
+    }
+
+    public static Long safeParseLong(String s) {
+        try {
+            return Long.parseLong(s);
+        }
+        catch (Exception e1) {
+            try {
+                return Long.parseUnsignedLong(s);
+            }
+            catch (Exception e2) {
+                return null;
+            }
+        }
+    }
+
+    public static long safeParseLong(String s, long dflt) {
+        Long l = safeParseLong(s);
+        return l == null ? dflt : l;
     }
 
     public static ZonedDateTime readDate(String json, Pattern pattern) {
@@ -508,37 +540,41 @@ public abstract class JsonUtils {
         return level == 0 ? "" : INDENT.substring(0, level * 4);
     }
 
-    public static void printFormatted(Object o) {
+    public static String getFormatted(Object o) {
+        StringBuilder sb = new StringBuilder();
         int level = 0;
         boolean indentNext = true;
         String s = o.toString();
         for (int x = 0; x < s.length(); x++) {
             char c = s.charAt(x);
             if (c == '{') {
-                System.out.print(c + "\n");
+                sb.append(c).append('\n');
                 ++level;
                 indentNext = true;
             }
             else if (c == '}') {
-                System.out.print("\n" + indent(--level) + c);
+                sb.append('\n').append(indent(--level)).append(c);
             }
             else if (c == ',') {
-                System.out.print("\n");
+                sb.append('\n');
                 indentNext = true;
             }
             else {
                 if (indentNext) {
                     if (c != ' ') {
-                        System.out.print(indent(level) + c);
+                        sb.append(indent(level)).append(c);
                         indentNext = false;
                     }
                 }
                 else {
-                    System.out.print(c);
+                    sb.append(c);
                 }
             }
         }
+        return sb.toString();
+    }
 
-        System.out.println();
+    public static void printFormatted(Object o) {
+        System.out.println(getFormatted(o));
     }
 }

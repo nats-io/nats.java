@@ -79,23 +79,17 @@ public class ErrorListenerTests {
     public void testErrorOnNoAuth() throws Exception {
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
         TestHandler handler = new TestHandler();
-        Connection nc = null;
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
             // See config file for user/pass
             Options options = new Options.Builder().
-                    server(ts.getURI()).
-                    maxReconnects(0).
-                    errorListener(handler).
+                    server(ts.getURI())
+                    .maxReconnects(0)
+                    .errorListener(handler)
                     // skip this so we get an error userInfo("stephen", "password").
-                            build();
-            try {
-                nc = Nats.connect(options);
-            } catch (IOException e) {
-                assertTrue(handler.getCount() > 0);
-                assertEquals(1, handler.getErrorCount("Authorization Violation"));
-            } finally {
-                standardCloseConnection(nc);
-            }
+                    .build();
+            assertThrows(AuthenticationException.class, () -> Nats.connect(options));
+            assertTrue(handler.getCount() > 0);
+            assertEquals(1, handler.getErrorCount("Authorization Violation"));
         }
     }
 
@@ -138,12 +132,12 @@ public class ErrorListenerTests {
         BadHandler handler = new BadHandler();
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
             // See config file for user/pass
-            Options options = new Options.Builder().
-                    server(ts.getURI()).
-                    maxReconnects(0).
-                    errorListener(handler).
+            Options options = new Options.Builder()
+                    .server(ts.getURI())
+                    .maxReconnects(0)
+                    .errorListener(handler)
                     // skip this so we get an error userInfo("stephen", "password").
-                            build();
+                    .build();
             assertThrows(IOException.class, () -> Nats.connect(options));
         }
     }
@@ -238,9 +232,10 @@ public class ErrorListenerTests {
         }
 
         List<Message> discardedMessages = handler.getDiscardedMessages();
-        assertEquals(1, discardedMessages.size());
-        assertEquals("subject10", discardedMessages.get(0).getSubject());
-        assertEquals("message10", new String(discardedMessages.get(0).getData()));
+        assertTrue(discardedMessages.size() > 0,  "expected discardedMessages > 0, got " + discardedMessages.size());
+        int offset = maxMessages + 1 - discardedMessages.size();
+        assertEquals("subject" + offset, discardedMessages.get(0).getSubject());
+        assertEquals("message" + offset, new String(discardedMessages.get(0).getData()));
     }
 
     @Test

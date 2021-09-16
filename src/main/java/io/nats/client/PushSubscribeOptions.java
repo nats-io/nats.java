@@ -15,7 +15,7 @@ package io.nats.client;
 
 import io.nats.client.api.ConsumerConfiguration;
 
-import static io.nats.client.support.Validator.*;
+import static io.nats.client.support.Validator.emptyAsNull;
 
 /**
  * The PushSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
@@ -23,26 +23,61 @@ import static io.nats.client.support.Validator.*;
  */
 public class PushSubscribeOptions extends SubscribeOptions {
 
-    private PushSubscribeOptions(String stream, ConsumerConfiguration consumerConfig) {
-        super(stream, consumerConfig);
+    private PushSubscribeOptions(String stream, String durable, boolean bind, String deliverSubject, String deliverGroup, ConsumerConfiguration cc) {
+        super(stream, durable, false, bind, deliverSubject, deliverGroup, cc);
     }
 
     /**
      * Gets the deliver subject held in the consumer configuration.
-     * @return the Deliver subject
+     * @return the deliver subject
      */
     public String getDeliverSubject() {
         return consumerConfig.getDeliverSubject();
     }
 
     /**
-     * Create PushSubscribeOptions where you are binding to
-     * a specific stream, which could be a stream or a mirror
-     * @param stream the stream name to bind to
+     * Gets the deliver group held in the consumer configuration.
+     * @return the deliver group
+     */
+    public String getDeliverGroup() {
+        return consumerConfig.getDeliverGroup();
+    }
+
+    /**
+     * Macro to create a default PushSubscribeOptions except for
+     * where you must specify the stream because
+     * the subject could apply to both a stream and a mirror.
+     * @deprecated
+     * This method is no longer used as bind has a different meaning.
+     * See {@link #stream(String)} instead.
+     * @param stream the stream name
      * @return push subscribe options
      */
+    @Deprecated
     public static PushSubscribeOptions bind(String stream) {
+        return stream(stream);
+    }
+
+    /**
+     * Macro to create a default PushSubscribeOptions except for
+     * where you must specify the stream because
+     * the subject could apply to both a stream and a mirror.
+     * @param stream the stream name
+     * @return push subscribe options
+     */
+    public static PushSubscribeOptions stream(String stream) {
         return new Builder().stream(stream).build();
+    }
+
+    /**
+     * Macro to create a PushSubscribeOptions where you are
+     * binding to an existing stream and durable consumer.
+     * @param stream the stream name
+     * @param durable the durable name
+     * @return push subscribe options
+     */
+    public static PushSubscribeOptions bind(String stream, String durable) {
+        return new PushSubscribeOptions.Builder().stream(stream).durable(durable).bind(true).build();
     }
 
     public static Builder builder() {
@@ -56,6 +91,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
     public static class Builder
             extends SubscribeOptions.Builder<Builder, PushSubscribeOptions> {
         private String deliverSubject;
+        private String deliverGroup;
 
         @Override
         protected Builder getThis() {
@@ -69,7 +105,18 @@ public class PushSubscribeOptions extends SubscribeOptions {
          * @return the builder.
          */
         public Builder deliverSubject(String deliverSubject) {
-            this.deliverSubject = deliverSubject;
+            this.deliverSubject = emptyAsNull(deliverSubject);
+            return this;
+        }
+
+        /**
+         * Setting this specifies deliver group. Must match queue is both are supplied.
+         * Null or empty clears the field.
+         * @param deliverGroup the group to queue on
+         * @return the builder.
+         */
+        public Builder deliverGroup(String deliverGroup) {
+            this.deliverGroup = emptyAsNull(deliverGroup);
             return this;
         }
 
@@ -79,19 +126,8 @@ public class PushSubscribeOptions extends SubscribeOptions {
          */
         @Override
         public PushSubscribeOptions build() {
-            stream = validateStreamName(stream, false);
-
-            durable = validateDurable(durable, false);
-            if (durable == null && consumerConfig != null) {
-                durable = validateDurable(consumerConfig.getDurable(), false);
-            }
-
-            this.consumerConfig = ConsumerConfiguration.builder(consumerConfig)
-                    .durable(durable)
-                    .deliverSubject(emptyAsNull(deliverSubject))
-                    .build();
-
-            return new PushSubscribeOptions(stream, consumerConfig);
+            return new PushSubscribeOptions(stream, durable, isBind, deliverSubject, deliverGroup, consumerConfig);
         }
     }
 }
+

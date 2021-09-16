@@ -18,7 +18,7 @@ import io.nats.client.JetStreamSubscription;
 import io.nats.client.Message;
 import io.nats.client.PushSubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.ConsumerInfo;
+import io.nats.client.api.DeliverPolicy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
@@ -32,25 +32,21 @@ import static org.junit.jupiter.api.Assertions.*;
 public class JetStreamPushTests extends JetStreamTestBase {
 
     @ParameterizedTest
-    @NullSource
-    @ValueSource(strings = {DELIVER})
+    @NullSource // tests null or no deliver subject
+    @ValueSource(strings = {DELIVER}) // tests actual deliver subject
     public void testPushEphemeral(String deliverSubject) throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
-            JetStream js = nc.jetStream();
-
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);
+
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
 
             // publish some messages
             jsPublish(js, SUBJECT, 1, 5);
 
             // Build our subscription options.
-            PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder();
-            if (deliverSubject != null) {
-                builder.deliverSubject(deliverSubject);
-            }
-            PushSubscribeOptions options = builder.build();
+            PushSubscribeOptions options = PushSubscribeOptions.builder().deliverSubject(deliverSubject).build();
 
             // Subscription 1
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
@@ -90,11 +86,11 @@ public class JetStreamPushTests extends JetStreamTestBase {
     @ValueSource(strings = {DELIVER})
     public void testPushDurable(String deliverSubject) throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
-            JetStream js = nc.jetStream();
-
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);
+
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
 
             // publish some messages
             jsPublish(js, SUBJECT, 1, 5);
@@ -156,7 +152,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertThrows(IllegalStateException.class, () -> sub.pull(1));
             assertThrows(IllegalStateException.class, () -> sub.pullNoWait(1));
             // TODO pullExpiresIn
-//            assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, Duration.ofSeconds(1)));
+            assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, Duration.ofSeconds(1)));
         });
     }
 
@@ -250,99 +246,99 @@ public class JetStreamPushTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testGetConsumerInfo() throws Exception {
+    public void testDeliveryPolicy() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createMemoryStream(nc, STREAM, SUBJECT_STAR);
 
-            JetStreamSubscription sub = js.subscribe(SUBJECT);
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+            String subjectA = subjectDot("A");
+            String subjectB = subjectDot("B");
 
-            ConsumerInfo ci = sub.getConsumerInfo();
-            assertEquals(STREAM, ci.getStreamName());
+            js.publish(subjectA, dataBytes(1));
+            js.publish(subjectA, dataBytes(2));
+            sleep(1500);
+            js.publish(subjectA, dataBytes(3));
+            js.publish(subjectB, dataBytes(91));
+            js.publish(subjectB, dataBytes(92));
+
+            // DeliverPolicy.All
+            PushSubscribeOptions pso = PushSubscribeOptions.builder()
+                    .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.All).build())
+                    .build();
+            JetStreamSubscription sub = js.subscribe(subjectA, pso);
+            Message m1 = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m1, 1);
+            Message m2 = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m2, 2);
+            Message m3 = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m3, 3);
+
+            // DeliverPolicy.Last
+            pso = PushSubscribeOptions.builder()
+                    .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.Last).build())
+                    .build();
+            sub = js.subscribe(subjectA, pso);
+            Message m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 3);
+            assertNull(sub.nextMessage(Duration.ofMillis(200)));
+
+            // DeliverPolicy.New - No new messages between subscribe and next message
+            pso = PushSubscribeOptions.builder()
+                    .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.New).build())
+                    .build();
+            sub = js.subscribe(subjectA, pso);
+            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+
+            // DeliverPolicy.New - New message between subscribe and next message
+            sub = js.subscribe(subjectA, pso);
+            js.publish(subjectA, dataBytes(4));
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 4);
+
+            // DeliverPolicy.ByStartSequence
+            pso = PushSubscribeOptions.builder()
+                    .configuration(ConsumerConfiguration.builder()
+                            .deliverPolicy(DeliverPolicy.ByStartSequence)
+                            .startSequence(3)
+                            .build())
+                    .build();
+            sub = js.subscribe(subjectA, pso);
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 3);
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 4);
+
+            // DeliverPolicy.ByStartTime
+            pso = PushSubscribeOptions.builder()
+                    .configuration(ConsumerConfiguration.builder()
+                            .deliverPolicy(DeliverPolicy.ByStartTime)
+                            .startTime(m3.metaData().timestamp().minusSeconds(1))
+                            .build())
+                    .build();
+            sub = js.subscribe(subjectA, pso);
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 3);
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 4);
+
+            // DeliverPolicy.LastPerSubject
+            pso = PushSubscribeOptions.builder()
+                    .configuration(ConsumerConfiguration.builder()
+                            .deliverPolicy(DeliverPolicy.LastPerSubject)
+                            .filterSubject(subjectA)
+                            .build())
+                    .build();
+            sub = js.subscribe(subjectA, pso);
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 4);
         });
     }
 
-    @Test
-    public void testHeartbeat() throws Exception {
-        runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
-
-            ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .idleHeartbeat(Duration.ofMillis(250))
-                    .build();
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
-
-            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
-
-            int count = 0;
-            long now = System.currentTimeMillis();
-            long elapsed = System.currentTimeMillis() - now;
-            while (elapsed < 3000) {
-                Message m = sub.nextMessage(Duration.ofMillis(100));
-                if (m != null && m.isStatusMessage() && m.getStatus().isHeartbeat()) {
-                    count++;
-                }
-                elapsed = System.currentTimeMillis() - now;
-            }
-            assertTrue(count > 8);
-        });
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"500,1024", "1,500000"})
-    public void testFlowControl(String pendingLimits) throws Exception {
-        runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
-
-            ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .flowControl(true)
-                    .idleHeartbeat(Duration.ofMillis(250))
-                    .build();
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
-
-            // This is configured so the subscriber ends up being considered slow
-            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
-            nc.flush(Duration.ofSeconds(5));
-            String[] split = pendingLimits.split(",");
-            sub.setPendingLimits(Integer.parseInt(split[0]), Integer.parseInt(split[1]));
-
-            // publish more message data than the subscriber will handle
-            byte[] data = new byte[1024];
-            for (int x = 1; x <= 100; x++) {
-                Message msg = NatsMessage.builder()
-                        .subject(SUBJECT)
-                        .data(data)
-                        .build();
-                js.publish(msg);
-            }
-
-            // sleep to let the messages back up
-            sleep(1000);
-
-            int count = 0;
-            long now = System.currentTimeMillis();
-            long elapsed = System.currentTimeMillis() - now;
-            while (elapsed < 3000 && count < 1) {
-                Message m = sub.nextMessage(Duration.ofMillis(100));
-                if (m != null && m.isStatusMessage() && m.getStatus().isFlowControl()) {
-                    count++;
-                }
-                elapsed = System.currentTimeMillis() - now;
-            }
-            assertTrue(count > 0);
-        });
+    private void assertMessage(Message m, int i) {
+        assertNotNull(m);
+        assertEquals(data(i), new String(m.getData()));
     }
 }

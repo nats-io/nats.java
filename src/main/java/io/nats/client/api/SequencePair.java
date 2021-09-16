@@ -34,7 +34,7 @@ public class SequencePair {
     /**
      * Gets the consumer sequence number.
      *
-     * @return seqence number.
+     * @return sequence number.
      */
     public long getConsumerSequence() {
         return consumerSeq;

@@ -92,7 +92,7 @@ class NatsJetStreamMessage extends InternalMessage {
 //                && ((NatsJetStreamSubscription) subscription).isPullMode();
 //    }
 
-    private Connection getJetStreamValidatedConnection() {
+    Connection getJetStreamValidatedConnection() {
         if (getSubscription() == null) {
             throw new IllegalStateException("Message is not bound to a subscription.");
         }

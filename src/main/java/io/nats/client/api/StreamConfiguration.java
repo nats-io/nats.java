@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonUtils;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -34,10 +35,12 @@ public class StreamConfiguration implements JsonSerializable {
 
     // see builder for defaults
     private final String name;
+    private final String description;
     private final List<String> subjects;
     private final RetentionPolicy retentionPolicy;
     private final long maxConsumers;
     private final long maxMsgs;
+    private final long maxMsgsPerSubject;
     private final long maxBytes;
     private final Duration maxAge;
     private final long maxMsgSize;
@@ -71,8 +74,10 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         builder.name(readString(json, NAME_RE));
+        builder.description(readString(json, DESCRIPTION_RE));
         readLong(json, MAX_CONSUMERS_RE, builder::maxConsumers);
         readLong(json, MAX_MSGS_RE, builder::maxMessages);
+        readLong(json, MAX_MSGS_PER_SUB_RE, builder::maxMessagesPerSubject);
         readLong(json, MAX_BYTES_RE, builder::maxBytes);
         readNanos(json, MAX_AGE_RE, builder::maxAge);
         readLong(json, MAX_MSG_SIZE_RE, builder::maxMsgSize);
@@ -90,18 +95,20 @@ public class StreamConfiguration implements JsonSerializable {
 
     // For the builder, assumes all validations are already done in builder
     StreamConfiguration(
-            String name, List<String> subjects, RetentionPolicy retentionPolicy,
-            long maxConsumers, long maxMsgs, long maxBytes,
+            String name, String description, List<String> subjects, RetentionPolicy retentionPolicy,
+            long maxConsumers, long maxMsgs, long maxMsgsPerSubject, long maxBytes,
             Duration maxAge, long maxMsgSize, StorageType storageType,
             int replicas, boolean noAck, String templateOwner,
             DiscardPolicy discardPolicy, Duration duplicateWindow,
             Placement placement, Mirror mirror, List<Source> sources)
     {
         this.name = name;
+        this.description = description;
         this.subjects = subjects;
         this.retentionPolicy = retentionPolicy;
         this.maxConsumers = maxConsumers;
         this.maxMsgs = maxMsgs;
+        this.maxMsgsPerSubject = maxMsgsPerSubject;
         this.maxBytes = maxBytes;
         this.maxAge = maxAge;
         this.maxMsgSize = maxMsgSize;
@@ -126,10 +133,12 @@ public class StreamConfiguration implements JsonSerializable {
         StringBuilder sb = beginJson();
 
         addField(sb, NAME, name);
+        JsonUtils.addField(sb, DESCRIPTION, description);
         addStrings(sb, SUBJECTS, subjects);
         addField(sb, RETENTION, retentionPolicy.toString());
         addField(sb, MAX_CONSUMERS, maxConsumers);
         addField(sb, MAX_MSGS, maxMsgs);
+        addField(sb, MAX_MSGS_PER_SUB, maxMsgsPerSubject);
         addField(sb, MAX_BYTES, maxBytes);
         addFieldAsNanos(sb, MAX_AGE, maxAge);
         addField(sb, MAX_MSG_SIZE, maxMsgSize);
@@ -156,6 +165,14 @@ public class StreamConfiguration implements JsonSerializable {
      */
     public String getName() {
         return name;
+    }
+
+    /**
+     * Gets the description of this stream configuration.
+     * @return the description of the stream.
+     */
+    public String getDescription() {
+        return description;
     }
 
     /**
@@ -199,9 +216,17 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
+     * Gets the maximum messages for this stream configuration.
+     * @return the maximum number of messages for this stream.
+     */
+    public long getMaxMsgsPerSubject() {
+        return maxMsgsPerSubject;
+    }
+
+    /**
      * Gets the maximum number of bytes for this stream configuration.
      * @return the maximum number of bytes for this stream.
-     */    
+     */
     public long getMaxBytes() {
         return maxBytes;
     }
@@ -223,7 +248,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Gets the storate type for this stream configuration.
+     * Gets the storage type for this stream configuration.
      * @return the storage type for this stream.
      */
     public StorageType getStorageType() {
@@ -292,6 +317,7 @@ public class StreamConfiguration implements JsonSerializable {
     public String toString() {
         return "StreamConfiguration{" +
                 "name='" + name + '\'' +
+                ", description='" + description + '\'' +
                 ", subjects=" + subjects +
                 ", retentionPolicy=" + retentionPolicy +
                 ", maxConsumers=" + maxConsumers +
@@ -332,16 +358,18 @@ public class StreamConfiguration implements JsonSerializable {
      * StreamConfiguration is created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      * 
-     * <p>{@code new StreamConfiguration.Builder().build()} will create a new ConsumerConfiguration.
+     * <p>{@code new StreamConfiguration.Builder().build()} will create a new StreamConfiguration.
      * 
      */
     public static class Builder {
 
         private String name = null;
+        private String description = null;
         private final List<String> subjects = new ArrayList<>();
         private RetentionPolicy retentionPolicy = RetentionPolicy.Limits;
         private long maxConsumers = -1;
         private long maxMsgs = -1;
+        private long maxMsgsPerSubject = -1;
         private long maxBytes = -1;
         private Duration maxAge = Duration.ZERO;
         private long maxMsgSize = -1;
@@ -367,10 +395,12 @@ public class StreamConfiguration implements JsonSerializable {
         public Builder(StreamConfiguration sc) {
             if (sc != null) {
                 this.name = sc.name;
+                this.description = sc.description;
                 subjects(sc.subjects);
                 this.retentionPolicy = sc.retentionPolicy;
                 this.maxConsumers = sc.maxConsumers;
                 this.maxMsgs = sc.maxMsgs;
+                this.maxMsgsPerSubject = sc.maxMsgsPerSubject;
                 this.maxBytes = sc.maxBytes;
                 this.maxAge = sc.maxAge;
                 this.maxMsgSize = sc.maxMsgSize;
@@ -393,6 +423,16 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder name(String name) {
             this.name = name;
+            return this;
+        }
+
+        /**
+         * Sets the description
+         * @param description the description
+         * @return the builder
+         */
+        public Builder description(String description) {
+            this.description = description;
             return this;
         }
 
@@ -465,7 +505,7 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Sets the maximum number of consumers in the StreamConfiguration.
+         * Sets the maximum number of messages in the StreamConfiguration.
          * @param maxMsgs the maximum number of messages
          * @return Builder
          */
@@ -475,10 +515,20 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
+         * Sets the maximum number of message per subject in the StreamConfiguration.
+         * @param maxMsgsPerSubject the maximum number of messages
+         * @return Builder
+         */
+        public Builder maxMessagesPerSubject(long maxMsgsPerSubject) {
+            this.maxMsgsPerSubject = validateMaxMessagesPerSubject(maxMsgsPerSubject);
+            return this;
+        }
+
+        /**
          * Sets the maximum number of bytes in the StreamConfiguration.
          * @param maxBytes the maximum number of bytes
          * @return Builder
-         */        
+         */
         public Builder maxBytes(long maxBytes) {
             this.maxBytes = validateMaxBytes(maxBytes);
             return this;
@@ -488,9 +538,19 @@ public class StreamConfiguration implements JsonSerializable {
          * Sets the maximum age in the StreamConfiguration.
          * @param maxAge the maximum message age
          * @return Builder
-         */        
+         */
         public Builder maxAge(Duration maxAge) {
-            this.maxAge = validateDurationNotRequiredGtOrEqZero(maxAge);
+            this.maxAge = validateDurationNotRequiredGtOrEqZero(maxAge, Duration.ZERO);
+            return this;
+        }
+
+        /**
+         * Sets the maximum age in the StreamConfiguration.
+         * @param maxAgeMillis the maximum message age
+         * @return Builder
+         */
+        public Builder maxAge(long maxAgeMillis) {
+            this.maxAge = validateDurationNotRequiredGtOrEqZero(maxAgeMillis);
             return this;
         }
 
@@ -560,9 +620,20 @@ public class StreamConfiguration implements JsonSerializable {
          * disables duplicate checking.  Duplicate checking is disabled by default.
          * @param window duration to hold message ids for duplicate checking.
          * @return Builder
-         */        
+         */
         public Builder duplicateWindow(Duration window) {
-            this.duplicateWindow = validateDurationNotRequiredGtOrEqZero(window);
+            this.duplicateWindow = validateDurationNotRequiredGtOrEqZero(window, Duration.ZERO);
+            return this;
+        }
+
+        /**
+         * Sets the duplicate checking window in the the StreamConfiguration.  A Duration.Zero
+         * disables duplicate checking.  Duplicate checking is disabled by default.
+         * @param windowMillis duration to hold message ids for duplicate checking.
+         * @return Builder
+         */
+        public Builder duplicateWindow(long windowMillis) {
+            this.duplicateWindow = validateDurationNotRequiredGtOrEqZero(windowMillis);
             return this;
         }
 
@@ -632,16 +703,18 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Builds the ConsumerConfiguration
-         * @return a consumer configuration.
+         * Builds the StreamConfiguration
+         * @return a stream configuration.
          */
         public StreamConfiguration build() {
             return new StreamConfiguration(
                     name,
+                    description,
                     subjects,
                     retentionPolicy,
                     maxConsumers,
                     maxMsgs,
+                    maxMsgsPerSubject,
                     maxBytes,
                     maxAge,
                     maxMsgSize,

@@ -24,6 +24,17 @@ Version 2.5.0 adds some back pressure to publish calls to alleviate issues when 
 
 Previous versions are still available in the repo.
 
+### Versions 2.11.6 and server versions
+
+Version 2.11.6 is the last java-nats version which is supported to work with server v2.3.4 and earlier.
+It will not be officially supported to work with servers after v2.3.4, but _should be fine_ if you don't use
+the queue behavior advertised in example code `NatsJsPushSubQueueDurable.java` and provided with java-nats 2.11.5. 
+The example does not work correctly against server versions after server v2.3.4 
+due to a significant change made to correct _queue_ behavior that was considered wrong.
+
+If you want to take advantage of the fixes and features provided in the server after v2.3.4, 
+you __must__ upgrade to the release version 2.12.0 or later.
+
 ### SSL/TLS Performance
 
 After recent tests we realized that TLS performance is lower than we would like. After researching the problem and possible solutions we came to a few conclusions:
@@ -35,6 +46,20 @@ After recent tests we realized that TLS performance is lower than we would like.
 * If TLS performance is reasonable for your application we recommend using the j2se implementation for simplicity
 
 To use conscrypt or wildfly, you will need to add the appropriate jars to your class path and create an SSL context manually. This context can be passed to the Options used when creating a connection. The NATSAutoBench example provides a conscrypt flag which can be used to try out the library,  manually including the jar is required.
+
+### OCSP Stapling
+Our server now supports OCSP stapling. To enable Java to automatically check the stapling 
+when making TLS connections, you must set system properties. This can be done from your
+command line or from your Java code:
+
+```
+System.setProperty("jdk.tls.client.enableStatusRequestExtension", "true");
+System.setProperty("com.sun.net.ssl.checkRevocation", "true");
+```
+
+For more information, see the Oracle Java documentation page on [Client-Driven OCSP and OCSP Stapling](https://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/ocsp.html)
+
+Also, there is a detailed [OCSP Example](https://github.com/nats-io/java-nats-examples/tree/main/ocsp) that shows how to create SSL contexts enabling OCSP stapling.
 
 ### UTF-8 Subjects
 
@@ -52,9 +77,9 @@ The java-nats client is provided in a single jar file, with a single external de
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.11.5/jnats-2.11.5.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.11.5/jnats-2.11.5.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.1/jnats-2.12.1.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.1/jnats-2.12.1.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.11.5/jnats-2.11.5-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.11.5/jnats-2.11.5-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.1/jnats-2.12.1-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.1/jnats-2.12.1-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
@@ -64,7 +89,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.11.5'
+    implementation 'io.nats:jnats:2.12.1'
 }
 ```
 
@@ -76,9 +101,21 @@ repositories {
     maven {
         url "https://oss.sonatype.org/content/repositories/releases"
     }
+}
+```
+
+If you need a snapshot version, you must add the url for the snapshots and change your dependency.
+
+```groovy
+repositories {
+    ...
     maven {
         url "https://oss.sonatype.org/content/repositories/snapshots"
     }
+}
+
+dependencies {
+   implementation 'io.nats:jnats:2.12.1-SNAPSHOT'
 }
 ```
 
@@ -90,7 +127,7 @@ The NATS client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.11.5</version>
+    <version>2.12.1</version>
 </dependency>
 ```
 
@@ -99,12 +136,33 @@ If you need the absolute latest, before it propagates to maven central, you can 
 ```xml
 <repositories>
     <repository>
-        <id>latest-repo</id>
+        <id>sonatype releases</id>
         <url>https://oss.sonatype.org/content/repositories/releases</url>
-        <releases><enabled>true</enabled></releases>
-        <snapshots><enabled>false</enabled></snapshots>
+        <releases>
+           <enabled>true</enabled>
+        </releases>
     </repository>
 </repositories>
+```
+
+If you need a snapshot version, you must enable snapshots and change your dependency.
+
+```xml
+<repositories>
+    <repository>
+        <id>sonatype snapshots</id>
+        <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        <snapshots>
+            <enabled>true</enabled>
+        </snapshots>
+    </repository>
+</repositories>
+
+<dependency>
+    <groupId>io.nats</groupId>
+    <artifactId>jnats</artifactId>
+    <version>2.12.1-SNAPSHOT</version>
+</dependency>
 ```
 
 If you are using the 1.x version of java-nats and don't want to upgrade to 2.0.0 please use ranges in your POM file, java-nats-streaming 1.x is using [1.1, 1.9.9) for this.
@@ -228,23 +286,23 @@ The Java NATS library provides two mechanisms to listen for messages, three if y
     d.unsubscribe(s, 100);
     ```
 
-## Jetstream
+## JetStream
 
-Publishing and subscribing to Jetstream enabled servers is straightforward.  A 
-Jetstream enabled application will connect to a server, establish a Jetstream 
+Publishing and subscribing to JetStream enabled servers is straightforward.  A 
+JetStream enabled application will connect to a server, establish a JetStream 
 context, and then publish or subscribe.  This can be mixed and matched with standard
 NATS subject, and JetStream subscribers, depending on configuration, receive messages
 from both streams and directly from other NATS producers.
 
-### The Jetstream Context
+### The JetStream Context
 
-After establishing a connection as described above, create a Jetstream Context.
+After establishing a connection as described above, create a JetStream Context.
    
    ```java
-   JetStream js = nc.jetStream();
+   JetStream js = nc.JetStream();
    ```
 
-You can pass options to configure the Jetstream client, although the defaults should
+You can pass options to configure the JetStream client, although the defaults should
 suffice for most users.  See the `JetStreamOptions` class.
 
 There is no limit to the number of contexts used, although normally one would only
@@ -253,7 +311,7 @@ NATS authorization.
 
 ### Publishing
 
-To publish messages, use the `JetStream.Publish(...)` API.  A stream must be established
+To publish messages, use the `JetStream.publish(...)` API.  A stream must be established
 before publishing. You can publish in either a synchronous or asynchronous manner.
 
 **Synchronous:**
@@ -362,16 +420,36 @@ See the `NatsJsPushSubWithHandler.java` in the JetStream examples for a detailed
 
 See `NatsJsPushSub.java` in the JetStream examples for a detailed and runnable example.
 
+```java
+         PushSubscribeOptions so = PushSubscribeOptions.builder()
+                 .durable("optional-durable-name")
+                 .build();
+
+         // Subscribe synchronously, then just wait for messages.
+         JetStreamSubscription sub = js.subscribe("subject", so);
+         nc.flush(Duration.ofSeconds(5));
+
+         Message msg = sub.nextMessage(Duration.ofSeconds(1));
+```
+
 ### Pull Subscribing
 
 Pull subscriptions are always synchronous. The server organizes messages into a batch
 which it sends when requested.
 
+```java
+        PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
+            .durable("durable-name-is-required")
+            .build();
+
+        JetStreamSubscription sub = js.subscribe("subject", pullOptions);
+```
+
 **Fetch:**
 
 ```java
         List<Message> message = sub.fetch(100, Duration.ofSeconds(1));
-        for (Message m : message) {
+        for (Message m : messages) {
             // process message
             m.ack();
         }
@@ -422,7 +500,7 @@ The client may time out before that time. If there are less than the batch size 
 you can ask for more later. Once the entire batch size has been filled, you must make another pull request. 
 
 See `NatsJsPullSubBatchSize.java` and `NatsJsPullSubBatchSizeUseCases.java` 
-in the JetStream examples for detailed and runnable examples.
+in the JetStream examples for detailed and runnable example.
 
 **No Wait and Batch Size:**
 
@@ -460,7 +538,7 @@ in the JetStream examples for detailed and runnable examples.
 
 ### Message Acknowledgements
 
-There are multiple types of acknowledgements in Jetstream:
+There are multiple types of acknowledgements in JetStream:
 
 * `Message.ack()`: Acknowledges a message.
 * `Message.ackSync(Duration)`: Acknowledges a message and waits for a confirmation. When used with deduplications this creates exactly once delivery guarantees (within the deduplication window).  This may significantly impact performance of the system.

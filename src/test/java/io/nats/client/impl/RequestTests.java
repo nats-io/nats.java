@@ -507,4 +507,15 @@ public class RequestTests extends TestBase {
         assertTrue(f.wasCancelledClosing());
         assertTrue(f.wasCancelledTimedOut());
     }
+
+    @Test
+    public void testNatsImplAndEmptyStatsCoverage() {
+        Statistics s = NatsImpl.createEmptyStats();
+        assertEquals(0, s.getInBytes());
+        assertEquals(0, s.getInMsgs());
+        assertEquals(0, s.getOutBytes());
+        assertEquals(0, s.getOutMsgs());
+        assertEquals(0, s.getDroppedCount());
+        assertEquals(0, s.getReconnects());
+    }
 }

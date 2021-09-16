@@ -270,6 +270,17 @@ public class Headers {
 	}
 
 	/**
+	 * Returns the first value for the specific (case sensitive) key.
+	 * Will be {@code null} if the key is not found.
+	 *
+	 * @return the first value for the case sensitive key.
+	 */
+	public String getFirst(String key) {
+		List<String> values = valuesMap.get(key);
+		return values == null ? null : values.get(0);
+	}
+
+	/**
 	 * Returns a {@link List} view of the values for the specific (case insensitive) key.
 	 * Will be {@code null} if the key is not found.
 	 *
@@ -328,7 +339,7 @@ public class Headers {
 		return dataLength + NON_DATA_BYTES;
 	}
 
-	private static final int NON_DATA_BYTES = VERSION_BYTES_PLUS_CRLF.length + 2;
+	private static final int NON_DATA_BYTES = HEADER_VERSION_BYTES_PLUS_CRLF.length + 2;
 
 	/**
 	 * Returns the serialized bytes.
@@ -343,7 +354,7 @@ public class Headers {
 	}
 
 	public ByteArrayBuilder appendSerialized(ByteArrayBuilder bab) {
-		bab.append(VERSION_BYTES_PLUS_CRLF);
+		bab.append(HEADER_VERSION_BYTES_PLUS_CRLF);
 		for (String key : valuesMap.keySet()) {
 			for (String value : valuesMap.get(key)) {
 				bab.append(key);

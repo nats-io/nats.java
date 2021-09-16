@@ -1,16 +1,15 @@
 import org.gradle.internal.os.OperatingSystem
 
 plugins {
-    id 'java-library'
     id 'java'
-    id 'jacoco'
+    id 'java-library'
     id 'maven-publish'
-    id 'signing'
-    id 'com.github.kt3k.coveralls' version '2.8.4'
+    id 'jacoco'
+    id 'com.github.kt3k.coveralls' version '2.12.0'
     id 'biz.aQute.bnd.builder' version '5.1.2'
-    id 'io.codearte.nexus-staging' version '0.21.0'
-    id "de.marcphilipp.nexus-publish" version "0.3.0"
     id "org.gradle.test-retry" version "1.1.9"
+    id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
+    id 'signing'
 }
 
 import aQute.bnd.gradle.Bundle
@@ -20,51 +19,15 @@ import aQute.bnd.gradle.Bundle
 // src/main/java/io/nats/client/Nats.java
 // src/main/java/io/nats/client/package-info.java
 // CHANGELOG.md
-def jarVersion = "2.11.5"
+def jarVersion = "2.12.1"
 
-// TRAVIS_BRANCH equals TRAVIS_TAG when a tag exists / a tag event
-def secureEnv = System.getenv("TRAVIS_SECURE_ENV_VARS") != null ? System.getenv("TRAVIS_SECURE_ENV_VARS") : "false"
-def branch = System.getenv("TRAVIS_BRANCH") != null ? System.getenv("TRAVIS_BRANCH") : ""
-def tag = System.getenv("TRAVIS_TAG") != null ? System.getenv("TRAVIS_TAG") : ""
+def isRelease = System.getenv("BUILD_EVENT") == "release"
 
-// we only sign when we have a tag which means a release (non -SNAPSHOT)
-def useSigning = "true" == secureEnv && tag == branch
+// version is the variable the build actually uses.
+version = isRelease ? jarVersion : jarVersion + "-SNAPSHOT"
 
-// all releases that are not tagged from github will have snapshot on them
-def getVersionName = { ->
-    if ("" == tag)  {
-        return jarVersion + "-SNAPSHOT"
-    }
-    return jarVersion
-}
-
-version = getVersionName()
 archivesBaseName = 'jnats'
 group = 'io.nats'
-
-// Get signing properties set up from outside (env var can't handle the dot)
-if (System.getenv('SONATYPE_USERNAME') != null) {
-    project.ext['ossrhUsername'] = System.getenv('SONATYPE_USERNAME')
-    project.ext['ossrhPassword'] = System.getenv('SONATYPE_PASSWORD')
-    project.ext['signing.secretKeyRingFile'] = System.getenv('GPG_KEYRING_FILE')
-    project.ext['signing.keyId'] = System.getenv('GPG_KEY_ID')
-    project.ext['signing.password'] =  System.getenv('GPG_KEY_PASSPHRASE')
-}
-
-// If these aren't set, just set them to empty so we don't have issues getting them
-if (!project.hasProperty('ossrhUsername')) {
-    project.ext['ossrhUsername'] = ""
-    project.ext['ossrhPassword'] = ""
-}
-
-tasks {
-    closeRepository {
-        onlyIf { nexusPublishing.useStaging.get() }
-    }
-    releaseRepository{
-        onlyIf { nexusPublishing.useStaging.get() }
-    }
-}
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -79,7 +42,7 @@ repositories {
 dependencies {
     implementation 'net.i2p.crypto:eddsa:0.3.0'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.7.0'
-    testImplementation 'io.nats:jnats-server-runner:1.0.5'
+    testImplementation 'io.nats:jnats-server-runner:1.0.7'
 }
 
 sourceSets {
@@ -209,16 +172,13 @@ artifacts {
     archives javadocJar, sourcesJar, examplesJar
 }
 
-if (useSigning) {
-    signing {
-        sign configurations.archives
+nexusPublishing {
+    repositories {
+        sonatype {
+            username = System.getenv('OSSRH_USERNAME')
+            password = System.getenv('OSSRH_PASSWORD')
+        }
     }
-}
-
-nexusStaging {
-    packageGroup = group
-    username = project.getProperty('ossrhUsername')
-    password = project.getProperty('ossrhPassword')
 }
 
 publishing {
@@ -253,55 +213,17 @@ publishing {
                     url = 'https://github.com/nats-io/nats.java'
                 }
             }
-
-            pom.withXml {
-                def pomFile = file("${project.buildDir}/generated-pom.xml")
-                writeTo(pomFile)
-
-                if (useSigning) {
-                    def pomAscFile = signing.sign(pomFile).signatureFiles[0]
-                    artifact(pomAscFile) {
-                        classifier = null
-                        extension = 'pom.asc'
-                    }
-                }
-            }
-
-            // create the signed artifacts
-            if (useSigning) {
-                project.tasks.signArchives.signatureFiles.each {
-                    artifact(it) {
-                        def matcher = it.file =~ /-(sources|javadoc|examples)\.jar\.asc$/
-                        if (matcher.find()) {
-                            classifier = matcher.group(1)
-                        } else {
-                            classifier = null
-                        }
-                        extension = 'jar.asc'
-                    }
-                }
-            }
         }
     }
+}
 
-    nexusPublishing {
-        repositories {
-            sonatype {
-                username = project.getProperty('ossrhUsername')
-                password = project.getProperty('ossrhPassword')
-            }
-        }
-    }
-
-    model {
-        tasks.generatePomFileForMavenJavaPublication {
-            destination = file("$buildDir/generated-pom.xml")
-        }
-
-        tasks.publishMavenJavaPublicationToSonatypeRepository {
-            if (useSigning) {
-                dependsOn project.tasks.signArchives
-            }
-        }
+if (isRelease) {
+    signing {
+        def signingKeyId = System.getenv('SIGNING_KEY_ID')
+        def signingKey = System.getenv('SIGNING_KEY')
+        def signingPassword = System.getenv('SIGNING_PASSWORD')
+        useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+        sign configurations.archives
+        sign publishing.publications.mavenJava
     }
 }

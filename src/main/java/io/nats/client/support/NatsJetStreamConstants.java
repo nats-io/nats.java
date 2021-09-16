@@ -1,6 +1,10 @@
 package io.nats.client.support;
 
 public interface NatsJetStreamConstants {
+    /**
+     * The maximum pull size
+     */
+    int MAX_PULL_SIZE = 256;
 
     String JS_PREFIX = "$JS.";
 
@@ -29,9 +33,6 @@ public interface NatsJetStreamConstants {
 
     // JSAPI_CONSUMER_LIST is used to return all detailed consumer information
     String JSAPI_CONSUMER_LIST = "CONSUMER.LIST.%s";
-
-    // JSAPI_STREAMS can lookup a stream by subject.
-    String JSAPI_STREAMS = "STREAM.NAMES";
 
     // JSAPI_STREAM_CREATE is the endpoint to create new streams.
     String JSAPI_STREAM_CREATE = "STREAM.CREATE.%s";
@@ -64,4 +65,8 @@ public interface NatsJetStreamConstants {
     String EXPECTED_STREAM_HDR = "Nats-Expected-Stream";
     String EXPECTED_LAST_SEQ_HDR = "Nats-Expected-Last-Sequence";
     String EXPECTED_LAST_MSG_ID_HDR = "Nats-Expected-Last-Msg-Id";
+    String EXPECTED_LAST_SUB_SEQ_HDR = "Nats-Expected-Last-Subject-Sequence";
+
+    int JS_CONSUMER_NOT_FOUND_ERR = 10014;
+    int JS_NO_MESSAGE_FOUND_ERR = 10037;
 }

@@ -17,6 +17,7 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
+import static io.nats.client.support.NatsConstants.EMPTY;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SubscribeOptionsTests extends TestBase {
@@ -45,6 +46,137 @@ public class SubscribeOptionsTests extends TestBase {
         assertNull(so.getDeliverSubject());
 
         assertNotNull(so.toString()); // COVERAGE
+    }
+
+    @Test
+    public void testDurableValidation() {
+        // push
+        assertNull(PushSubscribeOptions.builder()
+                .durable(null)
+                .configuration(ConsumerConfiguration.builder().durable(null).build())
+                .build()
+                .getDurable());
+
+        assertEquals("y", PushSubscribeOptions.builder()
+                .durable(null)
+                .configuration(ConsumerConfiguration.builder().durable("y").build())
+                .build()
+                .getDurable());
+
+        assertEquals("x", PushSubscribeOptions.builder()
+                .durable("x")
+                .configuration(ConsumerConfiguration.builder().durable(null).build())
+                .build()
+                .getDurable());
+
+        assertEquals("x", PushSubscribeOptions.builder()
+                .durable("x")
+                .configuration(ConsumerConfiguration.builder().durable("x").build())
+                .build()
+                .getDurable());
+
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder()
+                .durable("x")
+                .configuration(ConsumerConfiguration.builder().durable("y").build())
+                .build());
+
+        assertNull(PushSubscribeOptions.builder().build().getDurable());
+
+        // pull
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder()
+                .durable(null)
+                .configuration(ConsumerConfiguration.builder().durable(null).build())
+                .build()
+                .getDurable());
+
+        assertEquals("y", PullSubscribeOptions.builder()
+                .durable(null)
+                .configuration(ConsumerConfiguration.builder().durable("y").build())
+                .build()
+                .getDurable());
+
+        assertEquals("x", PullSubscribeOptions.builder()
+                .durable("x")
+                .configuration(ConsumerConfiguration.builder().durable(null).build())
+                .build()
+                .getDurable());
+
+        assertEquals("x", PullSubscribeOptions.builder()
+                .durable("x")
+                .configuration(ConsumerConfiguration.builder().durable("x").build())
+                .build()
+                .getDurable());
+
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder()
+                .durable("x")
+                .configuration(ConsumerConfiguration.builder().durable("y").build())
+                .build());
+
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().build());
+    }
+
+    @Test
+    public void testDeliverGroupValidation() {
+        assertNull(PushSubscribeOptions.builder()
+                .deliverGroup(null)
+                .configuration(ConsumerConfiguration.builder().deliverGroup(null).build())
+                .build()
+                .getDeliverGroup());
+
+        assertEquals("y", PushSubscribeOptions.builder()
+                .deliverGroup(null)
+                .configuration(ConsumerConfiguration.builder().deliverGroup("y").build())
+                .build()
+                .getDeliverGroup());
+
+        assertEquals("x", PushSubscribeOptions.builder()
+                .deliverGroup("x")
+                .configuration(ConsumerConfiguration.builder().deliverGroup(null).build())
+                .build()
+                .getDeliverGroup());
+
+        assertEquals("x", PushSubscribeOptions.builder()
+                .deliverGroup("x")
+                .configuration(ConsumerConfiguration.builder().deliverGroup("x").build())
+                .build()
+                .getDeliverGroup());
+
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder()
+                .deliverGroup("x")
+                .configuration(ConsumerConfiguration.builder().deliverGroup("y").build())
+                .build());
+    }
+
+    @Test
+    public void testDeliverSubjectValidation() {
+        assertNull(PushSubscribeOptions.builder()
+                .deliverSubject(null)
+                .configuration(ConsumerConfiguration.builder().deliverSubject(null).build())
+                .build()
+                .getDeliverSubject());
+
+        assertEquals("y", PushSubscribeOptions.builder()
+                .deliverSubject(null)
+                .configuration(ConsumerConfiguration.builder().deliverSubject("y").build())
+                .build()
+                .getDeliverSubject());
+
+        assertEquals("x", PushSubscribeOptions.builder()
+                .deliverSubject("x")
+                .configuration(ConsumerConfiguration.builder().deliverSubject(null).build())
+                .build()
+                .getDeliverSubject());
+
+        assertEquals("x", PushSubscribeOptions.builder()
+                .deliverSubject("x")
+                .configuration(ConsumerConfiguration.builder().deliverSubject("x").build())
+                .build()
+                .getDeliverSubject());
+
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder()
+                .deliverSubject("x")
+                .configuration(ConsumerConfiguration.builder().deliverSubject("y").build())
+                .build());
     }
 
     @Test
@@ -100,5 +232,26 @@ public class SubscribeOptionsTests extends TestBase {
         // in configuration
         ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
         PullSubscribeOptions.builder().configuration(cc).build();
+    }
+
+    @Test
+    public void testBindCreationErrors() {
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(null, DURABLE));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(EMPTY, DURABLE));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(STREAM, null));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(STREAM, EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(STREAM).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(EMPTY).durable(DURABLE).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().durable(DURABLE).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(STREAM).durable(EMPTY).bind(true).build());
+
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(null, DURABLE));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(EMPTY, DURABLE));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(STREAM, null));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(STREAM, EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(EMPTY).durable(DURABLE).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().durable(DURABLE).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).durable(EMPTY).bind(true).build());
     }
 }

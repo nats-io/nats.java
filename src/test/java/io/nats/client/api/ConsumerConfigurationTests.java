@@ -31,8 +31,9 @@ public class ConsumerConfigurationTests extends TestBase {
 
         ConsumerConfiguration c = ConsumerConfiguration.builder()
                 .ackPolicy(AckPolicy.Explicit)
-                .ackWait(Duration.ofSeconds(99))
+                .ackWait(Duration.ofSeconds(99)) // duration
                 .deliverPolicy(DeliverPolicy.ByStartSequence)
+                .description("blah")
                 .durable(DURABLE)
                 .filterSubject("fs")
                 .maxDeliver(5555)
@@ -43,8 +44,9 @@ public class ConsumerConfigurationTests extends TestBase {
                 .startSequence(2001)
                 .startTime(zdt)
                 .deliverSubject(DELIVER)
-                .idleHeartbeat(Duration.ofSeconds(66))
+                .idleHeartbeat(Duration.ofSeconds(66)) // duration
                 .flowControl(true)
+                .maxPullWaiting(73)
                 .build();
 
         assertEquals(AckPolicy.Explicit, c.getAckPolicy());
@@ -52,6 +54,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(66), c.getIdleHeartbeat());
         assertEquals(DeliverPolicy.ByStartSequence, c.getDeliverPolicy());
         assertEquals(DELIVER, c.getDeliverSubject());
+        assertEquals("blah", c.getDescription());
         assertEquals(DURABLE, c.getDurable());
         assertEquals("fs", c.getFilterSubject());
         assertEquals(5555, c.getMaxDeliver());
@@ -61,6 +64,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(2001, c.getStartSequence());
         assertEquals(zdt, c.getStartTime());
         assertTrue(c.getFlowControl());
+        assertEquals(73, c.getMaxPullWaiting());
 
         ConsumerCreateRequest ccr = new ConsumerCreateRequest(STREAM, c);
         assertEquals(STREAM, ccr.getStreamName());
@@ -73,6 +77,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(66), c.getIdleHeartbeat());
         assertEquals(DeliverPolicy.ByStartSequence, c.getDeliverPolicy());
         assertEquals(DELIVER, c.getDeliverSubject());
+        assertEquals("blah", c.getDescription());
         assertEquals(DURABLE, c.getDurable());
         assertEquals("fs", c.getFilterSubject());
         assertEquals(5555, c.getMaxDeliver());
@@ -81,9 +86,45 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(2001, c.getStartSequence());
         assertEquals(zdt.toEpochSecond(), c.getStartTime().toEpochSecond());
         assertTrue(c.getFlowControl());
+        assertEquals(73, c.getMaxPullWaiting());
 
         assertNotNull(ccr.toString()); // COVERAGE
         assertNotNull(c.toString()); // COVERAGE
+
+        // millis instead of duration coverage
+        // supply null as deliverPolicy, ackPolicy , replayPolicy,
+        c = ConsumerConfiguration.builder()
+                .deliverPolicy(null)
+                .ackPolicy(null)
+                .replayPolicy(null)
+                .ackWait(9000) // millis
+                .idleHeartbeat(6000) // millis
+                .build();
+
+        assertEquals(AckPolicy.Explicit, c.getAckPolicy());
+        assertEquals(DeliverPolicy.All, c.getDeliverPolicy());
+        assertEquals(ReplayPolicy.Instant, c.getReplayPolicy());
+        assertEquals(Duration.ofSeconds(9), c.getAckWait());
+        assertEquals(Duration.ofSeconds(6), c.getIdleHeartbeat());
+
+        // test builder getters
+        ConsumerConfiguration.Builder b = ConsumerConfiguration.builder();
+        assertNull(b.getDurable());
+        assertNull(b.getDeliverSubject());
+        assertNull(b.getFilterSubject());
+        assertEquals(0, b.getMaxAckPending());
+        assertEquals(AckPolicy.Explicit, b.getAckPolicy());
+
+        b.durable(DURABLE)
+                .deliverSubject(subject(888))
+                .filterSubject(subject(887))
+                .maxAckPending(886)
+                .ackPolicy(AckPolicy.None);
+        assertEquals(DURABLE, b.getDurable());
+        assertEquals(subject(888), b.getDeliverSubject());
+        assertEquals(subject(887), b.getFilterSubject());
+        assertEquals(886, b.getMaxAckPending());
+        assertEquals(AckPolicy.None, b.getAckPolicy());
     }
 
     @Test
@@ -99,11 +140,13 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
         assertEquals(2020, c.getStartTime().getYear(), 2020);
         assertEquals(21, c.getStartTime().getSecond(), 21);
+        assertEquals("blah blah", c.getDescription());
         assertEquals("foo-durable", c.getDurable());
         assertEquals("bar", c.getDeliverSubject());
         assertEquals("foo-filter", c.getFilterSubject());
         assertEquals(42, c.getMaxAckPending());
         assertEquals("sample_freq-value", c.getSampleFrequency());
         assertTrue(c.getFlowControl());
+        assertEquals(128, c.getMaxPullWaiting());
     }
 }

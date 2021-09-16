@@ -15,6 +15,8 @@ package io.nats.client;
 
 import io.nats.client.api.ConsumerConfiguration;
 
+import static io.nats.client.support.Validator.*;
+
 /**
  * The PushSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
  * Options are created using the constructors or a {@link Builder}.
@@ -22,11 +24,28 @@ import io.nats.client.api.ConsumerConfiguration;
 public abstract class SubscribeOptions {
 
     protected final String stream;
+    protected final boolean bind;
     protected final ConsumerConfiguration consumerConfig;
 
-    protected SubscribeOptions(String stream, ConsumerConfiguration consumerConfig) {
-        this.stream = stream;
-        this.consumerConfig = consumerConfig;
+    protected SubscribeOptions(String stream, String durable, boolean pull, boolean bind,
+                               String deliverSubject, String deliverGroup, ConsumerConfiguration cc) {
+
+        this.stream = validateStreamName(stream, bind); // required when bind mode
+
+        durable = validateMustMatchIfBothSupplied(durable, cc == null ? null : cc.getDurable(), "Builder Durable", "Consumer Configuration Durable");
+        durable = validateDurable(durable, pull || bind); // required when pull or bind
+
+        deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, cc == null ? null : cc.getDeliverGroup(), "Builder Deliver Group", "Consumer Configuration Deliver Group");
+
+        deliverSubject = validateMustMatchIfBothSupplied(deliverSubject, cc == null ? null : cc.getDeliverSubject(), "Builder Deliver Subject", "Consumer Configuration Deliver Subject");
+
+        this.consumerConfig = ConsumerConfiguration.builder(cc)
+                .durable(durable)
+                .deliverSubject(deliverSubject)
+                .deliverGroup(deliverGroup)
+                .build();
+
+        this.bind = bind;
     }
 
     /**
@@ -46,6 +65,14 @@ public abstract class SubscribeOptions {
     }
 
     /**
+     * Gets whether this subscription is expected to bind to an existing stream and durable consumer
+     * @return the direct flag
+     */
+    public boolean isBind() {
+        return bind;
+    }
+
+    /**
      * Gets the consumer configuration.
      * @return the consumer configuration.
      */
@@ -57,6 +84,7 @@ public abstract class SubscribeOptions {
     public String toString() {
         return getClass().getSimpleName() + "{" +
                 "stream='" + stream + '\'' +
+                "bind=" + bind +
                 ", " + consumerConfig +
                 '}';
     }
@@ -67,6 +95,7 @@ public abstract class SubscribeOptions {
      */
     protected static abstract class Builder<B, SO> {
         protected String stream;
+        protected boolean isBind;
         protected String durable;
         protected ConsumerConfiguration consumerConfig;
 
@@ -79,7 +108,17 @@ public abstract class SubscribeOptions {
          * @return the builder
          */
         public B stream(String stream) {
-            this.stream = stream;
+            this.stream = emptyAsNull(stream);
+            return getThis();
+        }
+
+        /**
+         * Specify the to attach in direct mode
+         * @return the builder
+         * @param isBind whether to bind or not
+         */
+        public B bind(boolean isBind) {
+            this.isBind = isBind;
             return getThis();
         }
 
@@ -90,7 +129,7 @@ public abstract class SubscribeOptions {
          * @return the builder
          */
         public B durable(String durable) {
-            this.durable = durable;
+            this.durable = emptyAsNull(durable);
             return getThis();
         }
 

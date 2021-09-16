@@ -111,6 +111,16 @@ public class NatsJsUtils {
         return si;
     }
 
+    public static StreamInfo createOrReplaceStream(JetStreamManagement jsm, String streamName, StorageType storageType, String... subjects)
+            throws IOException, JetStreamApiException {
+
+        StreamInfo si = getStreamInfo(jsm, streamName);
+        if (si != null) {
+            jsm.deleteStream(streamName);
+        }
+        return createStream(jsm, streamName, storageType, subjects);
+    }
+
     public static boolean streamExists(Connection nc, String streamName) throws IOException, JetStreamApiException {
         return getStreamInfo(nc.jetStreamManagement(), streamName) != null;
     }

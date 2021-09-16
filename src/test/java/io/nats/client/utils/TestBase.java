@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
+import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.examples.ExampleUtils.uniqueEnough;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -34,9 +35,14 @@ public class TestBase {
     public static final String HAS_DOT       = "has.dot";
     public static final String HAS_STAR      = "has*star";
     public static final String HAS_GT        = "has>gt";
+    public static final String HAS_DASH      = "has-dash";
+    public static final String HAS_UNDER     = "has_under";
     public static final String HAS_DOLLAR    = "has$dollar";
     public static final String HAS_LOW       = "has\tlower\rthan\nspace";
     public static final String HAS_127       = "has" + (char)127 + "127";
+    public static final String HAS_FWD_SLASH = "has/fwd/slash";
+    public static final String HAS_EQUALS    = "has=equals";
+    public static final String HAS_TIC       = "has`tic";
 
     public static final long STANDARD_CONNECTION_WAIT_MS = 5000;
     public static final long STANDARD_FLUSH_TIMEOUT_MS = 2000;
@@ -65,6 +71,10 @@ public class TestBase {
 
     public static void runInJsServer(InServerTest inServerTest) throws Exception {
         runInServer(false, true, inServerTest);
+    }
+
+    public static void runInJsServer(Options.Builder builder, InServerTest inServerTest) throws Exception {
+        runInServer(false, true, builder, inServerTest);
     }
 
     public static void runInJsServer(boolean debug, InServerTest inServerTest) throws Exception {
@@ -110,6 +120,7 @@ public class TestBase {
     public static final String DURABLE = "durable";
     public static final String DELIVER = "deliver";
     public static final String MESSAGE_ID = "mid";
+    public static final String BUCKET = "bucket";
     public static final String DATA = "data";
 
     public static String stream(int seq) {
@@ -128,8 +139,8 @@ public class TestBase {
         return SUBJECT + "-" + seq;
     }
 
-    public static String subject(String... fields) {
-        return SUBJECT + "." + String.join(".", fields);
+    public static String subjectDot(String field) {
+        return SUBJECT + DOT + field;
     }
 
     public static String queue(int seq) {
@@ -146,6 +157,10 @@ public class TestBase {
 
     public static String deliver(int seq) {
         return DELIVER + "-" + seq;
+    }
+
+    public static String bucket(int seq) {
+        return BUCKET + "-" + seq;
     }
 
     public static String messageId(int seq) {

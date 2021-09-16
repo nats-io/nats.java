@@ -1,6 +1,16 @@
 
 # Change Log
 
+## Version 2.11.5
+
+#### Pull Requests
+
+[ENHANCEMENT] PR #506 handle unsigned long values in JetStream api data.
+
+## Version 2.11.4
+
+Revert performance fix due to high cpu during idle.
+
 ## Version 2.11.3
 
 #### Pull Requests

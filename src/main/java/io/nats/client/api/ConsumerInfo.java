@@ -37,6 +37,8 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
     private final long numWaiting;
     private final long numAckPending;
     private final long numRedelivered;
+    private final ClusterInfo clusterInfo;
+    private final boolean pushBound;
 
     public ConsumerInfo(Message msg) {
         this(new String(msg.getData(), StandardCharsets.UTF_8));
@@ -61,6 +63,9 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
         numRedelivered = JsonUtils.readLong(json, NUM_REDELIVERED_RE, 0);
         numPending = JsonUtils.readLong(json, NUM_PENDING_RE, 0);
         numWaiting = JsonUtils.readLong(json, NUM_WAITING_RE, 0);
+
+        clusterInfo = ClusterInfo.optionalInstance(json);
+        pushBound = JsonUtils.readBoolean(json, PUSH_BOUND_RE);
     }
     
     public ConsumerConfiguration getConsumerConfiguration() {
@@ -103,6 +108,14 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
         return numRedelivered;
     }
 
+    public ClusterInfo getClusterInfo() {
+        return clusterInfo;
+    }
+
+    public boolean isPushBound() {
+        return pushBound;
+    }
+
     @Override
     public String toString() {
         return "ConsumerInfo{" +
@@ -112,10 +125,12 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
                 ", numWaiting=" + numWaiting +
                 ", numAckPending=" + numAckPending +
                 ", numRedelivered=" + numRedelivered +
+                ", pushBound=" + pushBound +
                 ", created=" + created +
                 ", " + objectString("delivered", delivered) +
                 ", " + objectString("ackFloor", ackFloor) +
                 ", " + objectString("configuration", configuration) +
+                ", " + objectString("cluster", clusterInfo) +
                 '}';
     }
 }

@@ -47,7 +47,6 @@ public class NatsJsPushSub {
                 .defaultSubject("example-subject")
                 .defaultMsgCount(0)
 //                .defaultDurable("push-sub-durable")
-//                .defaultDeliver("push-sub-deliver")
                 .build(args, usageString);
 
         int count = exArgs.msgCount < 1 ? Integer.MAX_VALUE : exArgs.msgCount;
@@ -65,9 +64,6 @@ public class NatsJsPushSub {
             if (exArgs.durable != null) {
                 System.out.println("  Durable: " + exArgs.durable);
             }
-            if (exArgs.deliver != null) {
-                System.out.println("  Deliver Subject: " + exArgs.deliver);
-            }
             if (count == Integer.MAX_VALUE) {
                 System.out.println("  Until there are no more messages");
             }
@@ -81,14 +77,16 @@ public class NatsJsPushSub {
             // A push subscription means the server will "push" us messages.
             // Build our subscription options. We'll create a durable subscription.
             // Durable means the server will remember where we are if we use that name.
-            PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder();
-            if (exArgs.durable != null) {
-                builder.durable(exArgs.durable);
-            }
-            if (exArgs.deliver != null) {
-                builder.deliverSubject(exArgs.deliver);
-            }
-            PushSubscribeOptions so = builder.build();
+            //
+            // * The stream is not technically required. If it is not provided, the
+            // code building the subscription will look it up by making a request to the server.
+            // If you know the stream, you might as well supply it.
+            //
+            // * Durable can by null or empty, the build treats them the same.
+            PushSubscribeOptions so = PushSubscribeOptions.builder()
+                    .stream(exArgs.stream)
+                    .durable(exArgs.durable)
+                    .build();
 
             // Subscribe synchronously, then just wait for messages.
             JetStreamSubscription sub = js.subscribe(exArgs.subject, so);

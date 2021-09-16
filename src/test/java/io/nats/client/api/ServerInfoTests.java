@@ -33,7 +33,7 @@ public class ServerInfoTests {
         ServerInfo info = new ServerInfo(json);
         assertEquals("serverId", info.getServerId());
         assertEquals("serverName", info.getServerName());
-        assertEquals("0.0.0", info.getVersion());
+        assertEquals("1.2.3", info.getVersion());
         assertEquals("go0.0.0", info.getGoVersion());
         assertEquals("host", info.getHost());
         assertEquals(7777, info.getPort());
@@ -53,6 +53,22 @@ public class ServerInfoTests {
         assertArrayEquals(ascii, info.getNonce());
 
         assertNotNull(info.toString()); // COVERAGE
+
+        ServerInfo info234 = new ServerInfo(json.replace("1.2.3", "2.3.4"));
+        ServerInfo info235 = new ServerInfo(json.replace("1.2.3", "2.3.5"));
+        ServerInfo info235Beta2 = new ServerInfo(json.replace("1.2.3", "2.3.5-beta.2"));
+        assertTrue(info.isOlderThanVersion("2.3.4"));
+        assertTrue(info234.isOlderThanVersion("2.3.5"));
+        assertTrue(info235.isOlderThanVersion("2.3.5-beta.2"));
+        assertTrue(info.isSameVersion("1.2.3"));
+        assertTrue(info234.isSameVersion("2.3.4"));
+        assertTrue(info235.isSameVersion("2.3.5"));
+        assertTrue(info235Beta2.isSameVersion("2.3.5-beta.2"));
+        assertFalse(info235.isSameVersion("2.3.4"));
+        assertFalse(info235Beta2.isSameVersion("2.3.5"));
+        assertTrue(info234.isNewerVersionThan("1.2.3"));
+        assertTrue(info235.isNewerVersionThan("2.3.4"));
+        assertTrue(info235Beta2.isNewerVersionThan("2.3.5"));
     }
 
     @Test

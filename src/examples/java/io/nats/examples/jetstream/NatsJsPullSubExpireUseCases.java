@@ -50,6 +50,10 @@ public class NatsJsPullSubExpireUseCases {
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
             NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
 
+            // after version 2.4.0 the server behavior changed regarding returning 408's
+            // and that it no longer returns any 408s
+            boolean no408sAreComing = nc.getServerInfo().isNewerVersionThan("2.4.0");
+
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
@@ -66,71 +70,106 @@ public class NatsJsPullSubExpireUseCases {
             JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);
             nc.flush(Duration.ofSeconds(1));
 
-            sub.pullExpiresIn(10, Duration.ofSeconds(2));
-
             // 1. Publish some that is less than the batch size.
             System.out.println("\n----------\n1. Publish some amount of messages, but not entire batch size.");
             publish(js, exArgs.subject, "A", 6);
+            sub.pullExpiresIn(10, Duration.ofMillis(1200));
             List<Message> messages = readMessagesAck(sub, Duration.ofSeconds(2));
-            System.out.println("We should have received 6 total messages, we received: " + messages.size());
-            System.out.println("We should have received 6 regular messages, we received: " + countJs(messages));
-            System.out.println("We should have received 0 408 markers of last batch, we received: " + count408s(messages));
+            if (no408sAreComing) {
+                System.out.println("We should have received 6 total messages, we received: " + messages.size());
+            }
+            else {
+                System.out.println("We should have received 6 total messages, we received: " + messages.size());
+                System.out.println("We should have received 6 regular messages, we received: " + countJs(messages));
+                System.out.println("We should have received 0 408 markers of last batch, we received: " + count408s(messages));
+            }
 
             // 2. Publish some more covering our pull size...
             System.out.println("----------\n2. Publish more than the batch size.");
-            sub.pullExpiresIn(10, Duration.ofSeconds(2));
+            sub.pullExpiresIn(10, Duration.ofMillis(1200));
             publish(js, exArgs.subject, "B", 14);
             messages = readMessagesAck(sub, Duration.ofSeconds(2));
-            System.out.println("We should have received 14 total messages, we received: " + messages.size());
-            System.out.println("We should have received 10 regular messages, we received: " + countJs(messages));
-            System.out.println("We should have received 4 408 markers of last batch, we received: " + count408s(messages));
+            if (no408sAreComing) {
+                System.out.println("We should have received 10 total messages, we received: " + messages.size());
+            }
+            else {
+                System.out.println("We should have received 14 total messages, we received: " + messages.size());
+                System.out.println("We should have received 10 regular messages, we received: " + countJs(messages));
+                System.out.println("We should have received 4 408 markers of last batch, we received: " + count408s(messages));
+            }
 
             // 3. There are still 4 messages from B, but the batch was finished
             // -  won't get any messages until a pull is issued.
-            System.out.println("----------\n3. Read without re-issue.");
+            System.out.println("----------\n3. Read without issuing a pull.");
             messages = readMessagesAck(sub, Duration.ofSeconds(2));
             System.out.println("We should have received 0 total messages, we received: " + messages.size());
 
             // 4. re-issue the pull to get the last 4
-            System.out.println("----------\n4. Re-issue to get the last 4.");
-            sub.pullExpiresIn(10, Duration.ofSeconds(2));
+            System.out.println("----------\n4. Issue the pull to get the last 4.");
+            sub.pullExpiresIn(10, Duration.ofMillis(1200));
             messages = readMessagesAck(sub, Duration.ofSeconds(2));
-            System.out.println("We should have received 4 total messages, we received: " + messages.size());
-            System.out.println("We should have received 4 regular messages, we received: " + countJs(messages));
-            System.out.println("We should have received 0 408 markers of last batch, we received: " + count408s(messages));
+            if (no408sAreComing) {
+                System.out.println("We should have received 4 total messages, we received: " + messages.size());
+            }
+            else {
+                System.out.println("We should have received 4 total messages, we received: " + messages.size());
+                System.out.println("We should have received 4 regular messages, we received: " + countJs(messages));
+                System.out.println("We should have received 0 408 markers of last batch, we received: " + count408s(messages));
+            }
 
             // 5. publish a lot of messages
             System.out.println("----------\n5. Publish a lot of messages. The last pull was under the batch size.");
+            System.out.println(            "   Issue another pull with batch size less than number of messages.");
             publish(js, exArgs.subject, "C", 25);
-            sub.pullExpiresIn(10, Duration.ofSeconds(2));
+            sub.pullExpiresIn(10, Duration.ofMillis(1200));
             messages = readMessagesAck(sub, Duration.ofSeconds(2));
-            System.out.println("We should have received 16 total messages, we received: " + messages.size());
-            System.out.println("We should have received 10 regular messages, we received: " + countJs(messages));
-            System.out.println("We should have received 6 408 markers of last batch, we received: " + count408s(messages));
+            if (no408sAreComing) {
+                System.out.println("We should have received 10 total messages, we received: " + messages.size());
+            }
+            else {
+                System.out.println("We should have received 16 total messages, we received: " + messages.size());
+                System.out.println("We should have received 10 regular messages, we received: " + countJs(messages));
+                System.out.println("We should have received 6 408 markers of last batch, we received: " + count408s(messages));
+            }
 
             // 6. there are still more messages
-            System.out.println("----------\n6. Still more messages.");
-            sub.pullExpiresIn(10, Duration.ofSeconds(2));
+            System.out.println("----------\n6. Still more messages. Issue another pull with batch size less than number of messages.");
+            sub.pullExpiresIn(10, Duration.ofMillis(1200));
             messages = readMessagesAck(sub, Duration.ofSeconds(2));
-            System.out.println("We should have received 1 total messages, we received: " + messages.size());
-            System.out.println("We should have received 10 regular messages, we received: " + countJs(messages));
-            System.out.println("We should have received 0 408 markers of last batch, we received: " + count408s(messages));
+            if (no408sAreComing) {
+                System.out.println("We should have received 10 total messages, we received: " + messages.size());
+            }
+            else {
+                System.out.println("We should have received 10 total messages, we received: " + messages.size());
+                System.out.println("We should have received 10 regular messages, we received: " + countJs(messages));
+                System.out.println("We should have received 0 408 markers of last batch, we received: " + count408s(messages));
+            }
 
             // 7. there are still more messages
-            System.out.println("----------\n7. Still more messages.");
-            sub.pullExpiresIn(10, Duration.ofSeconds(2));
+            System.out.println("----------\n7. Still more messages. Issue another pull with batch size more than number of messages.");
+            sub.pullExpiresIn(10, Duration.ofMillis(1200));
             messages = readMessagesAck(sub, Duration.ofSeconds(2));
-            System.out.println("We should have received 5 total messages, we received: " + messages.size());
-            System.out.println("We should have received 5 regular messages, we received: " + countJs(messages));
-            System.out.println("We should have received 0 408 markers of last batch, we received: " + count408s(messages));
+            if (no408sAreComing) {
+                System.out.println("We should have received 5 total messages, we received: " + messages.size());
+            }
+            else {
+                System.out.println("We should have received 5 total messages, we received: " + messages.size());
+                System.out.println("We should have received 5 regular messages, we received: " + countJs(messages));
+                System.out.println("We should have received 0 408 markers of last batch, we received: " + count408s(messages));
+            }
 
             // 8. we got them all
-            System.out.println("----------\n7. No messages left.");
-            sub.pullExpiresIn(10, Duration.ofSeconds(2));
+            System.out.println("----------\n8. No messages left.");
+            sub.pullExpiresIn(10, Duration.ofMillis(1200));
             messages = readMessagesAck(sub, Duration.ofSeconds(2));
-            System.out.println("We should have received 5 total messages, we received: " + messages.size());
-            System.out.println("We should have received 0 regular messages, we received: " + countJs(messages));
-            System.out.println("We should have received 5 408 markers of last batch, we received: " + count408s(messages));
+            if (no408sAreComing) {
+                System.out.println("We should have received 0 total messages, we received: " + messages.size());
+            }
+            else {
+                System.out.println("We should have received 5 total messages, we received: " + messages.size());
+                System.out.println("We should have received 0 regular messages, we received: " + countJs(messages));
+                System.out.println("We should have received 5 408 markers of last batch, we received: " + count408s(messages));
+            }
 
             System.out.println("----------\n");
         }

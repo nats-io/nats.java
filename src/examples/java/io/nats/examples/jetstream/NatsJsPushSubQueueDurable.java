@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2021 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -117,7 +117,6 @@ public class NatsJsPushSubQueueDurable {
             for (int x = 1; x <= exArgs.msgCount; x++) {
                 try {
                     PublishAck pa = js.publish(exArgs.subject, ("Data # " + x).getBytes(StandardCharsets.US_ASCII));
-                    System.out.println("PUB " + pa);
                 } catch (IOException | JetStreamApiException e) {
                     // something pretty wrong here
                     e.printStackTrace();
@@ -129,23 +128,26 @@ public class NatsJsPushSubQueueDurable {
 
     static class JsQueueSubscriber implements Runnable {
         int id;
+        int thisReceived;
+        List<String> datas;
+
         ExampleArgs exArgs;
         JetStream js;
         JetStreamSubscription sub;
         AtomicInteger allReceived;
-        AtomicInteger thisReceived;
 
         public JsQueueSubscriber(int id, ExampleArgs exArgs, JetStream js, JetStreamSubscription sub, AtomicInteger allReceived) {
             this.id = id;
+            thisReceived = 0;
+            datas = new ArrayList<>();
             this.exArgs = exArgs;
             this.js = js;
             this.sub = sub;
             this.allReceived = allReceived;
-            this.thisReceived = new AtomicInteger();
         }
 
         public void report() {
-            System.out.printf("QS # %d handled %d messages.\n", id, thisReceived.get());
+            System.out.printf("Sub # %d handled %d messages.\n", id, thisReceived);
         }
 
         @Override
@@ -154,10 +156,11 @@ public class NatsJsPushSubQueueDurable {
                 try {
                     Message msg = sub.nextMessage(Duration.ofMillis(500));
                     while (msg != null) {
-                        thisReceived.incrementAndGet();
+                        thisReceived++;
                         allReceived.incrementAndGet();
-                        System.out.printf("QS # %d message # %d %s\n",
-                                id, thisReceived.get(), new String(msg.getData(), StandardCharsets.US_ASCII));
+                        String data = new String(msg.getData(), StandardCharsets.US_ASCII);
+                        datas.add(data);
+                        System.out.printf("QS # %d message # %d %s\n", id, thisReceived, data);
                         msg.ack();
 
                         msg = sub.nextMessage(Duration.ofMillis(500));
