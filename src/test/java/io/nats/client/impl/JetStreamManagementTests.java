@@ -525,6 +525,18 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testCreateConsumersFlowControl() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            // SFF TODO
+            if (nc.getServerInfo().isNewerVersionThan("2.5.0")) {
+                createMemoryStream(jsm, STREAM, SUBJECT);
+            }
+        });
+    }
+
+    @Test
     public void testGetConsumerInfo() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -829,7 +841,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testAuthCreateUpdateStream() throws Exception {
-
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/js_authorization.conf", false)) {
             Options optionsSrc = new Options.Builder().server(ts.getURI())
                     .userInfo("serviceup".toCharArray(), "uppass".toCharArray()).build();

@@ -15,18 +15,25 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.ConsumerInfo;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static io.nats.client.support.JsonUtils.printFormatted;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class JetStreamPushHandlerTests extends JetStreamTestBase {
 
     @Test
-    public void testHandlerSub() throws Exception {
+    public void testHandler() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -122,11 +129,66 @@ public class JetStreamPushHandlerTests extends JetStreamTestBase {
             msgLatch2.await();
             assertEquals(10, received2.get());
 
+            ConsumerInfo ci = sub.getConsumerInfo();
+            assertEquals(10, ci.getNumAckPending());
+
             sleep(1000); // just give it time for the server to realize the messages are not ack'ed
 
             dispatcher.unsubscribe(sub);
             sub = js.subscribe(SUBJECT, pso2);
-            assertNotNull(sub.nextMessage(Duration.ofSeconds(5)));
+            List<Message> list = readMessagesAck(sub, false);
+            assertEquals(10, list.size());
+        });
+    }
+
+    @Test
+    public void testHandlerFlowControlAutoHandledProtoMessages() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            // publish some messages
+            jsPublish(js, SUBJECT, 1000);
+
+            // create a dispatcher without a default handler.
+            Dispatcher dispatcher = nc.createDispatcher();
+
+            CountDownLatch msgLatch = new CountDownLatch(1000);
+            AtomicInteger count = new AtomicInteger();
+            AtomicReference<Set<String>> set = new AtomicReference<>(new HashSet<>());
+
+            // create our message handler.
+            MessageHandler handler = (Message msg) -> {
+                if (set.get().add(new String(msg.getData()))) {
+                    count.incrementAndGet();
+                }
+                msg.ack();
+                msgLatch.countDown();
+            };
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                .durable(DURABLE)
+                .flowControl(true)
+                .idleHeartbeat(1000)
+                .build();
+
+            PushSubscribeOptions pso = PushSubscribeOptions.builder()
+                .configuration(cc)
+                .build();
+
+            // Subscribe using the handler
+            JetStreamSubscription sub = js.subscribe(SUBJECT, dispatcher, handler, false, pso);
+
+            // Wait for messages to arrive using the countdown latch.
+            msgLatch.await();
+
+            ConsumerInfo ci = sub.getConsumerInfo();
+            printFormatted(ci);
+
+            assertEquals(1000, count.get());
         });
     }
 }

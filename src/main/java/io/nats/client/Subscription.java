@@ -57,20 +57,39 @@ public interface Subscription extends Consumer {
      * Read the next message for a subscription, or block until one is available.
      * While useful in some situations, i.e. tests and simple examples, using a
      * Dispatcher is generally easier and likely preferred for application code.
-     * 
+     *
      * <p>Will return null if the calls times out.
-     * 
-     * 
+     *
      * <p>Use a timeout of 0 to wait indefinitely. This could still be interrupted if
      * the subscription is unsubscribed or the client connection is closed.
-     * 
-     * 
+     *
+     *
      * @param timeout the maximum time to wait
      * @return the next message for this subscriber or null if there is a timeout
      * @throws IllegalStateException if the subscription belongs to a dispatcher, or is not active
      * @throws InterruptedException if one occurs while waiting for the message
      */
     Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException;
+
+    /**
+     * Read the next message for a subscription, or block until one is available.
+     * While useful in some situations, i.e. tests and simple examples, using a
+     * Dispatcher is generally easier and likely preferred for application code.
+     *
+     * <p>Will return null if the calls times out.
+     *
+     * <p>Use a timeout of 0 to wait indefinitely. This could still be interrupted if
+     * the subscription is unsubscribed or the client connection is closed.
+     *
+     *
+     * @param timeoutMillis the maximum time to wait in millis
+     * @return the next message for this subscriber or null if there is a timeout
+     * @throws IllegalStateException if the subscription belongs to a dispatcher, or is not active
+     * @throws InterruptedException if one occurs while waiting for the message
+     */
+    default Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
+        return nextMessage(Duration.ofMillis(timeoutMillis));
+    };
 
     /**
      * Unsubscribe this subscription and stop listening for messages.

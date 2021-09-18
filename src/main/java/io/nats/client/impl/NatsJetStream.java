@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
+import static io.nats.client.impl.NatsJetStreamSubscription.NatsJetStreamSubscriptionMessageHandler;
 import static io.nats.client.support.ApiConstants.SUBJECT;
 import static io.nats.client.support.Validator.*;
 
@@ -203,7 +204,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     // Subscribe
     // ----------------------------------------------------------------------------------------------------
     NatsJetStreamSubscription createSubscription(String subject, String queueName,
-                                                 NatsDispatcher dispatcher, MessageHandler handler, boolean autoAck,
+                                                 NatsDispatcher dispatcher, MessageHandler userMh, boolean autoAck,
                                                  PushSubscribeOptions pushSubscribeOptions,
                                                  PullSubscribeOptions pullSubscribeOptions) throws IOException, JetStreamApiException {
         // first things first...
@@ -315,17 +316,16 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         // 4. create the subscription
         NatsJetStreamSubscription sub;
+
+        NatsSubscriptionFactory nsf = (sid, lSubject, lQueueName, lConn, lDispatcher)
+            -> new NatsJetStreamSubscription(sid, lSubject, lQueueName, lConn, lDispatcher, NatsJetStream.this, isPullMode, so.isAutomaticProtocolManagement());
+
         if (dispatcher == null) {
-            sub = (NatsJetStreamSubscription) conn.createSubscription(inboxDeliver, queueName, null, true);
+            sub = (NatsJetStreamSubscription) conn.createSubscription(inboxDeliver, queueName, null, nsf);
         }
         else {
-            MessageHandler mh;
-            if (autoAck) {
-                mh = new AutoAckMessageHandler(conn, handler);
-            } else {
-                mh = handler;
-            }
-            sub = (NatsJetStreamSubscription) dispatcher.subscribeImpl(inboxDeliver, queueName, mh, true);
+            NatsJetStreamSubscriptionMessageHandler mh = new NatsJetStreamSubscriptionMessageHandler(conn, userMh, autoAck, so.isAutomaticProtocolManagement());
+            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, queueName, mh, nsf);
         }
 
         // 5-Consumer didn't exist. It's either ephemeral or a durable that didn't already exist.
@@ -351,11 +351,11 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 }
                 throw e;
             }
-            sub.setupJetStream(this, ci.getName(), ci.getStreamName(), inboxDeliver, so);
+            sub.finishSetup(stream, ci.getName(), inboxDeliver);
         }
         // 5-Consumer did exist.
         else {
-            sub.setupJetStream(this, durable, stream, inboxDeliver, so);
+            sub.finishSetup(stream, durable, inboxDeliver);
         }
 
         return sub;
@@ -455,32 +455,5 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             throw new IllegalStateException("No matching streams for subject: " + subject);
         }
         return snr.getStrings().get(0);
-    }
-
-    protected static class AutoAckMessageHandler implements MessageHandler {
-        NatsConnection conn;
-        MessageHandler userMH;
-
-        // caller must ensure userMH is not null
-        AutoAckMessageHandler(NatsConnection conn, MessageHandler userMH) {
-            this.conn = conn;
-            this.userMH = userMH;
-        }
-
-        @Override
-        public void onMessage(Message msg) throws InterruptedException {
-            try  {
-                userMH.onMessage(msg);
-                // don't ack if not JetStream
-                if (msg.isJetStream()) {
-                    msg.ack();
-                }
-            } catch (Exception e) {
-                ErrorListener el = conn.getOptions().getErrorListener();
-                if (el != null) {
-                    el.exceptionOccurred(conn, e);
-                }
-            }
-        }
     }
 }

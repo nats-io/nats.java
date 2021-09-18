@@ -26,8 +26,9 @@ public abstract class SubscribeOptions {
     protected final String stream;
     protected final boolean bind;
     protected final ConsumerConfiguration consumerConfig;
+    protected final boolean automaticProtocolManagement;
 
-    protected SubscribeOptions(String stream, String durable, boolean pull, boolean bind,
+    protected SubscribeOptions(String stream, String durable, boolean pull, boolean bind, boolean automaticProtocolManagement,
                                String deliverSubject, String deliverGroup, ConsumerConfiguration cc) {
 
         this.stream = validateStreamName(stream, bind); // required when bind mode
@@ -46,6 +47,7 @@ public abstract class SubscribeOptions {
                 .build();
 
         this.bind = bind;
+        this.automaticProtocolManagement = automaticProtocolManagement;
     }
 
     /**
@@ -66,10 +68,19 @@ public abstract class SubscribeOptions {
 
     /**
      * Gets whether this subscription is expected to bind to an existing stream and durable consumer
-     * @return the direct flag
+     * @return the bind flag
      */
     public boolean isBind() {
         return bind;
+    }
+
+    /**
+     * Get whether this subscription should provide automatic protocol management,
+     * i.e. handle flow control and heartbeat messages
+     * @return the automatic protocol management flag
+     */
+    public boolean isAutomaticProtocolManagement() {
+        return automaticProtocolManagement;
     }
 
     /**
@@ -85,6 +96,7 @@ public abstract class SubscribeOptions {
         return getClass().getSimpleName() + "{" +
                 "stream='" + stream + '\'' +
                 "bind=" + bind +
+                "automaticProtocolManagement=" + automaticProtocolManagement +
                 ", " + consumerConfig +
                 '}';
     }
@@ -95,9 +107,10 @@ public abstract class SubscribeOptions {
      */
     protected static abstract class Builder<B, SO> {
         protected String stream;
-        protected boolean isBind;
+        protected boolean bind;
         protected String durable;
         protected ConsumerConfiguration consumerConfig;
+        protected boolean automaticProtocolManagement = true;
 
         protected abstract B getThis();
 
@@ -115,10 +128,10 @@ public abstract class SubscribeOptions {
         /**
          * Specify the to attach in direct mode
          * @return the builder
-         * @param isBind whether to bind or not
+         * @param bind whether to bind or not
          */
-        public B bind(boolean isBind) {
-            this.isBind = isBind;
+        public B bind(boolean bind) {
+            this.bind = bind;
             return getThis();
         }
 
@@ -142,6 +155,11 @@ public abstract class SubscribeOptions {
          */
         public B configuration(ConsumerConfiguration configuration) {
             this.consumerConfig = configuration;
+            return getThis();
+        }
+
+        public B automaticProtocolManagement(boolean automaticProtocolManagement) {
+            this.automaticProtocolManagement = automaticProtocolManagement;
             return getThis();
         }
 

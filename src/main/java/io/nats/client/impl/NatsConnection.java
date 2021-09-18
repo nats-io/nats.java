@@ -791,7 +791,7 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Subject cannot contain whitespace");
         }
 
-        return createSubscription(subject, null, null, false);
+        return createSubscription(subject, null, null, null);
     }
 
     @Override
@@ -818,7 +818,7 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Queue names cannot contain whitespace");
         }
 
-        return createSubscription(subject, queueName, null, false);
+        return createSubscription(subject, queueName, null, null);
     }
 
     void invalidate(NatsSubscription sub) {
@@ -868,7 +868,7 @@ class NatsConnection implements Connection {
     }
 
     // Assumes the null/empty checks were handled elsewhere
-    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, boolean isJetStream) {
+    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, NatsSubscriptionFactory nsf) {
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
         } else if (isDraining() && (dispatcher == null || dispatcher != this.inboxDispatcher.get())) {
@@ -879,10 +879,11 @@ class NatsConnection implements Connection {
         long sidL = nextSid.getAndIncrement();
         String sid = String.valueOf(sidL);
 
-        if (isJetStream) {
-            sub = new NatsJetStreamSubscription(sid, subject, queueName, this, dispatcher);
-        } else {
+        if (nsf == null) {
             sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
+        }
+        else {
+            sub = nsf.createNatsSubscription(sid, subject, queueName, this, dispatcher);
         }
         subscribers.put(sid, sub);
 

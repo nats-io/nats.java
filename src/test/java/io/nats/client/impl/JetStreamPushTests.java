@@ -19,14 +19,18 @@ import io.nats.client.Message;
 import io.nats.client.PushSubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
+import io.nats.client.support.Status;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
+import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPushTests extends JetStreamTestBase {
@@ -132,6 +136,172 @@ public class JetStreamPushTests extends JetStreamTestBase {
             messages = readMessagesAck(sub);
             total += messages.size();
             validateRedAndTotal(0, messages.size(), 5, total);
+        });
+    }
+
+    @Test
+    public void testPushFlowControlAutoHandledProtoMessages() throws Exception {
+        runInJsServer(nc -> {
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            JetStream js = nc.jetStream();
+
+            jsPublish(js, SUBJECT, 1000);
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                .durable(DURABLE)
+                .flowControl(true)
+                .idleHeartbeat(1000)
+                .build();
+
+            PushSubscribeOptions pso = PushSubscribeOptions.builder()
+                .configuration(cc)
+                .build();
+
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+
+            int count = 0;
+            Set<String> set = new HashSet<>();
+            Message m = sub.nextMessage(1000);
+            while (m != null) {
+                ++count;
+                assertTrue(set.add(new String(m.getData())));
+                m.ack();
+                m = sub.nextMessage(1000);
+            }
+
+            assertEquals(1000, count);
+        });
+    }
+
+    @Test
+    public void testPushFlowControlUserHandledProtoMessages() throws Exception {
+        runInJsServer(nc -> {
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            JetStream js = nc.jetStream();
+
+            jsPublish(js, SUBJECT, 1000);
+
+            // 1. fail to respond to flow control
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .flowControl(true)
+                    .idleHeartbeat(1000)
+                    .build();
+
+            PushSubscribeOptions pso = PushSubscribeOptions.builder()
+                    .configuration(cc)
+                    .automaticProtocolManagement(false)
+                    .build();
+
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+
+            int count = 0;
+            int fc = 0;
+            int hb = 0;
+            int nulls = 0;
+            Set<String> set = new HashSet<>();
+            Message m = sub.nextMessage(1000);
+            while (hb < 10 && nulls < 10) {
+                if (m == null) {
+                    nulls++;
+                }
+                else if (m.isJetStream()) {
+                    ++count;
+                    assertTrue(set.add(new String(m.getData())));
+                    m.ack();
+                }
+                else if (m.isStatusMessage()) {
+                    Status status = m.getStatus();
+                    if (status.isFlowControl()) {
+                        fc++;
+                    }
+                    else if (status.isHeartbeat()) {
+                        hb++;
+                    }
+                }
+                m = sub.nextMessage(200);
+            }
+
+            assertTrue(count < 1000);
+            assertEquals(1, fc);
+            assertTrue(hb > 1);
+
+            // 2. respond to flow control
+            cc = ConsumerConfiguration.builder()
+                    .flowControl(true)
+                    .idleHeartbeat(1000)
+                    .build();
+
+            pso = PushSubscribeOptions.builder()
+                    .configuration(cc)
+                    .automaticProtocolManagement(false)
+                    .build();
+
+            sub = js.subscribe(SUBJECT, pso);
+
+            count = 0;
+            nulls = 0;
+            set.clear();
+            m = sub.nextMessage(1000);
+            while (hb < 10 && nulls < 10) { // nulls check so we don't go on for ever
+                if (m == null) {
+                    nulls++;
+                }
+                else if (m.isJetStream()) {
+                    ++count;
+                    assertTrue(set.add(new String(m.getData())));
+                    m.ack();
+                }
+                else if (m.isStatusMessage()) {
+                    Status status = m.getStatus();
+                    if (status.isFlowControl()) {
+                        nc.publish(m.getReplyTo(), null, null);
+                    }
+                }
+                m = sub.nextMessage(1000);
+            }
+            assertEquals(1000, count);
+
+            // 3. respond to heartbeat
+            cc = ConsumerConfiguration.builder()
+                    .flowControl(true)
+                    .idleHeartbeat(1000)
+                    .build();
+
+            pso = PushSubscribeOptions.builder()
+                    .configuration(cc)
+                    .automaticProtocolManagement(false)
+                    .build();
+
+            sub = js.subscribe(SUBJECT, pso);
+
+            count = 0;
+            nulls = 0;
+            set.clear();
+            m = sub.nextMessage(1000);
+            while (count < 1000 && nulls < 10) { // nulls check so we don't go on for ever
+                if (m == null) {
+                    nulls++;
+                }
+                else if (m.isJetStream()) {
+                    ++count;
+                    assertTrue(set.add(new String(m.getData())));
+                    m.ack();
+                }
+                else if (m.isStatusMessage()) {
+                    Status status = m.getStatus();
+                    if (status.isHeartbeat()) {
+                        Headers h = m.getHeaders();
+                        String fcSubject = h == null ? null : h.getFirst(CONSUMER_STALLED_HDR);
+                        if (fcSubject != null) {
+                            nc.publish(fcSubject, null, null);
+                        }
+                    }
+                }
+                m = sub.nextMessage(1000);
+            }
+            assertEquals(1000, count);
         });
     }
 
