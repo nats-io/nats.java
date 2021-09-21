@@ -128,7 +128,7 @@ public class JetStreamOptions {
          * @return the builder.
          */
         public Builder prefix(String prefix) {
-            this.prefix = prefix; // validated in prefix manager
+            this.prefix = prefix; // validated during build
             this.domain = null; // build with one or the other
             return this;
         }
