@@ -8,8 +8,8 @@ public interface NatsJetStreamConstants {
 
     String PREFIX_DOLLAR_JS_DOT = "$JS.";
     String PREFIX_API_DOT = "API.";
-    String DEFAULT_API_PREFIX = PREFIX_DOLLAR_JS_DOT + PREFIX_API_DOT;
-    String JS_ACK_SUBJECT_PREFIX = PREFIX_DOLLAR_JS_DOT + "ACK.";
+    String DEFAULT_API_PREFIX = "$JS.API.";
+    String JS_ACK_SUBJECT_PREFIX = "$JS.ACK.";
 
     // JSAPI_ACCOUNT_INFO is for obtaining general information about JetStream.
     String JSAPI_ACCOUNT_INFO = "INFO";

@@ -36,7 +36,7 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMeta10Tokens).metaData());
         assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMetaData).metaData());
 
-        // InvalidMetaNoAck is actually not even a JS message not
+        // InvalidMetaNoAck is actually not even a JS message
         assertThrows(IllegalStateException.class, () -> getTestMessage(InvalidMetaNoAck).metaData());
 
         // since I can't make a JS message directly, do it indirectly
