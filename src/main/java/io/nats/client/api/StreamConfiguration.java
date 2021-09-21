@@ -422,7 +422,7 @@ public class StreamConfiguration implements JsonSerializable {
          * @return the builder
          */
         public Builder name(String name) {
-            this.name = name;
+            this.name =  validateStreamName(name, false);
             return this;
         }
 
