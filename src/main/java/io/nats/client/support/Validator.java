@@ -16,6 +16,7 @@ package io.nats.client.support;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
+import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamConstants.MAX_PULL_SIZE;
 
 public abstract class Validator {
@@ -40,10 +41,6 @@ public abstract class Validator {
 
     public static String validateDurable(String s, boolean required) {
         return validatePrintableExceptWildDotGt(s, "Durable", required);
-    }
-
-    public static String validateJetStreamPrefix(String s) {
-        return validatePrintableExceptWildGtDollar(s, "Prefix", false);
     }
 
     public static String validateBucketNameRequired(String s) {
@@ -136,10 +133,22 @@ public abstract class Validator {
         });
     }
 
+    public static String validatePrefixOrDomain(String s, String label, boolean required) {
+        return _validate(s, required, label, () -> {
+            if (s.startsWith(DOT)) {
+                throw new IllegalArgumentException(label + " cannot start with `.` [" + s + "]");
+            }
+            if (notPrintableOrHasWildGt(s)) {
+                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `>` [" + s + "]");
+            }
+            return s;
+        });
+    }
+
     public static String validatePrintableExceptWildGt(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
             if (notPrintableOrHasWildGt(s)) {
-                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `>` or `$` [" + s + "]");
+                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*` or `>` [" + s + "]");
             }
             return s;
         });

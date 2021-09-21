@@ -219,15 +219,6 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateJetStreamPrefix() {
-        assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_STAR));
-        assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_GT));
-        assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_DOLLAR));
-        assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_SPACE));
-        assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_LOW));
-    }
-
-    @Test
     public void testValidateBucketNameRequired() {
         validateBucketNameRequired(PLAIN);
         validateBucketNameRequired(PLAIN.toUpperCase());
