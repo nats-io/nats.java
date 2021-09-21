@@ -312,7 +312,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testNoWaitUserHandledProtoMessages() throws Exception {
+    public void testNoWaitUserHandledStatusMessages() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -323,7 +323,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions options = PullSubscribeOptions.builder()
                     .durable(DURABLE)
-                    .automaticProtocolManagement(false)
+                    .autoStatusManage(false)
                     .build();
 
             // Subscribe synchronously.

@@ -237,11 +237,10 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         boolean bindMode = so.isBind();
 
-        String durable = ccBuilder.getDurable();
+        ConsumerConfiguration consumerConfig = null;
+        String consumerName = ccBuilder.getDurable();
         String inboxDeliver = ccBuilder.getDeliverSubject();
         String filterSubject = ccBuilder.getFilterSubject();
-
-        boolean createConsumer = true;
 
         // 1. Did they tell me what stream? No? look it up.
         // subscribe options will have already validated that stream is present for direct mode
@@ -250,14 +249,13 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
 
         // 2. Is this a durable or ephemeral
-        if (durable != null) {
-            ConsumerInfo lookedUpInfo = lookupConsumerInfo(stream, durable);
+        if (consumerName != null) {
+            ConsumerInfo lookedUpInfo = lookupConsumerInfo(stream, consumerName);
 
             if (lookedUpInfo != null) { // the consumer for that durable already exists
-                createConsumer = false;
-                ConsumerConfiguration lookedUpConfig = lookedUpInfo.getConsumerConfiguration();
+                consumerConfig = lookedUpInfo.getConsumerConfiguration();
 
-                String lookedUp = lookedUpConfig.getDeliverSubject();
+                String lookedUp = consumerConfig.getDeliverSubject();
                 if (isPullMode) {
                     if (!nullOrEmpty(lookedUp)) {
                         throw new IllegalArgumentException(
@@ -273,36 +271,36 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 }
 
                 // durable already exists, make sure the filter subject matches
-                lookedUp = lookedUpConfig.getFilterSubject();
+                lookedUp = consumerConfig.getFilterSubject();
                 if (filterSubject != null && !filterSubject.equals(lookedUp)) {
                     throw new IllegalArgumentException(
                             String.format("[SUB-FS01] Subject '%s' mismatches consumer configuration '%s'.", subject, filterSubject));
                 }
                 filterSubject = lookedUp;
 
-                lookedUp = lookedUpConfig.getDeliverGroup();
+                lookedUp = consumerConfig.getDeliverGroup();
                 if (lookedUp == null) {
                     // lookedUp was null, means existing consumer is not a queue consumer
                     if (queueName == null) {
                         // ok fine, no queue requested and the existing consumer is also not a queue consumer
                         // we must check if the consumer is in use though
                         if (lookedUpInfo.isPushBound()) {
-                            throw new IllegalArgumentException(String.format("[SUB-Q02] Consumer '%s' is already bound to a subscription.", durable));
+                            throw new IllegalArgumentException(String.format("[SUB-Q02] Consumer '%s' is already bound to a subscription.", consumerName));
                         }
                     }
                     else { // else they requested a queue but this durable was not configured as queue
-                        throw new IllegalArgumentException(String.format("[SUB-Q03] Existing consumer '%s' is not configured as a queue / deliver group.", durable));
+                        throw new IllegalArgumentException(String.format("[SUB-Q03] Existing consumer '%s' is not configured as a queue / deliver group.", consumerName));
                     }
                 }
                 else if (queueName == null) {
-                    throw new IllegalArgumentException(String.format("[SUB-Q04] Existing consumer '%s' is configured as a queue / deliver group.", durable));
+                    throw new IllegalArgumentException(String.format("[SUB-Q04] Existing consumer '%s' is configured as a queue / deliver group.", consumerName));
                 }
                 else if (!lookedUp.equals(queueName)) {
                     throw new IllegalArgumentException(
                             String.format("[SUB-Q05] Existing consumer deliver group '%s' does not match requested queue / deliver group '%s'.", lookedUp, queueName));
                 }
 
-                inboxDeliver = lookedUpConfig.getDeliverSubject(); // use the deliver subject as the inbox. It may be null, that's ok, we'll fix that later
+                inboxDeliver = consumerConfig.getDeliverSubject(); // use the deliver subject as the inbox. It may be null, that's ok, we'll fix that later
             }
             else if (bindMode) {
                 throw new IllegalArgumentException("[SUB-B01] Consumer not found for durable. Required in bind mode.");
@@ -314,22 +312,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             inboxDeliver = conn.createInbox();
         }
 
-        // 4. create the subscription
-        NatsJetStreamSubscription sub;
-
-        NatsSubscriptionFactory nsf = (sid, lSubject, lQueueName, lConn, lDispatcher)
-            -> new NatsJetStreamSubscription(sid, lSubject, lQueueName, lConn, lDispatcher, NatsJetStream.this, isPullMode, so.isAutomaticProtocolManagement());
-
-        if (dispatcher == null) {
-            sub = (NatsJetStreamSubscription) conn.createSubscription(inboxDeliver, queueName, null, nsf);
-        }
-        else {
-            NatsJetStreamSubscriptionMessageHandler mh = new NatsJetStreamSubscriptionMessageHandler(conn, userMh, autoAck, so.isAutomaticProtocolManagement());
-            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, queueName, mh, nsf);
-        }
-
-        // 5-Consumer didn't exist. It's either ephemeral or a durable that didn't already exist.
-        if (createConsumer) {
+        // 4. If consumer does not exist, create
+        if (consumerConfig == null) {
             // Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
             if (!isPullMode) {
                 ccBuilder.deliverSubject(inboxDeliver);
@@ -339,24 +323,24 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             ccBuilder.filterSubject(filterSubject == null ? subject : filterSubject);
 
             // createOrUpdateConsumer can fail for security reasons, maybe other reasons?
-            ConsumerInfo ci;
-            try {
-                ci = addOrUpdateConsumerInternal(stream, ccBuilder.build());
-            } catch (JetStreamApiException e) {
-                if (dispatcher == null) {
-                    sub.unsubscribe();
-                }
-                else {
-                    dispatcher.unsubscribe(sub);
-                }
-                throw e;
-            }
-            sub.finishSetup(stream, ci.getName(), inboxDeliver);
+            ConsumerInfo ci = createConsumerInternal(stream, ccBuilder.build());
+            consumerName = ci.getName();
+            consumerConfig = ci.getConsumerConfiguration();
         }
-        // 5-Consumer did exist.
+
+        // 5. create the subscription
+        NatsSubscriptionFactory nsf = (sid, lSubject, lQueueName, lConn, lDispatcher)
+            -> new NatsJetStreamSubscription(sid, lSubject, lQueueName, lConn, lDispatcher, NatsJetStream.this, isPullMode, so.isAutoStatusManage());
+
+        NatsJetStreamSubscription sub;
+        if (dispatcher == null) {
+            sub = (NatsJetStreamSubscription) conn.createSubscription(inboxDeliver, queueName, null, nsf);
+        }
         else {
-            sub.finishSetup(stream, durable, inboxDeliver);
+            NatsJetStreamSubscriptionMessageHandler mh = new NatsJetStreamSubscriptionMessageHandler(conn, userMh, autoAck, so.isAutoStatusManage());
+            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, queueName, mh, nsf);
         }
+        sub.finishSetup(stream, consumerName, inboxDeliver, consumerConfig);
 
         return sub;
     }

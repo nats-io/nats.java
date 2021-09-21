@@ -75,4 +75,23 @@ public interface ErrorListener {
      * @param msg The message that is discarded
      */
     default void messageDiscarded(Connection conn, Message msg) {}
+
+    /**
+     * Called when subscription heartbeats are missed according to the configured period and threshold.
+     * The consumer must be configured with an idle heartbeat time.
+     * Subscription must be in Auto Status Management (ASM) mode (which is the default subscription mode)
+     *
+     * @param conn The connection that had
+     * @param sub the JetStreamSubscription that this occurred on
+     */
+    default void heartbeatAlarm(Connection conn, JetStreamSubscription sub) {}
+
+    /**
+     * Called by the connection when there is a gap in messages received.
+     * Subscription must be in Auto Status Management (ASM) mode (which is the default subscription mode)
+     *
+     * @param conn The connection that had
+     * @param sub the JetStreamSubscription that this occurred on
+     */
+    default void messageGapDetected(Connection conn, JetStreamSubscription sub) {}
 }

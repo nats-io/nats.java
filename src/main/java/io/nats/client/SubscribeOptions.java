@@ -26,9 +26,9 @@ public abstract class SubscribeOptions {
     protected final String stream;
     protected final boolean bind;
     protected final ConsumerConfiguration consumerConfig;
-    protected final boolean automaticProtocolManagement;
+    protected final boolean autoStatusManage;
 
-    protected SubscribeOptions(String stream, String durable, boolean pull, boolean bind, boolean automaticProtocolManagement,
+    protected SubscribeOptions(String stream, String durable, boolean pull, boolean bind, boolean autoStatusManage,
                                String deliverSubject, String deliverGroup, ConsumerConfiguration cc) {
 
         this.stream = validateStreamName(stream, bind); // required when bind mode
@@ -47,7 +47,7 @@ public abstract class SubscribeOptions {
                 .build();
 
         this.bind = bind;
-        this.automaticProtocolManagement = automaticProtocolManagement;
+        this.autoStatusManage = autoStatusManage;
     }
 
     /**
@@ -75,12 +75,12 @@ public abstract class SubscribeOptions {
     }
 
     /**
-     * Get whether this subscription should provide automatic protocol management,
+     * Get whether this subscription should provide automatic status management,
      * i.e. handle flow control and heartbeat messages
-     * @return the automatic protocol management flag
+     * @return the automatic status management flag
      */
-    public boolean isAutomaticProtocolManagement() {
-        return automaticProtocolManagement;
+    public boolean isAutoStatusManage() {
+        return autoStatusManage;
     }
 
     /**
@@ -96,7 +96,7 @@ public abstract class SubscribeOptions {
         return getClass().getSimpleName() + "{" +
                 "stream='" + stream + '\'' +
                 "bind=" + bind +
-                "automaticProtocolManagement=" + automaticProtocolManagement +
+                "autoStatusManage=" + autoStatusManage +
                 ", " + consumerConfig +
                 '}';
     }
@@ -110,7 +110,7 @@ public abstract class SubscribeOptions {
         protected boolean bind;
         protected String durable;
         protected ConsumerConfiguration consumerConfig;
-        protected boolean automaticProtocolManagement = true;
+        protected boolean autoStatusManage = true;
 
         protected abstract B getThis();
 
@@ -158,8 +158,8 @@ public abstract class SubscribeOptions {
             return getThis();
         }
 
-        public B automaticProtocolManagement(boolean automaticProtocolManagement) {
-            this.automaticProtocolManagement = automaticProtocolManagement;
+        public B autoStatusManage(boolean autoStatusManage) {
+            this.autoStatusManage = autoStatusManage;
             return getThis();
         }
 

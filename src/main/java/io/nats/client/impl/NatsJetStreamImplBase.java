@@ -46,7 +46,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         return new ConsumerInfo(resp).throwOnHasError();
     }
 
-    protected ConsumerInfo addOrUpdateConsumerInternal(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
+    protected ConsumerInfo createConsumerInternal(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
         String durable = config.getDurable();
         String requestJSON = new ConsumerCreateRequest(streamName, config).toJson();
 

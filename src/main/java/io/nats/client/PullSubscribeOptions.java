@@ -58,7 +58,7 @@ public class PullSubscribeOptions extends SubscribeOptions {
          */
         @Override
         public PullSubscribeOptions build() {
-            return new PullSubscribeOptions(stream, durable, bind, automaticProtocolManagement, consumerConfig);
+            return new PullSubscribeOptions(stream, durable, bind, autoStatusManage, consumerConfig);
         }
     }
 }

@@ -115,7 +115,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         validateStreamName(streamName, true);
         validateNotNull(config, "Config");
         validateNotNull(config.getDurable(), "Durable"); // durable name is required when creating consumers
-        return addOrUpdateConsumerInternal(streamName, config);
+        return createConsumerInternal(streamName, config);
     }
 
     /**

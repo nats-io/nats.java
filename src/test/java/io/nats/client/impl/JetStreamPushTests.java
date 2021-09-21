@@ -175,7 +175,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testPushFlowControlUserHandledProtoMessages() throws Exception {
+    public void testPushFlowControlUserHandledStatusMessages() throws Exception {
         runInJsServer(nc -> {
             createMemoryStream(nc, STREAM, SUBJECT);
 
@@ -191,7 +191,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             PushSubscribeOptions pso = PushSubscribeOptions.builder()
                     .configuration(cc)
-                    .automaticProtocolManagement(false)
+                    .autoStatusManage(false)
                     .build();
 
             JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
@@ -235,7 +235,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             pso = PushSubscribeOptions.builder()
                     .configuration(cc)
-                    .automaticProtocolManagement(false)
+                    .autoStatusManage(false)
                     .build();
 
             sub = js.subscribe(SUBJECT, pso);
@@ -271,7 +271,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             pso = PushSubscribeOptions.builder()
                     .configuration(cc)
-                    .automaticProtocolManagement(false)
+                    .autoStatusManage(false)
                     .build();
 
             sub = js.subscribe(SUBJECT, pso);

@@ -127,7 +127,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
          */
         @Override
         public PushSubscribeOptions build() {
-            return new PushSubscribeOptions(stream, durable, bind, automaticProtocolManagement, deliverSubject, deliverGroup, consumerConfig);
+            return new PushSubscribeOptions(stream, durable, bind, autoStatusManage, deliverSubject, deliverGroup, consumerConfig);
         }
     }
 }
