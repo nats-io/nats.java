@@ -43,6 +43,18 @@ public abstract class Validator {
         return validatePrintableExceptWildDotGt(s, "Durable", required);
     }
 
+    public static String validatePrefixOrDomain(String s, String label, boolean required) {
+        return _validate(s, required, label, () -> {
+            if (s.startsWith(DOT)) {
+                throw new IllegalArgumentException(label + " cannot start with `.` [" + s + "]");
+            }
+            if (notPrintableOrHasWildGt(s)) {
+                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `>` [" + s + "]");
+            }
+            return s;
+        });
+    }
+
     public static String validateBucketNameRequired(String s) {
         return validateKvBucketName(s, "Bucket name", true);
     }
@@ -128,18 +140,6 @@ public abstract class Validator {
         return _validate(s, required, label, () -> {
             if (notKvKey(s)) {
                 throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `-`, `_`, `/`, `=` or `.` and cannot start with `.` [" + s + "]");
-            }
-            return s;
-        });
-    }
-
-    public static String validatePrefixOrDomain(String s, String label, boolean required) {
-        return _validate(s, required, label, () -> {
-            if (s.startsWith(DOT)) {
-                throw new IllegalArgumentException(label + " cannot start with `.` [" + s + "]");
-            }
-            if (notPrintableOrHasWildGt(s)) {
-                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `>` [" + s + "]");
             }
             return s;
         });
