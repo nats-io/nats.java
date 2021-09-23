@@ -86,22 +86,22 @@ public class JwtUtils {
             "\n" +
             "*************************************************************";
 
-    public static String issueUserCreds(String accSeed, String accId, String userSeed, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
-        String jwt = issueUserJWT(accSeed, accId, userKeyPub, optionalName, optionalExpiration, optionalTags);
+    public static String issueUserCreds(String accountSeed, String issuerAccount, String userSeed, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
+        String jwt = issueUserJWT(accountSeed, issuerAccount, userKeyPub, optionalName, optionalExpiration, optionalTags);
         return String.format(NATS_USER_JWT_FORMAT, jwt, userSeed);
     }
 
-    public static String issueUserCreds(NKey accountSigningKey, String accId, String userSeed, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
-        String jwt = issueUserJWT(accountSigningKey, accId, userKeyPub, optionalName, optionalExpiration, optionalTags);
+    public static String issueUserCreds(NKey accountSigningKey, String issuerAccount, String userSeed, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
+        String jwt = issueUserJWT(accountSigningKey, issuerAccount, userKeyPub, optionalName, optionalExpiration, optionalTags);
         return String.format(NATS_USER_JWT_FORMAT, jwt, userSeed);
     }
 
-    public static String issueUserJWT(String accSeed, String accId, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
-        NKey accountSigningKey = NKey.fromSeed(accSeed.toCharArray());
-        return issueUserJWT(accountSigningKey, accId, userKeyPub, optionalName, optionalExpiration, optionalTags);
+    public static String issueUserJWT(String accountSeed, String issuerAccount, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
+        NKey accountSigningKey = NKey.fromSeed(accountSeed.toCharArray());
+        return issueUserJWT(accountSigningKey, issuerAccount, userKeyPub, optionalName, optionalExpiration, optionalTags);
     }
 
-    public static String issueUserJWT(NKey accountSigningKey, String accId, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
+    public static String issueUserJWT(NKey accountSigningKey, String issuerAccount, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
         String accSigningKeyPub = new String(accountSigningKey.getPublicKey());
 
         Claim claim = new Claim();
@@ -111,7 +111,7 @@ public class JwtUtils {
         claim.name = Validator.nullOrEmpty(optionalName) ? userKeyPub : optionalName;
         claim.sub = userKeyPub;
         claim.nats = new Nats();
-        claim.nats.issuerAccount = accId;
+        claim.nats.issuerAccount = issuerAccount;
         claim.nats.tags = optionalTags;
 
         // Issue At time is stored in unix seconds
