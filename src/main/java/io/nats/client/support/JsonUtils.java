@@ -256,6 +256,19 @@ public abstract class JsonUtils {
     }
 
     /**
+     * Appends a json field to a string builder. Empty and null string are added as value of empty string
+     * @param sb string builder
+     * @param fname fieldname
+     * @param value field value
+     */
+    public static void addFieldEvenEmpty(StringBuilder sb, String fname, String value) {
+        if (value == null) {
+            value = "";
+        }
+        sb.append(Q).append(fname).append(QCOLONQ).append(value).append(QCOMMA);
+    }
+
+    /**
      * Appends a json field to a string builder.
      * @param sb string builder
      * @param fname fieldname

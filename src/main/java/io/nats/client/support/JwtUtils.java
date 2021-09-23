@@ -19,26 +19,55 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.Base64;
 
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
+
 public class JwtUtils {
-    static final String CLAIM_FORMAT = "{{" +
-            "\"iat\": \"%s\"," +
-            "\"iss\": \"%s\"," +
-            "\"jti\": \"%s\"," +
-            "\"name\": \"%s\"," +
-            "\"nats\": {{" +
-            "\"data\": -1," +
-            "\"issuer_account\": \"%s\"," +
-            "\"payload\": -1," +
-            "\"pub\": {{}}," +
-            "\"sub\": {{}}," +
-            "\"subs\": -1," +
-            "\"type\": \"user\"," +
-            "\"version\": 2" +
-            "}}," +
-            "\"sub\": \"%s\"" +
-            "}}";
+    static class Nats implements JsonSerializable {
+        String issuerAccount;
+        String[] tags;
+
+        @Override
+        public String toJson() {
+            StringBuilder sb = beginJson();
+            JsonUtils.addField(sb, "issuer_account", issuerAccount);
+            JsonUtils.addStrings(sb, "tags", Arrays.asList(tags));
+            JsonUtils.addField(sb, "type", "user");
+            JsonUtils.addField(sb, "version", 2);
+            return endJson(sb).toString();
+        }
+    }
+
+    static class Claim implements JsonSerializable {
+        Duration exp;
+        long iat;
+        String iss;
+        String jti;
+        String name;
+        Nats nats;
+        String sub;
+
+        @Override
+        public String toJson() {
+            StringBuilder sb = beginJson();
+            if (exp != null && !exp.isZero() && !exp.isNegative()) {
+                long unixSeconds = exp.toMillis() / 1000;
+                JsonUtils.addField(sb, "exp", unixSeconds);
+            }
+            JsonUtils.addField(sb, "iat", iat);
+            JsonUtils.addFieldEvenEmpty(sb, "jti", jti);
+            JsonUtils.addField(sb, "iss", iss);
+            JsonUtils.addField(sb, "name", name);
+            JsonUtils.addField(sb, "nats", nats);
+            JsonUtils.addField(sb, "sub", sub);
+
+            return endJson(sb).toString();
+        }
+    }
 
     static final String ENCODED_CLAIM_HEADER =
             ToBase64Url("{\"typ\":\"JWT\", \"alg\":\"ed25519-nkey\"}");
@@ -57,40 +86,46 @@ public class JwtUtils {
             "\n" +
             "*************************************************************";
 
-    public static String issueUserCreds(String accSeed, String accId, String userSeed, String userKeyPub) throws GeneralSecurityException, IOException {
-        String jwt = issueUserJWT(accSeed, accId, userKeyPub);
+    public static String issueUserCreds(String accSeed, String accId, String userSeed, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
+        String jwt = issueUserJWT(accSeed, accId, userKeyPub, optionalName, optionalExpiration, optionalTags);
         return String.format(NATS_USER_JWT_FORMAT, jwt, userSeed);
     }
 
-    public static String issueUserJWT(String accSeed, String accId, String userKeyPub) throws GeneralSecurityException, IOException {
+    public static String issueUserCreds(NKey accountSigningKey, String accId, String userSeed, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
+        String jwt = issueUserJWT(accountSigningKey, accId, userKeyPub, optionalName, optionalExpiration, optionalTags);
+        return String.format(NATS_USER_JWT_FORMAT, jwt, userSeed);
+    }
+
+    public static String issueUserJWT(String accSeed, String accId, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
         NKey accountSigningKey = NKey.fromSeed(accSeed.toCharArray());
+        return issueUserJWT(accountSigningKey, accId, userKeyPub, optionalName, optionalExpiration, optionalTags);
+    }
+
+    public static String issueUserJWT(NKey accountSigningKey, String accId, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
         String accSigningKeyPub = new String(accountSigningKey.getPublicKey());
 
+        Claim claim = new Claim();
+        claim.exp = optionalExpiration;
+        claim.iat = System.currentTimeMillis() / 1000;
+        claim.iss = accSigningKeyPub;
+        claim.name = Validator.nullOrEmpty(optionalName) ? userKeyPub : optionalName;
+        claim.sub = userKeyPub;
+        claim.nats = new Nats();
+        claim.nats.issuerAccount = accId;
+        claim.nats.tags = optionalTags;
+
         // Issue At time is stored in unix seconds
-        long issuedAt = System.currentTimeMillis() / 1000;
-        String claim = String.format(CLAIM_FORMAT,
-                issuedAt,
-                accSigningKeyPub,
-                "", /* blank jti */
-                userKeyPub,
-                accId,
-                userKeyPub);
+        String claimJson = claim.toJson();
 
         // Compute jti, a base32 encoded sha256 hash
         MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-        byte[] encoded = sha256.digest(claim.getBytes(StandardCharsets.UTF_8));
-        String jti = new String(NKey.base32Encode(encoded));
+        byte[] encoded = sha256.digest(claimJson.getBytes(StandardCharsets.UTF_8));
 
-        claim = String.format(CLAIM_FORMAT,
-                issuedAt,
-                accSigningKeyPub,
-                jti,
-                userKeyPub,
-                accId,
-                userKeyPub);
+        claim.jti = new String(NKey.base32Encode(encoded));
+        claimJson = claim.toJson();
 
         // all three components (header/body/signature) are base64url encoded
-        String encBody = ToBase64Url(claim);
+        String encBody = ToBase64Url(claimJson);
 
         // compute the signature off of header + body (. included on purpose)
         byte[] sig = (ENCODED_CLAIM_HEADER + "." + encBody).getBytes(StandardCharsets.UTF_8);
