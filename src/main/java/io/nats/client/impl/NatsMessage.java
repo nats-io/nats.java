@@ -18,7 +18,6 @@ import io.nats.client.Message;
 import io.nats.client.Subscription;
 import io.nats.client.support.ByteArrayBuilder;
 import io.nats.client.support.IncomingHeadersProcessor;
-import io.nats.client.support.JsPrefixManager;
 import io.nats.client.support.Status;
 
 import java.nio.charset.Charset;
@@ -27,6 +26,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.support.NatsJetStreamConstants.JS_ACK_SUBJECT_PREFIX;
 import static io.nats.client.support.Validator.validateReplyTo;
 import static io.nats.client.support.Validator.validateSubject;
 import static java.nio.charset.StandardCharsets.US_ASCII;
@@ -527,7 +527,7 @@ public class NatsMessage implements Message {
             if (status != null) {
                 message = new StatusMessage(status);
             }
-            else if (JsPrefixManager.hasPrefix(replyTo)) {
+            else if (replyTo != null && replyTo.startsWith(JS_ACK_SUBJECT_PREFIX)) {
                 message = new NatsJetStreamMessage();
             }
             if (message == null) {

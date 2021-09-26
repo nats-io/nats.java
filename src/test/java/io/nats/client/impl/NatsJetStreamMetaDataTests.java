@@ -32,10 +32,17 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
         validateMeta(true, true, getTestMessage(TestMetaV2).metaData());
         validateMeta(true, true, getTestMessage(TestMetaVFuture).metaData());
 
-        assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMetaNoAck).metaData());
         assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMetaLt8Tokens).metaData());
         assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMeta10Tokens).metaData());
         assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMetaData).metaData());
+
+        // InvalidMetaNoAck is actually not even a JS message
+        assertThrows(IllegalStateException.class, () -> getTestMessage(InvalidMetaNoAck).metaData());
+
+        // since I can't make a JS message directly, do it indirectly
+        NatsMessage nm = getTestMessage(InvalidMetaLt8Tokens);
+        nm.replyTo = InvalidMetaNoAck;
+        assertThrows(IllegalArgumentException.class, nm::metaData);
     }
 
     private void validateMeta(boolean hasPending, boolean hasDomainHashToken, NatsJetStreamMetaData meta) {

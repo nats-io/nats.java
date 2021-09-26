@@ -15,8 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
-import io.nats.client.support.JsPrefixManager;
-import io.nats.client.support.NatsJetStreamConstants;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -390,23 +388,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
         assertEquals("src-" + dest, new String(msgs.get(0).getData()));
         assertEquals("tar-" + dest, new String(msgs.get(1).getData()));
-    }
-
-
-    @Test
-    public void testPrefixManager() throws Exception {
-        assertThrows(IllegalArgumentException.class, () -> JsPrefixManager.addPrefix(HAS_DOLLAR));
-        assertThrows(IllegalArgumentException.class, () -> JsPrefixManager.addPrefix(HAS_GT));
-        assertThrows(IllegalArgumentException.class, () -> JsPrefixManager.addPrefix(HAS_STAR));
-
-        JsPrefixManager.addPrefix("foo");
-        JsPrefixManager.addPrefix("bar.");
-
-        assertTrue(JsPrefixManager.hasPrefix(NatsJetStreamConstants.JS_PREFIX));
-        assertTrue(JsPrefixManager.hasPrefix(NatsJetStreamConstants.JSAPI_PREFIX));
-        assertTrue(JsPrefixManager.hasPrefix("foo.blah"));
-        assertTrue(JsPrefixManager.hasPrefix("bar.blah"));
-        assertFalse(JsPrefixManager.hasPrefix("not"));
     }
 
     @Test
