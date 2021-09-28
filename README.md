@@ -536,6 +536,25 @@ messages, one for each message the previous batch was short. You can just ignore
 See `NatsJsPullSubExpire.java` and `NatsJsPullSubExpireUseCases.java`
 in the JetStream examples for detailed and runnable examples.
 
+### Subscription Creation
+
+Subscription creation has many checks to make sure that a valid, operable subscription can be made.
+These are the known checks that are done.
+
+| Code | Description |
+| --- | --- |
+| SUB-DS01 | Consumer is already configured as a push consumer with deliver subject _subject_ |
+| SUB-DS02 | Consumer is already configured as a pull consumer with no deliver subject. |
+| SUB-DS03 | Existing consumer deliver subject _subject_ does not match requested deliver subject _subject_. |
+| SUB-FS01 | Subject _subject_ mismatches consumer configuration _config_. |
+| SUB-PB01 | Consumer _consumer_ is already bound to a subscription. |
+| SUB-Q01 | Existing consumer _consumer_ is not configured as a queue / deliver group. |
+| SUB-Q02 | Existing consumer _consumer_ is configured as a queue / deliver group. |
+| SUB-Q03 | Existing consumer deliver group _dgroup_ does not match requested queue / deliver group _q/dgroup_. |
+| SUB-BND01 | Consumer not found for durable. Required in bind mode. |
+| SUB-QM01 | Cannot use queue when consumer has Flow Control or Heartbeat. |
+
+
 ### Message Acknowledgements
 
 There are multiple types of acknowledgements in JetStream:

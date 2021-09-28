@@ -160,6 +160,10 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         return incoming;
     }
 
+    Map<String, MessageHandler> getSubscriptionHandlers() {
+        return subscriptionHandlers;
+    }
+
     void resendSubscriptions() {
         this.subscriptionsUsingDefaultHandler.forEach((id, sub)->{
             this.connection.sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName(), true);

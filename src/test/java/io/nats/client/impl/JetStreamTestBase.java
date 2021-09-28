@@ -50,6 +50,10 @@ public class JetStreamTestBase extends TestBase {
         return getTestMessage(TestMetaV2);
     }
 
+    public NatsMessage getTestJsMessage(long consumerSeq) {
+        return getTestMessage("$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2." + consumerSeq + ".1605139610113260000.4");
+    }
+
     public NatsMessage getTestMessage(String replyTo) {
         return new NatsMessage.InternalMessageFactory("sid", "subj", replyTo, 0, false).getMessage();
     }

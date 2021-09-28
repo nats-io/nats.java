@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-import static io.nats.client.impl.NatsJetStreamSubscription.NatsJetStreamSubscriptionMessageHandler;
 import static io.nats.client.support.ApiConstants.SUBJECT;
 import static io.nats.client.support.Validator.*;
 
@@ -220,7 +219,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             stream = pullSubscribeOptions.getStream();
             ccBuilder = ConsumerConfiguration.builder(pullSubscribeOptions.getConsumerConfiguration());
             ccBuilder.deliverSubject(null); // pull mode can't have a deliver subject
-            // queueName is already null
+            queueName = null; // should already be, just make sure
             ccBuilder.deliverGroup(null);   // pull mode can't have a deliver group
         }
         else {
@@ -285,25 +284,25 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                         // ok fine, no queue requested and the existing consumer is also not a queue consumer
                         // we must check if the consumer is in use though
                         if (lookedUpInfo.isPushBound()) {
-                            throw new IllegalArgumentException(String.format("[SUB-Q02] Consumer '%s' is already bound to a subscription.", consumerName));
+                            throw new IllegalArgumentException(String.format("[SUB-PB01] Consumer '%s' is already bound to a subscription.", consumerName));
                         }
                     }
                     else { // else they requested a queue but this durable was not configured as queue
-                        throw new IllegalArgumentException(String.format("[SUB-Q03] Existing consumer '%s' is not configured as a queue / deliver group.", consumerName));
+                        throw new IllegalArgumentException(String.format("[SUB-Q01] Existing consumer '%s' is not configured as a queue / deliver group.", consumerName));
                     }
                 }
                 else if (queueName == null) {
-                    throw new IllegalArgumentException(String.format("[SUB-Q04] Existing consumer '%s' is configured as a queue / deliver group.", consumerName));
+                    throw new IllegalArgumentException(String.format("[SUB-Q02] Existing consumer '%s' is configured as a queue / deliver group.", consumerName));
                 }
                 else if (!lookedUp.equals(queueName)) {
                     throw new IllegalArgumentException(
-                            String.format("[SUB-Q05] Existing consumer deliver group '%s' does not match requested queue / deliver group '%s'.", lookedUp, queueName));
+                            String.format("[SUB-Q03] Existing consumer deliver group '%s' does not match requested queue / deliver group '%s'.", lookedUp, queueName));
                 }
 
                 inboxDeliver = consumerConfig.getDeliverSubject(); // use the deliver subject as the inbox. It may be null, that's ok, we'll fix that later
             }
             else if (bindMode) {
-                throw new IllegalArgumentException("[SUB-B01] Consumer not found for durable. Required in bind mode.");
+                throw new IllegalArgumentException("[SUB-BND01] Consumer not found for durable. Required in bind mode.");
             }
         }
 
@@ -328,19 +327,35 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             consumerConfig = ci.getConsumerConfiguration();
         }
 
-        // 5. create the subscription
+        // 5. Queue Mode Check
+        boolean queueMode = queueName != null;
+        if (queueMode && (consumerConfig.getFlowControl() || consumerConfig.getIdleHeartbeat().toMillis() > 0)) {
+            throw new IllegalArgumentException("[SUB-QM01] Cannot use queue when consumer has Flow Control or Heartbeat.");
+        }
+
+        // 6. create the subscription
+        final String fnlStream = stream;
+        final String fnlConsumerName = consumerName;
+        final String fnlInboxDeliver = inboxDeliver;
+        final ConsumerConfiguration fnlConsumerConfig = consumerConfig;
         NatsSubscriptionFactory nsf = (sid, lSubject, lQueueName, lConn, lDispatcher)
-            -> new NatsJetStreamSubscription(sid, lSubject, lQueueName, lConn, lDispatcher, NatsJetStream.this, isPullMode, so.isAutoStatusManage());
+            -> new NatsJetStreamSubscription(sid, lSubject, lQueueName, lConn, lDispatcher,
+            NatsJetStream.this, isPullMode, so, fnlStream, fnlConsumerName, fnlInboxDeliver, fnlConsumerConfig);
 
         NatsJetStreamSubscription sub;
         if (dispatcher == null) {
             sub = (NatsJetStreamSubscription) conn.createSubscription(inboxDeliver, queueName, null, nsf);
         }
         else {
-            NatsJetStreamSubscriptionMessageHandler mh = new NatsJetStreamSubscriptionMessageHandler(conn, userMh, autoAck, so.isAutoStatusManage());
-            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, queueName, mh, nsf);
+            NatsJetStreamSubscriptionMessageHandler njssmh = new NatsJetStreamSubscriptionMessageHandler(conn, userMh, autoAck, queueMode, so, consumerConfig);
+            if (njssmh.isNecessary()) {
+                sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, queueName, njssmh, nsf);
+                njssmh.setSub(sub);
+            }
+            else {
+                sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, queueName, userMh, nsf);
+            }
         }
-        sub.finishSetup(stream, consumerName, inboxDeliver, consumerConfig);
 
         return sub;
     }

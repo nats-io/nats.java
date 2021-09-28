@@ -353,6 +353,11 @@ public class Headers {
 		return serialized;
 	}
 
+	/**
+	 * Appends the serialized bytes to the builder.
+	 *
+	 * @return the builder
+	 */
 	public ByteArrayBuilder appendSerialized(ByteArrayBuilder bab) {
 		bab.append(HEADER_VERSION_BYTES_PLUS_CRLF);
 		for (String key : valuesMap.keySet()) {

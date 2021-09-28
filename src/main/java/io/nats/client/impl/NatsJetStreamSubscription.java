@@ -13,12 +13,14 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.*;
+import io.nats.client.JetStreamApiException;
+import io.nats.client.JetStreamSubscription;
+import io.nats.client.Message;
+import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.NatsJetStreamConstants;
-import io.nats.client.support.Status;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -26,7 +28,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.Validator.validatePullBatchSize;
 
@@ -36,32 +37,53 @@ import static io.nats.client.support.Validator.validatePullBatchSize;
 public class NatsJetStreamSubscription extends NatsSubscription implements JetStreamSubscription, NatsJetStreamConstants {
 
     private final NatsJetStream js;
-    private final boolean autoStatusManage;
-    private final boolean noNextMessage;
     private final boolean pullMode;
-    private final AtomicReference<String> lastFcSubject;
 
-    private String consumerName;
-    private String stream;
-    private String deliver;
-    private ConsumerConfiguration consumerConfig;
+    private final String stream;
+    private final String consumerName;
+    private final String deliver;
+
+    private final PullImpl pullImpl;
+    private final NextMessageImpl nextMessageImpl;
 
     NatsJetStreamSubscription(String sid, String subject, String queueName,
                               NatsConnection connection, NatsDispatcher dispatcher,
-                              NatsJetStream js, boolean pullMode, boolean autoStatusManage) {
+                              NatsJetStream js, boolean pullMode, SubscribeOptions so,
+                              String stream, String consumer, String deliver, ConsumerConfiguration consumerConfig) {
         super(sid, subject, queueName, connection, dispatcher);
         this.js = js;
         this.pullMode = pullMode;
-        this.autoStatusManage = autoStatusManage;
-        noNextMessage = dispatcher != null;
-        lastFcSubject = new AtomicReference<>();
-    }
-
-    void finishSetup(String stream, String consumer, String deliver, ConsumerConfiguration consumerConfig) {
-        this.consumerName = consumer;
         this.stream = stream;
+        this.consumerName = consumer;
         this.deliver = pullMode ? null : deliver;
-        this.consumerConfig = consumerConfig;
+
+        if (pullMode) {
+            pullImpl = this::_pull;
+        }
+        else {
+            pullImpl = (batchSize, noWait, expiresIn) -> {
+                throw new IllegalStateException("Subscription type does not allow pull.");
+            };
+        }
+
+        // 'sync push' and 'pull' are allow to use nextMessage, they never have a dispatcher
+        // async is always dispatched and not allowed to call nextMessage
+        if (dispatcher == null) {
+            NatsJetStreamMessagePreProcessor pre =
+                new NatsJetStreamMessagePreProcessor(connection, so, consumerConfig, this, queueName != null, true);
+
+            if (pre.isNoOp()) {
+                nextMessageImpl = super::nextMessage;
+            }
+            else {
+                nextMessageImpl = new PreProcessorNextMessageImpl(pre);
+            }
+        }
+        else {
+            nextMessageImpl = timeout -> {
+                throw new IllegalStateException("Calling nextMessage not allowed for async push.");
+            };
+        }
     }
 
     String getConsumerName() {
@@ -80,117 +102,66 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return pullMode;
     }
 
-    boolean isAutoStatusManage() {
-        return autoStatusManage;
-    }
-
     @Override
     public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
-        // dispatched means handler means nextMessage should never called
-        if (noNextMessage) {
-            throw new IllegalStateException("Calling nextMessage not allowed for async push or pull subscriptions.");
+        return nextMessageImpl.nextMessage(timeout);
+    }
+
+    interface NextMessageImpl {
+        Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException;
+    }
+
+    class PreProcessorNextMessageImpl implements NextMessageImpl {
+        final NatsJetStreamMessagePreProcessor pre;
+
+        public PreProcessorNextMessageImpl(NatsJetStreamMessagePreProcessor pre) {
+            this.pre = pre;
         }
 
-        if (autoStatusManage) {
+        @Override
+        public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
             // null timeout is allowed, it means don't wait, messages must already be available.
-            if (timeout == null) {
-                Message msg = super.nextMessage(timeout);
-                return msg == null || handleIfProtocolMessage(msg, connection, lastFcSubject) ? null : msg;
+            // so only process 1 message max
+            if (timeout == null || timeout.isNegative()) {
+                Message msg = NatsJetStreamSubscription.super.nextMessage(timeout);
+                return msg == null || pre.preProcess(msg) ? null : msg;
             }
 
-            long now = System.currentTimeMillis();
-            System.out.println("NM-T: " + timeout);
-            Message msg = super.nextMessage(timeout);
-            while (msg != null && handleIfProtocolMessage(msg, connection, lastFcSubject)) {
-                // reduce the timeout by the time spent processing
-                long newNow = System.currentTimeMillis();
-                timeout = timeout.minusMillis(newNow - now);
-                if (timeout.toNanos() > 0) {
-                    now = newNow;
-                    System.out.println("NM-t: " + timeout);
-                    msg = super.nextMessage(timeout);
+            // zero timeout means wait for ever,
+            // so we process all messages until a regular message is received
+            if (timeout.isZero()) {
+                // loop through all messages until we get to a non protocol message
+                // by using timeout of null, we never wait for messages, just read
+                // messages that are already queued
+                Message msg = NatsJetStreamSubscription.super.nextMessage(timeout);
+                while (msg != null && pre.preProcess(msg)) {
+                    msg = NatsJetStreamSubscription.super.nextMessage(timeout);
+                }
+                return msg;
+            }
+
+            // positive timeout, process as many messages we can in that time period
+            long end = System.currentTimeMillis() + timeout.toMillis();
+            Message msg = NatsJetStreamSubscription.super.nextMessage(timeout);
+            while (msg != null && pre.preProcess(msg)) {
+                long millis = end - System.currentTimeMillis();
+                if (millis > 0) {
+                    msg = NatsJetStreamSubscription.super.nextMessage(Duration.ofMillis(millis));
                 }
                 else {
                     msg = null;
                 }
             }
             return msg;
-
         }
-
-        // pull, push-sync not auto-proto-managed
-        return super.nextMessage(timeout);
-    }
-
-    static class NatsJetStreamSubscriptionMessageHandler implements MessageHandler {
-        final NatsConnection conn;
-        final MessageHandler userMH;
-        final boolean autoAck;
-        final boolean autoProtoManage;
-        final AtomicReference<String> lastFcSubject;
-
-        // caller must ensure userMH is not null
-        NatsJetStreamSubscriptionMessageHandler(NatsConnection conn, MessageHandler userMH, boolean autoAck, boolean autoProtoManage) {
-            this.conn = conn;
-            this.userMH = userMH;
-            this.autoAck = autoAck;
-            this.autoProtoManage = autoProtoManage;
-            lastFcSubject = new AtomicReference<>();
-        }
-
-        @Override
-        public void onMessage(Message msg) throws InterruptedException {
-            try  {
-                if (autoProtoManage && handleIfProtocolMessage(msg, conn, lastFcSubject)) {
-                    return;
-                }
-
-                if (userMH != null) {
-                    userMH.onMessage(msg);
-                }
-
-                // don't ack if not JetStream
-                if (autoAck && msg.isJetStream()) {
-                    msg.ack();
-                }
-            } catch (Exception e) {
-                ErrorListener el = conn.getOptions().getErrorListener();
-                if (el != null) {
-                    el.exceptionOccurred(conn, e);
-                }
-            }
-        }
-    }
-
-    private static boolean handleIfProtocolMessage(Message msg, NatsConnection conn, AtomicReference<String> lastFcSubject) {
-        if (msg.isStatusMessage()) {
-            Status status = msg.getStatus();
-            String fcSubject = null;
-            if (status.isFlowControl()) {
-                fcSubject = msg.getReplyTo();
-            }
-            else if (status.isHeartbeat()) {
-                Headers h = msg.getHeaders();
-                fcSubject = h == null ? null : h.getFirst(CONSUMER_STALLED_HDR);
-            }
-
-            // we may get multiple fc/hb messages with the same reply
-            // only need to post to that subject once
-            if (fcSubject != null && !fcSubject.equals(lastFcSubject.get())) {
-                conn.publishInternal(fcSubject, null, null, null, false);
-                lastFcSubject.set(fcSubject); // set after publish in case the pub fails
-            }
-            return true; // handled
-        }
-        return false; // not handled
-    }
+    };
 
     /**
      * {@inheritDoc}
      */
     @Override
     public void pull(int batchSize) {
-        _pull(batchSize, false, null);
+        pullImpl.pull(batchSize, false, null);
     }
 
     /**
@@ -198,7 +169,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pullNoWait(int batchSize) {
-        _pull(batchSize, true, null);
+        pullImpl.pull(batchSize, true, null);
     }
 
     /**
@@ -206,7 +177,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pullExpiresIn(int batchSize, Duration expiresIn) {
-        _pull(batchSize, false, expiresIn);
+        pullImpl.pull(batchSize, false, expiresIn);
     }
 
     /**
@@ -214,14 +185,14 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pullExpiresIn(int batchSize, long expiresInMillis) {
-        _pull(batchSize, false, Duration.ofMillis(expiresInMillis));
+        pullImpl.pull(batchSize, false, Duration.ofMillis(expiresInMillis));
+    }
+
+    interface PullImpl {
+        void pull(int batchSize, boolean noWait, Duration expiresIn);
     }
 
     private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
-        if (!isPullMode()) {
-            throw new IllegalStateException("Subscription type does not support pull.");
-        }
-
         int batch = validatePullBatchSize(batchSize);
         String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
         connection.publish(publishSubject, getSubject(), getPullJson(batch, noWait, expiresIn));

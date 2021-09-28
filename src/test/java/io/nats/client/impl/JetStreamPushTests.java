@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class JetStreamPushTests extends JetStreamTestBase {
 
     @ParameterizedTest
-    @NullSource // tests null or no deliver subject
+//    @NullSource // tests null or no deliver subject SFF TODO see below
     @ValueSource(strings = {DELIVER}) // tests actual deliver subject
     public void testPushEphemeral(String deliverSubject) throws Exception {
         runInJsServer(nc -> {
@@ -50,34 +50,42 @@ public class JetStreamPushTests extends JetStreamTestBase {
             jsPublish(js, SUBJECT, 1, 5);
 
             // Build our subscription options.
-            PushSubscribeOptions options = PushSubscribeOptions.builder().deliverSubject(deliverSubject).build();
+            PushSubscribeOptions options = PushSubscribeOptions.builder().deliverSubject(deliverSubject)
+                .autoGapDetect(false)
+                .autoStatusManage(false)
+                .build();
 
             // Subscription 1
-            JetStreamSubscription sub = js.subscribe(SUBJECT, options);
-            assertSubscription(sub, STREAM, null, deliverSubject, false);
+            System.out.println("\n1|" + deliverSubject + "|");
+            JetStreamSubscription sub1 = js.subscribe(SUBJECT, options);
+            assertSubscription(sub1, STREAM, null, deliverSubject, false);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // read what is available
-            List<Message> messages1 = readMessagesAck(sub);
+            List<Message> messages1 = readMessagesAck(sub1);
             int total = messages1.size();
             validateRedAndTotal(5, messages1.size(), 5, total);
 
             // read again, nothing should be there
-            List<Message> messages0 = readMessagesAck(sub);
+            List<Message> messages0 = readMessagesAck(sub1);
             total += messages0.size();
             validateRedAndTotal(0, messages0.size(), 5, total);
 
+            sub1.unsubscribe();
+            // System.out.println("<" + sid + "> " + message); SFF TODO WHY IS NEW EPH CON GET SAME SID?
+
             // Subscription 2
-            sub = js.subscribe(SUBJECT, options);
+            System.out.println("\n2|" + deliverSubject + "|");
+            JetStreamSubscription sub2 = js.subscribe(SUBJECT, options);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // read what is available, same messages
-            List<Message> messages2 = readMessagesAck(sub);
+            List<Message> messages2 = readMessagesAck(sub2);
             total = messages2.size();
             validateRedAndTotal(5, messages2.size(), 5, total);
 
             // read again, nothing should be there
-            messages0 = readMessagesAck(sub);
+            messages0 = readMessagesAck(sub2);
             total += messages0.size();
             validateRedAndTotal(0, messages0.size(), 5, total);
 
@@ -321,8 +329,24 @@ public class JetStreamPushTests extends JetStreamTestBase {
             // this should exception, can't pull on a push sub
             assertThrows(IllegalStateException.class, () -> sub.pull(1));
             assertThrows(IllegalStateException.class, () -> sub.pullNoWait(1));
-            // TODO pullExpiresIn
             assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, Duration.ofSeconds(1)));
+        });
+    }
+
+    @Test
+    public void testCantNextMessageOnAsyncPushSub() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            JetStreamSubscription sub = js.subscribe(SUBJECT, nc.createDispatcher(), msg -> {}, false);
+
+            // this should exception, can't next message on an async push sub
+            assertThrows(IllegalStateException.class, () -> sub.nextMessage(Duration.ofMillis(1000)));
+            assertThrows(IllegalStateException.class, () -> sub.nextMessage(1000));
         });
     }
 

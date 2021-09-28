@@ -68,14 +68,6 @@ class NatsJetStreamMessage extends InternalMessage {
 
     private void ackReply(AckType ackType) {
         Connection nc = getJetStreamValidatedConnection();
-// SFF 2021-02-25 Future ackNext() behavior
-//        if (ackType == AckNext) {
-//            byte[] bytes = ((NatsJetStreamSubscription) subscription).getPrefixedPullJson(AckNext.text);
-//            nc.publish(replyTo, bytes);
-//        }
-//        else {
-//            nc.publish(replyTo, ackType.bytes);
-//        }
         nc.publish(replyTo, ackType.bytes);
     }
 
@@ -85,12 +77,6 @@ class NatsJetStreamMessage extends InternalMessage {
             throw new TimeoutException("Ack response timed out.");
         }
     }
-
-// SFF 2021-02-25 Future ackNext() behavior
-//    private boolean isPullMode() {
-//        return subscription instanceof NatsJetStreamSubscription
-//                && ((NatsJetStreamSubscription) subscription).isPullMode();
-//    }
 
     Connection getJetStreamValidatedConnection() {
         if (getSubscription() == null) {

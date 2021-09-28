@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.api.ConsumerConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -156,21 +157,21 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
             js.subscribe(SUBJECT, pso1);
 
             IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pso1));
-            assertTrue(iae.getMessage().contains("[SUB-Q02]"));
+            assertTrue(iae.getMessage().contains("[SUB-PB01]"));
 
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, queue(1), pso1));
-            assertTrue(iae.getMessage().contains("[SUB-Q03]"));
+            assertTrue(iae.getMessage().contains("[SUB-Q01]"));
 
             PushSubscribeOptions pso21 = PushSubscribeOptions.builder().durable(durable(2)).build();
             js.subscribe(SUBJECT, queue(21), pso21);
 
             PushSubscribeOptions pso22 = PushSubscribeOptions.builder().durable(durable(2)).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, queue(22), pso22));
-            assertTrue(iae.getMessage().contains("[SUB-Q05]"));
+            assertTrue(iae.getMessage().contains("[SUB-Q03]"));
 
             PushSubscribeOptions pso23 = PushSubscribeOptions.builder().durable(durable(2)).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pso23));
-            assertTrue(iae.getMessage().contains("[SUB-Q04]"));
+            assertTrue(iae.getMessage().contains("[SUB-Q02]"));
 
             PushSubscribeOptions pso3 = PushSubscribeOptions.builder()
                     .durable(durable(3))
@@ -178,6 +179,24 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
                     .build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, queue(32), pso3));
             assertTrue(iae.getMessage().contains("[SUB-Q01]"));
+
+            ConsumerConfiguration ccFc = ConsumerConfiguration.builder().flowControl(true).idleHeartbeat(1000).build();
+            PushSubscribeOptions pso4 = PushSubscribeOptions.builder()
+                .durable(durable(4))
+                .deliverGroup(queue(4))
+                .configuration(ccFc)
+                .build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, queue(4), pso4));
+            assertTrue(iae.getMessage().contains("[SUB-QM01]"));
+
+            ConsumerConfiguration ccHb = ConsumerConfiguration.builder().idleHeartbeat(1000).build();
+            PushSubscribeOptions pso5 = PushSubscribeOptions.builder()
+                .durable(durable(5))
+                .deliverGroup(queue(5))
+                .configuration(ccHb)
+                .build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, queue(5), pso5));
+            assertTrue(iae.getMessage().contains("[SUB-QM01]"));
         });
     }
 }

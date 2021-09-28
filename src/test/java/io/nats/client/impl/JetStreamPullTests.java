@@ -261,7 +261,10 @@ public class JetStreamPullTests extends JetStreamTestBase {
             createMemoryStream(nc, STREAM, SUBJECT);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
-            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
+            PullSubscribeOptions options = PullSubscribeOptions.builder()
+                .durable(DURABLE)
+                .autoGapDetect(false) // not testing gap in this test
+                .build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
@@ -322,9 +325,10 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions options = PullSubscribeOptions.builder()
-                    .durable(DURABLE)
-                    .autoStatusManage(false)
-                    .build();
+                .durable(DURABLE)
+                .autoStatusManage(false)
+                .autoGapDetect(false) // not testing gap in this test
+                .build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
@@ -567,90 +571,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
             njsm.replyTo = "$JS.ACK.stream.LS0k4eeN.1.1.1.1627472530542070600.0";
 
             assertThrows(TimeoutException.class, () -> njsm.ackSync(Duration.ofSeconds(1)));
-        });
-    }
-
-    @Test
-    public void testFlowControlNotAllowedOnPull() throws Exception {
-        runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
-
-            // SFF TODO
-        });
-    }
-
-    // @Test
-    public void testInProgress() throws Exception {
-        runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
-
-            PullSubscribeOptions pso = PullSubscribeOptions.builder().durable(DURABLE).build();
-            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
-
-            // In Progress
-            jsPublish(js, SUBJECT, "PRO", 1);
-
-            sub.pull(1);
-            Message message = sub.nextMessage(Duration.ofSeconds(1));
-            assertNotNull(message);
-            String data = new String(message.getData());
-            assertEquals("PRO1", data);
-            message.inProgress();
-            sleep(500);
-//            message.inProgress();
-//            sleep(500);
-//            message.inProgress();
-//            sleep(500);
-//            message.inProgress();
-//            sleep(500);
-            message.ack();
-
-            jsPublish(js, SUBJECT, "PRO", 2);
-
-            sub.pull(1);
-            message = sub.nextMessage(Duration.ofSeconds(1));
-            assertNotNull(message);
-            data = new String(message.getData());
-            assertEquals("PRO2", data);
-
-            sub.pull(1);
-            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
-        });
-    }
-
-//    @Test2
-    public void testAckSync() throws Exception {
-        runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
-
-            PullSubscribeOptions pso = PullSubscribeOptions.builder().durable(DURABLE).build();
-            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
-
-            // ACK Sync
-            jsPublish(js, SUBJECT, "ACKSYNC", 1);
-
-            sub.pull(1);
-            Message message = sub.nextMessage(Duration.ofSeconds(1));
-            assertNotNull(message);
-            String data = new String(message.getData());
-            assertEquals("ACKSYNC1", data);
-            message.ackSync(Duration.ofSeconds(1));
-
-            sub.pull(1);
-            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
         });
     }
 }

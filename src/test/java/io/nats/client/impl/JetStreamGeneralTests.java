@@ -510,11 +510,11 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             PushSubscribeOptions pushso = PushSubscribeOptions.bind(STREAM, DURABLE);
             IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushso));
-            assertTrue(iae.getMessage().contains("[SUB-B01]"));
+            assertTrue(iae.getMessage().contains("[SUB-BND01]"));
 
             PullSubscribeOptions pullso = PullSubscribeOptions.bind(STREAM, DURABLE);
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pullso));
-            assertTrue(iae.getMessage().contains("[SUB-B01]"));
+            assertTrue(iae.getMessage().contains("[SUB-BND01]"));
         });
     }
 

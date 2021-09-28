@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.support.Status;
+
 /**
  * This library groups problems into four categories:
  * <dl>
@@ -81,7 +83,7 @@ public interface ErrorListener {
      * The consumer must be configured with an idle heartbeat time.
      * Subscription must be in Auto Status Management (ASM) mode (which is the default subscription mode)
      *
-     * @param conn The connection that had
+     * @param conn The connection that had the issue
      * @param sub the JetStreamSubscription that this occurred on
      */
     default void heartbeatAlarm(Connection conn, JetStreamSubscription sub) {}
@@ -90,8 +92,20 @@ public interface ErrorListener {
      * Called by the connection when there is a gap in messages received.
      * Subscription must be in Auto Status Management (ASM) mode (which is the default subscription mode)
      *
-     * @param conn The connection that had
+     * @param conn The connection that had the issue
      * @param sub the JetStreamSubscription that this occurred on
+     * @param expectedConsumerSeq the consumer sequence that was expected
+     * @param receivedConsumerSeq the consumer sequence that was received
      */
-    default void messageGapDetected(Connection conn, JetStreamSubscription sub) {}
+    default void messageGapDetected(Connection conn, JetStreamSubscription sub, long expectedConsumerSeq, long receivedConsumerSeq) {}
+
+    /**
+     * Called by the connection when an unhandled status is received.
+     * Subscription must be in Auto Status Management (ASM) mode (which is the default subscription mode)
+     *
+     * @param conn The connection that had the issue
+     * @param sub the JetStreamSubscription that this occurred on
+     * @param status the status
+     */
+    default void unhandledStatus(Connection conn, JetStreamSubscription sub, Status status) {}
 }
