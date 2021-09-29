@@ -829,6 +829,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testAuthCreateUpdateStream() throws Exception {
+
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/js_authorization.conf", false)) {
             Options optionsSrc = new Options.Builder().server(ts.getURI())
                     .userInfo("serviceup".toCharArray(), "uppass".toCharArray()).build();
