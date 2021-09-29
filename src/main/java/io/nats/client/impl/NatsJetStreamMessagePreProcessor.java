@@ -25,13 +25,13 @@ import java.util.function.Function;
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
 public class NatsJetStreamMessagePreProcessor {
-    private static final List<Integer> PULL_STATUS_CODES = Arrays.asList(404, 408);
+    private static final List<Integer> PULL_KNOWN_STATUS_CODES = Arrays.asList(404, 408);
     private static final int THRESHOLD = 3;
 
     protected NatsConnection conn;
     protected NatsJetStreamSubscription sub;
 
-    private Function<Message, Boolean> preImpl;
+    private Function<Message, Boolean> preProcessImpl;
 
     private final boolean syncMode;
     private final boolean queueMode;
@@ -40,7 +40,7 @@ public class NatsJetStreamMessagePreProcessor {
     private final boolean gap;
     private final boolean hb;
     private final boolean fc;
-    private boolean noOp;
+    private final boolean noOp;
 
     private final long idleHeartbeatSetting;
     private final long alarmPeriodSetting;
@@ -86,15 +86,18 @@ public class NatsJetStreamMessagePreProcessor {
                 }
                 hb = true;
             }
-            fc = hb && cc.getFlowControl();
+            fc = hb && cc.getFlowControl(); // can't have fc w/o heartbeat
         }
 
-
+        // construct a function based on the things that need to be checked
+        // alternatively we could have just gone through these checks every single time
+        // but also constructing ahead of time helper determine if this is a no-op
+        // which can help optimize whether the preprocessor needs to be called at all
         if (asm) {
             if (pull) {
                 if (gap) { // +asm +pull +gap
-                    preImpl = msg -> {
-                        if (pullCheckStatus(msg)) {
+                    preProcessImpl = msg -> {
+                        if (checkStatusForPull(msg)) {
                             return true;
                         }
                         detectGaps(msg);
@@ -102,15 +105,15 @@ public class NatsJetStreamMessagePreProcessor {
                     };
                 }
                 else { // +asm +pull -gap
-                    preImpl = this::pullCheckStatus;
+                    preProcessImpl = this::checkStatusForPull;
                 }
             }
             else if (idleHeartbeatSetting > 0) {
                 if (fc) {
                     if (gap) { // +asm +push +hb +fc +gap
-                        preImpl = msg -> {
+                        preProcessImpl = msg -> {
                             trackReceivedTime();
-                            if (pushCheckStatus(msg)) {
+                            if (checkStatusForPush(msg)) {
                                 return true;
                             }
                             detectGaps(msg);
@@ -118,16 +121,16 @@ public class NatsJetStreamMessagePreProcessor {
                         };
                     }
                     else { // +asm +push +hb +fc -gap
-                        preImpl = msg -> {
+                        preProcessImpl = msg -> {
                             trackReceivedTime();
-                            return pushCheckStatus(msg);
+                            return checkStatusForPush(msg);
                         };
                     }
                 }
                 else if (gap) { // +asm +push +hb -fc +gap
-                    preImpl = msg -> {
+                    preProcessImpl = msg -> {
                         trackReceivedTime();
-                        if (pushCheckStatus(msg)) {
+                        if (checkStatusForPush(msg)) {
                             return true;
                         }
                         detectGaps(msg);
@@ -135,15 +138,15 @@ public class NatsJetStreamMessagePreProcessor {
                     };
                 }
                 else { // +asm +push +hb -fc -gap
-                    preImpl = msg -> {
+                    preProcessImpl = msg -> {
                         trackReceivedTime();
-                        return pushCheckStatus(msg);
+                        return checkStatusForPush(msg);
                     };
                 }
             }
             else if (gap) { // +asm +push -hb -fc +gap
-                preImpl = msg -> {
-                    if (pushCheckStatus(msg)) {
+                preProcessImpl = msg -> {
+                    if (checkStatusForPush(msg)) {
                         return true;
                     }
                     detectGaps(msg);
@@ -151,80 +154,45 @@ public class NatsJetStreamMessagePreProcessor {
                 };
             }
             else { // +asm +push -hb -fc -gap
-                preImpl = this::pushCheckStatus;
+                preProcessImpl = this::checkStatusForPush;
             }
         }
         else if (gap) { // -asm +push-or-pull +gap
-            preImpl = msg -> {
+            preProcessImpl = msg -> {
                 detectGaps(msg);
                 return false;
             };
         }
 
-        noOp = preImpl == null;
+        noOp = preProcessImpl == null;
         if (noOp) {
-            preImpl = msg -> false;
+            preProcessImpl = msg -> false;
         }
     }
 
-    public void setSub(NatsJetStreamSubscription sub) {
+    // chicken or egg situation here. The handler needs the sub in case of error
+    // but the sub needs the handler in order to be created
+    void setSub(NatsJetStreamSubscription sub) {
         this.sub = sub;
     }
 
-    public boolean isSyncMode() {
-        return syncMode;
-    }
+    boolean isSyncMode() { return syncMode; }
+    boolean isQueueMode() { return queueMode; }
+    boolean isPull() { return pull; }
+    boolean isAsm() { return asm; }
+    boolean isGap() { return gap; }
+    boolean isFc() { return fc; }
+    boolean isHb() { return hb; }
+    boolean isNoOp() { return noOp; }
 
-    public boolean isQueueMode() {
-        return queueMode;
-    }
-
-    public boolean isPull() {
-        return pull;
-    }
-
-    public boolean isAsm() {
-        return asm;
-    }
-
-    public boolean isGap() {
-        return gap;
-    }
-
-    public boolean isFc() {
-        return fc;
-    }
-
-    public boolean isHb() {
-        return hb;
-    }
-
-    public boolean isNoOp() {
-        return noOp;
-    }
-
-    String getLastFcSubject() {
-        return lastFcSubject;
-    }
-
-    long getExpectedConsumerSeq() {
-        return expectedConsumerSeq;
-    }
-
-    long getLastMessageReceivedTime() {
-        return lastMessageReceivedTime.get();
-    }
-
-    long getIdleHeartbeatSetting() {
-        return idleHeartbeatSetting;
-    }
-
-    long getAlarmPeriodSetting() {
-        return alarmPeriodSetting;
-    }
+    String getLastFcSubject() { return lastFcSubject; }
+    long getExpectedConsumerSeq() { return expectedConsumerSeq; }
+    long getLastMessageReceivedTime() { return lastMessageReceivedTime.get(); }
+    long getIdleHeartbeatSetting() { return idleHeartbeatSetting; }
+    long getAlarmPeriodSetting() { return alarmPeriodSetting; }
 
     boolean preProcess(Message msg) {
-        return preImpl.apply(msg);
+        return preProcessImpl.apply(msg);
     }
 
     private void trackReceivedTime() {
@@ -250,7 +218,10 @@ public class NatsJetStreamMessagePreProcessor {
         }
     }
 
-    private boolean pushCheckStatus(Message msg) {
+    private boolean checkStatusForPush(Message msg) {
+        // this checks fc, hb and unknown
+        // only process fc and hb if those flags are set
+        // otherwise they are simply known statuses
         if (msg.isStatusMessage()) {
             Status status = msg.getStatus();
             if (status.isFlowControl()) {
@@ -270,24 +241,16 @@ public class NatsJetStreamMessagePreProcessor {
                 return true;
             }
 
+            // this status is unknown to us, how we let the user know
+            // depends on whether they are sync or async
             if (syncMode) {
                 throw new JetStreamStatusException(sub, status);
             }
 
+            // Can't assume they have an error listener.
             ErrorListener el = conn.getOptions().getErrorListener();
             if (el != null) {
                 el.unhandledStatus(conn, sub, status);
-            }
-            return true;
-        }
-        return false;
-    }
-
-    private boolean pullCheckStatus(Message msg) {
-        if (msg.isStatusMessage()) {
-            Status status = msg.getStatus();
-            if ( !PULL_STATUS_CODES.contains(status.getCode()) ) {
-                throw new JetStreamStatusException(sub, status);
             }
             return true;
         }
@@ -301,5 +264,17 @@ public class NatsJetStreamMessagePreProcessor {
             conn.publishInternal(fcSubject, null, null, null, false);
             lastFcSubject = fcSubject; // set after publish in case the pub fails
         }
+    }
+
+    private boolean checkStatusForPull(Message msg) {
+        if (msg.isStatusMessage()) {
+            Status status = msg.getStatus();
+            if ( !PULL_KNOWN_STATUS_CODES.contains(status.getCode()) ) {
+                // pull is always sync
+                throw new JetStreamStatusException(sub, status);
+            }
+            return true;
+        }
+        return false;
     }
 }

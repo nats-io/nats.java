@@ -57,8 +57,10 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         this.consumerName = consumer;
         this.deliver = pullMode ? null : deliver;
 
+        // Provide a pull implementation to reduce runtime flag checking.
+        // This implementation is called as a delegate in pull, pullNoWait and pullExpiresIn
         if (pullMode) {
-            pullImpl = this::_pull;
+            pullImpl = this::_pullImpl;
         }
         else {
             pullImpl = (batchSize, noWait, expiresIn) -> {
@@ -66,18 +68,14 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
             };
         }
 
+        // Provide a nextMessage implementation to reduce runtime flag checking
         // 'sync push' and 'pull' are allow to use nextMessage, they never have a dispatcher
         // async is always dispatched and not allowed to call nextMessage
         if (dispatcher == null) {
+            // additionally optimize this implementation as sometimes the pre-processor is not called for
             NatsJetStreamMessagePreProcessor pre =
                 new NatsJetStreamMessagePreProcessor(connection, so, consumerConfig, this, queueName != null, true);
-
-            if (pre.isNoOp()) {
-                nextMessageImpl = super::nextMessage;
-            }
-            else {
-                nextMessageImpl = new PreProcessorNextMessageImpl(pre);
-            }
+            nextMessageImpl = pre.isNoOp() ? super::nextMessage : new PreProcessorNextMessageImpl(pre);
         }
         else {
             nextMessageImpl = timeout -> {
@@ -192,7 +190,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         void pull(int batchSize, boolean noWait, Duration expiresIn);
     }
 
-    private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
+    private void _pullImpl(int batchSize, boolean noWait, Duration expiresIn) {
         int batch = validatePullBatchSize(batchSize);
         String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
         connection.publish(publishSubject, getSubject(), getPullJson(batch, noWait, expiresIn));

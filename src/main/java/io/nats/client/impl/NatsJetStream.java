@@ -348,8 +348,11 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
         else {
             NatsJetStreamSubscriptionMessageHandler njssmh = new NatsJetStreamSubscriptionMessageHandler(conn, userMh, autoAck, queueMode, so, consumerConfig);
+            // if not necessary, just give the sub the user's handler
             if (njssmh.isNecessary()) {
                 sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, queueName, njssmh, nsf);
+                // chicken or egg situation here. The handler needs the sub in case of error,
+                // but the sub needs the handler in order to be created
                 njssmh.setSub(sub);
             }
             else {

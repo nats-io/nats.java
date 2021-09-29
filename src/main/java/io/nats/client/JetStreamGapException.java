@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2021 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -21,6 +21,13 @@ public class JetStreamGapException extends IllegalStateException {
     private final long expectedConsumerSeq;
     private final long receivedConsumerSeq;
 
+    /**
+     * Construct an exception with gap information
+     *
+     * @param sub the subscription
+     * @param expectedConsumerSeq the expected sequence
+     * @param receivedConsumerSeq the received sequence
+     */
     public JetStreamGapException(JetStreamSubscription sub, long expectedConsumerSeq, long receivedConsumerSeq) {
         this.sub = sub;
         this.expectedConsumerSeq = expectedConsumerSeq;

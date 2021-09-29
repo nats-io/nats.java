@@ -30,7 +30,8 @@ class NatsJetStreamSubscriptionMessageHandler extends NatsJetStreamMessagePrePro
         this.autoAck = autoAck;
     }
 
-    public boolean isNecessary() {
+    // This allows for optimization.
+    boolean isNecessary() {
         return autoAck || !super.isNoOp();
     }
 

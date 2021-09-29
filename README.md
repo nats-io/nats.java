@@ -539,7 +539,6 @@ in the JetStream examples for detailed and runnable examples.
 ### Subscription Creation
 
 Subscription creation has many checks to make sure that a valid, operable subscription can be made.
-These are the known checks that are done.
 
 | Code | Description |
 | --- | --- |
