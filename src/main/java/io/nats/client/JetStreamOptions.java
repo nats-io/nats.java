@@ -13,9 +13,12 @@
 
 package io.nats.client;
 
-import io.nats.client.support.JsPrefixManager;
-
 import java.time.Duration;
+
+import static io.nats.client.support.NatsConstants.DOT;
+import static io.nats.client.support.NatsJetStreamConstants.*;
+import static io.nats.client.support.Validator.nullOrEmpty;
+import static io.nats.client.support.Validator.validatePrefixOrDomain;
 
 /**
  * The JetStreamOptions class specifies the general options for JetStream.
@@ -93,6 +96,7 @@ public class JetStreamOptions {
     public static class Builder {
 
         private String prefix;
+        private String domain;
         private Duration requestTimeout;
         private boolean publishNoAck;
 
@@ -118,13 +122,28 @@ public class JetStreamOptions {
 
         /**
          * Sets the prefix for JetStream subjects. A prefix can be used in conjunction with
-         * user permissions to restrict access to certain JetStream instances.  This must
+         * user permissions to restrict access to certain JetStream instances. This must
          * match the prefix used in the server.
          * @param prefix the JetStream prefix
          * @return the builder.
          */
         public Builder prefix(String prefix) {
-            this.prefix = prefix; // validated in prefix manager
+            this.prefix = prefix; // validated during build
+            this.domain = null; // build with one or the other
+            return this;
+        }
+
+        /**
+         * Sets the domain for JetStream subjects, creating a standard prefix from that domain
+         * in the form $JS.(domain).API.
+         * A domain can be used in conjunction with user permissions to restrict access to certain JetStream instances.
+         * This must match the domain used in the server.
+         * @param domain the JetStream domain
+         * @return the builder.
+         */
+        public Builder domain(String domain) {
+            this.domain = domain; // validated in domain manager
+            this.prefix = null; // build with one or the other
             return this;
         }
 
@@ -143,9 +162,38 @@ public class JetStreamOptions {
          * @return JetStream options
          */
         public JetStreamOptions build() {
-            prefix = JsPrefixManager.addPrefix(prefix);
+            if (domain == null) {
+                prefix = validatePrefix(prefix);
+            }
+            else {
+                prefix = validateDomain(domain);
+            }
             this.requestTimeout = requestTimeout == null ? DEFAULT_TIMEOUT : requestTimeout;
             return new JetStreamOptions(prefix, requestTimeout, publishNoAck);
+        }
+
+        private String validatePrefix(String prefix) {
+            if (nullOrEmpty(prefix)) {
+                return DEFAULT_API_PREFIX;
+            }
+
+            prefix = validatePrefixOrDomain(prefix, "Prefix", true);
+            if (!prefix.endsWith(DOT)) {
+                prefix += DOT;
+            }
+
+            return prefix;
+        }
+
+        private String validateDomain(String domain) {
+            if (nullOrEmpty(domain)) {
+                return DEFAULT_API_PREFIX;
+            }
+            domain = validatePrefixOrDomain(domain, "Domain", true);
+            if (!domain.endsWith(DOT)) {
+                domain += DOT;
+            }
+            return PREFIX_DOLLAR_JS_DOT + domain + PREFIX_API_DOT;
         }
     }
 }

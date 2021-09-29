@@ -6,9 +6,10 @@ public interface NatsJetStreamConstants {
      */
     int MAX_PULL_SIZE = 256;
 
-    String JS_PREFIX = "$JS.";
-
-    String JSAPI_PREFIX = JS_PREFIX + "API.";
+    String PREFIX_DOLLAR_JS_DOT = "$JS.";
+    String PREFIX_API_DOT = "API.";
+    String DEFAULT_API_PREFIX = "$JS.API.";
+    String JS_ACK_SUBJECT_PREFIX = "$JS.ACK.";
 
     // JSAPI_ACCOUNT_INFO is for obtaining general information about JetStream.
     String JSAPI_ACCOUNT_INFO = "INFO";
