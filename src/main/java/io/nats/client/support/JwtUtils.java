@@ -22,10 +22,15 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
 
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.RandomUtils.base32Encode;
 
+/**
+ * Implements https://github.com/nats-io/nats-architecture-and-design/blob/main/adr/ADR-14.md
+ */
 public class JwtUtils {
     static class Nats implements JsonSerializable {
         String issuerAccount;
@@ -35,7 +40,7 @@ public class JwtUtils {
         public String toJson() {
             StringBuilder sb = beginJson();
             JsonUtils.addField(sb, "issuer_account", issuerAccount);
-            JsonUtils.addStrings(sb, "tags", Arrays.asList(tags));
+            JsonUtils.addStrings(sb, "tags", null == tags ? Collections.emptyList() : Arrays.asList(tags));
             JsonUtils.addField(sb, "type", "user");
             JsonUtils.addField(sb, "version", 2);
             return endJson(sb).toString();
@@ -55,8 +60,8 @@ public class JwtUtils {
         public String toJson() {
             StringBuilder sb = beginJson();
             if (exp != null && !exp.isZero() && !exp.isNegative()) {
-                long unixSeconds = exp.toMillis() / 1000;
-                JsonUtils.addField(sb, "exp", unixSeconds);
+                long seconds = exp.toMillis() / 1000;
+                JsonUtils.addField(sb, "exp", iat + seconds);
             }
             JsonUtils.addField(sb, "iat", iat);
             JsonUtils.addFieldEvenEmpty(sb, "jti", jti);
@@ -69,10 +74,20 @@ public class JwtUtils {
         }
     }
 
-    static final String ENCODED_CLAIM_HEADER =
-            ToBase64Url("{\"typ\":\"JWT\", \"alg\":\"ed25519-nkey\"}");
+    private static final String ENCODED_CLAIM_HEADER =
+            toBase64Url("{\"typ\":\"JWT\", \"alg\":\"ed25519-nkey\"}");
 
-    static final String NATS_USER_JWT_FORMAT = "-----BEGIN NATS USER JWT-----\n" +
+    /**
+     * Format string with `%s` place holder for the JWT token followed
+     * by the user NKey seed. This can be directly used as such:
+     * <pre>
+     * NKey userKey = NKey.createUser(new SecureRandom());
+     * NKey signingKey = loadFromSecretStore();
+     * String jwt = issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()));
+     * String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
+     * <pre>
+     */
+    public static final String NATS_USER_JWT_FORMAT = "-----BEGIN NATS USER JWT-----\n" +
             "%s\n" +
             "------END NATS USER JWT------\n" +
             "\n" +
@@ -84,35 +99,71 @@ public class JwtUtils {
             "%s\n" +
             "------END USER NKEY SEED------\n" +
             "\n" +
-            "*************************************************************";
+            "*************************************************************\n";
 
-    public static String issueUserCreds(String accountSeed, String issuerAccount, String userSeed, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
-        String jwt = issueUserJWT(accountSeed, issuerAccount, userKeyPub, optionalName, optionalExpiration, optionalTags);
-        return String.format(NATS_USER_JWT_FORMAT, jwt, userSeed);
+    /**
+     * {@code name} and {@code expiration} defaults to {@code null}.
+     *
+     * @see #issueUserJWT(NKey, String, String, String, Duration, String...)
+     */
+    public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey) throws GeneralSecurityException, IOException {
+        return issueUserJWT(signingKey, accountId, publicUserKey, null, null);
     }
 
-    public static String issueUserCreds(NKey accountSigningKey, String issuerAccount, String userSeed, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
-        String jwt = issueUserJWT(accountSigningKey, issuerAccount, userKeyPub, optionalName, optionalExpiration, optionalTags);
-        return String.format(NATS_USER_JWT_FORMAT, jwt, userSeed);
+    /**
+     * {@code expiration} defaults to {@code null}.
+     *
+     * @see #issueUserJWT(NKey, String, String, String, Duration, String...)
+     */
+    public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name) throws GeneralSecurityException, IOException {
+        return issueUserJWT(signingKey, accountId, publicUserKey, name, null);
     }
 
-    public static String issueUserJWT(String accountSeed, String issuerAccount, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
-        NKey accountSigningKey = NKey.fromSeed(accountSeed.toCharArray());
-        return issueUserJWT(accountSigningKey, issuerAccount, userKeyPub, optionalName, optionalExpiration, optionalTags);
+    /**
+     * Issue a user JWT from a scoped signing key. See https://docs.nats.io/nats-tools/nsc/signing_keys
+     * 
+     * @param signingKey a mandatory account nkey pair to sign the generated jwt.
+     * @param accountId a mandatory public account nkey. Will throw error when not set or not account nkey.
+     * @param publicUserKey a mandatory public user nkey. Will throw error when not set or not user nkey.
+     * @param name optional human readable name. When absent, default to publicUserKey.
+     * @param expiration optional but recommended duration, when the generated jwt needs to expire. If not set, JWT will not expire.
+     * @param tags optional list of tags to be included in the JWT.
+     * @throws IllegalArgumentException if the accountId or publicUserKey is not a valid public key of the proper type
+     * @throws NullPointerException if signingKey, accountId, or publicUserKey are null.
+     */
+    public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name, Duration expiration, String... tags) throws GeneralSecurityException, IOException {
+        return issueUserJWT(signingKey, accountId, publicUserKey, name, expiration, tags, System.currentTimeMillis() / 1000);
     }
 
-    public static String issueUserJWT(NKey accountSigningKey, String issuerAccount, String userKeyPub, String optionalName, Duration optionalExpiration, String... optionalTags) throws GeneralSecurityException, IOException {
-        String accSigningKeyPub = new String(accountSigningKey.getPublicKey());
+    /**
+     * Method used for testing.
+     */
+    protected static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name, Duration expiration, String[] tags, long issuedAt) throws GeneralSecurityException, IOException {
+        // Validate the signingKey:
+        if (signingKey.getType() != NKey.Type.ACCOUNT) {
+            throw new IllegalArgumentException("issueUserJWT requires an account key for the signingKey parameter, but got " + signingKey.getType());
+        }
+        // Validate the accountId:
+        NKey accountKey = NKey.fromPublicKey(accountId.toCharArray());
+        if (accountKey.getType() != NKey.Type.ACCOUNT) {
+            throw new IllegalArgumentException("issueUserJWT requires an account key for the accountId parameter, but got " + accountKey.getType());
+        }
+        // Validate the publicUserKey:
+        NKey userKey = NKey.fromPublicKey(publicUserKey.toCharArray());
+        if (userKey.getType() != NKey.Type.USER) {
+            throw new IllegalArgumentException("issueUserJWT requires a user key for the publicUserKey, but got " + userKey.getType());
+        }
+        String accSigningKeyPub = new String(signingKey.getPublicKey());
 
         Claim claim = new Claim();
-        claim.exp = optionalExpiration;
-        claim.iat = System.currentTimeMillis() / 1000;
+        claim.exp = expiration;
+        claim.iat = issuedAt;
         claim.iss = accSigningKeyPub;
-        claim.name = Validator.nullOrEmpty(optionalName) ? userKeyPub : optionalName;
-        claim.sub = userKeyPub;
+        claim.name = Validator.nullOrEmpty(name) ? publicUserKey : name;
+        claim.sub = publicUserKey;
         claim.nats = new Nats();
-        claim.nats.issuerAccount = issuerAccount;
-        claim.nats.tags = optionalTags;
+        claim.nats.issuerAccount = accountId;
+        claim.nats.tags = tags;
 
         // Issue At time is stored in unix seconds
         String claimJson = claim.toJson();
@@ -121,25 +172,25 @@ public class JwtUtils {
         MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
         byte[] encoded = sha256.digest(claimJson.getBytes(StandardCharsets.UTF_8));
 
-        claim.jti = new String(NKey.base32Encode(encoded));
+        claim.jti = new String(base32Encode(encoded));
         claimJson = claim.toJson();
 
         // all three components (header/body/signature) are base64url encoded
-        String encBody = ToBase64Url(claimJson);
+        String encBody = toBase64Url(claimJson);
 
         // compute the signature off of header + body (. included on purpose)
         byte[] sig = (ENCODED_CLAIM_HEADER + "." + encBody).getBytes(StandardCharsets.UTF_8);
-        String encSig = ToBase64Url(accountSigningKey.sign(sig));
+        String encSig = toBase64Url(signingKey.sign(sig));
 
         // append signature to header and body and return it
         return ENCODED_CLAIM_HEADER + "." + encBody + "." + encSig;
     }
 
-    public static String ToBase64Url(byte[] input) {
-        return new String(Base64.getUrlEncoder().encode(input));
+    public static String toBase64Url(byte[] input) {
+        return new String(Base64.getUrlEncoder().withoutPadding().encode(input));
     }
 
-    public static String ToBase64Url(String input) {
-        return ToBase64Url(input.getBytes(StandardCharsets.UTF_8));
+    public static String toBase64Url(String input) {
+        return toBase64Url(input.getBytes(StandardCharsets.UTF_8));
     }
 }

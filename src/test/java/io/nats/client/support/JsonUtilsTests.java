@@ -77,6 +77,32 @@ public final class JsonUtilsTests {
         assertEquals(2, list.size());
     }
 
+    private void testStringEscape(String input, String expected) {
+        StringBuilder sb = JsonUtils.beginJson();
+        JsonUtils.addField(sb, "", input);
+        JsonUtils.endJson(sb);
+        assertEquals("{\"\":" + expected + "}", sb.toString());
+        sb.setLength(0);
+    }
+
+    @Test
+    public void testStringEscape() {
+        testStringEscape("\"", "\"\\\"\"");
+        testStringEscape("/", "\"/\"");
+        testStringEscape("\\", "\"\\\\\"");
+        testStringEscape("\b", "\"\\b\"");
+        testStringEscape("\f", "\"\\f\"");
+        testStringEscape("\n", "\"\\n\"");
+        testStringEscape("\r", "\"\\r\"");
+        testStringEscape("\t", "\"\\t\"");
+        testStringEscape("\0", "\"\\u0000\"");
+        testStringEscape("\u001f", "\"\\u001F\"");
+        testStringEscape("one\\two", "\"one\\\\two\"");
+        testStringEscape("one\\", "\"one\\\\\"");
+        testStringEscape("\\one", "\"\\\\one\"");
+        testStringEscape("\\\\one\\two", "\"\\\\\\\\one\\\\two\"");
+    }
+
     @Test
     public void testBeginEnd() {
         StringBuilder sb = JsonUtils.beginJson();

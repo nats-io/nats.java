@@ -243,6 +243,44 @@ public abstract class JsonUtils {
         return sb.toString().replaceAll(",", ",\n    ");
     }
 
+    private static Pattern STRING_ESCAPE_PATTERN = Pattern.compile("[\"\\\\\u0000-\u001F]");
+    private static void stringEscape(StringBuilder sb, String str) {
+        Matcher matcher = STRING_ESCAPE_PATTERN.matcher(str);
+        int position = 0;
+        while (matcher.find()) {
+            sb.append(str.substring(position, matcher.start()));
+            char ch = str.charAt(matcher.start());
+            position = matcher.end();
+            switch (ch) {
+            case '"':
+                sb.append("\\\"");
+                break;
+            case '\\':
+                sb.append("\\\\");
+                break;
+            case '\b':
+                sb.append("\\b");
+                break;
+            case '\f':
+                sb.append("\\f");
+                break;
+            case '\n':
+                sb.append("\\n");
+                break;
+            case '\r':
+                sb.append("\\r");
+                break;
+            case '\t':
+                sb.append("\\t");
+                break;
+            default:
+                sb.append(String.format("\\u%04X", (int)ch));
+                break;
+            }
+        }
+        sb.append(str.substring(position));
+    }
+
     /**
      * Appends a json field to a string builder.
      * @param sb string builder
@@ -251,7 +289,11 @@ public abstract class JsonUtils {
      */
     public static void addField(StringBuilder sb, String fname, String value) {
         if (value != null && value.length() > 0) {
-            sb.append(Q).append(fname).append(QCOLONQ).append(value).append(QCOMMA);
+            sb.append(Q);
+            stringEscape(sb, fname);
+            sb.append(QCOLONQ);
+            stringEscape(sb, value);
+            sb.append(QCOMMA);
         }
     }
 
@@ -265,7 +307,11 @@ public abstract class JsonUtils {
         if (value == null) {
             value = "";
         }
-        sb.append(Q).append(fname).append(QCOLONQ).append(value).append(QCOMMA);
+        sb.append(Q);
+        stringEscape(sb, fname);
+        sb.append(QCOLONQ);
+        stringEscape(sb, value);
+        sb.append(QCOMMA);
     }
 
     /**
@@ -275,7 +321,9 @@ public abstract class JsonUtils {
      * @param value field value
      */
     public static void addField(StringBuilder sb, String fname, boolean value) {
-        sb.append(Q).append(fname).append(QCOLON).append(value ? "true" : "false").append(COMMA);
+        sb.append(Q);
+        stringEscape(sb, fname);
+        sb.append(QCOLON).append(value ? "true" : "false").append(COMMA);
     }
 
     /**
@@ -298,7 +346,9 @@ public abstract class JsonUtils {
      */
     public static void addField(StringBuilder sb, String fname, long value) {
         if (value >= 0) {
-            sb.append(Q).append(fname).append(QCOLON).append(value).append(COMMA);
+            sb.append(Q);
+            stringEscape(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
         }
     }
 
@@ -310,7 +360,9 @@ public abstract class JsonUtils {
      */
     public static void addFieldAsNanos(StringBuilder sb, String fname, Duration value) {
         if (value != null && value != Duration.ZERO) {
-            sb.append(Q).append(fname).append(QCOLON).append(value.toNanos()).append(COMMA);
+            sb.append(Q);
+            stringEscape(sb, fname);
+            sb.append(QCOLON).append(value.toNanos()).append(COMMA);
         }
     }
 
@@ -322,7 +374,9 @@ public abstract class JsonUtils {
      */
     public static void addField(StringBuilder sb, String fname, JsonSerializable value) {
         if (value != null) {
-            sb.append(Q).append(fname).append(QCOLON).append(value.toJson()).append(COMMA);
+            sb.append(Q);
+            stringEscape(sb, fname);
+            sb.append(QCOLON).append(value.toJson()).append(COMMA);
         }
     }
 
@@ -351,10 +405,14 @@ public abstract class JsonUtils {
             return;
         }
 
-        sb.append(Q).append(fname).append("\":[");
+        sb.append(Q);
+        stringEscape(sb, fname);
+        sb.append("\":[");
         for (int i = 0; i < strings.size(); i++) {
             String s = strings.get(i);
-            sb.append(Q).append(s).append(Q);
+            sb.append(Q);
+            stringEscape(sb, s);
+            sb.append(Q);
             if (i < strings.size()-1) {
                 sb.append(COMMA);
             }
@@ -373,7 +431,9 @@ public abstract class JsonUtils {
             return;
         }
 
-        sb.append(Q).append(fname).append("\":[");
+        sb.append(Q);
+        stringEscape(sb, fname);
+        sb.append("\":[");
         for (int i = 0; i < jsons.size(); i++) {
             JsonSerializable s = jsons.get(i);
             sb.append(s.toJson());
@@ -392,7 +452,9 @@ public abstract class JsonUtils {
      */
     public static void addField(StringBuilder sb, String fname, ZonedDateTime zonedDateTime) {
         if (zonedDateTime != null) {
-            sb.append(Q).append(fname).append(QCOLONQ)
+            sb.append(Q);
+            stringEscape(sb, fname);
+            sb.append(QCOLONQ)
                     .append(DateTimeUtils.toRfc3339(zonedDateTime)).append(QCOMMA);
         }
     }
