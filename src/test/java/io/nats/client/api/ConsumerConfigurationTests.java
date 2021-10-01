@@ -112,7 +112,6 @@ public class ConsumerConfigurationTests extends TestBase {
         assertNull(b.getDurable());
         assertNull(b.getDeliverSubject());
         assertNull(b.getFilterSubject());
-        assertEquals(0, b.getMaxAckPending());
         assertEquals(AckPolicy.Explicit, b.getAckPolicy());
 
         b.durable(DURABLE)
@@ -123,7 +122,6 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(DURABLE, b.getDurable());
         assertEquals(subject(888), b.getDeliverSubject());
         assertEquals(subject(887), b.getFilterSubject());
-        assertEquals(886, b.getMaxAckPending());
         assertEquals(AckPolicy.None, b.getAckPolicy());
     }
 

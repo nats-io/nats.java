@@ -226,7 +226,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             so = pushSubscribeOptions == null ? PushSubscribeOptions.builder().build() : pushSubscribeOptions;
             stream = so.getStream(); // might be null, that's ok (see directBind)
             ccBuilder = ConsumerConfiguration.builder(so.getConsumerConfiguration());
-            ccBuilder.maxPullWaiting(0); // this does not apply to push, in fact will error b/c deliver subject will be set
+            ccBuilder.maxPullWaiting(0L); // this does not apply to push, in fact will error b/c deliver subject will be set
             // deliver subject does not have to be cleared
             // figure out the queue name
             queueName = validateMustMatchIfBothSupplied(ccBuilder.getDeliverGroup(), queueName,
@@ -239,7 +239,6 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         ConsumerConfiguration consumerConfig = null;
         String consumerName = ccBuilder.getDurable();
         String inboxDeliver = ccBuilder.getDeliverSubject();
-        String filterSubject = ccBuilder.getFilterSubject();
 
         // 1. Did they tell me what stream? No? look it up.
         // subscribe options will have already validated that stream is present for direct mode
@@ -271,11 +270,11 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
                 // durable already exists, make sure the filter subject matches
                 lookedUp = consumerConfig.getFilterSubject();
-                if (filterSubject != null && !filterSubject.equals(lookedUp)) {
+                String userFilterSubject = ccBuilder.getFilterSubject();
+                if (userFilterSubject != null && !userFilterSubject.equals(lookedUp)) {
                     throw new IllegalArgumentException(
-                            String.format("[SUB-FS01] Subject '%s' mismatches consumer configuration '%s'.", subject, filterSubject));
+                            String.format("[SUB-FS01] Subject '%s' mismatches consumer configuration '%s'.", subject, userFilterSubject));
                 }
-                filterSubject = lookedUp;
 
                 lookedUp = consumerConfig.getDeliverGroup();
                 if (lookedUp == null) {
@@ -319,7 +318,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             }
 
             // being discussed if this is correct, but leave it for now.
-            ccBuilder.filterSubject(filterSubject == null ? subject : filterSubject);
+            String userFilterSubject = ccBuilder.getFilterSubject();
+            ccBuilder.filterSubject(userFilterSubject == null ? subject : userFilterSubject);
 
             // createOrUpdateConsumer can fail for security reasons, maybe other reasons?
             ConsumerInfo ci = createConsumerInternal(stream, ccBuilder.build());
