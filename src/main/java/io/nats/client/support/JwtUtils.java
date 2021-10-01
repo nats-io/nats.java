@@ -80,12 +80,13 @@ public class JwtUtils {
     /**
      * Format string with `%s` place holder for the JWT token followed
      * by the user NKey seed. This can be directly used as such:
+     * 
      * <pre>
      * NKey userKey = NKey.createUser(new SecureRandom());
      * NKey signingKey = loadFromSecretStore();
      * String jwt = issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()));
      * String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
-     * <pre>
+     * </pre>
      */
     public static final String NATS_USER_JWT_FORMAT = "-----BEGIN NATS USER JWT-----\n" +
             "%s\n" +
@@ -102,18 +103,33 @@ public class JwtUtils {
             "*************************************************************\n";
 
     /**
-     * {@code name} and {@code expiration} defaults to {@code null}.
-     *
-     * @see #issueUserJWT(NKey, String, String, String, Duration, String...)
+     * Issue a user JWT from a scoped signing key. See https://docs.nats.io/nats-tools/nsc/signing_keys
+     * 
+     * @param signingKey a mandatory account nkey pair to sign the generated jwt.
+     * @param accountId a mandatory public account nkey. Will throw error when not set or not account nkey.
+     * @param publicUserKey a mandatory public user nkey. Will throw error when not set or not user nkey.
+     * @throws IllegalArgumentException if the accountId or publicUserKey is not a valid public key of the proper type
+     * @throws NullPointerException if signingKey, accountId, or publicUserKey are null.
+     * @throws GeneralSecurityException if SHA-256 MessageDigest is missing, or if the signingKey can not be used for signing.
+     * @throws IOException if signingKey sign method throws this exception.
+     * @return a JWT
      */
     public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey) throws GeneralSecurityException, IOException {
         return issueUserJWT(signingKey, accountId, publicUserKey, null, null);
     }
 
     /**
-     * {@code expiration} defaults to {@code null}.
-     *
-     * @see #issueUserJWT(NKey, String, String, String, Duration, String...)
+     * Issue a user JWT from a scoped signing key. See https://docs.nats.io/nats-tools/nsc/signing_keys
+     * 
+     * @param signingKey a mandatory account nkey pair to sign the generated jwt.
+     * @param accountId a mandatory public account nkey. Will throw error when not set or not account nkey.
+     * @param publicUserKey a mandatory public user nkey. Will throw error when not set or not user nkey.
+     * @param name optional human readable name. When absent, default to publicUserKey.
+     * @throws IllegalArgumentException if the accountId or publicUserKey is not a valid public key of the proper type
+     * @throws NullPointerException if signingKey, accountId, or publicUserKey are null.
+     * @throws GeneralSecurityException if SHA-256 MessageDigest is missing, or if the signingKey can not be used for signing.
+     * @throws IOException if signingKey sign method throws this exception.
+     * @return a JWT
      */
     public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name) throws GeneralSecurityException, IOException {
         return issueUserJWT(signingKey, accountId, publicUserKey, name, null);
@@ -130,6 +146,9 @@ public class JwtUtils {
      * @param tags optional list of tags to be included in the JWT.
      * @throws IllegalArgumentException if the accountId or publicUserKey is not a valid public key of the proper type
      * @throws NullPointerException if signingKey, accountId, or publicUserKey are null.
+     * @throws GeneralSecurityException if SHA-256 MessageDigest is missing, or if the signingKey can not be used for signing.
+     * @throws IOException if signingKey sign method throws this exception.
+     * @return a JWT
      */
     public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name, Duration expiration, String... tags) throws GeneralSecurityException, IOException {
         return issueUserJWT(signingKey, accountId, publicUserKey, name, expiration, tags, System.currentTimeMillis() / 1000);
@@ -137,6 +156,19 @@ public class JwtUtils {
 
     /**
      * Method used for testing.
+     *
+     * @param signingKey a mandatory account nkey pair to sign the generated jwt.
+     * @param accountId a mandatory public account nkey. Will throw error when not set or not account nkey.
+     * @param publicUserKey a mandatory public user nkey. Will throw error when not set or not user nkey.
+     * @param name optional human readable name. When absent, default to publicUserKey.
+     * @param expiration optional but recommended duration, when the generated jwt needs to expire. If not set, JWT will not expire.
+     * @param tags optional list of tags to be included in the JWT.
+     * @param issuedAt the current epoch seconds.
+     * @throws IllegalArgumentException if the accountId or publicUserKey is not a valid public key of the proper type
+     * @throws NullPointerException if signingKey, accountId, or publicUserKey are null.
+     * @throws GeneralSecurityException if SHA-256 MessageDigest is missing, or if the signingKey can not be used for signing.
+     * @throws IOException if signingKey sign method throws this exception.
+     * @return a JWT
      */
     protected static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name, Duration expiration, String[] tags, long issuedAt) throws GeneralSecurityException, IOException {
         // Validate the signingKey:
