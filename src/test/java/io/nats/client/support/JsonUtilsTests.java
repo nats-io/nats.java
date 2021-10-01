@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
+import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -75,32 +76,6 @@ public final class JsonUtilsTests {
         String json = ResourceUtils.dataAsString("ConsumerListResponse.json");
         List<String> list = JsonUtils.getObjectList("consumers", json);
         assertEquals(2, list.size());
-    }
-
-    private void testStringEscape(String input, String expected) {
-        StringBuilder sb = JsonUtils.beginJson();
-        JsonUtils.addField(sb, "", input);
-        JsonUtils.endJson(sb);
-        assertEquals("{\"\":" + expected + "}", sb.toString());
-        sb.setLength(0);
-    }
-
-    @Test
-    public void testStringEscape() {
-        testStringEscape("\"", "\"\\\"\"");
-        testStringEscape("/", "\"/\"");
-        testStringEscape("\\", "\"\\\\\"");
-        testStringEscape("\b", "\"\\b\"");
-        testStringEscape("\f", "\"\\f\"");
-        testStringEscape("\n", "\"\\n\"");
-        testStringEscape("\r", "\"\\r\"");
-        testStringEscape("\t", "\"\\t\"");
-        testStringEscape("\0", "\"\\u0000\"");
-        testStringEscape("\u001f", "\"\\u001F\"");
-        testStringEscape("one\\two", "\"one\\\\two\"");
-        testStringEscape("one\\", "\"one\\\\\"");
-        testStringEscape("\\one", "\"\\\\one\"");
-        testStringEscape("\\\\one\\two", "\"\\\\\\\\one\\\\two\"");
     }
 
     @Test
@@ -159,7 +134,7 @@ public final class JsonUtilsTests {
         JsonUtils.addField(sb, "lminusone", -1);
         assertEquals(0, sb.length());
 
-        JsonUtils.addStrings(sb, "foo", new String[]{"bar"});
+        JsonUtils.addStrings(sb, "foo", new String[]{"bbb"});
         assertEquals(14, sb.length());
 
         JsonUtils.addField(sb, "zero", 0);
@@ -238,24 +213,47 @@ public final class JsonUtilsTests {
     }
 
     @Test
-    public void testDecode() {
-        assertEquals("blah ", JsonUtils.decode("blah\\u0020"));
-        assertEquals("blah\"", JsonUtils.decode("blah\\u0022"));
-        assertEquals("blah'", JsonUtils.decode("blah\\u0027"));
-        assertEquals("blah=", JsonUtils.decode("blah\\u003d"));
-        assertEquals("blah=", JsonUtils.decode("blah\\u003D"));
-        assertEquals("blah<", JsonUtils.decode("blah\\u003c"));
-        assertEquals("blah<", JsonUtils.decode("blah\\u003C"));
-        assertEquals("blah>", JsonUtils.decode("blah\\u003e"));
-        assertEquals("blah>", JsonUtils.decode("blah\\u003E"));
-        assertEquals("blah`", JsonUtils.decode("blah\\u0060"));
-        assertEquals("blah\\", JsonUtils.decode("blah\\\\"));
-        assertEquals("blah\b", JsonUtils.decode("blah\\b"));
-        assertEquals("blah\f", JsonUtils.decode("blah\\f"));
-        assertEquals("blah\n", JsonUtils.decode("blah\\n"));
-        assertEquals("blah\r", JsonUtils.decode("blah\\r"));
-        assertEquals("blah\t", JsonUtils.decode("blah\\t"));
-        assertEquals("blah\\", JsonUtils.decode("blah\\x"));
-        assertEquals("blah\\", JsonUtils.decode("blah\\"));
+    public void testEncodeDecode() {
+        _testEncodeDecode("b4\\\\after",    "b4\\after", null); // a single slash with a meaningless letter after it
+        _testEncodeDecode("b4\\\\tafter",    "b4\\tafter", null); // a single slash with a char that can be part of an escape
+
+        _testEncodeDecode("b4\\bafter",     "b4\bafter", null);
+        _testEncodeDecode("b4\\fafter",     "b4\fafter", null);
+        _testEncodeDecode("b4\\nafter",     "b4\nafter", null);
+        _testEncodeDecode("b4\\rafter",     "b4\rafter", null);
+        _testEncodeDecode("b4\\tafter",     "b4\tafter", null);
+
+        _testEncodeDecode("b4\\u0000after", "b4" + (char)0 + "after", null);
+        _testEncodeDecode("b4\\u001fafter", "b4" + (char)0x1f + "after", "b4\\u001Fafter");
+        _testEncodeDecode("b4\\u0020after", "b4 after", "b4 after");
+        _testEncodeDecode("b4\\u0022after", "b4\"after", "b4\\\"after");
+        _testEncodeDecode("b4\\u0027after", "b4'after", "b4'after");
+        _testEncodeDecode("b4\\u003dafter", "b4=after", "b4=after");
+        _testEncodeDecode("b4\\u003Dafter", "b4=after", "b4=after");
+        _testEncodeDecode("b4\\u003cafter", "b4<after", "b4<after");
+        _testEncodeDecode("b4\\u003Cafter", "b4<after", "b4<after");
+        _testEncodeDecode("b4\\u003eafter", "b4>after", "b4>after");
+        _testEncodeDecode("b4\\u003Eafter", "b4>after", "b4>after");
+        _testEncodeDecode("b4\\u0060after", "b4`after", "b4`after");
+        _testEncodeDecode("b4\\xafter",     "b4xafter", "b4xafter"); // unknown escape
+        _testEncodeDecode("b4\\",           "b4\\", "b4\\\\"); // last char is \
+
+        List<String> utfs = dataAsLines("utf8-only-no-ws-test-strings.txt");
+        for (String u : utfs) {
+            String uu = "b4\\b\\f\\n\\r\\t" + u + "after";
+            _testEncodeDecode(JsonUtils.decode(uu), "b4\b\f\n\r\t" + u + "after", uu);
+        }
+    }
+
+    private void _testEncodeDecode(String input, String targetDecode, String targetEncode) {
+        String decoded = JsonUtils.decode(input);
+        assertEquals(targetDecode, decoded);
+        StringBuilder sb = new StringBuilder();
+        JsonUtils.encode(sb, decoded);
+        String encoded = sb.toString();
+        if (targetEncode == null) {
+            targetEncode = input;
+        }
+        assertEquals(targetEncode, encoded);
     }
 }
