@@ -25,6 +25,8 @@ import java.util.List;
 
 import static io.nats.client.NKey.removePaddingAndClear;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
+import static io.nats.client.support.RandomUtils.base32Encode;
+import static io.nats.client.support.RandomUtils.base32Decode;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class NKeyTests {
@@ -73,16 +75,16 @@ public class NKeyTests {
 
         for (String expected : inputs) {
             byte[] bytes = expected.getBytes(StandardCharsets.UTF_8);
-            char[] encoded = NKey.base32Encode(bytes);
-            byte[] decoded = NKey.base32Decode(encoded);
+            char[] encoded = base32Encode(bytes);
+            byte[] decoded = base32Decode(encoded);
             String test = new String(decoded, StandardCharsets.UTF_8);
             assertEquals(test, expected);
         }
 
         // bad input for coverage
-        byte[] decoded = NKey.base32Decode("/".toCharArray());
+        byte[] decoded = base32Decode("/".toCharArray());
         assertEquals(0, decoded.length);
-        decoded = NKey.base32Decode(Character.toChars(512));
+        decoded = base32Decode(Character.toChars(512));
         assertEquals(0, decoded.length);
     }
 
