@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.ConsumerConfiguration.CcNumeric;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.api.PublishAck;
 import io.nats.client.support.JsonUtils;
@@ -22,6 +23,7 @@ import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import static io.nats.client.support.ApiConstants.SUBJECT;
@@ -211,27 +213,38 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         // setup the configuration, use a default.
         String stream;
+        ConsumerConfiguration userCC; // close as we are going to get to what the user defaulted or supplied
         ConsumerConfiguration.Builder ccBuilder;
         SubscribeOptions so;
 
         if (isPullMode) {
             so = pullSubscribeOptions; // options must have already been checked to be non null
             stream = pullSubscribeOptions.getStream();
+
             ccBuilder = ConsumerConfiguration.builder(pullSubscribeOptions.getConsumerConfiguration());
-            ccBuilder.deliverSubject(null); // pull mode can't have a deliver subject
+
+            userCC = ccBuilder.build();
+
             queueName = null; // should already be, just make sure
+            ccBuilder.deliverSubject(null); // pull mode can't have a deliver subject
             ccBuilder.deliverGroup(null);   // pull mode can't have a deliver group
         }
         else {
             so = pushSubscribeOptions == null ? PushSubscribeOptions.builder().build() : pushSubscribeOptions;
             stream = so.getStream(); // might be null, that's ok (see directBind)
+
             ccBuilder = ConsumerConfiguration.builder(so.getConsumerConfiguration());
-            ccBuilder.maxPullWaiting(0L); // this does not apply to push, in fact will error b/c deliver subject will be set
-            // deliver subject does not have to be cleared
+
             // figure out the queue name
             queueName = validateMustMatchIfBothSupplied(ccBuilder.getDeliverGroup(), queueName,
-                    "[SUB-Q01] Consumer Configuration DeliverGroup", "Queue Name");
+                "[SUB-Q01] Consumer Configuration DeliverGroup", "Queue Name");
             ccBuilder.deliverGroup(queueName); // and set it in case the deliver group was null
+
+            // did queue stuff before setting userCC because user can provide only queue
+            // and we make it deliverGroup normally below, so do the same here
+            userCC = ccBuilder.build();
+
+            ccBuilder.maxPullWaiting(0L); // this does not apply to push, in fact will error b/c deliver subject will be set
         }
 
         boolean bindMode = so.isBind();
@@ -298,6 +311,15 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                             String.format("[SUB-Q03] Existing consumer deliver group '%s' does not match requested queue / deliver group '%s'.", lookedUp, queueName));
                 }
 
+                // check to see if the user sent a different version than the server has
+                // modifications are not allowed
+                // previous checks for deliver subject and filter subject matching are now
+                // in the changes function
+                String changes = userVersusServer(userCC, consumerConfig);
+                if (changes != null) {
+                    throw new IllegalArgumentException("[SUB-CC01] Existing consumer cannot be modified. " + changes);
+                }
+
                 inboxDeliver = consumerConfig.getDeliverSubject(); // use the deliver subject as the inbox. It may be null, that's ok, we'll fix that later
             }
             else if (bindMode) {
@@ -361,6 +383,51 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
 
         return sub;
+    }
+
+    public static String userVersusServer(ConsumerConfiguration user, ConsumerConfiguration server) {
+
+        StringBuilder sb = new StringBuilder();
+        comp(sb, user.getFlowControl(), server.getFlowControl(), "Flow Control");
+        comp(sb, user.getDeliverPolicy(), server.getDeliverPolicy(), "Deliver Policy");
+        comp(sb, user.getAckPolicy(), server.getAckPolicy(), "Ack Policy");
+        comp(sb, user.getReplayPolicy(), server.getReplayPolicy(), "Replay Policy");
+
+        comp(sb, user.getStartSequence(), server.getStartSequence(), CcNumeric.START_SEQ);
+        comp(sb, user.getMaxDeliver(), server.getMaxDeliver(), CcNumeric.MAX_DELIVER);
+        comp(sb, user.getRateLimit(), server.getRateLimit(), CcNumeric.RATE_LIMIT);
+        comp(sb, user.getMaxAckPending(), server.getMaxAckPending(), CcNumeric.MAX_ACK_PENDING);
+        comp(sb, user.getMaxPullWaiting(), server.getMaxPullWaiting(), CcNumeric.MAX_PULL_WAITING);
+
+        comp(sb, user.getDescription(), server.getDescription(), "Description");
+        comp(sb, user.getStartTime(), server.getStartTime(), "Start Time");
+        comp(sb, user.getAckWait(), server.getAckWait(), "Ack Wait");
+        comp(sb, user.getSampleFrequency(), server.getSampleFrequency(), "Sample Frequency");
+        comp(sb, user.getIdleHeartbeat(), server.getIdleHeartbeat(), "Idle Heartbeat");
+
+        return sb.length() == 0 ? null : sb.toString();
+    }
+
+    private static void comp(StringBuilder sb, Object requested, Object retrieved, String name) {
+        if (!Objects.equals(requested, retrieved)) {
+            appendErr(sb, requested, retrieved, name);
+        }
+    }
+
+    private static void comp(StringBuilder sb, long requested, long retrieved, CcNumeric field) {
+        if (field.comparable(requested) != field.comparable(retrieved)) {
+            appendErr(sb, requested, retrieved, field.getErr());
+        }
+    }
+
+    private static void appendErr(StringBuilder sb, Object requested, Object retrieved, String name) {
+        if (sb.length() > 0) {
+            sb.append(", ");
+        }
+        if (name.contains("Max Ack Pending")) {
+            int x = 0;
+        }
+        sb.append(String.format("%s [%s vs. %s]", name, requested, retrieved));
     }
 
     /**

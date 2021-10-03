@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -558,6 +559,65 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // this one is okay
             js.subscribe(SUBJECT, PushSubscribeOptions.builder().durable(durable(1)).build());
         });
+    }
+
+    @Test
+    public void testConsumerCannotBeModified() throws Exception {
+        runInJsServer(nc -> {
+            JetStream js = nc.jetStream();
+
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            ConsumerConfiguration.Builder builder = durBuilder();
+            nc.jetStreamManagement().addOrUpdateConsumer(STREAM, builder.build());
+
+            ccbmEx(js, durBuilder().flowControl(true), "Flow Control");
+            ccbmEx(js, durBuilder().deliverPolicy(DeliverPolicy.Last), "Deliver Policy");
+            ccbmEx(js, durBuilder().deliverPolicy(DeliverPolicy.New), "Deliver Policy");
+            ccbmEx(js, durBuilder().ackPolicy(AckPolicy.None), "Ack Policy");
+            ccbmEx(js, durBuilder().ackPolicy(AckPolicy.All), "Ack Policy");
+            ccbmEx(js, durBuilder().replayPolicy(ReplayPolicy.Original), "Replay Policy");
+
+            ccbmEx(js, durBuilder().description("x"), "Description");
+            ccbmEx(js, durBuilder().startTime(ZonedDateTime.now()), "Start Time");
+            ccbmEx(js, durBuilder().ackWait(Duration.ofMillis(1)), "Ack Wait");
+            ccbmEx(js, durBuilder().sampleFrequency("x"), "Sample Frequency");
+            ccbmEx(js, durBuilder().idleHeartbeat(Duration.ofMillis(1)), "Idle Heartbeat");
+
+            ccbmEx(js, durBuilder().startSequence(5), "Start Sequence");
+            ccbmEx(js, durBuilder().maxDeliver(5), "Max Deliver");
+            ccbmEx(js, durBuilder().rateLimit(5), "Rate Limit");
+            ccbmEx(js, durBuilder().maxAckPending(5), "Max Ack Pending");
+            ccbmEx(js, durBuilder().maxPullWaiting(5), "Max Pull Waiting");
+
+            ccbmOk(js, durBuilder().startSequence(0));
+            ccbmOk(js, durBuilder().startSequence(-1));
+            ccbmOk(js, durBuilder().maxDeliver(0));
+            ccbmOk(js, durBuilder().maxDeliver(-1));
+            ccbmOk(js, durBuilder().rateLimit(0));
+            ccbmOk(js, durBuilder().rateLimit(-1));
+            ccbmOk(js, durBuilder().maxAckPending(20000));
+            ccbmOk(js, durBuilder().maxPullWaiting(0));
+            ccbmOk(js, durBuilder().maxPullWaiting(512));
+        });
+    }
+
+    private void ccbmOk(JetStream js, ConsumerConfiguration.Builder builder) throws IOException, JetStreamApiException {
+        js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()).unsubscribe();
+    }
+
+    private void ccbmEx(JetStream js, ConsumerConfiguration.Builder builder, String err) {
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+            () -> js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()));
+//        ccbmEx(js, durBuilder().filterSubject("x"), "Filter Subject");
+//        ccbmEx(js, durBuilder().deliverSubject("x"), "Deliver Subject");
+//        ccbmEx(js, durBuilder().deliverGroup("x"), "Deliver Group");
+        assertTrue(iae.getMessage().contains("[SUB-CC01]"));
+        assertTrue(iae.getMessage().contains(err));
+    }
+
+    private ConsumerConfiguration.Builder durBuilder() {
+        return ConsumerConfiguration.builder().durable(DURABLE).deliverSubject(DELIVER);
     }
 
     @Test

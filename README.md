@@ -542,6 +542,7 @@ Subscription creation has many checks to make sure that a valid, operable subscr
 
 | Code | Description |
 | --- | --- |
+| SUB-CC01 | Existing consumer cannot be modified. |
 | SUB-DS01 | Consumer is already configured as a push consumer with deliver subject _subject_ |
 | SUB-DS02 | Consumer is already configured as a pull consumer with no deliver subject. |
 | SUB-DS03 | Existing consumer deliver subject _subject_ does not match requested deliver subject _subject_. |

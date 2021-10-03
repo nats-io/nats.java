@@ -21,9 +21,6 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
 import io.nats.client.support.Status;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.NullSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
 import java.util.HashSet;
@@ -35,10 +32,18 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPushTests extends JetStreamTestBase {
 
-    @ParameterizedTest
-//    @NullSource // tests null or no deliver subject SFF TODO see below
-    @ValueSource(strings = {DELIVER}) // tests actual deliver subject
-    public void testPushEphemeral(String deliverSubject) throws Exception {
+
+    @Test
+    public void testPushEphemeralNullDeliver() throws Exception {
+        _testPushEphemeral(null);
+    }
+
+    @Test
+    public void testPushEphemeralWithDeliver() throws Exception {
+        _testPushEphemeral(DELIVER);
+    }
+
+    public void _testPushEphemeral(String deliverSubject) throws Exception {
         runInJsServer(nc -> {
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);
@@ -56,7 +61,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
                 .build();
 
             // Subscription 1
-            System.out.println("\n1|" + deliverSubject + "|");
+//            System.out.println("\n1|" + deliverSubject + "|"); // PART OF TODO
             JetStreamSubscription sub1 = js.subscribe(SUBJECT, options);
             assertSubscription(sub1, STREAM, null, deliverSubject, false);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
@@ -72,10 +77,10 @@ public class JetStreamPushTests extends JetStreamTestBase {
             validateRedAndTotal(0, messages0.size(), 5, total);
 
             sub1.unsubscribe();
-            // System.out.println("<" + sid + "> " + message); SFF TODO WHY IS NEW EPH CON GET SAME SID?
+            // System.out.println("<" + sid + "> " + message); SFF TODO WHY IS NEW EPHEMERAL CON GET SAME SID?
 
             // Subscription 2
-            System.out.println("\n2|" + deliverSubject + "|");
+//            System.out.println("\n2|" + deliverSubject + "|"); // PART OF TODO
             JetStreamSubscription sub2 = js.subscribe(SUBJECT, options);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
@@ -93,10 +98,17 @@ public class JetStreamPushTests extends JetStreamTestBase {
         });
     }
 
-    @ParameterizedTest
-    @NullSource
-    @ValueSource(strings = {DELIVER})
-    public void testPushDurable(String deliverSubject) throws Exception {
+    @Test
+    public void testPushDurableNullDeliver() throws Exception {
+        _testPushDurable(null);
+    }
+
+    @Test
+    public void testPushDurableWithDeliver() throws Exception {
+        _testPushDurable(DELIVER);
+    }
+
+    private void _testPushDurable(String deliverSubject) throws Exception {
         runInJsServer(nc -> {
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);

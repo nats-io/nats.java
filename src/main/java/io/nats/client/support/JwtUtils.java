@@ -21,12 +21,12 @@ import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collections;
 
+import static io.nats.client.support.Encoding.base32Encode;
+import static io.nats.client.support.Encoding.toBase64Url;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
-import static io.nats.client.support.RandomUtils.base32Encode;
 
 /**
  * Implements https://github.com/nats-io/nats-architecture-and-design/blob/main/adr/ADR-14.md
@@ -216,13 +216,5 @@ public class JwtUtils {
 
         // append signature to header and body and return it
         return ENCODED_CLAIM_HEADER + "." + encBody + "." + encSig;
-    }
-
-    public static String toBase64Url(byte[] input) {
-        return new String(Base64.getUrlEncoder().withoutPadding().encode(input));
-    }
-
-    public static String toBase64Url(String input) {
-        return toBase64Url(input.getBytes(StandardCharsets.UTF_8));
     }
 }

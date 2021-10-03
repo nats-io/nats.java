@@ -13,6 +13,7 @@
 
 package io.nats.client.api;
 
+import io.nats.client.support.ApiConstants;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.Validator;
@@ -60,8 +61,6 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     // for the response from the server
     ConsumerConfiguration(String json) {
-        System.out.println("IN " + json);
-
         Matcher m = DELIVER_POLICY_RE.matcher(json);
         deliverPolicy = m.find() ? DeliverPolicy.get(m.group(1)) : DeliverPolicy.All;
 
@@ -82,11 +81,11 @@ public class ConsumerConfiguration implements JsonSerializable {
         idleHeartbeat = JsonUtils.readNanos(json, IDLE_HEARTBEAT_RE, Duration.ZERO);
         flowControl = JsonUtils.readBoolean(json, FLOW_CONTROL_RE);
 
-        startSeq = FieldData.START_SEQ.normalize(JsonUtils.readLong(json, OPT_START_SEQ_RE, -1));
-        maxDeliver = FieldData.MAX_DELIVER.normalize(JsonUtils.readLong(json, MAX_DELIVER_RE, -1));
-        rateLimit = FieldData.RATE_LIMIT.normalize(JsonUtils.readLong(json, RATE_LIMIT_BPS_RE, -1));
-        maxAckPending = FieldData.MAX_ACK_PENDING.normalize(JsonUtils.readLong(json, MAX_ACK_PENDING_RE, -1));
-        maxPullWaiting = FieldData.MAX_PULL_WAITING.normalize(JsonUtils.readLong(json, MAX_WAITING_RE, -1));
+        startSeq = CcNumeric.START_SEQ.normalize(JsonUtils.readLong(json, OPT_START_SEQ_RE, -1));
+        maxDeliver = CcNumeric.MAX_DELIVER.normalize(JsonUtils.readLong(json, MAX_DELIVER_RE, -1));
+        rateLimit = CcNumeric.RATE_LIMIT.normalize(JsonUtils.readLong(json, RATE_LIMIT_BPS_RE, -1));
+        maxAckPending = CcNumeric.MAX_ACK_PENDING.normalize(JsonUtils.readLong(json, MAX_ACK_PENDING_RE, -1));
+        maxPullWaiting = CcNumeric.MAX_PULL_WAITING.normalize(JsonUtils.readLong(json, MAX_WAITING_RE, -1));
     }
 
     // For the builder
@@ -110,12 +109,11 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.idleHeartbeat = idleHeartbeat;
         this.flowControl = flowControl;
 
-        this.startSeq = FieldData.START_SEQ.normalize(startSeq);
-        this.maxDeliver = FieldData.MAX_DELIVER.normalize(maxDeliver);
-        this.rateLimit = FieldData.RATE_LIMIT.normalize(rateLimit);
-        this.maxAckPending = FieldData.MAX_ACK_PENDING.normalize(maxAckPending);
-        this.maxPullWaiting = FieldData.MAX_PULL_WAITING.normalize(maxPullWaiting);
-        System.out.println("BLD " + toString());
+        this.startSeq = CcNumeric.START_SEQ.normalize(startSeq);
+        this.maxDeliver = CcNumeric.MAX_DELIVER.normalize(maxDeliver);
+        this.rateLimit = CcNumeric.RATE_LIMIT.normalize(rateLimit);
+        this.maxAckPending = CcNumeric.MAX_ACK_PENDING.normalize(maxAckPending);
+        this.maxPullWaiting = CcNumeric.MAX_PULL_WAITING.normalize(maxPullWaiting);
     }
 
     /**
@@ -142,8 +140,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, RATE_LIMIT_BPS, rateLimit);
         JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
         JsonUtils.addFldWhenTrue(sb, FLOW_CONTROL, flowControl);
-        JsonUtils.addField(sb, MAX_WAITING, maxPullWaiting);
-        System.out.println("OUT " + sb.toString());
+        JsonUtils.addField(sb, ApiConstants.MAX_WAITING, maxPullWaiting);
         return endJson(sb).toString();
     }
 
@@ -633,45 +630,19 @@ public class ConsumerConfiguration implements JsonSerializable {
                 '}';
     }
 
-    public static boolean requestedChanges(ConsumerConfiguration ccUser, ConsumerConfiguration ccServer) {
+    public enum CcNumeric {
+        START_SEQ("Start Sequence", 1, -1),
+        MAX_DELIVER("Max Deliver", 1, -1),
+        RATE_LIMIT("Rate Limit", 1, -1),
+        MAX_ACK_PENDING("Max Ack Pending", 0, 20000L),
+        MAX_PULL_WAITING("Max Pull Waiting", 1, 512);
 
-        return ccUser.flowControl != ccServer.flowControl
-            || ccUser.deliverPolicy != ccServer.deliverPolicy
-            || ccUser.ackPolicy != ccServer.ackPolicy
-            || ccUser.replayPolicy != ccServer.replayPolicy
-
-            || FieldData.START_SEQ.notSame(ccUser.startSeq, ccServer.startSeq)
-            || FieldData.MAX_DELIVER.notSame(ccUser.maxDeliver, ccServer.maxDeliver)
-            || FieldData.RATE_LIMIT.notSame(ccUser.rateLimit, ccServer.rateLimit)
-            || FieldData.MAX_ACK_PENDING.notSame(ccUser.maxAckPending, ccServer.maxAckPending)
-            || FieldData.MAX_PULL_WAITING.notSame(ccUser.maxPullWaiting, ccServer.maxPullWaiting)
-
-            || notSame(ccUser.description, ccServer.description)
-            || notSame(ccUser.durable, ccServer.durable)
-            || notSame(ccUser.startTime, ccServer.startTime)
-            || notSame(ccUser.ackWait, ccServer.ackWait)
-            || notSame(ccUser.filterSubject, ccServer.filterSubject)
-            || notSame(ccUser.sampleFrequency, ccServer.sampleFrequency)
-            || notSame(ccUser.deliverSubject, ccServer.deliverSubject)
-            || notSame(ccUser.deliverGroup, ccServer.deliverGroup)
-            || notSame(ccUser.idleHeartbeat, ccServer.idleHeartbeat);
-    }
-
-    private static boolean notSame(Object user, Object server) {
-        return user == null ? server != null : !user.equals(server);
-    }
-
-    private enum FieldData {
-        START_SEQ(1, null),
-        MAX_DELIVER(1, null),
-        RATE_LIMIT(1, null),
-        MAX_ACK_PENDING(0, 20000L),
-        MAX_PULL_WAITING(1, null);
-
+        String err;
         long min;
-        Long srvrDflt;
+        long srvrDflt;
 
-        FieldData(long min, Long srvrDflt) {
+        CcNumeric(String err, long min, long srvrDflt) {
+            this.err = err;
             this.min = min;
             this.srvrDflt = srvrDflt;
         }
@@ -680,12 +651,12 @@ public class ConsumerConfiguration implements JsonSerializable {
             return val < min ? -1 : val;
         }
 
-        long comparable(long val) {
+        public long comparable(long val) {
             return val < min || val == srvrDflt ? -1 : val;
         }
 
-        boolean notSame(long v1, long v2) {
-            return comparable(v1) != comparable(v2);
+        public String getErr() {
+            return err;
         }
     }
 }

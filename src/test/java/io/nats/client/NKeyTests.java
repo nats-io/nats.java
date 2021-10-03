@@ -24,9 +24,9 @@ import java.util.Base64;
 import java.util.List;
 
 import static io.nats.client.NKey.removePaddingAndClear;
+import static io.nats.client.support.Encoding.base32Decode;
+import static io.nats.client.support.Encoding.base32Encode;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
-import static io.nats.client.support.RandomUtils.base32Encode;
-import static io.nats.client.support.RandomUtils.base32Decode;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class NKeyTests {

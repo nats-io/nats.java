@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
+import static io.nats.client.support.Encoding.jsonDecode;
+import static io.nats.client.support.Encoding.jsonEncode;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
@@ -241,19 +243,21 @@ public final class JsonUtilsTests {
         List<String> utfs = dataAsLines("utf8-only-no-ws-test-strings.txt");
         for (String u : utfs) {
             String uu = "b4\\b\\f\\n\\r\\t" + u + "after";
-            _testEncodeDecode(JsonUtils.decode(uu), "b4\b\f\n\r\t" + u + "after", uu);
+            _testEncodeDecode(jsonDecode(uu), "b4\b\f\n\r\t" + u + "after", uu);
         }
     }
 
     private void _testEncodeDecode(String input, String targetDecode, String targetEncode) {
-        String decoded = JsonUtils.decode(input);
+        String decoded = jsonDecode(input);
         assertEquals(targetDecode, decoded);
         StringBuilder sb = new StringBuilder();
-        JsonUtils.encode(sb, decoded);
+        jsonEncode(sb, decoded);
         String encoded = sb.toString();
         if (targetEncode == null) {
-            targetEncode = input;
+            assertEquals(input, encoded);
         }
-        assertEquals(targetEncode, encoded);
+        else {
+            assertEquals(targetEncode, encoded);
+        }
     }
 }
