@@ -19,12 +19,14 @@ import io.nats.client.support.Status;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
-public class NatsJetStreamMessagePreProcessor {
+public class AutoStatusManager {
     private static final List<Integer> PULL_KNOWN_STATUS_CODES = Arrays.asList(404, 408);
     private static final int THRESHOLD = 3;
 
@@ -46,17 +48,22 @@ public class NatsJetStreamMessagePreProcessor {
     private final long alarmPeriodSetting;
 
     private String lastFcSubject;
-    private long expectedConsumerSeq;
+    private long lastStreamSequence;
+    private long lastConsumerSequence;
+    private long expectedConsumerSequence;
     private final AtomicLong lastMessageReceivedTime;
+    private TimerWrapper timerWrapper;
 
-    NatsJetStreamMessagePreProcessor(NatsConnection conn, SubscribeOptions so,
-                                     ConsumerConfiguration cc, NatsJetStreamSubscription sub,
-                                     boolean queueMode, boolean syncMode) {
+    AutoStatusManager(NatsConnection conn, SubscribeOptions so,
+                      ConsumerConfiguration cc, NatsJetStreamSubscription sub,
+                      boolean queueMode, boolean syncMode) {
         this.conn = conn;
         this.sub = sub;
         this.syncMode = syncMode;
         this.queueMode = queueMode;
-        this.expectedConsumerSeq = so.getExpectedConsumerSeq();
+        lastStreamSequence = -1;
+        lastConsumerSequence = -1;
+        expectedConsumerSequence = so.getExpectedConsumerSeq();
         lastMessageReceivedTime = new AtomicLong();
 
         pull = so.isPull();
@@ -168,6 +175,63 @@ public class NatsJetStreamMessagePreProcessor {
         if (noOp) {
             preProcessImpl = msg -> false;
         }
+        else if (hb) {
+            timerWrapper = new TimerWrapper();
+        }
+    }
+
+    public void shutdown() {
+        if (timerWrapper != null) {
+            timerWrapper.shutdown();
+        }
+    }
+
+    class OutOfTime extends TimerTask {
+        @Override
+        public void run() {
+            long sinceLast = System.currentTimeMillis() - lastMessageReceivedTime.get();
+            if (sinceLast > alarmPeriodSetting) {
+                ErrorListener el = conn.getOptions().getErrorListener();
+                if (el != null) {
+                    el.heartbeatAlarm(conn, sub,
+                        lastStreamSequence, lastConsumerSequence, expectedConsumerSequence);
+                }
+            }
+            timerWrapper.restart();
+        }
+    }
+
+    class TimerWrapper {
+        boolean active;
+        Timer timer;
+
+        public TimerWrapper() {
+            timer = new Timer();
+            timer.schedule(new OutOfTime(),
+                alarmPeriodSetting + 1000); // first one, let's give everything time to warm up
+            active = true;
+        }
+
+        synchronized void restart() {
+            cancel();
+            if (sub.isActive()) {
+                timer = new Timer();
+                timer.schedule(new OutOfTime(), alarmPeriodSetting);
+            }
+        }
+
+        synchronized public void shutdown() {
+            cancel();
+            active = false;
+        }
+
+        private void cancel() {
+            if (timer != null) {
+                timer.cancel();
+                timer.purge();
+                timer = null;
+            }
+        }
     }
 
     // chicken or egg situation here. The handler needs the sub in case of error
@@ -186,7 +250,10 @@ public class NatsJetStreamMessagePreProcessor {
     boolean isNoOp() { return noOp; }
 
     String getLastFcSubject() { return lastFcSubject; }
-    long getExpectedConsumerSeq() { return expectedConsumerSeq; }
+
+    public long getLastStreamSequence() { return lastStreamSequence; }
+    public long getLastConsumerSequence() { return lastConsumerSequence; }
+    long getExpectedConsumerSequence() { return expectedConsumerSequence; }
     long getLastMessageReceivedTime() { return lastMessageReceivedTime.get(); }
     long getIdleHeartbeatSetting() { return idleHeartbeatSetting; }
     long getAlarmPeriodSetting() { return alarmPeriodSetting; }
@@ -203,18 +270,22 @@ public class NatsJetStreamMessagePreProcessor {
         if (msg.isJetStream()) {
             long receivedConsumerSeq = msg.metaData().consumerSequence();
             // expectedConsumerSeq <= 0 they didn't tell me where to start so assume whatever it is is correct
-            if (expectedConsumerSeq > 0) {
-                if (expectedConsumerSeq != receivedConsumerSeq) {
+            if (expectedConsumerSequence > 0) {
+                if (expectedConsumerSequence != receivedConsumerSeq) {
                     if (syncMode) {
-                        throw new JetStreamGapException(sub, expectedConsumerSeq, receivedConsumerSeq);
+                        throw new JetStreamGapException(sub, expectedConsumerSequence, receivedConsumerSeq);
                     }
                     ErrorListener el = conn.getOptions().getErrorListener();
                     if (el != null) {
-                        el.messageGapDetected(conn, sub, expectedConsumerSeq, receivedConsumerSeq);
+                        el.messageGapDetected(conn, sub,
+                            lastStreamSequence, lastConsumerSequence,
+                            expectedConsumerSequence, receivedConsumerSeq);
                     }
                 }
             }
-            expectedConsumerSeq = receivedConsumerSeq + 1;
+            lastStreamSequence = msg.metaData().streamSequence();
+            lastConsumerSequence = receivedConsumerSeq;
+            expectedConsumerSequence = receivedConsumerSeq + 1;
         }
     }
 

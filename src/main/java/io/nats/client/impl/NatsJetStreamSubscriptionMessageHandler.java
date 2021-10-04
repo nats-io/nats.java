@@ -18,7 +18,7 @@ import io.nats.client.MessageHandler;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 
-class NatsJetStreamSubscriptionMessageHandler extends NatsJetStreamMessagePreProcessor implements MessageHandler {
+class NatsJetStreamSubscriptionMessageHandler extends AutoStatusManager implements MessageHandler {
     private final MessageHandler userMH;
     private final boolean autoAck;
 

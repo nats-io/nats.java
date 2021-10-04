@@ -32,7 +32,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPushTests extends JetStreamTestBase {
 
-
     @Test
     public void testPushEphemeralNullDeliver() throws Exception {
         _testPushEphemeral(null);

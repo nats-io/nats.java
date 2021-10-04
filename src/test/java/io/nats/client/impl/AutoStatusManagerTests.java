@@ -24,7 +24,7 @@ import static io.nats.client.support.Status.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("SameParameterValue")
-public class JetStreamPreProcessorTests extends JetStreamTestBase {
+public class AutoStatusManagerTests extends JetStreamTestBase {
 
     @Test
     public void testConstruction() {
@@ -46,27 +46,27 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
     }
 
     private void _construction(boolean pull, boolean asm, boolean hb, boolean fc, boolean gap, SubscribeOptions so) {
-        NatsJetStreamMessagePreProcessor pre = getPre(null, so, null, true, false);
-        assertTrue(pre.isSyncMode());
-        assertFalse(pre.isQueueMode());
-        assertEquals(pull, pre.isPull());
-        assertEquals(asm, pre.isAsm());
-        assertEquals(hb, pre.isHb());
-        assertEquals(fc, pre.isFc());
-        assertEquals(gap, pre.isGap());
-        assertEquals(!(asm || hb || fc || gap), pre.isNoOp());
+        AutoStatusManager manager = getManager(null, so, null, true, false);
+        assertTrue(manager.isSyncMode());
+        assertFalse(manager.isQueueMode());
+        assertEquals(pull, manager.isPull());
+        assertEquals(asm, manager.isAsm());
+        assertEquals(hb, manager.isHb());
+        assertEquals(fc, manager.isFc());
+        assertEquals(gap, manager.isGap());
+        assertEquals(!(asm || hb || fc || gap), manager.isNoOp());
 
         // queue mode
         if (!pull) {
-            pre = getPre(null, so, null, true, true);
-            assertTrue(pre.isSyncMode());
-            assertTrue(pre.isQueueMode());
-            assertEquals(pull, pre.isPull());
-            assertEquals(asm, pre.isAsm());
-            assertFalse(pre.isHb());
-            assertFalse(pre.isFc());
-            assertFalse(pre.isGap());
-            assertEquals(!asm, pre.isNoOp());
+            manager = getManager(null, so, null, true, true);
+            assertTrue(manager.isSyncMode());
+            assertTrue(manager.isQueueMode());
+            assertEquals(pull, manager.isPull());
+            assertEquals(asm, manager.isAsm());
+            assertFalse(manager.isHb());
+            assertFalse(manager.isFc());
+            assertFalse(manager.isGap());
+            assertEquals(!asm, manager.isNoOp());
         }
     }
 
@@ -79,13 +79,13 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
     }
 
     private void _status_pass_through(SubscribeOptions so) {
-        NatsJetStreamMessagePreProcessor pre = getPre(so);
-        assertFalse(pre.preProcess(getTestJsMessage(1)));
-        assertFalse(pre.preProcess(get404()));
-        assertFalse(pre.preProcess(get408()));
-        assertFalse(pre.preProcess(getFlowControl(1)));
-        assertFalse(pre.preProcess(getFcHeartbeat(1)));
-        assertFalse(pre.preProcess(getUnkStatus()));
+        AutoStatusManager manager = getManager(so);
+        assertFalse(manager.preProcess(getTestJsMessage(1)));
+        assertFalse(manager.preProcess(get404()));
+        assertFalse(manager.preProcess(get408()));
+        assertFalse(manager.preProcess(getFlowControl(1)));
+        assertFalse(manager.preProcess(getFcHeartbeat(1)));
+        assertFalse(manager.preProcess(getUnkStatus()));
     }
 
     @Test
@@ -100,13 +100,13 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
     }
 
     private void _status_handle_pull(Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
-        NatsJetStreamMessagePreProcessor pre = getPre((NatsConnection) conn, so, sub, true, false);
-        assertFalse(pre.preProcess(getTestJsMessage(1)));
-        assertTrue(pre.preProcess(get404()));
-        assertTrue(pre.preProcess(get408()));
-        _status_handle_throws(sub, pre, getFlowControl(1));
-        _status_handle_throws(sub, pre, getFcHeartbeat(1));
-        _status_handle_throws(sub, pre, getUnkStatus());
+        AutoStatusManager manager = getManager((NatsConnection) conn, so, sub, true, false);
+        assertFalse(manager.preProcess(getTestJsMessage(1)));
+        assertTrue(manager.preProcess(get404()));
+        assertTrue(manager.preProcess(get408()));
+        _status_handle_throws(sub, manager, getFlowControl(1));
+        _status_handle_throws(sub, manager, getFcHeartbeat(1));
+        _status_handle_throws(sub, manager, getUnkStatus());
     }
 
     @Test
@@ -125,16 +125,16 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
     }
 
     private void _status_handle_pushSync(Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
-        NatsJetStreamMessagePreProcessor pre = getPre((NatsConnection) conn, so, sub, true, false);
-        assertFalse(pre.preProcess(getTestJsMessage(1)));
-        assertTrue(pre.preProcess(getFlowControl(1)));
-        assertTrue(pre.preProcess(getFcHeartbeat(1)));
-        _status_handle_throws(sub, pre, get404());
-        _status_handle_throws(sub, pre, get408());
-        _status_handle_throws(sub, pre, getUnkStatus());
+        AutoStatusManager manager = getManager((NatsConnection) conn, so, sub, true, false);
+        assertFalse(manager.preProcess(getTestJsMessage(1)));
+        assertTrue(manager.preProcess(getFlowControl(1)));
+        assertTrue(manager.preProcess(getFcHeartbeat(1)));
+        _status_handle_throws(sub, manager, get404());
+        _status_handle_throws(sub, manager, get408());
+        _status_handle_throws(sub, manager, getUnkStatus());
     }
 
-    private void _status_handle_throws(NatsJetStreamSubscription sub, NatsJetStreamMessagePreProcessor pre, Message m) {
+    private void _status_handle_throws(NatsJetStreamSubscription sub, AutoStatusManager pre, Message m) {
         JetStreamStatusException jsse = assertThrows(JetStreamStatusException.class, () -> pre.preProcess(m));
         assertSame(sub, jsse.getSubscription());
         assertSame(m.getStatus(), jsse.getStatus());
@@ -170,30 +170,30 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
     }
 
     private void _status_handle_pushAsync(PreEl el, Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
-        NatsJetStreamMessagePreProcessor pre = getPre((NatsConnection) conn, so, sub, false, false);
+        AutoStatusManager manager = getManager((NatsConnection) conn, so, sub, false, false);
         if (el != null) {
             el.reset();
         }
-        assertFalse(pre.preProcess(getTestJsMessage(1)));
-        assertTrue(pre.preProcess(getFlowControl(1)));
-        assertTrue(pre.preProcess(getFcHeartbeat(1)));
+        assertFalse(manager.preProcess(getTestJsMessage(1)));
+        assertTrue(manager.preProcess(getFlowControl(1)));
+        assertTrue(manager.preProcess(getFcHeartbeat(1)));
 
         Message m = get404();
-        assertTrue(pre.preProcess(m));
+        assertTrue(manager.preProcess(m));
         if (el != null) {
             assertSame(sub, el.sub);
             assertSame(m.getStatus(), el.status);
         }
 
         m = get408();
-        assertTrue(pre.preProcess(m));
+        assertTrue(manager.preProcess(m));
         if (el != null) {
             assertSame(sub, el.sub);
             assertSame(m.getStatus(), el.status);
         }
 
         m = getUnkStatus();
-        assertTrue(pre.preProcess(m));
+        assertTrue(manager.preProcess(m));
         if (el != null) {
             assertSame(sub, el.sub);
             assertSame(m.getStatus(), el.status);
@@ -216,13 +216,13 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
     }
 
     private void _gap_pull_pushSync(Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
-        NatsJetStreamMessagePreProcessor pre = getPre((NatsConnection) conn, so, sub, true, false);
-        assertEquals(-1, pre.getExpectedConsumerSeq());
-        pre.preProcess(getTestJsMessage(1));
-        assertEquals(2, pre.getExpectedConsumerSeq());
-        pre.preProcess(getTestJsMessage(2));
-        assertEquals(3, pre.getExpectedConsumerSeq());
-        JetStreamGapException jsge = assertThrows(JetStreamGapException.class, () -> pre.preProcess(getTestJsMessage(4)));
+        AutoStatusManager manager = getManager((NatsConnection) conn, so, sub, true, false);
+        assertEquals(-1, manager.getExpectedConsumerSequence());
+        manager.preProcess(getTestJsMessage(1));
+        assertEquals(2, manager.getExpectedConsumerSequence());
+        manager.preProcess(getTestJsMessage(2));
+        assertEquals(3, manager.getExpectedConsumerSequence());
+        JetStreamGapException jsge = assertThrows(JetStreamGapException.class, () -> manager.preProcess(getTestJsMessage(4)));
         assertSame(sub, jsge.getSubscription());
         assertEquals(3, jsge.getExpectedConsumerSeq());
         assertEquals(4, jsge.getReceivedConsumerSeq());
@@ -254,16 +254,16 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
     }
 
     private void _gap_pushAsync(PreEl el, Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
-        NatsJetStreamMessagePreProcessor pre = getPre((NatsConnection) conn, so, sub, false, false);
+        AutoStatusManager manager = getManager((NatsConnection) conn, so, sub, false, false);
         if (el != null) {
             el.reset();
         }
-        assertEquals(-1, pre.getExpectedConsumerSeq());
-        pre.preProcess(getTestJsMessage(1));
-        assertEquals(2, pre.getExpectedConsumerSeq());
-        pre.preProcess(getTestJsMessage(2));
-        assertEquals(3, pre.getExpectedConsumerSeq());
-        pre.preProcess(getTestJsMessage(4));
+        assertEquals(-1, manager.getExpectedConsumerSequence());
+        manager.preProcess(getTestJsMessage(1));
+        assertEquals(2, manager.getExpectedConsumerSequence());
+        manager.preProcess(getTestJsMessage(2));
+        assertEquals(3, manager.getExpectedConsumerSequence());
+        manager.preProcess(getTestJsMessage(4));
         if (el != null) {
             assertSame(sub, el.sub);
             assertEquals(3, el.expectedConsumerSeq);
@@ -294,7 +294,7 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
 
     private void _push_fc(SubscribeOptions so) {
         MockPublishInternal mc = new MockPublishInternal(new Options.Builder().build());
-        NatsJetStreamMessagePreProcessor pre = new NatsJetStreamMessagePreProcessor(mc, so, so.getConsumerConfiguration(), null, false, true);
+        AutoStatusManager pre = new AutoStatusManager(mc, so, so.getConsumerConfiguration(), null, false, true);
         assertNull(pre.getLastFcSubject());
         pre.preProcess(getFlowControl(1));
         assertEquals(getFcSubject(1), pre.getLastFcSubject());
@@ -332,7 +332,7 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
 
     private void _push_xfc(SubscribeOptions so) {
         MockPublishInternal mc = new MockPublishInternal(new Options.Builder().build());
-        NatsJetStreamMessagePreProcessor pre = new NatsJetStreamMessagePreProcessor(mc, so, so.getConsumerConfiguration(), null, false, true);
+        AutoStatusManager pre = new AutoStatusManager(mc, so, so.getConsumerConfiguration(), null, false, true);
         assertNull(pre.getLastFcSubject());
 
         pre.preProcess(getFlowControl(1));
@@ -364,18 +364,18 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
     }
 
     private void _received_time_yes(SubscribeOptions so) {
-        NatsJetStreamMessagePreProcessor pre = getPre(so);
+        AutoStatusManager manager = getManager(so);
         long before = System.currentTimeMillis();
-        pre.preProcess(getTestJsMessage(1));
+        manager.preProcess(getTestJsMessage(1));
         long after = System.currentTimeMillis();
-        long preTime = pre.getLastMessageReceivedTime();
+        long preTime = manager.getLastMessageReceivedTime();
         assertTrue(preTime >= before && preTime <= after);
     }
 
     private void _received_time_no(SubscribeOptions so) {
-        NatsJetStreamMessagePreProcessor pre = getPre(so);
-        pre.preProcess(getTestJsMessage(1));
-        assertEquals(0, pre.getLastMessageReceivedTime());
+        AutoStatusManager manager = getManager(so);
+        manager.preProcess(getTestJsMessage(1));
+        assertEquals(0, manager.getLastMessageReceivedTime());
     }
 
     @Test
@@ -384,27 +384,27 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
 
         // MessageAlarmTime default
         PushSubscribeOptions so = new PushSubscribeOptions.Builder().configuration(cc).build();
-        NatsJetStreamMessagePreProcessor pre = getPre(so);
-        assertEquals(1000, pre.getIdleHeartbeatSetting());
-        assertEquals(3000, pre.getAlarmPeriodSetting());
+        AutoStatusManager manager = getManager(so);
+        assertEquals(1000, manager.getIdleHeartbeatSetting());
+        assertEquals(3000, manager.getAlarmPeriodSetting());
 
         // MessageAlarmTime < idleHeartbeat
         so = new PushSubscribeOptions.Builder().configuration(cc).messageAlarmTime(999).build();
-        pre = getPre(so);
-        assertEquals(1000, pre.getIdleHeartbeatSetting());
-        assertEquals(3000, pre.getAlarmPeriodSetting());
+        manager = getManager(so);
+        assertEquals(1000, manager.getIdleHeartbeatSetting());
+        assertEquals(3000, manager.getAlarmPeriodSetting());
 
         // MessageAlarmTime == idleHeartbeat
         so = new PushSubscribeOptions.Builder().configuration(cc).messageAlarmTime(1000).build();
-        pre = getPre(so);
-        assertEquals(1000, pre.getIdleHeartbeatSetting());
-        assertEquals(1000, pre.getAlarmPeriodSetting());
+        manager = getManager(so);
+        assertEquals(1000, manager.getIdleHeartbeatSetting());
+        assertEquals(1000, manager.getAlarmPeriodSetting());
 
         // MessageAlarmTime > idleHeartbeat
         so = new PushSubscribeOptions.Builder().configuration(cc).messageAlarmTime(2000).build();
-        pre = getPre(so);
-        assertEquals(1000, pre.getIdleHeartbeatSetting());
-        assertEquals(2000, pre.getAlarmPeriodSetting());
+        manager = getManager(so);
+        assertEquals(1000, manager.getIdleHeartbeatSetting());
+        assertEquals(2000, manager.getAlarmPeriodSetting());
     }
 
     @Test
@@ -416,9 +416,9 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
     }
 
     private void _settings_hb_no(SubscribeOptions so) {
-        NatsJetStreamMessagePreProcessor pre = getPre(so);
-        assertEquals(0, pre.getIdleHeartbeatSetting());
-        assertEquals(0, pre.getAlarmPeriodSetting());
+        AutoStatusManager manager = getManager(so);
+        assertEquals(0, manager.getIdleHeartbeatSetting());
+        assertEquals(0, manager.getAlarmPeriodSetting());
     }
 
     private ConsumerConfiguration cc_fc_hb() {
@@ -481,12 +481,12 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
         return new PushSubscribeOptions.Builder().autoStatusManage(false).autoGapDetect(false).build();
     }
 
-    private NatsJetStreamMessagePreProcessor getPre(SubscribeOptions so) {
-        return getPre(null, so, null, true, false);
+    private AutoStatusManager getManager(SubscribeOptions so) {
+        return getManager(null, so, null, true, false);
     }
 
-    private NatsJetStreamMessagePreProcessor getPre(NatsConnection conn, SubscribeOptions so, NatsJetStreamSubscription sub, boolean syncMode, boolean queueMode) {
-        return new NatsJetStreamMessagePreProcessor(conn, so, so.getConsumerConfiguration(), sub, queueMode, syncMode);
+    private AutoStatusManager getManager(NatsConnection conn, SubscribeOptions so, NatsJetStreamSubscription sub, boolean syncMode, boolean queueMode) {
+        return new AutoStatusManager(conn, so, so.getConsumerConfiguration(), sub, queueMode, syncMode);
     }
 
     private NatsMessage getFlowControl(int replyToId) {
@@ -533,6 +533,8 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
 
     static class PreEl implements ErrorListener {
         JetStreamSubscription sub;
+        long lastStreamSequence = -1; // TODO add checking these in tests
+        long lastConsumerSequence = -1;
         long expectedConsumerSeq = -1;
         long receivedConsumerSeq = -1;
         Status status;
@@ -554,10 +556,14 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
         public void slowConsumerDetected(Connection conn, Consumer consumer) {}
 
         @Override
-        public void messageGapDetected(Connection conn, JetStreamSubscription sub, long expectedConsumerSeq, long receivedConsumerSeq) {
+        public void messageGapDetected(Connection conn, JetStreamSubscription sub,
+                                       long lastStreamSequence, long lastConsumerSequence,
+                                       long expectedConsumerSequence, long receivedConsumerSequence) {
             this.sub = sub;
-            this.expectedConsumerSeq = expectedConsumerSeq;
-            this.receivedConsumerSeq = receivedConsumerSeq;
+            this.lastStreamSequence = lastStreamSequence;
+            this.lastConsumerSequence = lastConsumerSequence;
+            this.expectedConsumerSeq = expectedConsumerSequence;
+            this.receivedConsumerSeq = receivedConsumerSequence;
         }
 
         @Override
@@ -607,7 +613,7 @@ public class JetStreamPreProcessorTests extends JetStreamTestBase {
         try {
             MessageHandler userMh = msg -> {};
             NatsJetStreamSubscription sub = (NatsJetStreamSubscription)js.subscribe(SUBJECT, d, userMh, autoAck, (PushSubscribeOptions) so);
-            MessageHandler mh = ((NatsDispatcher) d).getSubscriptionHandlers().get(sub.getSID());
+            MessageHandler mh = sub.getNatsDispatcher().getSubscriptionHandlers().get(sub.getSID());
             if (necessary) {
                 assertTrue(mh instanceof NatsJetStreamSubscriptionMessageHandler);
             }

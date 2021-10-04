@@ -13,10 +13,7 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamApiException;
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.Message;
-import io.nats.client.SubscribeOptions;
+import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.support.JsonUtils;
@@ -73,9 +70,9 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         // async is always dispatched and not allowed to call nextMessage
         if (dispatcher == null) {
             // additionally optimize this implementation as sometimes the pre-processor is not called for
-            NatsJetStreamMessagePreProcessor pre =
-                new NatsJetStreamMessagePreProcessor(connection, so, consumerConfig, this, queueName != null, true);
-            nextMessageImpl = pre.isNoOp() ? super::nextMessage : new PreProcessorNextMessageImpl(pre);
+            AutoStatusManager asm =
+                new AutoStatusManager(connection, so, consumerConfig, this, queueName != null, true);
+            nextMessageImpl = asm.isNoOp() ? super::nextMessage : new PreProcessorNextMessageImpl(asm);
         }
         else {
             nextMessageImpl = timeout -> {
@@ -109,11 +106,28 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException;
     }
 
-    class PreProcessorNextMessageImpl implements NextMessageImpl {
-        final NatsJetStreamMessagePreProcessor pre;
+    @Override
+    void invalidate() {
+        if (nextMessageImpl instanceof PreProcessorNextMessageImpl) {
+            ((PreProcessorNextMessageImpl)nextMessageImpl).shutdown();
+        }
+        else {
+            NatsDispatcher disp = getNatsDispatcher();
+            if (disp != null) {
+                MessageHandler mh = disp.getSubscriptionHandlers().get(getSID());
+                if (mh instanceof NatsJetStreamSubscriptionMessageHandler) {
+                    ((NatsJetStreamSubscriptionMessageHandler) mh).shutdown();
+                }
+            }
+        }
+        super.invalidate();
+    }
 
-        public PreProcessorNextMessageImpl(NatsJetStreamMessagePreProcessor pre) {
-            this.pre = pre;
+    class PreProcessorNextMessageImpl implements NextMessageImpl {
+        final AutoStatusManager asm;
+
+        public PreProcessorNextMessageImpl(AutoStatusManager asm) {
+            this.asm = asm;
         }
 
         @Override
@@ -122,7 +136,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
             // so only process 1 message max
             if (timeout == null || timeout.isNegative()) {
                 Message msg = NatsJetStreamSubscription.super.nextMessage(timeout);
-                return msg == null || pre.preProcess(msg) ? null : msg;
+                return msg == null || asm.preProcess(msg) ? null : msg;
             }
 
             // zero timeout means wait for ever,
@@ -132,7 +146,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 // by using timeout of null, we never wait for messages, just read
                 // messages that are already queued
                 Message msg = NatsJetStreamSubscription.super.nextMessage(timeout);
-                while (msg != null && pre.preProcess(msg)) {
+                while (msg != null && asm.preProcess(msg)) {
                     msg = NatsJetStreamSubscription.super.nextMessage(timeout);
                 }
                 return msg;
@@ -141,7 +155,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
             // positive timeout, process as many messages we can in that time period
             long end = System.currentTimeMillis() + timeout.toMillis();
             Message msg = NatsJetStreamSubscription.super.nextMessage(timeout);
-            while (msg != null && pre.preProcess(msg)) {
+            while (msg != null && asm.preProcess(msg)) {
                 long millis = end - System.currentTimeMillis();
                 if (millis > 0) {
                     msg = NatsJetStreamSubscription.super.nextMessage(Duration.ofMillis(millis));
@@ -151,6 +165,10 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 }
             }
             return msg;
+        }
+
+        public void shutdown() {
+            asm.shutdown();
         }
     };
 

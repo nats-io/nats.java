@@ -85,8 +85,13 @@ public interface ErrorListener {
      *
      * @param conn The connection that had the issue
      * @param sub the JetStreamSubscription that this occurred on
+     * @param lastStreamSequence the last received stream sequence
+     * @param lastConsumerSequence the last received consumer sequence
+     * @param expectedConsumerSequence the consumer sequence that was expected
      */
-    default void heartbeatAlarm(Connection conn, JetStreamSubscription sub) {}
+    default void heartbeatAlarm(Connection conn, JetStreamSubscription sub,
+                                long lastStreamSequence, long lastConsumerSequence,
+                                long expectedConsumerSequence) {}
 
     /**
      * Called by the connection when there is a gap in messages received.
@@ -94,10 +99,14 @@ public interface ErrorListener {
      *
      * @param conn The connection that had the issue
      * @param sub the JetStreamSubscription that this occurred on
-     * @param expectedConsumerSeq the consumer sequence that was expected
-     * @param receivedConsumerSeq the consumer sequence that was received
+     * @param lastStreamSequence the last received stream sequence
+     * @param lastConsumerSequence the last received consumer sequence
+     * @param expectedConsumerSequence the consumer sequence that was expected
+     * @param receivedConsumerSequence the consumer sequence that was received
      */
-    default void messageGapDetected(Connection conn, JetStreamSubscription sub, long expectedConsumerSeq, long receivedConsumerSeq) {}
+    default void messageGapDetected(Connection conn, JetStreamSubscription sub,
+                                    long lastStreamSequence, long lastConsumerSequence,
+                                    long expectedConsumerSequence, long receivedConsumerSequence) {}
 
     /**
      * Called by the connection when an unhandled status is received.
