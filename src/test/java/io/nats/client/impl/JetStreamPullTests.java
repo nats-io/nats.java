@@ -252,7 +252,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testNoWaitAutoHandledProtoMessages() throws Exception {
+    public void testNoWait() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -263,7 +263,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions options = PullSubscribeOptions.builder()
                 .durable(DURABLE)
-                .autoGapDetect(false) // not testing gap in this test
+                .detectGaps(false) // not testing gap in this test
                 .build();
 
             // Subscribe synchronously.
@@ -311,72 +311,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             assertEquals(2, messages.size());
-        });
-    }
-
-    @Test
-    public void testNoWaitUserHandledStatusMessages() throws Exception {
-        runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
-
-            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
-            PullSubscribeOptions options = PullSubscribeOptions.builder()
-                .durable(DURABLE)
-                .autoStatusManage(false)
-                .autoGapDetect(false) // not testing gap in this test
-                .build();
-
-            // Subscribe synchronously.
-            JetStreamSubscription sub = js.subscribe(SUBJECT, options);
-            assertSubscription(sub, STREAM, DURABLE, null, true);
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
-
-            // publish 10 messages
-            // no wait, batch size 10, there are 10 messages, we will read them all and not trip nowait
-            jsPublish(js, SUBJECT, "A", 10);
-            sub.pullNoWait(10);
-            List<Message> messages = readMessagesAck(sub);
-            assertEquals(10, messages.size());
-            assertAllJetStream(messages);
-
-            // publish 20 messages
-            // no wait, batch size 10, there are 20 messages, we will read 10
-            jsPublish(js, SUBJECT, "B", 20);
-            sub.pullNoWait(10);
-            messages = readMessagesAck(sub);
-            assertEquals(10, messages.size());
-
-            // there are still ten messages
-            // no wait, batch size 10, there are 20 messages, we will read 10
-            sub.pullNoWait(10);
-            messages = readMessagesAck(sub);
-            assertEquals(10, messages.size());
-
-            // publish 5 messages
-            // no wait, batch size 10, there are 5 messages, we WILL trip nowait
-            jsPublish(js, SUBJECT, "C", 5);
-            sub.pullNoWait(10);
-            messages = readMessagesAck(sub);
-            assertEquals(6, messages.size());
-            assertLastIsStatus(messages, 404);
-
-            // publish 12 messages
-            // no wait, batch size 10, there are more than batch messages we will read 10
-            jsPublish(js, SUBJECT, "D", 12);
-            sub.pullNoWait(10);
-            messages = readMessagesAck(sub);
-            assertEquals(10, messages.size());
-
-            // 2 messages left
-            // no wait, less than batch size will trip nowait
-            sub.pullNoWait(10);
-            messages = readMessagesAck(sub);
-            assertEquals(3, messages.size());
-            assertLastIsStatus(messages, 404);
         });
     }
 

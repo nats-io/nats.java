@@ -24,37 +24,30 @@ import static io.nats.client.support.Status.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("SameParameterValue")
-public class AutoStatusManagerTests extends JetStreamTestBase {
+public class NatsJetStreamAutoStatusManagerTests extends JetStreamTestBase {
 
     @Test
     public void testConstruction() {
-        _construction(true, true,  false, false, true,  pull_asm_gap());
-        _construction(true, true,  false, false, false, pull_asm_xgap());
-        _construction(true, false, false, false, true,  pull_xasm_gap());
-        _construction(true, false, false, false, false, pull_xasm_xgap_noop());
+        _construction(true, false, false, true,  pull_gap());
+        _construction(true, false, false, false, pull_xgap());
 
-        _construction(false, true, true, true,  true,  push_asm_hb_fc_gap());
-        _construction(false, true, true, true,  false, push_asm_hb_fc_xgap());
-        _construction(false, true, true, false, true,  push_asm_hb_xfc_gap());
-        _construction(false, true, true, false, false, push_asm_hb_xfc_xgap());
+        _construction(false, true, true,  true,  push_hb_fc_gap());
+        _construction(false, true, true,  false, push_hb_fc_xgap());
+        _construction(false, true, false, true,  push_hb_xfc_gap());
+        _construction(false, true, false, false, push_hb_xfc_xgap());
 
-        _construction(false, true, false, false, true,  push_asm_xhb_xfc_gap());
-        _construction(false, true, false, false, false, push_asm_xhb_xfc_xgap());
-
-        _construction(false, false, false, false, true,  push_xasm_gap());
-        _construction(false, false, false, false, false, push_xasm_xgap_noop());
+        _construction(false, false, false, true,  push_xhb_xfc_gap());
+        _construction(false, false, false, false, push_xhb_xfc_xgap());
     }
 
-    private void _construction(boolean pull, boolean asm, boolean hb, boolean fc, boolean gap, SubscribeOptions so) {
-        AutoStatusManager manager = getManager(null, so, null, true, false);
+    private void _construction(boolean pull, boolean hb, boolean fc, boolean gap, SubscribeOptions so) {
+        NatsJetStreamAutoStatusManager manager = getManager(null, so, null, true, false);
         assertTrue(manager.isSyncMode());
         assertFalse(manager.isQueueMode());
         assertEquals(pull, manager.isPull());
-        assertEquals(asm, manager.isAsm());
         assertEquals(hb, manager.isHb());
         assertEquals(fc, manager.isFc());
         assertEquals(gap, manager.isGap());
-        assertEquals(!(asm || hb || fc || gap), manager.isNoOp());
 
         // queue mode
         if (!pull) {
@@ -62,30 +55,10 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
             assertTrue(manager.isSyncMode());
             assertTrue(manager.isQueueMode());
             assertEquals(pull, manager.isPull());
-            assertEquals(asm, manager.isAsm());
             assertFalse(manager.isHb());
             assertFalse(manager.isFc());
             assertFalse(manager.isGap());
-            assertEquals(!asm, manager.isNoOp());
         }
-    }
-
-    @Test
-    public void test_status_pass_through() {
-        _status_pass_through(pull_xasm_gap());
-        _status_pass_through(pull_xasm_xgap_noop());
-        _status_pass_through(push_xasm_gap());
-        _status_pass_through(push_xasm_xgap_noop());
-    }
-
-    private void _status_pass_through(SubscribeOptions so) {
-        AutoStatusManager manager = getManager(so);
-        assertFalse(manager.preProcess(getTestJsMessage(1)));
-        assertFalse(manager.preProcess(get404()));
-        assertFalse(manager.preProcess(get408()));
-        assertFalse(manager.preProcess(getFlowControl(1)));
-        assertFalse(manager.preProcess(getFcHeartbeat(1)));
-        assertFalse(manager.preProcess(getUnkStatus()));
     }
 
     @Test
@@ -94,16 +67,16 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
             createTestStream(nc);
             JetStream js = nc.jetStream();
             NatsJetStreamSubscription sub = (NatsJetStreamSubscription) js.subscribe(SUBJECT);
-            _status_handle_pull(nc, sub, pull_asm_gap());
-            _status_handle_pull(nc, sub, pull_asm_xgap());
+            _status_handle_pull(nc, sub, pull_gap());
+            _status_handle_pull(nc, sub, pull_xgap());
         });
     }
 
     private void _status_handle_pull(Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
-        AutoStatusManager manager = getManager((NatsConnection) conn, so, sub, true, false);
-        assertFalse(manager.preProcess(getTestJsMessage(1)));
-        assertTrue(manager.preProcess(get404()));
-        assertTrue(manager.preProcess(get408()));
+        NatsJetStreamAutoStatusManager manager = getManager((NatsConnection) conn, so, sub, true, false);
+        assertFalse(manager.manage(getTestJsMessage(1)));
+        assertTrue(manager.manage(get404()));
+        assertTrue(manager.manage(get408()));
         _status_handle_throws(sub, manager, getFlowControl(1));
         _status_handle_throws(sub, manager, getFcHeartbeat(1));
         _status_handle_throws(sub, manager, getUnkStatus());
@@ -115,27 +88,27 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
             createTestStream(nc);
             JetStream js = nc.jetStream();
             NatsJetStreamSubscription sub = (NatsJetStreamSubscription) js.subscribe(SUBJECT);
-            _status_handle_pushSync(nc, sub, push_asm_hb_fc_gap());
-            _status_handle_pushSync(nc, sub, push_asm_hb_fc_xgap());
-            _status_handle_pushSync(nc, sub, push_asm_hb_xfc_gap());
-            _status_handle_pushSync(nc, sub, push_asm_hb_xfc_xgap());
-            _status_handle_pushSync(nc, sub, push_asm_xhb_xfc_gap());
-            _status_handle_pushSync(nc, sub, push_asm_xhb_xfc_xgap());
+            _status_handle_pushSync(nc, sub, push_hb_fc_gap());
+            _status_handle_pushSync(nc, sub, push_hb_fc_xgap());
+            _status_handle_pushSync(nc, sub, push_hb_xfc_gap());
+            _status_handle_pushSync(nc, sub, push_hb_xfc_xgap());
+            _status_handle_pushSync(nc, sub, push_xhb_xfc_gap());
+            _status_handle_pushSync(nc, sub, push_xhb_xfc_xgap());
         });
     }
 
     private void _status_handle_pushSync(Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
-        AutoStatusManager manager = getManager((NatsConnection) conn, so, sub, true, false);
-        assertFalse(manager.preProcess(getTestJsMessage(1)));
-        assertTrue(manager.preProcess(getFlowControl(1)));
-        assertTrue(manager.preProcess(getFcHeartbeat(1)));
+        NatsJetStreamAutoStatusManager manager = getManager((NatsConnection) conn, so, sub, true, false);
+        assertFalse(manager.manage(getTestJsMessage(1)));
+        assertTrue(manager.manage(getFlowControl(1)));
+        assertTrue(manager.manage(getFcHeartbeat(1)));
         _status_handle_throws(sub, manager, get404());
         _status_handle_throws(sub, manager, get408());
         _status_handle_throws(sub, manager, getUnkStatus());
     }
 
-    private void _status_handle_throws(NatsJetStreamSubscription sub, AutoStatusManager pre, Message m) {
-        JetStreamStatusException jsse = assertThrows(JetStreamStatusException.class, () -> pre.preProcess(m));
+    private void _status_handle_throws(NatsJetStreamSubscription sub, NatsJetStreamAutoStatusManager pre, Message m) {
+        JetStreamStatusException jsse = assertThrows(JetStreamStatusException.class, () -> pre.manage(m));
         assertSame(sub, jsse.getSubscription());
         assertSame(m.getStatus(), jsse.getStatus());
     }
@@ -147,12 +120,12 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
             createTestStream(nc);
             JetStream js = nc.jetStream();
             NatsJetStreamSubscription sub = (NatsJetStreamSubscription) js.subscribe(SUBJECT);
-            _status_handle_pushAsync(el, nc, sub, push_asm_hb_fc_gap());
-            _status_handle_pushAsync(el, nc, sub, push_asm_hb_fc_xgap());
-            _status_handle_pushAsync(el, nc, sub, push_asm_hb_xfc_gap());
-            _status_handle_pushAsync(el, nc, sub, push_asm_hb_xfc_xgap());
-            _status_handle_pushAsync(el, nc, sub, push_asm_xhb_xfc_gap());
-            _status_handle_pushAsync(el, nc, sub, push_asm_xhb_xfc_xgap());
+            _status_handle_pushAsync(el, nc, sub, push_hb_fc_gap());
+            _status_handle_pushAsync(el, nc, sub, push_hb_fc_xgap());
+            _status_handle_pushAsync(el, nc, sub, push_hb_xfc_gap());
+            _status_handle_pushAsync(el, nc, sub, push_hb_xfc_xgap());
+            _status_handle_pushAsync(el, nc, sub, push_xhb_xfc_gap());
+            _status_handle_pushAsync(el, nc, sub, push_xhb_xfc_xgap());
         });
 
         // no error listener for coverage
@@ -160,40 +133,40 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
             createTestStream(nc);
             JetStream js = nc.jetStream();
             NatsJetStreamSubscription sub = (NatsJetStreamSubscription) js.subscribe(SUBJECT);
-            _status_handle_pushAsync(null, nc, sub, push_asm_hb_fc_gap());
-            _status_handle_pushAsync(null, nc, sub, push_asm_hb_fc_xgap());
-            _status_handle_pushAsync(null, nc, sub, push_asm_hb_xfc_gap());
-            _status_handle_pushAsync(null, nc, sub, push_asm_hb_xfc_xgap());
-            _status_handle_pushAsync(null, nc, sub, push_asm_xhb_xfc_gap());
-            _status_handle_pushAsync(null, nc, sub, push_asm_xhb_xfc_xgap());
+            _status_handle_pushAsync(null, nc, sub, push_hb_fc_gap());
+            _status_handle_pushAsync(null, nc, sub, push_hb_fc_xgap());
+            _status_handle_pushAsync(null, nc, sub, push_hb_xfc_gap());
+            _status_handle_pushAsync(null, nc, sub, push_hb_xfc_xgap());
+            _status_handle_pushAsync(null, nc, sub, push_xhb_xfc_gap());
+            _status_handle_pushAsync(null, nc, sub, push_xhb_xfc_xgap());
         });
     }
 
     private void _status_handle_pushAsync(PreEl el, Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
-        AutoStatusManager manager = getManager((NatsConnection) conn, so, sub, false, false);
+        NatsJetStreamAutoStatusManager manager = getManager((NatsConnection) conn, so, sub, false, false);
         if (el != null) {
             el.reset();
         }
-        assertFalse(manager.preProcess(getTestJsMessage(1)));
-        assertTrue(manager.preProcess(getFlowControl(1)));
-        assertTrue(manager.preProcess(getFcHeartbeat(1)));
+        assertFalse(manager.manage(getTestJsMessage(1)));
+        assertTrue(manager.manage(getFlowControl(1)));
+        assertTrue(manager.manage(getFcHeartbeat(1)));
 
         Message m = get404();
-        assertTrue(manager.preProcess(m));
+        assertTrue(manager.manage(m));
         if (el != null) {
             assertSame(sub, el.sub);
             assertSame(m.getStatus(), el.status);
         }
 
         m = get408();
-        assertTrue(manager.preProcess(m));
+        assertTrue(manager.manage(m));
         if (el != null) {
             assertSame(sub, el.sub);
             assertSame(m.getStatus(), el.status);
         }
 
         m = getUnkStatus();
-        assertTrue(manager.preProcess(m));
+        assertTrue(manager.manage(m));
         if (el != null) {
             assertSame(sub, el.sub);
             assertSame(m.getStatus(), el.status);
@@ -206,23 +179,21 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
             createTestStream(nc);
             JetStream js = nc.jetStream();
             NatsJetStreamSubscription sub = (NatsJetStreamSubscription) js.subscribe(SUBJECT);
-            _gap_pull_pushSync(nc, sub, pull_asm_gap());
-            _gap_pull_pushSync(nc, sub, push_asm_hb_fc_gap());
-            _gap_pull_pushSync(nc, sub, push_asm_hb_xfc_gap());
-            _gap_pull_pushSync(nc, sub, push_asm_xhb_xfc_gap());
-            _gap_pull_pushSync(nc, sub, pull_xasm_gap());
-            _gap_pull_pushSync(nc, sub, push_xasm_gap());
+            _gap_pull_pushSync(nc, sub, pull_gap());
+            _gap_pull_pushSync(nc, sub, push_hb_fc_gap());
+            _gap_pull_pushSync(nc, sub, push_hb_xfc_gap());
+            _gap_pull_pushSync(nc, sub, push_xhb_xfc_gap());
         });
     }
 
     private void _gap_pull_pushSync(Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
-        AutoStatusManager manager = getManager((NatsConnection) conn, so, sub, true, false);
+        NatsJetStreamAutoStatusManager manager = getManager((NatsConnection) conn, so, sub, true, false);
         assertEquals(-1, manager.getExpectedConsumerSequence());
-        manager.preProcess(getTestJsMessage(1));
+        manager.manage(getTestJsMessage(1));
         assertEquals(2, manager.getExpectedConsumerSequence());
-        manager.preProcess(getTestJsMessage(2));
+        manager.manage(getTestJsMessage(2));
         assertEquals(3, manager.getExpectedConsumerSequence());
-        JetStreamGapException jsge = assertThrows(JetStreamGapException.class, () -> manager.preProcess(getTestJsMessage(4)));
+        JetStreamGapException jsge = assertThrows(JetStreamGapException.class, () -> manager.manage(getTestJsMessage(4)));
         assertSame(sub, jsge.getSubscription());
         assertEquals(3, jsge.getExpectedConsumerSeq());
         assertEquals(4, jsge.getReceivedConsumerSeq());
@@ -235,10 +206,9 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
             createTestStream(nc);
             JetStream js = nc.jetStream();
             NatsJetStreamSubscription sub = (NatsJetStreamSubscription) js.subscribe(SUBJECT);
-            _gap_pushAsync(el, nc, sub, push_asm_hb_fc_gap());
-            _gap_pushAsync(el, nc, sub, push_asm_hb_xfc_gap());
-            _gap_pushAsync(el, nc, sub, push_asm_xhb_xfc_gap());
-            _gap_pushAsync(el, nc, sub, push_xasm_gap());
+            _gap_pushAsync(el, nc, sub, push_hb_fc_gap());
+            _gap_pushAsync(el, nc, sub, push_hb_xfc_gap());
+            _gap_pushAsync(el, nc, sub, push_xhb_xfc_gap());
         });
 
         // no error listener for coverage
@@ -246,24 +216,23 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
             createTestStream(nc);
             JetStream js = nc.jetStream();
             NatsJetStreamSubscription sub = (NatsJetStreamSubscription) js.subscribe(SUBJECT);
-            _gap_pushAsync(null, nc, sub, push_asm_hb_fc_gap());
-            _gap_pushAsync(null, nc, sub, push_asm_hb_xfc_gap());
-            _gap_pushAsync(null, nc, sub, push_asm_xhb_xfc_gap());
-            _gap_pushAsync(null, nc, sub, push_xasm_gap());
+            _gap_pushAsync(null, nc, sub, push_hb_fc_gap());
+            _gap_pushAsync(null, nc, sub, push_hb_xfc_gap());
+            _gap_pushAsync(null, nc, sub, push_xhb_xfc_gap());
         });
     }
 
     private void _gap_pushAsync(PreEl el, Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
-        AutoStatusManager manager = getManager((NatsConnection) conn, so, sub, false, false);
+        NatsJetStreamAutoStatusManager manager = getManager((NatsConnection) conn, so, sub, false, false);
         if (el != null) {
             el.reset();
         }
         assertEquals(-1, manager.getExpectedConsumerSequence());
-        manager.preProcess(getTestJsMessage(1));
+        manager.manage(getTestJsMessage(1));
         assertEquals(2, manager.getExpectedConsumerSequence());
-        manager.preProcess(getTestJsMessage(2));
+        manager.manage(getTestJsMessage(2));
         assertEquals(3, manager.getExpectedConsumerSequence());
-        manager.preProcess(getTestJsMessage(4));
+        manager.manage(getTestJsMessage(4));
         if (el != null) {
             assertSame(sub, el.sub);
             assertEquals(3, el.expectedConsumerSeq);
@@ -288,35 +257,35 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_push_fc() {
-        _push_fc(push_asm_hb_fc_gap());
-        _push_fc(push_asm_hb_fc_xgap());
+        _push_fc(push_hb_fc_gap());
+        _push_fc(push_hb_fc_xgap());
     }
 
     private void _push_fc(SubscribeOptions so) {
         MockPublishInternal mc = new MockPublishInternal(new Options.Builder().build());
-        AutoStatusManager pre = new AutoStatusManager(mc, so, so.getConsumerConfiguration(), null, false, true);
+        NatsJetStreamAutoStatusManager pre = new NatsJetStreamAutoStatusManager(mc, so, so.getConsumerConfiguration(), false, true);
         assertNull(pre.getLastFcSubject());
-        pre.preProcess(getFlowControl(1));
+        pre.manage(getFlowControl(1));
         assertEquals(getFcSubject(1), pre.getLastFcSubject());
         assertEquals(getFcSubject(1), mc.fcSubject);
         assertEquals(1, mc.pubCount);
 
-        pre.preProcess(getFlowControl(1)); // duplicate should not call publish
+        pre.manage(getFlowControl(1)); // duplicate should not call publish
         assertEquals(getFcSubject(1), pre.getLastFcSubject());
         assertEquals(getFcSubject(1), mc.fcSubject);
         assertEquals(1, mc.pubCount);
 
-        pre.preProcess(getFlowControl(2)); // duplicate should not call publish
+        pre.manage(getFlowControl(2)); // duplicate should not call publish
         assertEquals(getFcSubject(2), pre.getLastFcSubject());
         assertEquals(getFcSubject(2), mc.fcSubject);
         assertEquals(2, mc.pubCount);
 
-        pre.preProcess(getFcHeartbeat(2)); // duplicate should not call publish
+        pre.manage(getFcHeartbeat(2)); // duplicate should not call publish
         assertEquals(getFcSubject(2), pre.getLastFcSubject());
         assertEquals(getFcSubject(2), mc.fcSubject);
         assertEquals(2, mc.pubCount);
 
-        pre.preProcess(getFcHeartbeat(3));
+        pre.manage(getFcHeartbeat(3));
         assertEquals(getFcSubject(3), pre.getLastFcSubject());
         assertEquals(getFcSubject(3), mc.fcSubject);
         assertEquals(3, mc.pubCount);
@@ -324,23 +293,23 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_push_xfc() {
-        _push_xfc(push_asm_hb_xfc_gap());
-        _push_xfc(push_asm_hb_xfc_xgap());
-        _push_xfc(push_asm_xhb_xfc_gap());
-        _push_xfc(push_asm_xhb_xfc_xgap());
+        _push_xfc(push_hb_xfc_gap());
+        _push_xfc(push_hb_xfc_xgap());
+        _push_xfc(push_xhb_xfc_gap());
+        _push_xfc(push_xhb_xfc_xgap());
     }
 
     private void _push_xfc(SubscribeOptions so) {
         MockPublishInternal mc = new MockPublishInternal(new Options.Builder().build());
-        AutoStatusManager pre = new AutoStatusManager(mc, so, so.getConsumerConfiguration(), null, false, true);
+        NatsJetStreamAutoStatusManager pre = new NatsJetStreamAutoStatusManager(mc, so, so.getConsumerConfiguration(), false, true);
         assertNull(pre.getLastFcSubject());
 
-        pre.preProcess(getFlowControl(1));
+        pre.manage(getFlowControl(1));
         assertNull(pre.getLastFcSubject());
         assertNull(mc.fcSubject);
         assertEquals(0, mc.pubCount);
 
-        pre.preProcess(getHeartbeat());
+        pre.manage(getHeartbeat());
         assertNull(pre.getLastFcSubject());
         assertNull(mc.fcSubject);
         assertEquals(0, mc.pubCount);
@@ -348,33 +317,29 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_received_time() {
-        _received_time_yes(push_asm_hb_fc_gap());
-        _received_time_yes(push_asm_hb_fc_xgap());
-        _received_time_yes(push_asm_hb_xfc_gap());
-        _received_time_yes(push_asm_hb_xfc_xgap());
+        _received_time_yes(push_hb_fc_gap());
+        _received_time_yes(push_hb_fc_xgap());
+        _received_time_yes(push_hb_xfc_gap());
+        _received_time_yes(push_hb_xfc_xgap());
 
-        _received_time_no(pull_asm_gap());
-        _received_time_no(pull_asm_xgap());
-        _received_time_no(push_asm_xhb_xfc_gap());
-        _received_time_no(push_asm_xhb_xfc_xgap());
-        _received_time_no(pull_xasm_gap());
-        _received_time_no(push_xasm_gap());
-        _received_time_no(pull_xasm_xgap_noop());
-        _received_time_no(push_xasm_xgap_noop());
+        _received_time_no(pull_gap());
+        _received_time_no(pull_xgap());
+        _received_time_no(push_xhb_xfc_gap());
+        _received_time_no(push_xhb_xfc_xgap());
     }
 
     private void _received_time_yes(SubscribeOptions so) {
-        AutoStatusManager manager = getManager(so);
+        NatsJetStreamAutoStatusManager manager = getManager(so);
         long before = System.currentTimeMillis();
-        manager.preProcess(getTestJsMessage(1));
+        manager.manage(getTestJsMessage(1));
         long after = System.currentTimeMillis();
         long preTime = manager.getLastMessageReceivedTime();
         assertTrue(preTime >= before && preTime <= after);
     }
 
     private void _received_time_no(SubscribeOptions so) {
-        AutoStatusManager manager = getManager(so);
-        manager.preProcess(getTestJsMessage(1));
+        NatsJetStreamAutoStatusManager manager = getManager(so);
+        manager.manage(getTestJsMessage(1));
         assertEquals(0, manager.getLastMessageReceivedTime());
     }
 
@@ -384,7 +349,7 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
 
         // MessageAlarmTime default
         PushSubscribeOptions so = new PushSubscribeOptions.Builder().configuration(cc).build();
-        AutoStatusManager manager = getManager(so);
+        NatsJetStreamAutoStatusManager manager = getManager(so);
         assertEquals(1000, manager.getIdleHeartbeatSetting());
         assertEquals(3000, manager.getAlarmPeriodSetting());
 
@@ -409,14 +374,12 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_hb_no_settings() {
-        _settings_hb_no(push_asm_xhb_xfc_gap());
-        _settings_hb_no(push_asm_xhb_xfc_xgap());
-        _settings_hb_no(push_xasm_gap());
-        _settings_hb_no(push_xasm_xgap_noop());
+        _settings_hb_no(push_xhb_xfc_gap());
+        _settings_hb_no(push_xhb_xfc_xgap());
     }
 
     private void _settings_hb_no(SubscribeOptions so) {
-        AutoStatusManager manager = getManager(so);
+        NatsJetStreamAutoStatusManager manager = getManager(so);
         assertEquals(0, manager.getIdleHeartbeatSetting());
         assertEquals(0, manager.getAlarmPeriodSetting());
     }
@@ -433,60 +396,46 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
         return ConsumerConfiguration.builder().build();
     }
 
-    private SubscribeOptions pull_asm_gap() {
-        return new PullSubscribeOptions.Builder().durable(DURABLE).build();
+    private SubscribeOptions pull_gap() {
+        return new PullSubscribeOptions.Builder().durable(DURABLE).detectGaps(true).build();
     }
 
-    private SubscribeOptions pull_asm_xgap() {
-        return new PullSubscribeOptions.Builder().durable(DURABLE).autoGapDetect(false).build();
+    private SubscribeOptions pull_xgap() {
+        return new PullSubscribeOptions.Builder().durable(DURABLE).detectGaps(false).build();
     }
 
-    private SubscribeOptions pull_xasm_gap() {
-        return new PullSubscribeOptions.Builder().durable(DURABLE).autoStatusManage(false).build();
+    private SubscribeOptions push_hb_fc_gap() {
+        return new PushSubscribeOptions.Builder().configuration(cc_fc_hb()).detectGaps(true).build();
     }
 
-    private SubscribeOptions pull_xasm_xgap_noop() {
-        return new PullSubscribeOptions.Builder().durable(DURABLE).autoStatusManage(false).autoGapDetect(false).build();
+    private SubscribeOptions push_hb_fc_xgap() {
+        return new PushSubscribeOptions.Builder().configuration(cc_fc_hb()).detectGaps(false).build();
     }
 
-    private SubscribeOptions push_asm_hb_fc_gap() {
-        return new PushSubscribeOptions.Builder().configuration(cc_fc_hb()).build();
+    private SubscribeOptions push_hb_xfc_gap() {
+        return new PushSubscribeOptions.Builder().configuration(cc_xfc_hb()).detectGaps(true).build();
     }
 
-    private SubscribeOptions push_asm_hb_fc_xgap() {
-        return new PushSubscribeOptions.Builder().configuration(cc_fc_hb()).autoGapDetect(false).build();
+    private SubscribeOptions push_hb_xfc_xgap() {
+        return new PushSubscribeOptions.Builder().configuration(cc_xfc_hb()).detectGaps(false).build();
     }
 
-    private SubscribeOptions push_asm_hb_xfc_gap() {
-        return new PushSubscribeOptions.Builder().configuration(cc_xfc_hb()).build();
+    private SubscribeOptions push_xhb_xfc_gap() {
+        return new PushSubscribeOptions.Builder().configuration(cc_xfc_xhb()).detectGaps(true).build();
     }
 
-    private SubscribeOptions push_asm_hb_xfc_xgap() {
-        return new PushSubscribeOptions.Builder().configuration(cc_xfc_hb()).autoGapDetect(false).build();
+    private SubscribeOptions push_xhb_xfc_xgap() {
+        return new PushSubscribeOptions.Builder().configuration(cc_xfc_xhb()).detectGaps(false).build();
     }
 
-    private SubscribeOptions push_asm_xhb_xfc_gap() {
-        return new PushSubscribeOptions.Builder().configuration(cc_xfc_xhb()).build();
-    }
-
-    private SubscribeOptions push_asm_xhb_xfc_xgap() {
-        return new PushSubscribeOptions.Builder().configuration(cc_xfc_xhb()).autoGapDetect(false).build();
-    }
-
-    private SubscribeOptions push_xasm_gap() {
-        return new PushSubscribeOptions.Builder().autoStatusManage(false).build();
-    }
-
-    private SubscribeOptions push_xasm_xgap_noop() {
-        return new PushSubscribeOptions.Builder().autoStatusManage(false).autoGapDetect(false).build();
-    }
-
-    private AutoStatusManager getManager(SubscribeOptions so) {
+    private NatsJetStreamAutoStatusManager getManager(SubscribeOptions so) {
         return getManager(null, so, null, true, false);
     }
 
-    private AutoStatusManager getManager(NatsConnection conn, SubscribeOptions so, NatsJetStreamSubscription sub, boolean syncMode, boolean queueMode) {
-        return new AutoStatusManager(conn, so, so.getConsumerConfiguration(), sub, queueMode, syncMode);
+    private NatsJetStreamAutoStatusManager getManager(NatsConnection conn, SubscribeOptions so, NatsJetStreamSubscription sub, boolean syncMode, boolean queueMode) {
+        NatsJetStreamAutoStatusManager asm = new NatsJetStreamAutoStatusManager(conn, so, so.getConsumerConfiguration(), queueMode, syncMode);
+        asm.setSub(sub);
+        return asm;
     }
 
     private NatsMessage getFlowControl(int replyToId) {
@@ -570,94 +519,6 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
         public void unhandledStatus(Connection conn, JetStreamSubscription sub, Status status) {
             this.sub = sub;
             this.status = status;
-        }
-    }
-
-    @Test
-    public void test_NatsJetStreamSubscriptionMessageHandler_isNecessary() throws Exception {
-        SubscribeOptions noop = push_xasm_xgap_noop();
-        SubscribeOptions yesop = push_xasm_gap();
-
-                    // | autoAck | op    | necessary
-        _isNecessaryAck( true,     noop,   true);
-        _isNecessaryAck( false,    noop,   false);
-        _isNecessaryAck( true,     yesop,  true);
-        _isNecessaryAck( false,    yesop,  true);
-
-                      // | queueMode | op    | necessary
-        _isNecessaryQMode( false,      noop,   false);
-        _isNecessaryQMode( true,       noop,   false);
-        _isNecessaryQMode( false,      yesop,  true);
-        _isNecessaryQMode( true,       yesop,  false);
-
-        runInJsServer(nc -> {
-            createTestStream(nc);
-            JetStream js = nc.jetStream();
-            Dispatcher d = nc.createDispatcher();
-
-                                   // | autoAck | op    | necessary
-            _handlerCreatedOrNot(js, d, true,     noop,   true);
-            _handlerCreatedOrNot(js, d, false,    noop,   false);
-            _handlerCreatedOrNot(js, d, true,     yesop,  true);
-            _handlerCreatedOrNot(js, d, false,    yesop,  true);
-        });
-    }
-
-    private void _isNecessaryAck(boolean autoAck, SubscribeOptions so, boolean necessary) {
-        NatsJetStreamSubscriptionMessageHandler mh =
-            new NatsJetStreamSubscriptionMessageHandler(null, msg -> {}, autoAck, false, so, so.getConsumerConfiguration());
-        assertEquals(necessary, mh.isNecessary());
-    }
-
-    private void _handlerCreatedOrNot(JetStream js, Dispatcher d, boolean autoAck, SubscribeOptions so, boolean necessary) {
-        try {
-            MessageHandler userMh = msg -> {};
-            NatsJetStreamSubscription sub = (NatsJetStreamSubscription)js.subscribe(SUBJECT, d, userMh, autoAck, (PushSubscribeOptions) so);
-            MessageHandler mh = sub.getNatsDispatcher().getSubscriptionHandlers().get(sub.getSID());
-            if (necessary) {
-                assertTrue(mh instanceof NatsJetStreamSubscriptionMessageHandler);
-            }
-            else {
-                assertFalse(mh instanceof NatsJetStreamSubscriptionMessageHandler);
-                assertSame(mh, userMh);
-            }
-        } catch (Exception e) {
-            fail();
-        }
-    }
-
-    private void _isNecessaryQMode(boolean queueMode, SubscribeOptions so, boolean necessary) {
-        NatsJetStreamSubscriptionMessageHandler mh =
-            new NatsJetStreamSubscriptionMessageHandler(null, msg -> {}, false, queueMode, so, so.getConsumerConfiguration());
-        assertEquals(necessary, mh.isNecessary());
-    }
-
-    @Test
-    public void test_NatsJetStreamSubscriptionMessageHandler_ackIsCalledOrNot() {
-        SubscribeOptions noop = push_xasm_xgap_noop();
-
-        NatsJetStreamSubscriptionMessageHandler autoAckMh =
-            new NatsJetStreamSubscriptionMessageHandler(null, msg -> {}, true, false, noop, noop.getConsumerConfiguration());
-
-        // +autoAck +JetStream
-        assertThrows(IllegalStateException.class, () -> autoAckMh.onMessage(getTestJsMessage(1)));
-
-        // +autoAck -JetStream (status message)
-        try {
-            autoAckMh.onMessage(getHeartbeat());
-        } catch (InterruptedException e) {
-            fail();
-        }
-
-        NatsJetStreamSubscriptionMessageHandler xautoAckMh =
-            new NatsJetStreamSubscriptionMessageHandler(null, msg -> {}, false, false, noop, noop.getConsumerConfiguration());
-
-        // -autoAck message doesn't matter
-        try {
-            xautoAckMh.onMessage(getTestJsMessage(1));
-            xautoAckMh.onMessage(getHeartbeat());
-        } catch (InterruptedException e) {
-            fail();
         }
     }
 }

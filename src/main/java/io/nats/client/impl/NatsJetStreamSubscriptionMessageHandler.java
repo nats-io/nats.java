@@ -15,39 +15,30 @@ package io.nats.client.impl;
 
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
-import io.nats.client.SubscribeOptions;
-import io.nats.client.api.ConsumerConfiguration;
 
-class NatsJetStreamSubscriptionMessageHandler extends AutoStatusManager implements MessageHandler {
+class NatsJetStreamSubscriptionMessageHandler implements MessageHandler {
+    private final NatsJetStreamAutoStatusManager asm;
     private final MessageHandler userMH;
     private final boolean autoAck;
 
-    NatsJetStreamSubscriptionMessageHandler(NatsConnection conn, MessageHandler userMH,
-                                            boolean autoAck, boolean queueMode,
-                                            SubscribeOptions so, ConsumerConfiguration consumerConfig) {
-        super(conn, so, consumerConfig, null, queueMode, false);
+    NatsJetStreamSubscriptionMessageHandler(NatsJetStreamAutoStatusManager asm,
+                                            MessageHandler userMH,
+                                            boolean autoAck)
+    {
+        this.asm = asm;
         this.userMH = userMH;
         this.autoAck = autoAck;
     }
 
-    // This allows for optimization.
-    boolean isNecessary() {
-        return autoAck || !super.isNoOp();
-    }
-
     @Override
     public void onMessage(Message msg) throws InterruptedException {
-        // DISPATCHER CATCHES EXCEPTION SO NOT NECESSARY HERE
+        // DISPATCHER CATCHES AND HANDLES EXCEPTIONS SO NOT NECESSARY HERE
 
-        if (preProcess(msg)) {
-            return; // pre-processor indicated to terminate processing
-        }
-
-        userMH.onMessage(msg);
-
-        // don't ack if not JetStream
-        if (autoAck && msg.isJetStream()) {
-            msg.ack();
+        if ( !asm.manage(msg) ) { // manager did not handle message
+            userMH.onMessage(msg);
+            if (autoAck) {
+                msg.ack();
+            }
         }
     }
 }

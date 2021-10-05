@@ -90,14 +90,13 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     }
 
     @Test
-    public void notJetStream() {
-        NatsMessage m = NatsMessage.builder().subject("test").build();
-        assertThrows(IllegalStateException.class, m::ack);
-        assertThrows(IllegalStateException.class, m::nak);
-        assertThrows(IllegalStateException.class, () -> m.ackSync(Duration.ZERO));
-        assertThrows(IllegalStateException.class, m::inProgress);
-        assertThrows(IllegalStateException.class, m::term);
-        assertThrows(IllegalStateException.class, m::metaData);
+    public void testMiscCoverage() {
+        Message jsMsg = getTestJsMessage();
+        assertTrue(jsMsg.isJetStream());
+
+        // two calls to msg.metaData are for coverage to test lazy initializer
+        assertNotNull(jsMsg.metaData()); // this call takes a different path
+        assertNotNull(jsMsg.metaData()); // this call shows that the lazy will work
     }
 
     @Test

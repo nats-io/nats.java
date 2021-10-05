@@ -868,7 +868,7 @@ class NatsConnection implements Connection {
     }
 
     // Assumes the null/empty checks were handled elsewhere
-    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, NatsSubscriptionFactory nsf) {
+    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, NatsSubscriptionFactory factory) {
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
         } else if (isDraining() && (dispatcher == null || dispatcher != this.inboxDispatcher.get())) {
@@ -879,11 +879,11 @@ class NatsConnection implements Connection {
         long sidL = nextSid.getAndIncrement();
         String sid = String.valueOf(sidL);
 
-        if (nsf == null) {
+        if (factory == null) {
             sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
         }
         else {
-            sub = nsf.createNatsSubscription(sid, subject, queueName, this, dispatcher);
+            sub = factory.createNatsSubscription(sid, subject, queueName, this, dispatcher);
         }
         subscribers.put(sid, sub);
 

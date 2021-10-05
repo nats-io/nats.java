@@ -269,27 +269,27 @@ public class NatsMessage implements Message {
 
     @Override
     public void ack() {
-        throw new IllegalStateException(NOT_A_JET_STREAM_MESSAGE);
+        // do nothing. faster. saves checking whether a message is jetstream or not
     }
 
     @Override
     public void ackSync(Duration d) throws InterruptedException, TimeoutException {
-        throw new IllegalStateException(NOT_A_JET_STREAM_MESSAGE);
+        // do nothing. faster. saves checking whether a message is jetstream or not
     }
 
     @Override
     public void nak() {
-        throw new IllegalStateException(NOT_A_JET_STREAM_MESSAGE);
+        // do nothing. faster. saves checking whether a message is jetstream or not
     }
 
     @Override
     public void inProgress() {
-        throw new IllegalStateException(NOT_A_JET_STREAM_MESSAGE);
+        // do nothing. faster. saves checking whether a message is jetstream or not
     }
 
     @Override
     public void term() {
-        throw new IllegalStateException(NOT_A_JET_STREAM_MESSAGE);
+        // do nothing. faster. saves checking whether a message is jetstream or not
     }
 
     @Override

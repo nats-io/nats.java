@@ -359,29 +359,25 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         final String fnlStream = stream;
         final String fnlConsumerName = consumerName;
         final String fnlInboxDeliver = inboxDeliver;
-        final ConsumerConfiguration fnlConsumerConfig = consumerConfig;
-        NatsSubscriptionFactory nsf = (sid, lSubject, lQueueName, lConn, lDispatcher)
+
+        NatsJetStreamAutoStatusManager asm =
+            new NatsJetStreamAutoStatusManager(conn, so, consumerConfig, queueName != null, dispatcher == null);
+
+        NatsSubscriptionFactory factory = (sid, lSubject, lQueueName, lConn, lDispatcher)
             -> new NatsJetStreamSubscription(sid, lSubject, lQueueName, lConn, lDispatcher,
-            NatsJetStream.this, isPullMode, so, fnlStream, fnlConsumerName, fnlInboxDeliver, fnlConsumerConfig);
+                    asm, this, isPullMode, fnlStream, fnlConsumerName, fnlInboxDeliver);
 
         NatsJetStreamSubscription sub;
         if (dispatcher == null) {
-            sub = (NatsJetStreamSubscription) conn.createSubscription(inboxDeliver, queueName, null, nsf);
+            sub = (NatsJetStreamSubscription) conn.createSubscription(inboxDeliver, queueName, null, factory);
         }
         else {
-            NatsJetStreamSubscriptionMessageHandler njssmh = new NatsJetStreamSubscriptionMessageHandler(conn, userMh, autoAck, queueMode, so, consumerConfig);
-            // if not necessary, just give the sub the user's handler
-            if (njssmh.isNecessary()) {
-                sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, queueName, njssmh, nsf);
-                // chicken or egg situation here. The handler needs the sub in case of error,
-                // but the sub needs the handler in order to be created
-                njssmh.setSub(sub);
-            }
-            else {
-                sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, queueName, userMh, nsf);
-            }
+            NatsJetStreamSubscriptionMessageHandler njssmh =
+                new NatsJetStreamSubscriptionMessageHandler(asm, userMh, autoAck);
+            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, queueName, njssmh, factory);
         }
 
+        asm.setSub(sub);
         return sub;
     }
 

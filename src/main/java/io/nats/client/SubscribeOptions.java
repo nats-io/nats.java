@@ -26,8 +26,7 @@ public abstract class SubscribeOptions {
     protected final boolean pull;
     protected final boolean bind;
     protected final ConsumerConfiguration consumerConfig;
-    protected final boolean autoStatusManage;
-    protected final boolean autoGapDetect;
+    protected final boolean detectGaps;
     protected final long expectedConsumerSeq;
     protected final long messageAlarmTime;
 
@@ -51,8 +50,7 @@ public abstract class SubscribeOptions {
 
         this.pull = pull;
         this.bind = builder.bind;
-        this.autoStatusManage = builder.autoStatusManage;
-        this.autoGapDetect = builder.autoGapDetect;
+        this.detectGaps = builder.detectGaps;
         this.expectedConsumerSeq = builder.expectedConsumerSeq;
         this.messageAlarmTime = builder.messageAlarmTime;
     }
@@ -90,21 +88,12 @@ public abstract class SubscribeOptions {
     }
 
     /**
-     * Get whether this subscription should provide automatic status management,
-     * i.e. handle flow control and heartbeat messages
-     * @return the automatic status management flag
-     */
-    public boolean autoStatusManagement() {
-        return autoStatusManage;
-    }
-
-    /**
      * Get whether this subscription should provide automatic gap management,
      * i.e. handle when a gap is detected in the message stream.
      * @return the automatic gap management flag
      */
-    public boolean autoGapDetect() {
-        return autoGapDetect;
+    public boolean detectGaps() {
+        return detectGaps;
     }
 
     /**
@@ -133,8 +122,7 @@ public abstract class SubscribeOptions {
         return getClass().getSimpleName() + "{" +
             "stream='" + stream + '\'' +
             "bind=" + bind +
-            "autoStatusManagement=" + autoStatusManage +
-            "autoGapDetect=" + autoGapDetect +
+            "detectGaps=" + detectGaps +
             ", " + consumerConfig +
             '}';
     }
@@ -148,8 +136,7 @@ public abstract class SubscribeOptions {
         boolean bind;
         String durable;
         ConsumerConfiguration cc;
-        boolean autoStatusManage = true;
-        boolean autoGapDetect = true;
+        boolean detectGaps = false;
         long expectedConsumerSeq = -1;
         long messageAlarmTime = -1;
 
@@ -200,22 +187,12 @@ public abstract class SubscribeOptions {
         }
 
         /**
-         * Sets or clears the auto status manage flag
-         * @param autoStatusManage the flag
-         * @return the builder
-         */
-        public B autoStatusManage(boolean autoStatusManage) {
-            this.autoStatusManage = autoStatusManage;
-            return getThis();
-        }
-
-        /**
          * Sets or clears the auto gap manage flag
-         * @param autoGapDetect the flag
+         * @param detectGaps the flag
          * @return the builder
          */
-        public B autoGapDetect(boolean autoGapDetect) {
-            this.autoGapDetect = autoGapDetect;
+        public B detectGaps(boolean detectGaps) {
+            this.detectGaps = detectGaps;
             return getThis();
         }
 

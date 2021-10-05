@@ -26,7 +26,7 @@ import java.util.function.Function;
 
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
-public class AutoStatusManager {
+public class NatsJetStreamAutoStatusManager {
     private static final List<Integer> PULL_KNOWN_STATUS_CODES = Arrays.asList(404, 408);
     private static final int THRESHOLD = 3;
 
@@ -38,11 +38,9 @@ public class AutoStatusManager {
     private final boolean syncMode;
     private final boolean queueMode;
     private final boolean pull;
-    private final boolean asm;
     private final boolean gap;
     private final boolean hb;
     private final boolean fc;
-    private final boolean noOp;
 
     private final long idleHeartbeatSetting;
     private final long alarmPeriodSetting;
@@ -52,13 +50,14 @@ public class AutoStatusManager {
     private long lastConsumerSequence;
     private long expectedConsumerSequence;
     private final AtomicLong lastMessageReceivedTime;
+    private ErrorListener el;
     private TimerWrapper timerWrapper;
 
-    AutoStatusManager(NatsConnection conn, SubscribeOptions so,
-                      ConsumerConfiguration cc, NatsJetStreamSubscription sub,
-                      boolean queueMode, boolean syncMode) {
+    NatsJetStreamAutoStatusManager(NatsConnection conn, SubscribeOptions so,
+                                   ConsumerConfiguration cc,
+                                   boolean queueMode, boolean syncMode)
+    {
         this.conn = conn;
-        this.sub = sub;
         this.syncMode = syncMode;
         this.queueMode = queueMode;
         lastStreamSequence = -1;
@@ -67,7 +66,6 @@ public class AutoStatusManager {
         lastMessageReceivedTime = new AtomicLong();
 
         pull = so.isPull();
-        asm = so.autoStatusManagement();
 
         if (queueMode) {
             gap = false;
@@ -77,7 +75,7 @@ public class AutoStatusManager {
             alarmPeriodSetting = 0;
         }
         else {
-            gap = so.autoGapDetect();
+            gap = so.detectGaps();
             idleHeartbeatSetting = cc.getIdleHeartbeat().toMillis();
             if (idleHeartbeatSetting == 0) {
                 alarmPeriodSetting = 0;
@@ -100,41 +98,23 @@ public class AutoStatusManager {
         // alternatively we could have just gone through these checks every single time
         // but also constructing ahead of time helper determine if this is a no-op
         // which can help optimize whether the preprocessor needs to be called at all
-        if (asm) {
-            if (pull) {
-                if (gap) { // +asm +pull +gap
-                    preProcessImpl = msg -> {
-                        if (checkStatusForPull(msg)) {
-                            return true;
-                        }
-                        detectGaps(msg);
-                        return false;
-                    };
-                }
-                else { // +asm +pull -gap
-                    preProcessImpl = this::checkStatusForPull;
-                }
+        if (pull) {
+            if (gap) { // +pull +gap
+                preProcessImpl = msg -> {
+                    if (checkStatusForPull(msg)) {
+                        return true;
+                    }
+                    detectGaps(msg);
+                    return false;
+                };
             }
-            else if (idleHeartbeatSetting > 0) {
-                if (fc) {
-                    if (gap) { // +asm +push +hb +fc +gap
-                        preProcessImpl = msg -> {
-                            trackReceivedTime();
-                            if (checkStatusForPush(msg)) {
-                                return true;
-                            }
-                            detectGaps(msg);
-                            return false;
-                        };
-                    }
-                    else { // +asm +push +hb +fc -gap
-                        preProcessImpl = msg -> {
-                            trackReceivedTime();
-                            return checkStatusForPush(msg);
-                        };
-                    }
-                }
-                else if (gap) { // +asm +push +hb -fc +gap
+            else { // +pull -gap
+                preProcessImpl = this::checkStatusForPull;
+            }
+        }
+        else if (idleHeartbeatSetting > 0) {
+            if (fc) {
+                if (gap) { // +push +hb +fc +gap
                     preProcessImpl = msg -> {
                         trackReceivedTime();
                         if (checkStatusForPush(msg)) {
@@ -144,15 +124,16 @@ public class AutoStatusManager {
                         return false;
                     };
                 }
-                else { // +asm +push +hb -fc -gap
+                else { // +push +hb +fc -gap
                     preProcessImpl = msg -> {
                         trackReceivedTime();
                         return checkStatusForPush(msg);
                     };
                 }
             }
-            else if (gap) { // +asm +push -hb -fc +gap
+            else if (gap) { // +push +hb -fc +gap
                 preProcessImpl = msg -> {
+                    trackReceivedTime();
                     if (checkStatusForPush(msg)) {
                         return true;
                     }
@@ -160,22 +141,34 @@ public class AutoStatusManager {
                     return false;
                 };
             }
-            else { // +asm +push -hb -fc -gap
-                preProcessImpl = this::checkStatusForPush;
+            else { // +push +hb -fc -gap
+                preProcessImpl = msg -> {
+                    trackReceivedTime();
+                    return checkStatusForPush(msg);
+                };
             }
         }
-        else if (gap) { // -asm +push-or-pull +gap
+        else if (gap) { // +push -hb -fc +gap
             preProcessImpl = msg -> {
+                if (checkStatusForPush(msg)) {
+                    return true;
+                }
                 detectGaps(msg);
                 return false;
             };
         }
-
-        noOp = preProcessImpl == null;
-        if (noOp) {
-            preProcessImpl = msg -> false;
+        else { // +push -hb -fc -gap
+            preProcessImpl = this::checkStatusForPush;
         }
-        else if (hb) {
+
+        if (conn != null) {
+            Options options = conn.getOptions();
+            if (options != null) {
+                el = options.getErrorListener();;
+            }
+        }
+
+        if (hb) {
             timerWrapper = new TimerWrapper();
         }
     }
@@ -191,11 +184,8 @@ public class AutoStatusManager {
         public void run() {
             long sinceLast = System.currentTimeMillis() - lastMessageReceivedTime.get();
             if (sinceLast > alarmPeriodSetting) {
-                ErrorListener el = conn.getOptions().getErrorListener();
-                if (el != null) {
-                    el.heartbeatAlarm(conn, sub,
-                        lastStreamSequence, lastConsumerSequence, expectedConsumerSequence);
-                }
+                el.heartbeatAlarm(conn, sub,
+                    lastStreamSequence, lastConsumerSequence, expectedConsumerSequence);
             }
             timerWrapper.restart();
         }
@@ -206,10 +196,15 @@ public class AutoStatusManager {
         Timer timer;
 
         public TimerWrapper() {
-            timer = new Timer();
-            timer.schedule(new OutOfTime(),
-                alarmPeriodSetting + 1000); // first one, let's give everything time to warm up
-            active = true;
+            if (el == null) {
+                active = false;
+            }
+            else {
+                timer = new Timer();
+                timer.schedule(new OutOfTime(),
+                    alarmPeriodSetting + 1000); // first one, let's give everything time to warm up
+                active = true;
+            }
         }
 
         synchronized void restart() {
@@ -243,11 +238,9 @@ public class AutoStatusManager {
     boolean isSyncMode() { return syncMode; }
     boolean isQueueMode() { return queueMode; }
     boolean isPull() { return pull; }
-    boolean isAsm() { return asm; }
     boolean isGap() { return gap; }
     boolean isFc() { return fc; }
     boolean isHb() { return hb; }
-    boolean isNoOp() { return noOp; }
 
     String getLastFcSubject() { return lastFcSubject; }
 
@@ -258,7 +251,7 @@ public class AutoStatusManager {
     long getIdleHeartbeatSetting() { return idleHeartbeatSetting; }
     long getAlarmPeriodSetting() { return alarmPeriodSetting; }
 
-    boolean preProcess(Message msg) {
+    boolean manage(Message msg) {
         return preProcessImpl.apply(msg);
     }
 
@@ -275,7 +268,6 @@ public class AutoStatusManager {
                     if (syncMode) {
                         throw new JetStreamGapException(sub, expectedConsumerSequence, receivedConsumerSeq);
                     }
-                    ErrorListener el = conn.getOptions().getErrorListener();
                     if (el != null) {
                         el.messageGapDetected(conn, sub,
                             lastStreamSequence, lastConsumerSequence,
@@ -319,7 +311,6 @@ public class AutoStatusManager {
             }
 
             // Can't assume they have an error listener.
-            ErrorListener el = conn.getOptions().getErrorListener();
             if (el != null) {
                 el.unhandledStatus(conn, sub, status);
             }
