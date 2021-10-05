@@ -50,7 +50,7 @@ public class NatsJetStreamAutoStatusManager {
     private long lastConsumerSequence;
     private long expectedConsumerSequence;
     private final AtomicLong lastMessageReceivedTime;
-    private ErrorListener el;
+    private ErrorListener connectionErrorListener;
     private TimerWrapper timerWrapper;
 
     NatsJetStreamAutoStatusManager(NatsConnection conn, SubscribeOptions so,
@@ -96,8 +96,6 @@ public class NatsJetStreamAutoStatusManager {
 
         // construct a function based on the things that need to be checked
         // alternatively we could have just gone through these checks every single time
-        // but also constructing ahead of time helper determine if this is a no-op
-        // which can help optimize whether the preprocessor needs to be called at all
         if (pull) {
             if (gap) { // +pull +gap
                 preProcessImpl = msg -> {
@@ -164,7 +162,7 @@ public class NatsJetStreamAutoStatusManager {
         if (conn != null) {
             Options options = conn.getOptions();
             if (options != null) {
-                el = options.getErrorListener();;
+                connectionErrorListener = options.getErrorListener();
             }
         }
 
@@ -184,7 +182,7 @@ public class NatsJetStreamAutoStatusManager {
         public void run() {
             long sinceLast = System.currentTimeMillis() - lastMessageReceivedTime.get();
             if (sinceLast > alarmPeriodSetting) {
-                el.heartbeatAlarm(conn, sub,
+                connectionErrorListener.heartbeatAlarm(conn, sub,
                     lastStreamSequence, lastConsumerSequence, expectedConsumerSequence);
             }
             timerWrapper.restart();
@@ -196,8 +194,8 @@ public class NatsJetStreamAutoStatusManager {
         Timer timer;
 
         public TimerWrapper() {
-            if (el == null) {
-                active = false;
+            if (connectionErrorListener == null) {
+                active = false; // there is no way to notify
             }
             else {
                 timer = new Timer();
@@ -268,8 +266,8 @@ public class NatsJetStreamAutoStatusManager {
                     if (syncMode) {
                         throw new JetStreamGapException(sub, expectedConsumerSequence, receivedConsumerSeq);
                     }
-                    if (el != null) {
-                        el.messageGapDetected(conn, sub,
+                    if (connectionErrorListener != null) {
+                        connectionErrorListener.messageGapDetected(conn, sub,
                             lastStreamSequence, lastConsumerSequence,
                             expectedConsumerSequence, receivedConsumerSeq);
                     }
@@ -311,8 +309,8 @@ public class NatsJetStreamAutoStatusManager {
             }
 
             // Can't assume they have an error listener.
-            if (el != null) {
-                el.unhandledStatus(conn, sub, status);
+            if (connectionErrorListener != null) {
+                connectionErrorListener.unhandledStatus(conn, sub, status);
             }
             return true;
         }

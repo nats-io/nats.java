@@ -188,13 +188,21 @@ public class NatsJetStreamAutoStatusManagerTests extends JetStreamTestBase {
 
     private void _gap_pull_pushSync(Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
         NatsJetStreamAutoStatusManager manager = getManager((NatsConnection) conn, so, sub, true, false);
+        assertEquals(-1, manager.getLastStreamSequence());
+        assertEquals(-1, manager.getLastConsumerSequence());
         assertEquals(-1, manager.getExpectedConsumerSequence());
         manager.manage(getTestJsMessage(1));
+        assertEquals(1, manager.getLastStreamSequence());
+        assertEquals(1, manager.getLastConsumerSequence());
         assertEquals(2, manager.getExpectedConsumerSequence());
         manager.manage(getTestJsMessage(2));
+        assertEquals(2, manager.getLastStreamSequence());
+        assertEquals(2, manager.getLastConsumerSequence());
         assertEquals(3, manager.getExpectedConsumerSequence());
         JetStreamGapException jsge = assertThrows(JetStreamGapException.class, () -> manager.manage(getTestJsMessage(4)));
         assertSame(sub, jsge.getSubscription());
+        assertEquals(2, manager.getLastStreamSequence());
+        assertEquals(2, manager.getLastConsumerSequence());
         assertEquals(3, jsge.getExpectedConsumerSeq());
         assertEquals(4, jsge.getReceivedConsumerSeq());
     }
