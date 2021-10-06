@@ -153,12 +153,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
     private PublishAck processPublishResponse(Message resp, PublishOptions options) throws IOException, JetStreamApiException {
         if (resp.isStatusMessage()) {
-            if (resp.getStatus().getCode() == 503) {
-                throw new IOException("Error Publishing: No stream available.");
-            }
-            else {
-                throw new IOException("Error Publishing: " + resp.getStatus().getMessage());
-            }
+            throw new IOException("Error Publishing: " + resp.getStatus().getCode() + " " + resp.getStatus().getMessage());
         }
 
         PublishAck ack = new PublishAck(resp);
@@ -419,9 +414,6 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     private static void appendErr(StringBuilder sb, Object requested, Object retrieved, String name) {
         if (sb.length() > 0) {
             sb.append(", ");
-        }
-        if (name.contains("Max Ack Pending")) {
-            int x = 0;
         }
         sb.append(String.format("%s [%s vs. %s]", name, requested, retrieved));
     }

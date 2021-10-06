@@ -22,7 +22,6 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static org.junit.jupiter.api.Assertions.*;
@@ -589,6 +588,9 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             ccbmEx(js, durBuilder().maxAckPending(5), "Max Ack Pending");
             ccbmEx(js, durBuilder().maxPullWaiting(5), "Max Pull Waiting");
 
+            // coverage for more than one problem
+            ccbmEx(js, durBuilder().startSequence(5).maxDeliver(5), "Start Sequence", "Max Deliver");
+
             ccbmOk(js, durBuilder().startSequence(0));
             ccbmOk(js, durBuilder().startSequence(-1));
             ccbmOk(js, durBuilder().maxDeliver(0));
@@ -605,14 +607,13 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()).unsubscribe();
     }
 
-    private void ccbmEx(JetStream js, ConsumerConfiguration.Builder builder, String err) {
+    private void ccbmEx(JetStream js, ConsumerConfiguration.Builder builder, String... errs) {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()));
-//        ccbmEx(js, durBuilder().filterSubject("x"), "Filter Subject");
-//        ccbmEx(js, durBuilder().deliverSubject("x"), "Deliver Subject");
-//        ccbmEx(js, durBuilder().deliverGroup("x"), "Deliver Group");
         assertTrue(iae.getMessage().contains("[SUB-CC01]"));
-        assertTrue(iae.getMessage().contains(err));
+        for (String err : errs) {
+            assertTrue(iae.getMessage().contains(err));
+        }
     }
 
     private ConsumerConfiguration.Builder durBuilder() {
@@ -662,47 +663,5 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         njsm.subscription = new NatsSubscription("sid", "sub", "q", null, null);
         ise = assertThrows(IllegalStateException.class, njsm::getJetStreamValidatedConnection);
         assertTrue(ise.getMessage().contains("connection"));
-    }
-
-    // SFF TODO
-//    @Test
-    public void testAutoAckMessageHandlerCoverage() throws Exception {
-        AtomicReference<Exception> errorListenerRef = new AtomicReference<>();
-
-        ErrorListener el = new ErrorListener() {
-
-            @Override
-            public void errorOccurred(Connection conn, String error) {
-            }
-
-            @Override
-            public void exceptionOccurred(Connection conn, Exception exp) {
-                errorListenerRef.set(exp);
-            }
-
-            @Override
-            public void slowConsumerDetected(Connection conn, Consumer consumer) {
-            }
-        };
-
-        Options.Builder builder = new Options.Builder().errorListener(el);
-
-        runInJsServer(builder, nc -> {
-
-//            MessageHandler aamh = NatsJetStream.getAutoAckMessageHandler((NatsConnection) nc, (msg) -> {}) ;
-//
-//            AtomicBoolean messageHandlerFlag = new AtomicBoolean();
-//            MessageHandler aamhEx =
-//                    NatsJetStream.getAutoAckMessageHandler((NatsConnection) nc, (msg) -> {
-//                        messageHandlerFlag.set(true);
-//                        msg.ack();
-//                    });
-//
-//            Message m = new NatsMessage(SUBJECT, null, null);
-//            aamh.onMessage(m); // not a JetStream is handled by not acking
-//            aamhEx.onMessage(m);
-//            assertTrue(messageHandlerFlag.get());
-//            assertTrue(errorListenerRef.get() instanceof IllegalStateException);
-        });
     }
 }

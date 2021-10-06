@@ -57,7 +57,6 @@ public class JetStreamPushTests extends JetStreamTestBase {
                 .build();
 
             // Subscription 1
-//            System.out.println("\n1|" + deliverSubject + "|"); // PART OF TODO
             JetStreamSubscription sub1 = js.subscribe(SUBJECT, options);
             assertSubscription(sub1, STREAM, null, deliverSubject, false);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
@@ -72,11 +71,11 @@ public class JetStreamPushTests extends JetStreamTestBase {
             total += messages0.size();
             validateRedAndTotal(0, messages0.size(), 5, total);
 
-            sub1.unsubscribe();
-            // System.out.println("<" + sid + "> " + message); SFF TODO WHY IS NEW EPHEMERAL CON GET SAME SID?
+            sub1.unsubscribe(); // needed for deliver subject version b/c the sub
+                                // would be identical. without ds, the ds is generated each
+                                // time so is unique
 
             // Subscription 2
-//            System.out.println("\n2|" + deliverSubject + "|"); // PART OF TODO
             JetStreamSubscription sub2 = js.subscribe(SUBJECT, options);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
@@ -91,6 +90,17 @@ public class JetStreamPushTests extends JetStreamTestBase {
             validateRedAndTotal(0, messages0.size(), 5, total);
 
             assertSameMessages(messages1, messages2);
+
+            sub2.unsubscribe();
+
+            // Subscription 3 testing null timeout
+            JetStreamSubscription sub3 = js.subscribe(SUBJECT, options);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+            sleep(1000); // give time to make sure the messages get to the client
+
+            messages0 = readMessagesAck(sub3, null);
+            total = messages0.size();
+            validateRedAndTotal(5, messages0.size(), 5, total);
         });
     }
 

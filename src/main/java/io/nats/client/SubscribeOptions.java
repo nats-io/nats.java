@@ -197,7 +197,8 @@ public abstract class SubscribeOptions {
         }
 
         /**
-         * TODO SFF
+         * The total amount of time to not receive any messages or heartbeats
+         * before calling the ErrorListener heartbeatAlarm
          *
          * @param messageAlarmTime the time
          * @return the builder

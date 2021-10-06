@@ -154,15 +154,6 @@ public abstract class Validator {
         });
     }
 
-    public static String validatePrintableExceptWildGtDollar(String s, String label, boolean required) {
-        return _validate(s, required, label, () -> {
-            if (notPrintableOrHasWildGtDollar(s)) {
-                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `>` or `$` [" + s + "]");
-            }
-            return s;
-        });
-    }
-
     public static int validatePullBatchSize(int pullBatchSize) {
         if (pullBatchSize < 1 || pullBatchSize > MAX_PULL_SIZE) {
             throw new IllegalArgumentException("Pull Batch Size must be between 1 and " + MAX_PULL_SIZE + " inclusive [" + pullBatchSize + "]");
@@ -394,10 +385,6 @@ public abstract class Validator {
 
     private static boolean notPrintableOrHasWildGtDot(String s) {
         return notPrintableOrHasChars(s, WILD_GT_DOT);
-    }
-
-    private static boolean notPrintableOrHasWildGtDollar(String s) {
-        return notPrintableOrHasChars(s, WILD_GT_DOLLAR);
     }
 
     public static String emptyAsNull(String s) {

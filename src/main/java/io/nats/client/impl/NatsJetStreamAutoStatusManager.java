@@ -159,12 +159,7 @@ public class NatsJetStreamAutoStatusManager {
             preProcessImpl = this::checkStatusForPush;
         }
 
-        if (conn != null) {
-            Options options = conn.getOptions();
-            if (options != null) {
-                connectionErrorListener = options.getErrorListener();
-            }
-        }
+        connectionErrorListener = conn.getOptions().getErrorListener();
 
         if (hb) {
             timerWrapper = new TimerWrapper();

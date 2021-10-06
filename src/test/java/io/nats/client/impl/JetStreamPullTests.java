@@ -88,9 +88,13 @@ public class JetStreamPullTests extends JetStreamTestBase {
             validateRead(10, messages.size());
             sleep(3000);
 
+            // message were not ack'ed
             messages = sub.fetch(10, Duration.ofSeconds(3));
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
+
+            assertThrows(IllegalArgumentException.class, () -> sub.fetch(10, null));
+            assertThrows(IllegalArgumentException.class, () -> sub.fetch(10, Duration.ofSeconds(-1)));
         });
     }
 
@@ -315,11 +319,10 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testAfterIncompleteExpiresPulls() throws Exception {
+    public void testPullExpires() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
-            boolean serverHasExpireChange = nc.getServerInfo().isNewerVersionThan("2.4.0");
 
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);
@@ -345,13 +348,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             jsPublish(js, SUBJECT, "B", 10);
             sub.pullExpiresIn(10, Duration.ofMillis(expires)); // using Duration version here
             messages = readMessagesAck(sub);
-            if (serverHasExpireChange) {
-                assertEquals(10, messages.size());
-            }
-            else {
-                assertEquals(15, messages.size());
-                assertStarts408(messages, 5, 10);
-            }
+            assertEquals(10, messages.size());
             sleep(expires); // make sure the pull actually expires
 
             jsPublish(js, SUBJECT, "C", 5);
@@ -364,13 +361,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             jsPublish(js, SUBJECT, "D", 10);
             sub.pull(10);
             messages = readMessagesAck(sub);
-            if (serverHasExpireChange) {
-                assertEquals(10, messages.size());
-            }
-            else {
-                assertEquals(15, messages.size());
-                assertStarts408(messages, 5, 10);
-            }
+            assertEquals(10, messages.size());
 
             jsPublish(js, SUBJECT, "E", 5);
             sub.pullExpiresIn(10, expires); // using millis version here
@@ -382,13 +373,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             jsPublish(js, SUBJECT, "F", 10);
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
-            if (serverHasExpireChange) {
-                assertEquals(10, messages.size());
-            }
-            else {
-                assertEquals(15, messages.size());
-                assertStarts408(messages, 5, 10);
-            }
+            assertEquals(10, messages.size());
 
             jsPublish(js, SUBJECT, "G", 5);
             sub.pullExpiresIn(10, expires); // using millis version here
@@ -417,6 +402,10 @@ public class JetStreamPullTests extends JetStreamTestBase {
                 ++count;
             }
             assertEquals(10, count);
+
+            assertThrows(IllegalArgumentException.class, () -> sub.pullExpiresIn(10, null));
+            assertThrows(IllegalArgumentException.class, () -> sub.pullExpiresIn(10, Duration.ofSeconds(-1)));
+            assertThrows(IllegalArgumentException.class, () -> sub.pullExpiresIn(10, -1000));
         });
     }
 

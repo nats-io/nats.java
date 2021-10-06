@@ -31,7 +31,10 @@ import static io.nats.client.support.JsonUtils.endJson;
 /**
  * Implements https://github.com/nats-io/nats-architecture-and-design/blob/main/adr/ADR-14.md
  */
-public class JwtUtils {
+public abstract class JwtUtils {
+
+    private JwtUtils() {} /* ensures cannot be constructed */
+
     static class Nats implements JsonSerializable {
         String issuerAccount;
         String[] tags;

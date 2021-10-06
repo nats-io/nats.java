@@ -320,30 +320,6 @@ public abstract class JsonUtils {
      * Appends a json field to a string builder.
      * @param sb string builder
      * @param fname fieldname
-     * @param value field value
-     */
-    public static void addFieldIfGtEqZero(StringBuilder sb, String fname, Long value) {
-        if (value != null && value >= 0) {
-            sb.append(Q).append(fname).append(QCOLON).append(value).append(COMMA);
-        }
-    }
-
-    /**
-     * Appends a json field to a string builder.
-     * @param sb string builder
-     * @param fname fieldname
-     * @param value field value
-     */
-    public static void addFieldIfGtZero(StringBuilder sb, String fname, Long value) {
-        if (value != null && value > 0) {
-            sb.append(Q).append(fname).append(QCOLON).append(value).append(COMMA);
-        }
-    }
-
-    /**
-     * Appends a json field to a string builder.
-     * @param sb string builder
-     * @param fname fieldname
      * @param value duration value
      */
     public static void addFieldAsNanos(StringBuilder sb, String fname, Duration value) {

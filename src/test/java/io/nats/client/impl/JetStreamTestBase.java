@@ -142,8 +142,16 @@ public class JetStreamTestBase extends TestBase {
     }
 
     public static List<Message> readMessagesAck(JetStreamSubscription sub, boolean noisy) throws InterruptedException {
+        return readMessagesAck(sub, noisy, Duration.ofSeconds(1));
+    }
+
+    public static List<Message> readMessagesAck(JetStreamSubscription sub, Duration timeout) throws InterruptedException {
+        return readMessagesAck(sub, false, timeout);
+    }
+
+    public static List<Message> readMessagesAck(JetStreamSubscription sub, boolean noisy, Duration timeout) throws InterruptedException {
         List<Message> messages = new ArrayList<>();
-        Message msg = sub.nextMessage(Duration.ofSeconds(1));
+        Message msg = sub.nextMessage(timeout);
         while (msg != null) {
             messages.add(msg);
             if (msg.isJetStream()) {

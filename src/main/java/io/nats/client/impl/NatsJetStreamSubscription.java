@@ -103,18 +103,20 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
             return msg;
         }
 
+        return nextMessageGtZeroTimeout(timeout);
+    }
+
+    private Message nextMessageGtZeroTimeout(Duration timeout) throws InterruptedException {
         // timeout >= 0 process as many messages we can in that time period
         // if we get a message that the asm handles, we try again, but
         // with a shorter timeout based on what we already used up
-        long end = System.currentTimeMillis() + timeout.toMillis();
+        long endTime = System.currentTimeMillis() + timeout.toMillis();
         Message msg = super.nextMessage(timeout);
         while (msg != null && asm.manage(msg)) {
-            long millis = end - System.currentTimeMillis();
+            msg = null;
+            long millis = endTime - System.currentTimeMillis();
             if (millis > 0) {
                 msg = super.nextMessage(Duration.ofMillis(millis));
-            }
-            else {
-                msg = null;
             }
         }
         return msg;
@@ -141,6 +143,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pullExpiresIn(int batchSize, Duration expiresIn) {
+        durationGtZeroRequired(expiresIn, "Expires In");
         _pull(batchSize, false, expiresIn);
     }
 
@@ -149,7 +152,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pullExpiresIn(int batchSize, long expiresInMillis) {
-        _pull(batchSize, false, Duration.ofMillis(expiresInMillis));
+        pullExpiresIn(batchSize, Duration.ofMillis(expiresInMillis));
     }
 
     private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
@@ -171,9 +174,6 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return JsonUtils.endJson(sb).toString().getBytes(StandardCharsets.US_ASCII);
     }
 
-    // TODO don't use this, do this more like nextMessage where you reduce the time
-    private static final Duration SUBSEQUENT_WAITS = Duration.ofMillis(500);
-
     /**
      * {@inheritDoc}
      */
@@ -187,6 +187,8 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public List<Message> fetch(int batchSize, Duration maxWait) {
+        durationGtZeroRequired(maxWait, "Fetch max");
+
         List<Message> messages = new ArrayList<>(batchSize);
 
         try {
@@ -203,16 +205,20 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return messages;
     }
 
-    private void read(int batchSize, Duration maxWait, List<Message> messages) throws InterruptedException {
-        Message msg = nextMessage(maxWait);
+    private void durationGtZeroRequired(Duration duration, String label) {
+        if (duration == null || duration.toMillis() <= 0) {
+            throw new IllegalArgumentException(label + " must be supplied and greater than 0.");
+        }
+    }
+
+    private void read(int batchSize, Duration timeout, List<Message> messages) throws InterruptedException {
+        Message msg = nextMessageGtZeroTimeout(timeout);
         while (msg != null) {
-            if (msg.isJetStream()) {
-                messages.add(msg);
-                if (messages.size() == batchSize) {
-                    break;
-                }
+            messages.add(msg);
+            msg = null;
+            if (messages.size() < batchSize) {
+                msg = nextMessageGtZeroTimeout(timeout);
             }
-            msg = nextMessage(SUBSEQUENT_WAITS);
         }
     }
 
@@ -232,32 +238,30 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         pullNoWait(batchSize);
 
         return new Iterator<Message>() {
+            final long timeout = maxWait.toMillis();
             int received = 0;
             boolean finished = false;
             boolean stepDown = true;
-            Duration wait = maxWait;
             Message msg = null;
 
             @Override
             public boolean hasNext() {
+                long end = System.currentTimeMillis() + timeout;
                 while (!finished && msg == null) {
                     try {
-                        msg = nextMessage(wait);
-                        wait = SUBSEQUENT_WAITS;
+                        msg = nextMessage(timeout);
+                        long wait = end - System.currentTimeMillis();
                         if (msg == null) {
                             if (received == 0 && stepDown) {
                                 stepDown = false;
-                                pullExpiresIn(batchSize, maxWait.minusMillis(10));
+                                pullExpiresIn(batchSize, Duration.ofMillis(wait - 10));
                             }
                             else {
                                 finished = true;
                             }
                         }
-                        else if (msg.isJetStream()) {
-                            finished = ++received == batchSize;
-                        }
                         else {
-                            msg = null;
+                            finished = ++received == batchSize;
                         }
                     } catch (InterruptedException e) {
                         msg = null;
