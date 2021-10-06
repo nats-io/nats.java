@@ -96,14 +96,18 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         // until we get an actual no (null) message or we get a message
         // that the manager (asm) does not handle (asm.preProcess would be false)
         if (timeout == null || timeout.toMillis() <= 0) {
-            Message msg = super.nextMessage(timeout);
-            while (msg != null && asm.manage(msg)) {
-                msg = super.nextMessage(timeout);
-            }
-            return msg;
+            return nextMessageNullOrLteZeroTimeout(timeout);
         }
 
         return nextMessageGtZeroTimeout(timeout);
+    }
+
+    private Message nextMessageNullOrLteZeroTimeout(Duration timeout) throws InterruptedException {
+        Message msg = super.nextMessage(timeout);
+        while (msg != null && asm.manage(msg)) {
+            msg = super.nextMessage(timeout);
+        }
+        return msg;
     }
 
     private Message nextMessageGtZeroTimeout(Duration timeout) throws InterruptedException {
@@ -182,6 +186,13 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return fetch(batchSize, Duration.ofMillis(maxWaitMillis));
     }
 
+    private static final long DEFAULT_SUBSEQUENT_WAIT_MILLIS = 500;
+    private static final Duration DEFAULT_SUBSEQUENT_WAIT = Duration.ofMillis(DEFAULT_SUBSEQUENT_WAIT_MILLIS);
+
+    private Duration subsequentWait(Duration userWait) {
+        return (userWait.toMillis() < DEFAULT_SUBSEQUENT_WAIT_MILLIS) ? userWait : DEFAULT_SUBSEQUENT_WAIT;
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -193,10 +204,11 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
 
         try {
             pullNoWait(batchSize);
-            read(batchSize, maxWait, messages);
+            Duration subsequentWait = subsequentWait(maxWait);
+            read(messages, batchSize, maxWait, subsequentWait);
             if (messages.size() == 0) {
                 pullExpiresIn(batchSize, maxWait.minusMillis(10));
-                read(batchSize, maxWait, messages);
+                read(messages, batchSize, subsequentWait, subsequentWait);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -211,13 +223,13 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         }
     }
 
-    private void read(int batchSize, Duration timeout, List<Message> messages) throws InterruptedException {
-        Message msg = nextMessageGtZeroTimeout(timeout);
+    private void read(List<Message> messages, int batchSize, Duration firstTimeout, Duration subsequentTimeouts) throws InterruptedException {
+        Message msg = nextMessageGtZeroTimeout(firstTimeout);
         while (msg != null) {
             messages.add(msg);
             msg = null;
             if (messages.size() < batchSize) {
-                msg = nextMessageGtZeroTimeout(timeout);
+                msg = nextMessageGtZeroTimeout(subsequentTimeouts);
             }
         }
     }
@@ -238,38 +250,43 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         pullNoWait(batchSize);
 
         return new Iterator<Message>() {
-            final long timeout = maxWait.toMillis();
+            final Duration subsequentWait = subsequentWait(maxWait);
             int received = 0;
             boolean finished = false;
-            boolean stepDown = true;
             Message msg = null;
 
             @Override
             public boolean hasNext() {
-                long end = System.currentTimeMillis() + timeout;
-                while (!finished && msg == null) {
-                    try {
-                        msg = nextMessage(timeout);
-                        long wait = end - System.currentTimeMillis();
-                        if (msg == null) {
-                            if (received == 0 && stepDown) {
-                                stepDown = false;
-                                pullExpiresIn(batchSize, Duration.ofMillis(wait - 10));
-                            }
-                            else {
-                                finished = true;
-                            }
-                        }
-                        else {
-                            finished = ++received == batchSize;
-                        }
-                    } catch (InterruptedException e) {
-                        msg = null;
-                        finished = true;
-                        Thread.currentThread().interrupt();
+                try {
+                    if (msg != null) { // called hasNext multiple times without next I suppose
+                        return true;
                     }
+
+                    if (finished) { // msg is null and there won't be more
+                        return false;
+                    }
+
+                    if (received == 0) {
+                        msg = nextMessageGtZeroTimeout(maxWait);
+                    }
+                    else {
+                        msg = nextMessageGtZeroTimeout(subsequentWait);
+                    }
+
+                    if (msg == null) {
+                        finished = true;
+                        return false;
+                    }
+
+                    finished = ++received == batchSize;
+                    return true;
                 }
-                return msg != null;
+                catch (InterruptedException e) {
+                    msg = null;
+                    received = batchSize; // hasNext will return false
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
             }
 
             @Override

@@ -173,10 +173,10 @@ public class JetStreamTestBase extends TestBase {
         return messages;
     }
 
-    public static List<Message> readMessages(Iterator<Message> list) {
+    public static List<Message> readMessages(Iterator<Message> iter) {
         List<Message> messages = new ArrayList<>();
-        while (list.hasNext()) {
-            messages.add(list.next());
+        while (iter.hasNext()) {
+            messages.add(iter.next());
         }
         return messages;
     }
