@@ -558,13 +558,23 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
-         * set the flow control mode
-         * @param flowControl the flow control mode flag
+         * set the flow control on and set the idle heartbeat
+         * @param idleHeartbeat the idle heart beat duration
          * @return Builder
          */
-        public Builder flowControl(boolean flowControl) {
-            this.flowControl = flowControl;
-            return this;
+        public Builder flowControl(Duration idleHeartbeat) {
+            this.flowControl = true;
+            return idleHeartbeat(idleHeartbeat);
+        }
+
+        /**
+         * set the flow control on and set the idle heartbeat
+         * @param idleHeartbeatMillis the idle heart beat duration in milliseconds
+         * @return Builder
+         */
+        public Builder flowControl(long idleHeartbeatMillis) {
+            this.flowControl = true;
+            return idleHeartbeat(idleHeartbeatMillis);
         }
 
         /**

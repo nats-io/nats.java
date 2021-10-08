@@ -171,8 +171,7 @@ public class JetStreamPushHandlerTests extends JetStreamTestBase {
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                 .durable(DURABLE)
-                .flowControl(true)
-                .idleHeartbeat(1000)
+                .flowControl(1000)
                 .build();
 
             PushSubscribeOptions pso = PushSubscribeOptions.builder()

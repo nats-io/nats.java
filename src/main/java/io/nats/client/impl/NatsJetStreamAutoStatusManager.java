@@ -30,10 +30,10 @@ public class NatsJetStreamAutoStatusManager {
     private static final List<Integer> PULL_KNOWN_STATUS_CODES = Arrays.asList(404, 408);
     private static final int THRESHOLD = 3;
 
-    protected NatsConnection conn;
-    protected NatsJetStreamSubscription sub;
+    private final NatsConnection conn;
+    private NatsJetStreamSubscription sub;
 
-    private Function<Message, Boolean> preProcessImpl;
+    private final Function<Message, Boolean> manageImpl;
 
     private final boolean syncMode;
     private final boolean queueMode;
@@ -46,11 +46,11 @@ public class NatsJetStreamAutoStatusManager {
     private final long alarmPeriodSetting;
 
     private String lastFcSubject;
-    private long lastStreamSequence;
-    private long lastConsumerSequence;
-    private long expectedConsumerSequence;
-    private final AtomicLong lastMessageReceivedTime;
-    private ErrorListener connectionErrorListener;
+    private long lastStreamSeq;
+    private long lastConsumerSeq;
+    private long expectedConsumerSeq;
+    private final AtomicLong lastMsgReceived;
+    private final ErrorListener errorListener;
     private TimerWrapper timerWrapper;
 
     NatsJetStreamAutoStatusManager(NatsConnection conn, SubscribeOptions so,
@@ -60,10 +60,10 @@ public class NatsJetStreamAutoStatusManager {
         this.conn = conn;
         this.syncMode = syncMode;
         this.queueMode = queueMode;
-        lastStreamSequence = -1;
-        lastConsumerSequence = -1;
-        expectedConsumerSequence = so.getExpectedConsumerSeq();
-        lastMessageReceivedTime = new AtomicLong();
+        lastStreamSeq = -1;
+        lastConsumerSeq = -1;
+        expectedConsumerSeq = so.getExpectedConsumerSeq();
+        lastMsgReceived = new AtomicLong();
 
         pull = so.isPull();
 
@@ -98,8 +98,8 @@ public class NatsJetStreamAutoStatusManager {
         // alternatively we could have just gone through these checks every single time
         if (pull) {
             if (gap) { // +pull +gap
-                preProcessImpl = msg -> {
-                    if (checkStatusForPull(msg)) {
+                manageImpl = msg -> {
+                    if (checkStatusForPullMode(msg)) {
                         return true;
                     }
                     detectGaps(msg);
@@ -107,63 +107,27 @@ public class NatsJetStreamAutoStatusManager {
                 };
             }
             else { // +pull -gap
-                preProcessImpl = this::checkStatusForPull;
+                manageImpl = this::checkStatusForPullMode;
             }
         }
-        else if (idleHeartbeatSetting > 0) {
-            if (fc) {
-                if (gap) { // +push +hb +fc +gap
-                    preProcessImpl = msg -> {
-                        trackReceivedTime();
-                        if (checkStatusForPush(msg)) {
-                            return true;
-                        }
-                        detectGaps(msg);
-                        return false;
-                    };
-                }
-                else { // +push +hb +fc -gap
-                    preProcessImpl = msg -> {
-                        trackReceivedTime();
-                        return checkStatusForPush(msg);
-                    };
-                }
-            }
-            else if (gap) { // +push +hb -fc +gap
-                preProcessImpl = msg -> {
-                    trackReceivedTime();
-                    if (checkStatusForPush(msg)) {
+        else { // push always check for status, maybe check for gaps
+            if (gap) { // +push +/-hb +/-fc +gap
+                manageImpl = msg -> {
+                    if (checkStatusForPushMode(msg)) {
                         return true;
                     }
                     detectGaps(msg);
                     return false;
                 };
             }
-            else { // +push +hb -fc -gap
-                preProcessImpl = msg -> {
-                    trackReceivedTime();
-                    return checkStatusForPush(msg);
-                };
+            else { // +push +/-hb +f/-c -gap
+                manageImpl = this::checkStatusForPushMode;
             }
         }
-        else if (gap) { // +push -hb -fc +gap
-            preProcessImpl = msg -> {
-                if (checkStatusForPush(msg)) {
-                    return true;
-                }
-                detectGaps(msg);
-                return false;
-            };
-        }
-        else { // +push -hb -fc -gap
-            preProcessImpl = this::checkStatusForPush;
-        }
 
-        connectionErrorListener = conn.getOptions().getErrorListener();
-
-        if (hb) {
-            timerWrapper = new TimerWrapper();
-        }
+        errorListener = conn.getOptions().getErrorListener() == null
+            ? new DefaultErrorListener()
+            : conn.getOptions().getErrorListener();
     }
 
     public void shutdown() {
@@ -172,45 +136,35 @@ public class NatsJetStreamAutoStatusManager {
         }
     }
 
-    class OutOfTime extends TimerTask {
-        @Override
-        public void run() {
-            long sinceLast = System.currentTimeMillis() - lastMessageReceivedTime.get();
-            if (sinceLast > alarmPeriodSetting) {
-                connectionErrorListener.heartbeatAlarm(conn, sub,
-                    lastStreamSequence, lastConsumerSequence, expectedConsumerSequence);
-            }
-            timerWrapper.restart();
-        }
-    }
-
     class TimerWrapper {
-        boolean active;
         Timer timer;
 
+        class TimerWrapperTimerTask extends TimerTask {
+            @Override
+            public void run() {
+                long sinceLast = System.currentTimeMillis() - lastMsgReceived.get();
+                if (sinceLast > alarmPeriodSetting) {
+                    errorListener.heartbeatAlarm(conn, sub,
+                        lastStreamSeq, lastConsumerSeq, expectedConsumerSeq);
+                }
+                restart();
+            }
+        }
+
         public TimerWrapper() {
-            if (connectionErrorListener == null) {
-                active = false; // there is no way to notify
-            }
-            else {
-                timer = new Timer();
-                timer.schedule(new OutOfTime(),
-                    alarmPeriodSetting + 1000); // first one, let's give everything time to warm up
-                active = true;
-            }
+            restart();
         }
 
         synchronized void restart() {
             cancel();
             if (sub.isActive()) {
                 timer = new Timer();
-                timer.schedule(new OutOfTime(), alarmPeriodSetting);
+                timer.schedule(new TimerWrapperTimerTask(), alarmPeriodSetting);
             }
         }
 
         synchronized public void shutdown() {
             cancel();
-            active = false;
         }
 
         private void cancel() {
@@ -226,6 +180,10 @@ public class NatsJetStreamAutoStatusManager {
     // but the sub needs the handler in order to be created
     void setSub(NatsJetStreamSubscription sub) {
         this.sub = sub;
+        if (hb) {
+            timerWrapper = new TimerWrapper();
+            conn.setHeartbeatListener(this::listenForHeartbeats);
+        }
     }
 
     boolean isSyncMode() { return syncMode; }
@@ -237,44 +195,54 @@ public class NatsJetStreamAutoStatusManager {
 
     String getLastFcSubject() { return lastFcSubject; }
 
-    public long getLastStreamSequence() { return lastStreamSequence; }
-    public long getLastConsumerSequence() { return lastConsumerSequence; }
-    long getExpectedConsumerSequence() { return expectedConsumerSequence; }
-    long getLastMessageReceivedTime() { return lastMessageReceivedTime.get(); }
+    public long getLastStreamSequence() { return lastStreamSeq; }
+    public long getLastConsumerSequence() { return lastConsumerSeq; }
+    long getExpectedConsumerSequence() { return expectedConsumerSeq; }
+    long getLastMsgReceived() { return lastMsgReceived.get(); }
     long getIdleHeartbeatSetting() { return idleHeartbeatSetting; }
     long getAlarmPeriodSetting() { return alarmPeriodSetting; }
 
     boolean manage(Message msg) {
-        return preProcessImpl.apply(msg);
+        if (pull ? checkStatusForPullMode(msg) : checkStatusForPushMode(msg)) {
+            return true;
+        }
+        if (gap) {
+            detectGaps(msg);
+        }
+        return false;
     }
 
-    private void trackReceivedTime() {
-        lastMessageReceivedTime.set(System.currentTimeMillis());
+    private boolean listenForHeartbeats(Message msg) {
+        lastMsgReceived.set(System.currentTimeMillis());
+        if (msg.isStatusMessage() && msg.getStatus().isHeartbeat()) {
+            Headers h = msg.getHeaders();
+            return h != null && h.getFirst(CONSUMER_STALLED_HDR) == null;
+        }
+        return false;
     }
+
 
     private void detectGaps(Message msg) {
         if (msg.isJetStream()) {
             long receivedConsumerSeq = msg.metaData().consumerSequence();
             // expectedConsumerSeq <= 0 they didn't tell me where to start so assume whatever it is is correct
-            if (expectedConsumerSequence > 0) {
-                if (expectedConsumerSequence != receivedConsumerSeq) {
+            if (expectedConsumerSeq > 0) {
+                if (expectedConsumerSeq != receivedConsumerSeq) {
                     if (syncMode) {
-                        throw new JetStreamGapException(sub, expectedConsumerSequence, receivedConsumerSeq);
+                        throw new JetStreamGapException(sub, expectedConsumerSeq, receivedConsumerSeq);
                     }
-                    if (connectionErrorListener != null) {
-                        connectionErrorListener.messageGapDetected(conn, sub,
-                            lastStreamSequence, lastConsumerSequence,
-                            expectedConsumerSequence, receivedConsumerSeq);
-                    }
+                    errorListener.messageGapDetected(conn, sub,
+                        lastStreamSeq, lastConsumerSeq,
+                        expectedConsumerSeq, receivedConsumerSeq);
                 }
             }
-            lastStreamSequence = msg.metaData().streamSequence();
-            lastConsumerSequence = receivedConsumerSeq;
-            expectedConsumerSequence = receivedConsumerSeq + 1;
+            lastStreamSeq = msg.metaData().streamSequence();
+            lastConsumerSeq = receivedConsumerSeq;
+            expectedConsumerSeq = receivedConsumerSeq + 1;
         }
     }
 
-    private boolean checkStatusForPush(Message msg) {
+    private boolean checkStatusForPushMode(Message msg) {
         // this checks fc, hb and unknown
         // only process fc and hb if those flags are set
         // otherwise they are simply known statuses
@@ -303,10 +271,7 @@ public class NatsJetStreamAutoStatusManager {
                 throw new JetStreamStatusException(sub, status);
             }
 
-            // Can't assume they have an error listener.
-            if (connectionErrorListener != null) {
-                connectionErrorListener.unhandledStatus(conn, sub, status);
-            }
+            errorListener.unhandledStatus(conn, sub, status);
             return true;
         }
         return false;
@@ -321,7 +286,7 @@ public class NatsJetStreamAutoStatusManager {
         }
     }
 
-    private boolean checkStatusForPull(Message msg) {
+    private boolean checkStatusForPullMode(Message msg) {
         if (msg.isStatusMessage()) {
             Status status = msg.getStatus();
             if ( !PULL_KNOWN_STATUS_CODES.contains(status.getCode()) ) {

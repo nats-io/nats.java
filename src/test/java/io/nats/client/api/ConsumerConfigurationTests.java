@@ -45,7 +45,6 @@ public class ConsumerConfigurationTests extends TestBase {
                 .startTime(zdt)
                 .deliverSubject(DELIVER)
                 .idleHeartbeat(Duration.ofSeconds(66)) // duration
-                .flowControl(true)
                 .maxPullWaiting(73)
                 .build();
 
@@ -63,7 +62,6 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
         assertEquals(2001, c.getStartSequence());
         assertEquals(zdt, c.getStartTime());
-        assertTrue(c.getFlowControl());
         assertEquals(73, c.getMaxPullWaiting());
 
         ConsumerCreateRequest ccr = new ConsumerCreateRequest(STREAM, c);
@@ -85,11 +83,21 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
         assertEquals(2001, c.getStartSequence());
         assertEquals(zdt.toEpochSecond(), c.getStartTime().toEpochSecond());
-        assertTrue(c.getFlowControl());
         assertEquals(73, c.getMaxPullWaiting());
 
         assertNotNull(ccr.toString()); // COVERAGE
         assertNotNull(c.toString()); // COVERAGE
+
+        // flow control idle heartbeat combo
+        c = ConsumerConfiguration.builder()
+            .flowControl(Duration.ofMillis(501)).build();
+        assertTrue(c.getFlowControl());
+        assertEquals(501, c.getIdleHeartbeat().toMillis());
+
+        c = ConsumerConfiguration.builder()
+            .flowControl(502).build();
+        assertTrue(c.getFlowControl());
+        assertEquals(502, c.getIdleHeartbeat().toMillis());
 
         // millis instead of duration coverage
         // supply null as deliverPolicy, ackPolicy , replayPolicy,

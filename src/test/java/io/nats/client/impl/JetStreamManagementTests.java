@@ -425,9 +425,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             cc = ConsumerConfiguration.builder(cc).idleHeartbeat(Duration.ofMillis(111)).build();
             assertInvalidConsumerUpdate(jsm, cc);
 
-            cc = ConsumerConfiguration.builder(cc).flowControl(true).build();
-            assertInvalidConsumerUpdate(jsm, cc);
-
             cc = ConsumerConfiguration.builder(cc).maxDeliver(4).build();
             assertInvalidConsumerUpdate(jsm, cc);
         });

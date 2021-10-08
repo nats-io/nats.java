@@ -176,8 +176,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                 .durable(DURABLE)
-                .flowControl(true)
-                .idleHeartbeat(1000)
+                .flowControl(1000)
                 .build();
 
             PushSubscribeOptions pso = PushSubscribeOptions.builder()
@@ -232,8 +231,8 @@ public class JetStreamPushTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(SUBJECT, nc.createDispatcher(), msg -> {}, false);
 
             // this should exception, can't next message on an async push sub
-            assertNull(sub.nextMessage(Duration.ofMillis(1000)));
-            assertNull(sub.nextMessage(1000));
+            assertThrows(IllegalStateException.class, () -> sub.nextMessage(Duration.ofMillis(1000)));
+            assertThrows(IllegalStateException.class, () -> sub.nextMessage(1000));
         });
     }
 

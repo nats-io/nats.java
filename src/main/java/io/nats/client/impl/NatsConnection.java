@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -98,6 +99,8 @@ class NatsConnection implements Connection {
 
     private String currentServer = null;
 
+    private Function<Message, Boolean> heartbeatListener;
+
     NatsConnection(Options options) {
         boolean trace = options.isTraceConnection();
         timeTrace(trace, "creating connection object");
@@ -143,7 +146,14 @@ class NatsConnection implements Connection {
         this.writer = new NatsConnectionWriter(this);
 
         this.needPing = new AtomicBoolean(true);
+
+        heartbeatListener = m -> false;
         timeTrace(trace, "connection object created");
+    }
+
+    NatsConnection setHeartbeatListener(Function<Message, Boolean> heartbeatListener) {
+        this.heartbeatListener = heartbeatListener == null ? m -> false : heartbeatListener;
+        return this;
     }
 
     // Connect is only called after creation
@@ -1368,7 +1378,11 @@ class NatsConnection implements Connection {
                 }
             } else if (q != null) {
                 c.markNotSlow();
-                q.push(msg);
+                // heartbeatListener returns true when this is just a
+                // heartbeat that does not need to be pushed
+                if (!heartbeatListener.apply(msg)) {
+                    q.push(msg);
+                }
             }
 
         }

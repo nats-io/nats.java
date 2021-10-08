@@ -312,4 +312,20 @@ public class JetStreamTestBase extends TestBase {
 
     }
 
+    public static Options.Builder optsWithEl() {
+        return new Options.Builder().errorListener(new ErrorListener() {
+            @Override
+            public void errorOccurred(Connection conn, String error) {}
+
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {}
+
+            @Override
+            public void slowConsumerDetected(Connection conn, Consumer consumer) {}
+        });
+    }
+
+    public static Options.Builder optsWithEl(ErrorListener el) {
+        return new Options.Builder().errorListener(el);
+    }
 }

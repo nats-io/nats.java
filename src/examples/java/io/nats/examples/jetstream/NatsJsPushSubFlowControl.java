@@ -58,8 +58,7 @@ public class NatsJsPushSubFlowControl {
                 // Set up the consumer configuration to have both flowControl and
                 // an idle heartbeat duration
                 ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                        .flowControl(true)
-                        .idleHeartbeat(Duration.ofMillis(250))
+                        .flowControl(Duration.ofMillis(250))
                         .build();
                 PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
 

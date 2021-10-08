@@ -36,7 +36,6 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
 
     private final NatsJetStream js;
     private final boolean pullMode;
-    private final boolean asyncMode;
 
     private final String stream;
     private final String consumerName;
@@ -50,17 +49,12 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                               NatsJetStream js, boolean pullMode,
                               String stream, String consumer, String deliver) {
         super(sid, subject, queueName, connection, dispatcher);
-        this.asm = asm; // might be null, that's okay it's async
+        this.asm = asm;
         this.js = js;
         this.pullMode = pullMode;
-        this.asyncMode = dispatcher != null;
         this.stream = stream;
         this.consumerName = consumer;
         this.deliver = pullMode ? null : deliver;
-
-        // 'sync push' and 'pull' are not dispatched. nextMessage will use the manager (asm)
-        // 'async push' will have a version of the manager in the handler we wrap the user's handler in,
-        // since nextMessage won't be called. That handler is setup before this object is created.
     }
 
     String getConsumerName() {
@@ -79,6 +73,8 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return pullMode;
     }
 
+    NatsJetStreamAutoStatusManager getAsm() { return asm; } // internal, for testing
+
     @Override
     void invalidate() {
         asm.shutdown();
@@ -87,10 +83,6 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
 
     @Override
     public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
-
-        if (asyncMode) { // asm will be null for push async, who should not be calling this method
-            return null; // maybe next version we make this throw an exception
-        }
 
         // timeout null means don't wait at all, timeout <= 0 means wait forever
         // until we get an actual no (null) message or we get a message

@@ -180,7 +180,7 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, queue(32), pso3));
             assertTrue(iae.getMessage().contains("[SUB-Q01]"));
 
-            ConsumerConfiguration ccFc = ConsumerConfiguration.builder().flowControl(true).idleHeartbeat(1000).build();
+            ConsumerConfiguration ccFc = ConsumerConfiguration.builder().flowControl(1000).build();
             PushSubscribeOptions pso4 = PushSubscribeOptions.builder()
                 .durable(durable(4))
                 .deliverGroup(queue(4))

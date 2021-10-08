@@ -569,7 +569,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             ConsumerConfiguration.Builder builder = durBuilder();
             nc.jetStreamManagement().addOrUpdateConsumer(STREAM, builder.build());
 
-            ccbmEx(js, durBuilder().flowControl(true), "Flow Control");
             ccbmEx(js, durBuilder().deliverPolicy(DeliverPolicy.Last), "Deliver Policy");
             ccbmEx(js, durBuilder().deliverPolicy(DeliverPolicy.New), "Deliver Policy");
             ccbmEx(js, durBuilder().ackPolicy(AckPolicy.None), "Ack Policy");
