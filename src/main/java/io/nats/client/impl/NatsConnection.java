@@ -99,7 +99,7 @@ class NatsConnection implements Connection {
 
     private String currentServer = null;
 
-    private Function<Message, Boolean> heartbeatListener;
+    private Function<NatsMessage, NatsMessage> beforeQueueProcessor;
 
     NatsConnection(Options options) {
         boolean trace = options.isTraceConnection();
@@ -147,13 +147,12 @@ class NatsConnection implements Connection {
 
         this.needPing = new AtomicBoolean(true);
 
-        heartbeatListener = m -> false;
+        beforeQueueProcessor = msg -> msg; // default just returns the message
         timeTrace(trace, "connection object created");
     }
 
-    NatsConnection setHeartbeatListener(Function<Message, Boolean> heartbeatListener) {
-        this.heartbeatListener = heartbeatListener == null ? m -> false : heartbeatListener;
-        return this;
+    void setBeforeQueueProcessor(Function<NatsMessage, NatsMessage> beforeQueueProcessor) {
+        this.beforeQueueProcessor = beforeQueueProcessor;
     }
 
     // Connect is only called after creation
@@ -1378,9 +1377,13 @@ class NatsConnection implements Connection {
                 }
             } else if (q != null) {
                 c.markNotSlow();
-                // heartbeatListener returns true when this is just a
-                // heartbeat that does not need to be pushed
-                if (!heartbeatListener.apply(msg)) {
+
+                // beforeQueueProcessor returns null if the message
+                // does not need to be queued, for instance heartbeats
+                // that are not flow control and are already seen by the
+                // auto status manager
+                msg = beforeQueueProcessor.apply(msg);
+                if (msg != null) {
                     q.push(msg);
                 }
             }

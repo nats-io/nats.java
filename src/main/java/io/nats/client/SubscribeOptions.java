@@ -197,7 +197,19 @@ public abstract class SubscribeOptions {
         }
 
         /**
-         * The total amount of time to not receive any messages or heartbeats
+         * Sets the expected consumer sequence to use the first
+         * time on auto gap detect. Set to less than 1 to allow
+         * any first sequence
+         * @param expectedConsumerSeq the consumer seq
+         * @return the builder
+         */
+        public B expectedConsumerSeq(long expectedConsumerSeq) {
+            this.expectedConsumerSeq = expectedConsumerSeq;
+            return getThis();
+        }
+
+        /**
+         * Set the total amount of time to not receive any messages or heartbeats
          * before calling the ErrorListener heartbeatAlarm
          *
          * @param messageAlarmTime the time
@@ -205,18 +217,6 @@ public abstract class SubscribeOptions {
          */
         public B messageAlarmTime(long messageAlarmTime) {
             this.messageAlarmTime = messageAlarmTime;
-            return getThis();
-        }
-
-        /**
-         * Sets the expected consumer sequence to use the first
-         * time on auto gap detect. Set to &lt; 1 to allow
-         * any first sequence
-         * @param expectedConsumerSeq the consumer seq
-         * @return the builder
-         */
-        public B expectedConsumerSeq(long expectedConsumerSeq) {
-            this.expectedConsumerSeq = expectedConsumerSeq;
             return getThis();
         }
 

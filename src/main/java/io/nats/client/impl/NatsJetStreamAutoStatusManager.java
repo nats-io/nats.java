@@ -23,6 +23,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static io.nats.client.impl.NatsMessage.StatusMessage;
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
 public class NatsJetStreamAutoStatusManager {
@@ -46,6 +47,7 @@ public class NatsJetStreamAutoStatusManager {
     private long lastStreamSeq;
     private long lastConsumerSeq;
     private long expectedConsumerSeq;
+
     private final AtomicLong lastMsgReceived;
     private final ErrorListener errorListener;
     private TimerWrapper timerWrapper;
@@ -96,7 +98,17 @@ public class NatsJetStreamAutoStatusManager {
             : conn.getOptions().getErrorListener();
     }
 
-    public void shutdown() {
+    // chicken or egg situation here. The handler needs the sub in case of error
+    // but the sub needs the handler in order to be created
+    void setSub(NatsJetStreamSubscription sub) {
+        this.sub = sub;
+        if (hb) {
+            conn.setBeforeQueueProcessor(this::beforeQueueProcessor);
+            timerWrapper = new TimerWrapper();
+        }
+    }
+
+    void shutdown() {
         if (timerWrapper != null) {
             timerWrapper.shutdown();
         }
@@ -142,16 +154,6 @@ public class NatsJetStreamAutoStatusManager {
         }
     }
 
-    // chicken or egg situation here. The handler needs the sub in case of error
-    // but the sub needs the handler in order to be created
-    void setSub(NatsJetStreamSubscription sub) {
-        this.sub = sub;
-        if (hb) {
-            timerWrapper = new TimerWrapper();
-            conn.setHeartbeatListener(this::listenForHeartbeats);
-        }
-    }
-
     boolean isSyncMode() { return syncMode; }
     boolean isQueueMode() { return queueMode; }
     boolean isPull() { return pull; }
@@ -159,14 +161,14 @@ public class NatsJetStreamAutoStatusManager {
     boolean isFc() { return fc; }
     boolean isHb() { return hb; }
 
-    String getLastFcSubject() { return lastFcSubject; }
+    long getIdleHeartbeatSetting() { return idleHeartbeatSetting; }
+    long getAlarmPeriodSetting() { return alarmPeriodSetting; }
 
+    String getLastFcSubject() { return lastFcSubject; }
     public long getLastStreamSequence() { return lastStreamSeq; }
     public long getLastConsumerSequence() { return lastConsumerSeq; }
     long getExpectedConsumerSequence() { return expectedConsumerSeq; }
     long getLastMsgReceived() { return lastMsgReceived.get(); }
-    long getIdleHeartbeatSetting() { return idleHeartbeatSetting; }
-    long getAlarmPeriodSetting() { return alarmPeriodSetting; }
 
     boolean manage(Message msg) {
         if (pull ? checkStatusForPullMode(msg) : checkStatusForPushMode(msg)) {
@@ -177,16 +179,6 @@ public class NatsJetStreamAutoStatusManager {
         }
         return false;
     }
-
-    private boolean listenForHeartbeats(Message msg) {
-        lastMsgReceived.set(System.currentTimeMillis());
-        if (msg.isStatusMessage() && msg.getStatus().isHeartbeat()) {
-            Headers h = msg.getHeaders();
-            return h != null && h.getFirst(CONSUMER_STALLED_HDR) == null;
-        }
-        return false;
-    }
-
 
     private void detectGaps(Message msg) {
         long receivedConsumerSeq = msg.metaData().consumerSequence();
@@ -206,6 +198,19 @@ public class NatsJetStreamAutoStatusManager {
         expectedConsumerSeq = receivedConsumerSeq + 1;
     }
 
+    private NatsMessage beforeQueueProcessor(NatsMessage msg) {
+        lastMsgReceived.set(System.currentTimeMillis());
+        if (msg.isStatusMessage() && msg.getStatus().isHeartbeat()) {
+            Headers h = msg.getHeaders();
+            String fcSubject = h == null ? null : h.getFirst(CONSUMER_STALLED_HDR);
+            if (fcSubject == null) {
+                return null;
+            }
+            ((StatusMessage)msg).setFlowControlSubject(fcSubject);
+        }
+        return msg;
+    }
+
     private boolean checkStatusForPushMode(Message msg) {
         // this checks fc, hb and unknown
         // only process fc and hb if those flags are set
@@ -220,11 +225,9 @@ public class NatsJetStreamAutoStatusManager {
             }
 
             if (status.isHeartbeat()) {
-                if (hb) {
-                    Headers h = msg.getHeaders();
-                    if (h != null) {
-                        _processFlowControl(h.getFirst(CONSUMER_STALLED_HDR));
-                    }
+                if (fc) {
+                    // status flowControlSubject is set in the beforeQueueProcessor
+                    _processFlowControl(((StatusMessage)msg).getFlowControlSubject());
                 }
                 return true;
             }

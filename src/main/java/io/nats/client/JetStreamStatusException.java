@@ -29,7 +29,7 @@ public class JetStreamStatusException extends IllegalStateException {
      * @param status the status
      */
     public JetStreamStatusException(JetStreamSubscription sub, Status status) {
-        super(status.getMessage());
+        super("Unknown or unprocessed status message: " + status.getMessage());
         this.sub = sub;
         this.status = status;
     }

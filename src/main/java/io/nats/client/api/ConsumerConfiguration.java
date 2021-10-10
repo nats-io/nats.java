@@ -13,6 +13,8 @@
 
 package io.nats.client.api;
 
+import io.nats.client.PullSubscribeOptions;
+import io.nats.client.PushSubscribeOptions;
 import io.nats.client.support.ApiConstants;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
@@ -613,10 +615,9 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * Builds the ConsumerConfiguration
-         * @return a consumer configuration.
+         * @return The consumer configuration.
          */
         public ConsumerConfiguration build() {
-
             return new ConsumerConfiguration(
                 description,
                 durable,
@@ -638,6 +639,22 @@ public class ConsumerConfiguration implements JsonSerializable {
                 maxPullWaiting,
                 headersOnly
             );
+        }
+
+        /**
+         * Builds the PushSubscribeOptions with this configuration
+         * @return The PushSubscribeOptions.
+         */
+        public PushSubscribeOptions buildPushSubscribeOptions() {
+            return PushSubscribeOptions.builder().configuration(build()).build();
+        }
+
+        /**
+         * Builds the PullSubscribeOptions with this configuration
+         * @return The PullSubscribeOptions.
+         */
+        public PullSubscribeOptions buildPullSubscribeOptions() {
+            return PullSubscribeOptions.builder().configuration(build()).build();
         }
     }
 

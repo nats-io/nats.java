@@ -29,6 +29,7 @@ public class JetStreamGapException extends IllegalStateException {
      * @param receivedConsumerSeq the received sequence
      */
     public JetStreamGapException(JetStreamSubscription sub, long expectedConsumerSeq, long receivedConsumerSeq) {
+        super("Message Gap Detected. Expected Seq: " + expectedConsumerSeq + ", Received Seq: " + receivedConsumerSeq);
         this.sub = sub;
         this.expectedConsumerSeq = expectedConsumerSeq;
         this.receivedConsumerSeq = receivedConsumerSeq;

@@ -237,8 +237,8 @@ public class JetStreamPushTests extends JetStreamTestBase {
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);
 
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().headersOnly(true).build();
-            JetStreamSubscription sub = js.subscribe(SUBJECT, PushSubscribeOptions.builder(cc).build());
+            PushSubscribeOptions pso = ConsumerConfiguration.builder().headersOnly(true).buildPushSubscribeOptions();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             jsPublish(js, SUBJECT, 5);
