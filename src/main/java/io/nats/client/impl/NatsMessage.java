@@ -576,21 +576,9 @@ public class NatsMessage implements Message {
 
     static class StatusMessage extends InternalMessage {
         private final Status status;
-        private String flowControlSubject;
 
         public StatusMessage(Status status) {
             this.status = status;
-        }
-
-        // these are intended for internal heartbeat processing
-        // when pre-processing heartbeats, the flowControlSubject is already extracted
-        // for later use, so set it here and get it later
-        void setFlowControlSubject(String flowControlSubject) {
-            this.flowControlSubject = flowControlSubject;
-        }
-
-        String getFlowControlSubject() {
-            return flowControlSubject;
         }
 
         @Override

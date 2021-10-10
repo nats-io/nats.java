@@ -23,7 +23,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static io.nats.client.impl.NatsMessage.StatusMessage;
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
 public class NatsJetStreamAutoStatusManager {
@@ -198,17 +197,19 @@ public class NatsJetStreamAutoStatusManager {
         expectedConsumerSeq = receivedConsumerSeq + 1;
     }
 
-    private NatsMessage beforeQueueProcessor(NatsMessage msg) {
+    NatsMessage beforeQueueProcessor(NatsMessage msg) {
         lastMsgReceived.set(System.currentTimeMillis());
-        if (msg.isStatusMessage() && msg.getStatus().isHeartbeat()) {
-            Headers h = msg.getHeaders();
-            String fcSubject = h == null ? null : h.getFirst(CONSUMER_STALLED_HDR);
-            if (fcSubject == null) {
-                return null;
-            }
-            ((StatusMessage)msg).setFlowControlSubject(fcSubject);
+        if (msg.isStatusMessage()
+            && msg.getStatus().isHeartbeat()
+            && extractFcSubject(msg) == null)
+        {
+            return null;
         }
         return msg;
+    }
+
+    private String extractFcSubject(Message msg) {
+        return msg.getHeaders() == null ? null : msg.getHeaders().getFirst(CONSUMER_STALLED_HDR);
     }
 
     private boolean checkStatusForPushMode(Message msg) {
@@ -227,7 +228,7 @@ public class NatsJetStreamAutoStatusManager {
             if (status.isHeartbeat()) {
                 if (fc) {
                     // status flowControlSubject is set in the beforeQueueProcessor
-                    _processFlowControl(((StatusMessage)msg).getFlowControlSubject());
+                    _processFlowControl(extractFcSubject(msg));
                 }
                 return true;
             }
