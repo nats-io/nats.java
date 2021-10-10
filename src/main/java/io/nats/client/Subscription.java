@@ -87,9 +87,7 @@ public interface Subscription extends Consumer {
      * @throws IllegalStateException if the subscription belongs to a dispatcher, or is not active
      * @throws InterruptedException if one occurs while waiting for the message
      */
-    default Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
-        return nextMessage(Duration.ofMillis(timeoutMillis));
-    };
+    Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException;
 
     /**
      * Unsubscribe this subscription and stop listening for messages.

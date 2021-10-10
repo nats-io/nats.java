@@ -16,6 +16,7 @@ package io.nats.client.api;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.List;
 
 import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
@@ -47,6 +48,14 @@ public class ConsumerInfoTests {
         assertEquals(Duration.ofSeconds(30), c.getAckWait());
         assertEquals(10, c.getMaxDeliver());
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
+
+        ClusterInfo clusterInfo = ci.getClusterInfo();
+        assertNotNull(clusterInfo);
+        assertEquals("clustername", clusterInfo.getName());
+        assertEquals("clusterleader", clusterInfo.getLeader());
+        List<Replica> reps = clusterInfo.getReplicas();
+        assertNotNull(reps);
+        assertEquals(2, reps.size());
 
         ci = new ConsumerInfo(EMPTY_JSON);
         assertNull(ci.getStreamName());

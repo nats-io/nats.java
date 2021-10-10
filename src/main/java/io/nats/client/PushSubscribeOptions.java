@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.api.ConsumerConfiguration;
+
 import static io.nats.client.support.Validator.emptyAsNull;
 
 /**
@@ -80,6 +82,10 @@ public class PushSubscribeOptions extends SubscribeOptions {
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    public static Builder builder(ConsumerConfiguration cc) {
+        return new Builder().configuration(cc);
     }
 
     /**

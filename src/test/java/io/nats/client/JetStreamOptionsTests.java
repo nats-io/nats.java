@@ -54,6 +54,7 @@ public class JetStreamOptionsTests extends TestBase {
         assertDefaultPrefix(" ");
 
         assertValidPrefix(PLAIN);
+        assertValidPrefix(PLAIN + DOT);
         assertValidPrefix(HAS_PRINTABLE);
         assertValidPrefix(HAS_DOT);
         assertValidPrefix(HAS_DASH);
@@ -71,13 +72,12 @@ public class JetStreamOptionsTests extends TestBase {
 
         assertInvalidPrefix(DOT);
         assertInvalidPrefix(DOT + PLAIN);
-
     }
 
     private void assertValidPrefix(String prefix) {
         JetStreamOptions jso = JetStreamOptions.builder().prefix(prefix).build();
-        String prefixWithDot = prefix.endsWith(DOT) ? prefix : prefix + DOT;
-        assertEquals(prefixWithDot, jso.getPrefix());
+        String expected = prefix.endsWith(DOT) ? prefix : prefix + DOT;
+        assertEquals(expected, jso.getPrefix());
     }
 
     private void assertDefaultPrefix(String prefix) {
@@ -96,6 +96,7 @@ public class JetStreamOptionsTests extends TestBase {
         assertDefaultDomain(" ");
 
         assertValidDomain(PLAIN);
+        assertValidDomain(PLAIN + DOT);
         assertValidDomain(HAS_PRINTABLE);
         assertValidDomain(HAS_DOT);
         assertValidDomain(HAS_DASH);
@@ -117,9 +118,6 @@ public class JetStreamOptionsTests extends TestBase {
 
     private void assertValidDomain(String domain) {
         JetStreamOptions jso = JetStreamOptions.builder().domain(domain).build();
-        if (domain.startsWith(DOT)) {
-            domain = domain.substring(1);
-        }
         String prefixWithDot = domain.endsWith(DOT) ? domain : domain + DOT;
         String expected = PREFIX_DOLLAR_JS_DOT + prefixWithDot + PREFIX_API_DOT;
         assertEquals(expected, jso.getPrefix());

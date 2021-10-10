@@ -166,6 +166,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             sleep(3000);
 
             iterator = sub.iterate(10, Duration.ofSeconds(3));
+            iterator.hasNext(); // calling hasNext twice in a row is for coverage
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
@@ -252,6 +253,22 @@ public class JetStreamPullTests extends JetStreamTestBase {
             messages = readMessagesAck(sub);
             total += messages.size();
             validateRedAndTotal(0, messages.size(), 24, total);
+
+            // publish some more to test null timeout
+            jsPublish(js, SUBJECT, "D", 10);
+            sub = js.subscribe(SUBJECT, PullSubscribeOptions.builder().durable(durable(2)).build());
+            sub.pull(10);
+            sleep(500);
+            messages = readMessagesAck(sub, null);
+            validateRedAndTotal(10, messages.size(), 10, messages.size());
+
+            // publish some more to test never timeout
+            jsPublish(js, SUBJECT, "E", 10);
+            sub = js.subscribe(SUBJECT, PullSubscribeOptions.builder().durable(durable(2)).build());
+            sub.pull(10);
+            sleep(500);
+            messages = readMessagesAck(sub, Duration.ZERO, 10);
+            validateRedAndTotal(10, messages.size(), 10, messages.size());
         });
     }
 

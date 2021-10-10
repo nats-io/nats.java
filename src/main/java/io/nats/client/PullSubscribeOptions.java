@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.api.ConsumerConfiguration;
+
 /**
  * The PullSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
  * Options are set using the {@link Builder} or static helper methods.
@@ -25,6 +27,10 @@ public class PullSubscribeOptions extends SubscribeOptions {
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    public static PullSubscribeOptions.Builder builder(ConsumerConfiguration cc) {
+        return new Builder().configuration(cc);
     }
 
     /**

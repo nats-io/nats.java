@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
 
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
@@ -32,8 +31,6 @@ public class NatsJetStreamAutoStatusManager {
 
     private final NatsConnection conn;
     private NatsJetStreamSubscription sub;
-
-    private final Function<Message, Boolean> manageImpl;
 
     private final boolean syncMode;
     private final boolean queueMode;
@@ -92,37 +89,6 @@ public class NatsJetStreamAutoStatusManager {
                 hb = true;
             }
             fc = hb && cc.getFlowControl(); // can't have fc w/o heartbeat
-        }
-
-        // construct a function based on the things that need to be checked
-        // alternatively we could have just gone through these checks every single time
-        if (pull) {
-            if (gap) { // +pull +gap
-                manageImpl = msg -> {
-                    if (checkStatusForPullMode(msg)) {
-                        return true;
-                    }
-                    detectGaps(msg);
-                    return false;
-                };
-            }
-            else { // +pull -gap
-                manageImpl = this::checkStatusForPullMode;
-            }
-        }
-        else { // push always check for status, maybe check for gaps
-            if (gap) { // +push +/-hb +/-fc +gap
-                manageImpl = msg -> {
-                    if (checkStatusForPushMode(msg)) {
-                        return true;
-                    }
-                    detectGaps(msg);
-                    return false;
-                };
-            }
-            else { // +push +/-hb +f/-c -gap
-                manageImpl = this::checkStatusForPushMode;
-            }
         }
 
         errorListener = conn.getOptions().getErrorListener() == null
@@ -223,23 +189,21 @@ public class NatsJetStreamAutoStatusManager {
 
 
     private void detectGaps(Message msg) {
-        if (msg.isJetStream()) {
-            long receivedConsumerSeq = msg.metaData().consumerSequence();
-            // expectedConsumerSeq <= 0 they didn't tell me where to start so assume whatever it is is correct
-            if (expectedConsumerSeq > 0) {
-                if (expectedConsumerSeq != receivedConsumerSeq) {
-                    if (syncMode) {
-                        throw new JetStreamGapException(sub, expectedConsumerSeq, receivedConsumerSeq);
-                    }
-                    errorListener.messageGapDetected(conn, sub,
-                        lastStreamSeq, lastConsumerSeq,
-                        expectedConsumerSeq, receivedConsumerSeq);
+        long receivedConsumerSeq = msg.metaData().consumerSequence();
+        // expectedConsumerSeq <= 0 they didn't tell me where to start so assume whatever it is is correct
+        if (expectedConsumerSeq > 0) {
+            if (expectedConsumerSeq != receivedConsumerSeq) {
+                if (syncMode) {
+                    throw new JetStreamGapException(sub, expectedConsumerSeq, receivedConsumerSeq);
                 }
+                errorListener.messageGapDetected(conn, sub,
+                    lastStreamSeq, lastConsumerSeq,
+                    expectedConsumerSeq, receivedConsumerSeq);
             }
-            lastStreamSeq = msg.metaData().streamSequence();
-            lastConsumerSeq = receivedConsumerSeq;
-            expectedConsumerSeq = receivedConsumerSeq + 1;
         }
+        lastStreamSeq = msg.metaData().streamSequence();
+        lastConsumerSeq = receivedConsumerSeq;
+        expectedConsumerSeq = receivedConsumerSeq + 1;
     }
 
     private boolean checkStatusForPushMode(Message msg) {

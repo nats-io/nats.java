@@ -170,25 +170,15 @@ public abstract class Validator {
     }
 
     public static long validateMaxBucketValues(long max) {
-        return validateGtZeroOrMinus1(max, "Max Bucket Values");
+        return validateGtZeroOrMinus1(max, "Max Bucket Values"); // max bucket values is a kv alias to max messages
     }
 
     public static long validateMaxMessagesPerSubject(long max) {
-        if (max < -1) {
-            throw new IllegalArgumentException("Max Messages per Subject must be greater than or equal to zero");
-        }
-        return max;
-        // TODO Waiting on a server change take that /\ out, put this \/ back in
-//        return validateGtZeroOrMinus1(max, "Max Messages per Subject");
+        return validateGtZeroOrMinus1(max, "Max Messages Per Subject");
     }
 
-    public static long validateMaxValuesPerKey(long max) {
-        if (max < -1) {
-            throw new IllegalArgumentException("Max Values per Key must be greater than or equal to zero");
-        }
-        return max;
-        // TODO Waiting on a server change take that /\ out, put this \/ back in
-//        return validateGtZeroOrMinus1(max, "Max Values per Key");
+    public static long validateMaxHistory(long max) {
+        return validateGtZeroOrMinus1(max, "Max History Per Key"); // max history is a kv alias to max per subject
     }
 
     public static long validateMaxBytes(long max) {
@@ -196,15 +186,15 @@ public abstract class Validator {
     }
 
     public static long validateMaxBucketBytes(long max) {
-        return validateGtZeroOrMinus1(max, "Max Bucket Bytes");
+        return validateGtZeroOrMinus1(max, "Max Bucket Bytes"); // max bucket bytes is a kv alias to max bytes
     }
 
     public static long validateMaxMessageSize(long max) {
-        return validateGtZeroOrMinus1(max, "Max Message size");
+        return validateGtZeroOrMinus1(max, "Max Message Size");
     }
 
-    public static long validateMaxValueSize(long max) {
-        return validateGtZeroOrMinus1(max, "Max Value Bytes");
+    public static long validateMaxValueBytes(long max) {
+        return validateGtZeroOrMinus1(max, "Max Value Bytes"); // max value bytes is a kv alias to max message size
     }
 
     public static int validateNumberOfReplicas(int replicas) {

@@ -15,5 +15,6 @@
   "rate_limit_bps": 73,
   "idle_heartbeat": 20000000000,
   "flow_control": true,
-  "max_waiting": 128
+  "max_waiting": 128,
+  "headers_only": true
 }

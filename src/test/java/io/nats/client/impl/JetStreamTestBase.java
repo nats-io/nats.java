@@ -138,18 +138,22 @@ public class JetStreamTestBase extends TestBase {
     }
 
     public static List<Message> readMessagesAck(JetStreamSubscription sub) throws InterruptedException {
-        return readMessagesAck(sub, false);
+        return readMessagesAck(sub, false, Duration.ofSeconds(1), -1);
     }
 
     public static List<Message> readMessagesAck(JetStreamSubscription sub, boolean noisy) throws InterruptedException {
-        return readMessagesAck(sub, noisy, Duration.ofSeconds(1));
+        return readMessagesAck(sub, noisy, Duration.ofSeconds(1), -1);
     }
 
     public static List<Message> readMessagesAck(JetStreamSubscription sub, Duration timeout) throws InterruptedException {
-        return readMessagesAck(sub, false, timeout);
+        return readMessagesAck(sub, false, timeout, -1);
     }
 
-    public static List<Message> readMessagesAck(JetStreamSubscription sub, boolean noisy, Duration timeout) throws InterruptedException {
+    public static List<Message> readMessagesAck(JetStreamSubscription sub, Duration timeout, int max) throws InterruptedException {
+        return readMessagesAck(sub, false, timeout, max);
+    }
+
+    public static List<Message> readMessagesAck(JetStreamSubscription sub, boolean noisy, Duration timeout, int max) throws InterruptedException {
         List<Message> messages = new ArrayList<>();
         Message msg = sub.nextMessage(timeout);
         while (msg != null) {
@@ -167,6 +171,9 @@ public class JetStreamTestBase extends TestBase {
             }
             else if (noisy) {
                 System.out.println("? " + new String(msg.getData()) + "?");
+            }
+            if (messages.size() == max) {
+                return messages;
             }
             msg = sub.nextMessage(Duration.ofSeconds(1));
         }

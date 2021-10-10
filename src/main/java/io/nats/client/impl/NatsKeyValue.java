@@ -17,13 +17,12 @@ import io.nats.client.*;
 import io.nats.client.api.KvEntry;
 import io.nats.client.api.MessageInfo;
 import io.nats.client.api.PublishAck;
-import io.nats.client.support.JsonUtils;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-import static io.nats.client.support.ApiConstants.LAST_BY_SUBJECT;
+import static io.nats.client.api.MessageGetRequest.lastBySubjectBytes;
 import static io.nats.client.support.NatsKeyValueUtil.*;
 
 public class NatsKeyValue extends NatsJetStreamImplBase implements KeyValue {
@@ -76,7 +75,7 @@ public class NatsKeyValue extends NatsJetStreamImplBase implements KeyValue {
     public KvEntry getEntry(String key) throws IOException, JetStreamApiException {
         Validator.validateKeyRequired(key);
         String subj = String.format(JSAPI_MSG_GET, stream);
-        Message resp = makeRequestResponseRequired(subj, JsonUtils.simpleMessageBody(LAST_BY_SUBJECT, keySubject(bucket, key)), jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(subj, lastBySubjectBytes(keySubject(bucket, key)), jso.getRequestTimeout());
         MessageInfo mi = new MessageInfo(resp);
         if (mi.hasError()) {
             if (mi.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {

@@ -30,23 +30,24 @@ public class ConsumerConfigurationTests extends TestBase {
         ZonedDateTime zdt = ZonedDateTime.of(2012, 1, 12, 6, 30, 1, 500, DateTimeUtils.ZONE_ID_GMT);
 
         ConsumerConfiguration c = ConsumerConfiguration.builder()
-                .ackPolicy(AckPolicy.Explicit)
-                .ackWait(Duration.ofSeconds(99)) // duration
-                .deliverPolicy(DeliverPolicy.ByStartSequence)
-                .description("blah")
-                .durable(DURABLE)
-                .filterSubject("fs")
-                .maxDeliver(5555)
-                .maxAckPending(6666)
-                .rateLimit(4242)
-                .replayPolicy(ReplayPolicy.Original)
-                .sampleFrequency("10s")
-                .startSequence(2001)
-                .startTime(zdt)
-                .deliverSubject(DELIVER)
-                .idleHeartbeat(Duration.ofSeconds(66)) // duration
-                .maxPullWaiting(73)
-                .build();
+            .ackPolicy(AckPolicy.Explicit)
+            .ackWait(Duration.ofSeconds(99)) // duration
+            .deliverPolicy(DeliverPolicy.ByStartSequence)
+            .description("blah")
+            .durable(DURABLE)
+            .filterSubject("fs")
+            .maxDeliver(5555)
+            .maxAckPending(6666)
+            .rateLimit(4242)
+            .replayPolicy(ReplayPolicy.Original)
+            .sampleFrequency("10s")
+            .startSequence(2001)
+            .startTime(zdt)
+            .deliverSubject(DELIVER)
+            .flowControl(66000) // duration
+            .maxPullWaiting(73)
+            .headersOnly(true)
+            .build();
 
         assertEquals(AckPolicy.Explicit, c.getAckPolicy());
         assertEquals(Duration.ofSeconds(99), c.getAckWait());
@@ -63,6 +64,8 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(2001, c.getStartSequence());
         assertEquals(zdt, c.getStartTime());
         assertEquals(73, c.getMaxPullWaiting());
+        assertTrue(c.getFlowControl());
+        assertTrue(c.getHeadersOnly());
 
         ConsumerCreateRequest ccr = new ConsumerCreateRequest(STREAM, c);
         assertEquals(STREAM, ccr.getStreamName());
@@ -84,6 +87,8 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(2001, c.getStartSequence());
         assertEquals(zdt.toEpochSecond(), c.getStartTime().toEpochSecond());
         assertEquals(73, c.getMaxPullWaiting());
+        assertTrue(c.getFlowControl());
+        assertTrue(c.getHeadersOnly());
 
         assertNotNull(ccr.toString()); // COVERAGE
         assertNotNull(c.toString()); // COVERAGE
@@ -154,5 +159,6 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals("sample_freq-value", c.getSampleFrequency());
         assertTrue(c.getFlowControl());
         assertEquals(128, c.getMaxPullWaiting());
+        assertTrue(c.getHeadersOnly());
     }
 }

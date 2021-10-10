@@ -58,6 +58,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     private final Duration idleHeartbeat;
     private final boolean flowControl;
     private final long maxPullWaiting;
+    private final boolean headersOnly;
 
     // for the response from the server
     ConsumerConfiguration(String json) {
@@ -80,6 +81,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         sampleFrequency = JsonUtils.readString(json, SAMPLE_FREQ_RE);
         idleHeartbeat = JsonUtils.readNanos(json, IDLE_HEARTBEAT_RE, Duration.ZERO);
         flowControl = JsonUtils.readBoolean(json, FLOW_CONTROL_RE);
+        headersOnly = JsonUtils.readBoolean(json, HEADERS_ONLY_RE);
 
         startSeq = CcNumeric.START_SEQ.normalize(JsonUtils.readLong(json, OPT_START_SEQ_RE, -1));
         maxDeliver = CcNumeric.MAX_DELIVER.normalize(JsonUtils.readLong(json, MAX_DELIVER_RE, -1));
@@ -92,7 +94,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     private ConsumerConfiguration(String description, String durable, DeliverPolicy deliverPolicy, long startSeq,
             ZonedDateTime startTime, AckPolicy ackPolicy, Duration ackWait, long maxDeliver, String filterSubject,
             ReplayPolicy replayPolicy, String sampleFrequency, long rateLimit, String deliverSubject, String deliverGroup, long maxAckPending,
-            Duration idleHeartbeat, boolean flowControl, long maxPullWaiting)
+            Duration idleHeartbeat, boolean flowControl, long maxPullWaiting, boolean headersOnly)
     {
         this.deliverPolicy = deliverPolicy;
         this.ackPolicy = ackPolicy;
@@ -108,6 +110,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.deliverGroup = deliverGroup;
         this.idleHeartbeat = idleHeartbeat;
         this.flowControl = flowControl;
+        this.headersOnly = headersOnly;
 
         this.startSeq = CcNumeric.START_SEQ.normalize(startSeq);
         this.maxDeliver = CcNumeric.MAX_DELIVER.normalize(maxDeliver);
@@ -140,6 +143,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, RATE_LIMIT_BPS, rateLimit);
         JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
         JsonUtils.addFldWhenTrue(sb, FLOW_CONTROL, flowControl);
+        JsonUtils.addFldWhenTrue(sb, HEADERS_ONLY, headersOnly);
         JsonUtils.addField(sb, ApiConstants.MAX_WAITING, maxPullWaiting);
         return endJson(sb).toString();
     }
@@ -290,6 +294,14 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
+     * Get the header only flag indicating whether it's on or off
+     * @return the flow control mode
+     */
+    public boolean getHeadersOnly() {
+        return headersOnly;
+    }
+
+    /**
      * Creates a builder for the publish options.
      * @return a publish options builder
      */
@@ -333,6 +345,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         private Duration idleHeartbeat = Duration.ZERO;
         private boolean flowControl;
         private long maxPullWaiting = -1;
+        private boolean headersOnly;
 
         public String getDurable() {
             return durable;
@@ -375,6 +388,7 @@ public class ConsumerConfiguration implements JsonSerializable {
             this.idleHeartbeat = cc.idleHeartbeat;
             this.flowControl = cc.flowControl;
             this.maxPullWaiting = cc.maxPullWaiting;
+            this.headersOnly = cc.headersOnly;
         }
 
         /**
@@ -588,30 +602,41 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
+         * set the headers only flag
+         * @param headersOnly the flag
+         * @return Builder
+         */
+        public Builder headersOnly(boolean headersOnly) {
+            this.headersOnly = headersOnly;
+            return this;
+        }
+
+        /**
          * Builds the ConsumerConfiguration
          * @return a consumer configuration.
          */
         public ConsumerConfiguration build() {
 
             return new ConsumerConfiguration(
-                    description,
-                    durable,
-                    deliverPolicy,
-                    startSeq,
-                    startTime,
-                    ackPolicy,
-                    ackWait,
-                    maxDeliver,
-                    filterSubject,
-                    replayPolicy,
-                    sampleFrequency,
-                    rateLimit,
-                    deliverSubject,
-                    deliverGroup,
-                    maxAckPending,
-                    idleHeartbeat,
-                    flowControl,
-                    maxPullWaiting
+                description,
+                durable,
+                deliverPolicy,
+                startSeq,
+                startTime,
+                ackPolicy,
+                ackWait,
+                maxDeliver,
+                filterSubject,
+                replayPolicy,
+                sampleFrequency,
+                rateLimit,
+                deliverSubject,
+                deliverGroup,
+                maxAckPending,
+                idleHeartbeat,
+                flowControl,
+                maxPullWaiting,
+                headersOnly
             );
         }
     }
@@ -619,25 +644,26 @@ public class ConsumerConfiguration implements JsonSerializable {
     @Override
     public String toString() {
         return "ConsumerConfiguration{" +
-                "description='" + description + '\'' +
-                ", durable='" + durable + '\'' +
-                ", deliverPolicy=" + deliverPolicy +
-                ", deliverSubject='" + deliverSubject + '\'' +
-                ", deliverGroup='" + deliverGroup + '\'' +
-                ", startSeq=" + startSeq +
-                ", startTime=" + startTime +
-                ", ackPolicy=" + ackPolicy +
-                ", ackWait=" + ackWait +
-                ", maxDeliver=" + maxDeliver +
-                ", filterSubject='" + filterSubject + '\'' +
-                ", replayPolicy=" + replayPolicy +
-                ", sampleFrequency='" + sampleFrequency + '\'' +
-                ", rateLimit=" + rateLimit +
-                ", maxAckPending=" + maxAckPending +
-                ", idleHeartbeat=" + idleHeartbeat +
-                ", flowControl=" + flowControl +
-                ", maxPullWaiting=" + maxPullWaiting +
-                '}';
+            "description='" + description + '\'' +
+            ", durable='" + durable + '\'' +
+            ", deliverPolicy=" + deliverPolicy +
+            ", deliverSubject='" + deliverSubject + '\'' +
+            ", deliverGroup='" + deliverGroup + '\'' +
+            ", startSeq=" + startSeq +
+            ", startTime=" + startTime +
+            ", ackPolicy=" + ackPolicy +
+            ", ackWait=" + ackWait +
+            ", maxDeliver=" + maxDeliver +
+            ", filterSubject='" + filterSubject + '\'' +
+            ", replayPolicy=" + replayPolicy +
+            ", sampleFrequency='" + sampleFrequency + '\'' +
+            ", rateLimit=" + rateLimit +
+            ", maxAckPending=" + maxAckPending +
+            ", idleHeartbeat=" + idleHeartbeat +
+            ", flowControl=" + flowControl +
+            ", maxPullWaiting=" + maxPullWaiting +
+            ", headersOnly=" + headersOnly +
+            '}';
     }
 
     public enum CcNumeric {

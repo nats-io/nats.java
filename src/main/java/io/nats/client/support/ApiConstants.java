@@ -59,6 +59,7 @@ public interface ApiConstants {
     String GO               = "go";
     String HDRS             = "hdrs";
     String HEADERS          = "headers";
+    String HEADERS_ONLY     = "headers_only";
     String HOST             = "host";
     String IDLE_HEARTBEAT   = "idle_heartbeat";
     String JETSTREAM        = "jetstream";
@@ -82,7 +83,7 @@ public interface ApiConstants {
     String MAX_PAYLOAD      = "max_payload";
     String MAX_STORAGE      = "max_storage";
     String MAX_STREAMS      = "max_streams";
-    String MAX_WAITING = "max_waiting"; // this is correct! the meaning name is different than the field name
+    String MAX_WAITING      = "max_waiting"; // this is correct! the meaning name is different than the field name
     String MEMORY           = "memory";
     String MESSAGES         = "messages";
     String MIRROR           = "mirror";
@@ -165,6 +166,7 @@ public interface ApiConstants {
     Pattern GO_RE               = string_pattern(GO);
     Pattern HDRS_RE             = string_pattern(HDRS);
     Pattern HEADERS_RE          = boolean_pattern(HEADERS);
+    Pattern HEADERS_ONLY_RE     = boolean_pattern(HEADERS_ONLY);
     Pattern HOST_RE             = string_pattern(HOST);
     Pattern IDLE_HEARTBEAT_RE   = integer_pattern(IDLE_HEARTBEAT);
     Pattern JET_STREAM_RE       = boolean_pattern(JETSTREAM);

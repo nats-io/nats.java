@@ -116,24 +116,16 @@ public class ValidatorTests {
     public void testValidateMaxMessagesPerSubject() {
         assertEquals(1, validateMaxMessagesPerSubject(1));
         assertEquals(-1, validateMaxMessagesPerSubject(-1));
-
-        assertEquals(0, validateMaxMessagesPerSubject(0));
-        // TODO Waiting on a server change take that /\ out, put this \/ back in
-//        assertThrows(IllegalArgumentException.class, () -> validateMaxMessagesPerSubject(0));
-
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessagesPerSubject(0));
         assertThrows(IllegalArgumentException.class, () -> validateMaxMessagesPerSubject(-2));
     }
 
     @Test
-    public void testValidateMaxValuesPerKey() {
-        assertEquals(1, validateMaxValuesPerKey(1));
-        assertEquals(-1, validateMaxValuesPerKey(-1));
-
-        assertEquals(0, validateMaxValuesPerKey(0));
-        // TODO Waiting on a server change take that /\ out, put this \/ back in
-//        assertThrows(IllegalArgumentException.class, () -> validateMaxValuesPerKey(0));
-
-        assertThrows(IllegalArgumentException.class, () -> validateMaxValuesPerKey(-2));
+    public void testValidateMaxHistory() {
+        assertEquals(1, validateMaxHistory(1));
+        assertEquals(-1, validateMaxHistory(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxHistory(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxHistory(-2));
     }
 
     @Test
@@ -161,10 +153,10 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateMaxValueSize() {
-        assertEquals(1, validateMaxValueSize(1));
-        assertEquals(-1, validateMaxValueSize(-1));
-        assertThrows(IllegalArgumentException.class, () -> validateMaxValueSize(0));
+    public void testValidateMaxValueBytes() {
+        assertEquals(1, validateMaxValueBytes(1));
+        assertEquals(-1, validateMaxValueBytes(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxValueBytes(0));
         assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(-2));
     }
 

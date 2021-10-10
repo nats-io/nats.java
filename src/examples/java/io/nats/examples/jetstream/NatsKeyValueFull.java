@@ -50,7 +50,7 @@ public class NatsKeyValueFull {
             // create the bucket
             BucketConfiguration bc = BucketConfiguration.builder()
                     .name(BUCKET_NAME)
-                    .maxHistory(5)
+                    .maxHistoryPerKey(5)
                     .storageType(StorageType.Memory)
                     .build();
 

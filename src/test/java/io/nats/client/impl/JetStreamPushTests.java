@@ -19,6 +19,7 @@ import io.nats.client.Message;
 import io.nats.client.PushSubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
+import io.nats.client.support.NatsJetStreamConstants;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -99,6 +100,15 @@ public class JetStreamPushTests extends JetStreamTestBase {
             sleep(1000); // give time to make sure the messages get to the client
 
             messages0 = readMessagesAck(sub3, null);
+            total = messages0.size();
+            validateRedAndTotal(5, messages0.size(), 5, total);
+
+            // Subscription 4 testing no timeout
+            JetStreamSubscription sub4 = js.subscribe(SUBJECT, options);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+            sleep(1000); // give time to make sure the messages get to the client
+
+            messages0 = readMessagesAck(sub4, Duration.ZERO, 5);
             total = messages0.size();
             validateRedAndTotal(5, messages0.size(), 5, total);
         });
@@ -216,6 +226,28 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertThrows(IllegalStateException.class, () -> sub.pull(1));
             assertThrows(IllegalStateException.class, () -> sub.pullNoWait(1));
             assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, Duration.ofSeconds(1)));
+        });
+    }
+
+    @Test
+    public void testHeadersOnly() throws Exception {
+        runInJsServer(nc -> {
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().headersOnly(true).build();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, PushSubscribeOptions.builder(cc).build());
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            jsPublish(js, SUBJECT, 5);
+
+            List<Message> messages = readMessagesAck(sub, Duration.ZERO, 5);
+            assertEquals(5, messages.size());
+            assertEquals(0, messages.get(0).getData().length);
+            assertNotNull(messages.get(0).getHeaders());
+            assertEquals("6", messages.get(0).getHeaders().getFirst(NatsJetStreamConstants.MSG_SIZE_HDR));
         });
     }
 

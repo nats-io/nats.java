@@ -57,7 +57,7 @@ public class PurgeOptions implements JsonSerializable {
      * Get the upper bound sequence for the Purge Options
      * @return the upper bound sequence
      */
-    public long getSeq() {
+    public long getSequence() {
         return seq;
     }
 
@@ -69,12 +69,20 @@ public class PurgeOptions implements JsonSerializable {
         return keep;
     }
 
+    /**
+     * Creates a builder for the purge options
+     * @return a purge options builder
+     */
     public static PurgeOptions.Builder builder() {
         return new Builder();
     }
 
-    public static PurgeOptions.Builder subject() {
-        return new Builder();
+    /**
+     * Creates a completed Purge Options for jsut a subject
+     * @return a purge options for a subject
+     */
+    public static PurgeOptions subject(String subject) {
+        return new Builder().subject(subject).build();
     }
 
     public static class Builder {
@@ -83,12 +91,12 @@ public class PurgeOptions implements JsonSerializable {
         private long keep;
 
         /**
-         * set the subject to filter the purge. Wildcards allowed.
+         * Set the subject to filter the purge. Wildcards allowed.
          * @param subject the subject
          * @return the builder
          */
         public Builder subject(final String subject) {
-            this.subject = subject;
+            this.subject = validateSubject(subject, false);
             return this;
         }
 
@@ -97,7 +105,7 @@ public class PurgeOptions implements JsonSerializable {
          * @param seq the upper-bound sequence
          * @return the builder
          */
-        public Builder seq(final long seq) {
+        public Builder sequence(final long seq) {
             this.seq = seq;
             return this;
         }
@@ -115,7 +123,6 @@ public class PurgeOptions implements JsonSerializable {
         public PurgeOptions build() {
             validateSubject(subject, false);
 
-            // TODO move this validation to Validator
             if (seq > 0 && keep > 0) {
                 throw new IllegalArgumentException("seq and keep are mutually exclusive.");
             }
