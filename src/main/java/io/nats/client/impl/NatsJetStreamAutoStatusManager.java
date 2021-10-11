@@ -49,7 +49,7 @@ public class NatsJetStreamAutoStatusManager {
 
     private final AtomicLong lastMsgReceived;
     private final ErrorListener errorListener;
-    private TimerWrapper timerWrapper;
+    private AsmTimer asmTimer;
 
     NatsJetStreamAutoStatusManager(NatsConnection conn, SubscribeOptions so,
                                    ConsumerConfiguration cc,
@@ -60,7 +60,7 @@ public class NatsJetStreamAutoStatusManager {
         this.queueMode = queueMode;
         lastStreamSeq = -1;
         lastConsumerSeq = -1;
-        expectedConsumerSeq = so.getExpectedConsumerSeq();
+        expectedConsumerSeq = 1; // always starts at 1
         lastMsgReceived = new AtomicLong();
 
         pull = so.isPull();
@@ -103,20 +103,20 @@ public class NatsJetStreamAutoStatusManager {
         this.sub = sub;
         if (hb) {
             conn.setBeforeQueueProcessor(this::beforeQueueProcessor);
-            timerWrapper = new TimerWrapper();
+            asmTimer = new AsmTimer();
         }
     }
 
     void shutdown() {
-        if (timerWrapper != null) {
-            timerWrapper.shutdown();
+        if (asmTimer != null) {
+            asmTimer.shutdown();
         }
     }
 
-    class TimerWrapper {
+    class AsmTimer {
         Timer timer;
 
-        class TimerWrapperTimerTask extends TimerTask {
+        class AsmTimerTask extends TimerTask {
             @Override
             public void run() {
                 long sinceLast = System.currentTimeMillis() - lastMsgReceived.get();
@@ -128,7 +128,7 @@ public class NatsJetStreamAutoStatusManager {
             }
         }
 
-        public TimerWrapper() {
+        public AsmTimer() {
             restart();
         }
 
@@ -136,7 +136,7 @@ public class NatsJetStreamAutoStatusManager {
             cancel();
             if (sub.isActive()) {
                 timer = new Timer();
-                timer.schedule(new TimerWrapperTimerTask(), alarmPeriodSetting);
+                timer.schedule(new AsmTimerTask(), alarmPeriodSetting);
             }
         }
 
@@ -181,15 +181,12 @@ public class NatsJetStreamAutoStatusManager {
 
     private void detectGaps(Message msg) {
         long receivedConsumerSeq = msg.metaData().consumerSequence();
-        // expectedConsumerSeq <= 0 they didn't tell me where to start so assume whatever it is is correct
-        if (expectedConsumerSeq > 0) {
-            if (expectedConsumerSeq != receivedConsumerSeq) {
-                errorListener.messageGapDetected(conn, sub,
-                    lastStreamSeq, lastConsumerSeq, expectedConsumerSeq, receivedConsumerSeq);
+        if (expectedConsumerSeq != receivedConsumerSeq) {
+            errorListener.messageGapDetected(conn, sub,
+                lastStreamSeq, lastConsumerSeq, expectedConsumerSeq, receivedConsumerSeq);
 
-                if (syncMode) {
-                    throw new JetStreamGapException(sub, expectedConsumerSeq, receivedConsumerSeq);
-                }
+            if (syncMode) {
+                throw new JetStreamGapException(sub, expectedConsumerSeq, receivedConsumerSeq);
             }
         }
         lastStreamSeq = msg.metaData().streamSequence();

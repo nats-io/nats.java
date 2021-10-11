@@ -27,7 +27,6 @@ public abstract class SubscribeOptions {
     protected final boolean bind;
     protected final ConsumerConfiguration consumerConfig;
     protected final boolean detectGaps;
-    protected final long expectedConsumerSeq;
     protected final long messageAlarmTime;
 
     @SuppressWarnings("rawtypes") // Don't need the type of the builder to get it's vars
@@ -51,7 +50,6 @@ public abstract class SubscribeOptions {
         this.pull = pull;
         this.bind = builder.bind;
         this.detectGaps = builder.detectGaps;
-        this.expectedConsumerSeq = builder.expectedConsumerSeq;
         this.messageAlarmTime = builder.messageAlarmTime;
     }
 
@@ -96,15 +94,6 @@ public abstract class SubscribeOptions {
         return detectGaps;
     }
 
-    /**
-     * Get the expected first expected sequence to use the first
-     * time on auto gap detect
-     * @return the expected sequence
-     */
-    public long getExpectedConsumerSeq() {
-        return expectedConsumerSeq;
-    }
-
     public long getMessageAlarmTime() {
         return messageAlarmTime;
     }
@@ -137,7 +126,6 @@ public abstract class SubscribeOptions {
         String durable;
         ConsumerConfiguration cc;
         boolean detectGaps = false;
-        long expectedConsumerSeq = -1;
         long messageAlarmTime = -1;
 
         protected abstract B getThis();
@@ -193,18 +181,6 @@ public abstract class SubscribeOptions {
          */
         public B detectGaps(boolean detectGaps) {
             this.detectGaps = detectGaps;
-            return getThis();
-        }
-
-        /**
-         * Sets the expected consumer sequence to use the first
-         * time on auto gap detect. Set to less than 1 to allow
-         * any first sequence
-         * @param expectedConsumerSeq the consumer seq
-         * @return the builder
-         */
-        public B expectedConsumerSeq(long expectedConsumerSeq) {
-            this.expectedConsumerSeq = expectedConsumerSeq;
             return getThis();
         }
 

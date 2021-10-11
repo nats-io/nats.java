@@ -21,7 +21,7 @@ import static io.nats.client.support.Validator.emptyAsNull;
  */
 public class PushSubscribeOptions extends SubscribeOptions {
 
-    private PushSubscribeOptions(PushSubscribeOptions.Builder builder, String deliverSubject, String deliverGroup) {
+    private PushSubscribeOptions(Builder builder, String deliverSubject, String deliverGroup) {
         super(builder, false, deliverSubject, deliverGroup);
     }
 
