@@ -279,7 +279,7 @@ public class NatsJsUtils {
             s = s.replace(rx1, repl1);
         }
 
-        System.out.println(s + "\n");
+        System.out.println(s);
     }
 
     // ----------------------------------------------------------------------------------------------------

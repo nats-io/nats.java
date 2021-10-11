@@ -272,7 +272,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            // error to pruge a stream that does not exist
+            // error to purge a stream that does not exist
             assertThrows(JetStreamApiException.class, () -> jsm.purgeStream(STREAM));
 
             createMemoryStream(jsm, STREAM, subject(1), subject(2));
@@ -316,51 +316,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             options = PurgeOptions.builder().subject(subject(1)).keep(2).build();
             assertEquals(2, options.getKeep());
-        });
-    }
-
-    @Test
-    public void testPurgeStreamSubjectOptions() throws Exception {
-        runInJsServer(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            assertThrows(JetStreamApiException.class, () -> jsm.purgeStream(STREAM));
-            createMemoryStream(jsm, STREAM, subject(1), subject(2));
-
-            StreamInfo si = jsm.getStreamInfo(STREAM);
-            assertEquals(0, si.getStreamState().getMsgCount());
-
-            jsPublish(nc, subject(1), 10);
-            jsPublish(nc, subject(2), 1);
-            si = jsm.getStreamInfo(STREAM);
-            assertEquals(11, si.getStreamState().getMsgCount());
-
-            PurgeOptions options = PurgeOptions.builder().subject(subject(2)).build();
-            PurgeResponse pr = jsm.purgeStream(STREAM, options);
-            assertTrue(pr.isSuccess());
-            assertEquals(1, pr.getPurged());
-
-            si = jsm.getStreamInfo(STREAM);
-            assertEquals(10, si.getStreamState().getMsgCount());
-
-            options = PurgeOptions.builder()
-                    .subject(subject(1))
-                    .keep(7)
-                    .build();
-            pr = jsm.purgeStream(STREAM, options);
-            assertTrue(pr.isSuccess());
-            assertEquals(3, pr.getPurged());
-            si = jsm.getStreamInfo(STREAM);
-            assertEquals(7, si.getStreamState().getMsgCount());
-
-            options = PurgeOptions.builder()
-                    .subject(subject(1))
-                    .sequence(9)
-                    .build();
-            pr = jsm.purgeStream(STREAM, options);
-            assertTrue(pr.isSuccess());
-            assertEquals(5, pr.getPurged());
-            si = jsm.getStreamInfo(STREAM);
-            assertEquals(2, si.getStreamState().getMsgCount());
         });
     }
 
