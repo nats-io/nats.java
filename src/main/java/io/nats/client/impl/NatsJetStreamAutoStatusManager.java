@@ -184,12 +184,12 @@ public class NatsJetStreamAutoStatusManager {
         // expectedConsumerSeq <= 0 they didn't tell me where to start so assume whatever it is is correct
         if (expectedConsumerSeq > 0) {
             if (expectedConsumerSeq != receivedConsumerSeq) {
+                errorListener.messageGapDetected(conn, sub,
+                    lastStreamSeq, lastConsumerSeq, expectedConsumerSeq, receivedConsumerSeq);
+
                 if (syncMode) {
                     throw new JetStreamGapException(sub, expectedConsumerSeq, receivedConsumerSeq);
                 }
-                errorListener.messageGapDetected(conn, sub,
-                    lastStreamSeq, lastConsumerSeq,
-                    expectedConsumerSeq, receivedConsumerSeq);
             }
         }
         lastStreamSeq = msg.metaData().streamSequence();
@@ -233,13 +233,12 @@ public class NatsJetStreamAutoStatusManager {
                 return true;
             }
 
-            // this status is unknown to us, how we let the user know
-            // depends on whether they are sync or async
+            // this status is unknown to us, always use the error handler.
+            // If it's a sync call, also throw an exception
+            errorListener.unhandledStatus(conn, sub, status);
             if (syncMode) {
                 throw new JetStreamStatusException(sub, status);
             }
-
-            errorListener.unhandledStatus(conn, sub, status);
             return true;
         }
         return false;
