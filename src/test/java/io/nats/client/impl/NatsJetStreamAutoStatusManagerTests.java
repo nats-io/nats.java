@@ -167,7 +167,7 @@ public class NatsJetStreamAutoStatusManagerTests extends JetStreamTestBase {
         NatsJetStreamAutoStatusManager manager = getManager(conn, so, sub, true, false);
         assertEquals(-1, manager.getLastStreamSequence());
         assertEquals(-1, manager.getLastConsumerSequence());
-        assertEquals(-1, manager.getExpectedConsumerSequence());
+        assertEquals(1, manager.getExpectedConsumerSequence());
         manager.manage(getTestJsMessage(1));
         assertEquals(1, manager.getLastStreamSequence());
         assertEquals(1, manager.getLastConsumerSequence());
@@ -208,7 +208,7 @@ public class NatsJetStreamAutoStatusManagerTests extends JetStreamTestBase {
         if (el != null) {
             el.reset();
         }
-        assertEquals(-1, manager.getExpectedConsumerSequence());
+        assertEquals(1, manager.getExpectedConsumerSequence());
         manager.manage(getTestJsMessage(1));
         assertEquals(2, manager.getExpectedConsumerSequence());
         manager.manage(getTestJsMessage(2));
