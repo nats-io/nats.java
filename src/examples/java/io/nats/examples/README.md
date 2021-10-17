@@ -25,8 +25,8 @@ In the `io.nats.examples.jetstream` package...
 1. `NatsJsPubWithOptionsUseCases` - publish JetStream with examples on using publish options
 1. `NatsJsPullSubBatchSize.java` - pull subscription example specifying batch size and manual handling
 1. `NatsJsPullSubBatchSizeUseCases.java` - pull subscription example specifying batch size with examples of manual handling various cases of available messages  
-1. `NatsJsPullSubExpire.java` - pull subscription example specifying expiration and manual handling
-1. `NatsJsPullSubExpireUseCases.java` - pull subscription example specifying expiration with examples of manual handling various cases of available messages
+1. `NatsJsPullSubExpiresIn.java` - pull subscription example specifying expiration and manual handling
+1. `NatsJsPullSubExpiresInUseCases.java` - pull subscription example specifying expiration with examples of manual handling various cases of available messages
 1. `NatsJsPullSubFetch.java` - pull subscription example using fetch list macro function
 1. `NatsJsPullSubFetchUseCases.java` - pull subscription example using fetch list macro function with examples of various cases of available messages
 1. `NatsJsPullSubIterate.java` - pull subscription example using iterate macro function
