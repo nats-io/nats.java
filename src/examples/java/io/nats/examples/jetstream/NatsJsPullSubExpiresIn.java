@@ -14,27 +14,25 @@
 package io.nats.examples.jetstream;
 
 import io.nats.client.*;
-import io.nats.client.api.ConsumerConfiguration;
 import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
 
 import java.time.Duration;
-import java.util.List;
 
 import static io.nats.examples.jetstream.NatsJsUtils.createStreamExitWhenExists;
 import static io.nats.examples.jetstream.NatsJsUtils.publishInBackground;
 
 /**
  * This example will demonstrate basic use of a pull subscription of:
- * fetch pull: <code>fetch(int batchSize, Duration or millis maxWait)</code>,
+ * expires in pull: <code>pullExpiresIn(int batchSize, Duration or Millis expiresIn)</code>
  */
-public class NatsJsPullSubFetch {
+public class NatsJsPullSubExpiresIn {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPullSubFetch [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
+        "\nUsage: java -cp <classpath> NatsJsPullSubExpiresIn [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
             + "\n\nDefault Values:"
-            + "\n   [-strm] fetch-stream"
-            + "\n   [-sub]  fetch-subject"
-            + "\n   [-dur]  fetch-durable"
+            + "\n   [-strm] expires-in-stream"
+            + "\n   [-sub]  expires-in-subject"
+            + "\n   [-dur]  expires-in-durable"
             + "\n   [-mcnt] 15"
             + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
@@ -42,12 +40,12 @@ public class NatsJsPullSubFetch {
             + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.builder("Pull Subscription using macro Fetch", args, usageString)
-                .defaultStream("fetch-stream")
-                .defaultSubject("fetch-subject")
-                .defaultDurable("fetch-durable")
-                .defaultMsgCount(15)
-                .build();
+        ExampleArgs exArgs = ExampleArgs.builder("Pull Subscription using primitive Batch With Expire", args, usageString)
+            .defaultStream("expires-in-stream")
+            .defaultSubject("expires-in-subject")
+            .defaultDurable("expires-in-durable")
+            .defaultMsgCount(15)
+            .build();
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
             // Create a JetStreamManagement context.
@@ -60,29 +58,27 @@ public class NatsJsPullSubFetch {
             JetStream js = nc.jetStream();
 
             // start publishing the messages, don't wait for them to finish, simulating an outside producer
-            publishInBackground(js, exArgs.subject, "fetch-message", exArgs.msgCount);
+            publishInBackground(js, exArgs.subject, "expires-in-message", exArgs.msgCount);
 
-            // Build our consumer configuration and subscription options.
-            // make sure the ack wait is sufficient to handle the reading and processing of the batch.
-            // Durable is REQUIRED for pull based subscriptions
-            ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                .ackWait(Duration.ofMillis(2500))
-                .build();
+            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                .durable(exArgs.durable) // required
-                .configuration(cc)
-                .build();
+                    .durable(exArgs.durable) // required
+                    .build();
 
             JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);
             nc.flush(Duration.ofSeconds(1));
 
             int red = 0;
             while (red < exArgs.msgCount) {
-                List<Message> list = sub.fetch(10, Duration.ofSeconds(1));
-                for (Message m : list) {
-                    red++; // process message
-                    System.out.println("" + red + ". " + m);
-                    m.ack();
+                sub.pullExpiresIn(10, Duration.ofSeconds(1));
+                Message m = sub.nextMessage(Duration.ofSeconds(1)); // first message
+                while (m != null) {
+                    if (m.isJetStream()) {
+                        red++; // process message
+                        System.out.println("" + red + ". " + m);
+                        m.ack();
+                    }
+                    m = sub.nextMessage(Duration.ofMillis(100)); // other messages should already be on the client
                 }
             }
 

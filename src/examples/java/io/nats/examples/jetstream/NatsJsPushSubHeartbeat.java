@@ -36,7 +36,7 @@ public class NatsJsPushSubHeartbeat {
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
                     + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
                     + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
+                    + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder().build(args, usageString);
@@ -51,7 +51,7 @@ public class NatsJsPushSubHeartbeat {
                 // creates a memory stream. We will clean it up at the end.
                 createStream(jsm, stream, subject);
 
-                // Create our JetStream context to receive JetStream messages.
+                // Create our JetStream context.
                 JetStream js = nc.jetStream();
 
                 // set the idle heartbeat value so the server knows to send us heartbeat status messages.

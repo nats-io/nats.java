@@ -32,7 +32,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testFetch() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -101,7 +101,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testIterate() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -176,7 +176,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testPlain() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -275,7 +275,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testNoWait() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -338,7 +338,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testPullExpires() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -429,7 +429,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testAckNak() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -465,7 +465,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testAckTerm() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -493,7 +493,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testAckReplySyncCoverage() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.

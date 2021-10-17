@@ -29,27 +29,27 @@ import java.nio.charset.StandardCharsets;
  */
 public class NatsJsPub {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPub [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-m messageWords+] [-r headerKey:headerValue]*"
-                    + "\n\nDefault Values:"
-                    + "\n   [-strm stream]    example-stream"
-                    + "\n   [-sub subject]    example-subject"
-                    + "\n   [-mcnt msgCount]  10"
-                    + "\n   [-m messageWords+] hello"
-                    + "\n\nRun Notes:"
-                    + "\n   - msg_count < 1 is the same as 1"
-                    + "\n   - headers are optional"
-                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
-                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
-                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
+        "\nUsage: java -cp <classpath> NatsJsPub [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-m messageWords+] [-r headerKey:headerValue]*"
+            + "\n\nDefault Values:"
+            + "\n   [-strm] example-stream"
+            + "\n   [-sub]  example-subject"
+            + "\n   [-mcnt] 10"
+            + "\n   [-m]    hello"
+            + "\n\nRun Notes:"
+            + "\n   - msg_count < 1 is the same as 1"
+            + "\n   - headers are optional"
+            + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+            + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+            + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+            + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.builder()
+        ExampleArgs exArgs = ExampleArgs.builder("Publish", args, usageString)
                 .defaultStream("example-stream")
                 .defaultSubject("example-subject")
                 .defaultMessage("hello")
                 .defaultMsgCount(10)
-                .build(args, usageString);
+                .build();
 
         String hdrNote = exArgs.hasHeaders() ? ", with " + exArgs.headers.size() + " header(s)" : "";
         System.out.printf("\nPublishing to %s%s. Server is %s\n\n", exArgs.subject, hdrNote, exArgs.server);
@@ -61,8 +61,8 @@ public class NatsJsPub {
             // JetStream consumers.
             JetStream js = nc.jetStream();
 
-            // See NatsJsManagement for examples on how to create the stream
-            NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
+            // Create the stream
+            NatsJsUtils.createStreamOrUpdateSubjects(nc, exArgs.stream, exArgs.subject);
 
             int stop = exArgs.msgCount < 2 ? 2 : exArgs.msgCount + 1;
             for (int x = 1; x < stop; x++) {

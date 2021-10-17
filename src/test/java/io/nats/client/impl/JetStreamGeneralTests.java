@@ -196,7 +196,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testFilterSubjectEphemeral() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             String subject = SUBJECT + ".*";
@@ -265,7 +265,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testFilterSubjectDurable() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             String subjectWild = SUBJECT + ".*";
@@ -622,7 +622,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testGetConsumerInfoFromSubscription() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.

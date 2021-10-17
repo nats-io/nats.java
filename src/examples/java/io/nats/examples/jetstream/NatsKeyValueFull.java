@@ -31,7 +31,7 @@ public class NatsKeyValueFull {
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
                     + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
                     + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
+                    + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     private static final String BYTE_KEY = "byteKey";
     private static final String STRING_KEY = "stringKey";

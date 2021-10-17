@@ -24,41 +24,41 @@ import static io.nats.examples.jetstream.NatsJsUtils.*;
 
 /**
  * This example will demonstrate miscellaneous uses cases of a pull subscription of:
- * batch size and no wait pull: <code>pullNoWait(int batchSize)</code>,
- * requiring manual handling of null and 404 status.
+ * batch size and no wait pull: <code>pullNoWait(int batchSize)</code>
  */
 public class NatsJsPullSubNoWaitUseCases {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPullSubNoWaitUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]"
-                    + "\n\nDefault Values:"
-                    + "\n   [-strm stream]     nowait-uc-ack-stream"
-                    + "\n   [-sub subject]     nowait-uc-ack-subject"
-                    + "\n   [-dur durable]     nowait-uc-ack-durable"
-                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
-                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
-                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
+        "\nUsage: java -cp <classpath> NatsJsPullSubNoWaitUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]"
+            + "\n\nDefault Values:"
+            + "\n   [-strm] nowait-uc-stream"
+            + "\n   [-sub]  nowait-uc-subject"
+            + "\n   [-dur]  nowait-uc-durable"
+            + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+            + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+            + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+            + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("nowait-uc-ack-stream")
-                .defaultSubject("nowait-uc-ack-subject")
-                .defaultDurable("nowait-uc-ack-durable")
-                //.uniqueify() // uncomment to be able to re-run without re-starting server
-                .build(args, usageString);
+        ExampleArgs exArgs = ExampleArgs.builder("Pull Subscription using primitive No Wait, Use Cases", args, usageString)
+                .defaultStream("nowait-uc-stream")
+                .defaultSubject("nowait-uc-subject")
+                .defaultDurable("nowait-uc-durable")
+                .build();
         
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
+            // Create a JetStreamManagement context.
+            JetStreamManagement jsm = nc.jetStreamManagement();
 
-            createStreamThrowWhenExists(nc, exArgs.stream, exArgs.subject);
+            // Use the utility to create a stream stored in memory.
+            createStreamExitWhenExists(jsm, exArgs.stream, exArgs.subject);
 
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                    .durable(exArgs.durable) // required
-                    // .configuration(...)   // if you want a custom io.nats.client.api.ConsumerConfiguration
-                    .build();
+                .durable(exArgs.durable) // required
+                .build();
 
             // 0.1 Initialize. subscription
             // 0.2 DO NOT start the pull, no wait works differently than regular pull.
@@ -71,19 +71,16 @@ public class NatsJsPullSubNoWaitUseCases {
 
             // 1. Start the pull, but there are no messages yet.
             // -  Read the messages
-            // -  Since there are less than the batch size, we get tham all (0) plus a 4040 status message
+            // -  Since there are less than the batch size, we get them all (0)
             System.out.println("----------\n1. There are no messages yet");
             sub.pullNoWait(10);
             List<Message> messages = readMessagesAck(sub);
-            Message lastMessage = messages.get(messages.size()-1);
-            System.out.println("We should have received 1 total messages, we received: " + messages.size());
-            System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
+            System.out.println("We should have received 0 total messages, we received: " + messages.size());
 
             // 2. Publish 10 messages
             // -  Start the pull
             // -  Read the messages
             // -  Since there are exactly the batch size we get them all
-            //    and do NOT get a nowait status message
             System.out.println("----------\n2. Publish 10 which satisfies the batch");
             publish(js, exArgs.subject, "A", 10);
             sub.pullNoWait(10);
@@ -93,7 +90,6 @@ public class NatsJsPullSubNoWaitUseCases {
             // 3. Publish 20 messages
             // -  Start the pull
             // -  Read the messages
-            // -  we do NOT get a nowait status message if there are more or equals messages than the batch
             System.out.println("----------\n3. Publish 20 which is larger than the batch size.");
             publish(js, exArgs.subject, "B", 20);
             sub.pullNoWait(10);
@@ -103,7 +99,6 @@ public class NatsJsPullSubNoWaitUseCases {
             // 4. There are still messages left from the last
             // -  Start the pull
             // -  Read the messages
-            // -  we do NOT get a nowait status message if there are more or equals messages than the batch
             System.out.println("----------\n4. Get the rest of the publish.");
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
@@ -112,14 +107,11 @@ public class NatsJsPullSubNoWaitUseCases {
             // 5. Publish 5 messages
             // -  Start the pull
             // -  Read the messages
-            // -  Since there are less than batch size the last message we get will be a status 404 message.
             System.out.println("----------\n5. Publish 5 which is less than batch size.");
             publish(js, exArgs.subject, "C", 5);
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
-            lastMessage = messages.get(messages.size()-1);
-            System.out.println("We should have received 6 total messages, we received: " + messages.size());
-            System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
+            System.out.println("We should have received 5 total messages, we received: " + messages.size());
 
             // 6. Publish 14 messages
             // -  Start the pull
@@ -137,12 +129,13 @@ public class NatsJsPullSubNoWaitUseCases {
             // -  Since there are less than batch size the last message we get will be a status 404 message.
             System.out.println("----------\n7. There are 4 messages left, which is less than the batch size.");
             sub.pullNoWait(10);
-            messages = readMessagesAck(sub, false);
-            lastMessage = messages.get(messages.size()-1);
-            System.out.println("We should have received 5 messages, we received: " + messages.size());
-            System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
+            messages = readMessagesAck(sub);
+            System.out.println("We should have received 4 messages, we received: " + messages.size());
 
             System.out.println("----------\n");
+
+            // delete the stream since we are done with it.
+            jsm.deleteStream(exArgs.stream);
         }
         catch (Exception e) {
             e.printStackTrace();

@@ -35,7 +35,7 @@ public class JetStreamPushHandlerTests extends JetStreamTestBase {
     @Test
     public void testHandler() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -74,7 +74,7 @@ public class JetStreamPushHandlerTests extends JetStreamTestBase {
     @Test
     public void testHandlerAutoAck() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -144,7 +144,7 @@ public class JetStreamPushHandlerTests extends JetStreamTestBase {
     @Test
     public void testHandlerFlowControlAutoHandledProtoMessages() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.

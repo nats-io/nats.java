@@ -55,17 +55,17 @@ public class Error {
 
     @Override
     public String toString() {
-        if (code == NOT_SET) {
-            if (apiErrorCode == NOT_SET) {
+        if (apiErrorCode == NOT_SET) {
+            if (code == NOT_SET) {
                 return desc;
             }
-            return desc + " [" + apiErrorCode + "]";
-        }
-
-        if (apiErrorCode == NOT_SET) {
             return desc + " (" + code + ")";
         }
 
-        return desc + " (" + code + ") [" + apiErrorCode + "]";
+        if (code == NOT_SET) {
+            return desc;
+        }
+
+        return desc + " [" + apiErrorCode + "]";
     }
 }

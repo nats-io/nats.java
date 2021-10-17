@@ -46,7 +46,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);
 
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // publish some messages
@@ -129,7 +129,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);
 
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // publish some messages
@@ -212,7 +212,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
     @Test
     public void testCantPullOnPushSub() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -254,7 +254,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
     @Test
     public void testCantNextMessageOnAsyncPushSub() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -271,7 +271,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
     @Test
     public void testAcks() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -360,7 +360,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
     @Test
     public void testDeliveryPolicy() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.

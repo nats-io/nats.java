@@ -49,18 +49,19 @@ public class ConsumerConfiguration implements JsonSerializable {
     private final String durable;
     private final String deliverSubject;
     private final String deliverGroup;
-    private final long startSeq;
     private final ZonedDateTime startTime;
     private final Duration ackWait;
-    private final long maxDeliver;
     private final String filterSubject;
     private final String sampleFrequency;
-    private final long rateLimit;
-    private final long maxAckPending;
     private final Duration idleHeartbeat;
     private final boolean flowControl;
-    private final long maxPullWaiting;
     private final boolean headersOnly;
+
+    private final long startSeq;
+    private final long maxDeliver;
+    private final long rateLimit;
+    private final long maxAckPending;
+    private final long maxPullWaiting;
 
     // for the response from the server
     ConsumerConfiguration(String json) {
@@ -89,7 +90,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         maxDeliver = CcNumeric.MAX_DELIVER.normalize(JsonUtils.readLong(json, MAX_DELIVER_RE, -1));
         rateLimit = CcNumeric.RATE_LIMIT.normalize(JsonUtils.readLong(json, RATE_LIMIT_BPS_RE, -1));
         maxAckPending = CcNumeric.MAX_ACK_PENDING.normalize(JsonUtils.readLong(json, MAX_ACK_PENDING_RE, -1));
-        maxPullWaiting = CcNumeric.MAX_PULL_WAITING.normalize(JsonUtils.readLong(json, MAX_WAITING_RE, -1));
+        maxPullWaiting = CcNumeric.MAX_PULL_WAITING.normalize(JsonUtils.readLong(json, MAX_WAITING_RE, 0));
     }
 
     // For the builder
@@ -684,28 +685,30 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     public enum CcNumeric {
-        START_SEQ("Start Sequence", 1, -1),
-        MAX_DELIVER("Max Deliver", 1, -1),
-        RATE_LIMIT("Rate Limit", 1, -1),
-        MAX_ACK_PENDING("Max Ack Pending", 0, 20000L),
-        MAX_PULL_WAITING("Max Pull Waiting", 1, 512);
+        START_SEQ("Start Sequence", 1, -1, -1),
+        MAX_DELIVER("Max Deliver", 1, -1, -1),
+        RATE_LIMIT("Rate Limit", 1, -1, -1),
+        MAX_ACK_PENDING("Max Ack Pending", 0, 0, 20000L),
+        MAX_PULL_WAITING("Max Pull Waiting", 1, 0, 512);
 
         String err;
         long min;
+        long normal;
         long srvrDflt;
 
-        CcNumeric(String err, long min, long srvrDflt) {
+        CcNumeric(String err, long min, long normal, long srvrDflt) {
             this.err = err;
             this.min = min;
+            this.normal = normal;
             this.srvrDflt = srvrDflt;
         }
 
         long normalize(long val) {
-            return val < min ? -1 : val;
+            return val <= min ? normal : val;
         }
 
         public long comparable(long val) {
-            return val < min || val == srvrDflt ? -1 : val;
+            return val <= min || val == srvrDflt ? srvrDflt : val;
         }
 
         public String getErr() {

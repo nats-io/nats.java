@@ -25,42 +25,48 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.examples.jetstream.NatsJsUtils.createStreamExitWhenExists;
+
 /**
- * This example will demonstrate JetStream push subscribing using a durable consumer which
- * sets up a deliver subject for you.
+ * This example will demonstrate JetStream push subscribing using a durable consumer and a queue
  */
 public class NatsJsPushSubQueueDurable {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPushSubQueueDurable [-s server] [-strm stream] [-sub subject] [-q queue] [-dur durable] [-mcnt msgCount] [-scnt subCount]"
-                    + "\n\nDefault Values:"
-                    + "\n   [-strm stream]    jsqdu-stream"
-                    + "\n   [-sub subject]    jsqdu-subject"
-                    + "\n   [-q queue]        jsqdu-queue"
-                    + "\n   [-dur durable]    jsqdu-durable"
-                    + "\n   [-mcnt msgCount]  100"
-                    + "\n   [-scnt subCount]  5"
-                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
-                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
-                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
+        "\nUsage: java -cp <classpath> NatsJsPushSubQueueDurable [-s server] [-strm stream] [-sub subject] [-q queue] [-dur durable] [-mcnt msgCount] [-scnt subCount]"
+            + "\n\nDefault Values:"
+            + "\n   [-strm stream]   qdur-stream"
+            + "\n   [-sub subject]   qdur-subject"
+            + "\n   [-q queue]       qdur-queue"
+            + "\n   [-dur durable]   qdur-durable"
+            + "\n   [-mcnt msgCount] 100"
+            + "\n   [-scnt subCount] 5"
+            + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+            + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+            + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+            + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("jsqdu-stream")
-                .defaultSubject("jsqdu-subject")
-                .defaultQueue("jsqdu-queue")
-                .defaultDurable("jsqdu-durable")
+        ExampleArgs exArgs = ExampleArgs.builder("Push Subscribe, Durable Consumer, Queue", args, usageString)
+                .defaultStream("qdur-stream")
+                .defaultSubject("qdur-subject")
+                .defaultQueue("qdur-queue")
+                .defaultDurable("qdur-durable")
                 .defaultMsgCount(100)
                 .defaultSubCount(5)
-                .build(args, usageString);
+                .build();
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
-            // Create the stream.
-            NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
+            // Create a JetStreamManagement context.
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            // Use the utility to create a stream stored in memory.
+            createStreamExitWhenExists(jsm, exArgs.stream, exArgs.subject);
 
             // Create our JetStream context
             JetStream js = nc.jetStream();
+
+            System.out.println();
 
             // Setup the subscribers
             // - the PushSubscribeOptions can be re-used since all the subscribers are the same
@@ -97,6 +103,11 @@ public class NatsJsPushSubQueueDurable {
             for (JsQueueSubscriber qs : subscribers) {
                 qs.report();
             }
+
+            System.out.println();
+
+            // delete the stream since we are done with it.
+            jsm.deleteStream(exArgs.stream);
         }
         catch (Exception e) {
             e.printStackTrace();

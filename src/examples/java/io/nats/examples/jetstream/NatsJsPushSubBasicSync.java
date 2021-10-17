@@ -1,4 +1,4 @@
-// Copyright 2021 The NATS Authors
+// Copyright 2020 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -14,7 +14,6 @@
 package io.nats.examples.jetstream;
 
 import io.nats.client.*;
-import io.nats.client.api.ConsumerConfiguration;
 import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
 
@@ -24,20 +23,20 @@ import java.time.Duration;
 import static io.nats.examples.jetstream.NatsJsUtils.exitIfStreamNotExists;
 
 /**
- * This example will demonstrate JetStream push subscribing with binding to an existing durable.
+ * This example will demonstrate JetStream basic synchronous push subscribing.
  * Run NatsJsPub first to setup message data.
  */
-public class NatsJsPushSubBindDurable {
+public class NatsJsPushSubBasicSync {
+
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPushSubBindDurable [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable] [-deliver deliver]"
+        "\nUsage: java -cp <classpath> NatsJsPushSubBasicSync [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable]"
             + "\n\nDefault Values:"
-            + "\n   [-strm]    example-stream"
-            + "\n   [-sub]     example-subject"
-            + "\n   [-dur]     bind-durable"
-            + "\n   [-deliver] bind-deliver"
-            + "\n   [-mcnt]    0"
+            + "\n   [-strm] example-stream"
+            + "\n   [-sub]  example-subject"
+            + "\n   [-mcnt] 0"
             + "\n\nRun Notes:"
             + "\n   - make sure you have created and published to the stream and subject, maybe using the NatsJsPub example"
+            + "\n   - durable is optional, durable behaves differently, try it by running this twice with durable set"
             + "\n   - msg_count < 1 will just loop until there are no more messages"
             + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
@@ -45,13 +44,11 @@ public class NatsJsPushSubBindDurable {
             + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-
-        ExampleArgs exArgs = ExampleArgs.builder("Push Subscription Binding With Durable", args, usageString)
+        ExampleArgs exArgs = ExampleArgs.builder("Push Subscribe Basic Synchronous", args, usageString)
             .defaultStream("example-stream")
             .defaultSubject("example-subject")
-            .defaultDurable("bind-durable")
-            .defaultDeliverSubject("bind-deliver")
             .defaultMsgCount(0, true) // true indicated 0 means unlimited
+            // .defaultDurable("push-sub-basic-sync-durable")
             .build();
 
         int count = exArgs.msgCount < 1 ? Integer.MAX_VALUE : exArgs.msgCount;
@@ -61,32 +58,20 @@ public class NatsJsPushSubBindDurable {
             // The stream (and data) must exist
             exitIfStreamNotExists(nc, exArgs.stream);
 
-            // The durable consumer must already exist. Usually it would be made in configuration
-            // or via the NATS CLI but we are making it here.
-            // Important: The consumer must have a deliver subject when made this way or it will be
-            // understood to be a pull consumer by the server.
-            // NOTE: If you ran this example already, the consumer will have been created
-            //       This is not a problem if it is exactly the same. Most ConsumerConfiguration
-            //       properties are not modifiable once created.
-            ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .durable(exArgs.durable)
-                    .deliverSubject(exArgs.deliverSubject)
-                    .build();
-            nc.jetStreamManagement().addOrUpdateConsumer(exArgs.stream, cc);
-
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
-            // bind subscribe to the stream - either variety will work
-            // V1. Version designed specifically for this purpose.
-            PushSubscribeOptions so = PushSubscribeOptions.bind(exArgs.stream, exArgs.durable);
-
-            // V2. optional long form
-            // PushSubscribeOptions so = PushSubscribeOptions.builder()
-            //     .bind(true)
-            //     .stream(exArgs.stream)
-            //     .durable(exArgs.durable)
-            //     .build();
+            // Build our subscription options.
+            // * A push subscription means the server will "push" us messages.
+            // * Durable means the server will remember where we are if we use that name.
+            // * Durable can by null or empty, the builder treats them the same.
+            // * The stream name is not technically required. If it is not provided, the
+            //   code building the subscription will look it up by making a request to the server.
+            //   If you know the stream name, you might as well supply it and save a trip to the server.
+            PushSubscribeOptions so = PushSubscribeOptions.builder()
+                    .stream(exArgs.stream)
+                    .durable(exArgs.durable)
+                    .build();
 
             // Subscribe synchronously, then just wait for messages.
             JetStreamSubscription sub = js.subscribe(exArgs.subject, so);

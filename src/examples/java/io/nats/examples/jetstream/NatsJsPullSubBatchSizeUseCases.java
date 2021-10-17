@@ -24,32 +24,35 @@ import static io.nats.examples.jetstream.NatsJsUtils.*;
 
 /**
  * This example will demonstrate miscellaneous uses cases of a pull subscription of:
- * batch size only pull: <code>pull(int batchSize)</code>, requiring manual handling of null.
+ * batch size only pull: <code>pull(int batchSize)</code>
  */
 public class NatsJsPullSubBatchSizeUseCases {
     static final String usageString =
             "\nUsage: java -cp <classpath> NatsJsPullSubBatchSizeUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]"
                     + "\n\nDefault Values:"
-                    + "\n   [-strm stream]     pull-uc-stream"
-                    + "\n   [-sub subject]     pull-uc-subject"
-                    + "\n   [-dur durable]     pull-uc-durable"
+                    + "\n   [-strm] pull-uc-stream"
+                    + "\n   [-sub]  pull-uc-subject"
+                    + "\n   [-dur]  pull-uc-durable"
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
                     + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
                     + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
+                    + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("pull-uc-stream")
-                .defaultSubject("pull-uc-subject")
-                .defaultDurable("pull-uc-durable")
-                //.uniqueify() // uncomment to be able to re-run without re-starting server
-                .build(args, usageString);
+        ExampleArgs exArgs = ExampleArgs.builder("Pull Subscription using primitive Batch Size, Use Cases", args, usageString)
+            .defaultStream("pull-uc-stream")
+            .defaultSubject("pull-uc-subject")
+            .defaultDurable("pull-uc-durable")
+            .build();
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
-            createStreamThrowWhenExists(nc, exArgs.stream, exArgs.subject);
+            // Create a JetStreamManagement context.
+            JetStreamManagement jsm = nc.jetStreamManagement();
 
-            // Create our JetStream context to receive JetStream messages.
+            // Use the utility to create a stream stored in memory.
+            createStreamExitWhenExists(jsm, exArgs.stream, exArgs.subject);
+
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
@@ -69,7 +72,7 @@ public class NatsJsPullSubBatchSizeUseCases {
 
             // 1. Publish some that is less than the batch size.
             // -  Do this first as data will typically be published first.
-            System.out.println("\n----------\n1. Publish some amount of messages, but not entire batch size.");
+            System.out.println("----------\n1. Publish some amount of messages, but not entire batch size.");
             publish(js, exArgs.subject, "A", 4);
             List<Message> messages = readMessagesAck(sub);
             System.out.println("We should have received 4 total messages, we received: " + messages.size());
@@ -94,6 +97,9 @@ public class NatsJsPullSubBatchSizeUseCases {
             System.out.println("We should have received 4 total messages, we received: " + messages.size());
 
             System.out.println("----------\n");
+
+            // delete the stream since we are done with it.
+            jsm.deleteStream(exArgs.stream);
         }
         catch (Exception e) {
             e.printStackTrace();

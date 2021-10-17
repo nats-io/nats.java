@@ -33,7 +33,7 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
     @Test
     public void testQueueSubWorkflow() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -146,7 +146,7 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
     @Test
     public void testQueueSubErrors() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.

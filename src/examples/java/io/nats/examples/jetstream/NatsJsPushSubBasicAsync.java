@@ -22,53 +22,44 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.nats.examples.jetstream.NatsJsUtils.streamExists;
+import static io.nats.examples.jetstream.NatsJsUtils.exitIfStreamNotExists;
 
 /**
- * This example will demonstrate JetStream push subscribing with a handler. Run NatsJsPub first to setup message data.
+ * This example will demonstrate JetStream basic asynchronous push subscribing with a handler.
+ * Run NatsJsPub first to setup message data.
  */
-public class NatsJsPushSubWithHandler {
+public class NatsJsPushSubBasicAsync {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPushSubWithHandler [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable]"
+            "\nUsage: java -cp <classpath> NatsJsPushSubBasicAsync [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable]"
                     + "\n\nDefault Values:"
-                    + "\n   [-strm stream]    example-stream"
-                    + "\n   [-sub subject]    example-subject"
-                    + "\n   [-mcnt msgCount]  "
+                    + "\n   [-strm]    example-stream"
+                    + "\n   [-sub]    example-subject"
+                    + "\n   [-mcnt]  10"
                     + "\n\nRun Notes:"
                     + "\n   - durable is optional, durable behaves differently, try it by running this twice with durable set"
-                    + "\n   - msgCount should be > 0"
+                    + "\n   - try msgCount less than or equal to or greater than the number of message you have to see different behavior"
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
                     + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
                     + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
+                    + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("example-stream")
-                .defaultSubject("example-subject")
-                .defaultMsgCount(3)
-//                .defaultDurable("push-sub-handler-durable")
-                .build(args, usageString);
+        ExampleArgs exArgs = ExampleArgs.builder("Push Subscribe Basic Async", args, usageString)
+            .defaultStream("example-stream")
+            .defaultSubject("example-subject")
+            .defaultMsgCount(100)
+            // .defaultDurable("push-sub-basic-async-durable")
+            .build();
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
-            if (!streamExists(nc, exArgs.stream)) {
-                System.out.println("Stopping program, stream does not exist: " + exArgs.stream);
-                return;
-            }
-
-            // just some reporting
-            System.out.println("\nConnected to server " + exArgs.server + ". Listening to...");
-            System.out.println("  Subject: " + exArgs.subject);
-            if (exArgs.durable != null) {
-                System.out.println("  Durable: " + exArgs.durable);
-            }
-            System.out.println("  For " + exArgs.msgCount + " messages max");
+            // The stream (and data) must exist
+            exitIfStreamNotExists(nc, exArgs.stream);
 
             // create a dispatcher without a default handler.
             Dispatcher dispatcher = nc.createDispatcher();
 
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             CountDownLatch msgLatch = new CountDownLatch(exArgs.msgCount);
@@ -79,11 +70,9 @@ public class NatsJsPushSubWithHandler {
             MessageHandler handler = msg -> {
                 if (msgLatch.getCount() == 0) {
                     ignored.incrementAndGet();
-                    if (msg.isJetStream()) {
-                        System.out.println("Message Ignored, latch count already reached "
-                                + new String(msg.getData(), StandardCharsets.UTF_8));
-                        msg.nak();
-                    }
+                    System.out.println("Message Ignored, latch count already reached "
+                            + new String(msg.getData(), StandardCharsets.UTF_8));
+                    msg.nak();
                 }
                 else {
                     received.incrementAndGet();
@@ -99,30 +88,29 @@ public class NatsJsPushSubWithHandler {
                     }
 
                     System.out.printf("  Subject: %s\n  Data: %s\n",
-                            msg.getSubject(),
-                            new String(msg.getData(), StandardCharsets.UTF_8));
+                        msg.getSubject(), new String(msg.getData(), StandardCharsets.UTF_8));
+                    System.out.println("  " + msg.metaData());
 
-                    // This check may not be necessary for this example depending
-                    // on how the consumer has been setup.  When a deliver subject
-                    // is set on a consumer, messages can be received from applications
-                    // that are NATS producers and from streams in NATS servers.
-                    if (msg.isJetStream()) {
-                        System.out.println("  " + msg.metaData());
-                        msg.ack();
-                    }
+                    // This example here's no auto-ack.
+                    // The default Consumer Configuration AckPolicy is Explicit
+                    // so we need to ack the message or it'll be redelivered.
+                    msg.ack();
 
                     msgLatch.countDown();
                 }
             };
 
-            // A push subscription means the server will "push" us messages.
-            // Build our subscription options. We'll create a durable subscription.
-            // Durable means the server will remember where we are if we use that name.
-            PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder();
-            if (exArgs.durable != null) {
-                builder.durable(exArgs.durable);
-            }
-            PushSubscribeOptions so = builder.build();
+            // Build our subscription options.
+            // * A push subscription means the server will "push" us messages.
+            // * Durable means the server will remember where we are if we use that name.
+            // * Durable can by null or empty, the builder treats them the same.
+            // * The stream name is not technically required. If it is not provided, the
+            //   code building the subscription will look it up by making a request to the server.
+            //   If you know the stream name, you might as well supply it and save a trip to the server.
+            PushSubscribeOptions so = PushSubscribeOptions.builder()
+                .stream(exArgs.stream)
+                .durable(exArgs.durable) // it's okay if this is null, the builder handles it
+                .build();
 
             // Subscribe using the handler
             js.subscribe(exArgs.subject, dispatcher, handler, false, so);
@@ -130,8 +118,8 @@ public class NatsJsPushSubWithHandler {
             // Wait for messages to arrive using the countdown latch. But don't wait forever.
             boolean countReachedZero = msgLatch.await(3, TimeUnit.SECONDS);
 
-            System.out.printf("Received %d messages. Ignored %d messages. Timeout out ? %B.\n",
-                    received.get(), ignored.get(), !countReachedZero) ;
+            System.out.printf("\nReceived %d messages. Ignored %d messages. Count Reached Zero ? %B.\n",
+                    received.get(), ignored.get(), countReachedZero) ;
         }
         catch (Exception e) {
             e.printStackTrace();

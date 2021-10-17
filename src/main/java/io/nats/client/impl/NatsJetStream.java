@@ -217,7 +217,6 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             stream = pullSubscribeOptions.getStream();
 
             ccBuilder = ConsumerConfiguration.builder(pullSubscribeOptions.getConsumerConfiguration());
-
             userCC = ccBuilder.build();
 
             queueName = null; // should already be, just make sure
@@ -233,7 +232,9 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             // figure out the queue name
             queueName = validateMustMatchIfBothSupplied(ccBuilder.getDeliverGroup(), queueName,
                 "[SUB-Q01] Consumer Configuration DeliverGroup", "Queue Name");
-            ccBuilder.deliverGroup(queueName); // and set it in case the deliver group was null
+
+            // deliver subject does not have to be cleared, and set it in case the deliver group was null
+            ccBuilder.deliverGroup(queueName);
 
             // did queue stuff before setting userCC because user can provide only queue
             // and we make it deliverGroup normally below, so do the same here
@@ -265,7 +266,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 if (isPullMode) {
                     if (!nullOrEmpty(lookedUp)) {
                         throw new IllegalArgumentException(
-                                String.format("[SUB-DS01] Consumer is already configured as a push consumer with deliver subject '%s'.", lookedUp));
+                            String.format("[SUB-DS01] Consumer is already configured as a push consumer with deliver subject '%s'.", lookedUp));
                     }
                 }
                 else if (nullOrEmpty(lookedUp)) {
@@ -273,7 +274,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 }
                 else if (inboxDeliver != null && !inboxDeliver.equals(lookedUp)) {
                     throw new IllegalArgumentException(
-                            String.format("[SUB-DS03] Existing consumer deliver subject '%s' does not match requested deliver subject '%s'.", lookedUp, inboxDeliver));
+                        String.format("[SUB-DS03] Existing consumer deliver subject '%s' does not match requested deliver subject '%s'.", lookedUp, inboxDeliver));
                 }
 
                 // durable already exists, make sure the filter subject matches
@@ -303,7 +304,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 }
                 else if (!lookedUp.equals(queueName)) {
                     throw new IllegalArgumentException(
-                            String.format("[SUB-Q03] Existing consumer deliver group '%s' does not match requested queue / deliver group '%s'.", lookedUp, queueName));
+                        String.format("[SUB-Q03] Existing consumer deliver group '%s' does not match requested queue / deliver group '%s'.", lookedUp, queueName));
                 }
 
                 // check to see if the user sent a different version than the server has
@@ -376,7 +377,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         return sub;
     }
 
-    public static String userVersusServer(ConsumerConfiguration user, ConsumerConfiguration server) {
+    static String userVersusServer(ConsumerConfiguration user, ConsumerConfiguration server) {
 
         StringBuilder sb = new StringBuilder();
         comp(sb, user.getFlowControl(), server.getFlowControl(), "Flow Control");
@@ -415,7 +416,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         if (sb.length() > 0) {
             sb.append(", ");
         }
-        sb.append(String.format("%s [%s vs. %s]", name, requested, retrieved));
+        sb.append(name).append(" [").append(requested).append(" vs. ").append(retrieved).append(']');
     }
 
     /**

@@ -14,6 +14,7 @@
 package io.nats.examples.jetstream;
 
 import io.nats.client.Connection;
+import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamManagement;
 import io.nats.client.Nats;
 import io.nats.client.api.PurgeResponse;
@@ -25,72 +26,81 @@ import io.nats.examples.ExampleUtils;
 
 import java.util.List;
 
-import static io.nats.examples.jetstream.NatsJsUtils.printObject;
-import static io.nats.examples.jetstream.NatsJsUtils.publish;
+import static io.nats.examples.jetstream.NatsJsUtils.*;
 
 /**
  * This example will demonstrate JetStream management (admin) api.
  */
 public class NatsJsManageStreams {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsManageStreams [-s server]"
-                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
-                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
-                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
-
-    private static final String STREAM1 = "manage-stream1";
-    private static final String STREAM2 = "manage-stream2";
-    private static final String SUBJECT1 = "manage-subject1";
-    private static final String SUBJECT2 = "manage-subject2";
-    private static final String SUBJECT3 = "manage-subject3";
-    private static final String SUBJECT4 = "manage-subject4";
+        "\nUsage: java -cp <classpath> NatsJsManageStreams [-s server] [-strm stream-prefix] [-sub subject-prefix]"
+            + "\n\nDefault Values:"
+            + "\n   [-strm] manage-stream-"
+            + "\n   [-sub] manage-subject-"
+            + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+            + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+            + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+            + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleUtils.optionalServer(args, usageString);
+        ExampleArgs exArgs = ExampleArgs.builder("Manage Streams", args, usageString)
+            .defaultStream("manage-stream-")
+            .defaultSubject("manage-subject-")
+            .build();
+
+        String stream1 = exArgs.stream + "1";
+        String stream2 = exArgs.stream + "2";
+        String subject1 = exArgs.subject + "1";
+        String subject2 = exArgs.subject + "2";
+        String subject3 = exArgs.subject + "3";
+        String subject4 = exArgs.subject + "4";
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
 
             // Create a JetStreamManagement context.
             JetStreamManagement jsm = nc.jetStreamManagement();
 
+            // we want to be able to completely create and delete the streams
+            // so don't want to work with existing streams
+            exitIfStreamExists(jsm, stream1);
+            exitIfStreamExists(jsm, stream2);
+
             // 1. Create (add) a stream with a subject
-            // -  Full configuration schema:
-            //    https://github.com/nats-io/jsm.go/blob/main/schemas/jetstream/api/v1/stream_configuration.json
             System.out.println("\n----------\n1. Configure And Add Stream 1");
             StreamConfiguration streamConfig = StreamConfiguration.builder()
-                    .name(STREAM1)
-                    .subjects(SUBJECT1)
-                    // .retentionPolicy(...)
-                    // .maxConsumers(...)
-                    // .maxBytes(...)
-                    // .maxAge(...)
-                    // .maxMsgSize(...)
-                    .storageType(StorageType.Memory)
-                    // .replicas(...)
-                    // .noAck(...)
-                    // .template(...)
-                    // .discardPolicy(...)
-                    .build();
+                .name(stream1)
+                .subjects(subject1)
+                // .retentionPolicy(...)
+                // .maxConsumers(...)
+                // .maxBytes(...)
+                // .maxAge(...)
+                // .maxMsgSize(...)
+                .storageType(StorageType.Memory)
+                // .replicas(...)
+                // .noAck(...)
+                // .template(...)
+                // .discardPolicy(...)
+                .build();
             StreamInfo streamInfo = jsm.addStream(streamConfig);
             NatsJsUtils.printStreamInfo(streamInfo);
 
             // 2. Update stream, in this case add a subject
+            //    Thre are very few properties that can actually
             // -  StreamConfiguration is immutable once created
             // -  but the builder can help with that.
             System.out.println("----------\n2. Update Stream 1");
             streamConfig = StreamConfiguration.builder(streamInfo.getConfiguration())
-                    .addSubjects(SUBJECT2).build();
+                    .addSubjects(subject2).build();
             streamInfo = jsm.updateStream(streamConfig);
             NatsJsUtils.printStreamInfo(streamInfo);
 
             // 3. Create (add) another stream with 2 subjects
             System.out.println("----------\n3. Configure And Add Stream 2");
             streamConfig = StreamConfiguration.builder()
-                    .name(STREAM2)
-                    .storageType(StorageType.Memory)
-                    .subjects(SUBJECT3, SUBJECT4)
-                    .build();
+                .name(stream2)
+                .subjects(subject3, subject4)
+                .storageType(StorageType.Memory)
+                .build();
             streamInfo = jsm.addStream(streamConfig);
             NatsJsUtils.printStreamInfo(streamInfo);
 
@@ -101,28 +111,40 @@ public class NatsJsManageStreams {
             // 4.2 get a list of all streams
             // 4.3 get a list of StreamInfo's for all streams
             System.out.println("----------\n4.1 getStreamInfo");
-            publish(nc, SUBJECT1, 5);
-            streamInfo = jsm.getStreamInfo(STREAM1);
+            publish(nc, subject1, 5);
+            streamInfo = jsm.getStreamInfo(stream1);
             NatsJsUtils.printStreamInfo(streamInfo);
 
             System.out.println("----------\n4.2 getStreamNames");
             List<String> streamNames = jsm.getStreamNames();
             printObject(streamNames);
 
-            System.out.println("----------\n4.2 getStreamNames");
+            System.out.println("----------\n4.3 getStreams");
             List<StreamInfo> streamInfos = jsm.getStreams();
             NatsJsUtils.printStreamInfoList(streamInfos);
 
             // 5. Purge a stream of it's messages
             System.out.println("----------\n5. Purge stream");
-            PurgeResponse purgeResponse = jsm.purgeStream(STREAM1);
+            PurgeResponse purgeResponse = jsm.purgeStream(stream1);
             printObject(purgeResponse);
 
-            // 6. Delete a stream
+            // 6. Delete the streams
             // Subsequent calls to getStreamInfo, deleteStream or purgeStream
-            // will throw a JetStreamApiException "stream not found (404)"
-            System.out.println("----------\n6. Delete stream");
-            jsm.deleteStream(STREAM2);
+            // will throw a JetStreamApiException "stream not found [10059]"
+            System.out.println("----------\n6. Delete streams");
+            jsm.deleteStream(stream1);
+            jsm.deleteStream(stream2);
+
+            // 7. Try to delete the consumer again and get the exception
+            System.out.println("----------\n7. Delete stream again");
+            try
+            {
+                jsm.deleteStream(stream1);
+            }
+            catch (JetStreamApiException e)
+            {
+                System.out.println("Exception was: '" + e.getMessage() + "'");
+            }
 
             System.out.println("----------\n");
         }
