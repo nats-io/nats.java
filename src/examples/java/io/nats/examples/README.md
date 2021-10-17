@@ -36,7 +36,7 @@ In the `io.nats.examples.jetstream` package...
 1. `NatsJsPushSubBasicSync.java` - push subscribing to read messages synchronously and manually acknowledges messages.
 1. `NatsJsPushSubBindDurable.java` - push subscribing with the bind options
 1. `NatsJsPushSubDeliverSubject.java` - push subscribing with a deliver subject and how the subject can be read as a regular Nats Message  
-1. `NatsJsPushSubFilterSubject.java` -
+1. `NatsJsPushSubFilterSubject.java` - push subscribing with a filter on the subjects.
 1. `NatsJsPushSubFlowControl.java` -
 1. `NatsJsPushSubHeartbeat.java` -
 1. `NatsJsPushSubQueueDurable.java` - push subscribing to read messages in a load balance queue using a durable consumer.
