@@ -360,7 +360,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             new NatsJetStreamAutoStatusManager(conn, so, consumerConfig, queueName != null, dispatcher == null);
 
         NatsSubscriptionFactory factory = (sid, lSubject, lQueueName, lConn, lDispatcher)
-            -> new NatsJetStreamSubscription(sid, lSubject, lQueueName, lConn, lDispatcher,
+            -> NatsJetStreamSubscription.getInstance(sid, lSubject, lQueueName, lConn, lDispatcher,
                     asm, this, isPullMode, fnlStream, fnlConsumerName, fnlInboxDeliver);
 
         NatsJetStreamSubscription sub;

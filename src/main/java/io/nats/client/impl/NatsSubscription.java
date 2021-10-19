@@ -120,7 +120,7 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         return nextMessageInternal(timeout);
     }
 
-    private NatsMessage nextMessageInternal(Duration timeout) throws InterruptedException {
+    protected NatsMessage nextMessageInternal(Duration timeout) throws InterruptedException {
         if (this.dispatcher != null) {
             throw new IllegalStateException(
                     "Subscriptions that belong to a dispatcher cannot respond to nextMessage directly.");

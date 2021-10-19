@@ -175,7 +175,7 @@ public class JetStreamTestBase extends TestBase {
             if (messages.size() == max) {
                 return messages;
             }
-            msg = sub.nextMessage(Duration.ofSeconds(1));
+            msg = sub.nextMessage(timeout);
         }
         return messages;
     }

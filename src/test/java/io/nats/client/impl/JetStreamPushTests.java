@@ -100,17 +100,18 @@ public class JetStreamPushTests extends JetStreamTestBase {
             sleep(1000); // give time to make sure the messages get to the client
 
             messages0 = readMessagesAck(sub3, null);
-            total = messages0.size();
-            validateRedAndTotal(5, messages0.size(), 5, total);
+            validateRedAndTotal(5, messages0.size(), 5, 5);
 
-            // Subscription 4 testing no timeout
+            // Subscription 4 testing timeout <= 0 duration / millis
             JetStreamSubscription sub4 = js.subscribe(SUBJECT, options);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
             sleep(1000); // give time to make sure the messages get to the client
+            assertNotNull(sub4.nextMessage(Duration.ZERO));
+            assertNotNull(sub4.nextMessage(-1));
 
-            messages0 = readMessagesAck(sub4, Duration.ZERO, 5);
-            total = messages0.size();
-            validateRedAndTotal(5, messages0.size(), 5, total);
+            // get the rest
+            messages0 = readMessagesAck(sub4, null);
+            validateRedAndTotal(3, messages0.size(), 3, 3);
         });
     }
 
@@ -226,6 +227,11 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertThrows(IllegalStateException.class, () -> sub.pull(1));
             assertThrows(IllegalStateException.class, () -> sub.pullNoWait(1));
             assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, Duration.ofSeconds(1)));
+            assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, 1000));
+            assertThrows(IllegalStateException.class, () -> sub.fetch(1, 1000));
+            assertThrows(IllegalStateException.class, () -> sub.fetch(1, Duration.ofSeconds(1)));
+            assertThrows(IllegalStateException.class, () -> sub.iterate(1, 1000));
+            assertThrows(IllegalStateException.class, () -> sub.iterate(1, Duration.ofSeconds(1)));
         });
     }
 
