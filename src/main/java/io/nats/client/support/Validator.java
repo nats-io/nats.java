@@ -63,6 +63,18 @@ public abstract class Validator {
         return validateKvKey(s, "Key", true);
     }
 
+    public static void validateNotSupplied(String s, String msg) {
+        if (!nullOrEmpty(s)) {
+            throw new IllegalArgumentException(msg);
+        }
+    }
+
+    public static void validateNotSupplied(long l, long dflt, String msg) {
+        if (l > dflt) {
+            throw new IllegalArgumentException(msg);
+        }
+    }
+
     public static String validateMustMatchIfBothSupplied(String s1, String s2, String label1, String label2) {
         // s1   | s2   || result
         // ---- | ---- || --------------
@@ -367,7 +379,6 @@ public abstract class Validator {
 
     static final char[] WILD_GT = {'*', '>'};
     static final char[] WILD_GT_DOT = {'*', '>', '.'};
-    static final char[] WILD_GT_DOLLAR = {'*', '>', '$'};
 
     private static boolean notPrintableOrHasWildGt(String s) {
         return notPrintableOrHasChars(s, WILD_GT);

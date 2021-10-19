@@ -284,7 +284,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the flow control flag indicating whether it's on or off
      * @return the flow control mode
      */
-    public boolean getFlowControl() {
+    public boolean isFlowControl() {
         return flowControl;
     }
 
@@ -347,28 +347,8 @@ public class ConsumerConfiguration implements JsonSerializable {
         private long maxAckPending = -1;
         private Duration idleHeartbeat = Duration.ZERO;
         private boolean flowControl;
-        private long maxPullWaiting = -1;
+        private long maxPullWaiting = 0;
         private boolean headersOnly;
-
-        public String getDurable() {
-            return durable;
-        }
-
-        public String getDeliverSubject() {
-            return deliverSubject;
-        }
-
-        public String getDeliverGroup() {
-            return deliverGroup;
-        }
-
-        public String getFilterSubject() {
-            return filterSubject;
-        }
-
-        public AckPolicy getAckPolicy() {
-            return ackPolicy;
-        }
 
         public Builder() {}
 
@@ -400,7 +380,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return the builder
          */
         public Builder description(String description) {
-            this.description = description;
+            this.description = emptyAsNull(description);
             return this;
         }
 

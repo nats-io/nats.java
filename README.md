@@ -542,18 +542,23 @@ Subscription creation has many checks to make sure that a valid, operable subscr
 
 | Code | Description |
 | --- | --- |
-| SUB-CC01 | Existing consumer cannot be modified. |
+| SUB-PL01 | Pull Mode can't have a deliver group. |
+| SUB-PL02 | Pull Mode can't have a deliver subject. |
+| SUB-PS01 | Push mode cannot supply max pull waiting. |
+| SUB-QM01 | Consumer Configuration DeliverGroup Mismatch |
+| SUB-FH01 | Flow Control and/or Heartbeat is not valid with a Pull subscription. |
+| SUB-FH02 | Flow Control and/or Heartbeat is not valid in Queue Mode. |
+| SUB-ST01 | No matching streams for subject _subject_ |
 | SUB-DS01 | Consumer is already configured as a push consumer with deliver subject _subject_ |
 | SUB-DS02 | Consumer is already configured as a pull consumer with no deliver subject. |
 | SUB-DS03 | Existing consumer deliver subject _subject_ does not match requested deliver subject _subject_. |
 | SUB-FS01 | Subject _subject_ mismatches consumer configuration _config_. |
 | SUB-PB01 | Consumer _consumer_ is already bound to a subscription. |
-| SUB-Q01 | Existing consumer _consumer_ is not configured as a queue / deliver group. |
-| SUB-Q02 | Existing consumer _consumer_ is configured as a queue / deliver group. |
-| SUB-Q03 | Existing consumer deliver group _dgroup_ does not match requested queue / deliver group _q/dgroup_. |
-| SUB-BND01 | Consumer not found for durable. Required in bind mode. |
-| SUB-QM01 | Cannot use queue when consumer has Flow Control or Heartbeat. |
-
+| SUB-QU01 | Existing consumer _consumer_ is not configured as a queue / deliver group. |
+| SUB-QU02 | Existing consumer _consumer_ is configured as a queue / deliver group. |
+| SUB-QU03 | Existing consumer deliver group _dgroup_ does not match requested queue / deliver group _q/dgroup_. |
+| SUB-CC01 | Existing consumer cannot be modified. |
+| SUB-BM01 | Consumer not found for durable. Required in bind mode. |
 
 ### Message Acknowledgements
 

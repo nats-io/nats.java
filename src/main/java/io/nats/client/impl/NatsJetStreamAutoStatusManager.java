@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
 public class NatsJetStreamAutoStatusManager {
+
     private static final List<Integer> PULL_KNOWN_STATUS_CODES = Arrays.asList(404, 408);
     private static final int THRESHOLD = 3;
 
@@ -89,7 +90,7 @@ public class NatsJetStreamAutoStatusManager {
                 }
                 hb = true;
             }
-            fc = hb && cc.getFlowControl(); // can't have fc w/o heartbeat
+            fc = hb && cc.isFlowControl(); // can't have fc w/o heartbeat
         }
 
         errorListener = conn.getOptions().getErrorListener() == null

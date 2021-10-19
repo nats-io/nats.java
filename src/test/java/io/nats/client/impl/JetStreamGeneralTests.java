@@ -490,11 +490,11 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             PushSubscribeOptions pushso = PushSubscribeOptions.bind(STREAM, DURABLE);
             IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushso));
-            assertTrue(iae.getMessage().contains("[SUB-BND01]"));
+            assertTrue(iae.getMessage().contains("[SUB-BM01]"));
 
             PullSubscribeOptions pullso = PullSubscribeOptions.bind(STREAM, DURABLE);
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pullso));
-            assertTrue(iae.getMessage().contains("[SUB-BND01]"));
+            assertTrue(iae.getMessage().contains("[SUB-BM01]"));
         });
     }
 
@@ -585,7 +585,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             ccbmEx(js, durBuilder().maxDeliver(5), "Max Deliver");
             ccbmEx(js, durBuilder().rateLimit(5), "Rate Limit");
             ccbmEx(js, durBuilder().maxAckPending(5), "Max Ack Pending");
-            ccbmEx(js, durBuilder().maxPullWaiting(5), "Max Pull Waiting");
 
             // coverage for more than one problem
             ccbmEx(js, durBuilder().startSequence(5).maxDeliver(5), "Start Sequence", "Max Deliver");
@@ -596,9 +595,13 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             ccbmOk(js, durBuilder().maxDeliver(-1));
             ccbmOk(js, durBuilder().rateLimit(0));
             ccbmOk(js, durBuilder().rateLimit(-1));
-            ccbmOk(js, durBuilder().maxAckPending(20000));
+            ccbmOk(js, durBuilder().maxAckPending(20000)); // 20000 is the default
             ccbmOk(js, durBuilder().maxPullWaiting(0));
-            ccbmOk(js, durBuilder().maxPullWaiting(512));
+
+            ConsumerConfiguration.Builder builder2 = ConsumerConfiguration.builder().durable(durable(2));
+            nc.jetStreamManagement().addOrUpdateConsumer(STREAM, builder2.build());
+            ccbmExPull(js, builder2.maxPullWaiting(999), "Max Pull Waiting");
+            ccbmOkPull(js, builder2.maxPullWaiting(512)); // 512 is the default
         });
     }
 
@@ -606,9 +609,23 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()).unsubscribe();
     }
 
+    private void ccbmOkPull(JetStream js, ConsumerConfiguration.Builder builder) throws IOException, JetStreamApiException {
+        js.subscribe(SUBJECT, PullSubscribeOptions.builder().configuration(builder.build()).build()).unsubscribe();
+    }
+
     private void ccbmEx(JetStream js, ConsumerConfiguration.Builder builder, String... errs) {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()));
+        assertTrue(iae.getMessage().contains("[SUB-CC01]"));
+        for (String err : errs) {
+            assertTrue(iae.getMessage().contains(err));
+        }
+    }
+
+    private void ccbmExPull(JetStream js, ConsumerConfiguration.Builder builder, String... errs) {
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+            () -> js.subscribe(SUBJECT, PullSubscribeOptions.builder().configuration(builder.build()).build()));
+        System.out.println(iae);
         assertTrue(iae.getMessage().contains("[SUB-CC01]"));
         for (String err : errs) {
             assertTrue(iae.getMessage().contains(err));
