@@ -370,9 +370,9 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             sub = (NatsJetStreamSubscription) conn.createSubscription(inboxDeliver, qgroup, null, factory);
         }
         else {
-            NatsJetStreamSubscriptionMessageHandler njssmh =
+            NatsJetStreamSubscriptionMessageHandler handler =
                 new NatsJetStreamSubscriptionMessageHandler(asm, userMh, autoAck);
-            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, qgroup, njssmh, factory);
+            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, qgroup, handler, factory);
         }
 
         asm.setSub(sub);
