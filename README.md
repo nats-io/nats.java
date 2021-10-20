@@ -542,12 +542,12 @@ Subscription creation has many checks to make sure that a valid, operable subscr
 
 | Code | Description |
 | --- | --- |
-| SUB-PL01 | Pull Mode can't have a deliver group. |
-| SUB-PL02 | Pull Mode can't have a deliver subject. |
-| SUB-PS01 | Push mode cannot supply max pull waiting. |
-| SUB-QM01 | Consumer Configuration DeliverGroup Mismatch |
+| SUB-PL01 | Pull subscriptions can't have a deliver group. |
+| SUB-PL02 | Pull subscriptions can't have a deliver subject. |
+| SUB-PS01 | Push subscriptions cannot supply max pull waiting. |
 | SUB-FH01 | Flow Control and/or Heartbeat is not valid with a Pull subscription. |
 | SUB-FH02 | Flow Control and/or Heartbeat is not valid in Queue Mode. |
+| SUB-QM01 | Consumer Configuration DeliverGroup Mismatch |
 | SUB-ST01 | No matching streams for subject _subject_ |
 | SUB-DS01 | Consumer is already configured as a push consumer with deliver subject _subject_ |
 | SUB-DS02 | Consumer is already configured as a pull consumer with no deliver subject. |

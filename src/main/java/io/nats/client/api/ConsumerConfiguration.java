@@ -669,7 +669,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         MAX_DELIVER("Max Deliver", 1, -1, -1),
         RATE_LIMIT("Rate Limit", 1, -1, -1),
         MAX_ACK_PENDING("Max Ack Pending", 0, 0, 20000L),
-        MAX_PULL_WAITING("Max Pull Waiting", 1, 0, 512);
+        MAX_PULL_WAITING("Max Pull Waiting", 0, 0, 512);
 
         String err;
         long min;

@@ -186,14 +186,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testNoMatchingStreams() throws Exception {
-        runInJsServer(nc -> {
-            JetStream js = nc.jetStream();
-            assertThrows(IllegalStateException.class, () -> js.subscribe(SUBJECT));
-        });
-    }
-
-    @Test
     public void testFilterSubjectEphemeral() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context.
@@ -488,12 +480,13 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
             createTestStream(nc);
 
-            PushSubscribeOptions pushso = PushSubscribeOptions.bind(STREAM, DURABLE);
-            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushso));
+            // bind errors
+            PushSubscribeOptions pushbinderr = PushSubscribeOptions.bind(STREAM, "binddur");
+            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushbinderr));
             assertTrue(iae.getMessage().contains("[SUB-BM01]"));
 
-            PullSubscribeOptions pullso = PullSubscribeOptions.bind(STREAM, DURABLE);
-            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pullso));
+            PullSubscribeOptions pullbinderr = PullSubscribeOptions.bind(STREAM, "binddur");
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pullbinderr));
             assertTrue(iae.getMessage().contains("[SUB-BM01]"));
         });
     }
@@ -616,16 +609,16 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     private void ccbmEx(JetStream js, ConsumerConfiguration.Builder builder, String... errs) {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()));
-        assertTrue(iae.getMessage().contains("[SUB-CC01]"));
-        for (String err : errs) {
-            assertTrue(iae.getMessage().contains(err));
-        }
+        _ccbmEx(iae, errs);
     }
 
     private void ccbmExPull(JetStream js, ConsumerConfiguration.Builder builder, String... errs) {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> js.subscribe(SUBJECT, PullSubscribeOptions.builder().configuration(builder.build()).build()));
-        System.out.println(iae);
+        _ccbmEx(iae, errs);
+    }
+
+    private void _ccbmEx(IllegalArgumentException iae, String[] errs) {
         assertTrue(iae.getMessage().contains("[SUB-CC01]"));
         for (String err : errs) {
             assertTrue(iae.getMessage().contains(err));
@@ -679,5 +672,85 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         njsm.subscription = new NatsSubscription("sid", "sub", "q", null, null);
         ise = assertThrows(IllegalStateException.class, njsm::getJetStreamValidatedConnection);
         assertTrue(ise.getMessage().contains("connection"));
+    }
+
+    @Test
+    public void testMoreCreateSubscriptionErrors() throws Exception {
+        runInJsServer(nc -> {
+            JetStream js = nc.jetStream();
+
+            IllegalStateException ise = assertThrows(IllegalStateException.class, () -> js.subscribe(SUBJECT));
+            assertTrue(ise.getMessage().contains("[SUB-ST01]"));
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            IllegalArgumentException iae;
+
+            // general pull push validation
+            ConsumerConfiguration ccCantHave = ConsumerConfiguration.builder().durable("pulldur").deliverGroup("cantHave").build();
+            PullSubscribeOptions pullCantHaveDlvrGrp = PullSubscribeOptions.builder().configuration(ccCantHave).build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pullCantHaveDlvrGrp));
+            assertTrue(iae.getMessage().contains("[SUB-PL01]"));
+
+            ccCantHave = ConsumerConfiguration.builder().durable("pulldur").deliverSubject("cantHave").build();
+            PullSubscribeOptions pullCantHaveDlvrSub = PullSubscribeOptions.builder().configuration(ccCantHave).build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pullCantHaveDlvrSub));
+            assertTrue(iae.getMessage().contains("[SUB-PL02]"));
+
+            ccCantHave = ConsumerConfiguration.builder().maxPullWaiting(1).build();
+            PushSubscribeOptions pushCantHaveMpw = PushSubscribeOptions.builder().configuration(ccCantHave).build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushCantHaveMpw));
+            assertTrue(iae.getMessage().contains("[SUB-PS01]"));
+
+            // create some consumers
+            PushSubscribeOptions psoDurNoQ = PushSubscribeOptions.builder().durable("durNoQ").build();
+            js.subscribe(SUBJECT, psoDurNoQ);
+
+            PushSubscribeOptions psoDurYesQ = PushSubscribeOptions.builder().durable("durYesQ").build();
+            js.subscribe(SUBJECT, "yesQ", psoDurYesQ);
+
+            // already bound
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, psoDurNoQ));
+            assertTrue(iae.getMessage().contains("[SUB-PB01]"));
+
+            // queue match
+            PushSubscribeOptions qmatch = PushSubscribeOptions.builder()
+                .durable("qmatchdur").deliverGroup("qmatchq").build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, "qnotmatch", qmatch));
+            assertTrue(iae.getMessage().contains("[SUB-QM01]"));
+
+            // queue vs config
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, "notConfigured", psoDurNoQ));
+            assertTrue(iae.getMessage().contains("[SUB-QU01]"));
+
+            PushSubscribeOptions psoNoVsYes = PushSubscribeOptions.builder().durable("durYesQ").build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, psoNoVsYes));
+            assertTrue(iae.getMessage().contains("[SUB-QU02]"));
+
+            PushSubscribeOptions psoYesVsNo = PushSubscribeOptions.builder().durable("durYesQ").build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, "qnotmatch", psoYesVsNo));
+            assertTrue(iae.getMessage().contains("[SUB-QU03]"));
+
+            // flow control heartbeat push / pull
+            ConsumerConfiguration ccFc = ConsumerConfiguration.builder().durable("ccFcDur").flowControl(1000).build();
+            ConsumerConfiguration ccHb = ConsumerConfiguration.builder().durable("ccHbDur").idleHeartbeat(1000).build();
+
+            PullSubscribeOptions psoPullCcFc = PullSubscribeOptions.builder().configuration(ccFc).build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, psoPullCcFc));
+            assertTrue(iae.getMessage().contains("[SUB-FH01]"));
+
+            PullSubscribeOptions psoPullCcHb = PullSubscribeOptions.builder().configuration(ccHb).build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, psoPullCcHb));
+            assertTrue(iae.getMessage().contains("[SUB-FH01]"));
+
+            PushSubscribeOptions psoPushCcFc = PushSubscribeOptions.builder().configuration(ccFc).build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, "cantHaveQ", psoPushCcFc));
+            assertTrue(iae.getMessage().contains("[SUB-FH02]"));
+
+            PushSubscribeOptions psoPushCcHb = PushSubscribeOptions.builder().configuration(ccHb).build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, "cantHaveQ", psoPushCcHb));
+            assertTrue(iae.getMessage().contains("[SUB-FH02]"));
+        });
     }
 }
