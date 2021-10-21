@@ -51,7 +51,7 @@ public class KeyValueTests extends JetStreamTestBase {
             // create the bucket
             BucketConfiguration bc = BucketConfiguration.builder()
                     .name(BUCKET)
-                    .maxHistory(3)
+                    .maxHistoryPerKey(3)
                     .storageType(StorageType.Memory)
                     .build();
 
@@ -61,9 +61,9 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(BUCKET, bc.getName());
             assertEquals(streamName(BUCKET), bc.getBackingConfig().getName());
             assertEquals(-1, bc.getMaxValues());
-            assertEquals(3, bc.getMaxHistory());
+            assertEquals(3, bc.getMaxHistoryPerKey());
             assertEquals(-1, bc.getMaxBucketSize());
-            assertEquals(-1, bc.getMaxValueSize());
+            assertEquals(-1, bc.getMaxValueBytes());
             assertEquals(Duration.ZERO, bc.getTtl());
             assertEquals(StorageType.Memory, bc.getStorageType());
             assertEquals(1, bc.getReplicas());

@@ -63,7 +63,19 @@ public abstract class Validator {
         return validateKvKey(s, "Key", true);
     }
 
-    public static String validateMustMatchIfBothSupplied(String s1, String s2, String label1, String label2) {
+    public static void validateNotSupplied(String s, NatsJetStreamClientError err) {
+        if (!nullOrEmpty(s)) {
+            throw err.instance();
+        }
+    }
+
+    public static void validateNotSupplied(long l, long dflt, NatsJetStreamClientError err) {
+        if (l > dflt) {
+            throw err.instance();
+        }
+    }
+
+    public static String validateMustMatchIfBothSupplied(String s1, String s2, NatsJetStreamClientError err) {
         // s1   | s2   || result
         // ---- | ---- || --------------
         // null | null || valid, null s2
@@ -82,7 +94,7 @@ public abstract class Validator {
             return s1;
         }
 
-        throw new IllegalArgumentException(String.format("%s [%s] must match the %s [%s] if both are provided.", label1, s1, label2, s2));
+        throw err.instance();
     }
 
     interface Check {
@@ -154,15 +166,6 @@ public abstract class Validator {
         });
     }
 
-    public static String validatePrintableExceptWildGtDollar(String s, String label, boolean required) {
-        return _validate(s, required, label, () -> {
-            if (notPrintableOrHasWildGtDollar(s)) {
-                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `>` or `$` [" + s + "]");
-            }
-            return s;
-        });
-    }
-
     public static int validatePullBatchSize(int pullBatchSize) {
         if (pullBatchSize < 1 || pullBatchSize > MAX_PULL_SIZE) {
             throw new IllegalArgumentException("Pull Batch Size must be between 1 and " + MAX_PULL_SIZE + " inclusive [" + pullBatchSize + "]");
@@ -179,25 +182,15 @@ public abstract class Validator {
     }
 
     public static long validateMaxBucketValues(long max) {
-        return validateGtZeroOrMinus1(max, "Max Bucket Values");
+        return validateGtZeroOrMinus1(max, "Max Bucket Values"); // max bucket values is a kv alias to max messages
     }
 
     public static long validateMaxMessagesPerSubject(long max) {
-        if (max < -1) {
-            throw new IllegalArgumentException("Max Messages per Subject must be greater than or equal to zero");
-        }
-        return max;
-        // TODO Waiting on a server change take that /\ out, put this \/ back in
-//        return validateGtZeroOrMinus1(max, "Max Messages per Subject");
+        return validateGtZeroOrMinus1(max, "Max Messages Per Subject");
     }
 
-    public static long validateMaxValuesPerKey(long max) {
-        if (max < -1) {
-            throw new IllegalArgumentException("Max Values per Key must be greater than or equal to zero");
-        }
-        return max;
-        // TODO Waiting on a server change take that /\ out, put this \/ back in
-//        return validateGtZeroOrMinus1(max, "Max Values per Key");
+    public static long validateMaxHistory(long max) {
+        return validateGtZeroOrMinus1(max, "Max History Per Key"); // max history is a kv alias to max per subject
     }
 
     public static long validateMaxBytes(long max) {
@@ -205,15 +198,15 @@ public abstract class Validator {
     }
 
     public static long validateMaxBucketBytes(long max) {
-        return validateGtZeroOrMinus1(max, "Max Bucket Bytes");
+        return validateGtZeroOrMinus1(max, "Max Bucket Bytes"); // max bucket bytes is a kv alias to max bytes
     }
 
     public static long validateMaxMessageSize(long max) {
-        return validateGtZeroOrMinus1(max, "Max Message size");
+        return validateGtZeroOrMinus1(max, "Max Message Size");
     }
 
-    public static long validateMaxValueSize(long max) {
-        return validateGtZeroOrMinus1(max, "Max Value Bytes");
+    public static long validateMaxValueBytes(long max) {
+        return validateGtZeroOrMinus1(max, "Max Value Bytes"); // max value bytes is a kv alias to max message size
     }
 
     public static int validateNumberOfReplicas(int replicas) {
@@ -386,7 +379,6 @@ public abstract class Validator {
 
     static final char[] WILD_GT = {'*', '>'};
     static final char[] WILD_GT_DOT = {'*', '>', '.'};
-    static final char[] WILD_GT_DOLLAR = {'*', '>', '$'};
 
     private static boolean notPrintableOrHasWildGt(String s) {
         return notPrintableOrHasChars(s, WILD_GT);
@@ -394,10 +386,6 @@ public abstract class Validator {
 
     private static boolean notPrintableOrHasWildGtDot(String s) {
         return notPrintableOrHasChars(s, WILD_GT_DOT);
-    }
-
-    private static boolean notPrintableOrHasWildGtDollar(String s) {
-        return notPrintableOrHasChars(s, WILD_GT_DOLLAR);
     }
 
     public static String emptyAsNull(String s) {

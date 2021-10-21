@@ -57,7 +57,7 @@ public class BucketConfiguration {
      * Gets the maximum number of history for any one key. Includes the current value.
      * @return the maximum number of values for any one key.
      */
-    public long getMaxHistory() {
+    public long getMaxHistoryPerKey() {
         return sc.getMaxMsgsPerSubject();
     }
 
@@ -73,7 +73,7 @@ public class BucketConfiguration {
      * Gets the maximum number of bytes for an individual value in the bucket.
      * @return the maximum bytes for a value.
      */      
-    public long getMaxValueSize() {
+    public long getMaxValueBytes() {
         return sc.getMaxMsgSize();
     }
 
@@ -115,9 +115,9 @@ public class BucketConfiguration {
         return "BucketConfiguration{" +
                 "name='" + name + '\'' +
                 ", maxValues=" + getMaxValues() +
-                ", maxHistory=" + getMaxHistory() +
+                ", maxHistoryPerKey=" + getMaxHistoryPerKey() +
                 ", maxBucketSize=" + getMaxBucketSize() +
-                ", maxValueSize=" + getMaxValueSize() +
+                ", maxValueBytes=" + getMaxValueBytes() +
                 ", ttl=" + getTtl() +
                 ", storageType=" + getStorageType() +
                 ", replicas=" + getReplicas() +
@@ -168,7 +168,7 @@ public class BucketConfiguration {
         public Builder(BucketConfiguration bc) {
             if (bc == null) {
                 scBuilder = new StreamConfiguration.Builder();
-                maxHistory(1);
+                maxHistoryPerKey(1);
             }
             else {
                 scBuilder = new StreamConfiguration.Builder(bc.sc);
@@ -198,11 +198,11 @@ public class BucketConfiguration {
 
         /**
          * Sets the maximum number of history for any one key. Includes the current value.
-         * @param maxHistory the maximum number of messages
+         * @param maxHistoryPerKey the maximum number of messages
          * @return Builder
          */
-        public BucketConfiguration.Builder maxHistory(long maxHistory) {
-            scBuilder.maxMessagesPerSubject(validateMaxValuesPerKey(maxHistory));
+        public BucketConfiguration.Builder maxHistoryPerKey(long maxHistoryPerKey) {
+            scBuilder.maxMessagesPerSubject(validateMaxHistory(maxHistoryPerKey));
             return this;
         }
 
@@ -218,11 +218,11 @@ public class BucketConfiguration {
 
         /**
          * Sets the maximum number of bytes for an individual value in the BucketConfiguration.
-         * @param maxValueSize the maximum number of bytes for a value
+         * @param maxValueBytes the maximum number of bytes for a value
          * @return Builder
          */
-        public BucketConfiguration.Builder maxValueSize(long maxValueSize) {
-            scBuilder.maxMsgSize(validateMaxValueSize(maxValueSize));
+        public BucketConfiguration.Builder maxValueBytes(long maxValueBytes) {
+            scBuilder.maxMsgSize(validateMaxValueBytes(maxValueBytes));
             return this;
         }
 

@@ -6,7 +6,7 @@ A [Java](http://java.com) client for the [NATS messaging system](https://nats.io
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Build Status](https://travis-ci.org/nats-io/nats.java.svg?branch=master)](http://travis-ci.org/nats-io/nats.java?branch=master)
-[![Coverage Status](https://coveralls.io/repos/nats-io/nats.java/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/nats.java?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/nats-io/nats.java/badge.svg?branch=main)](https://coveralls.io/github/nats-io/nats.java?branch=main)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
 [![Javadoc](http://javadoc.io/badge/io.nats/jnats.svg?branch=master)](http://javadoc.io/doc/io.nats/jnats?branch=master)
 
@@ -77,9 +77,9 @@ The java-nats client is provided in a single jar file, with a single external de
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.1/jnats-2.12.1.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.1/jnats-2.12.1.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.13.0/jnats-2.13.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.13.0/jnats-2.13.0.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.1/jnats-2.12.1-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.12.1/jnats-2.12.1-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.13.0/jnats-2.13.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.13.0/jnats-2.13.0-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
@@ -89,7 +89,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.12.1'
+    implementation 'io.nats:jnats:2.13.0'
 }
 ```
 
@@ -115,7 +115,7 @@ repositories {
 }
 
 dependencies {
-   implementation 'io.nats:jnats:2.12.1-SNAPSHOT'
+   implementation 'io.nats:jnats:2.13.0-SNAPSHOT'
 }
 ```
 
@@ -127,7 +127,7 @@ The NATS client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.12.1</version>
+    <version>2.13.0</version>
 </dependency>
 ```
 
@@ -161,7 +161,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.12.1-SNAPSHOT</version>
+    <version>2.13.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -535,6 +535,30 @@ messages, one for each message the previous batch was short. You can just ignore
 
 See `NatsJsPullSubExpire.java` and `NatsJsPullSubExpireUseCases.java`
 in the JetStream examples for detailed and runnable examples.
+
+### Subscription Creation
+
+Subscription creation has many checks to make sure that a valid, operable subscription can be made.
+
+| Name | Group | Code | Description |
+| --- | --- | --- | --- |
+| JsPullSubCantHaveDeliverGroup | SUB | 90001 | Pull subscriptions can't have a deliver group. |
+| JsPullSubCantHaveDeliverSubject | SUB | 90002 | Pull subscriptions can't have a deliver subject. |
+| JsPushSubCantHaveMaxPullWaiting | SUB | 90003 | Push subscriptions cannot supply max pull waiting. |
+| JsQueueDeliverGroupMismatch | SUB | 90004 | Queue / deliver group mismatch. |
+| JsFcHbNotValidPull | SUB | 90005 | Flow Control and/or heartbeat is not valid with a pull subscription. |
+| JsFcHbHbNotValidQueue | SUB | 90006 | Flow Control and/or heartbeat is not valid in queue mode. |
+| JsNoMatchingStreamForSubject | SUB | 90007 | No matching streams for subject. |
+| JsConsumerAlreadyConfiguredAsPush | SUB | 90008 | Consumer is already configured as a push consumer. |
+| JsConsumerAlreadyConfiguredAsPull | SUB | 90009 | Consumer is already configured as a pull consumer. |
+| JsExistingDeliverSubjectMismatch | SUB | 90010 | Existing consumer deliver subject does not match requested deliver subject. |
+| JsSubjectDoesNotMatchFilter | SUB | 90011 | Subject does not match consumer configuration filter. |
+| JsConsumerAlreadyBound | SUB | 90012 | Consumer is already bound to a subscription. |
+| JsExistingConsumerNotQueue | SUB | 90013 | Existing consumer is not configured as a queue / deliver group. |
+| JsExistingConsumerIsQueue | SUB | 90014 | Existing consumer  is configured as a queue / deliver group. |
+| JsExistingQueueDoesNotMatchRequestedQueue | SUB | 90015 | Existing consumer deliver group does not match requested queue / deliver group. |
+| JsExistingConsumerCannotBeModified | SUB | 90016 | Existing consumer cannot be modified. |
+| JsConsumerNotFoundRequiredInBind | SUB | 90017 | Consumer not found, required in bind mode. |
 
 ### Message Acknowledgements
 

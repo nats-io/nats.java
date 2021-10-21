@@ -28,6 +28,8 @@ import java.util.function.LongConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.nats.client.support.Encoding.jsonDecode;
+import static io.nats.client.support.Encoding.jsonEncode;
 import static io.nats.client.support.NatsConstants.COLON;
 
 /**
@@ -202,7 +204,7 @@ public abstract class JsonUtils {
             for (String s : raw) {
                 String cleaned = s.trim().replace("\"", "");
                 if (cleaned.length() > 0) {
-                    list.add(decode(cleaned));
+                    list.add(jsonDecode(cleaned));
                 }
             }
         }
@@ -252,9 +254,9 @@ public abstract class JsonUtils {
     public static void addField(StringBuilder sb, String fname, String value) {
         if (value != null && value.length() > 0) {
             sb.append(Q);
-            encode(sb, fname);
+            jsonEncode(sb, fname);
             sb.append(QCOLONQ);
-            encode(sb, value);
+            jsonEncode(sb, value);
             sb.append(QCOMMA);
         }
     }
@@ -270,9 +272,9 @@ public abstract class JsonUtils {
             value = "";
         }
         sb.append(Q);
-        encode(sb, fname);
+        jsonEncode(sb, fname);
         sb.append(QCOLONQ);
-        encode(sb, value);
+        jsonEncode(sb, value);
         sb.append(QCOMMA);
     }
 
@@ -284,7 +286,7 @@ public abstract class JsonUtils {
      */
     public static void addField(StringBuilder sb, String fname, boolean value) {
         sb.append(Q);
-        encode(sb, fname);
+        jsonEncode(sb, fname);
         sb.append(QCOLON).append(value ? "true" : "false").append(COMMA);
     }
 
@@ -309,7 +311,7 @@ public abstract class JsonUtils {
     public static void addField(StringBuilder sb, String fname, long value) {
         if (value >= 0) {
             sb.append(Q);
-            encode(sb, fname);
+            jsonEncode(sb, fname);
             sb.append(QCOLON).append(value).append(COMMA);
         }
     }
@@ -323,7 +325,7 @@ public abstract class JsonUtils {
     public static void addFieldAsNanos(StringBuilder sb, String fname, Duration value) {
         if (value != null && value != Duration.ZERO) {
             sb.append(Q);
-            encode(sb, fname);
+            jsonEncode(sb, fname);
             sb.append(QCOLON).append(value.toNanos()).append(COMMA);
         }
     }
@@ -337,7 +339,7 @@ public abstract class JsonUtils {
     public static void addField(StringBuilder sb, String fname, JsonSerializable value) {
         if (value != null) {
             sb.append(Q);
-            encode(sb, fname);
+            jsonEncode(sb, fname);
             sb.append(QCOLON).append(value.toJson()).append(COMMA);
         }
     }
@@ -368,12 +370,12 @@ public abstract class JsonUtils {
         }
 
         sb.append(Q);
-        encode(sb, fname);
+        jsonEncode(sb, fname);
         sb.append("\":[");
         for (int i = 0; i < strings.size(); i++) {
             String s = strings.get(i);
             sb.append(Q);
-            encode(sb, s);
+            jsonEncode(sb, s);
             sb.append(Q);
             if (i < strings.size()-1) {
                 sb.append(COMMA);
@@ -394,7 +396,7 @@ public abstract class JsonUtils {
         }
 
         sb.append(Q);
-        encode(sb, fname);
+        jsonEncode(sb, fname);
         sb.append("\":[");
         for (int i = 0; i < jsons.size(); i++) {
             JsonSerializable s = jsons.get(i);
@@ -415,7 +417,7 @@ public abstract class JsonUtils {
     public static void addField(StringBuilder sb, String fname, ZonedDateTime zonedDateTime) {
         if (zonedDateTime != null) {
             sb.append(Q);
-            encode(sb, fname);
+            jsonEncode(sb, fname);
             sb.append(QCOLONQ)
                     .append(DateTimeUtils.toRfc3339(zonedDateTime)).append(QCOMMA);
         }
@@ -427,7 +429,7 @@ public abstract class JsonUtils {
 
     public static String readString(String json, Pattern pattern, String dflt) {
         Matcher m = pattern.matcher(json);
-        return m.find() ? decode(m.group(1)) : dflt;
+        return m.find() ? jsonDecode(m.group(1)) : dflt;
     }
 
     public static byte[] readBytes(String json, Pattern pattern) {
@@ -506,92 +508,6 @@ public abstract class JsonUtils {
         Matcher m = pattern.matcher(json);
         if (m.find()) {
             c.accept(Duration.ofNanos(Long.parseLong(m.group(1))));
-        }
-    }
-
-    public static String decode(String s) {
-        int len = s.length();
-        StringBuilder sb = new StringBuilder(len);
-        for (int x = 0; x < len; x++) {
-            char ch = s.charAt(x);
-            if (ch == '\\') {
-                char nextChar = (x == len - 1) ? '\\' : s.charAt(x + 1);
-                switch (nextChar) {
-                    case '\\':
-                        ch = '\\';
-                        break;
-                    case 'b':
-                        ch = '\b';
-                        break;
-                    case 'f':
-                        ch = '\f';
-                        break;
-                    case 'n':
-                        ch = '\n';
-                        break;
-                    case 'r':
-                        ch = '\r';
-                        break;
-                    case 't':
-                        ch = '\t';
-                        break;
-                    // Hex Unicode: u????
-                    case 'u':
-                        if (x >= len - 5) {
-                            ch = 'u';
-                            break;
-                        }
-                        int code = Integer.parseInt(
-                                "" + s.charAt(x + 2) + s.charAt(x + 3) + s.charAt(x + 4) + s.charAt(x + 5), 16);
-                        sb.append(Character.toChars(code));
-                        x += 5;
-                        continue;
-                    default:
-                        ch = nextChar;
-                        break;
-                }
-                x++;
-            }
-            sb.append(ch);
-        }
-        return sb.toString();
-    }
-
-    public static void encode(StringBuilder sb, String s) {
-        int len = s.length();
-        for (int x = 0; x < len; x++) {
-            char ch = s.charAt(x);
-            switch (ch) {
-                case '"':
-                    sb.append("\\\"");
-                    break;
-                case '\\':
-                    sb.append("\\\\");
-                    break;
-                case '\b':
-                    sb.append("\\b");
-                    break;
-                case '\f':
-                    sb.append("\\f");
-                    break;
-                case '\n':
-                    sb.append("\\n");
-                    break;
-                case '\r':
-                    sb.append("\\r");
-                    break;
-                case '\t':
-                    sb.append("\\t");
-                    break;
-                default:
-                    if (ch < ' ') {
-                        sb.append(String.format("\\u%04X", (int) ch));
-                    }
-                    else {
-                        sb.append(ch);
-                    }
-                    break;
-            }
         }
     }
 

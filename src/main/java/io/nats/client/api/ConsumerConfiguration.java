@@ -13,6 +13,9 @@
 
 package io.nats.client.api;
 
+import io.nats.client.PullSubscribeOptions;
+import io.nats.client.PushSubscribeOptions;
+import io.nats.client.support.ApiConstants;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.Validator;
@@ -34,8 +37,9 @@ import static io.nats.client.support.Validator.emptyAsNull;
 public class ConsumerConfiguration implements JsonSerializable {
 
     public static final Duration MIN_ACK_WAIT = Duration.ofNanos(1);
-    public static final Duration MIN_DEFAULT_IDLE_HEARTBEAT = Duration.ZERO;
+    public static final Duration MIN_IDLE_HEARTBEAT = Duration.ZERO;
     public static final Duration DEFAULT_ACK_WAIT = Duration.ofSeconds(30);
+    public static final Duration DEFAULT_IDLE_HEARTBEAT = Duration.ZERO;
 
     private final DeliverPolicy deliverPolicy;
     private final AckPolicy ackPolicy;
@@ -45,21 +49,22 @@ public class ConsumerConfiguration implements JsonSerializable {
     private final String durable;
     private final String deliverSubject;
     private final String deliverGroup;
-    private final long startSeq;
     private final ZonedDateTime startTime;
     private final Duration ackWait;
-    private final long maxDeliver;
     private final String filterSubject;
     private final String sampleFrequency;
-    private final long rateLimit;
-    private final long maxAckPending;
     private final Duration idleHeartbeat;
     private final boolean flowControl;
+    private final boolean headersOnly;
+
+    private final long startSeq;
+    private final long maxDeliver;
+    private final long rateLimit;
+    private final long maxAckPending;
     private final long maxPullWaiting;
 
     // for the response from the server
     ConsumerConfiguration(String json) {
-
         Matcher m = DELIVER_POLICY_RE.matcher(json);
         deliverPolicy = m.find() ? DeliverPolicy.get(m.group(1)) : DeliverPolicy.All;
 
@@ -73,43 +78,48 @@ public class ConsumerConfiguration implements JsonSerializable {
         durable = JsonUtils.readString(json, DURABLE_NAME_RE);
         deliverSubject = JsonUtils.readString(json, DELIVER_SUBJECT_RE);
         deliverGroup = JsonUtils.readString(json, DELIVER_GROUP_RE);
-        startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, 0);
         startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
         ackWait = JsonUtils.readNanos(json, ACK_WAIT_RE, Duration.ofSeconds(30));
-        maxDeliver = JsonUtils.readLong(json, MAX_DELIVER_RE, -1);
         filterSubject = JsonUtils.readString(json, FILTER_SUBJECT_RE);
         sampleFrequency = JsonUtils.readString(json, SAMPLE_FREQ_RE);
-        rateLimit = JsonUtils.readLong(json, RATE_LIMIT_BPS_RE, 0);
-        maxAckPending = JsonUtils.readLong(json, MAX_ACK_PENDING_RE, 0);
         idleHeartbeat = JsonUtils.readNanos(json, IDLE_HEARTBEAT_RE, Duration.ZERO);
         flowControl = JsonUtils.readBoolean(json, FLOW_CONTROL_RE);
-        maxPullWaiting = JsonUtils.readLong(json, MAX_PULL_WAITING_RE, 0);
+        headersOnly = JsonUtils.readBoolean(json, HEADERS_ONLY_RE);
+
+        startSeq = CcNumeric.START_SEQ.normalize(JsonUtils.readLong(json, OPT_START_SEQ_RE, -1));
+        maxDeliver = CcNumeric.MAX_DELIVER.normalize(JsonUtils.readLong(json, MAX_DELIVER_RE, -1));
+        rateLimit = CcNumeric.RATE_LIMIT.normalize(JsonUtils.readLong(json, RATE_LIMIT_BPS_RE, -1));
+        maxAckPending = CcNumeric.MAX_ACK_PENDING.normalize(JsonUtils.readLong(json, MAX_ACK_PENDING_RE, -1));
+        maxPullWaiting = CcNumeric.MAX_PULL_WAITING.normalize(JsonUtils.readLong(json, MAX_WAITING_RE, 0));
     }
 
     // For the builder
     private ConsumerConfiguration(String description, String durable, DeliverPolicy deliverPolicy, long startSeq,
             ZonedDateTime startTime, AckPolicy ackPolicy, Duration ackWait, long maxDeliver, String filterSubject,
             ReplayPolicy replayPolicy, String sampleFrequency, long rateLimit, String deliverSubject, String deliverGroup, long maxAckPending,
-            Duration idleHeartbeat, boolean flowControl, long maxPullWaiting)
+            Duration idleHeartbeat, boolean flowControl, long maxPullWaiting, boolean headersOnly)
     {
+        this.deliverPolicy = deliverPolicy;
+        this.ackPolicy = ackPolicy;
+        this.replayPolicy = replayPolicy;
+
         this.description = description;
         this.durable = durable;
-        this.deliverPolicy = deliverPolicy;
-        this.startSeq = startSeq;
         this.startTime = startTime;
-        this.ackPolicy = ackPolicy;
         this.ackWait = ackWait;
-        this.maxDeliver = maxDeliver;
         this.filterSubject = filterSubject;
-        this.replayPolicy = replayPolicy;
         this.sampleFrequency = sampleFrequency;
-        this.rateLimit = rateLimit;
         this.deliverSubject = deliverSubject;
         this.deliverGroup = deliverGroup;
-        this.maxAckPending = maxAckPending;
         this.idleHeartbeat = idleHeartbeat;
         this.flowControl = flowControl;
-        this.maxPullWaiting = maxPullWaiting;
+        this.headersOnly = headersOnly;
+
+        this.startSeq = CcNumeric.START_SEQ.normalize(startSeq);
+        this.maxDeliver = CcNumeric.MAX_DELIVER.normalize(maxDeliver);
+        this.rateLimit = CcNumeric.RATE_LIMIT.normalize(rateLimit);
+        this.maxAckPending = CcNumeric.MAX_ACK_PENDING.normalize(maxAckPending);
+        this.maxPullWaiting = CcNumeric.MAX_PULL_WAITING.normalize(maxPullWaiting);
     }
 
     /**
@@ -135,8 +145,9 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, SAMPLE_FREQ, sampleFrequency);
         JsonUtils.addField(sb, RATE_LIMIT_BPS, rateLimit);
         JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
-        JsonUtils.addField(sb, FLOW_CONTROL, flowControl);
-        JsonUtils.addField(sb, MAX_PULL_WAITING, maxPullWaiting);
+        JsonUtils.addFldWhenTrue(sb, FLOW_CONTROL, flowControl);
+        JsonUtils.addFldWhenTrue(sb, HEADERS_ONLY, headersOnly);
+        JsonUtils.addField(sb, ApiConstants.MAX_WAITING, maxPullWaiting);
         return endJson(sb).toString();
     }
 
@@ -273,7 +284,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the flow control flag indicating whether it's on or off
      * @return the flow control mode
      */
-    public boolean getFlowControl() {
+    public boolean isFlowControl() {
         return flowControl;
     }
 
@@ -283,6 +294,14 @@ public class ConsumerConfiguration implements JsonSerializable {
      */
     public long getMaxPullWaiting() {
         return maxPullWaiting;
+    }
+
+    /**
+     * Get the header only flag indicating whether it's on or off
+     * @return the flow control mode
+     */
+    public boolean getHeadersOnly() {
+        return headersOnly;
     }
 
     /**
@@ -314,7 +333,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         private String description = null;
         private String durable = null;
         private DeliverPolicy deliverPolicy = DeliverPolicy.All;
-        private long startSeq = 0;
+        private long startSeq = -1;
         private ZonedDateTime startTime = null;
         private AckPolicy ackPolicy = AckPolicy.Explicit;
         private Duration ackWait = Duration.ofSeconds(30);
@@ -322,37 +341,14 @@ public class ConsumerConfiguration implements JsonSerializable {
         private String filterSubject = null;
         private ReplayPolicy replayPolicy = ReplayPolicy.Instant;
         private String sampleFrequency = null;
-        private long rateLimit = 0;
+        private long rateLimit = -1;
         private String deliverSubject = null;
         private String deliverGroup = null;
-        private long maxAckPending = 0;
+        private long maxAckPending = -1;
         private Duration idleHeartbeat = Duration.ZERO;
         private boolean flowControl;
         private long maxPullWaiting = 0;
-
-        public String getDurable() {
-            return durable;
-        }
-
-        public String getDeliverSubject() {
-            return deliverSubject;
-        }
-
-        public String getDeliverGroup() {
-            return deliverGroup;
-        }
-
-        public String getFilterSubject() {
-            return filterSubject;
-        }
-
-        public long getMaxAckPending() {
-            return maxAckPending;
-        }
-
-        public AckPolicy getAckPolicy() {
-            return ackPolicy;
-        }
+        private boolean headersOnly;
 
         public Builder() {}
 
@@ -375,6 +371,7 @@ public class ConsumerConfiguration implements JsonSerializable {
             this.idleHeartbeat = cc.idleHeartbeat;
             this.flowControl = cc.flowControl;
             this.maxPullWaiting = cc.maxPullWaiting;
+            this.headersOnly = cc.headersOnly;
         }
 
         /**
@@ -383,7 +380,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return the builder
          */
         public Builder description(String description) {
-            this.description = description;
+            this.description = emptyAsNull(description);
             return this;
         }
 
@@ -543,7 +540,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder idleHeartbeat(Duration idleHeartbeat) {
-            this.idleHeartbeat = Validator.ensureNotNullAndNotLessThanMin(idleHeartbeat, MIN_DEFAULT_IDLE_HEARTBEAT, MIN_DEFAULT_IDLE_HEARTBEAT);
+            this.idleHeartbeat = Validator.ensureNotNullAndNotLessThanMin(idleHeartbeat, MIN_IDLE_HEARTBEAT, DEFAULT_IDLE_HEARTBEAT);
             return this;
         }
 
@@ -553,18 +550,28 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder idleHeartbeat(long idleHeartbeatMillis) {
-            this.idleHeartbeat = Validator.ensureDurationNotLessThanMin(idleHeartbeatMillis, MIN_DEFAULT_IDLE_HEARTBEAT, MIN_DEFAULT_IDLE_HEARTBEAT);
+            this.idleHeartbeat = Validator.ensureDurationNotLessThanMin(idleHeartbeatMillis, MIN_IDLE_HEARTBEAT, DEFAULT_IDLE_HEARTBEAT);
             return this;
         }
 
         /**
-         * set the flow control mode
-         * @param flowControl the flow control mode flag
+         * set the flow control on and set the idle heartbeat
+         * @param idleHeartbeat the idle heart beat duration
          * @return Builder
          */
-        public Builder flowControl(boolean flowControl) {
-            this.flowControl = flowControl;
-            return this;
+        public Builder flowControl(Duration idleHeartbeat) {
+            this.flowControl = true;
+            return idleHeartbeat(idleHeartbeat);
+        }
+
+        /**
+         * set the flow control on and set the idle heartbeat
+         * @param idleHeartbeatMillis the idle heart beat duration in milliseconds
+         * @return Builder
+         */
+        public Builder flowControl(long idleHeartbeatMillis) {
+            this.flowControl = true;
+            return idleHeartbeat(idleHeartbeatMillis);
         }
 
         /**
@@ -578,55 +585,118 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
+         * set the headers only flag
+         * @param headersOnly the flag
+         * @return Builder
+         */
+        public Builder headersOnly(boolean headersOnly) {
+            this.headersOnly = headersOnly;
+            return this;
+        }
+
+        /**
          * Builds the ConsumerConfiguration
-         * @return a consumer configuration.
+         * @return The consumer configuration.
          */
         public ConsumerConfiguration build() {
-
             return new ConsumerConfiguration(
-                    description,
-                    durable,
-                    deliverPolicy,
-                    startSeq,
-                    startTime,
-                    ackPolicy,
-                    ackWait,
-                    maxDeliver,
-                    filterSubject,
-                    replayPolicy,
-                    sampleFrequency,
-                    rateLimit,
-                    deliverSubject,
-                    deliverGroup,
-                    maxAckPending,
-                    idleHeartbeat,
-                    flowControl,
-                    maxPullWaiting
+                description,
+                durable,
+                deliverPolicy,
+                startSeq,
+                startTime,
+                ackPolicy,
+                ackWait,
+                maxDeliver,
+                filterSubject,
+                replayPolicy,
+                sampleFrequency,
+                rateLimit,
+                deliverSubject,
+                deliverGroup,
+                maxAckPending,
+                idleHeartbeat,
+                flowControl,
+                maxPullWaiting,
+                headersOnly
             );
+        }
+
+        /**
+         * Builds the PushSubscribeOptions with this configuration
+         * @return The PushSubscribeOptions.
+         */
+        public PushSubscribeOptions buildPushSubscribeOptions() {
+            return PushSubscribeOptions.builder().configuration(build()).build();
+        }
+
+        /**
+         * Builds the PullSubscribeOptions with this configuration
+         * @return The PullSubscribeOptions.
+         */
+        public PullSubscribeOptions buildPullSubscribeOptions() {
+            return PullSubscribeOptions.builder().configuration(build()).build();
         }
     }
 
     @Override
     public String toString() {
         return "ConsumerConfiguration{" +
-                "description='" + description + '\'' +
-                ", durable='" + durable + '\'' +
-                ", deliverPolicy=" + deliverPolicy +
-                ", deliverSubject='" + deliverSubject + '\'' +
-                ", deliverGroup='" + deliverGroup + '\'' +
-                ", startSeq=" + startSeq +
-                ", startTime=" + startTime +
-                ", ackPolicy=" + ackPolicy +
-                ", ackWait=" + ackWait +
-                ", maxDeliver=" + maxDeliver +
-                ", filterSubject='" + filterSubject + '\'' +
-                ", replayPolicy=" + replayPolicy +
-                ", sampleFrequency='" + sampleFrequency + '\'' +
-                ", rateLimit=" + rateLimit +
-                ", maxAckPending=" + maxAckPending +
-                ", idleHeartbeat=" + idleHeartbeat +
-                ", flowControl=" + flowControl +
-                ", maxPullWaiting=" + maxPullWaiting +
-                '}';
+            "description='" + description + '\'' +
+            ", durable='" + durable + '\'' +
+            ", deliverPolicy=" + deliverPolicy +
+            ", deliverSubject='" + deliverSubject + '\'' +
+            ", deliverGroup='" + deliverGroup + '\'' +
+            ", startSeq=" + startSeq +
+            ", startTime=" + startTime +
+            ", ackPolicy=" + ackPolicy +
+            ", ackWait=" + ackWait +
+            ", maxDeliver=" + maxDeliver +
+            ", filterSubject='" + filterSubject + '\'' +
+            ", replayPolicy=" + replayPolicy +
+            ", sampleFrequency='" + sampleFrequency + '\'' +
+            ", rateLimit=" + rateLimit +
+            ", maxAckPending=" + maxAckPending +
+            ", idleHeartbeat=" + idleHeartbeat +
+            ", flowControl=" + flowControl +
+            ", maxPullWaiting=" + maxPullWaiting +
+            ", headersOnly=" + headersOnly +
+            '}';
+    }
+
+    public enum CcNumeric {
+        START_SEQ("Start Sequence", 1, -1, -1),
+        MAX_DELIVER("Max Deliver", 1, -1, -1),
+        RATE_LIMIT("Rate Limit", 1, -1, -1),
+        MAX_ACK_PENDING("Max Ack Pending", 0, 0, 20000L),
+        MAX_PULL_WAITING("Max Pull Waiting", 0, 0, 512);
+
+        String err;
+        long min;
+        long normal;
+        long srvrDflt;
+
+        CcNumeric(String err, long min, long normal, long srvrDflt) {
+            this.err = err;
+            this.min = min;
+            this.normal = normal;
+            this.srvrDflt = srvrDflt;
+        }
+
+        long normalize(long val) {
+            return val <= min ? normal : val;
+        }
+
+        public long comparable(long val) {
+            return val <= min || val == srvrDflt ? srvrDflt : val;
+        }
+
+        public boolean notEq(long val1, long val2) {
+            return comparable(val1) != comparable(val2);
+        }
+
+        public String getErr() {
+            return err;
+        }
     }
 }

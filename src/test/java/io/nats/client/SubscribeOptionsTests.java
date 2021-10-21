@@ -207,6 +207,9 @@ public class SubscribeOptionsTests extends TestBase {
         // in configuration
         ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
         PushSubscribeOptions.builder().configuration(cc).build();
+
+        // new helper
+        ConsumerConfiguration.builder().durable(DURABLE).buildPushSubscribeOptions();
     }
 
     @Test
@@ -220,7 +223,6 @@ public class SubscribeOptionsTests extends TestBase {
 
         // durable required direct or in configuration
         PullSubscribeOptions.Builder builder2 = PullSubscribeOptions.builder();
-
         assertThrows(IllegalArgumentException.class, builder2::build);
 
         ConsumerConfiguration ccNoDur = ConsumerConfiguration.builder().build();
@@ -232,6 +234,9 @@ public class SubscribeOptionsTests extends TestBase {
         // in configuration
         ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
         PullSubscribeOptions.builder().configuration(cc).build();
+
+        // new helper
+        ConsumerConfiguration.builder().durable(DURABLE).buildPullSubscribeOptions();
     }
 
     @Test

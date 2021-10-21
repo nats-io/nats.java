@@ -275,18 +275,28 @@ public class ErrorListenerTests {
     }
 
     @Test
-    public void testMessageDiscardedDefaultImplementation() {
-        ErrorListener testErrorListener = new ErrorListener() {
+    public void testCoverage() {
+        // this exercises default interface implementation
+        _cover(new ErrorListener() {
             @Override
             public void errorOccurred(Connection conn, String error) {}
-
             @Override
             public void exceptionOccurred(Connection conn, Exception exp) {}
-
             @Override
             public void slowConsumerDetected(Connection conn, Consumer consumer) {}
-        };
+        });
 
-        testErrorListener.messageDiscarded(null, null); // COVERAGE
+        // exercises the default implementation
+        _cover(new ErrorListenerLoggerImpl());
+    }
+
+    private void _cover(ErrorListener el) {
+        el.errorOccurred(null, null);
+        el.exceptionOccurred(null, null);
+        el.slowConsumerDetected(null, null);
+        el.messageDiscarded(null, null);
+        el.heartbeatAlarm(null, null, -1, -1, -1);
+        el.messageGapDetected(null, null, -1, -1, -1, -1);
+        el.unhandledStatus(null, null, null);
     }
 }

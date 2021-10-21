@@ -28,10 +28,10 @@ import java.nio.ByteOrder;
 import java.security.*;
 import java.util.Arrays;
 
+import static io.nats.client.support.Encoding.base32Decode;
+import static io.nats.client.support.Encoding.base32Encode;
 import static io.nats.client.support.RandomUtils.PRAND;
 import static io.nats.client.support.RandomUtils.SRAND;
-import static io.nats.client.support.RandomUtils.base32Encode;
-import static io.nats.client.support.RandomUtils.base32Decode;
 
 class DecodedSeed {
     int prefix;

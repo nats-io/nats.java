@@ -14,88 +14,97 @@
 package io.nats.examples.jetstream;
 
 import io.nats.client.Connection;
+import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamManagement;
 import io.nats.client.Nats;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
-import io.nats.client.api.StorageType;
-import io.nats.client.api.StreamConfiguration;
 import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
 
 import java.util.List;
 
-import static io.nats.examples.jetstream.NatsJsUtils.printConsumerInfoList;
-import static io.nats.examples.jetstream.NatsJsUtils.printObject;
+import static io.nats.examples.jetstream.NatsJsUtils.*;
 
 /**
- * This example will demonstrate JetStream management (admin) api consumer management.
+ * This example will demonstrate JetStream management (admin) api stream management.
  */
 public class NatsJsManageConsumers {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsManageConsumers [-s server]"
-                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
-                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
-                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
-
-    private static final String STREAM = "con-stream";
-    private static final String SUBJECT = "con-subject";
-    private static final String DURABLE1 = "con-durable1";
-    private static final String DURABLE2 = "con-durable2";
-    private static final String DELIVER = "con-deliver";
+        "\nUsage: java -cp <classpath> NatsJsManageConsumers [-s server] [-strm stream] [-sub subject] [-dur durable-prefix]"
+            + "\n\nDefault Values:"
+            + "\n   [-strm] mcon-stream"
+            + "\n   [-sub] mcon-subject"
+            + "\n   [-dur] mcon-durable-"
+            + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+            + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+            + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+            + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleUtils.optionalServer(args, usageString);
+        ExampleArgs exArgs = ExampleArgs.builder("Manage Consumers", args, usageString)
+            .defaultStream("mcon-stream")
+            .defaultSubject("mcon-subject")
+            .defaultDurable("mcon-durable-")
+            .build();
+
+        String durable1 = exArgs.durable + "1";
+        String durable2 = exArgs.durable + "2";
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
             // Create a JetStreamManagement context.
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            // Create (add) a stream with a subject
-            System.out.println("\n----------\n1. Configure And Add Stream 1");
-            StreamConfiguration streamConfig = StreamConfiguration.builder()
-                    .name(STREAM)
-                    .subjects(SUBJECT)
-                    .storageType(StorageType.Memory)
-                    .build();
-            jsm.addStream(streamConfig);
+            // Use the utility to create a stream stored in memory.
+            createStreamExitWhenExists(jsm, exArgs.stream, exArgs.subject);
 
             // 1. Add Consumers
             System.out.println("\n----------\n1. Configure And Add Consumers");
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .durable(DURABLE1) // durable name is required when creating consumers
-                    .deliverSubject(DELIVER)
+                    .durable(durable1) // durable name is required when creating consumers
                     .build();
-            ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
+            ConsumerInfo ci = jsm.addOrUpdateConsumer(exArgs.stream, cc);
             printObject(ci);
 
             cc = ConsumerConfiguration.builder()
-                    .durable(DURABLE2)
+                    .durable(durable2)
                     .build();
-            ci = jsm.addOrUpdateConsumer(STREAM, cc);
+            ci = jsm.addOrUpdateConsumer(exArgs.stream, cc);
             printObject(ci);
 
-            // 2. Get information on consumers
-            // 2.1 get a list of all consumers
-            // 2.2 get a list of ConsumerInfo's for all consumers
-            System.out.println("----------\n2.1 getConsumerNames");
-            List<String> consumerNames = jsm.getConsumerNames(STREAM);
-            printObject(consumerNames);
-
-            System.out.println("----------\n2.2 getConsumers");
-            List<ConsumerInfo> consumers = jsm.getConsumers(STREAM);
+            // 2. get a list of ConsumerInfo's for all consumers
+            System.out.println("\n----------\n2. getConsumers");
+            List<ConsumerInfo> consumers = jsm.getConsumers(exArgs.stream);
             printConsumerInfoList(consumers);
 
-            // 3 Delete consumers
-            // Subsequent calls to deleteStream will throw a
-            // JetStreamApiException "consumer not found (404)"
-            System.out.println("----------\n3. Delete consumers");
-            jsm.deleteConsumer(STREAM, DURABLE1);
-            consumerNames = jsm.getConsumerNames(STREAM);
+            // 3. get a list of all consumers
+            System.out.println("\n----------\n3. getConsumerNames");
+            List<String> consumerNames = jsm.getConsumerNames(exArgs.stream);
             printObject(consumerNames);
 
-            System.out.println("----------\n");
+            // 4. Delete a consumer, then list them again
+            // Subsequent calls to deleteStream will throw a
+            // JetStreamApiException [10014]
+            System.out.println("\n----------\n3. Delete consumers");
+            jsm.deleteConsumer(exArgs.stream, durable1);
+            consumerNames = jsm.getConsumerNames(exArgs.stream);
+            printObject(consumerNames);
+
+            // 5. Try to delete the consumer again and get the exception
+            System.out.println("\n----------\n5. Delete consumer again");
+            try
+            {
+                jsm.deleteConsumer(exArgs.stream, durable1);
+            }
+            catch (JetStreamApiException e)
+            {
+                System.out.println("Exception was: '" + e.getMessage() + "'");
+            }
+
+            System.out.println("\n----------");
+
+            // delete the stream since we are done with it.
+            jsm.deleteStream(exArgs.stream);
         }
         catch (Exception exp) {
             exp.printStackTrace();

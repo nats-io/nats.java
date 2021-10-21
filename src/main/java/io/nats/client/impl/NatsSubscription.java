@@ -107,11 +107,20 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         return this.queueName;
     }
 
+    @Override
+    public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
+        return nextMessageInternal(Duration.ofMillis(timeoutMillis));
+    }
+
     /**
      * {@inheritDoc}
      */
     @Override
     public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
+        return nextMessageInternal(timeout);
+    }
+
+    protected NatsMessage nextMessageInternal(Duration timeout) throws InterruptedException {
         if (this.dispatcher != null) {
             throw new IllegalStateException(
                     "Subscriptions that belong to a dispatcher cannot respond to nextMessage directly.");

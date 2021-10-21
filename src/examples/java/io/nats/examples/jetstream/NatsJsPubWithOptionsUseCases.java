@@ -23,30 +23,30 @@ import io.nats.examples.ExampleUtils;
  */
 public class NatsJsPubWithOptionsUseCases {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPubWithOptionsUseCases [-s server] [-strm stream] [-sub subject]"
-                    + "\n\nDefault Values:"
-                    + "\n   [-strm stream]     pubopts-stream"
-                    + "\n   [-sub subject]     pubopts-subject"
-                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
-                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
-                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
+        "\nUsage: java -cp <classpath> NatsJsPubWithOptionsUseCases [-s server] [-strm stream] [-sub subject]"
+            + "\n\nDefault Values:"
+            + "\n   [-strm stream]     pubopts-stream"
+            + "\n   [-sub subject]     pubopts-subject"
+            + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+            + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+            + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+            + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.builder()
+        ExampleArgs exArgs = ExampleArgs.builder("Publish With Options Use Cases", args, usageString)
                 .defaultStream("pubopts-stream")
                 .defaultSubject("pubopts-subject")
-                .build(args, usageString);
+                .build();
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
+            // get a management context
+            JetStreamManagement jsm = nc.jetStreamManagement();
 
-            // Create a JetStream context.  This hangs off the original connection
-            // allowing us to produce data to streams and consume data from
-            // JetStream consumers.
+            // Use the utility to create a stream stored in memory.
+            NatsJsUtils.createStreamExitWhenExists(jsm, exArgs.stream, exArgs.subject);
+
+            // get a regular context
             JetStream js = nc.jetStream();
-
-            // See NatsJsManagement for examples on how to create the stream
-            NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
 
             PublishOptions.Builder pubOptsBuilder = PublishOptions.builder()
                     .expectedStream(exArgs.stream)
@@ -86,29 +86,32 @@ public class NatsJsPubWithOptionsUseCases {
             System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
                     exArgs.subject, pa.getStream(), pa.getSeqno());
 
-            // exception when the expected stream does not match
+            // exception when the expected stream does not match [10060]
             try {
                 PublishOptions opts = PublishOptions.builder().expectedStream("wrongStream").build();
                 js.publish(exArgs.subject, "ex1".getBytes(), opts);
             } catch (JetStreamApiException e) {
-                System.out.println(e);
+                System.out.format("Exception was: '%s'\n", e);
             }
 
-            // exception with wrong last msg ID
+            // exception with wrong last msg ID [10070]
             try {
                 PublishOptions opts = PublishOptions.builder().expectedLastMsgId("wrongId").build();
                 js.publish(exArgs.subject, "ex2".getBytes(), opts);
             } catch (JetStreamApiException e) {
-                System.out.println(e);
+                System.out.format("Exception was: '%s'\n", e);
             }
 
-            // exception with wrong last sequence
+            // exception with wrong last sequence [10071]
             try {
                 PublishOptions opts = PublishOptions.builder().expectedLastSequence(999).build();
                 js.publish(exArgs.subject, "ex3".getBytes(), opts);
             } catch (JetStreamApiException e) {
-                System.out.println(e);
+                System.out.format("Exception was: '%s'\n", e);
             }
+
+            // delete the stream since we are done with it.
+            jsm.deleteStream(exArgs.stream);
         }
         catch (Exception e) {
             e.printStackTrace();

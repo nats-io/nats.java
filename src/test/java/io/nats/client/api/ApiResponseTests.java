@@ -106,7 +106,7 @@ public class ApiResponseTests {
         assertEquals("code_desc_err_response", jsApiResp.getType());
         assertEquals(500, jsApiResp.getErrorCode());
         assertEquals("the description", jsApiResp.getDescription());
-        assertEquals("the description (500) [12345]", jsApiResp.getError());
+        assertEquals("the description [12345]", jsApiResp.getError());
         jsApiEx = new JetStreamApiException(jsApiResp);
         assertEquals(500, jsApiEx.getErrorCode());
         assertEquals("the description", jsApiEx.getErrorDescription());
@@ -117,7 +117,7 @@ public class ApiResponseTests {
         assertEquals("no-code_desc_err_response", jsApiResp.getType());
         assertEquals(-1, jsApiResp.getErrorCode());
         assertEquals("the description", jsApiResp.getDescription());
-        assertEquals("the description [12345]", jsApiResp.getError());
+        assertEquals("the description", jsApiResp.getError());
         jsApiEx = new JetStreamApiException(jsApiResp);
         assertEquals(-1, jsApiEx.getErrorCode());
         assertEquals("the description", jsApiEx.getErrorDescription());

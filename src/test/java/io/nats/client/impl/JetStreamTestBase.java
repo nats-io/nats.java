@@ -50,6 +50,10 @@ public class JetStreamTestBase extends TestBase {
         return getTestMessage(TestMetaV2);
     }
 
+    public NatsMessage getTestJsMessage(long seq) {
+        return getTestMessage("$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1." + seq + "." + seq + ".1605139610113260000.4");
+    }
+
     public NatsMessage getTestMessage(String replyTo) {
         return new NatsMessage.InternalMessageFactory("sid", "subj", replyTo, 0, false).getMessage();
     }
@@ -134,12 +138,24 @@ public class JetStreamTestBase extends TestBase {
     }
 
     public static List<Message> readMessagesAck(JetStreamSubscription sub) throws InterruptedException {
-        return readMessagesAck(sub, false);
+        return readMessagesAck(sub, false, Duration.ofSeconds(1), -1);
     }
 
     public static List<Message> readMessagesAck(JetStreamSubscription sub, boolean noisy) throws InterruptedException {
+        return readMessagesAck(sub, noisy, Duration.ofSeconds(1), -1);
+    }
+
+    public static List<Message> readMessagesAck(JetStreamSubscription sub, Duration timeout) throws InterruptedException {
+        return readMessagesAck(sub, false, timeout, -1);
+    }
+
+    public static List<Message> readMessagesAck(JetStreamSubscription sub, Duration timeout, int max) throws InterruptedException {
+        return readMessagesAck(sub, false, timeout, max);
+    }
+
+    public static List<Message> readMessagesAck(JetStreamSubscription sub, boolean noisy, Duration timeout, int max) throws InterruptedException {
         List<Message> messages = new ArrayList<>();
-        Message msg = sub.nextMessage(Duration.ofSeconds(1));
+        Message msg = sub.nextMessage(timeout);
         while (msg != null) {
             messages.add(msg);
             if (msg.isJetStream()) {
@@ -156,15 +172,18 @@ public class JetStreamTestBase extends TestBase {
             else if (noisy) {
                 System.out.println("? " + new String(msg.getData()) + "?");
             }
-            msg = sub.nextMessage(Duration.ofSeconds(1));
+            if (messages.size() == max) {
+                return messages;
+            }
+            msg = sub.nextMessage(timeout);
         }
         return messages;
     }
 
-    public static List<Message> readMessages(Iterator<Message> list) {
+    public static List<Message> readMessages(Iterator<Message> iter) {
         List<Message> messages = new ArrayList<>();
-        while (list.hasNext()) {
-            messages.add(list.next());
+        while (iter.hasNext()) {
+            messages.add(iter.next());
         }
         return messages;
     }
@@ -186,18 +205,19 @@ public class JetStreamTestBase extends TestBase {
     }
 
     public static void assertSubscription(JetStreamSubscription sub, String stream, String consumer, String deliver, boolean isPullMode) {
-        assertEquals(stream, ((NatsJetStreamSubscription)sub).getStream());
+        NatsJetStreamSubscription njssub = (NatsJetStreamSubscription)sub;
+        assertEquals(stream, njssub.getStream());
         if (consumer == null) {
-            assertNotNull(((NatsJetStreamSubscription)sub).getConsumer());
+            assertNotNull(njssub.getConsumerName());
         }
         else {
-            assertEquals(consumer, ((NatsJetStreamSubscription) sub).getConsumer());
+            assertEquals(consumer, njssub.getConsumerName());
         }
         if (deliver != null) {
-            assertEquals(deliver, ((NatsJetStreamSubscription)sub).getDeliverSubject());
+            assertEquals(deliver, njssub.getDeliverSubject());
         }
 
-        boolean pm = ((NatsJetStreamSubscription)sub).isPullMode();
+        boolean pm = njssub.isPullMode();
         assertEquals(isPullMode, pm);
 
         // coverage
@@ -299,4 +319,20 @@ public class JetStreamTestBase extends TestBase {
 
     }
 
+    public static Options.Builder optsWithEl() {
+        return new Options.Builder().errorListener(new ErrorListener() {
+            @Override
+            public void errorOccurred(Connection conn, String error) {}
+
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {}
+
+            @Override
+            public void slowConsumerDetected(Connection conn, Consumer consumer) {}
+        });
+    }
+
+    public static Options.Builder optsWithEl(ErrorListener el) {
+        return new Options.Builder().errorListener(el);
+    }
 }

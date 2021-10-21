@@ -116,13 +116,13 @@ public class NatsMessageTests {
 
 
     @Test
-    public void notJetStream() {
+    public void notJetStream() throws Exception {
         NatsMessage m = testMessage();
-        assertThrows(IllegalStateException.class, m::ack);
-        assertThrows(IllegalStateException.class, () -> m.ackSync(Duration.ZERO));
-        assertThrows(IllegalStateException.class, m::nak);
-        assertThrows(IllegalStateException.class, m::inProgress);
-        assertThrows(IllegalStateException.class, m::term);
+        m.ack();
+        m.ackSync(Duration.ZERO);
+        m.nak();
+        m.inProgress();
+        m.term();
         assertThrows(IllegalStateException.class, m::metaData);
     }
 

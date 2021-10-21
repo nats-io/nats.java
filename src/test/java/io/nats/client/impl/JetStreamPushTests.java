@@ -19,77 +19,118 @@ import io.nats.client.Message;
 import io.nats.client.PushSubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
+import io.nats.client.support.NatsJetStreamConstants;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.NullSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPushTests extends JetStreamTestBase {
 
-    @ParameterizedTest
-    @NullSource // tests null or no deliver subject
-    @ValueSource(strings = {DELIVER}) // tests actual deliver subject
-    public void testPushEphemeral(String deliverSubject) throws Exception {
+    @Test
+    public void testPushEphemeralNullDeliver() throws Exception {
+        _testPushEphemeral(null);
+    }
+
+    @Test
+    public void testPushEphemeralWithDeliver() throws Exception {
+        _testPushEphemeral(DELIVER);
+    }
+
+    public void _testPushEphemeral(String deliverSubject) throws Exception {
         runInJsServer(nc -> {
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);
 
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // publish some messages
             jsPublish(js, SUBJECT, 1, 5);
 
             // Build our subscription options.
-            PushSubscribeOptions options = PushSubscribeOptions.builder().deliverSubject(deliverSubject).build();
+            PushSubscribeOptions options = PushSubscribeOptions.builder().deliverSubject(deliverSubject)
+                .detectGaps(false)
+                .build();
 
             // Subscription 1
-            JetStreamSubscription sub = js.subscribe(SUBJECT, options);
-            assertSubscription(sub, STREAM, null, deliverSubject, false);
+            JetStreamSubscription sub1 = js.subscribe(SUBJECT, options);
+            assertSubscription(sub1, STREAM, null, deliverSubject, false);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // read what is available
-            List<Message> messages1 = readMessagesAck(sub);
+            List<Message> messages1 = readMessagesAck(sub1);
             int total = messages1.size();
             validateRedAndTotal(5, messages1.size(), 5, total);
 
             // read again, nothing should be there
-            List<Message> messages0 = readMessagesAck(sub);
+            List<Message> messages0 = readMessagesAck(sub1);
             total += messages0.size();
             validateRedAndTotal(0, messages0.size(), 5, total);
 
+            sub1.unsubscribe(); // needed for deliver subject version b/c the sub
+                                // would be identical. without ds, the ds is generated each
+                                // time so is unique
+
             // Subscription 2
-            sub = js.subscribe(SUBJECT, options);
+            JetStreamSubscription sub2 = js.subscribe(SUBJECT, options);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // read what is available, same messages
-            List<Message> messages2 = readMessagesAck(sub);
+            List<Message> messages2 = readMessagesAck(sub2);
             total = messages2.size();
             validateRedAndTotal(5, messages2.size(), 5, total);
 
             // read again, nothing should be there
-            messages0 = readMessagesAck(sub);
+            messages0 = readMessagesAck(sub2);
             total += messages0.size();
             validateRedAndTotal(0, messages0.size(), 5, total);
 
             assertSameMessages(messages1, messages2);
+
+            sub2.unsubscribe();
+
+            // Subscription 3 testing null timeout
+            JetStreamSubscription sub3 = js.subscribe(SUBJECT, options);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+            sleep(1000); // give time to make sure the messages get to the client
+
+            messages0 = readMessagesAck(sub3, null);
+            validateRedAndTotal(5, messages0.size(), 5, 5);
+
+            // Subscription 4 testing timeout <= 0 duration / millis
+            JetStreamSubscription sub4 = js.subscribe(SUBJECT, options);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+            sleep(1000); // give time to make sure the messages get to the client
+            assertNotNull(sub4.nextMessage(Duration.ZERO));
+            assertNotNull(sub4.nextMessage(-1));
+
+            // get the rest
+            messages0 = readMessagesAck(sub4, null);
+            validateRedAndTotal(3, messages0.size(), 3, 3);
         });
     }
 
-    @ParameterizedTest
-    @NullSource
-    @ValueSource(strings = {DELIVER})
-    public void testPushDurable(String deliverSubject) throws Exception {
+    @Test
+    public void testPushDurableNullDeliver() throws Exception {
+        _testPushDurable(null);
+    }
+
+    @Test
+    public void testPushDurableWithDeliver() throws Exception {
+        _testPushDurable(DELIVER);
+    }
+
+    private void _testPushDurable(String deliverSubject) throws Exception {
         runInJsServer(nc -> {
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);
 
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // publish some messages
@@ -136,9 +177,43 @@ public class JetStreamPushTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testPushFlowControl() throws Exception {
+        runInJsServer(nc -> {
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            JetStream js = nc.jetStream();
+
+            jsPublish(js, SUBJECT, 1000);
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                .durable(DURABLE)
+                .flowControl(1000)
+                .build();
+
+            PushSubscribeOptions pso = PushSubscribeOptions.builder()
+                .configuration(cc)
+                .build();
+
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+
+            int count = 0;
+            Set<String> set = new HashSet<>();
+            Message m = sub.nextMessage(1000);
+            while (m != null) {
+                ++count;
+                assertTrue(set.add(new String(m.getData())));
+                m.ack();
+                m = sub.nextMessage(1000);
+            }
+
+            assertEquals(1000, count);
+        });
+    }
+
+    @Test
     public void testCantPullOnPushSub() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -151,15 +226,58 @@ public class JetStreamPushTests extends JetStreamTestBase {
             // this should exception, can't pull on a push sub
             assertThrows(IllegalStateException.class, () -> sub.pull(1));
             assertThrows(IllegalStateException.class, () -> sub.pullNoWait(1));
-            // TODO pullExpiresIn
             assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, Duration.ofSeconds(1)));
+            assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, 1000));
+            assertThrows(IllegalStateException.class, () -> sub.fetch(1, 1000));
+            assertThrows(IllegalStateException.class, () -> sub.fetch(1, Duration.ofSeconds(1)));
+            assertThrows(IllegalStateException.class, () -> sub.iterate(1, 1000));
+            assertThrows(IllegalStateException.class, () -> sub.iterate(1, Duration.ofSeconds(1)));
+        });
+    }
+
+    @Test
+    public void testHeadersOnly() throws Exception {
+        runInJsServer(nc -> {
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            PushSubscribeOptions pso = ConsumerConfiguration.builder().headersOnly(true).buildPushSubscribeOptions();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            jsPublish(js, SUBJECT, 5);
+
+            List<Message> messages = readMessagesAck(sub, Duration.ZERO, 5);
+            assertEquals(5, messages.size());
+            assertEquals(0, messages.get(0).getData().length);
+            assertNotNull(messages.get(0).getHeaders());
+            assertEquals("6", messages.get(0).getHeaders().getFirst(NatsJetStreamConstants.MSG_SIZE_HDR));
+        });
+    }
+
+    @Test
+    public void testCantNextMessageOnAsyncPushSub() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            JetStreamSubscription sub = js.subscribe(SUBJECT, nc.createDispatcher(), msg -> {}, false);
+
+            // this should exception, can't next message on an async push sub
+            assertThrows(IllegalStateException.class, () -> sub.nextMessage(Duration.ofMillis(1000)));
+            assertThrows(IllegalStateException.class, () -> sub.nextMessage(1000));
         });
     }
 
     @Test
     public void testAcks() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -248,7 +366,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
     @Test
     public void testDeliveryPolicy() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.

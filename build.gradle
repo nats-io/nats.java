@@ -19,7 +19,7 @@ import aQute.bnd.gradle.Bundle
 // src/main/java/io/nats/client/Nats.java
 // src/main/java/io/nats/client/package-info.java
 // CHANGELOG.md
-def jarVersion = "2.12.1"
+def jarVersion = "2.13.0"
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 

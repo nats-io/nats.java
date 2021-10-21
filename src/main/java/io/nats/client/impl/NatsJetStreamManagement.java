@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import static io.nats.client.api.MessageGetRequest.seqBytes;
 import static io.nats.client.support.ApiConstants.SEQ;
 import static io.nats.client.support.JsonUtils.simpleMessageBody;
 import static io.nats.client.support.Validator.*;
@@ -115,7 +116,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         validateStreamName(streamName, true);
         validateNotNull(config, "Config");
         validateNotNull(config.getDurable(), "Durable"); // durable name is required when creating consumers
-        return addOrUpdateConsumerInternal(streamName, config);
+        return createConsumerInternal(streamName, config);
     }
 
     /**
@@ -193,7 +194,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
     public MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
         String subj = String.format(JSAPI_MSG_GET, streamName);
-        Message resp = makeRequestResponseRequired(subj, simpleMessageBody(SEQ, seq), jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(subj, seqBytes(seq), jso.getRequestTimeout());
         return new MessageInfo(resp).throwOnHasError();
     }
 

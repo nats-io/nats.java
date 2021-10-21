@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -98,6 +99,8 @@ class NatsConnection implements Connection {
 
     private String currentServer = null;
 
+    private Function<NatsMessage, NatsMessage> beforeQueueProcessor;
+
     NatsConnection(Options options) {
         boolean trace = options.isTraceConnection();
         timeTrace(trace, "creating connection object");
@@ -143,7 +146,13 @@ class NatsConnection implements Connection {
         this.writer = new NatsConnectionWriter(this);
 
         this.needPing = new AtomicBoolean(true);
+
+        beforeQueueProcessor = msg -> msg; // default just returns the message
         timeTrace(trace, "connection object created");
+    }
+
+    void setBeforeQueueProcessor(Function<NatsMessage, NatsMessage> beforeQueueProcessor) {
+        this.beforeQueueProcessor = beforeQueueProcessor;
     }
 
     // Connect is only called after creation
@@ -791,7 +800,7 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Subject cannot contain whitespace");
         }
 
-        return createSubscription(subject, null, null, false);
+        return createSubscription(subject, null, null, null);
     }
 
     @Override
@@ -818,7 +827,7 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Queue names cannot contain whitespace");
         }
 
-        return createSubscription(subject, queueName, null, false);
+        return createSubscription(subject, queueName, null, null);
     }
 
     void invalidate(NatsSubscription sub) {
@@ -868,7 +877,7 @@ class NatsConnection implements Connection {
     }
 
     // Assumes the null/empty checks were handled elsewhere
-    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, boolean isJetStream) {
+    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, NatsSubscriptionFactory factory) {
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
         } else if (isDraining() && (dispatcher == null || dispatcher != this.inboxDispatcher.get())) {
@@ -879,10 +888,11 @@ class NatsConnection implements Connection {
         long sidL = nextSid.getAndIncrement();
         String sid = String.valueOf(sidL);
 
-        if (isJetStream) {
-            sub = new NatsJetStreamSubscription(sid, subject, queueName, this, dispatcher);
-        } else {
+        if (factory == null) {
             sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
+        }
+        else {
+            sub = factory.createNatsSubscription(sid, subject, queueName, this, dispatcher);
         }
         subscribers.put(sid, sub);
 
@@ -1367,7 +1377,15 @@ class NatsConnection implements Connection {
                 }
             } else if (q != null) {
                 c.markNotSlow();
-                q.push(msg);
+
+                // beforeQueueProcessor returns null if the message
+                // does not need to be queued, for instance heartbeats
+                // that are not flow control and are already seen by the
+                // auto status manager
+                msg = beforeQueueProcessor.apply(msg);
+                if (msg != null) {
+                    q.push(msg);
+                }
             }
 
         }

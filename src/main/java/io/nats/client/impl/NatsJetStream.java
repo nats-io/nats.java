@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.ConsumerConfiguration.CcNumeric;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.api.PublishAck;
 import io.nats.client.support.JsonUtils;
@@ -22,9 +23,11 @@ import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import static io.nats.client.support.ApiConstants.SUBJECT;
+import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.support.Validator.*;
 
 public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
@@ -151,12 +154,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
     private PublishAck processPublishResponse(Message resp, PublishOptions options) throws IOException, JetStreamApiException {
         if (resp.isStatusMessage()) {
-            if (resp.getStatus().getCode() == 503) {
-                throw new IOException("Error Publishing: No stream available.");
-            }
-            else {
-                throw new IOException("Error Publishing: " + resp.getStatus().getMessage());
-            }
+            throw new IOException("Error Publishing: " + resp.getStatus().getCode() + " " + resp.getStatus().getMessage());
         }
 
         PublishAck ack = new PublishAck(resp);
@@ -203,162 +201,199 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     // Subscribe
     // ----------------------------------------------------------------------------------------------------
     NatsJetStreamSubscription createSubscription(String subject, String queueName,
-                                                 NatsDispatcher dispatcher, MessageHandler handler, boolean autoAck,
+                                                 NatsDispatcher dispatcher, MessageHandler userMh, boolean autoAck,
                                                  PushSubscribeOptions pushSubscribeOptions,
                                                  PullSubscribeOptions pullSubscribeOptions) throws IOException, JetStreamApiException {
-        // first things first...
+
+        // 1. Prepare for all the validation
         boolean isPullMode = pullSubscribeOptions != null;
 
-        // setup the configuration, use a default.
-        String stream;
-        ConsumerConfiguration.Builder ccBuilder;
         SubscribeOptions so;
+        String stream;
+        String qgroup;
+        ConsumerConfiguration userCC;
 
         if (isPullMode) {
             so = pullSubscribeOptions; // options must have already been checked to be non null
             stream = pullSubscribeOptions.getStream();
-            ccBuilder = ConsumerConfiguration.builder(pullSubscribeOptions.getConsumerConfiguration());
-            ccBuilder.deliverSubject(null); // pull mode can't have a deliver subject
-            // queueName is already null
-            ccBuilder.deliverGroup(null);   // pull mode can't have a deliver group
+
+            userCC = so.getConsumerConfiguration();
+
+            qgroup = null; // just to make compiler happy both paths set variable
+            validateNotSupplied(userCC.getDeliverGroup(), JsSubPullCantHaveDeliverGroup);
+            validateNotSupplied(userCC.getDeliverSubject(), JsSubPullCantHaveDeliverSubject);
         }
         else {
             so = pushSubscribeOptions == null ? PushSubscribeOptions.builder().build() : pushSubscribeOptions;
             stream = so.getStream(); // might be null, that's ok (see directBind)
-            ccBuilder = ConsumerConfiguration.builder(so.getConsumerConfiguration());
-            ccBuilder.maxPullWaiting(0); // this does not apply to push, in fact will error b/c deliver subject will be set
-            // deliver subject does not have to be cleared
+
+            userCC = so.getConsumerConfiguration();
+
+            validateNotSupplied(userCC.getMaxPullWaiting(), 0, JsSubPushCantHaveMaxPullWaiting);
+
             // figure out the queue name
-            queueName = validateMustMatchIfBothSupplied(ccBuilder.getDeliverGroup(), queueName,
-                    "[SUB-Q01] Consumer Configuration DeliverGroup", "Queue Name");
-            ccBuilder.deliverGroup(queueName); // and set it in case the deliver group was null
+            qgroup = validateMustMatchIfBothSupplied(userCC.getDeliverGroup(), queueName, JsSubQueueDeliverGroupMismatch);
+
+            if (qgroup != null && userCC.getDeliverGroup() == null) {
+                // the queueName was provided versus the config deliver group, so the user config must be set
+                userCC = ConsumerConfiguration.builder(userCC).deliverGroup(qgroup).build();
+            }
         }
 
-        boolean bindMode = so.isBind();
+        // 2A. Flow Control / heartbeat not always valid
+        if (userCC.isFlowControl() || userCC.getIdleHeartbeat().toMillis() > 0) {
+            if (isPullMode) {
+                throw JsSubFcHbNotValidPull.instance();
+            }
+            else if (qgroup != null) {
+                throw JsSubFcHbHbNotValidQueue.instance();
+            }
+        }
 
-        String durable = ccBuilder.getDurable();
-        String inboxDeliver = ccBuilder.getDeliverSubject();
-        String filterSubject = ccBuilder.getFilterSubject();
-
-        boolean createConsumer = true;
-
-        // 1. Did they tell me what stream? No? look it up.
-        // subscribe options will have already validated that stream is present for direct mode
+        // 2B. Did they tell me what stream? No? look it up.
         if (stream == null) {
             stream = lookupStreamBySubject(subject);
+            if (stream == null) {
+                throw JsSubNoMatchingStreamForSubject.instance();
+            }
         }
 
-        // 2. Is this a durable or ephemeral
-        if (durable != null) {
-            ConsumerInfo lookedUpInfo = lookupConsumerInfo(stream, durable);
+        ConsumerConfiguration serverCc = null;
+        String consumerName = userCC.getDurable();
+        String inboxDeliver = userCC.getDeliverSubject();
 
-            if (lookedUpInfo != null) { // the consumer for that durable already exists
-                createConsumer = false;
-                ConsumerConfiguration lookedUpConfig = lookedUpInfo.getConsumerConfiguration();
+        // 3. Does this consumer already exist?
+        if (consumerName != null) {
+            ConsumerInfo serverInfo = lookupConsumerInfo(stream, consumerName);
 
-                String lookedUp = lookedUpConfig.getDeliverSubject();
+            if (serverInfo != null) { // the consumer for that durable already exists
+                serverCc = serverInfo.getConsumerConfiguration();
+
+                String serverValue = serverCc.getDeliverSubject();
                 if (isPullMode) {
-                    if (!nullOrEmpty(lookedUp)) {
-                        throw new IllegalArgumentException(
-                                String.format("[SUB-DS01] Consumer is already configured as a push consumer with deliver subject '%s'.", lookedUp));
+                    if (!nullOrEmpty(serverValue)) {
+                        throw JsSubConsumerAlreadyConfiguredAsPush.instance();
                     }
                 }
-                else if (nullOrEmpty(lookedUp)) {
-                    throw new IllegalArgumentException("[SUB-DS02] Consumer is already configured as a pull consumer with no deliver subject.");
+                else if (nullOrEmpty(serverValue)) {
+                    throw JsSubConsumerAlreadyConfiguredAsPull.instance();
                 }
-                else if (inboxDeliver != null && !inboxDeliver.equals(lookedUp)) {
-                    throw new IllegalArgumentException(
-                            String.format("[SUB-DS03] Existing consumer deliver subject '%s' does not match requested deliver subject '%s'.", lookedUp, inboxDeliver));
+                else if (inboxDeliver != null && !inboxDeliver.equals(serverValue)) {
+                    throw JsSubExistingDeliverSubjectMismatch.instance();
                 }
 
                 // durable already exists, make sure the filter subject matches
-                lookedUp = lookedUpConfig.getFilterSubject();
-                if (filterSubject != null && !filterSubject.equals(lookedUp)) {
-                    throw new IllegalArgumentException(
-                            String.format("[SUB-FS01] Subject '%s' mismatches consumer configuration '%s'.", subject, filterSubject));
+                serverValue = serverCc.getFilterSubject();
+                String userFilterSubject = userCC.getFilterSubject();
+                if (userFilterSubject != null && !userFilterSubject.equals(serverValue)) {
+                    throw JsSubSubjectDoesNotMatchFilter.instance();
                 }
-                filterSubject = lookedUp;
 
-                lookedUp = lookedUpConfig.getDeliverGroup();
-                if (lookedUp == null) {
+                serverValue = serverCc.getDeliverGroup();
+                if (serverValue == null) {
                     // lookedUp was null, means existing consumer is not a queue consumer
-                    if (queueName == null) {
+                    if (qgroup == null) {
                         // ok fine, no queue requested and the existing consumer is also not a queue consumer
                         // we must check if the consumer is in use though
-                        if (lookedUpInfo.isPushBound()) {
-                            throw new IllegalArgumentException(String.format("[SUB-Q02] Consumer '%s' is already bound to a subscription.", durable));
+                        if (serverInfo.isPushBound()) {
+                            throw JsSubConsumerAlreadyBound.instance();
                         }
                     }
                     else { // else they requested a queue but this durable was not configured as queue
-                        throw new IllegalArgumentException(String.format("[SUB-Q03] Existing consumer '%s' is not configured as a queue / deliver group.", durable));
+                        throw JsSubExistingConsumerNotQueue.instance();
                     }
                 }
-                else if (queueName == null) {
-                    throw new IllegalArgumentException(String.format("[SUB-Q04] Existing consumer '%s' is configured as a queue / deliver group.", durable));
+                else if (qgroup == null) {
+                    throw JsSubExistingConsumerIsQueue.instance();
                 }
-                else if (!lookedUp.equals(queueName)) {
-                    throw new IllegalArgumentException(
-                            String.format("[SUB-Q05] Existing consumer deliver group '%s' does not match requested queue / deliver group '%s'.", lookedUp, queueName));
+                else if (!serverValue.equals(qgroup)) {
+                    throw JsSubExistingQueueDoesNotMatchRequestedQueue.instance();
                 }
 
-                inboxDeliver = lookedUpConfig.getDeliverSubject(); // use the deliver subject as the inbox. It may be null, that's ok, we'll fix that later
+                // check to see if the user sent a different version than the server has
+                // modifications are not allowed
+                // previous checks for deliver subject and filter subject matching are now
+                // in the changes function
+                if (userIsModifiedVsServer(userCC, serverCc)) {
+                    throw JsSubExistingConsumerCannotBeModified.instance();
+                }
+
+                inboxDeliver = serverCc.getDeliverSubject(); // use the deliver subject as the inbox. It may be null, that's ok, we'll fix that later
             }
-            else if (bindMode) {
-                throw new IllegalArgumentException("[SUB-B01] Consumer not found for durable. Required in bind mode.");
+            else if (so.isBind()) {
+                throw JsSubConsumerNotFoundRequiredInBind.instance();
             }
         }
 
-        // 3. If no deliver subject (inbox) provided or found, make an inbox.
+        // 4. If no deliver subject (inbox) provided or found, make an inbox.
         if (inboxDeliver == null) {
             inboxDeliver = conn.createInbox();
         }
 
-        // 4. create the subscription
-        NatsJetStreamSubscription sub;
-        if (dispatcher == null) {
-            sub = (NatsJetStreamSubscription) conn.createSubscription(inboxDeliver, queueName, null, true);
-        }
-        else {
-            MessageHandler mh;
-            if (autoAck) {
-                mh = new AutoAckMessageHandler(conn, handler);
-            } else {
-                mh = handler;
-            }
-            sub = (NatsJetStreamSubscription) dispatcher.subscribeImpl(inboxDeliver, queueName, mh, true);
-        }
+        // 5. If consumer does not exist, create
+        if (serverCc == null) {
+            ConsumerConfiguration.Builder ccBuilder = ConsumerConfiguration.builder(userCC);
 
-        // 5-Consumer didn't exist. It's either ephemeral or a durable that didn't already exist.
-        if (createConsumer) {
             // Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
             if (!isPullMode) {
                 ccBuilder.deliverSubject(inboxDeliver);
             }
 
             // being discussed if this is correct, but leave it for now.
-            ccBuilder.filterSubject(filterSubject == null ? subject : filterSubject);
+            String userFilterSubject = userCC.getFilterSubject();
+            ccBuilder.filterSubject(userFilterSubject == null ? subject : userFilterSubject);
 
             // createOrUpdateConsumer can fail for security reasons, maybe other reasons?
-            ConsumerInfo ci;
-            try {
-                ci = addOrUpdateConsumerInternal(stream, ccBuilder.build());
-            } catch (JetStreamApiException e) {
-                if (dispatcher == null) {
-                    sub.unsubscribe();
-                }
-                else {
-                    dispatcher.unsubscribe(sub);
-                }
-                throw e;
-            }
-            sub.setupJetStream(this, ci.getName(), ci.getStreamName(), inboxDeliver, so);
-        }
-        // 5-Consumer did exist.
-        else {
-            sub.setupJetStream(this, durable, stream, inboxDeliver, so);
+            ConsumerInfo ci = createConsumerInternal(stream, ccBuilder.build());
+            consumerName = ci.getName();
+            serverCc = ci.getConsumerConfiguration();
         }
 
+        // 6. create the subscription
+        final String fnlStream = stream;
+        final String fnlConsumerName = consumerName;
+        final String fnlInboxDeliver = inboxDeliver;
+
+        AutoStatusManager asm = isPullMode
+            ? new PullAutoStatusManager()
+            : new PushAutoStatusManager(conn, so, serverCc, qgroup != null, dispatcher == null);
+
+        NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
+            -> NatsJetStreamSubscription.getInstance(sid, lSubject, lQgroup, lConn, lDispatcher,
+                    asm, this, isPullMode, fnlStream, fnlConsumerName, fnlInboxDeliver);
+
+        NatsJetStreamSubscription sub;
+        if (dispatcher == null) {
+            sub = (NatsJetStreamSubscription) conn.createSubscription(inboxDeliver, qgroup, null, factory);
+        }
+        else {
+            NatsJetStreamSubscriptionMessageHandler handler =
+                new NatsJetStreamSubscriptionMessageHandler(asm, userMh, autoAck);
+            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, qgroup, handler, factory);
+        }
+
+        asm.setSub(sub);
         return sub;
+    }
+
+    static boolean userIsModifiedVsServer(ConsumerConfiguration user, ConsumerConfiguration server) {
+
+        return user.isFlowControl() != server.isFlowControl()
+            || user.getDeliverPolicy() != server.getDeliverPolicy()
+            || user.getAckPolicy() != server.getAckPolicy()
+            || user.getReplayPolicy() != server.getReplayPolicy()
+
+            || CcNumeric.START_SEQ.notEq(user.getStartSequence(), server.getStartSequence())
+            || CcNumeric.MAX_DELIVER.notEq(user.getMaxDeliver(), server.getMaxDeliver())
+            || CcNumeric.RATE_LIMIT.notEq(user.getRateLimit(), server.getRateLimit())
+            || CcNumeric.MAX_ACK_PENDING.notEq(user.getMaxAckPending(), server.getMaxAckPending())
+            || CcNumeric.MAX_PULL_WAITING.notEq(user.getMaxPullWaiting(), server.getMaxPullWaiting())
+
+            || !Objects.equals(user.getStartTime(), server.getStartTime())
+            || !Objects.equals(user.getAckWait(), server.getAckWait())
+            || !Objects.equals(user.getSampleFrequency(), server.getSampleFrequency())
+            || !Objects.equals(user.getIdleHeartbeat(), server.getIdleHeartbeat())
+            || !Objects.equals(user.getDescription(), server.getDescription());
     }
 
     /**
@@ -451,36 +486,6 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         StreamNamesReader snr = new StreamNamesReader();
         Message resp = makeRequestResponseRequired(JSAPI_STREAM_NAMES, body, jso.getRequestTimeout());
         snr.process(resp);
-        if (snr.getStrings().size() != 1) {
-            throw new IllegalStateException("No matching streams for subject: " + subject);
-        }
-        return snr.getStrings().get(0);
-    }
-
-    protected static class AutoAckMessageHandler implements MessageHandler {
-        NatsConnection conn;
-        MessageHandler userMH;
-
-        // caller must ensure userMH is not null
-        AutoAckMessageHandler(NatsConnection conn, MessageHandler userMH) {
-            this.conn = conn;
-            this.userMH = userMH;
-        }
-
-        @Override
-        public void onMessage(Message msg) throws InterruptedException {
-            try  {
-                userMH.onMessage(msg);
-                // don't ack if not JetStream
-                if (msg.isJetStream()) {
-                    msg.ack();
-                }
-            } catch (Exception e) {
-                ErrorListener el = conn.getOptions().getErrorListener();
-                if (el != null) {
-                    el.exceptionOccurred(conn, e);
-                }
-            }
-        }
+        return snr.getStrings().size() == 1 ? snr.getStrings().get(0) : null;
     }
 }

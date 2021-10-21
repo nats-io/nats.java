@@ -13,15 +13,15 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Dispatcher;
+import io.nats.client.MessageHandler;
+import io.nats.client.Subscription;
+
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import io.nats.client.Subscription;
-import io.nats.client.Dispatcher;
-import io.nats.client.MessageHandler;
 
 class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
@@ -160,6 +160,10 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         return incoming;
     }
 
+    Map<String, MessageHandler> getSubscriptionHandlers() {
+        return subscriptionHandlers;
+    }
+
     void resendSubscriptions() {
         this.subscriptionsUsingDefaultHandler.forEach((id, sub)->{
             this.connection.sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName(), true);
@@ -191,7 +195,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             throw new IllegalArgumentException("Subject is required in subscribe");
         }
 
-        this.subscribeImpl(subject, null, null, false);
+        this.subscribeImplCore(subject, null, null);
         return this;
     }
     NatsSubscription subscribeReturningSubscription(String subject) {
@@ -199,7 +203,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             throw new IllegalArgumentException("Subject is required in subscribe");
         }
 
-        return this.subscribeImpl(subject, null, null, false);
+        return this.subscribeImplCore(subject, null, null);
     }
     public Subscription subscribe(String subject, MessageHandler handler) {
         if (subject == null || subject.length() == 0) {
@@ -209,7 +213,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         if (handler == null) {
             throw new IllegalArgumentException("MessageHandler is required in subscribe");
         }
-        return this.subscribeImpl(subject, null, handler, false);
+        return this.subscribeImplCore(subject, null, handler);
     }
 
     public Dispatcher subscribe(String subject, String queueName) {
@@ -220,7 +224,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         if (queueName == null || queueName.length() == 0) {
             throw new IllegalArgumentException("QueueName is required in subscribe");
         }
-        this.subscribeImpl(subject, queueName, null, false);
+        this.subscribeImplCore(subject, queueName, null);
         return this;
     }
 
@@ -236,18 +240,12 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         if (handler == null) {
             throw new IllegalArgumentException("MessageHandler is required in subscribe");
         }
-        return this.subscribeImpl(subject, queueName, handler, false);
+        return this.subscribeImplCore(subject, queueName, handler);
     }
 
     // Assumes the subj/queuename checks are done, does check for closed status
-    NatsSubscription subscribeImpl(String subject, String queueName, MessageHandler handler, boolean isJetStream) {
-        if (!this.running.get()) {
-            throw new IllegalStateException("Dispatcher is closed");
-        }
-
-        if (this.isDraining()) {
-            throw new IllegalStateException("Dispatcher is draining");
-        }
+    NatsSubscription subscribeImplCore(String subject, String queueName, MessageHandler handler) {
+        checkBeforeSubImpl();
 
         // If the handler is null, then we use the default handler, which will not allow
         // duplicate subscriptions to exist.
@@ -255,19 +253,38 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             NatsSubscription sub = this.subscriptionsUsingDefaultHandler.get(subject);
 
             if (sub == null) {
-                sub = connection.createSubscription(subject, queueName, this, isJetStream);
-                NatsSubscription actual = this.subscriptionsUsingDefaultHandler.putIfAbsent(subject, sub);
-                if (actual != null) {
+                sub = connection.createSubscription(subject, queueName, this, null);
+                NatsSubscription wonTheRace = this.subscriptionsUsingDefaultHandler.putIfAbsent(subject, sub);
+                if (wonTheRace != null) {
                     this.connection.unsubscribe(sub, -1); // Could happen on very bad timing
                 }
             }
 
             return sub;
-        } else {
-            NatsSubscription sub = connection.createSubscription(subject, queueName, this, isJetStream);
-            this.subscriptionsWithHandlers.put(sub.getSID(), sub);
-            this.subscriptionHandlers.put(sub.getSID(), handler);
-            return sub;
+        }
+
+        return _subscribeImplHandlerProvided(subject, queueName, handler, null);
+    }
+
+    NatsSubscription subscribeImplJetStream(String subject, String queueName, MessageHandler handler, NatsSubscriptionFactory nsf) {
+        checkBeforeSubImpl();
+        return _subscribeImplHandlerProvided(subject, queueName, handler, nsf);
+    }
+
+    private NatsSubscription _subscribeImplHandlerProvided(String subject, String queueName, MessageHandler handler, NatsSubscriptionFactory nsf) {
+        NatsSubscription sub = connection.createSubscription(subject, queueName, this, nsf);
+        this.subscriptionsWithHandlers.put(sub.getSID(), sub);
+        this.subscriptionHandlers.put(sub.getSID(), handler);
+        return sub;
+    }
+
+    private void checkBeforeSubImpl() {
+        if (!running.get()) {
+            throw new IllegalStateException("Dispatcher is closed");
+        }
+
+        if (isDraining()) {
+            throw new IllegalStateException("Dispatcher is draining");
         }
     }
 

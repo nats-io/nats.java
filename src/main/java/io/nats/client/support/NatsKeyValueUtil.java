@@ -20,6 +20,8 @@ import static io.nats.client.support.NatsConstants.DOT;
 
 public abstract class NatsKeyValueUtil {
 
+    private NatsKeyValueUtil() {} /* ensures cannot be constructed */
+
     public static final String KV_STREAM_PREFIX = "KV_";
     public static final int KV_STREAM_PREFIX_LEN = KV_STREAM_PREFIX.length();
     public static final String KV_SUBJECT_PREFIX = "$KV.";

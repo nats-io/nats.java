@@ -177,23 +177,19 @@ public class JetStreamOptions {
                 return DEFAULT_API_PREFIX;
             }
 
-            prefix = validatePrefixOrDomain(prefix, "Prefix", true);
-            if (!prefix.endsWith(DOT)) {
-                prefix += DOT;
-            }
-
-            return prefix;
+            String valid = validatePrefixOrDomain(prefix, "Prefix", true);
+            return valid.endsWith(DOT) ? valid : valid + DOT;
         }
 
         private String validateDomain(String domain) {
             if (nullOrEmpty(domain)) {
                 return DEFAULT_API_PREFIX;
             }
-            domain = validatePrefixOrDomain(domain, "Domain", true);
-            if (!domain.endsWith(DOT)) {
-                domain += DOT;
+            String valid = validatePrefixOrDomain(domain, "Domain", true);
+            if (valid.endsWith(DOT)) {
+                return PREFIX_DOLLAR_JS_DOT + valid + PREFIX_API_DOT;
             }
-            return PREFIX_DOLLAR_JS_DOT + domain + PREFIX_API_DOT;
+            return PREFIX_DOLLAR_JS_DOT + valid + DOT + PREFIX_API_DOT;
         }
     }
 }

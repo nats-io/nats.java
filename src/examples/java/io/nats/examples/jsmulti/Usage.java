@@ -24,7 +24,7 @@ public class Usage {
     }
 
     public static final String USAGE =
-            "\nUsage: java -cp build/libs/jnats-2.12.1.jar:build/libs/jnats-2.12.1-examples.jar \\"
+            "\nUsage: java -cp build/libs/jnats-2.13.0.jar:build/libs/jnats-2.13.0-examples.jar \\"
                     + "\n       io.nats.examples.jsmulti.JsMulti configurations\n"
                     + "\n---------------------------------------------------------------------------------------"
                     + "\nConfiguration Options"

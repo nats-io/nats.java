@@ -21,28 +21,34 @@ In the `io.nats.examples.jetstream` package...
 
 1. `NatsJsPub.java` - publish JetStream messages
 1. `NatsJsPubAsync.java` - publish JetStream messages asynchronously
-1. `NatsJsPubVsRegularPub.java` - publish JetStream messages versus regular publish to the same stream.
+1. `NatsJsPubVersusCorePub.java` - publish JetStream messages versus core publish to the same stream.
 1. `NatsJsPubWithOptionsUseCases` - publish JetStream with examples on using publish options
 1. `NatsJsPullSubBatchSize.java` - pull subscription example specifying batch size and manual handling
 1. `NatsJsPullSubBatchSizeUseCases.java` - pull subscription example specifying batch size with examples of manual handling various cases of available messages  
-1. `NatsJsPullSubExpire.java` - pull subscription example specifying expiration and manual handling
-1. `NatsJsPullSubExpireUseCases.java` - pull subscription example specifying expiration with examples of manual handling various cases of available messages
+1. `NatsJsPullSubExpiresIn.java` - pull subscription example specifying expiration and manual handling
+1. `NatsJsPullSubExpiresInUseCases.java` - pull subscription example specifying expiration with examples of manual handling various cases of available messages
 1. `NatsJsPullSubFetch.java` - pull subscription example using fetch list macro function
 1. `NatsJsPullSubFetchUseCases.java` - pull subscription example using fetch list macro function with examples of various cases of available messages
 1. `NatsJsPullSubIterate.java` - pull subscription example using iterate macro function
 1. `NatsJsPullSubIterateUseCases.java` - pull subscription example using iterate macro function with examples of various cases of available messages
-1. `NatsJsPullSubMultiple.java` - multiple pull subscriptions using the same durable consumer work like a sharing queue
 1. `NatsJsPullSubNoWaitUseCases.java` - pull subscription example specifying no wait with examples of manual handling various cases of available messages
-1. `NatsJsPushSub.java` - push subscribing to read messages synchronously and manually acknowledges messages.
+1. `NatsJsPushSubBasicAsync.java` - push subscribing to read messages asynchronously and manually acknowledge messages.
+1. `NatsJsPushSubBasicSync.java` - push subscribing to read messages synchronously and manually acknowledges messages.
+1. `NatsJsPushSubBindDurable.java` - push subscribing with the bind options
 1. `NatsJsPushSubDeliverSubject.java` - push subscribing with a deliver subject and how the subject can be read as a regular Nats Message  
-1. `NatsJsPushSubQueueDeliverSubject.java` - push subscribing to read messages in a load balance queue using a deliver subject with ephemeral consumers.
+1. `NatsJsPushSubFilterSubject.java` - push subscribing with a filter on the subjects.
+1. `NatsJsPushSubFlowControl.java` -
+1. `NatsJsPushSubHeartbeat.java` -
 1. `NatsJsPushSubQueueDurable.java` - push subscribing to read messages in a load balance queue using a durable consumer.
-1. `NatsJsPushSubWithHandler.java` - push subscribing to read messages asynchronously and manually acknowledge messages.
 
 ### JetStream Management / Admin Examples
 1. `NatsJsManageConsumers.java` - demonstrate the management of consumers
 1. `NatsJsManageStreams.java` - demonstrate the management of streams
+1. `NatsJsMirrorSubUseCases.java` -
 1. `NatsJsPrefix.java` - demonstrate connecting on an account that uses a custom prefix
+
+### Key Value / Object Store
+1. `NatsKeyValueFull.java` -
 
 ### Other examples
 1. `autobench` - benchmarks the current system/setup in several scenarios
@@ -84,7 +90,7 @@ You can also just insert some code before the arguments are processed to set the
 In the examples, the usage will show `java <program> -cp <classpath> ...` Make sure you add both the client library and examples into the classpath. For example:
 
 ```bash
-java -cp build/libs/jnats-2.12.1-SNAPSHOT.jar:build/libs/jnats-2.12.1-SNAPSHOT-examples.jar io.nats.examples.NatsPub nats://localhost:4222 test "hello world"
+java -cp build/libs/jnats-2.13.0-SNAPSHOT.jar:build/libs/jnats-2.13.0-SNAPSHOT-examples.jar io.nats.examples.NatsPub nats://localhost:4222 test "hello world"
 ```
 
 ### Some examples depend on others
@@ -102,7 +108,7 @@ java -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.ke
 To run with the completely unverified client:
 
 ```bash
-java -cp build/libs/jnats-2.12.1-SNAPSHOT.jar:build/libs/jnats-2.12.1-SNAPSHOT-examples.jar io.nats.examples.NatsSub opentls://localhost:4443 test 3
+java -cp build/libs/jnats-2.13.0-SNAPSHOT.jar:build/libs/jnats-2.13.0-SNAPSHOT-examples.jar io.nats.examples.NatsSub opentls://localhost:4443 test 3
 ```
 
 There are a set tls configuration for the server in the test files that can be used to run the NATS server.

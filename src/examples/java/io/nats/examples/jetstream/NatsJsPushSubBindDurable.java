@@ -21,7 +21,7 @@ import io.nats.examples.ExampleUtils;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
-import static io.nats.examples.jetstream.NatsJsUtils.streamExists;
+import static io.nats.examples.jetstream.NatsJsUtils.exitIfStreamNotExists;
 
 /**
  * This example will demonstrate JetStream push subscribing with binding to an existing durable.
@@ -29,72 +29,71 @@ import static io.nats.examples.jetstream.NatsJsUtils.streamExists;
  */
 public class NatsJsPushSubBindDurable {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPushSubBindDurable [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable] [-dlvr deliver]"
-                    + "\n\nDefault Values:"
-                    + "\n   [-strm stream]           example-stream"
-                    + "\n   [-sub subject]           example-subject"
-                    + "\n   [-dlvr deliver_subject]  psbind-deliver"
-                    + "\n   [-dur durable]           psbind-durable"
-                    + "\n   [-mcnt msgCount]         0"
-                    + "\n\nRun Notes:"
-                    + "\n   - durable is optional, durable behaves differently, try it by running this twice with durable set"
-                    + "\n   - deliver is optional"
-                    + "\n   - msg_count < 1 will just loop until there are no more messages"
-                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
-                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
-                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
+        "\nUsage: java -cp <classpath> NatsJsPushSubBindDurable [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable] [-deliver deliver]"
+            + "\n\nDefault Values:"
+            + "\n   [-strm]    example-stream"
+            + "\n   [-sub]     example-subject"
+            + "\n   [-dur]     bind-durable"
+            + "\n   [-deliver] bind-deliver"
+            + "\n   [-mcnt]    0"
+            + "\n\nRun Notes:"
+            + "\n   - make sure you have created and published to the stream and subject, maybe using the NatsJsPub example"
+            + "\n   - msg_count < 1 will just loop until there are no more messages"
+            + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+            + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+            + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+            + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
 
-        ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("example-stream")
-                .defaultSubject("example-subject")
-                .defaultDeliver("psbind-deliver")
-                .defaultDurable("psbind-durable")
-                .defaultMsgCount(0)
-                .build(args, usageString);
+        ExampleArgs exArgs = ExampleArgs.builder("Push Subscription Binding With Durable", args, usageString)
+            .defaultStream("example-stream")
+            .defaultSubject("example-subject")
+            .defaultDurable("bind-durable")
+            .defaultDeliverSubject("bind-deliver")
+            .defaultMsgCount(0, true) // true indicated 0 means unlimited
+            .build();
 
         int count = exArgs.msgCount < 1 ? Integer.MAX_VALUE : exArgs.msgCount;
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
-            if (!streamExists(nc, exArgs.stream)) {
-                System.out.println("Stopping program, stream does not exist: " + exArgs.stream);
-                return;
-            }
 
-            // just some reporting
-            System.out.println("\nConnected to server " + exArgs.server + ". Listening to...");
-            System.out.println("  Subject: " + exArgs.subject);
-            System.out.println("  Durable: " + exArgs.durable);
-            if (count == Integer.MAX_VALUE) {
-                System.out.println("  Until there are no more messages");
-            }
-            else {
-                System.out.println("  For " + count + " messages max");
-            }
+            // The stream (and data) must exist
+            exitIfStreamNotExists(nc, exArgs.stream);
 
             // The durable consumer must already exist. Usually it would be made in configuration
-            // or via the cli but we are making it here.
+            // or via the NATS CLI but we are making it here.
             // Important: The consumer must have a deliver subject when made this way or it will be
             // understood to be a pull consumer by the server.
+            // NOTE: If you ran this example already, the consumer will have been created
+            //       This is not a problem if it is exactly the same. Most ConsumerConfiguration
+            //       properties are not modifiable once created.
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                     .durable(exArgs.durable)
-                    .deliverSubject(exArgs.deliver)
+                    .deliverSubject(exArgs.deliverSubject)
                     .build();
             nc.jetStreamManagement().addOrUpdateConsumer(exArgs.stream, cc);
 
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // bind subscribe to the stream - either variety will work
+            // V1. Version designed specifically for this purpose.
             PushSubscribeOptions so = PushSubscribeOptions.bind(exArgs.stream, exArgs.durable);
-//            PushSubscribeOptions so = PushSubscribeOptions.builder().bind(true).stream(exArgs.stream).durable(exArgs.durable).deliverSubject(exArgs.deliver).build();
+
+            // V2. optional long form
+            // PushSubscribeOptions so = PushSubscribeOptions.builder()
+            //     .bind(true)
+            //     .stream(exArgs.stream)
+            //     .durable(exArgs.durable)
+            //     .build();
+
+            // Subscribe synchronously, then just wait for messages.
             JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
             nc.flush(Duration.ofSeconds(5));
 
             int red = 0;
-            Message msg = sub.nextMessage(Duration.ofSeconds(1));
+            Message msg = sub.nextMessage(Duration.ofSeconds(1)); // timeout can be Duration or millis
             while (msg != null) {
                 System.out.println("\nMessage Received:");
                 if (msg.hasHeaders()) {
@@ -107,26 +106,20 @@ public class NatsJsPushSubBindDurable {
                 }
 
                 System.out.printf("  Subject: %s\n  Data: %s\n",
-                        msg.getSubject(),
-                        new String(msg.getData(), StandardCharsets.UTF_8));
+                    msg.getSubject(), new String(msg.getData(), StandardCharsets.UTF_8));
+                System.out.println("  " + msg.metaData());
 
-                // This check may not be necessary for this example depending
-                // on how the consumer has been setup.  When a deliver subject
-                // is set on a consumer, messages can be received from applications
-                // that are NATS producers and from streams in NATS servers.
-                if (msg.isJetStream()) {
-                    System.out.println("  " + msg.metaData());
-                    // Because this is a synchronous subscriber, there's no auto-ack.
-                    // We need to ack the message or it'll be redelivered.  
-                    msg.ack();
-                }
+                // Because this is a synchronous subscriber, there's no auto-ack.
+                // The default Consumer Configuration AckPolicy is Explicit
+                // so we need to ack the message or it'll be redelivered.
+                msg.ack();
 
                 ++red;
                 if (--count == 0) {
                     msg = null;
                 }
                 else {
-                    msg = sub.nextMessage(Duration.ofSeconds(1));
+                    msg = sub.nextMessage(1000); // timeout can be Duration or millis
                 }
             }
 

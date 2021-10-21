@@ -15,37 +15,43 @@ package io.nats.client;
 
 import io.nats.client.api.ConsumerConfiguration;
 
+import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.support.Validator.*;
 
 /**
- * The PushSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
- * Options are created using the constructors or a {@link Builder}.
+ * The SubscribeOptions is the base class for PushSubscribeOptions and PullSubscribeOptions
  */
 public abstract class SubscribeOptions {
 
     protected final String stream;
+    protected final boolean pull;
     protected final boolean bind;
     protected final ConsumerConfiguration consumerConfig;
+    protected final boolean detectGaps;
+    protected final long messageAlarmTime;
 
-    protected SubscribeOptions(String stream, String durable, boolean pull, boolean bind,
-                               String deliverSubject, String deliverGroup, ConsumerConfiguration cc) {
+    @SuppressWarnings("rawtypes") // Don't need the type of the builder to get it's vars
+    protected SubscribeOptions(Builder builder, boolean pull, String deliverSubject, String deliverGroup) {
 
-        this.stream = validateStreamName(stream, bind); // required when bind mode
+        this.stream = validateStreamName(builder.stream, builder.bind); // required when bind mode
 
-        durable = validateMustMatchIfBothSupplied(durable, cc == null ? null : cc.getDurable(), "Builder Durable", "Consumer Configuration Durable");
-        durable = validateDurable(durable, pull || bind); // required when pull or bind
+        String durable = validateMustMatchIfBothSupplied(builder.durable, builder.cc == null ? null : builder.cc.getDurable(), JsSoDurableMismatch);
+        durable = validateDurable(durable, pull || builder.bind); // required when pull or bind
 
-        deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, cc == null ? null : cc.getDeliverGroup(), "Builder Deliver Group", "Consumer Configuration Deliver Group");
+        deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, builder.cc == null ? null : builder.cc.getDeliverGroup(), JsSoDeliverGroupMismatch);
 
-        deliverSubject = validateMustMatchIfBothSupplied(deliverSubject, cc == null ? null : cc.getDeliverSubject(), "Builder Deliver Subject", "Consumer Configuration Deliver Subject");
+        deliverSubject = validateMustMatchIfBothSupplied(deliverSubject, builder.cc == null ? null : builder.cc.getDeliverSubject(), JsSoDeliverSubjectGroupMismatch);
 
-        this.consumerConfig = ConsumerConfiguration.builder(cc)
+        this.consumerConfig = ConsumerConfiguration.builder(builder.cc)
                 .durable(durable)
                 .deliverSubject(deliverSubject)
                 .deliverGroup(deliverGroup)
                 .build();
 
-        this.bind = bind;
+        this.pull = pull;
+        this.bind = builder.bind;
+        this.detectGaps = builder.detectGaps;
+        this.messageAlarmTime = builder.messageAlarmTime;
     }
 
     /**
@@ -65,11 +71,32 @@ public abstract class SubscribeOptions {
     }
 
     /**
+     * Gets whether this is a pull subscription
+     * @return the pull flag
+     */
+    public boolean isPull() {
+        return pull;
+    }
+
+    /**
      * Gets whether this subscription is expected to bind to an existing stream and durable consumer
-     * @return the direct flag
+     * @return the bind flag
      */
     public boolean isBind() {
         return bind;
+    }
+
+    /**
+     * Get whether this subscription should provide automatic gap management,
+     * i.e. handle when a gap is detected in the message stream.
+     * @return the automatic gap management flag
+     */
+    public boolean detectGaps() {
+        return detectGaps;
+    }
+
+    public long getMessageAlarmTime() {
+        return messageAlarmTime;
     }
 
     /**
@@ -83,10 +110,11 @@ public abstract class SubscribeOptions {
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
-                "stream='" + stream + '\'' +
-                "bind=" + bind +
-                ", " + consumerConfig +
-                '}';
+            "stream='" + stream + '\'' +
+            "bind=" + bind +
+            "detectGaps=" + detectGaps +
+            ", " + consumerConfig +
+            '}';
     }
 
     /**
@@ -94,10 +122,12 @@ public abstract class SubscribeOptions {
      * create a default set of options if no methods are calls.
      */
     protected static abstract class Builder<B, SO> {
-        protected String stream;
-        protected boolean isBind;
-        protected String durable;
-        protected ConsumerConfiguration consumerConfig;
+        String stream;
+        boolean bind;
+        String durable;
+        ConsumerConfiguration cc;
+        boolean detectGaps = false;
+        long messageAlarmTime = -1;
 
         protected abstract B getThis();
 
@@ -115,10 +145,10 @@ public abstract class SubscribeOptions {
         /**
          * Specify the to attach in direct mode
          * @return the builder
-         * @param isBind whether to bind or not
+         * @param bind whether to bind or not
          */
-        public B bind(boolean isBind) {
-            this.isBind = isBind;
+        public B bind(boolean bind) {
+            this.bind = bind;
             return getThis();
         }
 
@@ -141,7 +171,29 @@ public abstract class SubscribeOptions {
          * @return the builder
          */
         public B configuration(ConsumerConfiguration configuration) {
-            this.consumerConfig = configuration;
+            this.cc = configuration;
+            return getThis();
+        }
+
+        /**
+         * Sets or clears the auto gap manage flag
+         * @param detectGaps the flag
+         * @return the builder
+         */
+        public B detectGaps(boolean detectGaps) {
+            this.detectGaps = detectGaps;
+            return getThis();
+        }
+
+        /**
+         * Set the total amount of time to not receive any messages or heartbeats
+         * before calling the ErrorListener heartbeatAlarm
+         *
+         * @param messageAlarmTime the time
+         * @return the builder
+         */
+        public B messageAlarmTime(long messageAlarmTime) {
+            this.messageAlarmTime = messageAlarmTime;
             return getThis();
         }
 

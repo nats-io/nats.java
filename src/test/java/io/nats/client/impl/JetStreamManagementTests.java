@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.List;
 
+import static io.nats.client.support.NatsJetStreamClientError.JsSubSubjectDoesNotMatchFilter;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamManagementTests extends JetStreamTestBase {
@@ -266,14 +267,21 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testPurgeStreamAndOptions() throws Exception {
         runInJsServer(nc -> {
+            // invalid to have both keep and seq
+            assertThrows(IllegalArgumentException.class,
+                () -> PurgeOptions.builder().keep(1).sequence(1).build());
+
             JetStreamManagement jsm = nc.jetStreamManagement();
+
+            // error to purge a stream that does not exist
             assertThrows(JetStreamApiException.class, () -> jsm.purgeStream(STREAM));
-            createMemoryStream(jsm, STREAM, SUBJECT);
+
+            createMemoryStream(jsm, STREAM, subject(1), subject(2));
 
             StreamInfo si = jsm.getStreamInfo(STREAM);
             assertEquals(0, si.getStreamState().getMsgCount());
 
-            jsPublish(nc, SUBJECT, 10);
+            jsPublish(nc, subject(1), 10);
             si = jsm.getStreamInfo(STREAM);
             assertEquals(10, si.getStreamState().getMsgCount());
 
@@ -282,7 +290,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertTrue(pr.isSuccess());
             assertEquals(3, pr.getPurged());
 
-            options = PurgeOptions.builder().seq(9).build();
+            options = PurgeOptions.builder().sequence(9).build();
             pr = jsm.purgeStream(STREAM, options);
             assertTrue(pr.isSuccess());
             assertEquals(5, pr.getPurged());
@@ -294,54 +302,21 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(2, pr.getPurged());
             si = jsm.getStreamInfo(STREAM);
             assertEquals(0, si.getStreamState().getMsgCount());
-        });
-
-        assertThrows(IllegalArgumentException.class,
-                () -> PurgeOptions.builder().keep(1).seq(1).build());
-    }
-
-    @Test
-    public void testPurgeStreamSubjectOptions() throws Exception {
-        runInJsServer(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            assertThrows(JetStreamApiException.class, () -> jsm.purgeStream(STREAM));
-            createMemoryStream(jsm, STREAM, subject(1), subject(2));
-
-            StreamInfo si = jsm.getStreamInfo(STREAM);
-            assertEquals(0, si.getStreamState().getMsgCount());
 
             jsPublish(nc, subject(1), 10);
-            jsPublish(nc, subject(2), 1);
+            jsPublish(nc, subject(2), 10);
             si = jsm.getStreamInfo(STREAM);
-            assertEquals(11, si.getStreamState().getMsgCount());
-
-            PurgeOptions options = PurgeOptions.builder().subject(subject(2)).build();
-            PurgeResponse pr = jsm.purgeStream(STREAM, options);
-            assertTrue(pr.isSuccess());
-            assertEquals(1, pr.getPurged());
-
+            assertEquals(20, si.getStreamState().getMsgCount());
+            jsm.purgeStream(STREAM, PurgeOptions.subject(subject(1)));
             si = jsm.getStreamInfo(STREAM);
             assertEquals(10, si.getStreamState().getMsgCount());
 
-            options = PurgeOptions.builder()
-                    .subject(subject(1))
-                    .keep(7)
-                    .build();
-            pr = jsm.purgeStream(STREAM, options);
-            assertTrue(pr.isSuccess());
-            assertEquals(3, pr.getPurged());
-            si = jsm.getStreamInfo(STREAM);
-            assertEquals(7, si.getStreamState().getMsgCount());
+            options = PurgeOptions.builder().subject(subject(1)).sequence(1).build();
+            assertEquals(subject(1), options.getSubject());
+            assertEquals(1, options.getSequence());
 
-            options = PurgeOptions.builder()
-                    .subject(subject(1))
-                    .seq(9)
-                    .build();
-            pr = jsm.purgeStream(STREAM, options);
-            assertTrue(pr.isSuccess());
-            assertEquals(5, pr.getPurged());
-            si = jsm.getStreamInfo(STREAM);
-            assertEquals(2, si.getStreamState().getMsgCount());
+            options = PurgeOptions.builder().subject(subject(1)).keep(2).build();
+            assertEquals(2, options.getKeep());
         });
     }
 
@@ -425,9 +400,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             cc = ConsumerConfiguration.builder(cc).idleHeartbeat(Duration.ofMillis(111)).build();
             assertInvalidConsumerUpdate(jsm, cc);
 
-            cc = ConsumerConfiguration.builder(cc).flowControl(true).build();
-            assertInvalidConsumerUpdate(jsm, cc);
-
             cc = ConsumerConfiguration.builder(cc).maxDeliver(4).build();
             assertInvalidConsumerUpdate(jsm, cc);
         });
@@ -505,7 +477,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             PullSubscribeOptions pullOptsBadFilter = PullSubscribeOptions.builder().configuration(ccBadFilter).build();
             IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
                     () -> js.subscribe(subjectDot("F"), pullOptsBadFilter));
-            assertTrue(iae.getMessage().contains("[SUB-FS01]"));
+            assertTrue(iae.getMessage().contains(JsSubSubjectDoesNotMatchFilter.prefix()));
 
             // try to filter against durable with mismatch, push
             jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder()
@@ -520,7 +492,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             PushSubscribeOptions pushOptsBadFilter = PushSubscribeOptions.builder().configuration(ccBadFilter).build();
             iae = assertThrows(IllegalArgumentException.class,
                     () -> js.subscribe(subjectDot("F"), pushOptsBadFilter));
-            assertTrue(iae.getMessage().contains("[SUB-FS01]"));
+            assertTrue(iae.getMessage().contains(JsSubSubjectDoesNotMatchFilter.prefix()));
         });
     }
 

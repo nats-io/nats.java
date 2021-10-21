@@ -22,5 +22,25 @@
   },
   "num_pending": 24,
   "num_ack_pending": 42,
-  "num_redelivered": 42
+  "num_redelivered": 42,
+  "cluster": {
+    "name": "clustername",
+    "leader": "clusterleader",
+    "replicas": [
+      {
+        "name": "name0",
+        "current": true,
+        "offline": true,
+        "active": 230000000000,
+        "lag": 3
+      },
+      {
+        "name": "name1",
+        "current": false,
+        "offline": false,
+        "active": 240000000000,
+        "lag": 4
+      }
+    ]
+  }
 }

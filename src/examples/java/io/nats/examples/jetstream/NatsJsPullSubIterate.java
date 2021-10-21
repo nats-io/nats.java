@@ -14,55 +14,64 @@
 package io.nats.examples.jetstream;
 
 import io.nats.client.*;
+import io.nats.client.api.ConsumerConfiguration;
 import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
 
 import java.time.Duration;
 import java.util.Iterator;
 
-import static io.nats.examples.jetstream.NatsJsUtils.createStreamThrowWhenExists;
-import static io.nats.examples.jetstream.NatsJsUtils.publishDontWait;
+import static io.nats.examples.jetstream.NatsJsUtils.createStreamExitWhenExists;
+import static io.nats.examples.jetstream.NatsJsUtils.publishInBackground;
 
 /**
  * This example will demonstrate basic use of a pull subscription of:
- * iterate pull: <code>iterate(int batchSize, Duration maxWait)</code>,
+ * iterate pull: <code>iterate(int batchSize, Duration or millis maxWait)</code>,
  */
 public class NatsJsPullSubIterate {
     static final String usageString =
             "\nUsage: java -cp <classpath> NatsJsPullSubIterate [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
                     + "\n\nDefault Values:"
-                    + "\n   [-strm stream]     iterate-stream"
-                    + "\n   [-sub subject]     iterate-subject"
-                    + "\n   [-dur durable]     iterate-durable"
-                    + "\n   [-mcnt msgCount]   99"
+                    + "\n   [-strm] iterate-stream"
+                    + "\n   [-sub]  iterate-subject"
+                    + "\n   [-dur]  iterate-durable"
+                    + "\n   [-mcnt] 15"
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
                     + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
                     + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
+                    + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("iterate-stream")
-                .defaultSubject("iterate-subject")
-                .defaultDurable("iterate-durable")
-                .defaultMsgCount(99)
-                //.uniqueify() // uncomment to be able to re-run without re-starting server
-                .build(args, usageString);
+        ExampleArgs exArgs = ExampleArgs.builder("Pull Subscription using macro Iterate", args, usageString)
+            .defaultStream("iterate-stream")
+            .defaultSubject("iterate-subject")
+            .defaultDurable("iterate-durable")
+            .defaultMsgCount(15)
+            .build();
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
-            createStreamThrowWhenExists(nc, exArgs.stream, exArgs.subject);
+            // Create a JetStreamManagement context.
+            JetStreamManagement jsm = nc.jetStreamManagement();
 
-            // Create our JetStream context to receive JetStream messages.
+            // Use the utility to create a stream stored in memory.
+            createStreamExitWhenExists(jsm, exArgs.stream, exArgs.subject);
+
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // start publishing the messages, don't wait for them to finish, simulating an outside producer
-            publishDontWait(js, exArgs.subject, "iterate-message", exArgs.msgCount);
+            publishInBackground(js, exArgs.subject, "iterate-message", exArgs.msgCount);
 
-            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            // Build our consumer configuration and subscription options.
+            // make sure the ack wait is sufficient to handle the reading and processing of the batch.
+            // Durable is REQUIRED for pull based subscriptions
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                .ackWait(Duration.ofMillis(2500))
+                .build();
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                    .durable(exArgs.durable)      // required
-                    // .configuration(...) // if you want a custom io.nats.client.api.ConsumerConfiguration
-                    .build();
+                .durable(exArgs.durable) // required
+                .configuration(cc)
+                .build();
 
             JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);
             nc.flush(Duration.ofSeconds(1));
@@ -71,13 +80,15 @@ public class NatsJsPullSubIterate {
             while (red < exArgs.msgCount) {
                 Iterator<Message> iter = sub.iterate(10, Duration.ofSeconds(1));
                 while (iter.hasNext()) {
-                    // process message
                     Message m = iter.next();
-                    red++;
+                    red++; // process message
                     System.out.println("" + red + ". " + m);
                     m.ack();
                 }
             }
+
+            // delete the stream since we are done with it.
+            jsm.deleteStream(exArgs.stream);
         }
         catch (Exception e) {
             e.printStackTrace();

@@ -22,35 +22,39 @@ import io.nats.examples.ExampleUtils;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
-import static io.nats.examples.jetstream.NatsJsUtils.createOrUpdateStream;
-
 /**
  * This example will demonstrate the ability to publish to a stream with either
- * the JetStream.publish(...) or with regular Connection.publish(...)
+ * the JetStream.publish(...) or with core Connection.publish(...)
  *
  * The difference lies in the whether it's important to your application to receive
  * a publish ack and whether or not you want to set publish expectations.
  */
-public class NatsJsPubVersusRegularPub {
+public class NatsJsPubVersusCorePub {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPubVersusRegularPub [-s server] [-strm stream] [-sub subject]"
-                    + "\n\nDefault Values:"
-                    + "\n   [-strm stream]     regular-stream"
-                    + "\n   [-sub subject]     regular-subject"
-                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
-                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
-                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
+        "\nUsage: java -cp <classpath> NatsJsPubVersusCorePub [-s server] [-strm stream] [-sub subject]"
+            + "\n\nDefault Values:"
+            + "\n   [-strm] js-or-core-stream"
+            + "\n   [-sub]  js-or-core-subject"
+            + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+            + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+            + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+            + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("js-or-reg-stream")
-                .defaultSubject("js-or-reg-subject")
-                .build(args, usageString);
+        ExampleArgs exArgs = ExampleArgs.builder("Publish JetStream Versus Core", args, usageString)
+                .defaultStream("js-or-core-stream")
+                .defaultSubject("js-or-core-subject")
+                .build();
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
+
+            // Create a JetStream context.  This hangs off the original connection
+            // allowing us to produce data to streams and consume data from
+            // JetStream consumers.
             JetStream js = nc.jetStream();
-            createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
+
+            // Use the utility to create a stream stored in memory.
+            NatsJsUtils.createStreamExitWhenExists(nc, exArgs.stream, exArgs.subject);
 
             // Regular Nats publish is straightforward
             nc.publish(exArgs.subject, "regular-message".getBytes(StandardCharsets.UTF_8));
@@ -64,14 +68,7 @@ public class NatsJsPubVersusRegularPub {
                     .data("js-message", StandardCharsets.UTF_8)
                     .build();
 
-            PublishOptions po = PublishOptions.builder()
-//                    .expectedLastSeqence(...)
-//                    .expectedLastMsgId(...)
-//                    .expectedStream(...)
-//                    .messageId(...)
-                    .build();
-
-            PublishAck pa = js.publish(msg, po);
+            PublishAck pa = js.publish(msg);
             System.out.println(pa);
 
             // set up the subscription
@@ -86,6 +83,9 @@ public class NatsJsPubVersusRegularPub {
             msg = sub.nextMessage(Duration.ofSeconds(1));
             msg.ack();
             System.out.println("Received Data: " + new String(msg.getData()) + "\n          " + msg.metaData());
+
+            // delete the stream since we are done with it.
+            nc.jetStreamManagement().deleteStream(exArgs.stream);
         }
         catch (Exception e) {
             e.printStackTrace();

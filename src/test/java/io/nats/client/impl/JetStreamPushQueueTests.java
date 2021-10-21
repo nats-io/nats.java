@@ -25,14 +25,15 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class JetStreamPushQueueTests extends JetStreamTestBase {
 
     @Test
     public void testQueueSubWorkflow() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
@@ -140,44 +141,5 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
                 }
             }
         }
-    }
-
-    @Test
-    public void testQueueSubErrors() throws Exception {
-        runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
-
-            // create a durable that is not a queue
-            PushSubscribeOptions pso1 = PushSubscribeOptions.builder().durable(durable(1)).build();
-            js.subscribe(SUBJECT, pso1);
-
-            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pso1));
-            assertTrue(iae.getMessage().contains("[SUB-Q02]"));
-
-            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, queue(1), pso1));
-            assertTrue(iae.getMessage().contains("[SUB-Q03]"));
-
-            PushSubscribeOptions pso21 = PushSubscribeOptions.builder().durable(durable(2)).build();
-            js.subscribe(SUBJECT, queue(21), pso21);
-
-            PushSubscribeOptions pso22 = PushSubscribeOptions.builder().durable(durable(2)).build();
-            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, queue(22), pso22));
-            assertTrue(iae.getMessage().contains("[SUB-Q05]"));
-
-            PushSubscribeOptions pso23 = PushSubscribeOptions.builder().durable(durable(2)).build();
-            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pso23));
-            assertTrue(iae.getMessage().contains("[SUB-Q04]"));
-
-            PushSubscribeOptions pso3 = PushSubscribeOptions.builder()
-                    .durable(durable(3))
-                    .deliverGroup(queue(31))
-                    .build();
-            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, queue(32), pso3));
-            assertTrue(iae.getMessage().contains("[SUB-Q01]"));
-        });
     }
 }

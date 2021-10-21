@@ -28,9 +28,9 @@ public class BucketConfigurationTests extends JetStreamTestBase {
         BucketConfiguration bc = BucketConfiguration.builder()
                 .name("bucketName")
                 .maxValues(333)
-                .maxHistory(444)
+                .maxHistoryPerKey(444)
                 .maxBucketSize(555)
-                .maxValueSize(666)
+                .maxValueBytes(666)
                 .ttl(Duration.ofMillis(777))
                 .storageType(StorageType.Memory)
                 .replicas(2)
@@ -47,16 +47,16 @@ public class BucketConfigurationTests extends JetStreamTestBase {
                 .duplicateWindow(999)
                 .build();
 
-        assertEquals(1, bc.getMaxHistory());
+        assertEquals(1, bc.getMaxHistoryPerKey());
         assertEquals(Duration.ofMillis(999), bc.getDuplicateWindow());
     }
 
     private void validate(BucketConfiguration bc) {
         assertEquals("bucketName", bc.getName());
         assertEquals(333, bc.getMaxValues());
-        assertEquals(444, bc.getMaxHistory());
+        assertEquals(444, bc.getMaxHistoryPerKey());
         assertEquals(555, bc.getMaxBucketSize());
-        assertEquals(666, bc.getMaxValueSize());
+        assertEquals(666, bc.getMaxValueBytes());
         assertEquals(Duration.ofMillis(777), bc.getTtl());
         assertEquals(StorageType.Memory, bc.getStorageType());
         assertEquals(2, bc.getReplicas());

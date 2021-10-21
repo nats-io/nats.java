@@ -75,6 +75,9 @@ public class JetStreamPubTests extends JetStreamTestBase {
             assertNextMessage(s, null); // 6
             assertNextMessage(s, null); // 7
             assertNextMessage(s, null); // 8
+
+            // 503
+            IOException ioe = assertThrows(IOException.class, () -> js.publish(subject(999), null));
         });
     }
 
