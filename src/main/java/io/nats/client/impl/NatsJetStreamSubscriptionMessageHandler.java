@@ -17,11 +17,11 @@ import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 
 class NatsJetStreamSubscriptionMessageHandler implements MessageHandler {
-    private final NatsJetStreamAutoStatusManager asm;
+    private final AutoStatusManager asm;
     private final MessageHandler userMH;
     private final boolean autoAck;
 
-    NatsJetStreamSubscriptionMessageHandler(NatsJetStreamAutoStatusManager asm,
+    NatsJetStreamSubscriptionMessageHandler(AutoStatusManager asm,
                                             MessageHandler userMH,
                                             boolean autoAck)
     {
@@ -37,6 +37,7 @@ class NatsJetStreamSubscriptionMessageHandler implements MessageHandler {
         if ( !asm.manage(msg) ) { // manager did not handle message
             userMH.onMessage(msg);
             if (autoAck) {
+                // TODO Don't ack if they have already
                 msg.ack();
             }
         }

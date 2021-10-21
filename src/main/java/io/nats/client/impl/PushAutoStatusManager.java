@@ -17,17 +17,14 @@ import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.support.Status;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
-public class NatsJetStreamAutoStatusManager {
+public class PushAutoStatusManager implements AutoStatusManager {
 
-    private static final List<Integer> PULL_KNOWN_STATUS_CODES = Arrays.asList(404, 408);
     private static final int THRESHOLD = 3;
 
     private final NatsConnection conn;
@@ -52,9 +49,9 @@ public class NatsJetStreamAutoStatusManager {
     private final ErrorListener errorListener;
     private AsmTimer asmTimer;
 
-    NatsJetStreamAutoStatusManager(NatsConnection conn, SubscribeOptions so,
-                                   ConsumerConfiguration cc,
-                                   boolean queueMode, boolean syncMode)
+    PushAutoStatusManager(NatsConnection conn, SubscribeOptions so,
+                          ConsumerConfiguration cc,
+                          boolean queueMode, boolean syncMode)
     {
         this.conn = conn;
         this.syncMode = syncMode;
@@ -94,13 +91,13 @@ public class NatsJetStreamAutoStatusManager {
         }
 
         errorListener = conn.getOptions().getErrorListener() == null
-            ? new DefaultErrorListener()
+            ? new ErrorListener() {}
             : conn.getOptions().getErrorListener();
     }
 
     // chicken or egg situation here. The handler needs the sub in case of error
     // but the sub needs the handler in order to be created
-    void setSub(NatsJetStreamSubscription sub) {
+    public void setSub(NatsJetStreamSubscription sub) {
         this.sub = sub;
         if (hb) {
             conn.setBeforeQueueProcessor(this::beforeQueueProcessor);
@@ -108,7 +105,7 @@ public class NatsJetStreamAutoStatusManager {
         }
     }
 
-    void shutdown() {
+    public void shutdown() {
         if (asmTimer != null) {
             asmTimer.shutdown();
         }
@@ -156,7 +153,6 @@ public class NatsJetStreamAutoStatusManager {
 
     boolean isSyncMode() { return syncMode; }
     boolean isQueueMode() { return queueMode; }
-    boolean isPull() { return pull; }
     boolean isGap() { return gap; }
     boolean isFc() { return fc; }
     boolean isHb() { return hb; }
@@ -170,8 +166,8 @@ public class NatsJetStreamAutoStatusManager {
     long getExpectedConsumerSequence() { return expectedConsumerSeq; }
     long getLastMsgReceived() { return lastMsgReceived.get(); }
 
-    boolean manage(Message msg) {
-        if (pull ? checkStatusForPullMode(msg) : checkStatusForPushMode(msg)) {
+    public boolean manage(Message msg) {
+        if (checkStatusForPushMode(msg)) {
             return true;
         }
         if (gap) {
@@ -249,17 +245,5 @@ public class NatsJetStreamAutoStatusManager {
             conn.publishInternal(fcSubject, null, null, null, false);
             lastFcSubject = fcSubject; // set after publish in case the pub fails
         }
-    }
-
-    private boolean checkStatusForPullMode(Message msg) {
-        if (msg.isStatusMessage()) {
-            Status status = msg.getStatus();
-            if ( !PULL_KNOWN_STATUS_CODES.contains(status.getCode()) ) {
-                // pull is always sync
-                throw new JetStreamStatusException(sub, status);
-            }
-            return true;
-        }
-        return false;
     }
 }

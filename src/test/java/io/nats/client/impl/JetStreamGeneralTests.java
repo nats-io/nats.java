@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.support.NatsConstants.EMPTY;
+import static io.nats.client.support.NatsJetStreamClientError.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamGeneralTests extends JetStreamTestBase {
@@ -483,11 +484,11 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // bind errors
             PushSubscribeOptions pushbinderr = PushSubscribeOptions.bind(STREAM, "binddur");
             IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushbinderr));
-            assertTrue(iae.getMessage().contains("[SUB-BM01]"));
+            assertTrue(iae.getMessage().contains(JsSubConsumerNotFoundRequiredInBind.prefix()));
 
             PullSubscribeOptions pullbinderr = PullSubscribeOptions.bind(STREAM, "binddur");
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pullbinderr));
-            assertTrue(iae.getMessage().contains("[SUB-BM01]"));
+            assertTrue(iae.getMessage().contains(JsSubConsumerNotFoundRequiredInBind.prefix()));
         });
     }
 
@@ -517,13 +518,13 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
                     () -> js.subscribe(SUBJECT, PullSubscribeOptions.builder().durable(durable(1)).build())
             );
-            assertTrue(iae.getMessage().contains("[SUB-DS01]"));
+            assertTrue(iae.getMessage().contains(JsSubConsumerAlreadyConfiguredAsPush.prefix()));
 
             // try to pull bind against a push durable
             iae = assertThrows(IllegalArgumentException.class,
                     () -> js.subscribe(SUBJECT, PullSubscribeOptions.bind(STREAM, durable(1)))
             );
-            assertTrue(iae.getMessage().contains("[SUB-DS01]"));
+            assertTrue(iae.getMessage().contains(JsSubConsumerAlreadyConfiguredAsPush.prefix()));
 
             // this one is okay
             JetStreamSubscription sub = js.subscribe(SUBJECT, PullSubscribeOptions.builder().durable(durable(2)).build());
@@ -533,19 +534,19 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             iae = assertThrows(IllegalArgumentException.class,
                     () -> js.subscribe(SUBJECT, PushSubscribeOptions.builder().durable(durable(2)).build())
             );
-            assertTrue(iae.getMessage().contains("[SUB-DS02]"));
+            assertTrue(iae.getMessage().contains(JsSubConsumerAlreadyConfiguredAsPull.prefix()));
 
             // try to push bind against a pull durable
             iae = assertThrows(IllegalArgumentException.class,
                     () -> js.subscribe(SUBJECT, PushSubscribeOptions.bind(STREAM, durable(2)))
             );
-            assertTrue(iae.getMessage().contains("[SUB-DS02]"));
+            assertTrue(iae.getMessage().contains(JsSubConsumerAlreadyConfiguredAsPull.prefix()));
 
             // try to push subscribe but mismatch the deliver subject
             ConsumerConfiguration ccMis = ConsumerConfiguration.builder().deliverSubject("not-match").build();
             PushSubscribeOptions psoMis = PushSubscribeOptions.builder().durable(durable(1)).configuration(ccMis).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, psoMis));
-            assertTrue(iae.getMessage().contains("[SUB-DS03]"));
+            assertTrue(iae.getMessage().contains(JsSubExistingDeliverSubjectMismatch.prefix()));
 
             // this one is okay
             js.subscribe(SUBJECT, PushSubscribeOptions.builder().durable(durable(1)).build());
@@ -562,25 +563,22 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             ConsumerConfiguration.Builder builder = durBuilder();
             nc.jetStreamManagement().addOrUpdateConsumer(STREAM, builder.build());
 
-            ccbmEx(js, durBuilder().deliverPolicy(DeliverPolicy.Last), "Deliver Policy");
-            ccbmEx(js, durBuilder().deliverPolicy(DeliverPolicy.New), "Deliver Policy");
-            ccbmEx(js, durBuilder().ackPolicy(AckPolicy.None), "Ack Policy");
-            ccbmEx(js, durBuilder().ackPolicy(AckPolicy.All), "Ack Policy");
-            ccbmEx(js, durBuilder().replayPolicy(ReplayPolicy.Original), "Replay Policy");
+            ccbmEx(js, durBuilder().deliverPolicy(DeliverPolicy.Last));
+            ccbmEx(js, durBuilder().deliverPolicy(DeliverPolicy.New));
+            ccbmEx(js, durBuilder().ackPolicy(AckPolicy.None));
+            ccbmEx(js, durBuilder().ackPolicy(AckPolicy.All));
+            ccbmEx(js, durBuilder().replayPolicy(ReplayPolicy.Original));
 
-            ccbmEx(js, durBuilder().description("x"), "Description");
-            ccbmEx(js, durBuilder().startTime(ZonedDateTime.now()), "Start Time");
-            ccbmEx(js, durBuilder().ackWait(Duration.ofMillis(1)), "Ack Wait");
-            ccbmEx(js, durBuilder().sampleFrequency("x"), "Sample Frequency");
-            ccbmEx(js, durBuilder().idleHeartbeat(Duration.ofMillis(1)), "Idle Heartbeat");
+            ccbmEx(js, durBuilder().description("x"));
+            ccbmEx(js, durBuilder().startTime(ZonedDateTime.now()));
+            ccbmEx(js, durBuilder().ackWait(Duration.ofMillis(1)));
+            ccbmEx(js, durBuilder().sampleFrequency("x"));
+            ccbmEx(js, durBuilder().idleHeartbeat(Duration.ofMillis(1)));
 
-            ccbmEx(js, durBuilder().startSequence(5), "Start Sequence");
-            ccbmEx(js, durBuilder().maxDeliver(5), "Max Deliver");
-            ccbmEx(js, durBuilder().rateLimit(5), "Rate Limit");
-            ccbmEx(js, durBuilder().maxAckPending(5), "Max Ack Pending");
-
-            // coverage for more than one problem
-            ccbmEx(js, durBuilder().startSequence(5).maxDeliver(5), "Start Sequence", "Max Deliver");
+            ccbmEx(js, durBuilder().startSequence(5));
+            ccbmEx(js, durBuilder().maxDeliver(5));
+            ccbmEx(js, durBuilder().rateLimit(5));
+            ccbmEx(js, durBuilder().maxAckPending(5));
 
             ccbmOk(js, durBuilder().startSequence(0));
             ccbmOk(js, durBuilder().startSequence(-1));
@@ -593,7 +591,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             ConsumerConfiguration.Builder builder2 = ConsumerConfiguration.builder().durable(durable(2));
             nc.jetStreamManagement().addOrUpdateConsumer(STREAM, builder2.build());
-            ccbmExPull(js, builder2.maxPullWaiting(999), "Max Pull Waiting");
+            ccbmExPull(js, builder2.maxPullWaiting(999));
             ccbmOkPull(js, builder2.maxPullWaiting(512)); // 512 is the default
         });
     }
@@ -606,23 +604,16 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         js.subscribe(SUBJECT, PullSubscribeOptions.builder().configuration(builder.build()).build()).unsubscribe();
     }
 
-    private void ccbmEx(JetStream js, ConsumerConfiguration.Builder builder, String... errs) {
+    private void ccbmEx(JetStream js, ConsumerConfiguration.Builder builder) {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()));
-        _ccbmEx(iae, errs);
+        assertTrue(iae.getMessage().contains(JsSubExistingConsumerCannotBeModified.prefix()));
     }
 
     private void ccbmExPull(JetStream js, ConsumerConfiguration.Builder builder, String... errs) {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> js.subscribe(SUBJECT, PullSubscribeOptions.builder().configuration(builder.build()).build()));
-        _ccbmEx(iae, errs);
-    }
-
-    private void _ccbmEx(IllegalArgumentException iae, String[] errs) {
-        assertTrue(iae.getMessage().contains("[SUB-CC01]"));
-        for (String err : errs) {
-            assertTrue(iae.getMessage().contains(err));
-        }
+        assertTrue(iae.getMessage().contains(JsSubExistingConsumerCannotBeModified.prefix()));
     }
 
     private ConsumerConfiguration.Builder durBuilder() {
@@ -680,7 +671,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             IllegalStateException ise = assertThrows(IllegalStateException.class, () -> js.subscribe(SUBJECT));
-            assertTrue(ise.getMessage().contains("[SUB-ST01]"));
+            assertTrue(ise.getMessage().contains(JsSubNoMatchingStreamForSubject.prefix()));
 
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);
@@ -691,17 +682,17 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             ConsumerConfiguration ccCantHave = ConsumerConfiguration.builder().durable("pulldur").deliverGroup("cantHave").build();
             PullSubscribeOptions pullCantHaveDlvrGrp = PullSubscribeOptions.builder().configuration(ccCantHave).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pullCantHaveDlvrGrp));
-            assertTrue(iae.getMessage().contains("[SUB-PL01]"));
+            assertTrue(iae.getMessage().contains(JsSubPullCantHaveDeliverGroup.prefix()));
 
             ccCantHave = ConsumerConfiguration.builder().durable("pulldur").deliverSubject("cantHave").build();
             PullSubscribeOptions pullCantHaveDlvrSub = PullSubscribeOptions.builder().configuration(ccCantHave).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pullCantHaveDlvrSub));
-            assertTrue(iae.getMessage().contains("[SUB-PL02]"));
+            assertTrue(iae.getMessage().contains(JsSubPullCantHaveDeliverSubject.prefix()));
 
             ccCantHave = ConsumerConfiguration.builder().maxPullWaiting(1).build();
             PushSubscribeOptions pushCantHaveMpw = PushSubscribeOptions.builder().configuration(ccCantHave).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushCantHaveMpw));
-            assertTrue(iae.getMessage().contains("[SUB-PS01]"));
+            assertTrue(iae.getMessage().contains(JsSubPushCantHaveMaxPullWaiting.prefix()));
 
             // create some consumers
             PushSubscribeOptions psoDurNoQ = PushSubscribeOptions.builder().durable("durNoQ").build();
@@ -712,25 +703,25 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             // already bound
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, psoDurNoQ));
-            assertTrue(iae.getMessage().contains("[SUB-PB01]"));
+            assertTrue(iae.getMessage().contains(JsSubConsumerAlreadyBound.prefix()));
 
             // queue match
             PushSubscribeOptions qmatch = PushSubscribeOptions.builder()
                 .durable("qmatchdur").deliverGroup("qmatchq").build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, "qnotmatch", qmatch));
-            assertTrue(iae.getMessage().contains("[SUB-QM01]"));
+            assertTrue(iae.getMessage().contains(JsSubQueueDeliverGroupMismatch.prefix()));
 
             // queue vs config
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, "notConfigured", psoDurNoQ));
-            assertTrue(iae.getMessage().contains("[SUB-QU01]"));
+            assertTrue(iae.getMessage().contains(JsSubExistingConsumerNotQueue.prefix()));
 
             PushSubscribeOptions psoNoVsYes = PushSubscribeOptions.builder().durable("durYesQ").build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, psoNoVsYes));
-            assertTrue(iae.getMessage().contains("[SUB-QU02]"));
+            assertTrue(iae.getMessage().contains(JsSubExistingConsumerIsQueue.prefix()));
 
             PushSubscribeOptions psoYesVsNo = PushSubscribeOptions.builder().durable("durYesQ").build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, "qnotmatch", psoYesVsNo));
-            assertTrue(iae.getMessage().contains("[SUB-QU03]"));
+            assertTrue(iae.getMessage().contains(JsSubExistingQueueDoesNotMatchRequestedQueue.prefix()));
 
             // flow control heartbeat push / pull
             ConsumerConfiguration ccFc = ConsumerConfiguration.builder().durable("ccFcDur").flowControl(1000).build();
@@ -738,19 +729,19 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             PullSubscribeOptions psoPullCcFc = PullSubscribeOptions.builder().configuration(ccFc).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, psoPullCcFc));
-            assertTrue(iae.getMessage().contains("[SUB-FH01]"));
+            assertTrue(iae.getMessage().contains(JsSubFcHbNotValidPull.prefix()));
 
             PullSubscribeOptions psoPullCcHb = PullSubscribeOptions.builder().configuration(ccHb).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, psoPullCcHb));
-            assertTrue(iae.getMessage().contains("[SUB-FH01]"));
+            assertTrue(iae.getMessage().contains(JsSubFcHbNotValidPull.prefix()));
 
             PushSubscribeOptions psoPushCcFc = PushSubscribeOptions.builder().configuration(ccFc).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, "cantHaveQ", psoPushCcFc));
-            assertTrue(iae.getMessage().contains("[SUB-FH02]"));
+            assertTrue(iae.getMessage().contains(JsSubFcHbHbNotValidQueue.prefix()));
 
             PushSubscribeOptions psoPushCcHb = PushSubscribeOptions.builder().configuration(ccHb).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, "cantHaveQ", psoPushCcHb));
-            assertTrue(iae.getMessage().contains("[SUB-FH02]"));
+            assertTrue(iae.getMessage().contains(JsSubFcHbHbNotValidQueue.prefix()));
         });
     }
 }

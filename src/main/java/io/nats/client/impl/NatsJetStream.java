@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import static io.nats.client.support.ApiConstants.SUBJECT;
+import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.support.Validator.*;
 
 public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
@@ -219,8 +220,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             userCC = so.getConsumerConfiguration();
 
             qgroup = null; // just to make compiler happy both paths set variable
-            validateNotSupplied(userCC.getDeliverGroup(), "[SUB-PL01] Pull subscriptions can't have a deliver group.");
-            validateNotSupplied(userCC.getDeliverSubject(), "[SUB-PL02] Pull subscriptions can't have a deliver subject.");
+            validateNotSupplied(userCC.getDeliverGroup(), JsSubPullCantHaveDeliverGroup);
+            validateNotSupplied(userCC.getDeliverSubject(), JsSubPullCantHaveDeliverSubject);
         }
         else {
             so = pushSubscribeOptions == null ? PushSubscribeOptions.builder().build() : pushSubscribeOptions;
@@ -228,12 +229,12 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
             userCC = so.getConsumerConfiguration();
 
-            validateNotSupplied(userCC.getMaxPullWaiting(), 0, "[SUB-PS01] Push subscriptions cannot supply max pull waiting.");
+            validateNotSupplied(userCC.getMaxPullWaiting(), 0, JsSubPushCantHaveMaxPullWaiting);
 
             // figure out the queue name
-            qgroup = validateMustMatchIfBothSupplied(userCC.getDeliverGroup(), queueName, "[SUB-QM01] Consumer Configuration DeliverGroup", "Queue Name");
+            qgroup = validateMustMatchIfBothSupplied(userCC.getDeliverGroup(), queueName, JsSubQueueDeliverGroupMismatch);
 
-            if (qgroup != null && !qgroup.equals(userCC.getDeliverGroup())) {
+            if (qgroup != null && userCC.getDeliverGroup() == null) {
                 // the queueName was provided versus the config deliver group, so the user config must be set
                 userCC = ConsumerConfiguration.builder(userCC).deliverGroup(qgroup).build();
             }
@@ -242,10 +243,10 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         // 2A. Flow Control / heartbeat not always valid
         if (userCC.isFlowControl() || userCC.getIdleHeartbeat().toMillis() > 0) {
             if (isPullMode) {
-                throw new IllegalArgumentException("[SUB-FH01] Flow Control and/or Heartbeat is not valid with a Pull subscription.");
+                throw JsSubFcHbNotValidPull.instance();
             }
             else if (qgroup != null) {
-                throw new IllegalArgumentException("[SUB-FH02] Flow Control and/or Heartbeat is not valid in Queue Mode.");
+                throw JsSubFcHbHbNotValidQueue.instance();
             }
         }
 
@@ -253,7 +254,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         if (stream == null) {
             stream = lookupStreamBySubject(subject);
             if (stream == null) {
-                throw new IllegalStateException("[SUB-ST01] No matching streams for subject: " + subject);
+                throw JsSubNoMatchingStreamForSubject.instance();
             }
         }
 
@@ -271,24 +272,21 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 String serverValue = serverCc.getDeliverSubject();
                 if (isPullMode) {
                     if (!nullOrEmpty(serverValue)) {
-                        throw new IllegalArgumentException(
-                            String.format("[SUB-DS01] Consumer is already configured as a push consumer with deliver subject '%s'.", serverValue));
+                        throw JsSubConsumerAlreadyConfiguredAsPush.instance();
                     }
                 }
                 else if (nullOrEmpty(serverValue)) {
-                    throw new IllegalArgumentException("[SUB-DS02] Consumer is already configured as a pull consumer with no deliver subject.");
+                    throw JsSubConsumerAlreadyConfiguredAsPull.instance();
                 }
                 else if (inboxDeliver != null && !inboxDeliver.equals(serverValue)) {
-                    throw new IllegalArgumentException(
-                        String.format("[SUB-DS03] Existing consumer deliver subject '%s' does not match requested deliver subject '%s'.", serverValue, inboxDeliver));
+                    throw JsSubExistingDeliverSubjectMismatch.instance();
                 }
 
                 // durable already exists, make sure the filter subject matches
                 serverValue = serverCc.getFilterSubject();
                 String userFilterSubject = userCC.getFilterSubject();
                 if (userFilterSubject != null && !userFilterSubject.equals(serverValue)) {
-                    throw new IllegalArgumentException(
-                            String.format("[SUB-FS01] Subject '%s' mismatches consumer configuration '%s'.", subject, userFilterSubject));
+                    throw JsSubSubjectDoesNotMatchFilter.instance();
                 }
 
                 serverValue = serverCc.getDeliverGroup();
@@ -298,34 +296,32 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                         // ok fine, no queue requested and the existing consumer is also not a queue consumer
                         // we must check if the consumer is in use though
                         if (serverInfo.isPushBound()) {
-                            throw new IllegalArgumentException(String.format("[SUB-PB01] Consumer '%s' is already bound to a subscription.", consumerName));
+                            throw JsSubConsumerAlreadyBound.instance();
                         }
                     }
                     else { // else they requested a queue but this durable was not configured as queue
-                        throw new IllegalArgumentException(String.format("[SUB-QU01] Existing consumer '%s' is not configured as a queue / deliver group.", consumerName));
+                        throw JsSubExistingConsumerNotQueue.instance();
                     }
                 }
                 else if (qgroup == null) {
-                    throw new IllegalArgumentException(String.format("[SUB-QU02] Existing consumer '%s' is configured as a queue / deliver group.", consumerName));
+                    throw JsSubExistingConsumerIsQueue.instance();
                 }
                 else if (!serverValue.equals(qgroup)) {
-                    throw new IllegalArgumentException(
-                        String.format("[SUB-QU03] Existing consumer deliver group '%s' does not match requested queue / deliver group '%s'.", serverValue, qgroup));
+                    throw JsSubExistingQueueDoesNotMatchRequestedQueue.instance();
                 }
 
                 // check to see if the user sent a different version than the server has
                 // modifications are not allowed
                 // previous checks for deliver subject and filter subject matching are now
                 // in the changes function
-                String changes = userVersusServer(userCC, serverCc);
-                if (changes != null) {
-                    throw new IllegalArgumentException("[SUB-CC01] Existing consumer cannot be modified. " + changes);
+                if (userIsModifiedVsServer(userCC, serverCc)) {
+                    throw JsSubExistingConsumerCannotBeModified.instance();
                 }
 
                 inboxDeliver = serverCc.getDeliverSubject(); // use the deliver subject as the inbox. It may be null, that's ok, we'll fix that later
             }
             else if (so.isBind()) {
-                throw new IllegalArgumentException("[SUB-BM01] Consumer not found for durable. Required in bind mode.");
+                throw JsSubConsumerNotFoundRequiredInBind.instance();
             }
         }
 
@@ -358,8 +354,9 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         final String fnlConsumerName = consumerName;
         final String fnlInboxDeliver = inboxDeliver;
 
-        NatsJetStreamAutoStatusManager asm =
-            new NatsJetStreamAutoStatusManager(conn, so, serverCc, qgroup != null, dispatcher == null);
+        AutoStatusManager asm = isPullMode
+            ? new PullAutoStatusManager()
+            : new PushAutoStatusManager(conn, so, serverCc, qgroup != null, dispatcher == null);
 
         NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
             -> NatsJetStreamSubscription.getInstance(sid, lSubject, lQgroup, lConn, lDispatcher,
@@ -379,46 +376,24 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         return sub;
     }
 
-    static String userVersusServer(ConsumerConfiguration user, ConsumerConfiguration server) {
+    static boolean userIsModifiedVsServer(ConsumerConfiguration user, ConsumerConfiguration server) {
 
-        StringBuilder sb = new StringBuilder();
-        comp(sb, user.isFlowControl(), server.isFlowControl(), "Flow Control");
-        comp(sb, user.getDeliverPolicy(), server.getDeliverPolicy(), "Deliver Policy");
-        comp(sb, user.getAckPolicy(), server.getAckPolicy(), "Ack Policy");
-        comp(sb, user.getReplayPolicy(), server.getReplayPolicy(), "Replay Policy");
+        return user.isFlowControl() != server.isFlowControl()
+            || user.getDeliverPolicy() != server.getDeliverPolicy()
+            || user.getAckPolicy() != server.getAckPolicy()
+            || user.getReplayPolicy() != server.getReplayPolicy()
 
-        comp(sb, user.getStartSequence(), server.getStartSequence(), CcNumeric.START_SEQ);
-        comp(sb, user.getMaxDeliver(), server.getMaxDeliver(), CcNumeric.MAX_DELIVER);
-        comp(sb, user.getRateLimit(), server.getRateLimit(), CcNumeric.RATE_LIMIT);
-        comp(sb, user.getMaxAckPending(), server.getMaxAckPending(), CcNumeric.MAX_ACK_PENDING);
-        comp(sb, user.getMaxPullWaiting(), server.getMaxPullWaiting(), CcNumeric.MAX_PULL_WAITING);
+            || CcNumeric.START_SEQ.notEq(user.getStartSequence(), server.getStartSequence())
+            || CcNumeric.MAX_DELIVER.notEq(user.getMaxDeliver(), server.getMaxDeliver())
+            || CcNumeric.RATE_LIMIT.notEq(user.getRateLimit(), server.getRateLimit())
+            || CcNumeric.MAX_ACK_PENDING.notEq(user.getMaxAckPending(), server.getMaxAckPending())
+            || CcNumeric.MAX_PULL_WAITING.notEq(user.getMaxPullWaiting(), server.getMaxPullWaiting())
 
-        comp(sb, user.getDescription(), server.getDescription(), "Description");
-        comp(sb, user.getStartTime(), server.getStartTime(), "Start Time");
-        comp(sb, user.getAckWait(), server.getAckWait(), "Ack Wait");
-        comp(sb, user.getSampleFrequency(), server.getSampleFrequency(), "Sample Frequency");
-        comp(sb, user.getIdleHeartbeat(), server.getIdleHeartbeat(), "Idle Heartbeat");
-
-        return sb.length() == 0 ? null : sb.toString();
-    }
-
-    private static void comp(StringBuilder sb, Object requested, Object retrieved, String name) {
-        if (!Objects.equals(requested, retrieved)) {
-            appendErr(sb, requested, retrieved, name);
-        }
-    }
-
-    private static void comp(StringBuilder sb, long requested, long retrieved, CcNumeric field) {
-        if (field.comparable(requested) != field.comparable(retrieved)) {
-            appendErr(sb, requested, retrieved, field.getErr());
-        }
-    }
-
-    private static void appendErr(StringBuilder sb, Object requested, Object retrieved, String name) {
-        if (sb.length() > 0) {
-            sb.append(", ");
-        }
-        sb.append(name).append(" [").append(requested).append(" vs. ").append(retrieved).append(']');
+            || !Objects.equals(user.getStartTime(), server.getStartTime())
+            || !Objects.equals(user.getAckWait(), server.getAckWait())
+            || !Objects.equals(user.getSampleFrequency(), server.getSampleFrequency())
+            || !Objects.equals(user.getIdleHeartbeat(), server.getIdleHeartbeat())
+            || !Objects.equals(user.getDescription(), server.getDescription());
     }
 
     /**

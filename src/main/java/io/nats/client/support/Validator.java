@@ -63,19 +63,19 @@ public abstract class Validator {
         return validateKvKey(s, "Key", true);
     }
 
-    public static void validateNotSupplied(String s, String msg) {
+    public static void validateNotSupplied(String s, NatsJetStreamClientError err) {
         if (!nullOrEmpty(s)) {
-            throw new IllegalArgumentException(msg);
+            throw err.instance();
         }
     }
 
-    public static void validateNotSupplied(long l, long dflt, String msg) {
+    public static void validateNotSupplied(long l, long dflt, NatsJetStreamClientError err) {
         if (l > dflt) {
-            throw new IllegalArgumentException(msg);
+            throw err.instance();
         }
     }
 
-    public static String validateMustMatchIfBothSupplied(String s1, String s2, String label1, String label2) {
+    public static String validateMustMatchIfBothSupplied(String s1, String s2, NatsJetStreamClientError err) {
         // s1   | s2   || result
         // ---- | ---- || --------------
         // null | null || valid, null s2
@@ -94,7 +94,7 @@ public abstract class Validator {
             return s1;
         }
 
-        throw new IllegalArgumentException(String.format("%s [%s] must match the %s [%s] if both are provided.", label1, s1, label2, s2));
+        throw err.instance();
     }
 
     interface Check {

@@ -1,0 +1,59 @@
+package io.nats.client.support;
+
+public class NatsJetStreamClientError {
+    private static final int KIND_ILLEGAL_ARGUMENT = 0;
+    private static final int KIND_ILLEGAL_STATE = 1;
+    private static final String SUB = "SUB";
+    private static final String SO = "SO";
+
+    public static final NatsJetStreamClientError JsSubPullCantHaveDeliverGroup = new NatsJetStreamClientError(SUB, 90001, "Pull subscriptions can't have a deliver group.");
+    public static final NatsJetStreamClientError JsSubPullCantHaveDeliverSubject = new NatsJetStreamClientError(SUB, 90002, "Pull subscriptions can't have a deliver subject.");
+    public static final NatsJetStreamClientError JsSubPushCantHaveMaxPullWaiting = new NatsJetStreamClientError(SUB, 90003, "Push subscriptions cannot supply max pull waiting.");
+    public static final NatsJetStreamClientError JsSubQueueDeliverGroupMismatch = new NatsJetStreamClientError(SUB, 90004, "Queue / deliver group mismatch.");
+    public static final NatsJetStreamClientError JsSubFcHbNotValidPull = new NatsJetStreamClientError(SUB, 90005, "Flow Control and/or heartbeat is not valid with a pull subscription.");
+    public static final NatsJetStreamClientError JsSubFcHbHbNotValidQueue = new NatsJetStreamClientError(SUB, 90006, "Flow Control and/or heartbeat is not valid in queue mode.");
+    public static final NatsJetStreamClientError JsSubNoMatchingStreamForSubject = new NatsJetStreamClientError(SUB, 90007, "No matching streams for subject.", KIND_ILLEGAL_STATE);
+    public static final NatsJetStreamClientError JsSubConsumerAlreadyConfiguredAsPush = new NatsJetStreamClientError(SUB, 90008, "Consumer is already configured as a push consumer.");
+    public static final NatsJetStreamClientError JsSubConsumerAlreadyConfiguredAsPull = new NatsJetStreamClientError(SUB, 90009, "Consumer is already configured as a pull consumer.");
+    public static final NatsJetStreamClientError JsSubExistingDeliverSubjectMismatch = new NatsJetStreamClientError(SUB, 90010, "Existing consumer deliver subject does not match requested deliver subject.");
+    public static final NatsJetStreamClientError JsSubSubjectDoesNotMatchFilter = new NatsJetStreamClientError(SUB, 90011, "Subject does not match consumer configuration filter.");
+    public static final NatsJetStreamClientError JsSubConsumerAlreadyBound = new NatsJetStreamClientError(SUB, 90012, "Consumer is already bound to a subscription.");
+    public static final NatsJetStreamClientError JsSubExistingConsumerNotQueue = new NatsJetStreamClientError(SUB, 90013, "Existing consumer is not configured as a queue / deliver group.");
+    public static final NatsJetStreamClientError JsSubExistingConsumerIsQueue = new NatsJetStreamClientError(SUB, 90014, "Existing consumer  is configured as a queue / deliver group.");
+    public static final NatsJetStreamClientError JsSubExistingQueueDoesNotMatchRequestedQueue = new NatsJetStreamClientError(SUB, 90015, "Existing consumer deliver group does not match requested queue / deliver group.");
+    public static final NatsJetStreamClientError JsSubExistingConsumerCannotBeModified = new NatsJetStreamClientError(SUB, 90016, "Existing consumer cannot be modified.");
+    public static final NatsJetStreamClientError JsSubConsumerNotFoundRequiredInBind = new NatsJetStreamClientError(SUB, 90017, "Consumer not found, required in bind mode.");
+
+    public static final NatsJetStreamClientError JsSoDurableMismatch = new NatsJetStreamClientError(SO, 90101, "Builder durable must match the consumer configuration durable if both are provided.");
+    public static final NatsJetStreamClientError JsSoDeliverGroupMismatch = new NatsJetStreamClientError(SO, 90102, "Builder deliver group must match the consumer configuration deliver group if both are provided.");
+    public static final NatsJetStreamClientError JsSoDeliverSubjectGroupMismatch = new NatsJetStreamClientError(SO, 90103, "Builder deliver subject must match the consumer configuration deliver subject if both are provided.");
+
+    private final String prefix;
+    private final String message;
+    private final int kind;
+
+    public NatsJetStreamClientError(String group, int code, String description) {
+        this(group, code, description, KIND_ILLEGAL_ARGUMENT);
+    }
+
+    public NatsJetStreamClientError(String group, int code, String description, int kind) {
+        prefix = String.format("[%s-%d]", group, code);
+        message = String.format("%s %s", prefix, description);
+        this.kind = kind;
+    }
+    
+    public RuntimeException instance() {
+        if (kind == KIND_ILLEGAL_ARGUMENT) {
+            return new IllegalArgumentException(message);
+        }
+        return new IllegalStateException(message);
+    }
+
+    public String prefix() {
+        return prefix;
+    }
+
+    public String message() {
+        return message;
+    }
+}

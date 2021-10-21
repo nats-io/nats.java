@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.List;
 
+import static io.nats.client.support.NatsJetStreamClientError.JsSubSubjectDoesNotMatchFilter;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamManagementTests extends JetStreamTestBase {
@@ -476,7 +477,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             PullSubscribeOptions pullOptsBadFilter = PullSubscribeOptions.builder().configuration(ccBadFilter).build();
             IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
                     () -> js.subscribe(subjectDot("F"), pullOptsBadFilter));
-            assertTrue(iae.getMessage().contains("[SUB-FS01]"));
+            assertTrue(iae.getMessage().contains(JsSubSubjectDoesNotMatchFilter.prefix()));
 
             // try to filter against durable with mismatch, push
             jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder()
@@ -491,7 +492,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             PushSubscribeOptions pushOptsBadFilter = PushSubscribeOptions.builder().configuration(ccBadFilter).build();
             iae = assertThrows(IllegalArgumentException.class,
                     () -> js.subscribe(subjectDot("F"), pushOptsBadFilter));
-            assertTrue(iae.getMessage().contains("[SUB-FS01]"));
+            assertTrue(iae.getMessage().contains(JsSubSubjectDoesNotMatchFilter.prefix()));
         });
     }
 

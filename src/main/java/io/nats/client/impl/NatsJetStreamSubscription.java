@@ -36,11 +36,11 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     protected final String consumerName;
     protected final String deliver;
 
-    protected final NatsJetStreamAutoStatusManager asm;
+    protected final AutoStatusManager asm;
 
     static NatsJetStreamSubscription getInstance(String sid, String subject, String queueName,
                                                  NatsConnection connection, NatsDispatcher dispatcher,
-                                                 NatsJetStreamAutoStatusManager asm,
+                                                 AutoStatusManager asm,
                                                  NatsJetStream js, boolean pullMode,
                                                  String stream, String consumer, String deliver) {
         // pull gets a full implementation
@@ -53,7 +53,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
 
     protected NatsJetStreamSubscription(String sid, String subject, String queueName,
                                       NatsConnection connection, NatsDispatcher dispatcher,
-                                      NatsJetStreamAutoStatusManager asm,
+                                      AutoStatusManager asm,
                                       NatsJetStream js,
                                       String stream, String consumer, String deliver) {
         super(sid, subject, queueName, connection, dispatcher);
@@ -80,7 +80,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return false;
     }
 
-    NatsJetStreamAutoStatusManager getAsm() { return asm; } // internal, for testing
+    AutoStatusManager getAsm() { return asm; } // internal, for testing
 
     @Override
     void invalidate() {

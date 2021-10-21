@@ -253,13 +253,14 @@ public class ValidatorTests {
 
     @Test
     public void testValidateMustMatchIfBothSupplied() {
-        assertNull(validateMustMatchIfBothSupplied(null, null, "", ""));
-        assertEquals("y", validateMustMatchIfBothSupplied(null, "y", "", ""));
-        assertEquals("y", validateMustMatchIfBothSupplied("", "y", "", ""));
-        assertEquals("x", validateMustMatchIfBothSupplied("x", null, "", ""));
-        assertEquals("x", validateMustMatchIfBothSupplied("x", " ", "", ""));
-        assertEquals("x", validateMustMatchIfBothSupplied("x", "x", "", ""));
-        assertThrows(IllegalArgumentException.class, () -> validateMustMatchIfBothSupplied("x", "y", "", ""));
+        NatsJetStreamClientError err = new NatsJetStreamClientError("TEST", 999999, "desc");
+        assertNull(validateMustMatchIfBothSupplied(null, null, err));
+        assertEquals("y", validateMustMatchIfBothSupplied(null, "y", err));
+        assertEquals("y", validateMustMatchIfBothSupplied("", "y", err));
+        assertEquals("x", validateMustMatchIfBothSupplied("x", null, err));
+        assertEquals("x", validateMustMatchIfBothSupplied("x", " ", err));
+        assertEquals("x", validateMustMatchIfBothSupplied("x", "x", err));
+        assertThrows(IllegalArgumentException.class, () -> validateMustMatchIfBothSupplied("x", "y", err));
     }
 
     @Test

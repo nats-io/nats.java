@@ -26,7 +26,7 @@ import static io.nats.client.support.Validator.validatePullBatchSize;
 
 public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
-    NatsJetStreamPullSubscription(String sid, String subject, String queueName, NatsConnection connection, NatsDispatcher dispatcher, NatsJetStreamAutoStatusManager asm, NatsJetStream js, String stream, String consumer) {
+    NatsJetStreamPullSubscription(String sid, String subject, String queueName, NatsConnection connection, NatsDispatcher dispatcher, AutoStatusManager asm, NatsJetStream js, String stream, String consumer) {
         super(sid, subject, queueName, connection, dispatcher, asm, js, stream, consumer, null);
     }
 

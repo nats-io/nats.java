@@ -18,9 +18,9 @@ import io.nats.client.support.Status;
 
 import java.util.logging.Logger;
 
-public class DefaultErrorListener implements ErrorListener {
+public class ErrorListenerLoggerImpl implements ErrorListener {
 
-    private final static Logger LOGGER = Logger.getLogger(DefaultErrorListener.class.getName());
+    private final static Logger LOGGER = Logger.getLogger(ErrorListenerLoggerImpl.class.getName());
 
     private String supplyMessage(String label, Object... pairs) {
         StringBuilder sb = new StringBuilder(label).append('.');

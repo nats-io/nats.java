@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.api.ConsumerConfiguration;
 
+import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.support.Validator.*;
 
 /**
@@ -34,12 +35,12 @@ public abstract class SubscribeOptions {
 
         this.stream = validateStreamName(builder.stream, builder.bind); // required when bind mode
 
-        String durable = validateMustMatchIfBothSupplied(builder.durable, builder.cc == null ? null : builder.cc.getDurable(), "Builder Durable", "Consumer Configuration Durable");
+        String durable = validateMustMatchIfBothSupplied(builder.durable, builder.cc == null ? null : builder.cc.getDurable(), JsSoDurableMismatch);
         durable = validateDurable(durable, pull || builder.bind); // required when pull or bind
 
-        deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, builder.cc == null ? null : builder.cc.getDeliverGroup(), "Builder Deliver Group", "Consumer Configuration Deliver Group");
+        deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, builder.cc == null ? null : builder.cc.getDeliverGroup(), JsSoDeliverGroupMismatch);
 
-        deliverSubject = validateMustMatchIfBothSupplied(deliverSubject, builder.cc == null ? null : builder.cc.getDeliverSubject(), "Builder Deliver Subject", "Consumer Configuration Deliver Subject");
+        deliverSubject = validateMustMatchIfBothSupplied(deliverSubject, builder.cc == null ? null : builder.cc.getDeliverSubject(), JsSoDeliverSubjectGroupMismatch);
 
         this.consumerConfig = ConsumerConfiguration.builder(builder.cc)
                 .durable(durable)

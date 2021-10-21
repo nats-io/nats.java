@@ -40,7 +40,7 @@ public interface ErrorListener {
      * @param conn The connection associated with the error
      * @param error The text of error that has occurred, directly from the server
      */
-    public void errorOccurred(Connection conn, String error);
+    default void errorOccurred(Connection conn, String error) {};
 
     /**
      * Exceptions that occur in the "normal" course of operations are sent to the
@@ -52,7 +52,7 @@ public interface ErrorListener {
      * @param conn The connection associated with the error
      * @param exp The exception that has occurred, and was handled by the library
      */
-    public void exceptionOccurred(Connection conn, Exception exp);
+    default void exceptionOccurred(Connection conn, Exception exp) {};
 
     /**
      * Called by the connection when a &quot;slow&quot; consumer is detected. This call is only made once
@@ -68,7 +68,7 @@ public interface ErrorListener {
      * @param conn The connection associated with the error
      * @param consumer The consumer that is being marked slow
      */
-    public void slowConsumerDetected(Connection conn, Consumer consumer);
+    default void slowConsumerDetected(Connection conn, Consumer consumer) {};
 
     /**
      * Called by the connection when a message is discarded.

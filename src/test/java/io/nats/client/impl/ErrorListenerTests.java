@@ -287,7 +287,7 @@ public class ErrorListenerTests {
         });
 
         // exercises the default implementation
-        _cover(new DefaultErrorListener());
+        _cover(new ErrorListenerLoggerImpl());
     }
 
     private void _cover(ErrorListener el) {
