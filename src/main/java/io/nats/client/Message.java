@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.AckType;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.NatsJetStreamMetaData;
 import io.nats.client.support.Status;
@@ -91,6 +92,12 @@ public interface Message {
 	 * @return metadata or null if the message is not a JetStream message.
 	 */
 	NatsJetStreamMetaData metaData();
+
+	/**
+	 * the last ack that was done with this message
+	 * @return the last ack or null
+	 */
+	AckType lastAck();
 
 	/**
 	 * ack acknowledges a JetStream messages received from a Consumer, indicating the message

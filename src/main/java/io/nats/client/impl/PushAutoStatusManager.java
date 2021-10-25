@@ -32,7 +32,6 @@ public class PushAutoStatusManager implements AutoStatusManager {
 
     private final boolean syncMode;
     private final boolean queueMode;
-    private final boolean pull;
     private final boolean gap;
     private final boolean hb;
     private final boolean fc;
@@ -60,8 +59,6 @@ public class PushAutoStatusManager implements AutoStatusManager {
         lastConsumerSeq = -1;
         expectedConsumerSeq = 1; // always starts at 1
         lastMsgReceived = new AtomicLong();
-
-        pull = so.isPull();
 
         if (queueMode) {
             gap = false;
@@ -214,7 +211,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
             Status status = msg.getStatus();
             if (status.isFlowControl()) {
                 if (fc) {
-                    _processFlowControl(msg.getReplyTo());
+                    _processFlowControl(msg.getReplyTo(), ErrorListener.FlowControlSource.FLOW_CONTROL);
                 }
                 return true;
             }
@@ -222,7 +219,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
             if (status.isHeartbeat()) {
                 if (fc) {
                     // status flowControlSubject is set in the beforeQueueProcessor
-                    _processFlowControl(extractFcSubject(msg));
+                    _processFlowControl(extractFcSubject(msg), ErrorListener.FlowControlSource.HEARTBEAT);
                 }
                 return true;
             }
@@ -238,12 +235,13 @@ public class PushAutoStatusManager implements AutoStatusManager {
         return false;
     }
 
-    private void _processFlowControl(String fcSubject) {
+    private void _processFlowControl(String fcSubject, ErrorListener.FlowControlSource source) {
         // we may get multiple fc/hb messages with the same reply
         // only need to post to that subject once
         if (fcSubject != null && !fcSubject.equals(lastFcSubject)) {
             conn.publishInternal(fcSubject, null, null, null, false);
             lastFcSubject = fcSubject; // set after publish in case the pub fails
+            errorListener.flowControlProcessed(conn, sub, fcSubject, source);
         }
     }
 }

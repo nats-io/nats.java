@@ -5,10 +5,7 @@ public enum AckType {
     AckAck("+ACK"),
     AckNak("-NAK"),
     AckProgress("+WPI"),
-    AckTerm("+TERM"),
-
-    // pull only option
-    AckNext("+NXT");
+    AckTerm("+TERM");
 
     public final String text;
     public final byte[] bytes;

@@ -37,7 +37,7 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
 
             // Setup the subscribers
             // - the PushSubscribeOptions can be re-used since all the subscribers are the same

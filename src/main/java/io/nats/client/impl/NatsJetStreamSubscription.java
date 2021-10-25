@@ -45,7 +45,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                                                  String stream, String consumer, String deliver) {
         // pull gets a full implementation
         if (pullMode) {
-            return new NatsJetStreamPullSubscription(sid, subject, queueName, connection, dispatcher, asm, js, stream, consumer);
+            return new NatsJetStreamPullSubscription(sid, subject, null, connection, asm, js, stream, consumer);
         }
 
         return new NatsJetStreamSubscription(sid, subject, queueName, connection, dispatcher, asm, js, stream, consumer, deliver);

@@ -271,7 +271,7 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
     @Test
     public void test_received_time() throws Exception {
         runInJsServer(nc -> {
-            createTestStream(nc);
+            createDefaultTestStream(nc);
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
@@ -506,7 +506,7 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
     }
 
     private NatsJetStreamSubscription mockSub(Connection nc) throws IOException, JetStreamApiException {
-        createTestStream(nc);
+        createDefaultTestStream(nc);
         JetStream js = nc.jetStream();
         return (NatsJetStreamSubscription) js.subscribe(SUBJECT);
     }

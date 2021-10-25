@@ -86,4 +86,9 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
     public void unhandledStatus(final Connection conn, final JetStreamSubscription sub, final Status status) {
         LOGGER.warning(() -> supplyMessage("unhandledStatus", "Conn: ", conn, "Sub: ", sub, "Status:", status));
     }
+
+    @Override
+    public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String id, FlowControlSource source) {
+        LOGGER.info(() -> supplyMessage("flowControlProcessed", "Conn: ", conn, "Sub: ", sub, "FlowControlSource:", source));
+    }
 }

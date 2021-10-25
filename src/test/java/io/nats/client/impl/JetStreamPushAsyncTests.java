@@ -19,6 +19,7 @@ import io.nats.client.api.ConsumerInfo;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -26,20 +27,18 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.nats.client.support.JsonUtils.printFormatted;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
-public class JetStreamPushHandlerTests extends JetStreamTestBase {
+public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
     @Test
-    public void testHandler() throws Exception {
+    public void testHandlerSub() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
 
             // publish some messages
             jsPublish(js, SUBJECT, 10);
@@ -78,7 +77,7 @@ public class JetStreamPushHandlerTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
 
             // publish some messages
             jsPublish(js, SUBJECT, 10);
@@ -142,52 +141,79 @@ public class JetStreamPushHandlerTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testHandlerFlowControlAutoHandledProtoMessages() throws Exception {
+    public void testCantNextMessageOnAsyncPushSub() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
+
+            JetStreamSubscription sub = js.subscribe(SUBJECT, nc.createDispatcher(), msg -> {}, false);
+
+            // this should exception, can't next message on an async push sub
+            assertThrows(IllegalStateException.class, () -> sub.nextMessage(Duration.ofMillis(1000)));
+            assertThrows(IllegalStateException.class, () -> sub.nextMessage(1000));
+        });
+    }
+
+    @Test
+    public void testPushAsyncFlowControl() throws Exception {
+        AtomicInteger fcps = new AtomicInteger();
+
+        ErrorListener el = new ErrorListener() {
+            @Override
+            public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String subject, FlowControlSource source) {
+                fcps.incrementAndGet();
+            }
+        };
+
+        Options.Builder ob = new Options.Builder().errorListener(el);
+
+        runInJsServer(ob, nc -> {
+            // Create our JetStream context.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createDefaultTestStream(nc);
+
+            byte[] data = new byte[8192];
+
+            int MSG_COUNT = 1000;
 
             // publish some messages
-            jsPublish(js, SUBJECT, 1000);
+            for (int x = 100_000; x < MSG_COUNT + 100_000; x++) {
+                byte[] fill = (""+ x).getBytes();
+                System.arraycopy(fill, 0, data, 0, 6);
+                js.publish(NatsMessage.builder().subject(SUBJECT).data(data).build());
+            }
 
             // create a dispatcher without a default handler.
             Dispatcher dispatcher = nc.createDispatcher();
 
-            CountDownLatch msgLatch = new CountDownLatch(1000);
+            CountDownLatch msgLatch = new CountDownLatch(MSG_COUNT);
             AtomicInteger count = new AtomicInteger();
             AtomicReference<Set<String>> set = new AtomicReference<>(new HashSet<>());
 
             // create our message handler.
             MessageHandler handler = (Message msg) -> {
-                if (set.get().add(new String(msg.getData()))) {
+                String id = new String(Arrays.copyOf(msg.getData(), 6));
+                if (set.get().add(id)) {
                     count.incrementAndGet();
                 }
                 msg.ack();
                 msgLatch.countDown();
             };
 
-            ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                .durable(DURABLE)
-                .flowControl(1000)
-                .build();
-
-            PushSubscribeOptions pso = PushSubscribeOptions.builder()
-                .configuration(cc)
-                .build();
-
-            // Subscribe using the handler
-            JetStreamSubscription sub = js.subscribe(SUBJECT, dispatcher, handler, false, pso);
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().flowControl(1000).build();
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
+            js.subscribe(SUBJECT, dispatcher, handler, false, pso);
 
             // Wait for messages to arrive using the countdown latch.
             msgLatch.await();
 
-            ConsumerInfo ci = sub.getConsumerInfo();
-            printFormatted(ci);
-
-            assertEquals(1000, count.get());
+            assertEquals(MSG_COUNT, count.get());
+            assertTrue(fcps.get() > 0);
         });
     }
 }

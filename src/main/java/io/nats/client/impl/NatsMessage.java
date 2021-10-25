@@ -61,6 +61,8 @@ public class NatsMessage implements Message {
 
     NatsMessage next; // for linked list
 
+    protected AckType lastAck;
+
     // ----------------------------------------------------------------------------------------------------
     // Constructors - Prefer to use Builder
     // ----------------------------------------------------------------------------------------------------
@@ -107,7 +109,7 @@ public class NatsMessage implements Message {
     }
 
     // ----------------------------------------------------------------------------------------------------
-    // Only for implementors. The user facing message is the only current one that calculates.
+    // Only for implementors. The user created message is the only current one that calculates.
     // ----------------------------------------------------------------------------------------------------
     protected boolean calculateIfDirty() {
         if (dirty || (hasHeaders() && headers.isDirty())) {
@@ -208,21 +210,33 @@ public class NatsMessage implements Message {
     // ----------------------------------------------------------------------------------------------------
     // Public Interface Methods
     // ----------------------------------------------------------------------------------------------------
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getSID() {
         return sid;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Connection getConnection() {
         return subscription == null ? null : subscription.connection;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getSubject() {
         return subject;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getReplyTo() {
         return replyTo;
@@ -232,95 +246,122 @@ public class NatsMessage implements Message {
         return hasHeaders() ? headers.getSerialized() : null;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean hasHeaders() {
         return headers != null && !headers.isEmpty();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Headers getHeaders() {
         return headers;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean isStatusMessage() {
         return false;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Status getStatus() {
         return null;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public byte[] getData() {
         return data;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean isUtf8mode() {
         return utf8mode;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Subscription getSubscription() {
         return subscription;
     }
 
     @Override
+    public AckType lastAck() {
+        return lastAck;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void ack() {
         // do nothing. faster. saves checking whether a message is jetstream or not
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void ackSync(Duration d) throws InterruptedException, TimeoutException {
         // do nothing. faster. saves checking whether a message is jetstream or not
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void nak() {
         // do nothing. faster. saves checking whether a message is jetstream or not
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void inProgress() {
         // do nothing. faster. saves checking whether a message is jetstream or not
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void term() {
         // do nothing. faster. saves checking whether a message is jetstream or not
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public NatsJetStreamMetaData metaData() {
         throw new IllegalStateException(NOT_A_JET_STREAM_MESSAGE);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean isJetStream() {
         return false;  // overridden in NatsJetStreamMessage
     }
-
-    /* Keep this around for reference even though it's no longer used.
-    public ByteArrayBuilder appendSerialized(ByteArrayBuilder bab) {
-        bab.append(getProtocolBytes()).append(CRLF_BYTES);
-
-        if (!isProtocol()) {
-            if (hasHeaders()) {
-                getHeaders().appendSerialized(bab);
-            }
-
-            if (getData().length > 0) {
-                bab.append(getData());
-            }
-
-            bab.append(CRLF_BYTES);
-        }
-
-        return bab;
-    }
-    */
 
     @Override
     public String toString() {
