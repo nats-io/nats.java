@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -214,6 +215,53 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             assertEquals(MSG_COUNT, count.get());
             assertTrue(fcps.get() > 0);
+        });
+    }
+
+    @Test
+    public void testDontAutoAckIfUserAcks() throws Exception {
+        String mockAckReply = "mock-ack-reply.";
+
+        runInJsServer(nc -> {
+            // Create our JetStream context.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT, mockAckReply + "*");
+
+            // publish a message
+            jsPublish(js, SUBJECT, 2);
+
+            // create a dispatcher without a default handler.
+            Dispatcher dispatcher = nc.createDispatcher();
+
+            CountDownLatch msgLatch = new CountDownLatch(2);
+
+            AtomicBoolean flag = new AtomicBoolean(true);
+
+            // create our message handler, does not ack
+            MessageHandler handler = (Message msg) -> {
+                NatsJetStreamMessage m = (NatsJetStreamMessage)msg;
+                if (flag.get()) {
+                    m.replyTo = mockAckReply + "user";
+                    m.ack();
+                    flag.set(false);
+                }
+                m.replyTo = mockAckReply + "system";
+                msgLatch.countDown();
+            };
+
+            // subscribe using the handler, auto ack true
+            js.subscribe(SUBJECT, dispatcher, handler, true);
+
+            // wait for messages to arrive using the countdown latch.
+            msgLatch.await();
+
+            JetStreamSubscription sub = js.subscribe(mockAckReply + "*");
+            List<Message> list = readMessagesAck(sub);
+            assertEquals(2, list.size());
+            assertEquals(mockAckReply + "user", list.get(0).getSubject());
+            assertEquals(mockAckReply + "system", list.get(1).getSubject());
         });
     }
 }
