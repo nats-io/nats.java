@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.DataPort;
+import io.nats.client.impl.ErrorListenerLoggerImpl;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
 import org.junit.jupiter.api.Test;
 
@@ -73,7 +74,7 @@ public class OptionsTests {
         assertEquals(Options.DEFAULT_REQUEST_CLEANUP_INTERVAL, o.getRequestCleanupInterval(),
                 "default cleanup interval");
 
-        assertNull(o.getErrorListener(), "error handler");
+        assertTrue(o.getErrorListener() instanceof ErrorListenerLoggerImpl, "error handler");
         assertNull(o.getConnectionListener(), "disconnect handler");
 
         // COVERAGE
@@ -168,7 +169,7 @@ public class OptionsTests {
         ConnectionListener cHandler = (c, e) -> System.out.println("connection event" + e);
         Options o = new Options.Builder().connectionListener(cHandler).build();
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
-        assertNull(o.getErrorListener(), "error handler");
+        assertTrue(o.getErrorListener() instanceof ErrorListenerLoggerImpl, "error handler");
         assertSame(cHandler, o.getConnectionListener(), "chained connection handler");
     }
 

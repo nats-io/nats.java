@@ -14,6 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.impl.DataPort;
+import io.nats.client.impl.ErrorListenerLoggerImpl;
 import io.nats.client.impl.SocketDataPort;
 import io.nats.client.support.SSLUtils;
 
@@ -1404,7 +1405,7 @@ public class Options {
         this.authHandler = b.authHandler;
         this.reconnectDelayHandler = b.reconnectDelayHandler;
 
-        this.errorListener = b.errorListener;
+        this.errorListener = b.errorListener == null ? new ErrorListenerLoggerImpl() : b.errorListener;
         this.connectionListener = b.connectionListener;
         this.dataPortType = b.dataPortType;
         this.trackAdvancedStats = b.trackAdvancedStats;
@@ -1419,7 +1420,7 @@ public class Options {
     }
 
     /**
-     * @return the error listener, or null, see {@link Builder#errorListener(ErrorListener) errorListener()} in the builder doc
+     * @return the error listener. Will be an instance of ErrorListenerLoggerImpl if not user supplied. See {@link Builder#errorListener(ErrorListener) errorListener()} in the builder doc
      */
     public ErrorListener getErrorListener() {
         return this.errorListener;

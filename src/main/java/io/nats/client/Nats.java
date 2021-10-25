@@ -218,9 +218,7 @@ public abstract class Nats {
             try {
                 NatsImpl.createConnection(options, reconnectOnConnect);
             } catch (Exception ex) {
-                if (options.getErrorListener() != null) {
-                    options.getErrorListener().exceptionOccurred(null, ex);
-                }
+                options.getErrorListener().exceptionOccurred(null, ex);
             }
         });
         t.setName("NATS - async connection");

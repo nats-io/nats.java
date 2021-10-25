@@ -396,7 +396,14 @@ public class NatsMessage implements Message {
     }
 
     private String dataToString() {
-        return data.length == 0 ? "<no data>" : new String(data, UTF_8);
+
+        if (data.length == 0) {
+            return "<no data>";
+        }
+        if (data.length > 27) {
+            return new String(data, 0, 27, UTF_8) + "...";
+        }
+        return new String(data, UTF_8);
     }
 
     private String replyToString() {

@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.api.ServerInfo;
 import io.nats.client.support.Status;
 
 import java.util.logging.Logger;
@@ -22,8 +23,20 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
 
     private final static Logger LOGGER = Logger.getLogger(ErrorListenerLoggerImpl.class.getName());
 
-    private String supplyMessage(String label, Object... pairs) {
+    private String supplyMessage(String label, Connection conn, Consumer consumer, Subscription sub, Object... pairs) {
         StringBuilder sb = new StringBuilder(label).append('.');
+        if (conn != null) {
+            ServerInfo si = conn.getServerInfo();
+            if (si != null) {
+                sb.append("Connection: ").append(conn.getServerInfo().getClientId());
+            }
+        }
+        if (consumer instanceof NatsSubscription) {
+            sb.append("Consumer: ").append(((NatsSubscription)consumer).getSID());
+        }
+        if (sub instanceof NatsSubscription) {
+            sb.append("Subscription: ").append(((NatsSubscription)sub).getSID());
+        }
         for (int x = 0; x < pairs.length; x++) {
             sb.append(pairs[x]).append(pairs[++x]);
         }
@@ -35,7 +48,7 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void errorOccurred(final Connection conn, final String error) {
-        LOGGER.severe(() -> supplyMessage("errorOccurred", "Conn: ", conn, "Error: ", error));
+        LOGGER.severe(() -> supplyMessage("errorOccurred", conn, null, null, "Error: ", error));
     }
 
     /**
@@ -43,7 +56,7 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void exceptionOccurred(final Connection conn, final Exception exp) {
-        LOGGER.severe(() -> supplyMessage("exceptionOccurred", "Conn: ", conn, "Exception: ", exp));
+        LOGGER.severe(() -> supplyMessage("exceptionOccurred", conn, null, null, "Exception: ", exp));
     }
 
     /**
@@ -51,7 +64,7 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void slowConsumerDetected(final Connection conn, final Consumer consumer) {
-        LOGGER.warning(() -> supplyMessage("slowConsumerDetected", "Conn: ", conn, "Consumer: ", consumer));
+        LOGGER.warning(() -> supplyMessage("slowConsumerDetected", conn, consumer, null));
     }
 
     /**
@@ -59,7 +72,7 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void messageDiscarded(final Connection conn, final Message msg) {
-        LOGGER.info(() -> supplyMessage("messageDiscarded", "Conn: ", conn, "Message: ", msg));
+        LOGGER.info(() -> supplyMessage("messageDiscarded", conn, null, null, "Message: ", msg));
     }
 
     /**
@@ -68,7 +81,7 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
     @Override
     public void heartbeatAlarm(final Connection conn, final JetStreamSubscription sub,
                                final long lastStreamSequence, final long lastConsumerSequence, final long expectedConsumerSequence) {
-        LOGGER.severe(() -> supplyMessage("heartbeatAlarm", "Conn: ", conn, "Sub: ", sub, "lastStreamSequence: ", lastStreamSequence, "lastConsumerSequence: ", lastConsumerSequence, "expectedConsumerSequence: ", expectedConsumerSequence));
+        LOGGER.severe(() -> supplyMessage("heartbeatAlarm", conn, null, sub, "lastStreamSequence: ", lastStreamSequence, "lastConsumerSequence: ", lastConsumerSequence, "expectedConsumerSequence: ", expectedConsumerSequence));
     }
 
     /**
@@ -76,7 +89,7 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void messageGapDetected(final Connection conn, final JetStreamSubscription sub, final long lastStreamSequence, final long lastConsumerSequence, final long expectedConsumerSequence, final long receivedConsumerSequence) {
-        LOGGER.warning(() -> supplyMessage("messageGapDetected", "Conn: ", conn, "Sub: ", sub, "lastStreamSequence: ", lastStreamSequence, "lastConsumerSequence: ", lastConsumerSequence, "expectedConsumerSequence: ", expectedConsumerSequence, "receivedConsumerSequence: ", receivedConsumerSequence));
+        LOGGER.warning(() -> supplyMessage("messageGapDetected", conn, null, sub, "lastStreamSequence: ", lastStreamSequence, "lastConsumerSequence: ", lastConsumerSequence, "expectedConsumerSequence: ", expectedConsumerSequence, "receivedConsumerSequence: ", receivedConsumerSequence));
     }
 
     /**
@@ -84,11 +97,14 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void unhandledStatus(final Connection conn, final JetStreamSubscription sub, final Status status) {
-        LOGGER.warning(() -> supplyMessage("unhandledStatus", "Conn: ", conn, "Sub: ", sub, "Status:", status));
+        LOGGER.warning(() -> supplyMessage("unhandledStatus", conn, null, sub, "Status:", status));
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String id, FlowControlSource source) {
-        LOGGER.info(() -> supplyMessage("flowControlProcessed", "Conn: ", conn, "Sub: ", sub, "FlowControlSource:", source));
+        LOGGER.info(() -> supplyMessage("flowControlProcessed", conn, null, sub, "FlowControlSource:", source));
     }
 }

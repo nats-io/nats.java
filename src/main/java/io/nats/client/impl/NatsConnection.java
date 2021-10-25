@@ -1336,11 +1336,8 @@ class NatsConnection implements Connection {
         if (msg.getControlLineLength() > this.options.getMaxControlLine()) {
             throw new IllegalArgumentException("Control line is too long");
         }
-        if (!this.writer.queue(msg)) {
-            ErrorListener errorListener = this.options.getErrorListener();
-            if (errorListener != null) {
-                errorListener.messageDiscarded(this, msg);
-            }
+        if (!writer.queue(msg)) {
+            options.getErrorListener().messageDiscarded(this, msg);
         }
     }
 
@@ -1400,13 +1397,11 @@ class NatsConnection implements Connection {
     }
 
     void processSlowConsumer(Consumer consumer) {
-        ErrorListener handler = this.options.getErrorListener();
-
-        if (handler != null && !this.callbackRunner.isShutdown()) {
+        if (!this.callbackRunner.isShutdown()) {
             try {
                 this.callbackRunner.execute(() -> {
                     try {
-                        handler.slowConsumerDetected(this, consumer);
+                        options.getErrorListener().slowConsumerDetected(this, consumer);
                     } catch (Exception ex) {
                         this.statistics.incrementExceptionCount();
                     }
@@ -1418,15 +1413,13 @@ class NatsConnection implements Connection {
     }
 
     void processException(Exception exp) {
-        ErrorListener handler = this.options.getErrorListener();
-
         this.statistics.incrementExceptionCount();
 
-        if (handler != null && !this.callbackRunner.isShutdown()) {
+        if (!this.callbackRunner.isShutdown()) {
             try {
                 this.callbackRunner.execute(() -> {
                     try {
-                        handler.exceptionOccurred(this, exp);
+                        options.getErrorListener().exceptionOccurred(this, exp);
                     } catch (Exception ex) {
                         this.statistics.incrementExceptionCount();
                     }
@@ -1438,8 +1431,6 @@ class NatsConnection implements Connection {
     }
 
     void processError(String errorText) {
-        ErrorListener handler = this.options.getErrorListener();
-
         this.statistics.incrementErrCount();
 
         this.lastError.set(errorText);
@@ -1451,11 +1442,11 @@ class NatsConnection implements Connection {
             this.serverAuthErrors.put(url, errorText);
         }
 
-        if (handler != null && !this.callbackRunner.isShutdown()) {
+        if (!this.callbackRunner.isShutdown()) {
             try {
                 this.callbackRunner.execute(() -> {
                     try {
-                        handler.errorOccurred(this, errorText);
+                        options.getErrorListener().errorOccurred(this, errorText);
                     } catch (Exception ex) {
                         this.statistics.incrementExceptionCount();
                     }

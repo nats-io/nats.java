@@ -45,7 +45,6 @@ public class PushAutoStatusManager implements AutoStatusManager {
     private long expectedConsumerSeq;
 
     private final AtomicLong lastMsgReceived;
-    private final ErrorListener errorListener;
     private AsmTimer asmTimer;
 
     PushAutoStatusManager(NatsConnection conn, SubscribeOptions so,
@@ -86,10 +85,6 @@ public class PushAutoStatusManager implements AutoStatusManager {
             }
             fc = hb && cc.isFlowControl(); // can't have fc w/o heartbeat
         }
-
-        errorListener = conn.getOptions().getErrorListener() == null
-            ? new ErrorListener() {}
-            : conn.getOptions().getErrorListener();
     }
 
     // chicken or egg situation here. The handler needs the sub in case of error
@@ -116,7 +111,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
             public void run() {
                 long sinceLast = System.currentTimeMillis() - lastMsgReceived.get();
                 if (sinceLast > alarmPeriodSetting) {
-                    errorListener.heartbeatAlarm(conn, sub,
+                    conn.getOptions().getErrorListener().heartbeatAlarm(conn, sub,
                         lastStreamSeq, lastConsumerSeq, expectedConsumerSeq);
                 }
                 restart();
@@ -176,7 +171,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
     private void detectGaps(Message msg) {
         long receivedConsumerSeq = msg.metaData().consumerSequence();
         if (expectedConsumerSeq != receivedConsumerSeq) {
-            errorListener.messageGapDetected(conn, sub,
+            conn.getOptions().getErrorListener().messageGapDetected(conn, sub,
                 lastStreamSeq, lastConsumerSeq, expectedConsumerSeq, receivedConsumerSeq);
 
             if (syncMode) {
@@ -226,7 +221,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
 
             // this status is unknown to us, always use the error handler.
             // If it's a sync call, also throw an exception
-            errorListener.unhandledStatus(conn, sub, status);
+            conn.getOptions().getErrorListener().unhandledStatus(conn, sub, status);
             if (syncMode) {
                 throw new JetStreamStatusException(sub, status);
             }
@@ -241,7 +236,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
         if (fcSubject != null && !fcSubject.equals(lastFcSubject)) {
             conn.publishInternal(fcSubject, null, null, null, false);
             lastFcSubject = fcSubject; // set after publish in case the pub fails
-            errorListener.flowControlProcessed(conn, sub, fcSubject, source);
+            conn.getOptions().getErrorListener().flowControlProcessed(conn, sub, fcSubject, source);
         }
     }
 }
