@@ -223,11 +223,11 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
         String mockAckReply = "mock-ack-reply.";
 
         runInJsServer(nc -> {
-            // Create our JetStream context.
-            JetStream js = nc.jetStream();
-
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT, mockAckReply + "*");
+
+            // Create our JetStream context.
+            JetStream js = nc.jetStream();
 
             // publish a message
             jsPublish(js, SUBJECT, 2);
@@ -258,10 +258,10 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             msgLatch.await();
 
             JetStreamSubscription sub = js.subscribe(mockAckReply + "*");
-            List<Message> list = readMessagesAck(sub);
-            assertEquals(2, list.size());
-            assertEquals(mockAckReply + "user", list.get(0).getSubject());
-            assertEquals(mockAckReply + "system", list.get(1).getSubject());
+            Message msg = sub.nextMessage(1000);
+            assertEquals(mockAckReply + "user", msg.getSubject());
+            msg = sub.nextMessage(1000);
+            assertEquals(mockAckReply + "system", msg.getSubject());
         });
     }
 }
