@@ -13,7 +13,10 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.*;
+import io.nats.client.ErrorListener;
+import io.nats.client.JetStreamStatusException;
+import io.nats.client.Message;
+import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.support.Status;
 
@@ -32,7 +35,6 @@ public class PushAutoStatusManager implements AutoStatusManager {
 
     private final boolean syncMode;
     private final boolean queueMode;
-    private final boolean gap;
     private final boolean hb;
     private final boolean fc;
 
@@ -42,7 +44,6 @@ public class PushAutoStatusManager implements AutoStatusManager {
     private String lastFcSubject;
     private long lastStreamSeq;
     private long lastConsumerSeq;
-    private long expectedConsumerSeq;
 
     private final AtomicLong lastMsgReceived;
     private AsmTimer asmTimer;
@@ -56,18 +57,15 @@ public class PushAutoStatusManager implements AutoStatusManager {
         this.queueMode = queueMode;
         lastStreamSeq = -1;
         lastConsumerSeq = -1;
-        expectedConsumerSeq = 1; // always starts at 1
         lastMsgReceived = new AtomicLong();
 
         if (queueMode) {
-            gap = false;
             hb = false;
             fc = false;
             idleHeartbeatSetting = 0;
             alarmPeriodSetting = 0;
         }
         else {
-            gap = so.detectGaps();
             idleHeartbeatSetting = cc.getIdleHeartbeat().toMillis();
             if (idleHeartbeatSetting == 0) {
                 alarmPeriodSetting = 0;
@@ -111,8 +109,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
             public void run() {
                 long sinceLast = System.currentTimeMillis() - lastMsgReceived.get();
                 if (sinceLast > alarmPeriodSetting) {
-                    conn.getOptions().getErrorListener().heartbeatAlarm(conn, sub,
-                        lastStreamSeq, lastConsumerSeq, expectedConsumerSeq);
+                    conn.getOptions().getErrorListener().heartbeatAlarm(conn, sub, lastStreamSeq, lastConsumerSeq);
                 }
                 restart();
             }
@@ -145,7 +142,6 @@ public class PushAutoStatusManager implements AutoStatusManager {
 
     boolean isSyncMode() { return syncMode; }
     boolean isQueueMode() { return queueMode; }
-    boolean isGap() { return gap; }
     boolean isFc() { return fc; }
     boolean isHb() { return hb; }
 
@@ -155,33 +151,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
     String getLastFcSubject() { return lastFcSubject; }
     public long getLastStreamSequence() { return lastStreamSeq; }
     public long getLastConsumerSequence() { return lastConsumerSeq; }
-    long getExpectedConsumerSequence() { return expectedConsumerSeq; }
     long getLastMsgReceived() { return lastMsgReceived.get(); }
-
-    public boolean manage(Message msg) {
-        if (checkStatusForPushMode(msg)) {
-            return true;
-        }
-        if (gap) {
-            detectGaps(msg);
-        }
-        return false;
-    }
-
-    private void detectGaps(Message msg) {
-        long receivedConsumerSeq = msg.metaData().consumerSequence();
-        if (expectedConsumerSeq != receivedConsumerSeq) {
-            conn.getOptions().getErrorListener().messageGapDetected(conn, sub,
-                lastStreamSeq, lastConsumerSeq, expectedConsumerSeq, receivedConsumerSeq);
-
-            if (syncMode) {
-                throw new JetStreamGapException(sub, expectedConsumerSeq, receivedConsumerSeq);
-            }
-        }
-        lastStreamSeq = msg.metaData().streamSequence();
-        lastConsumerSeq = receivedConsumerSeq;
-        expectedConsumerSeq = receivedConsumerSeq + 1;
-    }
 
     NatsMessage beforeQueueProcessor(NatsMessage msg) {
         lastMsgReceived.set(System.currentTimeMillis());
@@ -194,15 +164,11 @@ public class PushAutoStatusManager implements AutoStatusManager {
         return msg;
     }
 
-    private String extractFcSubject(Message msg) {
-        return msg.getHeaders() == null ? null : msg.getHeaders().getFirst(CONSUMER_STALLED_HDR);
-    }
-
-    private boolean checkStatusForPushMode(Message msg) {
-        // this checks fc, hb and unknown
-        // only process fc and hb if those flags are set
-        // otherwise they are simply known statuses
+    public boolean manage(Message msg) {
         if (msg.isStatusMessage()) {
+            // this checks fc, hb and unknown
+            // only process fc and hb if those flags are set
+            // otherwise they are simply known statuses
             Status status = msg.getStatus();
             if (status.isFlowControl()) {
                 if (fc) {
@@ -227,7 +193,15 @@ public class PushAutoStatusManager implements AutoStatusManager {
             }
             return true;
         }
+
+        // JS Message
+        lastStreamSeq = msg.metaData().streamSequence();
+        lastConsumerSeq = msg.metaData().consumerSequence();
         return false;
+    }
+
+    private String extractFcSubject(Message msg) {
+        return msg.getHeaders() == null ? null : msg.getHeaders().getFirst(CONSUMER_STALLED_HDR);
     }
 
     private void _processFlowControl(String fcSubject, ErrorListener.FlowControlSource source) {

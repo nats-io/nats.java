@@ -52,9 +52,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             jsPublish(js, SUBJECT, 1, 5);
 
             // Build our subscription options.
-            PushSubscribeOptions options = PushSubscribeOptions.builder().deliverSubject(deliverSubject)
-                .detectGaps(false)
-                .build();
+            PushSubscribeOptions options = PushSubscribeOptions.builder().deliverSubject(deliverSubject).build();
 
             // Subscription 1
             JetStreamSubscription sub1 = js.subscribe(SUBJECT, options);

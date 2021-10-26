@@ -290,7 +290,7 @@ public class ExampleArgs {
             return ea;
         }
 
-        @Deprecated // Old Style
+        // Old Style
         public ExampleArgs build(String[] args, String usage) {
             ea.parse(args, null, usage);
             if (ea.containedUnknown && usage != null) {

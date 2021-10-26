@@ -80,16 +80,8 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void heartbeatAlarm(final Connection conn, final JetStreamSubscription sub,
-                               final long lastStreamSequence, final long lastConsumerSequence, final long expectedConsumerSequence) {
-        LOGGER.severe(() -> supplyMessage("heartbeatAlarm", conn, null, sub, "lastStreamSequence: ", lastStreamSequence, "lastConsumerSequence: ", lastConsumerSequence, "expectedConsumerSequence: ", expectedConsumerSequence));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void messageGapDetected(final Connection conn, final JetStreamSubscription sub, final long lastStreamSequence, final long lastConsumerSequence, final long expectedConsumerSequence, final long receivedConsumerSequence) {
-        LOGGER.warning(() -> supplyMessage("messageGapDetected", conn, null, sub, "lastStreamSequence: ", lastStreamSequence, "lastConsumerSequence: ", lastConsumerSequence, "expectedConsumerSequence: ", expectedConsumerSequence, "receivedConsumerSequence: ", receivedConsumerSequence));
+                               final long lastStreamSequence, final long lastConsumerSequence) {
+        LOGGER.severe(() -> supplyMessage("heartbeatAlarm", conn, null, sub, "lastStreamSequence: ", lastStreamSequence, "lastConsumerSequence: ", lastConsumerSequence));
     }
 
     /**

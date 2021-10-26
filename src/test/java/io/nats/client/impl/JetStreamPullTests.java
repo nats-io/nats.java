@@ -282,10 +282,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             createDefaultTestStream(nc);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
-            PullSubscribeOptions options = PullSubscribeOptions.builder()
-                .durable(DURABLE)
-                .detectGaps(false) // not testing gap in this test
-                .build();
+            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
