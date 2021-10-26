@@ -103,6 +103,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
 
     class AsmTimer {
         Timer timer;
+        boolean alive = true;
 
         class AsmTimerTask extends TimerTask {
             @Override
@@ -121,13 +122,14 @@ public class PushAutoStatusManager implements AutoStatusManager {
 
         synchronized void restart() {
             cancel();
-            if (sub.isActive()) {
+            if (alive) {
                 timer = new Timer();
                 timer.schedule(new AsmTimerTask(), alarmPeriodSetting);
             }
         }
 
         synchronized public void shutdown() {
+            alive = false;
             cancel();
         }
 

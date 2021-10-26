@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerConfiguration.CcNumeric;
 import io.nats.client.api.ConsumerInfo;
@@ -367,15 +368,22 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             sub = (NatsJetStreamSubscription) conn.createSubscription(inboxDeliver, qgroup, null, factory);
         }
         else {
-            MessageHandler handler = msg -> {
-                if (asm.manage(msg)) { return; }  // manager handled the message
-
-                userHandler.onMessage(msg);
-
-                if (autoAck && msg.lastAck() == null) { // auto and not already ack'd
-                    msg.ack();
-                }
-            };
+            MessageHandler handler;
+            if (autoAck && serverCc.getAckPolicy() != AckPolicy.None) {
+                handler = msg -> {
+                    if (asm.manage(msg)) { return; }  // manager handled the message
+                    userHandler.onMessage(msg);
+                    if (msg.lastAck() == null || msg.lastAck() == AckType.AckProgress) {
+                        msg.ack();
+                    }
+                };
+            }
+            else {
+                handler = msg -> {
+                    if (asm.manage(msg)) { return; }  // manager handled the message
+                    userHandler.onMessage(msg);
+                };
+            }
             sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, qgroup, handler, factory);
         }
 
