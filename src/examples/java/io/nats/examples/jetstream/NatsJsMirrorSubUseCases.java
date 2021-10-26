@@ -44,12 +44,12 @@ public class NatsJsMirrorSubUseCases {
                     + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.builder()
+        ExampleArgs exArgs = ExampleArgs.builder("Mirror Subscription Use Cases", args, usageString)
                 .defaultStream("example-stream")
                 .defaultMirror("example-mirror")
                 .defaultSubject("example-subject")
                 .defaultDurable("example-durable")
-                .build(args, usageString);
+                .build();
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 

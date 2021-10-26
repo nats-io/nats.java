@@ -42,11 +42,11 @@ public class NatsPubMany {
                     + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.builder()
+        ExampleArgs exArgs = ExampleArgs.builder("Core Publish Many Messages", args, usageString)
                 .defaultSubject("example-subject")
                 .defaultMessage("hello")
                 .defaultMsgCount(10)
-                .build(args, usageString);
+                .build();
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false))) {
 

@@ -24,21 +24,21 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
     private final static Logger LOGGER = Logger.getLogger(ErrorListenerLoggerImpl.class.getName());
 
     private String supplyMessage(String label, Connection conn, Consumer consumer, Subscription sub, Object... pairs) {
-        StringBuilder sb = new StringBuilder(label).append('.');
+        StringBuilder sb = new StringBuilder(label);
         if (conn != null) {
             ServerInfo si = conn.getServerInfo();
             if (si != null) {
-                sb.append("Connection: ").append(conn.getServerInfo().getClientId());
+                sb.append(", Connection: ").append(conn.getServerInfo().getClientId());
             }
         }
         if (consumer instanceof NatsSubscription) {
-            sb.append("Consumer: ").append(((NatsSubscription)consumer).getSID());
+            sb.append(", Consumer: ").append(((NatsSubscription)consumer).getSID());
         }
         if (sub instanceof NatsSubscription) {
-            sb.append("Subscription: ").append(((NatsSubscription)sub).getSID());
+            sb.append(", Subscription: ").append(sub.getSID());
         }
         for (int x = 0; x < pairs.length; x++) {
-            sb.append(pairs[x]).append(pairs[++x]);
+            sb.append(", ").append(pairs[x]).append(pairs[++x]);
         }
         return sb.toString();
     }
