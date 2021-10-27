@@ -25,16 +25,19 @@ import java.util.concurrent.CompletableFuture;
 
 public class JsPubAsyncRoundsBenchmark extends AutoBenchmark {
 
+    private final boolean file;
+    private final long roundSize;
+
     public JsPubAsyncRoundsBenchmark(String name, long messageCount, long messageSize, boolean file, long roundSize) {
-        super(name, messageCount, messageSize, file, roundSize);
+        super(name, messageCount, messageSize);
+        this.file = file;
+        this.roundSize = roundSize;
     }
 
     public void execute(Options connectOptions) throws InterruptedException {
         byte[] payload = createPayload();
         String subject = getSubject();
         String stream = getStream();
-        boolean file = (boolean) getCustoms()[0];
-        long roundSize = (long) getCustoms()[1];
 
         try {
             Connection nc = Nats.connect(connectOptions);
