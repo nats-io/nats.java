@@ -691,7 +691,7 @@ public class ConsumerConfiguration implements JsonSerializable {
             return val <= min || val == srvrDflt ? srvrDflt : val;
         }
 
-        public boolean notEq(long val1, long val2) {
+        public boolean notEqual(long val1, long val2) {
             return comparable(val1) != comparable(val2);
         }
 

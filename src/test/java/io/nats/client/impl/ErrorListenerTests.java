@@ -295,8 +295,7 @@ public class ErrorListenerTests {
         el.exceptionOccurred(null, null);
         el.slowConsumerDetected(null, null);
         el.messageDiscarded(null, null);
-        el.heartbeatAlarm(null, null, -1, -1, -1);
-        el.messageGapDetected(null, null, -1, -1, -1, -1);
+        el.heartbeatAlarm(null, null, -1, -1);
         el.unhandledStatus(null, null, null);
     }
 }

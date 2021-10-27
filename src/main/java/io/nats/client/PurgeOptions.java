@@ -78,7 +78,8 @@ public class PurgeOptions implements JsonSerializable {
     }
 
     /**
-     * Creates a completed Purge Options for jsut a subject
+     * Creates a completed Purge Options for just a subject
+     * @param subject the subject to purge
      * @return a purge options for a subject
      */
     public static PurgeOptions subject(String subject) {

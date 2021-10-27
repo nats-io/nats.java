@@ -15,8 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.PublishAck;
-import io.nats.client.api.StorageType;
-import io.nats.client.api.StreamConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -34,7 +32,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
     @Test
     public void testPublishVarieties() throws Exception {
         runInJsServer(nc -> {
-            createTestStream(nc);
+            createDefaultTestStream(nc);
             JetStream js = nc.jetStream();
 
             PublishAck pa = js.publish(SUBJECT, dataBytes(1));
@@ -77,7 +75,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
             assertNextMessage(s, null); // 8
 
             // 503
-            IOException ioe = assertThrows(IOException.class, () -> js.publish(subject(999), null));
+            assertThrows(IOException.class, () -> js.publish(subject(999), null));
         });
     }
 
@@ -108,7 +106,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
     @Test
     public void testPublishAsyncVarieties() throws Exception {
         runInJsServer(nc -> {
-            createTestStream(nc);
+            createDefaultTestStream(nc);
             JetStream js = nc.jetStream();
 
             List<CompletableFuture<PublishAck>> futures = new ArrayList<>();
@@ -156,7 +154,6 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
             msg = NatsMessage.builder().subject(SUBJECT).build();
             assertFutureJetStreamApiException(js.publishAsync(msg, pox2));
-
         });
     }
 
@@ -270,7 +267,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
     @Test
     public void testPublishMiscExceptions() throws Exception {
         runInJsServer(nc -> {
-            createTestStream(nc);
+            createDefaultTestStream(nc);
             JetStream js = nc.jetStream();
 
             // stream supplied and matches
@@ -299,15 +296,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
     @Test
     public void testPublishNoAck() throws Exception {
         runInJsServer(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            StreamConfiguration sc = StreamConfiguration.builder()
-                    .name(STREAM)
-                    .storageType(StorageType.Memory)
-                    .subjects(SUBJECT)
-                    .noAck(true)
-                    .build();
-
-            jsm.addStream(sc);
+            createDefaultTestStream(nc);
 
             JetStreamOptions jso = JetStreamOptions.builder().publishNoAck(true).build();
             JetStream js = nc.jetStream(jso);

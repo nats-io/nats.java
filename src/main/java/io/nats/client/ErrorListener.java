@@ -81,40 +81,33 @@ public interface ErrorListener {
     /**
      * Called when subscription heartbeats are missed according to the configured period and threshold.
      * The consumer must be configured with an idle heartbeat time.
-     * Subscription must be in Auto Status Management (ASM) mode (which is the default subscription mode)
      *
      * @param conn The connection that had the issue
      * @param sub the JetStreamSubscription that this occurred on
      * @param lastStreamSequence the last received stream sequence
      * @param lastConsumerSequence the last received consumer sequence
-     * @param expectedConsumerSequence the consumer sequence that was expected
      */
     default void heartbeatAlarm(Connection conn, JetStreamSubscription sub,
-                                long lastStreamSequence, long lastConsumerSequence,
-                                long expectedConsumerSequence) {}
-
-    /**
-     * Called by the connection when there is a gap in messages received.
-     * Subscription must be in Auto Status Management (ASM) mode (which is the default subscription mode)
-     *
-     * @param conn The connection that had the issue
-     * @param sub the JetStreamSubscription that this occurred on
-     * @param lastStreamSequence the last received stream sequence
-     * @param lastConsumerSequence the last received consumer sequence
-     * @param expectedConsumerSequence the consumer sequence that was expected
-     * @param receivedConsumerSequence the consumer sequence that was received
-     */
-    default void messageGapDetected(Connection conn, JetStreamSubscription sub,
-                                    long lastStreamSequence, long lastConsumerSequence,
-                                    long expectedConsumerSequence, long receivedConsumerSequence) {}
+                                long lastStreamSequence, long lastConsumerSequence) {}
 
     /**
      * Called by the connection when an unhandled status is received.
-     * Subscription must be in Auto Status Management (ASM) mode (which is the default subscription mode)
      *
      * @param conn The connection that had the issue
      * @param sub the JetStreamSubscription that this occurred on
      * @param status the status
      */
     default void unhandledStatus(Connection conn, JetStreamSubscription sub, Status status) {}
+
+    enum FlowControlSource { FLOW_CONTROL, HEARTBEAT }
+
+    /**
+     * Called by the connection when a flow control is processed.
+     *
+     * @param conn The connection that had the issue
+     * @param sub the JetStreamSubscription that this occurred on
+     * @param subject the flow control subject that was handled
+     * @param source enum indicating flow control handling in response to which type of message
+     */
+    default void flowControlProcessed(Connection conn, JetStreamSubscription sub, String subject, FlowControlSource source) {}
 }

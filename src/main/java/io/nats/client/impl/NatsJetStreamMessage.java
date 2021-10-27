@@ -28,31 +28,54 @@ class NatsJetStreamMessage extends InternalMessage {
 
     NatsJetStreamMessage() {}
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void ack() {
         ackReply(AckAck);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void ackSync(Duration d) throws InterruptedException, TimeoutException {
-        ackReplySync(AckAck, validateDurationRequired(d));
+        validateDurationRequired(d);
+        Connection nc = getJetStreamValidatedConnection();
+        if (nc.request(replyTo, AckAck.bytes, d) == null) {
+            throw new TimeoutException("Ack response timed out.");
+        }
+        lastAck = AckAck;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void nak() {
         ackReply(AckNak);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void inProgress() {
         ackReply(AckProgress);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void term() {
         ackReply(AckTerm);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public NatsJetStreamMetaData metaData() {
         if (this.jsMetaData == null) {
@@ -61,6 +84,9 @@ class NatsJetStreamMessage extends InternalMessage {
         return this.jsMetaData;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean isJetStream() {
         return true; // NatsJetStreamMessage will never be created unless it's actually a JetStream Message
@@ -69,13 +95,7 @@ class NatsJetStreamMessage extends InternalMessage {
     private void ackReply(AckType ackType) {
         Connection nc = getJetStreamValidatedConnection();
         nc.publish(replyTo, ackType.bytes);
-    }
-
-    private void ackReplySync(AckType ackType, Duration dur) throws InterruptedException, TimeoutException {
-        Connection nc = getJetStreamValidatedConnection();
-        if (nc.request(replyTo, ackType.bytes, dur) == null) {
-            throw new TimeoutException("Ack response timed out.");
-        }
+        lastAck = ackType;
     }
 
     Connection getJetStreamValidatedConnection() {

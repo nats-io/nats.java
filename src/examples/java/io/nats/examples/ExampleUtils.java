@@ -31,52 +31,63 @@ public class ExampleUtils {
 
     public static Options createExampleOptions(String[] args) throws Exception {
         String server = getServer(args);
-        return createExampleOptions(server, false);
+        return createExampleOptions(server, false, null);
     }
 
     public static Options createExampleOptions(String[] args, boolean allowReconnect) throws Exception {
         String server = getServer(args);
-        return createExampleOptions(server, allowReconnect);
+        return createExampleOptions(server, allowReconnect, null);
     }
 
     public static Options createExampleOptions(String server) throws Exception {
-        return createExampleOptions(server, false);
+        return createExampleOptions(server, false, null);
+    }
+
+    public static Options createExampleOptions(String server, ErrorListener el) throws Exception {
+        return createExampleOptions(server, false, el);
     }
 
     public static Options createExampleOptions(String server, boolean allowReconnect) throws Exception {
+        return createExampleOptions(server, allowReconnect, null);
+    }
+
+    public static Options createExampleOptions(String server, boolean allowReconnect, ErrorListener el) throws Exception {
+        if (el == null) {
+            el = new ErrorListener() {
+                public void exceptionOccurred(Connection conn, Exception exp) {
+                    System.out.println("Exception " + exp.getMessage());
+                }
+
+                public void errorOccurred(Connection conn, String type) {
+                    System.out.println("Error " + type);
+                }
+
+                public void slowConsumerDetected(Connection conn, Consumer consumer) {
+                    System.out.println("Slow consumer");
+                }
+            };
+        }
+
         Options.Builder builder = new Options.Builder()
-                .server(server)
-                .connectionTimeout(Duration.ofSeconds(5))
-                .pingInterval(Duration.ofSeconds(10))
-                .reconnectWait(Duration.ofSeconds(1))
-                .errorListener(new ErrorListener() {
-                    public void exceptionOccurred(Connection conn, Exception exp) {
-                        System.out.println("Exception " + exp.getMessage());
-                    }
+            .server(server)
+            .connectionTimeout(Duration.ofSeconds(5))
+            .pingInterval(Duration.ofSeconds(10))
+            .reconnectWait(Duration.ofSeconds(1))
+            .errorListener(el)
+            .connectionListener((conn, type) -> System.out.println("Status change "+type));
 
-                    public void errorOccurred(Connection conn, String type) {
-                        System.out.println("Error " + type);
-                    }
+        if (!allowReconnect) {
+            builder = builder.noReconnect();
+        } else {
+            builder = builder.maxReconnects(-1);
+        }
 
-                    public void slowConsumerDetected(Connection conn, Consumer consumer) {
-                        System.out.println("Slow consumer");
-                    }
-                })
-                .connectionListener((conn, type) -> System.out.println("Status change "+type));
-
-            if (!allowReconnect) {
-                builder = builder.noReconnect();
-            } else {
-                builder = builder.maxReconnects(-1);
-            }
-
-            if (System.getenv("NATS_NKEY") != null && System.getenv("NATS_NKEY") != "") {
-                AuthHandler handler = new ExampleAuthHandler(System.getenv("NATS_NKEY"));
-                builder.authHandler(handler);
-            } else if (System.getenv("NATS_CREDS") != null && System.getenv("NATS_CREDS") != "") {
-                builder.authHandler(Nats.credentials(System.getenv("NATS_CREDS")));
-            }
-
+        if (System.getenv("NATS_NKEY") != null && System.getenv("NATS_NKEY") != "") {
+            AuthHandler handler = new ExampleAuthHandler(System.getenv("NATS_NKEY"));
+            builder.authHandler(handler);
+        } else if (System.getenv("NATS_CREDS") != null && System.getenv("NATS_CREDS") != "") {
+            builder.authHandler(Nats.credentials(System.getenv("NATS_CREDS")));
+        }
         return builder.build();
     }
 

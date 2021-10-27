@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.JetStreamStatusException;
 import io.nats.client.Message;
-import io.nats.client.support.Status;
 
 import java.util.Arrays;
 import java.util.List;
@@ -31,13 +30,13 @@ class PullAutoStatusManager implements AutoStatusManager {
     }
 
     public boolean manage(Message msg) {
-        if (msg.isStatusMessage()) {
-            Status status = msg.getStatus();
-            if ( !PULL_KNOWN_STATUS_CODES.contains(status.getCode()) ) {
-                throw new JetStreamStatusException(sub, status);
-            }
-            return true;
+        if (!msg.isStatusMessage()) {
+            return false;
         }
-        return false;
+
+        if ( !PULL_KNOWN_STATUS_CODES.contains(msg.getStatus().getCode()) ) {
+            throw new JetStreamStatusException(sub, msg.getStatus());
+        }
+        return true;
     }
 }

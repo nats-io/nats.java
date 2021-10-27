@@ -27,7 +27,6 @@ public abstract class SubscribeOptions {
     protected final boolean pull;
     protected final boolean bind;
     protected final ConsumerConfiguration consumerConfig;
-    protected final boolean detectGaps;
     protected final long messageAlarmTime;
 
     @SuppressWarnings("rawtypes") // Don't need the type of the builder to get it's vars
@@ -50,7 +49,6 @@ public abstract class SubscribeOptions {
 
         this.pull = pull;
         this.bind = builder.bind;
-        this.detectGaps = builder.detectGaps;
         this.messageAlarmTime = builder.messageAlarmTime;
     }
 
@@ -86,15 +84,6 @@ public abstract class SubscribeOptions {
         return bind;
     }
 
-    /**
-     * Get whether this subscription should provide automatic gap management,
-     * i.e. handle when a gap is detected in the message stream.
-     * @return the automatic gap management flag
-     */
-    public boolean detectGaps() {
-        return detectGaps;
-    }
-
     public long getMessageAlarmTime() {
         return messageAlarmTime;
     }
@@ -112,7 +101,6 @@ public abstract class SubscribeOptions {
         return getClass().getSimpleName() + "{" +
             "stream='" + stream + '\'' +
             "bind=" + bind +
-            "detectGaps=" + detectGaps +
             ", " + consumerConfig +
             '}';
     }
@@ -126,7 +114,6 @@ public abstract class SubscribeOptions {
         boolean bind;
         String durable;
         ConsumerConfiguration cc;
-        boolean detectGaps = false;
         long messageAlarmTime = -1;
 
         protected abstract B getThis();
@@ -172,16 +159,6 @@ public abstract class SubscribeOptions {
          */
         public B configuration(ConsumerConfiguration configuration) {
             this.cc = configuration;
-            return getThis();
-        }
-
-        /**
-         * Sets or clears the auto gap manage flag
-         * @param detectGaps the flag
-         * @return the builder
-         */
-        public B detectGaps(boolean detectGaps) {
-            this.detectGaps = detectGaps;
             return getThis();
         }
 

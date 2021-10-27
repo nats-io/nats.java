@@ -13,19 +13,18 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStream;
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.Message;
-import io.nats.client.PushSubscribeOptions;
+import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
 import io.nats.client.support.NatsJetStreamConstants;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -44,7 +43,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
     public void _testPushEphemeral(String deliverSubject) throws Exception {
         runInJsServer(nc -> {
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
 
             // Create our JetStream context.
             JetStream js = nc.jetStream();
@@ -53,9 +52,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             jsPublish(js, SUBJECT, 1, 5);
 
             // Build our subscription options.
-            PushSubscribeOptions options = PushSubscribeOptions.builder().deliverSubject(deliverSubject)
-                .detectGaps(false)
-                .build();
+            PushSubscribeOptions options = PushSubscribeOptions.builder().deliverSubject(deliverSubject).build();
 
             // Subscription 1
             JetStreamSubscription sub1 = js.subscribe(SUBJECT, options);
@@ -128,7 +125,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
     private void _testPushDurable(String deliverSubject) throws Exception {
         runInJsServer(nc -> {
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
 
             // Create our JetStream context.
             JetStream js = nc.jetStream();
@@ -177,47 +174,13 @@ public class JetStreamPushTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testPushFlowControl() throws Exception {
-        runInJsServer(nc -> {
-            createMemoryStream(nc, STREAM, SUBJECT);
-
-            JetStream js = nc.jetStream();
-
-            jsPublish(js, SUBJECT, 1000);
-
-            ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                .durable(DURABLE)
-                .flowControl(1000)
-                .build();
-
-            PushSubscribeOptions pso = PushSubscribeOptions.builder()
-                .configuration(cc)
-                .build();
-
-            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
-
-            int count = 0;
-            Set<String> set = new HashSet<>();
-            Message m = sub.nextMessage(1000);
-            while (m != null) {
-                ++count;
-                assertTrue(set.add(new String(m.getData())));
-                m.ack();
-                m = sub.nextMessage(1000);
-            }
-
-            assertEquals(1000, count);
-        });
-    }
-
-    @Test
     public void testCantPullOnPushSub() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
 
             JetStreamSubscription sub = js.subscribe(SUBJECT);
             assertSubscription(sub, STREAM, null, null, false);
@@ -241,7 +204,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
 
             PushSubscribeOptions pso = ConsumerConfiguration.builder().headersOnly(true).buildPushSubscribeOptions();
             JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
@@ -258,30 +221,13 @@ public class JetStreamPushTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testCantNextMessageOnAsyncPushSub() throws Exception {
-        runInJsServer(nc -> {
-            // Create our JetStream context.
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
-
-            JetStreamSubscription sub = js.subscribe(SUBJECT, nc.createDispatcher(), msg -> {}, false);
-
-            // this should exception, can't next message on an async push sub
-            assertThrows(IllegalStateException.class, () -> sub.nextMessage(Duration.ofMillis(1000)));
-            assertThrows(IllegalStateException.class, () -> sub.nextMessage(1000));
-        });
-    }
-
-    @Test
     public void testAcks() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder().ackWait(Duration.ofMillis(1500)).build();
             PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
@@ -458,5 +404,58 @@ public class JetStreamPushTests extends JetStreamTestBase {
     private void assertMessage(Message m, int i) {
         assertNotNull(m);
         assertEquals(data(i), new String(m.getData()));
+    }
+
+    @Test
+    public void testPushSyncFlowControl() throws Exception {
+        AtomicInteger fcps = new AtomicInteger();
+
+        ErrorListener el = new ErrorListener() {
+            @Override
+            public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String subject, FlowControlSource source) {
+                fcps.incrementAndGet();
+            }
+        };
+
+        Options.Builder ob = new Options.Builder().errorListener(el);
+
+        runInJsServer(ob, nc -> {
+            // Create our JetStream context.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createDefaultTestStream(nc);
+
+            byte[] data = new byte[8192];
+
+            int MSG_COUNT = 1000;
+
+            // publish some messages
+            for (int x = 100_000; x < MSG_COUNT + 100_000; x++) {
+                byte[] fill = (""+ x).getBytes();
+                System.arraycopy(fill, 0, data, 0, 6);
+                js.publish(NatsMessage.builder().subject(SUBJECT).data(data).build());
+            }
+
+            // reset the counters
+            int count = 0;
+            Set<String> set = new HashSet<>();
+
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().flowControl(1000).build();
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            for (int x = 0; x < MSG_COUNT; x++) {
+                Message msg = sub.nextMessage(1000);
+                String id = new String(Arrays.copyOf(msg.getData(), 6));
+                if (set.add(id)) {
+                    count++;
+                }
+                msg.ack();
+            }
+
+            assertEquals(MSG_COUNT, count);
+            assertTrue(fcps.get() > 0);
+        });
     }
 }

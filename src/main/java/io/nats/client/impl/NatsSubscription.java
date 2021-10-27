@@ -67,7 +67,8 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         return (max > 0) && (max <= recv);
     }
 
-    String getSID() {
+    @Override
+    public String getSID() {
         return this.sid;
     }
 

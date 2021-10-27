@@ -208,11 +208,6 @@ public class ExampleArgs {
         return new Builder(title, args, usage);
     }
 
-    // TODO REMOVE THIS
-    public static Builder builder() {
-        return new Builder(null, null, null);
-    }
-
     public static class Builder {
 
         private final ExampleArgs ea;
@@ -282,16 +277,6 @@ public class ExampleArgs {
         }
 
         public ExampleArgs build() {
-            ea.parse(args, null, usage);
-            if (ea.containedUnknown && usage != null) {
-                usageThenExit(usage);
-            }
-            ea.displayBanner();
-            return ea;
-        }
-
-        @Deprecated // Old Style
-        public ExampleArgs build(String[] args, String usage) {
             ea.parse(args, null, usage);
             if (ea.containedUnknown && usage != null) {
                 usageThenExit(usage);

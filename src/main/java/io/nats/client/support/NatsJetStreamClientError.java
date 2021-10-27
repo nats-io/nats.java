@@ -28,7 +28,7 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError JsSoDeliverGroupMismatch = new NatsJetStreamClientError(SO, 90102, "Builder deliver group must match the consumer configuration deliver group if both are provided.");
     public static final NatsJetStreamClientError JsSoDeliverSubjectGroupMismatch = new NatsJetStreamClientError(SO, 90103, "Builder deliver subject must match the consumer configuration deliver subject if both are provided.");
 
-    private final String prefix;
+    private final String id;
     private final String message;
     private final int kind;
 
@@ -37,8 +37,8 @@ public class NatsJetStreamClientError {
     }
 
     public NatsJetStreamClientError(String group, int code, String description, int kind) {
-        prefix = String.format("[%s-%d]", group, code);
-        message = String.format("%s %s", prefix, description);
+        id = String.format("%s-%d", group, code);
+        message = String.format("[%s] %s", id, description);
         this.kind = kind;
     }
     
@@ -49,8 +49,8 @@ public class NatsJetStreamClientError {
         return new IllegalStateException(message);
     }
 
-    public String prefix() {
-        return prefix;
+    public String id() {
+        return id;
     }
 
     public String message() {

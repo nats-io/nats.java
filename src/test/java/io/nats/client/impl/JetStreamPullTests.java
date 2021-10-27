@@ -36,7 +36,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                     .ackWait(Duration.ofMillis(2500))
@@ -105,7 +105,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                     .ackWait(Duration.ofMillis(2500))
@@ -174,13 +174,13 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testPlain() throws Exception {
+    public void testBasic() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
@@ -279,13 +279,10 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
-            PullSubscribeOptions options = PullSubscribeOptions.builder()
-                .durable(DURABLE)
-                .detectGaps(false) // not testing gap in this test
-                .build();
+            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
@@ -342,7 +339,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
@@ -433,7 +430,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
 
             PullSubscribeOptions pso = PullSubscribeOptions.builder().durable(DURABLE).build();
             JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
@@ -469,7 +466,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            createDefaultTestStream(nc);
 
             PullSubscribeOptions pso = PullSubscribeOptions.builder().durable(DURABLE).build();
             JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
@@ -493,11 +490,12 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testAckReplySyncCoverage() throws Exception {
         runInJsServer(nc -> {
+            // create the stream.
+            createDefaultTestStream(nc);
+
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
-            // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
             JetStreamSubscription sub = js.subscribe(SUBJECT);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
@@ -511,6 +509,47 @@ public class JetStreamPullTests extends JetStreamTestBase {
             njsm.replyTo = "$JS.ACK.stream.LS0k4eeN.1.1.1.1627472530542070600.0";
 
             assertThrows(TimeoutException.class, () -> njsm.ackSync(Duration.ofSeconds(1)));
+        });
+    }
+
+    @Test
+    public void testAckWaitTimeout() throws Exception {
+        runInJsServer(nc -> {
+            // create the stream.
+            createDefaultTestStream(nc);
+
+            // Create our JetStream context.
+            JetStream js = nc.jetStream();
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                .ackWait(1500)
+                .build();
+            PullSubscribeOptions pso = PullSubscribeOptions.builder()
+                .durable(DURABLE)
+                .configuration(cc)
+                .build();
+
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // Ack Wait timeout
+            jsPublish(js, SUBJECT, "WAIT", 1);
+
+            sub.pull(1);
+            Message m = sub.nextMessage(1000);
+            assertNotNull(m);
+
+            assertEquals("WAIT1", new String(m.getData()));
+            sleep(2000);
+
+            sub.pull(1);
+            m = sub.nextMessage(1000);
+            assertNotNull(m);
+            assertEquals("WAIT1", new String(m.getData()));
+
+            sub.pull(1);
+            m = sub.nextMessage(1000);
+            assertNull(m);
         });
     }
 }

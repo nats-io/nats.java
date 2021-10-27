@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerConfiguration.CcNumeric;
 import io.nats.client.api.ConsumerInfo;
@@ -200,10 +201,14 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     // ----------------------------------------------------------------------------------------------------
     // Subscribe
     // ----------------------------------------------------------------------------------------------------
-    NatsJetStreamSubscription createSubscription(String subject, String queueName,
-                                                 NatsDispatcher dispatcher, MessageHandler userMh, boolean autoAck,
+    NatsJetStreamSubscription createSubscription(String subject,
+                                                 String queueName,
+                                                 final NatsDispatcher dispatcher,
+                                                 final MessageHandler userHandler,
+                                                 final boolean autoAck,
                                                  PushSubscribeOptions pushSubscribeOptions,
-                                                 PullSubscribeOptions pullSubscribeOptions) throws IOException, JetStreamApiException {
+                                                 PullSubscribeOptions pullSubscribeOptions
+    ) throws IOException, JetStreamApiException {
 
         // 1. Prepare for all the validation
         boolean isPullMode = pullSubscribeOptions != null;
@@ -245,7 +250,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             if (isPullMode) {
                 throw JsSubFcHbNotValidPull.instance();
             }
-            else if (qgroup != null) {
+            if (qgroup != null) {
                 throw JsSubFcHbHbNotValidQueue.instance();
             }
         }
@@ -269,28 +274,25 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             if (serverInfo != null) { // the consumer for that durable already exists
                 serverCc = serverInfo.getConsumerConfiguration();
 
-                String serverValue = serverCc.getDeliverSubject();
                 if (isPullMode) {
-                    if (!nullOrEmpty(serverValue)) {
+                    if (!nullOrEmpty(serverCc.getDeliverSubject())) {
                         throw JsSubConsumerAlreadyConfiguredAsPush.instance();
                     }
                 }
-                else if (nullOrEmpty(serverValue)) {
+                else if (nullOrEmpty(serverCc.getDeliverSubject())) {
                     throw JsSubConsumerAlreadyConfiguredAsPull.instance();
                 }
-                else if (inboxDeliver != null && !inboxDeliver.equals(serverValue)) {
+                else if (inboxDeliver != null && !inboxDeliver.equals(serverCc.getDeliverSubject())) {
                     throw JsSubExistingDeliverSubjectMismatch.instance();
                 }
 
                 // durable already exists, make sure the filter subject matches
-                serverValue = serverCc.getFilterSubject();
                 String userFilterSubject = userCC.getFilterSubject();
-                if (userFilterSubject != null && !userFilterSubject.equals(serverValue)) {
+                if (userFilterSubject != null && !userFilterSubject.equals(serverCc.getFilterSubject())) {
                     throw JsSubSubjectDoesNotMatchFilter.instance();
                 }
 
-                serverValue = serverCc.getDeliverGroup();
-                if (serverValue == null) {
+                if (serverCc.getDeliverGroup() == null) {
                     // lookedUp was null, means existing consumer is not a queue consumer
                     if (qgroup == null) {
                         // ok fine, no queue requested and the existing consumer is also not a queue consumer
@@ -306,7 +308,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 else if (qgroup == null) {
                     throw JsSubExistingConsumerIsQueue.instance();
                 }
-                else if (!serverValue.equals(qgroup)) {
+                else if (!serverCc.getDeliverGroup().equals(qgroup)) {
                     throw JsSubExistingQueueDoesNotMatchRequestedQueue.instance();
                 }
 
@@ -339,7 +341,6 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 ccBuilder.deliverSubject(inboxDeliver);
             }
 
-            // being discussed if this is correct, but leave it for now.
             String userFilterSubject = userCC.getFilterSubject();
             ccBuilder.filterSubject(userFilterSubject == null ? subject : userFilterSubject);
 
@@ -354,7 +355,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         final String fnlConsumerName = consumerName;
         final String fnlInboxDeliver = inboxDeliver;
 
-        AutoStatusManager asm = isPullMode
+        final AutoStatusManager asm = isPullMode
             ? new PullAutoStatusManager()
             : new PushAutoStatusManager(conn, so, serverCc, qgroup != null, dispatcher == null);
 
@@ -367,8 +368,22 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             sub = (NatsJetStreamSubscription) conn.createSubscription(inboxDeliver, qgroup, null, factory);
         }
         else {
-            NatsJetStreamSubscriptionMessageHandler handler =
-                new NatsJetStreamSubscriptionMessageHandler(asm, userMh, autoAck);
+            MessageHandler handler;
+            if (autoAck && serverCc.getAckPolicy() != AckPolicy.None) {
+                handler = msg -> {
+                    if (asm.manage(msg)) { return; }  // manager handled the message
+                    userHandler.onMessage(msg);
+                    if (msg.lastAck() == null || msg.lastAck() == AckType.AckProgress) {
+                        msg.ack();
+                    }
+                };
+            }
+            else {
+                handler = msg -> {
+                    if (asm.manage(msg)) { return; }  // manager handled the message
+                    userHandler.onMessage(msg);
+                };
+            }
             sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, qgroup, handler, factory);
         }
 
@@ -383,17 +398,17 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             || user.getAckPolicy() != server.getAckPolicy()
             || user.getReplayPolicy() != server.getReplayPolicy()
 
-            || CcNumeric.START_SEQ.notEq(user.getStartSequence(), server.getStartSequence())
-            || CcNumeric.MAX_DELIVER.notEq(user.getMaxDeliver(), server.getMaxDeliver())
-            || CcNumeric.RATE_LIMIT.notEq(user.getRateLimit(), server.getRateLimit())
-            || CcNumeric.MAX_ACK_PENDING.notEq(user.getMaxAckPending(), server.getMaxAckPending())
-            || CcNumeric.MAX_PULL_WAITING.notEq(user.getMaxPullWaiting(), server.getMaxPullWaiting())
+            || CcNumeric.START_SEQ.notEqual(user.getStartSequence(), server.getStartSequence())
+            || CcNumeric.MAX_DELIVER.notEqual(user.getMaxDeliver(), server.getMaxDeliver())
+            || CcNumeric.RATE_LIMIT.notEqual(user.getRateLimit(), server.getRateLimit())
+            || CcNumeric.MAX_ACK_PENDING.notEqual(user.getMaxAckPending(), server.getMaxAckPending())
+            || CcNumeric.MAX_PULL_WAITING.notEqual(user.getMaxPullWaiting(), server.getMaxPullWaiting())
 
             || !Objects.equals(user.getStartTime(), server.getStartTime())
             || !Objects.equals(user.getAckWait(), server.getAckWait())
-            || !Objects.equals(user.getSampleFrequency(), server.getSampleFrequency())
             || !Objects.equals(user.getIdleHeartbeat(), server.getIdleHeartbeat())
-            || !Objects.equals(user.getDescription(), server.getDescription());
+            || !Objects.equals(user.getDescription(), server.getDescription())
+            || !Objects.equals(user.getSampleFrequency(), server.getSampleFrequency());
     }
 
     /**
