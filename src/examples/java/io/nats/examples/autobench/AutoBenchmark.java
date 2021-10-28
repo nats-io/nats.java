@@ -26,15 +26,13 @@ public abstract class AutoBenchmark {
     private final long messageSize;
     private final long messageCount;
     private final AtomicLong start;
-    private final Object[] customs;
     private long runtimeNanos;
     private Exception exception;
 
-    public AutoBenchmark(String name, long messageCount, long messageSize, Object... customs) {
+    public AutoBenchmark(String name, long messageCount, long messageSize) {
         this.name = name;
         this.messageCount = messageCount;
         this.messageSize = messageSize;
-        this.customs = customs;
         this.start = new AtomicLong();
     }
 
@@ -45,11 +43,15 @@ public abstract class AutoBenchmark {
     }
 
     public String getSubject() {
-        return String.valueOf(getName().hashCode()%10000);
+        return generate("sub");
     }
 
     public String getStream() {
-        return String.valueOf(("stream" + getName()).hashCode()%10000);
+        return generate("stream");
+    }
+
+    private String generate(String prefix) {
+        return prefix + Long.toHexString(getName().hashCode()) + "-" + Long.toHexString(getMessageCount()) + "x" + Long.toHexString(getMessageSize());
     }
 
     public long getMessageSize() {
@@ -58,10 +60,6 @@ public abstract class AutoBenchmark {
 
     public long getMessageCount() {
         return this.messageCount;
-    }
-
-    public Object[] getCustoms() {
-        return customs;
     }
 
     public byte[] createPayload() {

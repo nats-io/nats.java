@@ -37,17 +37,21 @@ public class JsPubBenchmark extends AutoBenchmark {
         return SAVED_SUBJECTS.get(getKey(messageCount, messageSize));
     }
 
+    private final boolean file;
+    private final boolean sync;
+    private final boolean saveForSub;
+
     public JsPubBenchmark(String name, long messageCount, long messageSize, boolean file, boolean sync, boolean saveForSub) {
-        super(name, messageCount, messageSize, file, sync, saveForSub);
+        super(name, messageCount, messageSize);
+        this.file = file;
+        this.sync = sync;
+        this.saveForSub = saveForSub;
     }
 
     public void execute(Options connectOptions) throws InterruptedException {
         byte[] payload = createPayload();
         String subject = getSubject();
         String stream = getStream();
-        boolean file = (boolean) getCustoms()[0];
-        boolean sync = (boolean) getCustoms()[1];
-        boolean saveForSub = (boolean) getCustoms()[2];
         if (saveForSub) {
             String key = getKey(getMessageCount(), getMessageSize());
             SAVED_STREAMS.put(key, stream);

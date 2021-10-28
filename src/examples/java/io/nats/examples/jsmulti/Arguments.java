@@ -117,7 +117,7 @@ class Arguments{
                         messageCount = asNumber(args, ++x, -1, "total messages");
                         break;
                     case "-ps":
-                        payloadSize = asNumber(args, ++x, 8192, "payload size");
+                        payloadSize = asNumber(args, ++x, 65536, "payload size");
                         break;
                     case "-bs":
                         batchSize = asNumber(args, ++x, 256, "batch size");

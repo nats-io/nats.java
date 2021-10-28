@@ -144,7 +144,7 @@ time spent in jitter is excluded from timings
 
 ### Publish Only Optional Arguments
 
-`-ps` payload size (number) for publishing, defaults to 128, maximum 8192"
+`-ps` payload size (number) for publishing, defaults to 128, maximum 65536"
 
 `-rs` round size (number) for pubAsync, default to 100, maximum 1000.
 Publishing asynchronously uses the "sawtooth" pattern. This means we publish a round of messages, collecting all the futures that receive the PublishAck
