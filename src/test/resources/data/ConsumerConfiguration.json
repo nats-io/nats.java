@@ -1,9 +1,10 @@
 {
-  "description": "blah blah",
+  "description": "foo-desc",
   "durable_name": "foo-durable",
   "deliver_subject": "bar",
   "deliver_policy": "all",
-  "opt_start_seq": 0,
+  "deliver_group": "grp",
+  "opt_start_seq": 99,
   "opt_start_time": "2020-11-05T19:33:21.163377000Z",
   "ack_policy": "all",
   "ack_wait": 30000000000,

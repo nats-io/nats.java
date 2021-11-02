@@ -66,8 +66,8 @@ public class PushAutoStatusManager implements AutoStatusManager {
             alarmPeriodSetting = 0;
         }
         else {
-            idleHeartbeatSetting = cc.getIdleHeartbeat().toMillis();
-            if (idleHeartbeatSetting == 0) {
+            idleHeartbeatSetting = cc.getIdleHeartbeat() == null ? 0 : cc.getIdleHeartbeat().toMillis();
+            if (idleHeartbeatSetting <= 0) {
                 alarmPeriodSetting = 0;
                 hb = false;
             }
