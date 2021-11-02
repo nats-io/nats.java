@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.ConsumerConfiguration.CcNumeric;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.api.PublishAck;
 import io.nats.client.support.JsonUtils;
@@ -24,7 +23,6 @@ import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import static io.nats.client.support.ApiConstants.SUBJECT;
@@ -246,7 +244,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
 
         // 2A. Flow Control / heartbeat not always valid
-        if (userCC.isFlowControl() || userCC.getIdleHeartbeat().toMillis() > 0) {
+        if (userCC.isFlowControl() || (userCC.getIdleHeartbeat() != null && userCC.getIdleHeartbeat().toMillis() > 0)) {
             if (isPullMode) {
                 throw JsSubFcHbNotValidPull.instance();
             }
@@ -316,7 +314,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 // modifications are not allowed
                 // previous checks for deliver subject and filter subject matching are now
                 // in the changes function
-                if (userIsModifiedVsServer(userCC, serverCc)) {
+                if (userCC.wouldBeChangeTo(serverCc)) {
                     throw JsSubExistingConsumerCannotBeModified.instance();
                 }
 
@@ -361,7 +359,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
             -> NatsJetStreamSubscription.getInstance(sid, lSubject, lQgroup, lConn, lDispatcher,
-                    asm, this, isPullMode, fnlStream, fnlConsumerName, fnlInboxDeliver);
+            asm, this, isPullMode, fnlStream, fnlConsumerName, fnlInboxDeliver);
 
         NatsJetStreamSubscription sub;
         if (dispatcher == null) {
@@ -389,26 +387,6 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         asm.setSub(sub);
         return sub;
-    }
-
-    static boolean userIsModifiedVsServer(ConsumerConfiguration user, ConsumerConfiguration server) {
-
-        return user.isFlowControl() != server.isFlowControl()
-            || user.getDeliverPolicy() != server.getDeliverPolicy()
-            || user.getAckPolicy() != server.getAckPolicy()
-            || user.getReplayPolicy() != server.getReplayPolicy()
-
-            || CcNumeric.START_SEQ.notEqual(user.getStartSequence(), server.getStartSequence())
-            || CcNumeric.MAX_DELIVER.notEqual(user.getMaxDeliver(), server.getMaxDeliver())
-            || CcNumeric.RATE_LIMIT.notEqual(user.getRateLimit(), server.getRateLimit())
-            || CcNumeric.MAX_ACK_PENDING.notEqual(user.getMaxAckPending(), server.getMaxAckPending())
-            || CcNumeric.MAX_PULL_WAITING.notEqual(user.getMaxPullWaiting(), server.getMaxPullWaiting())
-
-            || !Objects.equals(user.getStartTime(), server.getStartTime())
-            || !Objects.equals(user.getAckWait(), server.getAckWait())
-            || !Objects.equals(user.getIdleHeartbeat(), server.getIdleHeartbeat())
-            || !Objects.equals(user.getDescription(), server.getDescription())
-            || !Objects.equals(user.getSampleFrequency(), server.getSampleFrequency());
     }
 
     /**
