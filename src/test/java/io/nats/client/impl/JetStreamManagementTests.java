@@ -430,17 +430,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     private void assertInvalidConsumerUpdate(JetStreamManagement jsm, ConsumerConfiguration cc) {
         JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> jsm.addOrUpdateConsumer(STREAM, cc));
-        // 10013 consumer name already in use
-        // 10105 consumer already exists and is still active
-        System.out.println(e);
         assertEquals(10012, e.getApiErrorCode());
         assertEquals(500, e.getErrorCode());
-//        if (expected == null) {
-//            assertTrue(e.getApiErrorCode() == 10013 || e.getApiErrorCode() == 10105);
-//            assertEquals(400, e.getErrorCode());
-//        }
-//        else {
-//        }
     }
 
     private void assertValidAddOrUpdate(JetStreamManagement jsm, ConsumerConfiguration cc) throws IOException, JetStreamApiException {
