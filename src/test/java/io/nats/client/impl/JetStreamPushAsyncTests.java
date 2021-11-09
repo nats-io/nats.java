@@ -53,11 +53,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             // create our message handler.
             MessageHandler handler = (Message msg) -> {
                 received.incrementAndGet();
-
-                if (msg.isJetStream()) {
-                    msg.ack();
-                }
-
+                msg.ack();
                 msgLatch.countDown();
             };
 

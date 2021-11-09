@@ -249,21 +249,21 @@ public interface JetStream {
      */
     CompletableFuture<PublishAck> publishAsync(Message message, PublishOptions options);
 
-   /**
-    * Create a synchronous subscription to the specified subject with default options.
-    *
-    * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration)}
-    * method to read messages for this subscription.
-    *
-    * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
-    * information about creating an asynchronous subscription with callbacks.
-    *
-    * @param subject the subject to subscribe to
-    * @return The subscription
-    * @throws IOException covers various communication issues with the NATS
-    *         server such as timeout or interruption
-    * @throws JetStreamApiException the request had an error related to the data
-     */    
+    /**
+     * Create a synchronous subscription to the specified subject with default options.
+     *
+     * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration)}
+     * method to read messages for this subscription.
+     *
+     * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
+     * information about creating an asynchronous subscription with callbacks.
+     *
+     * @param subject the subject to subscribe to
+     * @return The subscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
     JetStreamSubscription subscribe(String subject) throws IOException, JetStreamApiException;
 
     /**
@@ -365,4 +365,57 @@ public interface JetStream {
      * @throws JetStreamApiException the request had an error related to the data
      */      
     JetStreamSubscription subscribe(String subject, PullSubscribeOptions options) throws IOException, JetStreamApiException;
+
+    /**
+     * Create a synchronous push subscription to an existing consumer
+     *
+     * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration)}
+     * method to read messages for this subscription.
+     *
+     * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
+     * information about creating an asynchronous subscription with callbacks.
+     *
+     * @param stream the stream that has the durable consumer already created
+     * @param durable the existing durable consumer name
+     * @return The subscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    JetStreamSubscription bindSubscribePushSync(String stream, String durable) throws IOException, JetStreamApiException;
+
+    /**
+     * Create an asynchronous push subscription to an existing consumer under the control of the
+     * specified dispatcher. Since a MessageHandler is also required, the Dispatcher will
+     * not prevent duplicate subscriptions from being made.
+     *
+     * @param stream the stream that has the durable consumer already created
+     * @param durable the existing durable consumer name
+     * @param dispatcher The dispatcher to handle this subscription
+     * @param handler The target for the messages
+     * @param autoAck Whether to auto ack
+     * @return The subscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    JetStreamSubscription bindSubscribePushAsync(String stream, String durable, Dispatcher dispatcher, MessageHandler handler, boolean autoAck) throws IOException, JetStreamApiException;
+
+    /**
+     * Create a pull subscription to an existing consumer
+     *
+     * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration)}
+     * method to read messages for this subscription.
+     *
+     * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
+     * information about creating an asynchronous subscription with callbacks.
+     *
+     * @param stream the stream that has the durable consumer already created
+     * @param durable the existing durable consumer name
+     * @return The subscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    JetStreamSubscription bindSubscribePull(String stream, String durable) throws IOException, JetStreamApiException;
 }

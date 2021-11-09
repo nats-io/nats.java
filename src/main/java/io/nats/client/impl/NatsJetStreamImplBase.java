@@ -19,6 +19,7 @@ import io.nats.client.Message;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerCreateRequest;
 import io.nats.client.api.ConsumerInfo;
+import io.nats.client.api.StreamInfo;
 import io.nats.client.support.NatsJetStreamConstants;
 
 import java.io.IOException;
@@ -40,13 +41,13 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
     // ----------------------------------------------------------------------------------------------------
     // Management that is also needed by regular context
     // ----------------------------------------------------------------------------------------------------
-    protected ConsumerInfo getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException {
+    protected ConsumerInfo _getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_CONSUMER_INFO, streamName, consumer);
         Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
     }
 
-    protected ConsumerInfo createConsumerInternal(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
+    protected ConsumerInfo _createConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
         String durable = config.getDurable();
         String requestJSON = new ConsumerCreateRequest(streamName, config).toJson();
 
@@ -58,6 +59,12 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         }
         Message resp = makeRequestResponseRequired(subj, requestJSON.getBytes(), conn.getOptions().getConnectionTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
+    }
+
+    protected StreamInfo _getStreamInfo(String streamName) throws IOException, JetStreamApiException {
+        String subj = String.format(JSAPI_STREAM_INFO, streamName);
+        Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
+        return new StreamInfo(resp).throwOnHasError();
     }
 
     // ----------------------------------------------------------------------------------------------------

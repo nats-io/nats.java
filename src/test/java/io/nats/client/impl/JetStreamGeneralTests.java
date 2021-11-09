@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.RandomUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -493,6 +494,92 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testFilterMismatchErrors() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = nc.jetStream();
+
+            // single subject
+            createMemoryStream(jsm, STREAM, SUBJECT);
+
+            // will work as SubscribeSubject equals Filter Subject
+            subscribeOk(js, jsm, SUBJECT, SUBJECT);
+            subscribeOk(js, jsm, ">", ">");
+            subscribeOk(js, jsm, "*", "*");
+
+            // will work as SubscribeSubject != empty Filter Subject,
+            // b/c Stream has exactly 1 subject and is a match.
+            subscribeOk(js, jsm, "", SUBJECT);
+
+            // will work as SubscribeSubject != Filter Subject of '>'
+            // b/c Stream has exactly 1 subject and is a match.
+            subscribeOk(js, jsm, ">", SUBJECT);
+
+            // will not work
+            subscribeEx(js, jsm, "*", SUBJECT);
+
+            // multiple subjects no wildcards
+            jsm.deleteStream(STREAM);
+            createMemoryStream(jsm, STREAM, SUBJECT, subject(2));
+
+            // will work as SubscribeSubject equals Filter Subject
+            subscribeOk(js, jsm, SUBJECT, SUBJECT);
+            subscribeOk(js, jsm, ">", ">");
+            subscribeOk(js, jsm, "*", "*");
+
+            // will not work because stream has more than 1 subject
+            subscribeEx(js, jsm, "", SUBJECT);
+            subscribeEx(js, jsm, ">", SUBJECT);
+            subscribeEx(js, jsm, "*", SUBJECT);
+
+            // multiple subjects via '>'
+            jsm.deleteStream(STREAM);
+            createMemoryStream(jsm, STREAM, SUBJECT_GT);
+
+            // will work, exact matches
+            subscribeOk(js, jsm, subjectDot("1"), subjectDot("1"));
+            subscribeOk(js, jsm, ">", ">");
+
+            // will not work because mismatch / stream has more than 1 subject
+            subscribeEx(js, jsm, "", subjectDot("1"));
+            subscribeEx(js, jsm, ">", subjectDot("1"));
+            subscribeEx(js, jsm, SUBJECT_GT, subjectDot("1"));
+
+            // multiple subjects via '*'
+            jsm.deleteStream(STREAM);
+            createMemoryStream(jsm, STREAM, SUBJECT_STAR);
+
+            // will work, exact matches
+            subscribeOk(js, jsm, subjectDot("1"), subjectDot("1"));
+            subscribeOk(js, jsm, ">", ">");
+
+            // will not work because mismatch / stream has more than 1 subject
+            subscribeEx(js, jsm, "", subjectDot("1"));
+            subscribeEx(js, jsm, ">", subjectDot("1"));
+            subscribeEx(js, jsm, SUBJECT_STAR, subjectDot("1"));
+        });
+    }
+
+    private void subscribeOk(JetStream js, JetStreamManagement jsm, String fs, String ss) throws IOException, JetStreamApiException {
+        int i = RandomUtils.PRAND.nextInt(); // just want a unique number
+        setupConsumer(jsm, i, fs);
+        js.subscribe(ss, ConsumerConfiguration.builder().durable(durable(i)).buildPushSubscribeOptions()).unsubscribe();
+    }
+
+    private void subscribeEx(JetStream js, JetStreamManagement jsm, String fs, String ss) throws IOException, JetStreamApiException {
+        int i = RandomUtils.PRAND.nextInt(); // just want a unique number
+        setupConsumer(jsm, i, fs);
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+            () -> js.subscribe(ss, ConsumerConfiguration.builder().durable(durable(i)).buildPushSubscribeOptions()));
+        assertTrue(iae.getMessage().contains(JsSubSubjectDoesNotMatchFilter.id()));
+    }
+
+    private void setupConsumer(JetStreamManagement jsm, int i, String fs) throws IOException, JetStreamApiException {
+        jsm.addOrUpdateConsumer(STREAM,
+            ConsumerConfiguration.builder().deliverSubject(deliver(i)).durable(durable(i)).filterSubject(fs).build());
+    }
+
+    @Test
     public void testBindDurableDeliverSubject() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -541,12 +628,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                     () -> js.subscribe(SUBJECT, PushSubscribeOptions.bind(STREAM, durable(2)))
             );
             assertTrue(iae.getMessage().contains(JsSubConsumerAlreadyConfiguredAsPull.id()));
-
-            // try to push subscribe but mismatch the deliver subject
-            ConsumerConfiguration ccMis = ConsumerConfiguration.builder().deliverSubject("not-match").build();
-            PushSubscribeOptions psoMis = PushSubscribeOptions.builder().durable(durable(1)).configuration(ccMis).build();
-            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, psoMis));
-            assertTrue(iae.getMessage().contains(JsSubExistingDeliverSubjectMismatch.id()));
 
             // this one is okay
             js.subscribe(SUBJECT, PushSubscribeOptions.builder().durable(durable(1)).build());

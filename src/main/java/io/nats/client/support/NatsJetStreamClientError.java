@@ -15,7 +15,6 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError JsSubNoMatchingStreamForSubject = new NatsJetStreamClientError(SUB, 90007, "No matching streams for subject.", KIND_ILLEGAL_STATE);
     public static final NatsJetStreamClientError JsSubConsumerAlreadyConfiguredAsPush = new NatsJetStreamClientError(SUB, 90008, "Consumer is already configured as a push consumer.");
     public static final NatsJetStreamClientError JsSubConsumerAlreadyConfiguredAsPull = new NatsJetStreamClientError(SUB, 90009, "Consumer is already configured as a pull consumer.");
-    public static final NatsJetStreamClientError JsSubExistingDeliverSubjectMismatch = new NatsJetStreamClientError(SUB, 90010, "Existing consumer deliver subject does not match requested deliver subject.");
     public static final NatsJetStreamClientError JsSubSubjectDoesNotMatchFilter = new NatsJetStreamClientError(SUB, 90011, "Subject does not match consumer configuration filter.");
     public static final NatsJetStreamClientError JsSubConsumerAlreadyBound = new NatsJetStreamClientError(SUB, 90012, "Consumer is already bound to a subscription.");
     public static final NatsJetStreamClientError JsSubExistingConsumerNotQueue = new NatsJetStreamClientError(SUB, 90013, "Existing consumer is not configured as a queue / deliver group.");

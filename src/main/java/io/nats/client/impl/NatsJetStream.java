@@ -14,15 +14,13 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.api.AckPolicy;
-import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.ConsumerInfo;
-import io.nats.client.api.PublishAck;
+import io.nats.client.api.*;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static io.nats.client.support.ApiConstants.SUBJECT;
@@ -199,6 +197,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     // ----------------------------------------------------------------------------------------------------
     // Subscribe
     // ----------------------------------------------------------------------------------------------------
+    private static PushSubscribeOptions DEFAULT_PUSH_OPTS = PushSubscribeOptions.builder().build();
+
     NatsJetStreamSubscription createSubscription(String subject,
                                                  String queueName,
                                                  final NatsDispatcher dispatcher,
@@ -227,20 +227,15 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             validateNotSupplied(userCC.getDeliverSubject(), JsSubPullCantHaveDeliverSubject);
         }
         else {
-            so = pushSubscribeOptions == null ? PushSubscribeOptions.builder().build() : pushSubscribeOptions;
+            so = pushSubscribeOptions == null ? DEFAULT_PUSH_OPTS : pushSubscribeOptions;
             stream = so.getStream(); // might be null, that's ok (see directBind)
 
             userCC = so.getConsumerConfiguration();
 
-            validateNotSupplied(userCC.getMaxPullWaiting(), 0, JsSubPushCantHaveMaxPullWaiting);
+            validateNotSupplied(userCC.getMaxPullWaiting(), ConsumerConfiguration.CcNumeric.MAX_PULL_WAITING.initial(), JsSubPushCantHaveMaxPullWaiting);
 
             // figure out the queue name
             qgroup = validateMustMatchIfBothSupplied(userCC.getDeliverGroup(), queueName, JsSubQueueDeliverGroupMismatch);
-
-            if (qgroup != null && userCC.getDeliverGroup() == null) {
-                // the queueName was provided versus the config deliver group, so the user config must be set
-                userCC = ConsumerConfiguration.builder(userCC).deliverGroup(qgroup).build();
-            }
         }
 
         // 2A. Flow Control / heartbeat not always valid
@@ -261,7 +256,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             }
         }
 
-        ConsumerConfiguration serverCc = null;
+        ConsumerConfiguration serverCC = null;
         String consumerName = userCC.getDurable();
         String inboxDeliver = userCC.getDeliverSubject();
 
@@ -270,27 +265,25 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             ConsumerInfo serverInfo = lookupConsumerInfo(stream, consumerName);
 
             if (serverInfo != null) { // the consumer for that durable already exists
-                serverCc = serverInfo.getConsumerConfiguration();
+                serverCC = serverInfo.getConsumerConfiguration();
 
+                // check to see if the user sent a different version than the server has
+                // because modifications are not allowed during create subscription
+                if (userCC.wouldBeChangeTo(serverCC)) {
+                    throw JsSubExistingConsumerCannotBeModified.instance();
+                }
+
+                // deliver subject must be null/empty for pull, defined for push
                 if (isPullMode) {
-                    if (!nullOrEmpty(serverCc.getDeliverSubject())) {
+                    if (!nullOrEmpty(serverCC.getDeliverSubject())) {
                         throw JsSubConsumerAlreadyConfiguredAsPush.instance();
                     }
                 }
-                else if (nullOrEmpty(serverCc.getDeliverSubject())) {
+                else if (nullOrEmpty(serverCC.getDeliverSubject())) {
                     throw JsSubConsumerAlreadyConfiguredAsPull.instance();
                 }
-                else if (inboxDeliver != null && !inboxDeliver.equals(serverCc.getDeliverSubject())) {
-                    throw JsSubExistingDeliverSubjectMismatch.instance();
-                }
 
-                // durable already exists, make sure the filter subject matches
-                String userFilterSubject = userCC.getFilterSubject();
-                if (userFilterSubject != null && !userFilterSubject.equals(serverCc.getFilterSubject())) {
-                    throw JsSubSubjectDoesNotMatchFilter.instance();
-                }
-
-                if (serverCc.getDeliverGroup() == null) {
+                if (serverCC.getDeliverGroup() == null) {
                     // lookedUp was null, means existing consumer is not a queue consumer
                     if (qgroup == null) {
                         // ok fine, no queue requested and the existing consumer is also not a queue consumer
@@ -300,25 +293,26 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                         }
                     }
                     else { // else they requested a queue but this durable was not configured as queue
+                        // THIS CODE LEFT IN
                         throw JsSubExistingConsumerNotQueue.instance();
                     }
                 }
                 else if (qgroup == null) {
                     throw JsSubExistingConsumerIsQueue.instance();
                 }
-                else if (!serverCc.getDeliverGroup().equals(qgroup)) {
+                else if (!serverCC.getDeliverGroup().equals(qgroup)) {
                     throw JsSubExistingQueueDoesNotMatchRequestedQueue.instance();
                 }
 
-                // check to see if the user sent a different version than the server has
-                // modifications are not allowed
-                // previous checks for deliver subject and filter subject matching are now
-                // in the changes function
-                if (userCC.wouldBeChangeTo(serverCc)) {
-                    throw JsSubExistingConsumerCannotBeModified.instance();
+                // durable already exists, make sure the filter subject matches
+                if (subject == null) { // allowed if they had given both stream and durable
+                    subject = userCC.getFilterSubject();
+                }
+                else if (!isFilterMatch(subject, serverCC.getFilterSubject(), stream)) {
+                    throw JsSubSubjectDoesNotMatchFilter.instance();
                 }
 
-                inboxDeliver = serverCc.getDeliverSubject(); // use the deliver subject as the inbox. It may be null, that's ok, we'll fix that later
+                inboxDeliver = serverCC.getDeliverSubject(); // use the deliver subject as the inbox. It may be null, that's ok, we'll fix that later
             }
             else if (so.isBind()) {
                 throw JsSubConsumerNotFoundRequiredInBind.instance();
@@ -331,7 +325,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
 
         // 5. If consumer does not exist, create
-        if (serverCc == null) {
+        if (serverCC == null) {
             ConsumerConfiguration.Builder ccBuilder = ConsumerConfiguration.builder(userCC);
 
             // Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
@@ -339,23 +333,28 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 ccBuilder.deliverSubject(inboxDeliver);
             }
 
-            String userFilterSubject = userCC.getFilterSubject();
-            ccBuilder.filterSubject(userFilterSubject == null ? subject : userFilterSubject);
+            if (userCC.getFilterSubject() == null) {
+                ccBuilder.filterSubject(subject);
+            }
+
+            if (userCC.getDeliverGroup() == null && qgroup != null) {
+                ccBuilder.deliverGroup(qgroup);
+            }
 
             // createOrUpdateConsumer can fail for security reasons, maybe other reasons?
-            ConsumerInfo ci = createConsumerInternal(stream, ccBuilder.build());
+            ConsumerInfo ci = _createConsumer(stream, ccBuilder.build());
             consumerName = ci.getName();
-            serverCc = ci.getConsumerConfiguration();
+            serverCC = ci.getConsumerConfiguration();
         }
 
-        // 6. create the subscription
+        // 6. create the subscription. lambda needs final or effectively final vars
         final String fnlStream = stream;
         final String fnlConsumerName = consumerName;
         final String fnlInboxDeliver = inboxDeliver;
 
         final AutoStatusManager asm = isPullMode
             ? new PullAutoStatusManager()
-            : new PushAutoStatusManager(conn, so, serverCc, qgroup != null, dispatcher == null);
+            : new PushAutoStatusManager(conn, so, serverCC, qgroup != null, dispatcher == null);
 
         NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
             -> NatsJetStreamSubscription.getInstance(sid, lSubject, lQgroup, lConn, lDispatcher,
@@ -367,7 +366,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
         else {
             MessageHandler handler;
-            if (autoAck && serverCc.getAckPolicy() != AckPolicy.None) {
+            if (autoAck && serverCC.getAckPolicy() != AckPolicy.None) {
                 handler = msg -> {
                     if (asm.manage(msg)) { return; }  // manager handled the message
                     userHandler.onMessage(msg);
@@ -389,6 +388,30 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         return sub;
     }
 
+    private boolean isFilterMatch(String subscribeSubject, String filterSubject, String stream) throws IOException, JetStreamApiException {
+
+        // subscribeSubject guaranteed to not be null
+        // filterSubject may be null or empty or have value
+
+        if (subscribeSubject.equals(filterSubject)) {
+            return true;
+        }
+
+        if (nullOrEmpty(filterSubject) || filterSubject.equals(">")) {
+            // lookup stream subject returns null if there is not exactly one subject
+            String streamSubject = lookupStreamSubject(stream);
+            return subscribeSubject.equals(streamSubject);
+        }
+
+        return false;
+    }
+
+    private String lookupStreamSubject(String stream) throws IOException, JetStreamApiException {
+        StreamInfo si = _getStreamInfo(stream);
+        List<String> streamSubjects = si.getConfiguration().getSubjects();
+        return streamSubjects.size() == 1 ? streamSubjects.get(0) : null;
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -398,9 +421,12 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         return createSubscription(subject, null, null, null, false, null, null);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public JetStreamSubscription subscribe(String subject, PushSubscribeOptions options) throws IOException, JetStreamApiException {
-        validateSubject(subject, true);
+        validateSubject(subject, isSubjectRequired(options));
         return createSubscription(subject, null, null, null, false, options, null);
     }
 
@@ -409,7 +435,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subject, String queue, PushSubscribeOptions options) throws IOException, JetStreamApiException {
-        validateSubject(subject, true);
+        validateSubject(subject, isSubjectRequired(options));
         queue = emptyAsNull(validateQueueName(queue, false));
         return createSubscription(subject, queue, null, null, false, options, null);
     }
@@ -430,7 +456,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException {
-        validateSubject(subject, true);
+        validateSubject(subject, isSubjectRequired(options));
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
         return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, options, null);
@@ -441,7 +467,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException {
-        validateSubject(subject, true);
+        validateSubject(subject, isSubjectRequired(options));
         queue = emptyAsNull(validateQueueName(queue, false));
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
@@ -453,9 +479,41 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subject, PullSubscribeOptions options) throws IOException, JetStreamApiException {
-        validateSubject(subject, true);
-        validateNotNull(options, "Options");
+        validateNotNull(options, "Pull Subscribe Options");
+        validateSubject(subject, isSubjectRequired(options));
         return createSubscription(subject, null, null, null, false, null, options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public JetStreamSubscription bindSubscribePushSync(String stream, String durable) throws IOException, JetStreamApiException {
+        return createSubscription(null, null, null, null, false, PushSubscribeOptions.bind(stream, durable), null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public JetStreamSubscription bindSubscribePushAsync(String stream, String durable, Dispatcher dispatcher, MessageHandler handler, boolean autoAck) throws IOException, JetStreamApiException {
+        validateNotNull(dispatcher, "Dispatcher");
+        validateNotNull(handler, "Handler");
+        return createSubscription(null, null, (NatsDispatcher) dispatcher, handler, autoAck, PushSubscribeOptions.bind(stream, durable), null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public JetStreamSubscription bindSubscribePull(String stream, String durable) throws IOException, JetStreamApiException {
+        return createSubscription(null, null, null, null, false, null, PullSubscribeOptions.bind(stream, durable));
+    }
+
+    private boolean isSubjectRequired(SubscribeOptions options) {
+        if (options == null) { return true; }
+        if (options.isBind()) { return false; }
+        return nullOrEmpty(options.getStream()) || nullOrEmpty(options.getDurable());
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -463,7 +521,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     // ----------------------------------------------------------------------------------------------------
     ConsumerInfo lookupConsumerInfo(String stream, String consumer) throws IOException, JetStreamApiException {
         try {
-            return getConsumerInfo(stream, consumer);
+            return _getConsumerInfo(stream, consumer);
         }
         catch (JetStreamApiException e) {
             // the right side of this condition...  ( starting here \/ ) is for backward compatibility with server versions that did not provide api error codes

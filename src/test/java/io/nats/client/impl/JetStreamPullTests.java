@@ -13,13 +13,11 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStream;
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.Message;
-import io.nats.client.PullSubscribeOptions;
+import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
@@ -551,5 +549,60 @@ public class JetStreamPullTests extends JetStreamTestBase {
             m = sub.nextMessage(1000);
             assertNull(m);
         });
+    }
+
+    @Test
+    public void testDurable() throws Exception {
+        runInJsServer(nc -> {
+            // create the stream.
+            createDefaultTestStream(nc);
+
+            // Create our JetStream context.
+            JetStream js = nc.jetStream();
+
+            // Build our subscription options normally
+            PullSubscribeOptions options1 = PullSubscribeOptions.builder().durable(DURABLE).build();
+            _testDurable(js, () -> js.subscribe(SUBJECT, options1));
+
+            // no subject so stream and durable are required
+            PullSubscribeOptions options2 = PullSubscribeOptions.builder()
+                .stream(STREAM)
+                .durable(DURABLE)
+                .build();
+            _testDurable(js, () -> js.subscribe(null, options2));
+
+            // bind long form
+            PullSubscribeOptions options3 = PullSubscribeOptions.builder()
+                .stream(STREAM)
+                .durable(DURABLE)
+                .bind(true)
+                .build();
+            _testDurable(js, () -> js.subscribe(null, options3));
+
+            // bind short form
+            PullSubscribeOptions options4 = PullSubscribeOptions.bind(STREAM, DURABLE);
+            _testDurable(js, () -> js.subscribe(null, options4));
+
+            // bind shortest form
+            _testDurable(js, () -> js.bindSubscribePull(STREAM, DURABLE));
+        });
+    }
+
+    private void _testDurable(JetStream js, SubscriptionSupplier supplier) throws IOException, JetStreamApiException, InterruptedException {
+        jsPublish(js, SUBJECT, 2);
+
+        JetStreamSubscription sub = supplier.get();
+
+        // start the pull
+        sub.pullNoWait(4);
+
+        List<Message> messages = readMessagesAck(sub);
+        validateRedAndTotal(2, messages.size(), 2, 2);
+
+        sub.unsubscribe();
+    }
+
+    private interface SubscriptionSupplier {
+        JetStreamSubscription get() throws IOException, JetStreamApiException;
     }
 }

@@ -320,6 +320,7 @@ public class ConsumerConfiguration implements JsonSerializable {
             || (idleHeartbeat != null && !idleHeartbeat.equals(original.idleHeartbeat))
             || (startTime != null && !startTime.equals(original.startTime))
 
+            || (filterSubject != null && !filterSubject.equals(original.filterSubject))
             || (description != null && !description.equals(original.description))
             || (sampleFrequency != null && !sampleFrequency.equals(original.sampleFrequency))
             || (deliverSubject != null && !deliverSubject.equals(original.deliverSubject))
@@ -327,7 +328,6 @@ public class ConsumerConfiguration implements JsonSerializable {
             ;
 
         // do not need to check Durable because the original is retrieved by the durable name
-        // do not need to check FilterSubject because it's already validated against the original
     }
 
     /**
@@ -745,7 +745,7 @@ public class ConsumerConfiguration implements JsonSerializable {
             this.server = server;
         }
 
-        long initial() {
+        public long initial() {
             return initial;
         }
 
