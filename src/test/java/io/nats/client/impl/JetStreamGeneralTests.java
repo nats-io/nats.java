@@ -258,61 +258,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testFilterSubjectDurable() throws Exception {
-        runInJsServer(nc -> {
-            // Create our JetStream context.
-            JetStream js = nc.jetStream();
-
-            String subjectWild = SUBJECT + ".*";
-            String subjectA = SUBJECT + ".A";
-            String subjectB = SUBJECT + ".B";
-
-            // create the stream.
-            createMemoryStream(nc, STREAM, subjectWild);
-
-            jsPublish(js, subjectA, 1);
-            jsPublish(js, subjectB, 1);
-            jsPublish(js, subjectA, 1);
-            jsPublish(js, subjectB, 1);
-
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().filterSubject(subjectA).ackPolicy(AckPolicy.None).build();
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(DURABLE).configuration(cc).build();
-            JetStreamSubscription sub = js.subscribe(subjectWild, pso);
-            nc.flush(Duration.ofSeconds(1));
-
-            Message m = sub.nextMessage(Duration.ofSeconds(1));
-            assertEquals(subjectA, m.getSubject());
-            assertEquals(1, m.metaData().streamSequence());
-            m = sub.nextMessage(Duration.ofSeconds(1));
-            assertEquals(3, m.metaData().streamSequence());
-            sub.unsubscribe();
-
-            jsPublish(js, subjectA, 1);
-            jsPublish(js, subjectB, 1);
-            jsPublish(js, subjectA, 1);
-            jsPublish(js, subjectB, 1);
-
-            sub = js.subscribe(subjectWild, pso);
-            nc.flush(Duration.ofSeconds(1));
-
-            m = sub.nextMessage(Duration.ofSeconds(1));
-            assertEquals(subjectA, m.getSubject());
-            assertEquals(5, m.metaData().streamSequence());
-            m = sub.nextMessage(Duration.ofSeconds(1));
-            assertEquals(7, m.metaData().streamSequence());
-            sub.unsubscribe();
-
-            ConsumerConfiguration cc1 = ConsumerConfiguration.builder().filterSubject(subjectWild).build();
-            PushSubscribeOptions pso1 = PushSubscribeOptions.builder().durable(DURABLE).configuration(cc1).build();
-            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subjectWild, pso1));
-
-            ConsumerConfiguration cc2 = ConsumerConfiguration.builder().filterSubject(subjectB).build();
-            PushSubscribeOptions pso2 = PushSubscribeOptions.builder().durable(DURABLE).configuration(cc2).build();
-            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subjectWild, pso2));
-        });
-    }
-
-    @Test
     public void testPrefix() throws Exception {
         String prefix = "tar.api";
         String streamMadeBySrc = "stream-made-by-src";
