@@ -484,36 +484,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         return createSubscription(subject, null, null, null, false, null, options);
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public JetStreamSubscription bindSubscribePushSync(String stream, String durable) throws IOException, JetStreamApiException {
-        return createSubscription(null, null, null, null, false, PushSubscribeOptions.bind(stream, durable), null);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public JetStreamSubscription bindSubscribePushAsync(String stream, String durable, Dispatcher dispatcher, MessageHandler handler, boolean autoAck) throws IOException, JetStreamApiException {
-        validateNotNull(dispatcher, "Dispatcher");
-        validateNotNull(handler, "Handler");
-        return createSubscription(null, null, (NatsDispatcher) dispatcher, handler, autoAck, PushSubscribeOptions.bind(stream, durable), null);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public JetStreamSubscription bindSubscribePull(String stream, String durable) throws IOException, JetStreamApiException {
-        return createSubscription(null, null, null, null, false, null, PullSubscribeOptions.bind(stream, durable));
-    }
-
     private boolean isSubjectRequired(SubscribeOptions options) {
-        if (options == null) { return true; }
-        if (options.isBind()) { return false; }
-        return nullOrEmpty(options.getStream()) || nullOrEmpty(options.getDurable());
+        return options == null || !options.isBind();
     }
 
     // ----------------------------------------------------------------------------------------------------

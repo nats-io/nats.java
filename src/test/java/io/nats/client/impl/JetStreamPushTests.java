@@ -168,10 +168,6 @@ public class JetStreamPushTests extends JetStreamTestBase {
             PushSubscribeOptions options4 = PushSubscribeOptions.bind(STREAM, DURABLE);
             _testPushDurableSubSync(deliverSubject, nc, js, () -> js.subscribe(null, options4));
             _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.subscribe(null, d, h, false, options4));
-
-            // bind shortest form
-            _testPushDurableSubSync(deliverSubject, nc, js, () -> js.bindSubscribePushSync(STREAM, DURABLE));
-            _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.bindSubscribePushAsync(STREAM, DURABLE, d, h, false));
         });
     }
 

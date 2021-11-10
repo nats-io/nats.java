@@ -582,9 +582,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // bind short form
             PullSubscribeOptions options4 = PullSubscribeOptions.bind(STREAM, DURABLE);
             _testDurable(js, () -> js.subscribe(null, options4));
-
-            // bind shortest form
-            _testDurable(js, () -> js.bindSubscribePull(STREAM, DURABLE));
         });
     }
 
