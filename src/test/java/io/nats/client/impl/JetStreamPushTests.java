@@ -145,29 +145,20 @@ public class JetStreamPushTests extends JetStreamTestBase {
             _testPushDurableSubSync(deliverSubject, nc, js, () -> js.subscribe(SUBJECT, options1));
             _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.subscribe(SUBJECT, d, h, false, options1));
 
-            // no subject so stream and durable are required
-            PushSubscribeOptions options2 = PushSubscribeOptions.builder()
-                .stream(STREAM)
-                .durable(DURABLE)
-                .deliverSubject(deliverSubject)
-                .build();
-            _testPushDurableSubSync(deliverSubject, nc, js, () -> js.subscribe(null, options2));
-            _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.subscribe(null, d, h, false, options2));
-
             // bind long form
-            PushSubscribeOptions options3 = PushSubscribeOptions.builder()
+            PushSubscribeOptions options2 = PushSubscribeOptions.builder()
                 .stream(STREAM)
                 .durable(DURABLE)
                 .bind(true)
                 .deliverSubject(deliverSubject)
                 .build();
-            _testPushDurableSubSync(deliverSubject, nc, js, () -> js.subscribe(null, options3));
-            _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.subscribe(null, d, h, false, options3));
+            _testPushDurableSubSync(deliverSubject, nc, js, () -> js.subscribe(null, options2));
+            _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.subscribe(null, d, h, false, options2));
 
             // bind short form
-            PushSubscribeOptions options4 = PushSubscribeOptions.bind(STREAM, DURABLE);
-            _testPushDurableSubSync(deliverSubject, nc, js, () -> js.subscribe(null, options4));
-            _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.subscribe(null, d, h, false, options4));
+            PushSubscribeOptions options3 = PushSubscribeOptions.bind(STREAM, DURABLE);
+            _testPushDurableSubSync(deliverSubject, nc, js, () -> js.subscribe(null, options3));
+            _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.subscribe(null, d, h, false, options3));
         });
     }
 

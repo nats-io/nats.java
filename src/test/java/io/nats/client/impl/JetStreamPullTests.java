@@ -564,24 +564,17 @@ public class JetStreamPullTests extends JetStreamTestBase {
             PullSubscribeOptions options1 = PullSubscribeOptions.builder().durable(DURABLE).build();
             _testDurable(js, () -> js.subscribe(SUBJECT, options1));
 
-            // no subject so stream and durable are required
-            PullSubscribeOptions options2 = PullSubscribeOptions.builder()
-                .stream(STREAM)
-                .durable(DURABLE)
-                .build();
-            _testDurable(js, () -> js.subscribe(null, options2));
-
             // bind long form
-            PullSubscribeOptions options3 = PullSubscribeOptions.builder()
+            PullSubscribeOptions options2 = PullSubscribeOptions.builder()
                 .stream(STREAM)
                 .durable(DURABLE)
                 .bind(true)
                 .build();
-            _testDurable(js, () -> js.subscribe(null, options3));
+            _testDurable(js, () -> js.subscribe(null, options2));
 
             // bind short form
-            PullSubscribeOptions options4 = PullSubscribeOptions.bind(STREAM, DURABLE);
-            _testDurable(js, () -> js.subscribe(null, options4));
+            PullSubscribeOptions options3 = PullSubscribeOptions.bind(STREAM, DURABLE);
+            _testDurable(js, () -> js.subscribe(null, options3));
         });
     }
 
