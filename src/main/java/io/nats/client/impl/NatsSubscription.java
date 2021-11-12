@@ -19,6 +19,7 @@ import io.nats.client.Subscription;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 
 class NatsSubscription extends NatsConsumer implements Subscription {
 
@@ -30,6 +31,8 @@ class NatsSubscription extends NatsConsumer implements Subscription {
     private MessageQueue incoming;
 
     private AtomicLong unSubMessageLimit;
+
+    private Function<NatsMessage, NatsMessage> beforeQueueProcessor;
 
     NatsSubscription(String sid, String subject, String queueName, NatsConnection connection,
             NatsDispatcher dispatcher) {
@@ -43,10 +46,20 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         if (this.dispatcher == null) {
             this.incoming = new MessageQueue(false);
         }
+
+        beforeQueueProcessor = m -> m;
     }
 
     public boolean isActive() {
         return (this.dispatcher != null || this.incoming != null);
+    }
+
+    void setBeforeQueueProcessor(Function<NatsMessage, NatsMessage> beforeQueueProcessor) {
+        this.beforeQueueProcessor = beforeQueueProcessor == null ? m -> m : beforeQueueProcessor;
+    }
+
+    public Function<NatsMessage, NatsMessage> getBeforeQueueProcessor() {
+        return beforeQueueProcessor;
     }
 
     void invalidate() {
