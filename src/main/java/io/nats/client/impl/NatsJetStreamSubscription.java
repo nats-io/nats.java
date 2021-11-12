@@ -36,28 +36,28 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     protected final String consumerName;
     protected final String deliver;
 
-    protected final AutoStatusManager asm;
+    protected final StatusManager statusManager;
 
     static NatsJetStreamSubscription getInstance(String sid, String subject, String queueName,
                                                  NatsConnection connection, NatsDispatcher dispatcher,
-                                                 AutoStatusManager asm,
+                                                 StatusManager statusManager,
                                                  NatsJetStream js, boolean pullMode,
                                                  String stream, String consumer, String deliver) {
         // pull gets a full implementation
         if (pullMode) {
-            return new NatsJetStreamPullSubscription(sid, subject, connection, asm, js, stream, consumer);
+            return new NatsJetStreamPullSubscription(sid, subject, connection, statusManager, js, stream, consumer);
         }
 
-        return new NatsJetStreamSubscription(sid, subject, queueName, connection, dispatcher, asm, js, stream, consumer, deliver);
+        return new NatsJetStreamSubscription(sid, subject, queueName, connection, dispatcher, statusManager, js, stream, consumer, deliver);
     }
 
     protected NatsJetStreamSubscription(String sid, String subject, String queueName,
                                       NatsConnection connection, NatsDispatcher dispatcher,
-                                      AutoStatusManager asm,
+                                      StatusManager statusManager,
                                       NatsJetStream js,
                                       String stream, String consumer, String deliver) {
         super(sid, subject, queueName, connection, dispatcher);
-        this.asm = asm;
+        this.statusManager = statusManager;
         this.js = js;
         this.stream = stream;
         this.consumerName = consumer;
@@ -80,11 +80,11 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return false;
     }
 
-    AutoStatusManager getAsm() { return asm; } // internal, for testing
+    StatusManager getStatusManager() { return statusManager; } // internal, for testing
 
     @Override
     void invalidate() {
-        asm.shutdown();
+        statusManager.shutdown();
         super.invalidate();
     }
 
@@ -111,7 +111,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         // until we get an actual no (null) message or we get a message
         // that the manager (asm) does not handle (asm.preProcess would be false)
         Message msg = nextMessageInternal(timeout);
-        while (msg != null && asm.manage(msg)) {
+        while (msg != null && statusManager.manage(msg)) {
             msg = nextMessageInternal(timeout);
         }
         return msg;
@@ -124,7 +124,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         long millis = endTime - System.currentTimeMillis();
         while (millis > 0) {
             Message msg = nextMessageInternal(Duration.ofMillis(millis));
-            if (msg != null && !asm.manage(msg)) { // not null and not managed means JS Message
+            if (msg != null && !statusManager.manage(msg)) { // not null and not managed means JS Message
                 return msg;
             }
             millis = endTime - System.currentTimeMillis();

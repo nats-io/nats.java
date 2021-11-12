@@ -302,6 +302,86 @@ public class ConsumerConfiguration implements JsonSerializable {
         return headersOnly != null && headersOnly;
     }
 
+    /**
+     * Gets whether deliver policy of this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean deliverPolicyWasSet() {
+        return deliverPolicy != null;
+    }
+
+    /**
+     * Gets whether ack policy for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean ackPolicyWasSet() {
+        return ackPolicy != null;
+    }
+
+    /**
+     * Gets whether replay policy for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean replayPolicyWasSet() {
+        return replayPolicy != null;
+    }
+
+    /**
+     * Gets whether start sequence for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean startSeqWasSet() {
+        return startSeq != null;
+    }
+
+    /**
+     * Gets whether max deliver for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean maxDeliverWasSet() {
+        return maxDeliver != null;
+    }
+
+    /**
+     * Gets whether rate limit for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean rateLimitWasSet() {
+        return rateLimit != null;
+    }
+
+    /**
+     * Gets whether max ack pending for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean maxAckPendingWasSet() {
+        return maxAckPending != null;
+    }
+
+    /**
+     * Gets whether max pull waiting for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean maxPullWaitingWasSet() {
+        return maxPullWaiting != null;
+    }
+
+    /**
+     * Gets whether flow control for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean flowControlWasSet() {
+        return flowControl != null;
+    }
+
+    /**
+     * Gets whether headers only for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean headersOnlyWasSet() {
+        return headersOnly != null;
+    }
+
     public boolean wouldBeChangeTo(ConsumerConfiguration original) {
         return (deliverPolicy != null && deliverPolicy != original.deliverPolicy)
             || (ackPolicy != null && ackPolicy != original.ackPolicy)
@@ -751,10 +831,6 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         long valueOrInitial(Long val) {
             return val == null ? initial : val;
-        }
-
-        long initial(long val) {
-            return val < min ? initial : val;
         }
 
         public long comparable(Long val) {

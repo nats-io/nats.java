@@ -29,6 +29,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -510,6 +512,96 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             assertEquals(MSG_COUNT, count);
             assertTrue(fcps.get() > 0);
+        });
+    }
+
+    @Test
+    public void testOrdered() throws Exception {
+        runInJsServer(nc -> {
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, subject(1), subject(2));
+
+            // ------------------------------------------------------------------------------------------
+            // this allows me to intercept messages before it gets to the connection queue
+            // which is before the messages is available for nextMessage or before
+            // it gets dispatched to a handler.
+            AtomicInteger drop = new AtomicInteger();
+            Function<NatsMessage, NatsMessage> orderedBeforeQueueProcessor = msg -> {
+                if (msg.isStatusMessage()) {
+                    return null;
+                }
+                if (msg.isJetStream()) {
+                    // drop the second message
+                    if (drop.incrementAndGet() == 2) {
+                        return null;
+                    }
+                }
+                return msg;
+            };
+            // ------------------------------------------------------------------------------------------
+
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true).build();
+            JetStreamSubscription sub = js.subscribe(subject(1), pso);
+
+            // set the interceptor for this subscription
+            ((NatsSubscription)((NatsJetStreamOrderedSubscription)sub).getActive())
+                .setBeforeQueueProcessor(orderedBeforeQueueProcessor);
+
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // publish after sub to make sure interceptor is set before messages come in
+            jsPublish(js, subject(1), 3);
+
+            Message m = sub.nextMessage(1000);
+            assertEquals(1, m.metaData().streamSequence());
+            assertEquals(1, m.metaData().consumerSequence());
+
+            assertNull(sub.nextMessage(500));
+
+            m = sub.nextMessage(500);
+            assertEquals(2, m.metaData().streamSequence());
+            assertEquals(1, m.metaData().consumerSequence());
+
+            m = sub.nextMessage(500);
+            assertEquals(3, m.metaData().streamSequence());
+            assertEquals(2, m.metaData().consumerSequence());
+
+            CountDownLatch msgLatch = new CountDownLatch(3);
+            AtomicInteger received = new AtomicInteger();
+            AtomicLong[] ssFlags = new AtomicLong[3];
+            AtomicLong[] csFlags = new AtomicLong[3];
+            MessageHandler handler = hmsg -> {
+                int c = received.incrementAndGet() - 1;
+                ssFlags[c] = new AtomicLong(hmsg.metaData().streamSequence());
+                csFlags[c] = new AtomicLong(hmsg.metaData().consumerSequence());
+                msgLatch.countDown();
+            };
+
+            Dispatcher d = nc.createDispatcher();
+            sub = js.subscribe(subject(2), d, handler, false, pso);
+
+            // reset for async test
+            drop.set(0);
+
+            // set the interceptor for this subscription
+            ((NatsSubscription)((NatsJetStreamOrderedSubscription)sub).getActive())
+                .setBeforeQueueProcessor(orderedBeforeQueueProcessor);
+
+            // publish after sub to make sure interceptor is set before messages come in
+            jsPublish(js, subject(2), 3);
+
+            msgLatch.await(5, TimeUnit.SECONDS);
+
+            assertEquals(4, ssFlags[0].get());
+            assertEquals(1, csFlags[0].get());
+
+            assertEquals(5, ssFlags[1].get());
+            assertEquals(1, csFlags[1].get());
+
+            assertEquals(6, ssFlags[2].get());
+            assertEquals(2, csFlags[2].get());
         });
     }
 }

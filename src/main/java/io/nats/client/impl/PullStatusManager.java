@@ -19,7 +19,7 @@ import io.nats.client.Message;
 import java.util.Arrays;
 import java.util.List;
 
-class PullAutoStatusManager implements AutoStatusManager {
+class PullStatusManager implements StatusManager {
 
     private static final List<Integer> PULL_KNOWN_STATUS_CODES = Arrays.asList(404, 408);
 

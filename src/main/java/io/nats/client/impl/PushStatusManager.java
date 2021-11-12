@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
-public class PushAutoStatusManager implements AutoStatusManager {
+public class PushStatusManager implements StatusManager {
 
     private static final int THRESHOLD = 3;
 
@@ -48,9 +48,9 @@ public class PushAutoStatusManager implements AutoStatusManager {
     private final AtomicLong lastMsgReceived;
     private AsmTimer asmTimer;
 
-    PushAutoStatusManager(NatsConnection conn, SubscribeOptions so,
-                          ConsumerConfiguration cc,
-                          boolean queueMode, boolean syncMode)
+    PushStatusManager(NatsConnection conn, SubscribeOptions so,
+                      ConsumerConfiguration cc,
+                      boolean queueMode, boolean syncMode)
     {
         this.conn = conn;
         this.syncMode = syncMode;
@@ -90,7 +90,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
     public void setSub(NatsJetStreamSubscription sub) {
         this.sub = sub;
         if (hb) {
-            conn.setBeforeQueueProcessor(this::beforeQueueProcessor);
+            sub.setBeforeQueueProcessor(this::beforeQueueProcessor);
             asmTimer = new AsmTimer();
         }
     }
@@ -156,6 +156,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
     long getLastMsgReceived() { return lastMsgReceived.get(); }
 
     NatsMessage beforeQueueProcessor(NatsMessage msg) {
+        System.out.println("\nMGR BQP " + msg);
         lastMsgReceived.set(System.currentTimeMillis());
         if (msg.isStatusMessage()
             && msg.getStatus().isHeartbeat()

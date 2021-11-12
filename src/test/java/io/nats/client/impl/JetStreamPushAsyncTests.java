@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -61,7 +62,8 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             js.subscribe(SUBJECT, dispatcher, handler, false);
 
             // Wait for messages to arrive using the countdown latch.
-            msgLatch.await();
+            // make sure we don't wait forever
+            msgLatch.await(10, TimeUnit.SECONDS);
 
             assertEquals(10, received.get());
         });
@@ -96,8 +98,9 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             PushSubscribeOptions pso1 = PushSubscribeOptions.builder().durable(durable(1)).build();
             JetStreamSubscription sub  = js.subscribe(SUBJECT, dispatcher, handler1, true, pso1);
 
-            // wait for messages to arrive using the countdown latch.
-            msgLatch1.await();
+            // Wait for messages to arrive using the countdown latch.
+            // make sure we don't wait forever
+            msgLatch1.await(10, TimeUnit.SECONDS);
 
             assertEquals(10, received1.get());
 
@@ -121,8 +124,9 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             PushSubscribeOptions pso2 = PushSubscribeOptions.builder().durable(durable(2)).configuration(cc).build();
             sub = js.subscribe(SUBJECT, dispatcher, handler2, false, pso2);
 
-            // wait for messages to arrive using the countdown latch.
-            msgLatch2.await();
+            // Wait for messages to arrive using the countdown latch.
+            // make sure we don't wait forever
+            msgLatch2.await(10, TimeUnit.SECONDS);
             assertEquals(10, received2.get());
 
             ConsumerInfo ci = sub.getConsumerInfo();
@@ -207,7 +211,8 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             js.subscribe(SUBJECT, dispatcher, handler, false, pso);
 
             // Wait for messages to arrive using the countdown latch.
-            msgLatch.await();
+            // make sure we don't wait forever
+            msgLatch.await(10, TimeUnit.SECONDS);
 
             assertEquals(MSG_COUNT, count.get());
             assertTrue(fcps.get() > 0);
@@ -250,8 +255,9 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             // subscribe using the handler, auto ack true
             js.subscribe(SUBJECT, dispatcher, handler, true);
 
-            // wait for messages to arrive using the countdown latch.
-            msgLatch.await();
+            // Wait for messages to arrive using the countdown latch.
+            // make sure we don't wait forever
+            msgLatch.await(10, TimeUnit.SECONDS);
 
             JetStreamSubscription sub = js.subscribe(mockAckReply + "*");
             Message msg = sub.nextMessage(1000);

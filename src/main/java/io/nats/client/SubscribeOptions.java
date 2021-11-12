@@ -13,7 +13,10 @@
 
 package io.nats.client;
 
+import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
+
+import java.time.Duration;
 
 import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.support.Validator.*;
@@ -23,33 +26,68 @@ import static io.nats.client.support.Validator.*;
  */
 public abstract class SubscribeOptions {
 
+    private static final long DEFAULT_ORDERED_HEARTBEAT = 5000;
+
     protected final String stream;
     protected final boolean pull;
     protected final boolean bind;
-    protected final ConsumerConfiguration consumerConfig;
+    protected final boolean ordered;
     protected final long messageAlarmTime;
+    protected final ConsumerConfiguration consumerConfig;
 
     @SuppressWarnings("rawtypes") // Don't need the type of the builder to get it's vars
-    protected SubscribeOptions(Builder builder, boolean pull, String deliverSubject, String deliverGroup) {
+    protected SubscribeOptions(Builder builder, boolean isPull, boolean isOrdered, String deliverSubject, String deliverGroup) {
 
-        this.stream = validateStreamName(builder.stream, builder.bind); // required when bind mode
+        pull = isPull;
+        bind = builder.bind;
+        ordered = isOrdered;
+        messageAlarmTime = builder.messageAlarmTime;
+
+        if (ordered) {
+            if (pull) { throw JsSoOrderedNotAllowedWithPull.instance(); }
+            if (bind) { throw JsSoOrderedNotAllowedWithBind.instance(); }
+        }
+
+        stream = validateStreamName(builder.stream, bind); // required when bind mode
 
         String durable = validateMustMatchIfBothSupplied(builder.durable, builder.cc == null ? null : builder.cc.getDurable(), JsSoDurableMismatch);
-        durable = validateDurable(durable, pull || builder.bind); // required when pull or bind
+        durable = validateDurable(durable, pull || bind); // required when pull or bind
 
         deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, builder.cc == null ? null : builder.cc.getDeliverGroup(), JsSoDeliverGroupMismatch);
 
         deliverSubject = validateMustMatchIfBothSupplied(deliverSubject, builder.cc == null ? null : builder.cc.getDeliverSubject(), JsSoDeliverSubjectGroupMismatch);
 
-        this.consumerConfig = ConsumerConfiguration.builder(builder.cc)
+        if (isOrdered) {
+            validateNotSupplied(deliverGroup, JsSoOrderedNotAllowedWithDeliverGroup);
+            validateNotSupplied(durable, JsSoOrderedNotAllowedWithDurable);
+            validateNotSupplied(deliverSubject, JsSoOrderedNotAllowedWithDeliverSubject);
+            long hb = DEFAULT_ORDERED_HEARTBEAT;
+            if (builder.cc != null) {
+                if (builder.cc.ackPolicyWasSet() && builder.cc.getAckPolicy() != AckPolicy.None) {
+                    throw JsSoOrderedRequiresAckPolicyNone.instance();
+                }
+                if (builder.cc.getMaxDeliver() > 1) {
+                    throw JsSoOrderedRequiresMaxDeliver1.instance();
+                }
+                Duration ccHb = builder.cc.getIdleHeartbeat();
+                if (ccHb != null && ccHb.toMillis() > hb) {
+                    hb = ccHb.toMillis();
+                }
+            }
+            consumerConfig = ConsumerConfiguration.builder(builder.cc)
+                .ackPolicy(AckPolicy.None)
+                .maxDeliver(1)
+                .flowControl(hb)
+                .ackWait(Duration.ofHours(22))
+                .build();
+        }
+        else {
+            consumerConfig = ConsumerConfiguration.builder(builder.cc)
                 .durable(durable)
                 .deliverSubject(deliverSubject)
                 .deliverGroup(deliverGroup)
                 .build();
-
-        this.pull = pull;
-        this.bind = builder.bind;
-        this.messageAlarmTime = builder.messageAlarmTime;
+        }
     }
 
     /**
@@ -84,6 +122,19 @@ public abstract class SubscribeOptions {
         return bind;
     }
 
+    /**
+     * Gets whether this subscription is expected to ensure messages come in order
+     * @return the ordered flag
+     */
+    public boolean isOrdered() {
+        return ordered;
+    }
+
+    /**
+     * Get the time amount of time allowed to elapse without a heartbeat.
+     * If not set will default to 3 times the idle heartbeat setting
+     * @return the message alarm time
+     */
     public long getMessageAlarmTime() {
         return messageAlarmTime;
     }

@@ -36,7 +36,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -99,8 +98,6 @@ class NatsConnection implements Connection {
 
     private String currentServer = null;
 
-    private Function<NatsMessage, NatsMessage> beforeQueueProcessor;
-
     NatsConnection(Options options) {
         boolean trace = options.isTraceConnection();
         timeTrace(trace, "creating connection object");
@@ -147,12 +144,7 @@ class NatsConnection implements Connection {
 
         this.needPing = new AtomicBoolean(true);
 
-        beforeQueueProcessor = msg -> msg; // default just returns the message
         timeTrace(trace, "connection object created");
-    }
-
-    void setBeforeQueueProcessor(Function<NatsMessage, NatsMessage> beforeQueueProcessor) {
-        this.beforeQueueProcessor = beforeQueueProcessor;
     }
 
     // Connect is only called after creation
@@ -1379,7 +1371,7 @@ class NatsConnection implements Connection {
                 // does not need to be queued, for instance heartbeats
                 // that are not flow control and are already seen by the
                 // auto status manager
-                msg = beforeQueueProcessor.apply(msg);
+                msg = sub.getBeforeQueueProcessor().apply(msg);
                 if (msg != null) {
                     q.push(msg);
                 }
