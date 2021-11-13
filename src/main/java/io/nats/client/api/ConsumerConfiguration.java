@@ -302,34 +302,6 @@ public class ConsumerConfiguration implements JsonSerializable {
         return headersOnly != null && headersOnly;
     }
 
-    public boolean wouldBeChangeTo(ConsumerConfiguration original) {
-        return (deliverPolicy != null && deliverPolicy != original.deliverPolicy)
-            || (ackPolicy != null && ackPolicy != original.ackPolicy)
-            || (replayPolicy != null && replayPolicy != original.replayPolicy)
-
-            || (flowControl != null && flowControl != original.flowControl)
-            || (headersOnly != null && headersOnly != original.headersOnly)
-
-            || CcNumeric.START_SEQ.wouldBeChange(startSeq, original.startSeq)
-            || CcNumeric.MAX_DELIVER.wouldBeChange(maxDeliver, original.maxDeliver)
-            || CcNumeric.RATE_LIMIT.wouldBeChange(rateLimit, original.rateLimit)
-            || CcNumeric.MAX_ACK_PENDING.wouldBeChange(maxAckPending, original.maxAckPending)
-            || CcNumeric.MAX_PULL_WAITING.wouldBeChange(maxPullWaiting, original.maxPullWaiting)
-
-            || (ackWait != null && !ackWait.equals(original.ackWait))
-            || (idleHeartbeat != null && !idleHeartbeat.equals(original.idleHeartbeat))
-            || (startTime != null && !startTime.equals(original.startTime))
-
-            || (filterSubject != null && !filterSubject.equals(original.filterSubject))
-            || (description != null && !description.equals(original.description))
-            || (sampleFrequency != null && !sampleFrequency.equals(original.sampleFrequency))
-            || (deliverSubject != null && !deliverSubject.equals(original.deliverSubject))
-            || (deliverGroup != null && !deliverGroup.equals(original.deliverGroup))
-            ;
-
-        // do not need to check Durable because the original is retrieved by the durable name
-    }
-
     /**
      * Gets whether deliver policy of this consumer configuration was set or left unset
      * @return true if the policy was set, false if the policy was not set
