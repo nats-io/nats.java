@@ -44,6 +44,7 @@ public class SubscribeOptionsTests extends TestBase {
         assertNull(so.getStream());
         assertNull(so.getDurable());
         assertNull(so.getDeliverSubject());
+        assertFalse(so.isPull());
 
         assertNotNull(so.toString()); // COVERAGE
     }
@@ -188,6 +189,7 @@ public class SubscribeOptionsTests extends TestBase {
         PullSubscribeOptions so = builder.build();
         assertEquals(STREAM, so.getStream());
         assertEquals(DURABLE, so.getDurable());
+        assertTrue(so.isPull());
 
         assertNotNull(so.toString()); // COVERAGE
     }

@@ -19,11 +19,15 @@ import io.nats.client.api.DeliverPolicy;
 import io.nats.client.support.NatsJetStreamConstants;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -40,7 +44,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         _testPushEphemeral(DELIVER);
     }
 
-    public void _testPushEphemeral(String deliverSubject) throws Exception {
+    private void _testPushEphemeral(String deliverSubject) throws Exception {
         runInJsServer(nc -> {
             // create the stream.
             createDefaultTestStream(nc);
@@ -130,47 +134,97 @@ public class JetStreamPushTests extends JetStreamTestBase {
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
-            // publish some messages
-            jsPublish(js, SUBJECT, 1, 5);
+            // For async, create a dispatcher without a default handler.
+            Dispatcher dispatcher = nc.createDispatcher();
 
-            // use ackWait so I don't have to wait forever before re-subscribing
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().ackWait(Duration.ofSeconds(3)).build();
+            // Build our subscription options normally
+            PushSubscribeOptions options1 = PushSubscribeOptions.builder()
+                .durable(DURABLE)
+                .deliverSubject(deliverSubject)
+                .build();
+            _testPushDurableSubSync(deliverSubject, nc, js, () -> js.subscribe(SUBJECT, options1));
+            _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.subscribe(SUBJECT, d, h, false, options1));
 
-            // Build our subscription options.
-            PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder()
-                    .durable(DURABLE).configuration(cc);
-            if (deliverSubject != null) {
-                builder.deliverSubject(deliverSubject);
-            }
-            PushSubscribeOptions options = builder.build();
+            // bind long form
+            PushSubscribeOptions options2 = PushSubscribeOptions.builder()
+                .stream(STREAM)
+                .durable(DURABLE)
+                .bind(true)
+                .deliverSubject(deliverSubject)
+                .build();
+            _testPushDurableSubSync(deliverSubject, nc, js, () -> js.subscribe(null, options2));
+            _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.subscribe(null, d, h, false, options2));
 
-            // Subscribe.
-            JetStreamSubscription sub = js.subscribe(SUBJECT, options);
-            assertSubscription(sub, STREAM, DURABLE, deliverSubject, false);
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
-
-            // read what is available
-            List<Message> messages = readMessagesAck(sub);
-            int total = messages.size();
-            validateRedAndTotal(5, messages.size(), 5, total);
-
-            // read again, nothing should be there
-            messages = readMessagesAck(sub);
-            total += messages.size();
-            validateRedAndTotal(0, messages.size(), 5, total);
-
-            sub.unsubscribe();
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
-
-            // re-subscribe
-            sub = js.subscribe(SUBJECT, options);
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
-
-            // read again, nothing should be there
-            messages = readMessagesAck(sub);
-            total += messages.size();
-            validateRedAndTotal(0, messages.size(), 5, total);
+            // bind short form
+            PushSubscribeOptions options3 = PushSubscribeOptions.bind(STREAM, DURABLE);
+            _testPushDurableSubSync(deliverSubject, nc, js, () -> js.subscribe(null, options3));
+            _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.subscribe(null, d, h, false, options3));
         });
+    }
+
+    private interface SubscriptionSupplier {
+        JetStreamSubscription get() throws IOException, JetStreamApiException;
+    }
+
+    private interface SubscriptionSupplierAsync {
+        JetStreamSubscription get(Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException;
+    }
+
+    private void _testPushDurableSubSync(String deliverSubject, Connection nc, JetStream js, SubscriptionSupplier supplier) throws InterruptedException, TimeoutException, IOException, JetStreamApiException {
+        // publish some messages
+        jsPublish(js, SUBJECT, 1, 5);
+
+        JetStreamSubscription sub = supplier.get();
+        assertSubscription(sub, STREAM, DURABLE, deliverSubject, false);
+
+        // read what is available
+        List<Message> messages = readMessagesAck(sub);
+        int total = messages.size();
+        validateRedAndTotal(5, messages.size(), 5, total);
+
+        // read again, nothing should be there
+        messages = readMessagesAck(sub);
+        total += messages.size();
+        validateRedAndTotal(0, messages.size(), 5, total);
+
+        sub.unsubscribe();
+        nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+        // re-subscribe
+        sub = supplier.get();
+        nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+        // read again, nothing should be there
+        messages = readMessagesAck(sub);
+        total += messages.size();
+        validateRedAndTotal(0, messages.size(), 5, total);
+
+        sub.unsubscribe();
+        nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+    }
+
+    private void _testPushDurableSubAsync(JetStream js, Dispatcher dispatcher, SubscriptionSupplierAsync supplier) throws IOException, JetStreamApiException, InterruptedException {
+        // publish some messages
+        jsPublish(js, SUBJECT, 5);
+
+        CountDownLatch msgLatch = new CountDownLatch(5);
+        AtomicInteger received = new AtomicInteger();
+
+        MessageHandler handler = (Message msg) -> {
+            received.incrementAndGet();
+            msg.ack();
+            msgLatch.countDown();
+        };
+
+        // Subscribe using the handler
+        JetStreamSubscription sub = supplier.get(dispatcher, handler);
+
+        // Wait for messages to arrive using the countdown latch.
+        msgLatch.await(10, TimeUnit.SECONDS);
+
+        dispatcher.unsubscribe(sub);
+
+        assertEquals(5, received.get());
     }
 
     @Test

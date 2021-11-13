@@ -195,6 +195,18 @@ public class ValidatorTests {
     }
 
     @Test
+    public void testValidateDurationNotRequiredNotLessThanMin() {
+        Duration min = Duration.ofMillis(99);
+        Duration less = Duration.ofMillis(9);
+        Duration more = Duration.ofMillis(9999);
+
+        assertNull(validateDurationNotRequiredNotLessThanMin(null, min));
+        assertEquals(more, validateDurationNotRequiredNotLessThanMin(more, min));
+
+        assertThrows(IllegalArgumentException.class, () -> validateDurationNotRequiredNotLessThanMin(less, min));
+    }
+
+    @Test
     public void testValidateGtEqZero() {
         assertEquals(0, validateGtEqZero(0, "test"));
         assertEquals(1, validateGtEqZero(1, "test"));
@@ -249,6 +261,19 @@ public class ValidatorTests {
         assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_127));
         assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_TIC));
         assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(".starts.with.dot.not.allowed"));
+    }
+
+    @Test
+    public void testValidateNotSupplied() {
+        NatsJetStreamClientError err = new NatsJetStreamClientError("TEST", 999999, "desc");
+
+        // string version
+        validateNotSupplied((String)null, err);
+        validateNotSupplied("", err);
+        assertThrows(IllegalArgumentException.class, () -> validateNotSupplied("notempty", err));
+
+        validateNotSupplied(0, 0, err);
+        assertThrows(IllegalArgumentException.class, () -> validateNotSupplied(1, 0, err));
     }
 
     @Test
@@ -358,5 +383,12 @@ public class ValidatorTests {
 
     private String notAllowedMessage(String s) {
         return "Testing [" + s + "] as not allowed.";
+    }
+
+    @Test
+    public void testNatsJetStreamClientError() {
+        // coverage
+        NatsJetStreamClientError err = new NatsJetStreamClientError("TEST", 999999, "desc");
+        assertEquals("[TEST-999999] desc", err.message());
     }
 }

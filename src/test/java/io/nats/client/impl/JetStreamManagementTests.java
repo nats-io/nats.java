@@ -22,7 +22,6 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.List;
 
-import static io.nats.client.support.NatsJetStreamClientError.JsSubSubjectDoesNotMatchFilter;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamManagementTests extends JetStreamTestBase {
@@ -488,28 +487,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .filterSubject(subjectDot("F"))
                     .build()
             );
-
-            ConsumerConfiguration ccBadFilter = ConsumerConfiguration.builder().durable(durable(42)).filterSubject("x").build();
-
-            PullSubscribeOptions pullOptsBadFilter = PullSubscribeOptions.builder().configuration(ccBadFilter).build();
-            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
-                    () -> js.subscribe(subjectDot("F"), pullOptsBadFilter));
-            assertTrue(iae.getMessage().contains(JsSubSubjectDoesNotMatchFilter.id()));
-
-            // try to filter against durable with mismatch, push
-            jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder()
-                    .durable(durable(43))
-                    .deliverSubject(deliver(43))
-                    .filterSubject(subjectDot("F"))
-                    .build()
-            );
-
-            ccBadFilter = ConsumerConfiguration.builder().durable(durable(43)).filterSubject("x").build();
-
-            PushSubscribeOptions pushOptsBadFilter = PushSubscribeOptions.builder().configuration(ccBadFilter).build();
-            iae = assertThrows(IllegalArgumentException.class,
-                    () -> js.subscribe(subjectDot("F"), pushOptsBadFilter));
-            assertTrue(iae.getMessage().contains(JsSubSubjectDoesNotMatchFilter.id()));
         });
     }
 

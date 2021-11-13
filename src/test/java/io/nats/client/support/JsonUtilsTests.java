@@ -127,13 +127,26 @@ public final class JsonUtilsTests {
         JsonUtils.addJsons(sb, "n/a", null);
         assertEquals(0, sb.length());
 
+        JsonUtils.addField(sb, "n/a", (Boolean)null);
+        assertEquals(0, sb.length());
+
         JsonUtils.addFldWhenTrue(sb, "n/a", null);
         assertEquals(0, sb.length());
 
         JsonUtils.addFldWhenTrue(sb, "n/a", false);
         assertEquals(0, sb.length());
 
-        JsonUtils.addField(sb, "lminusone", -1);
+        JsonUtils.addField(sb, "n/a", (Integer)null);
+        assertEquals(0, sb.length());
+
+        JsonUtils.addField(sb, "n/a", (Long)null);
+        assertEquals(0, sb.length());
+
+        //noinspection UnnecessaryBoxing
+        JsonUtils.addField(sb, "iminusone", new Integer(-1));
+        assertEquals(0, sb.length());
+
+        JsonUtils.addField(sb, "lminusone", new Long(-1));
         assertEquals(0, sb.length());
 
         JsonUtils.addStrings(sb, "foo", new String[]{"bbb"});

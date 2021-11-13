@@ -82,9 +82,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
     @Override
     public StreamInfo getStreamInfo(String streamName) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
-        String subj = String.format(JSAPI_STREAM_INFO, streamName);
-        Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
-        return new StreamInfo(resp).throwOnHasError();
+        return _getStreamInfo(streamName);
     }
 
     /**
@@ -116,7 +114,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         validateStreamName(streamName, true);
         validateNotNull(config, "Config");
         validateNotNull(config.getDurable(), "Durable"); // durable name is required when creating consumers
-        return createConsumerInternal(streamName, config);
+        return _createConsumer(streamName, config);
     }
 
     /**
@@ -131,9 +129,12 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ConsumerInfo getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException {
-        return super.getConsumerInfo(streamName, consumer);
+        return super._getConsumerInfo(streamName, consumer);
     }
 
     /**

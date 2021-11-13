@@ -90,7 +90,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
     public void setSub(NatsJetStreamSubscription sub) {
         this.sub = sub;
         if (hb) {
-            conn.setBeforeQueueProcessor(this::beforeQueueProcessor);
+            sub.setBeforeQueueProcessor(this::beforeQueueProcessor);
             asmTimer = new AsmTimer();
         }
     }
