@@ -358,9 +358,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 ccBuilder.filterSubject(subject);
             }
 
-            if (userCC.getDeliverGroup() == null && qgroup != null) {
-                ccBuilder.deliverGroup(qgroup);
-            }
+            ccBuilder.deliverGroup(qgroup);
 
             // createOrUpdateConsumer can fail for security reasons, maybe other reasons?
             ConsumerInfo ci = _createConsumer(stream, ccBuilder.build());
@@ -380,7 +378,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         boolean existingOrdered = ordered != null;
 
         if (ordered == null && so.isOrdered()) {
-            ordered = new NatsJetStreamOrderedSubscription(this, subject, dispatcher, userHandler, isAutoAck, so, stream, serverCC);
+            ordered = new NatsJetStreamOrderedSubscription(this, subject, dispatcher, userHandler, isAutoAck, so, stream, fnlServerCC);
         }
 
         NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
@@ -414,7 +412,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         statusManager.setSub(sub);
 
         if (ordered != null) {
-            ordered.setActive(sub);
+            ordered.setCurrent(sub);
             if (!existingOrdered) {
                 return ordered;
             }

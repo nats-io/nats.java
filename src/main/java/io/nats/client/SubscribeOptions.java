@@ -26,7 +26,7 @@ import static io.nats.client.support.Validator.*;
  */
 public abstract class SubscribeOptions {
 
-    private static final long DEFAULT_ORDERED_HEARTBEAT = 5000;
+    public static final long DEFAULT_ORDERED_HEARTBEAT = 5000;
 
     protected final String stream;
     protected final boolean pull;
@@ -43,9 +43,8 @@ public abstract class SubscribeOptions {
         ordered = isOrdered;
         messageAlarmTime = builder.messageAlarmTime;
 
-        if (ordered) {
-            if (pull) { throw JsSoOrderedNotAllowedWithPull.instance(); }
-            if (bind) { throw JsSoOrderedNotAllowedWithBind.instance(); }
+        if (ordered && bind) {
+            throw JsSoOrderedNotAllowedWithBind.instance();
         }
 
         stream = validateStreamName(builder.stream, bind); // required when bind mode
@@ -55,7 +54,7 @@ public abstract class SubscribeOptions {
 
         deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, builder.cc == null ? null : builder.cc.getDeliverGroup(), JsSoDeliverGroupMismatch);
 
-        deliverSubject = validateMustMatchIfBothSupplied(deliverSubject, builder.cc == null ? null : builder.cc.getDeliverSubject(), JsSoDeliverSubjectGroupMismatch);
+        deliverSubject = validateMustMatchIfBothSupplied(deliverSubject, builder.cc == null ? null : builder.cc.getDeliverSubject(), JsSoDeliverSubjectMismatch);
 
         if (isOrdered) {
             validateNotSupplied(deliverGroup, JsSoOrderedNotAllowedWithDeliverGroup);
@@ -67,7 +66,7 @@ public abstract class SubscribeOptions {
                     throw JsSoOrderedRequiresAckPolicyNone.instance();
                 }
                 if (builder.cc.getMaxDeliver() > 1) {
-                    throw JsSoOrderedRequiresMaxDeliver1.instance();
+                    throw JsSoOrderedRequiresMaxDeliver.instance();
                 }
                 Duration ccHb = builder.cc.getIdleHeartbeat();
                 if (ccHb != null && ccHb.toMillis() > hb) {

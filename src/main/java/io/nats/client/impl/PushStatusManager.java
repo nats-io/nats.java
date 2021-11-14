@@ -156,7 +156,6 @@ public class PushStatusManager implements StatusManager {
     long getLastMsgReceived() { return lastMsgReceived.get(); }
 
     NatsMessage beforeQueueProcessor(NatsMessage msg) {
-        System.out.println("\nMGR BQP " + msg);
         lastMsgReceived.set(System.currentTimeMillis());
         if (msg.isStatusMessage()
             && msg.getStatus().isHeartbeat()

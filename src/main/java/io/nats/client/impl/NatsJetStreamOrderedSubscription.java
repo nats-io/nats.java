@@ -23,6 +23,11 @@ import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
+import java.util.function.LongSupplier;
+import java.util.function.Supplier;
+
+import static io.nats.client.impl.NatsJetStreamSubscription.SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL;
 
 /**
  * This is a JetStream specific subscription.
@@ -38,7 +43,7 @@ public class NatsJetStreamOrderedSubscription implements JetStreamSubscription {
     private final String stream;
     private final ConsumerConfiguration serverCC;
 
-    private JetStreamSubscription active;
+    private JetStreamSubscription current;
     private long lastStreamSeq;
     private long expectedConsumerSeq;
 
@@ -56,19 +61,19 @@ public class NatsJetStreamOrderedSubscription implements JetStreamSubscription {
         expectedConsumerSeq = 1; // always starts at 1
     }
 
-    void setActive(JetStreamSubscription sub) {
-        this.active = sub;
+    void setCurrent(JetStreamSubscription sub) {
+        this.current = sub;
         lastStreamSeq = -1;
         expectedConsumerSeq = 1; // always starts at 1
     }
 
-    JetStreamSubscription getActive() {
-        return active;
+    JetStreamSubscription getCurrent() {
+        return current;
     }
 
     @Override
     public String toString() {
-        if (active == null) {
+        if (current == null) {
             return "NatsJetStreamOrderedSubscription{" +
                 "this=" + hashCode() +
                 ", delegate=inactive" +
@@ -77,10 +82,10 @@ public class NatsJetStreamOrderedSubscription implements JetStreamSubscription {
         }
         return "NatsJetStreamOrderedSubscription{" +
             "this=" + hashCode() +
-            ", delegate=" + active.hashCode() +
-            ", consumer='" + ((NatsJetStreamSubscription)active).getConsumerName() + '\'' +
+            ", delegate=" + current.hashCode() +
+            ", consumer='" + ((NatsJetStreamSubscription) current).getConsumerName() + '\'' +
             ", stream='" + stream + '\'' +
-            ", deliver='" + ((NatsJetStreamSubscription)active).getDeliverSubject() + '\'' +
+            ", deliver='" + ((NatsJetStreamSubscription) current).getDeliverSubject() + '\'' +
             '}';
     }
 
@@ -101,34 +106,45 @@ public class NatsJetStreamOrderedSubscription implements JetStreamSubscription {
         };
     }
 
+    @Override
+    public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
+        return current == null ? null : checkForOutOfOrder(current.nextMessage(timeout));
+    }
+
+    @Override
+    public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
+        return current == null ? null : checkForOutOfOrder(current.nextMessage(timeoutMillis));
+    }
+
     private Message checkForOutOfOrder(Message msg) {
         if (msg != null) {
             long receivedConsumerSeq = msg.metaData().consumerSequence();
             if (expectedConsumerSeq != receivedConsumerSeq) {
                 try {
                     if (dispatcher == null) {
-                        active.unsubscribe();
+                        current.unsubscribe();
                     }
                     else {
-                        dispatcher.unsubscribe(active);
+                        dispatcher.unsubscribe(current);
                     }
+                    js.conn.lenientFlushBuffer();
                 } catch (RuntimeException re) {
                     js.conn.processException(re);
                 } finally {
-                    active = null;
+                    current = null;
                 }
 
                 ConsumerConfiguration userCC = ConsumerConfiguration.builder(serverCC)
                     .deliverPolicy(DeliverPolicy.ByStartSequence)
+                    .deliverSubject(null)
                     .startSequence(lastStreamSeq + 1)
                     .build();
                 try {
-                    active = js.finishCreateSubscription(subject, dispatcher, userHandler,
+                    current = js.finishCreateSubscription(subject, dispatcher, userHandler,
                         isAutoAck, false, so, stream, null,
                         userCC, null, null, null, this);
                 } catch (Exception e) {
-                    e.printStackTrace();
-                    active = null;
+                    current = null;
                     js.conn.processException(e);
                     if (dispatcher == null) { // synchronous
                         throw new IllegalStateException("Ordered subscription fatal error.", e);
@@ -142,139 +158,174 @@ public class NatsJetStreamOrderedSubscription implements JetStreamSubscription {
         return msg;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void pull(int batchSize) {
-        active.pull(batchSize);
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void pullNoWait(int batchSize) {
-        active.pullNoWait(batchSize);
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void pullExpiresIn(int batchSize, Duration expiresIn) {
-        active.pullExpiresIn(batchSize, expiresIn);
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void pullExpiresIn(int batchSize, long expiresInMillis) {
-        active.pullExpiresIn(batchSize, expiresInMillis);
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<Message> fetch(int batchSize, long maxWaitMillis) {
-        return active.fetch(batchSize, maxWaitMillis);
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<Message> fetch(int batchSize, Duration maxWait) {
-        return active.fetch(batchSize, maxWait);
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Iterator<Message> iterate(int batchSize, Duration maxWait) {
-        return active.iterate(batchSize, maxWait);
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public Iterator<Message> iterate(int batchSize, long maxWaitMillis) {
-        return active.iterate(batchSize, maxWaitMillis);
+    public Iterator<Message> iterate(final int batchSize, long maxWaitMillis) {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
-        return active.getConsumerInfo();
-    }
-
-    @Override
-    public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
-        return checkForOutOfOrder(active.nextMessage(timeout));
-    }
-
-    int x = 0;
-    @Override
-    public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
-        return checkForOutOfOrder(active.nextMessage(timeoutMillis));
+        return current == null ? null : current.getConsumerInfo();
     }
 
     @Override
     public String getSID() {
-        return active.getSID();
+        return guarded(() -> current.getSID(), String.class);
     }
 
     @Override
     public String getSubject() {
-        return active.getSubject();
+        return guarded(() -> current.getSubject(), String.class);
     }
 
     @Override
     public String getQueueName() {
-        return active.getQueueName();
+        return guarded(() -> current.getQueueName(), String.class);
     }
 
     @Override
     public Dispatcher getDispatcher() {
-        return active.getDispatcher();
+        return guarded(() -> current.getDispatcher(), Dispatcher.class);
     }
 
     @Override
     public void unsubscribe() {
-        active.unsubscribe();
+        guarded(() -> current.unsubscribe());
     }
 
     @Override
     public Subscription unsubscribe(int after) {
-        return active.unsubscribe(after);
+        return guarded(() -> current.unsubscribe(after), Subscription.class);
     }
 
     @Override
     public void setPendingLimits(long maxMessages, long maxBytes) {
-        active.setPendingLimits(maxMessages, maxBytes);
+        guarded(() -> current.setPendingLimits(maxMessages, maxBytes));
     }
 
     @Override
     public long getPendingMessageLimit() {
-        return active.getPendingMessageLimit();
+        return guarded(() -> current.getPendingMessageLimit());
     }
 
     @Override
     public long getPendingByteLimit() {
-        return active.getPendingByteLimit();
+        return guarded(() -> current.getPendingByteLimit());
     }
 
     @Override
     public long getPendingMessageCount() {
-        return active.getPendingMessageCount();
+        return guarded(() -> current.getPendingMessageCount());
     }
 
     @Override
     public long getPendingByteCount() {
-        return active.getPendingByteCount();
+        return guarded(() -> current.getPendingByteCount());
     }
 
     @Override
     public long getDeliveredCount() {
-        return active.getDeliveredCount();
+        return guarded(() -> current.getDeliveredCount());
     }
 
     @Override
     public long getDroppedCount() {
-        return active.getDroppedCount();
+        return guarded(() -> current.getDroppedCount());
     }
 
     @Override
     public void clearDroppedCount() {
-        active.clearDroppedCount();
+        guarded(() -> current.clearDroppedCount());
     }
 
     @Override
     public CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException {
-        return active.drain(timeout);
+        return current == null ? null: current.drain(timeout);
     }
 
     @Override
     public boolean isActive() {
-        return active.isActive();
+        return guarded(() -> current.isActive());
+    }
+
+    private <T> T guarded(Supplier<T> supplier, Class<T> type) {
+        return current == null ? null: supplier.get();
+    }
+
+    private long guarded(LongSupplier supplier) {
+        return current == null ? Long.MIN_VALUE : supplier.getAsLong();
+    }
+
+    private boolean guarded(BooleanSupplier supplier) {
+        return current != null && supplier.getAsBoolean();
+    }
+
+    interface VoidSupplier {
+        void get();
+    }
+
+    private void guarded(VoidSupplier supplier) {
+        if (current != null) {
+            supplier.get();
+        }
     }
 }

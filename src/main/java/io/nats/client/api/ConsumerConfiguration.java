@@ -298,7 +298,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the header only flag indicating whether it's on or off
      * @return the flow control mode
      */
-    public boolean getHeadersOnly() {
+    public boolean isHeadersOnly() {
         return headersOnly != null && headersOnly;
     }
 
@@ -382,13 +382,18 @@ public class ConsumerConfiguration implements JsonSerializable {
         return headersOnly != null;
     }
 
+    /**
+     * INTERNAL METHOD ONLY, SUBJECT TO CHANGE
+     * Scoped public for easy access and testing.
+     * @return true if this configuration would be a change from the original
+     */
     public boolean wouldBeChangeTo(ConsumerConfiguration original) {
-        return (deliverPolicy != null && deliverPolicy != original.deliverPolicy)
-            || (ackPolicy != null && ackPolicy != original.ackPolicy)
-            || (replayPolicy != null && replayPolicy != original.replayPolicy)
+        return (deliverPolicy != null && deliverPolicy != original.getDeliverPolicy())
+            || (ackPolicy != null && ackPolicy != original.getAckPolicy())
+            || (replayPolicy != null && replayPolicy != original.getReplayPolicy())
 
-            || (flowControl != null && flowControl != original.flowControl)
-            || (headersOnly != null && headersOnly != original.headersOnly)
+            || (flowControl != null && flowControl != original.isFlowControl())
+            || (headersOnly != null && headersOnly != original.isHeadersOnly())
 
             || CcNumeric.START_SEQ.wouldBeChange(startSeq, original.startSeq)
             || CcNumeric.MAX_DELIVER.wouldBeChange(maxDeliver, original.maxDeliver)
@@ -808,6 +813,12 @@ public class ConsumerConfiguration implements JsonSerializable {
             '}';
     }
 
+    /**
+     * INTERNAL CLASS ONLY, SUBJECT TO CHANGE
+     * Helper class to identify the initial or default value of a numeric field
+     * and to make it easy to compare to other instances where the server provides
+     * a default value.
+     */
     public enum CcNumeric {
         START_SEQ(1, -1, -1),
         MAX_DELIVER(1, -1, -1),

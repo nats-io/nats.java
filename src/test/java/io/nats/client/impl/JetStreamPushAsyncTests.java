@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -220,7 +220,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testDontAutoAckIfUserAcks() throws Exception {
+    public void testDontAutoAckSituations() throws Exception {
         String mockAckReply = "mock-ack-reply.";
 
         runInJsServer(nc -> {
@@ -231,39 +231,70 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // publish a message
-            jsPublish(js, SUBJECT, 2);
+            jsPublish(js, SUBJECT, 3);
 
             // create a dispatcher without a default handler.
             Dispatcher dispatcher = nc.createDispatcher();
 
-            CountDownLatch msgLatch = new CountDownLatch(2);
+            AtomicReference<CountDownLatch> msgLatchRef = new AtomicReference<>(new CountDownLatch(2));
 
-            AtomicBoolean flag = new AtomicBoolean(true);
+            AtomicInteger flag = new AtomicInteger();
 
             // create our message handler, does not ack
             MessageHandler handler = (Message msg) -> {
                 NatsJetStreamMessage m = (NatsJetStreamMessage)msg;
-                if (flag.get()) {
+                if (flag.incrementAndGet() == 1) {
                     m.replyTo = mockAckReply + "user";
                     m.ack();
-                    flag.set(false);
                 }
-                m.replyTo = mockAckReply + "system";
-                msgLatch.countDown();
+                else if (flag.get() == 2) {
+                    m.inProgress();
+                    m.replyTo = mockAckReply + "progress";
+                }
+                else {
+                    m.replyTo = mockAckReply + "system";
+                }
+                msgLatchRef.get().countDown();
             };
 
-            // subscribe using the handler, auto ack true
-            js.subscribe(SUBJECT, dispatcher, handler, true);
+            // subscribe using the handler, auto  ack true
+            JetStreamSubscription async = js.subscribe(SUBJECT, dispatcher, handler, true);
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
-            msgLatch.await(10, TimeUnit.SECONDS);
+            msgLatchRef.get().await(10, TimeUnit.SECONDS);
+            assertEquals(0, msgLatchRef.get().getCount());
+            dispatcher.unsubscribe(async);
 
             JetStreamSubscription sub = js.subscribe(mockAckReply + "*");
             Message msg = sub.nextMessage(1000);
             assertEquals(mockAckReply + "user", msg.getSubject());
             msg = sub.nextMessage(1000);
+            assertEquals(mockAckReply + "progress", msg.getSubject());
+            msg = sub.nextMessage(1000);
             assertEquals(mockAckReply + "system", msg.getSubject());
+
+            // coverage explicit no ack flag
+            msgLatchRef.set(new CountDownLatch(2));
+            PushSubscribeOptions pso = ConsumerConfiguration.builder().ackWait(Duration.ofSeconds(100)).buildPushSubscribeOptions();
+            async = js.subscribe(SUBJECT, dispatcher, handler, false, pso);
+            msgLatchRef.get().await(10, TimeUnit.SECONDS);
+            assertEquals(0, msgLatchRef.get().getCount());
+            dispatcher.unsubscribe(async);
+
+            // no messages should have been published to our mock reply
+            assertNull(sub.nextMessage(1000));
+
+            // coverage explicit AckPolicyNone
+            msgLatchRef.set(new CountDownLatch(2));
+            pso = ConsumerConfiguration.builder().ackPolicy(AckPolicy.None).buildPushSubscribeOptions();
+            async = js.subscribe(SUBJECT, dispatcher, handler, true, pso);
+            msgLatchRef.get().await(10, TimeUnit.SECONDS);
+            assertEquals(0, msgLatchRef.get().getCount());
+            dispatcher.unsubscribe(async);
+
+            // no messages should have been published to our mock reply
+            assertNull(sub.nextMessage(1000));
         });
     }
 }
