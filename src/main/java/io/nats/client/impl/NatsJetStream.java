@@ -375,8 +375,6 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             ? new PullStatusManager()
             : new PushStatusManager(conn, so, fnlServerCC, qgroup != null, dispatcher == null);
 
-        boolean existingOrdered = ordered != null;
-
         if (ordered == null && so.isOrdered()) {
             ordered = new NatsJetStreamOrderedSubscription(this, subject, dispatcher, userHandler, isAutoAck, so, stream, fnlServerCC);
         }
@@ -413,9 +411,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         if (ordered != null) {
             ordered.setCurrent(sub);
-            if (!existingOrdered) {
-                return ordered;
-            }
+            return ordered;
         }
 
         return sub;

@@ -140,7 +140,8 @@ public class NatsJetStreamOrderedSubscription implements JetStreamSubscription {
                     .startSequence(lastStreamSeq + 1)
                     .build();
                 try {
-                    current = js.finishCreateSubscription(subject, dispatcher, userHandler,
+                    // finish create subscription calls setCurrent on the "this" passed in
+                    js.finishCreateSubscription(subject, dispatcher, userHandler,
                         isAutoAck, false, so, stream, null,
                         userCC, null, null, null, this);
                 } catch (Exception e) {
