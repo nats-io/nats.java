@@ -37,7 +37,7 @@ import static io.nats.client.support.Validator.validateDurationNotRequiredNotLes
 public class ConsumerConfiguration implements JsonSerializable {
 
     public static final Duration MIN_ACK_WAIT = Duration.ofNanos(1);
-    public static final Duration MIN_IDLE_HEARTBEAT = Duration.ZERO;
+    public static final Duration MIN_IDLE_HEARTBEAT = Duration.ofMillis(100);
 
     private final DeliverPolicy deliverPolicy;
     private final AckPolicy ackPolicy;

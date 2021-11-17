@@ -337,7 +337,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                                                    final ConsumerConfiguration serverCC,
                                                    final String consumerName,
                                                    final String inboxDeliver,
-                                                   NatsJetStreamOrderedSubscription ordered
+                                                   NatsJetStreamOrderedSubscription orderedSub
     ) throws IOException, JetStreamApiException {
 
         // 4. If no deliver subject (inbox) provided or found, make an inbox.
@@ -375,8 +375,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             ? new PullStatusManager()
             : new PushStatusManager(conn, so, fnlServerCC, qgroup != null, dispatcher == null);
 
-        if (ordered == null && so.isOrdered()) {
-            ordered = new NatsJetStreamOrderedSubscription(this, subject, dispatcher, userHandler, isAutoAck, so, stream, fnlServerCC);
+        if (orderedSub == null && so.isOrdered()) {
+            orderedSub = new NatsJetStreamOrderedSubscription(this, subject, dispatcher, userHandler, isAutoAck, so, stream, fnlServerCC);
         }
 
         NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
@@ -388,30 +388,27 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
         }
         else {
-            MessageManager orderedManager = ordered == null ? m -> false : ordered.manager();
-            MessageManager autoAckManager = !isAutoAck || fnlServerCC.getAckPolicy() == AckPolicy.None
-                ? m -> false
-                : m -> {
-                    if (m.lastAck() == null || m.lastAck() == AckType.AckProgress) {
-                        m.ack();
-                    }
-                    return false;
-                };
+            MessageManager orderedManager = orderedSub == null ? m -> false : orderedSub.manager();
+            java.util.function.Consumer<Message> autoAckConsumer = !isAutoAck || fnlServerCC.getAckPolicy() == AckPolicy.None
+                ? m -> {}
+                : m -> { if (m.lastAck() == null || m.lastAck() == AckType.AckProgress) {
+                            m.ack();
+                       } };
 
             MessageHandler handler = msg -> {
                 if (statusManager.manage(msg)) { return; }  // manager handled the message
                 if (orderedManager.manage(msg)) { return; }  // manager handled the message
                 userHandler.onMessage(msg);
-                autoAckManager.manage(msg);
+                autoAckConsumer.accept(msg);
             };
             sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(fnlInboxDeliver, qgroup, handler, factory);
         }
 
         statusManager.setSub(sub);
 
-        if (ordered != null) {
-            ordered.setCurrent(sub);
-            return ordered;
+        if (orderedSub != null) {
+            orderedSub.setCurrent(sub);
+            return orderedSub;
         }
 
         return sub;

@@ -523,8 +523,8 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertEquals(MSG_COUNT, count);
             assertTrue(fcps.get() > 0);
 
-            // coverage
-            cc = ConsumerConfiguration.builder().idleHeartbeat(0).build();
+            // coverage for subscribe options heartbeat directly
+            cc = ConsumerConfiguration.builder().idleHeartbeat(100).build();
             pso = PushSubscribeOptions.builder().configuration(cc).build();
             js.subscribe(SUBJECT, pso);
         });
@@ -567,7 +567,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             NatsJetStreamOrderedSubscription orderedSub = (NatsJetStreamOrderedSubscription)sub;
             ((NatsSubscription)orderedSub.getCurrent()).setBeforeQueueProcessor(orderedBeforeQueueProcessor);
 
-            // publish after sub to make sure interceptor is set before messages come in
+            // publish after interceptor is set before messages come in
             jsPublish(js, subject(1), 3);
 
             // message 1
@@ -593,7 +593,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             drop.set(0);
             ((NatsSubscription)orderedSub.getCurrent()).setBeforeQueueProcessor(orderedBeforeQueueProcessor);
 
-            // publish after sub to make sure interceptor is set before messages come in
+            // publish after interceptor is set before messages come in
             jsPublish(js, subject(1), 3);
 
             // message 4
@@ -619,14 +619,16 @@ public class JetStreamPushTests extends JetStreamTestBase {
             sub.unsubscribe(1);
 
             // ----------------------------------------------------------------------------------------------------
+            // THIS IS ACTUALLY TESTING ASYNC SO I DON'T HAVE TO SETUP THE INTERCEPTOR IN OTHER CODE
+            // ----------------------------------------------------------------------------------------------------
             CountDownLatch msgLatch = new CountDownLatch(3);
             AtomicInteger received = new AtomicInteger();
             AtomicLong[] ssFlags = new AtomicLong[3];
             AtomicLong[] csFlags = new AtomicLong[3];
             MessageHandler handler = hmsg -> {
-                int c = received.incrementAndGet() - 1;
-                ssFlags[c] = new AtomicLong(hmsg.metaData().streamSequence());
-                csFlags[c] = new AtomicLong(hmsg.metaData().consumerSequence());
+                int i = received.incrementAndGet() - 1;
+                ssFlags[i] = new AtomicLong(hmsg.metaData().streamSequence());
+                csFlags[i] = new AtomicLong(hmsg.metaData().consumerSequence());
                 msgLatch.countDown();
             };
 
