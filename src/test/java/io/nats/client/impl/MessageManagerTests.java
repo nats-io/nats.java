@@ -26,7 +26,7 @@ import static io.nats.client.support.Status.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("SameParameterValue")
-public class StatusManagerTests extends JetStreamTestBase {
+public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void testConstruction() throws Exception {
@@ -89,7 +89,7 @@ public class StatusManagerTests extends JetStreamTestBase {
         });
     }
 
-    private void _status_handle_throws(NatsJetStreamSubscription sub, StatusManager asm, Message m) {
+    private void _status_handle_throws(NatsJetStreamSubscription sub, MessageManager asm, Message m) {
         JetStreamStatusException jsse = assertThrows(JetStreamStatusException.class, () -> asm.manage(m));
         assertSame(sub, jsse.getSubscription());
         assertSame(m.getStatus(), jsse.getStatus());
@@ -204,17 +204,25 @@ public class StatusManagerTests extends JetStreamTestBase {
         // by the heartbeat listener and recorded as received
         sleep(1050); // slightly longer than the idle heartbeat
 
-        long preTime = ((PushStatusManager)sub.getStatusManager()).getLastMsgReceived();
+        long preTime = findStatusManager(sub).getLastMsgReceived();
         assertTrue(preTime > before);
         sub.unsubscribe();
     }
+
+    PushStatusManager findStatusManager(NatsJetStreamSubscription sub) {
+        for (MessageManager mm : sub.getManagers()) {
+            if (mm instanceof PushStatusManager) {
+                return (PushStatusManager)mm;
+            }
+        }
+        return null;
+    };
 
     private void _received_time_no(JetStream js, JetStreamManagement jsm, JetStreamSubscription sub) throws IOException, JetStreamApiException, InterruptedException {
         js.publish(SUBJECT, dataBytes(0));
         sub.nextMessage(1000);
         NatsJetStreamSubscription nsub = (NatsJetStreamSubscription)sub;
-        PushStatusManager pasm = (PushStatusManager)nsub.getStatusManager();
-        assertEquals(0, pasm.getLastMsgReceived());
+        assertEquals(0, findStatusManager(nsub).getLastMsgReceived());
         jsm.purgeStream(STREAM);
         sub.unsubscribe();
     }

@@ -19,17 +19,11 @@ import io.nats.client.Message;
 import java.util.Arrays;
 import java.util.List;
 
-class PullStatusManager implements StatusManager {
+class PullStatusManager extends MessageManager {
 
     private static final List<Integer> PULL_KNOWN_STATUS_CODES = Arrays.asList(404, 408);
 
-    private NatsJetStreamSubscription sub;
-
-    public void setSub(NatsJetStreamSubscription sub) {
-        this.sub = sub;
-    }
-
-    public boolean manage(Message msg) {
+    boolean manage(Message msg) {
         if (!msg.isStatusMessage()) {
             return false;
         }

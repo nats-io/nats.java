@@ -20,6 +20,7 @@ import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -199,6 +200,20 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     // ----------------------------------------------------------------------------------------------------
     private static final PushSubscribeOptions DEFAULT_PUSH_OPTS = PushSubscribeOptions.builder().build();
 
+    static class SidCheckManager extends MessageManager {
+        @Override
+        boolean manage(Message msg) {
+            return !sub.getSID().equals(msg.getSID());
+        }
+    }
+
+    interface PushStatusManagerFactory {
+        PushStatusManager createPushStatusManager(
+            NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode);
+    }
+
+    static PushStatusManagerFactory PUSH_STATUS_MANAGER_FACTORY = PushStatusManager::new;
+
     JetStreamSubscription createSubscription(String subject,
                                                  String queueName,
                                                  NatsDispatcher dispatcher,
@@ -252,11 +267,15 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
 
         // 2B. Did they tell me what stream? No? look it up.
+        final String fnlStream;
         if (stream == null) {
-            stream = lookupStreamBySubject(subject);
-            if (stream == null) {
+            fnlStream = lookupStreamBySubject(subject);
+            if (fnlStream == null) {
                 throw JsSubNoMatchingStreamForSubject.instance();
             }
+        }
+        else {
+            fnlStream = stream;
         }
 
         ConsumerConfiguration serverCC = null;
@@ -265,7 +284,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         // 3. Does this consumer already exist?
         if (consumerName != null) {
-            ConsumerInfo serverInfo = lookupConsumerInfo(stream, consumerName);
+            ConsumerInfo serverInfo = lookupConsumerInfo(fnlStream, consumerName);
 
             if (serverInfo != null) { // the consumer for that durable already exists
                 serverCC = serverInfo.getConsumerConfiguration();
@@ -310,7 +329,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 if (subject == null) { // allowed if they had given both stream and durable
                     subject = userCC.getFilterSubject();
                 }
-                else if (!isFilterMatch(subject, serverCC.getFilterSubject(), stream)) {
+                else if (!isFilterMatch(subject, serverCC.getFilterSubject(), fnlStream)) {
                     throw JsSubSubjectDoesNotMatchFilter.instance();
                 }
 
@@ -320,25 +339,6 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 throw JsSubConsumerNotFoundRequiredInBind.instance();
             }
         }
-
-        return finishCreateSubscription(subject, dispatcher, userHandler, isAutoAck, isPullMode, so, stream, qgroup, userCC, serverCC, consumerName, inboxDeliver, null);
-    }
-
-    // this was separated expressly so ordered consumer can skip the beginning
-    JetStreamSubscription finishCreateSubscription(final String subject,
-                                                   final NatsDispatcher dispatcher,
-                                                   final MessageHandler userHandler,
-                                                   final boolean isAutoAck,
-                                                   final boolean isPullMode,
-                                                   final SubscribeOptions so,
-                                                   final String stream,
-                                                   final String qgroup,
-                                                   final ConsumerConfiguration userCC,
-                                                   final ConsumerConfiguration serverCC,
-                                                   final String consumerName,
-                                                   final String inboxDeliver,
-                                                   NatsJetStreamOrderedSubscription orderedSub
-    ) throws IOException, JetStreamApiException {
 
         // 4. If no deliver subject (inbox) provided or found, make an inbox.
         final String fnlInboxDeliver = inboxDeliver == null ? conn.createInbox() : inboxDeliver;
@@ -361,7 +361,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             ccBuilder.deliverGroup(qgroup);
 
             // createOrUpdateConsumer can fail for security reasons, maybe other reasons?
-            ConsumerInfo ci = _createConsumer(stream, ccBuilder.build());
+            ConsumerInfo ci = _createConsumer(fnlStream, ccBuilder.build());
             fnlConsumerName = ci.getName();
             fnlServerCC = ci.getConsumerConfiguration();
         }
@@ -371,47 +371,74 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
 
         // 6. create the subscription. lambda needs final or effectively final vars
-        final StatusManager statusManager = isPullMode
+        final MessageManager statusManager = isPullMode
             ? new PullStatusManager()
-            : new PushStatusManager(conn, so, fnlServerCC, qgroup != null, dispatcher == null);
-
-        if (orderedSub == null && so.isOrdered()) {
-            orderedSub = new NatsJetStreamOrderedSubscription(this, subject, dispatcher, userHandler, isAutoAck, so, stream, fnlServerCC);
-        }
-
-        NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
-            -> NatsJetStreamSubscription.getInstance(sid, lSubject, lQgroup, lConn, lDispatcher,
-            statusManager, this, isPullMode, stream, fnlConsumerName, fnlInboxDeliver);
+            : PUSH_STATUS_MANAGER_FACTORY.createPushStatusManager(conn, so, fnlServerCC, qgroup != null, dispatcher == null);
 
         NatsJetStreamSubscription sub;
-        if (dispatcher == null) {
+        if (isPullMode) {
+            final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
+                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, this, fnlStream, fnlConsumerName, statusManager);
             sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
         }
         else {
-            MessageManager orderedManager = orderedSub == null ? m -> false : orderedSub.manager();
-            java.util.function.Consumer<Message> autoAckConsumer = !isAutoAck || fnlServerCC.getAckPolicy() == AckPolicy.None
-                ? m -> {}
-                : m -> { if (m.lastAck() == null || m.lastAck() == AckType.AckProgress) {
-                            m.ack();
-                       } };
+            final MessageManager sidCheckManager = so.isOrdered() ? new SidCheckManager() : null;
 
-            MessageHandler handler = msg -> {
-                if (statusManager.manage(msg)) { return; }  // manager handled the message
-                if (orderedManager.manage(msg)) { return; }  // manager handled the message
-                userHandler.onMessage(msg);
-                autoAckConsumer.accept(msg);
-            };
-            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(fnlInboxDeliver, qgroup, handler, factory);
-        }
+            final MessageManager orderedManager = so.isOrdered()
+                ? new OrderedManager(this, dispatcher, fnlStream, fnlServerCC)
+                : null;
 
-        statusManager.setSub(sub);
+            final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
+                -> new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,
+                this, fnlStream, fnlConsumerName, sidCheckManager, statusManager, orderedManager);
 
-        if (orderedSub != null) {
-            orderedSub.setCurrent(sub);
-            return orderedSub;
+            if (dispatcher == null) {
+                sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
+            }
+            else {
+                AsyncMessageHandler handler = new AsyncMessageHandler(userHandler, isAutoAck, fnlServerCC, sidCheckManager, statusManager, orderedManager);
+                sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(fnlInboxDeliver, qgroup, handler, factory);
+            }
         }
 
         return sub;
+    }
+
+    static class AsyncMessageHandler implements MessageHandler {
+        List<MessageManager> managers;
+        List<MessageHandler> handlers;
+
+        public AsyncMessageHandler(MessageHandler userHandler, boolean isAutoAck, ConsumerConfiguration fnlServerCC, MessageManager ... managers) {
+            handlers = new ArrayList<>();
+            handlers.add(userHandler);
+            if (isAutoAck && fnlServerCC.getAckPolicy() != AckPolicy.None) {
+                handlers.add(m -> {
+                    if (m.lastAck() == null || m.lastAck() == AckType.AckProgress) {
+                        m.ack();
+                    }
+                });
+            };
+
+            this.managers = new ArrayList<>();
+            for (MessageManager mm : managers) {
+                if (mm != null) {
+                    this.managers.add(mm);
+                }
+            }
+        }
+
+        @Override
+        public void onMessage(Message msg) throws InterruptedException {
+            for (MessageManager mm : managers) {
+                if (mm.manage(msg)) {
+                    return;
+                }
+            }
+
+            for (MessageHandler mh : handlers) {
+                mh.onMessage(msg);
+            }
+        }
     }
 
     private boolean isFilterMatch(String subscribeSubject, String filterSubject, String stream) throws IOException, JetStreamApiException {

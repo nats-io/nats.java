@@ -536,7 +536,22 @@ messages, one for each message the previous batch was short. You can just ignore
 See `NatsJsPullSubExpire.java` and `NatsJsPullSubExpireUseCases.java`
 in the JetStream examples for detailed and runnable examples.
 
-### Subscription Creation
+### Ordered Push Subscription Option
+
+You can now set a Push Subscription option called "Ordered". 
+When you set this flag, library will take over creation of the consumer and create a subscription that guarantees the order of messages.
+This consumer will use flow control with a default heartbeat of 5 seconds. Messages will not require acks as the Ack Policy will be set to No Ack.
+When creating the subscription, there are minimal consumer settings you are allowed to set.
+
+You can set the Deliver Policy, except `LastPerSubject`
+
+
+| JsSoOrderedNotAllowedWithBind | SO | 90104 | Bind is not allowed with an ordered consumer. |
+| JsSoOrderedNotAllowedWithDeliverGroup | SO | 90105 | Deliver group is not allowed with an ordered consumer. |
+| JsSoOrderedNotAllowedWithDurable | SO | 90106 | Durable is not allowed with an ordered consumer. |
+| JsSoOrderedNotAllowedWithDeliverSubject | SO | 90107 | Deliver subject is not allowed with an ordered consumer. |
+
+### Subscription Creation Checks
 
 Subscription creation has many checks to make sure that a valid, operable subscription can be made.
 `SO` group are validations that can occur when building push or pull subscribe options. 

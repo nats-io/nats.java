@@ -21,6 +21,7 @@ import io.nats.client.support.NatsJetStreamConstants;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -30,38 +31,31 @@ import java.util.List;
 public class NatsJetStreamSubscription extends NatsSubscription implements JetStreamSubscription, NatsJetStreamConstants {
 
     public static final String SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL = "Subscription type does not support pull.";
+
     protected final NatsJetStream js;
 
-    protected final String stream;
-    protected final String consumerName;
-    protected final String deliver;
+    protected String stream;
+    protected String consumerName;
 
-    protected final StatusManager statusManager;
+    protected List<MessageManager> managers;
 
-    static NatsJetStreamSubscription getInstance(String sid, String subject, String queueName,
-                                                 NatsConnection connection, NatsDispatcher dispatcher,
-                                                 StatusManager statusManager,
-                                                 NatsJetStream js, boolean pullMode,
-                                                 String stream, String consumer, String deliver) {
-        // pull gets a full implementation
-        if (pullMode) {
-            return new NatsJetStreamPullSubscription(sid, subject, connection, statusManager, js, stream, consumer);
-        }
-
-        return new NatsJetStreamSubscription(sid, subject, queueName, connection, dispatcher, statusManager, js, stream, consumer, deliver);
-    }
-
-    protected NatsJetStreamSubscription(String sid, String subject, String queueName,
-                                      NatsConnection connection, NatsDispatcher dispatcher,
-                                      StatusManager statusManager,
-                                      NatsJetStream js,
-                                      String stream, String consumer, String deliver) {
+    NatsJetStreamSubscription(String sid, String subject, String queueName,
+                              NatsConnection connection, NatsDispatcher dispatcher,
+                              NatsJetStream js,
+                              String stream, String consumer,
+                              MessageManager... managers) {
         super(sid, subject, queueName, connection, dispatcher);
-        this.statusManager = statusManager;
         this.js = js;
         this.stream = stream;
         this.consumerName = consumer;
-        this.deliver = deliver;
+
+        this.managers = new ArrayList<>();
+        for (MessageManager mm : managers) {
+            if (mm != null) {
+                this.managers.add(mm);
+                mm.setSub(this);
+            }
+        }
     }
 
     String getConsumerName() {
@@ -72,19 +66,17 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return stream;
     }
 
-    String getDeliverSubject() {
-        return deliver;
-    }
-
     boolean isPullMode() {
         return false;
     }
 
-    StatusManager getStatusManager() { return statusManager; } // internal, for testing
+    List<MessageManager> getManagers() { return managers; } // internal, for testing
 
     @Override
     void invalidate() {
-        statusManager.shutdown();
+        for (MessageManager mm : managers) {
+            mm.shutdown();
+        }
         super.invalidate();
     }
 
@@ -106,12 +98,21 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return nextMessageWithEndTime(System.currentTimeMillis() + timeoutMillis);
     }
 
+    boolean anyManaged(Message msg) {
+        for (MessageManager mm : managers) {
+            if (mm.manage(msg)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     protected Message nextMsgNullOrLteZero(Duration timeout) throws InterruptedException {
         // timeout null means don't wait at all, timeout <= 0 means wait forever
         // until we get an actual no (null) message or we get a message
-        // that the manager (asm) does not handle (asm.preProcess would be false)
+        // that the managers do not handle
         Message msg = nextMessageInternal(timeout);
-        while (msg != null && statusManager.manage(msg)) {
+        while (msg != null && anyManaged(msg)) {
             msg = nextMessageInternal(timeout);
         }
         return msg;
@@ -119,12 +120,12 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
 
     protected Message nextMessageWithEndTime(long endTime) throws InterruptedException {
         // timeout >= 0 process as many messages we can in that time period
-        // if we get a message that the asm handles, we try again, but
+        // if we get a message that either manager handles, we try again, but
         // with a shorter timeout based on what we already used up
         long millis = endTime - System.currentTimeMillis();
         while (millis > 0) {
             Message msg = nextMessageInternal(Duration.ofMillis(millis));
-            if (msg != null && !statusManager.manage(msg)) { // not null and not managed means JS Message
+            if (msg != null && !anyManaged(msg)) { // not null and not managed means JS Message
                 return msg;
             }
             millis = endTime - System.currentTimeMillis();
@@ -209,7 +210,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return "NatsJetStreamSubscription{" +
                 "consumer='" + consumerName + '\'' +
                 ", stream='" + stream + '\'' +
-                ", deliver='" + deliver + '\'' +
+                ", deliver='" + getSubject() + '\'' +
                 ", isPullMode=" + isPullMode() +
                 '}';
     }

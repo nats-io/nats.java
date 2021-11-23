@@ -30,7 +30,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
 
 import static io.nats.client.support.NatsJetStreamClientError.JsSubOrderedNotAllowOnQueues;
 import static org.junit.jupiter.api.Assertions.*;
@@ -530,6 +529,30 @@ public class JetStreamPushTests extends JetStreamTestBase {
         });
     }
 
+    // ------------------------------------------------------------------------------------------
+    // this allows me to intercept messages before it gets to the connection queue
+    // which is before the messages is available for nextMessage or before
+    // it gets dispatched to a handler.
+    static class OrderedTestPushStatusManager extends PushStatusManager {
+
+        public OrderedTestPushStatusManager(NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode) {
+            super(conn, so, cc, queueMode, syncMode);
+        }
+
+        @Override
+        NatsMessage beforeQueueProcessor(NatsMessage msg) {
+            msg = super.beforeQueueProcessor(msg);
+            if (msg != null && msg.isJetStream()) {
+                long ss = msg.metaData().streamSequence();
+                long cs = msg.metaData().consumerSequence();
+                if ((ss == 2 && cs == 2) || (ss == 5 && cs == 4) || (ss == 8 && cs == 2) || (ss == 11 && cs == 4)) {
+                    return null;
+                }
+            }
+            return msg;
+        }
+    }
+
     @Test
     public void testOrdered() throws Exception {
         runInJsServer(nc -> {
@@ -538,23 +561,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             // create the stream.
             createMemoryStream(nc, STREAM, subject(1), subject(2));
 
-            // ------------------------------------------------------------------------------------------
-            // this allows me to intercept messages before it gets to the connection queue
-            // which is before the messages is available for nextMessage or before
-            // it gets dispatched to a handler.
-            AtomicInteger drop = new AtomicInteger();
-            Function<NatsMessage, NatsMessage> orderedBeforeQueueProcessor = msg -> {
-                if (msg.isStatusMessage()) {
-                    return null;
-                }
-                if (msg.isJetStream()) {
-                    if (drop.incrementAndGet() == 2) {
-                        return null;
-                    }
-                }
-                return msg;
-            };
-            // ------------------------------------------------------------------------------------------
+            NatsJetStream.PUSH_STATUS_MANAGER_FACTORY = OrderedTestPushStatusManager::new;
 
             PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true).build();
             IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, QUEUE, pso));
@@ -563,68 +570,30 @@ public class JetStreamPushTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(subject(1), pso);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
-            // set the interceptor for this subscription
-            NatsJetStreamOrderedSubscription orderedSub = (NatsJetStreamOrderedSubscription)sub;
-            ((NatsSubscription)orderedSub.getCurrent()).setBeforeQueueProcessor(orderedBeforeQueueProcessor);
-
             // publish after interceptor is set before messages come in
-            jsPublish(js, subject(1), 3);
+            jsPublish(js, subject(1), 101, 6);
 
-            // message 1
-            Message m = sub.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
-            assertEquals(1, m.metaData().streamSequence());
-            assertEquals(1, m.metaData().consumerSequence());
+            int ss = 1;
+            int[] cs = new int[] {1, 1, 2, 3, 1, 2};
 
-            // drop 2
-            m = sub.nextMessage(500);
-            assertNull(m);
-
-            // message 2
-            m = sub.nextMessage(500);
-            assertEquals(2, m.metaData().streamSequence());
-            assertEquals(1, m.metaData().consumerSequence());
-
-            // message 3
-            m = sub.nextMessage(500);
-            assertEquals(3, m.metaData().streamSequence());
-            assertEquals(2, m.metaData().consumerSequence());
-
-            // set the interceptor for this subscription
-            drop.set(0);
-            ((NatsSubscription)orderedSub.getCurrent()).setBeforeQueueProcessor(orderedBeforeQueueProcessor);
-
-            // publish after interceptor is set before messages come in
-            jsPublish(js, subject(1), 3);
-
-            // message 4
-            m = sub.nextMessage(500);
-            assertEquals(4, m.metaData().streamSequence());
-            assertEquals(3, m.metaData().consumerSequence());
-
-            // drop 5
-            m = sub.nextMessage(500);
-            assertNull(m);
-            ((NatsSubscription)orderedSub.getCurrent()).setBeforeQueueProcessor(orderedBeforeQueueProcessor);
-
-            // message 5
-            m = sub.nextMessage(500);
-            assertEquals(5, m.metaData().streamSequence());
-            assertEquals(1, m.metaData().consumerSequence());
-
-            // message 6
-            m = sub.nextMessage(500);
-            assertEquals(6, m.metaData().streamSequence());
-            assertEquals(2, m.metaData().consumerSequence());
+            while (ss < 7) {
+                Message m = sub.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
+                if (m != null) {
+                    assertEquals(ss, m.metaData().streamSequence());
+                    assertEquals(cs[ss-1], m.metaData().consumerSequence());
+                    ++ss;
+                }
+            }
 
             sub.unsubscribe(1);
 
             // ----------------------------------------------------------------------------------------------------
             // THIS IS ACTUALLY TESTING ASYNC SO I DON'T HAVE TO SETUP THE INTERCEPTOR IN OTHER CODE
             // ----------------------------------------------------------------------------------------------------
-            CountDownLatch msgLatch = new CountDownLatch(3);
+            CountDownLatch msgLatch = new CountDownLatch(6);
             AtomicInteger received = new AtomicInteger();
-            AtomicLong[] ssFlags = new AtomicLong[3];
-            AtomicLong[] csFlags = new AtomicLong[3];
+            AtomicLong[] ssFlags = new AtomicLong[6];
+            AtomicLong[] csFlags = new AtomicLong[6];
             MessageHandler handler = hmsg -> {
                 int i = received.incrementAndGet() - 1;
                 ssFlags[i] = new AtomicLong(hmsg.metaData().streamSequence());
@@ -635,69 +604,18 @@ public class JetStreamPushTests extends JetStreamTestBase {
             Dispatcher d = nc.createDispatcher();
             sub = js.subscribe(subject(2), d, handler, false, pso);
 
-            // reset for async test
-            // set the interceptor for this subscription
-            orderedSub = (NatsJetStreamOrderedSubscription)sub;
-            drop.set(0);
-            ((NatsSubscription)orderedSub.getCurrent())
-                .setBeforeQueueProcessor(orderedBeforeQueueProcessor);
-
             // publish after sub to make sure interceptor is set before messages come in
-            jsPublish(js, subject(2), 3);
+            jsPublish(js, subject(2), 201, 6);
 
-            msgLatch.await(5, TimeUnit.SECONDS);
+            assertTrue(msgLatch.await(5, TimeUnit.SECONDS));
 
-            assertEquals(7, ssFlags[0].get());
-            assertEquals(1, csFlags[0].get());
+            while (ss < 13) {
+                assertEquals(ss, ssFlags[ss-7].get());
+                assertEquals(cs[ss-7], csFlags[ss-7].get());
+                ++ss;
+            }
 
-            assertEquals(8, ssFlags[1].get());
-            assertEquals(1, csFlags[1].get());
-
-            assertEquals(9, ssFlags[2].get());
-            assertEquals(2, csFlags[2].get());
-
-            // coverage
-            assertFalse(sub.toString().contains("inactive")); // coverage
-            assertNotNull(sub.getSID());
-            assertNotNull(sub.getSubject());
-            assertNull(sub.getQueueName());
-            assertNotNull(sub.getDispatcher());
-            assertNotEquals(Long.MIN_VALUE, sub.getPendingMessageLimit());
-            assertNotEquals(Long.MIN_VALUE, sub.getPendingByteLimit());
-            assertNotEquals(Long.MIN_VALUE, sub.getPendingMessageCount());
-            assertNotEquals(Long.MIN_VALUE, sub.getPendingByteCount());
-            assertNotEquals(Long.MIN_VALUE, sub.getDeliveredCount());
-            assertNotEquals(Long.MIN_VALUE, sub.getDroppedCount());
-            assertNotNull(sub.getConsumerInfo());
-            sub.clearDroppedCount();
-            assertTrue(sub.isActive());
-
-            JetStreamSubscription current = orderedSub.getCurrent();
-
-            // just making sure no null pointers
-            orderedSub.setCurrent(null);
-            assertTrue(sub.toString().contains("inactive")); // coverage
-            assertNull(sub.getSID());
-            assertNull(sub.getSubject());
-            assertNull(sub.getQueueName());
-            assertNull(sub.getDispatcher());
-            assertEquals(Long.MIN_VALUE, sub.getPendingMessageLimit());
-            assertEquals(Long.MIN_VALUE, sub.getPendingByteLimit());
-            assertEquals(Long.MIN_VALUE, sub.getPendingMessageCount());
-            assertEquals(Long.MIN_VALUE, sub.getPendingByteCount());
-            assertEquals(Long.MIN_VALUE, sub.getDeliveredCount());
-            assertEquals(Long.MIN_VALUE, sub.getDroppedCount());
-            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
-            assertNull(sub.nextMessage(1000));
-            assertNull(sub.getConsumerInfo());
-            sub.unsubscribe();
-            assertNull(sub.unsubscribe(1));
-            sub.setPendingLimits(1, 1);
-            sub.clearDroppedCount();
-            assertNull(sub.drain(Duration.ofSeconds(1)));
-            assertFalse(sub.isActive());
-
-            orderedSub.setCurrent(current);
+            d.unsubscribe(sub);
         });
     }
 }

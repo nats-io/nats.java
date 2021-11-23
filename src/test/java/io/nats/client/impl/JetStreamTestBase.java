@@ -214,7 +214,7 @@ public class JetStreamTestBase extends TestBase {
             assertEquals(consumer, njssub.getConsumerName());
         }
         if (deliver != null) {
-            assertEquals(deliver, njssub.getDeliverSubject());
+            assertEquals(deliver, njssub.getSubject());
         }
 
         boolean pm = njssub.isPullMode();

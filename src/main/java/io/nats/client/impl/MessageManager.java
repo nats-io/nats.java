@@ -15,6 +15,16 @@ package io.nats.client.impl;
 
 import io.nats.client.Message;
 
-public interface MessageManager {
-    boolean manage(Message msg);
+abstract class MessageManager {
+    protected NatsJetStreamSubscription sub;
+
+    boolean manage(Message msg) {
+        return false;
+    }
+
+    void setSub(NatsJetStreamSubscription sub) {
+        this.sub = sub;
+    }
+
+    void shutdown() {}
 }
