@@ -236,7 +236,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             // create a dispatcher without a default handler.
             Dispatcher dispatcher = nc.createDispatcher();
 
-            AtomicReference<CountDownLatch> msgLatchRef = new AtomicReference<>(new CountDownLatch(2));
+            AtomicReference<CountDownLatch> msgLatchRef = new AtomicReference<>(new CountDownLatch(3));
 
             AtomicInteger flag = new AtomicInteger();
 
@@ -254,6 +254,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
                 else {
                     m.replyTo = mockAckReply + "system";
                 }
+                debug(m);
                 msgLatchRef.get().countDown();
             };
 
@@ -275,7 +276,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             assertEquals(mockAckReply + "system", msg.getSubject());
 
             // coverage explicit no ack flag
-            msgLatchRef.set(new CountDownLatch(2));
+            msgLatchRef.set(new CountDownLatch(3));
             PushSubscribeOptions pso = ConsumerConfiguration.builder().ackWait(Duration.ofSeconds(100)).buildPushSubscribeOptions();
             async = js.subscribe(SUBJECT, dispatcher, handler, false, pso);
             assertTrue(msgLatchRef.get().await(10, TimeUnit.SECONDS));
@@ -286,7 +287,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             assertNull(sub.nextMessage(1000));
 
             // coverage explicit AckPolicyNone
-            msgLatchRef.set(new CountDownLatch(2));
+            msgLatchRef.set(new CountDownLatch(3));
             pso = ConsumerConfiguration.builder().ackPolicy(AckPolicy.None).buildPushSubscribeOptions();
             async = js.subscribe(SUBJECT, dispatcher, handler, true, pso);
             assertTrue(msgLatchRef.get().await(10, TimeUnit.SECONDS));

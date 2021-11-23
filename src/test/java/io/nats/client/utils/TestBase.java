@@ -260,6 +260,27 @@ public class TestBase {
         try { LockSupport.parkNanos(d.toNanos()); } catch (Exception ignored) { /* ignored */ }
     }
 
+    public static void debug(Object... debug) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(System.currentTimeMillis());
+        sb.append(" [");
+        sb.append(Thread.currentThread().getName());
+        sb.append(",");
+        sb.append(Thread.currentThread().getPriority());
+        sb.append("] ");
+        boolean flag = true;
+        for (Object o : debug) {
+            if (flag) {
+                flag = false;
+            }
+            else {
+                sb.append(" | ");
+            }
+            sb.append(o);
+        }
+        System.out.println(sb.toString());
+    }
+
     // ----------------------------------------------------------------------------------------------------
     // flush
     // ----------------------------------------------------------------------------------------------------
