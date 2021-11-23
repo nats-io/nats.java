@@ -541,15 +541,16 @@ in the JetStream examples for detailed and runnable examples.
 You can now set a Push Subscription option called "Ordered". 
 When you set this flag, library will take over creation of the consumer and create a subscription that guarantees the order of messages.
 This consumer will use flow control with a default heartbeat of 5 seconds. Messages will not require acks as the Ack Policy will be set to No Ack.
-When creating the subscription, there are minimal consumer settings you are allowed to set.
+When creating the subscription, there are some restrictions for the consumer configuration settings.
 
-You can set the Deliver Policy, except `LastPerSubject`
+- Ack policy must be AckPolicy.None (or left un-set). maxAckPending will be ignored.
+- Deliver Group (aka Queue) cannot be used
+- You cannot set a durable consumer name
+- You cannot set the deliver subject
+- max deliver can only be set to 1 (or left un-set)  
+- The idle heartbeat cannot be less than 5 seconds. Flow control will automatically be used.
 
-
-| JsSoOrderedNotAllowedWithBind | SO | 90104 | Bind is not allowed with an ordered consumer. |
-| JsSoOrderedNotAllowedWithDeliverGroup | SO | 90105 | Deliver group is not allowed with an ordered consumer. |
-| JsSoOrderedNotAllowedWithDurable | SO | 90106 | Durable is not allowed with an ordered consumer. |
-| JsSoOrderedNotAllowedWithDeliverSubject | SO | 90107 | Deliver subject is not allowed with an ordered consumer. |
+You can however set the deliver policy which will be used to start the subscription. 
 
 ### Subscription Creation Checks
 

@@ -51,6 +51,7 @@ class OrderedManager extends MessageManager {
                         .deliverPolicy(DeliverPolicy.ByStartSequence)
                         .deliverSubject(newDeliver)
                         .startSequence(lastStreamSeq + 1)
+                        .startTime(null) // clear start time in case it was originally set
                         .build();
 
                     js._createConsumer(stream, userCC);
