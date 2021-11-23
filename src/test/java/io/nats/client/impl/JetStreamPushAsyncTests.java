@@ -63,7 +63,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
-            msgLatch.await(10, TimeUnit.SECONDS);
+            assertTrue(msgLatch.await(10, TimeUnit.SECONDS));
 
             assertEquals(10, received.get());
         });
@@ -100,7 +100,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
-            msgLatch1.await(10, TimeUnit.SECONDS);
+            assertTrue(msgLatch1.await(10, TimeUnit.SECONDS));
 
             assertEquals(10, received1.get());
 
@@ -126,7 +126,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
-            msgLatch2.await(10, TimeUnit.SECONDS);
+            assertTrue(msgLatch2.await(10, TimeUnit.SECONDS));
             assertEquals(10, received2.get());
 
             ConsumerInfo ci = sub.getConsumerInfo();
@@ -212,7 +212,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
-            msgLatch.await(10, TimeUnit.SECONDS);
+            assertTrue(msgLatch.await(10, TimeUnit.SECONDS));
 
             assertEquals(MSG_COUNT, count.get());
             assertTrue(fcps.get() > 0);
@@ -262,7 +262,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
-            msgLatchRef.get().await(10, TimeUnit.SECONDS);
+            assertTrue(msgLatchRef.get().await(10, TimeUnit.SECONDS));
             assertEquals(0, msgLatchRef.get().getCount());
             dispatcher.unsubscribe(async);
 
@@ -278,7 +278,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             msgLatchRef.set(new CountDownLatch(2));
             PushSubscribeOptions pso = ConsumerConfiguration.builder().ackWait(Duration.ofSeconds(100)).buildPushSubscribeOptions();
             async = js.subscribe(SUBJECT, dispatcher, handler, false, pso);
-            msgLatchRef.get().await(10, TimeUnit.SECONDS);
+            assertTrue(msgLatchRef.get().await(10, TimeUnit.SECONDS));
             assertEquals(0, msgLatchRef.get().getCount());
             dispatcher.unsubscribe(async);
 
@@ -289,7 +289,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             msgLatchRef.set(new CountDownLatch(2));
             pso = ConsumerConfiguration.builder().ackPolicy(AckPolicy.None).buildPushSubscribeOptions();
             async = js.subscribe(SUBJECT, dispatcher, handler, true, pso);
-            msgLatchRef.get().await(10, TimeUnit.SECONDS);
+            assertTrue(msgLatchRef.get().await(10, TimeUnit.SECONDS));
             assertEquals(0, msgLatchRef.get().getCount());
             dispatcher.unsubscribe(async);
 

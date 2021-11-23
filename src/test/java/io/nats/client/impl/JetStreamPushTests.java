@@ -222,7 +222,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         JetStreamSubscription sub = supplier.get(dispatcher, handler);
 
         // Wait for messages to arrive using the countdown latch.
-        msgLatch.await(10, TimeUnit.SECONDS);
+        assertTrue(msgLatch.await(10, TimeUnit.SECONDS));
 
         dispatcher.unsubscribe(sub);
 
