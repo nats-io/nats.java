@@ -555,7 +555,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 130, unit = TimeUnit.SECONDS)
+    @Timeout(value = 30)
     public void testOrdered() throws Exception {
         runInJsServer(nc -> {
             JetStream js = nc.jetStream();
