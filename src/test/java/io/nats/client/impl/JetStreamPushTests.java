@@ -18,6 +18,7 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
 import io.nats.client.support.NatsJetStreamConstants;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -553,7 +554,8 @@ public class JetStreamPushTests extends JetStreamTestBase {
         }
     }
 
-    // @Test
+    @Test
+    @Timeout(value = 130, unit = TimeUnit.SECONDS)
     public void testOrdered() throws Exception {
         runInJsServer(nc -> {
             JetStream js = nc.jetStream();
