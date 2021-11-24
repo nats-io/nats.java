@@ -554,9 +554,9 @@ public class JetStreamPushTests extends JetStreamTestBase {
     // this allows me to intercept messages before it gets to the connection queue
     // which is before the messages is available for nextMessage or before
     // it gets dispatched to a handler.
-    static class OrderedTestPushStatusManager extends PushStatusManager {
+    static class OrderedTestPushStatusMessageManager extends PushStatusMessageManager {
 
-        public OrderedTestPushStatusManager(NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode) {
+        public OrderedTestPushStatusMessageManager(NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode) {
             super(conn, so, cc, queueMode, syncMode);
         }
 
@@ -583,7 +583,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             // create the stream.
             createMemoryStream(nc, STREAM, subject(1), subject(2));
 
-            NatsJetStream.PUSH_STATUS_MANAGER_FACTORY = OrderedTestPushStatusManager::new;
+            NatsJetStream.PUSH_STATUS_MANAGER_FACTORY = OrderedTestPushStatusMessageManager::new;
 
             PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true).build();
             IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, QUEUE, pso));

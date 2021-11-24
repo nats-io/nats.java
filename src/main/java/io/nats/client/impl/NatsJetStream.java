@@ -207,12 +207,12 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
     }
 
-    interface PushStatusManagerFactory {
-        PushStatusManager createPushStatusManager(
+    interface PushStatusMessageManagerFactory {
+        PushStatusMessageManager createPushStatusMessageManager(
             NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode);
     }
 
-    static PushStatusManagerFactory PUSH_STATUS_MANAGER_FACTORY = PushStatusManager::new;
+    static PushStatusMessageManagerFactory PUSH_STATUS_MANAGER_FACTORY = PushStatusMessageManager::new;
 
     JetStreamSubscription createSubscription(String subject,
                                                  String queueName,
@@ -373,8 +373,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         // 6. create the subscription. lambda needs final or effectively final vars
         final MessageManager statusManager = isPullMode
-            ? new PullStatusManager()
-            : PUSH_STATUS_MANAGER_FACTORY.createPushStatusManager(conn, so, fnlServerCC, qgroup != null, dispatcher == null);
+            ? new PullStatusMessageManager()
+            : PUSH_STATUS_MANAGER_FACTORY.createPushStatusMessageManager(conn, so, fnlServerCC, qgroup != null, dispatcher == null);
 
         NatsJetStreamSubscription sub;
         if (isPullMode) {

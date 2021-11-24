@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
-class PushStatusManager extends MessageManager {
+class PushStatusMessageManager extends MessageManager {
 
     private static final int THRESHOLD = 3;
 
@@ -47,9 +47,9 @@ class PushStatusManager extends MessageManager {
     private final AtomicLong lastMsgReceived;
     private HeartbeatTimer heartbeatTimer;
 
-    PushStatusManager(NatsConnection conn, SubscribeOptions so,
-                      ConsumerConfiguration cc,
-                      boolean queueMode, boolean syncMode)
+    PushStatusMessageManager(NatsConnection conn, SubscribeOptions so,
+                             ConsumerConfiguration cc,
+                             boolean queueMode, boolean syncMode)
     {
         this.conn = conn;
         this.syncMode = syncMode;
