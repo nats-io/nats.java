@@ -82,23 +82,46 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
 
     @Override
     public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
-        if (timeout == null) {
-            return nextMsgWaitForever();
+        if (timeout == null || timeout.toMillis() <= 0) {
+            return nextMsgNullOrLteZero(timeout);
         }
-        return nextMessage(timeout.toMillis());
+
+        return nextMessageWithEndTime(System.currentTimeMillis() + timeout.toMillis());
     }
 
     @Override
     public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
-        if (timeoutMillis == 0) {
-            return nextMsgWaitForever();
-        }
-
-        if (timeoutMillis < 0) {
-            return nextMsgNoWait();
+        if (timeoutMillis <= 0) {
+            return nextMsgNullOrLteZero(Duration.ZERO);
         }
 
         return nextMessageWithEndTime(System.currentTimeMillis() + timeoutMillis);
+    }
+
+    protected Message nextMsgNullOrLteZero(Duration timeout) throws InterruptedException {
+        // timeout null means don't wait at all, timeout <= 0 means wait forever
+        // until we get an actual no (null) message or we get a message
+        // that the managers do not handle
+        Message msg = nextMessageInternal(timeout);
+        while (msg != null && anyManaged(msg)) {
+            msg = nextMessageInternal(timeout);
+        }
+        return msg;
+    }
+
+    protected Message nextMessageWithEndTime(long endTime) throws InterruptedException {
+        // timeout > 0 process as many messages we can in that time period
+        // If we get a message that either manager handles, we try again, but
+        // with a shorter timeout based on what we already used up
+        long millis = endTime - System.currentTimeMillis();
+        while (millis > 0) {
+            Message msg = nextMessageInternal(Duration.ofMillis(millis));
+            if (msg != null && !anyManaged(msg)) { // not null and not managed means JS Message
+                return msg;
+            }
+            millis = endTime - System.currentTimeMillis();
+        }
+        return null;
     }
 
     boolean anyManaged(Message msg) {
@@ -108,40 +131,6 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
             }
         }
         return false;
-    }
-
-    protected Message nextMsgWaitForever() throws InterruptedException {
-        Message msg = nextMessageInternal(Duration.ZERO);
-        while (msg == null || anyManaged(msg)) {
-            msg = nextMessageInternal(Duration.ZERO);
-        }
-        return msg;
-    }
-
-    private static final Duration NO_WAIT_DURATION = Duration.ofMillis(-1);
-
-    protected Message nextMsgNoWait() throws InterruptedException {
-        Message msg = nextMessageInternal(NO_WAIT_DURATION);
-        while (msg != null && anyManaged(msg)) {
-            msg = nextMessageInternal(NO_WAIT_DURATION);
-        }
-        return msg;
-    }
-
-    protected Message nextMessageWithEndTime(long endTime) throws InterruptedException {
-        // timeout > 0 process as many messages we can in that time period
-        // If we get a message that either manager handles, we try again, but
-        // with a shorter timeout based on what we already used up
-        // starting millis of at least 1 ensure at least 1 try at the queue
-        long millis = Math.max(1, endTime - System.currentTimeMillis());
-        while (millis > 0) {
-            Message msg = nextMessageInternal(Duration.ofMillis(millis));
-            if (msg != null && !anyManaged(msg)) { // not null and not managed means JS Message
-                return msg;
-            }
-            millis = endTime - System.currentTimeMillis();
-        }
-        return null;
     }
 
     /**
