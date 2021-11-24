@@ -385,6 +385,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     /**
      * INTERNAL METHOD ONLY, SUBJECT TO CHANGE
      * Scoped public for easy access and testing.
+     * @param original the original configuration to compare to
      * @return true if this configuration would be a change from the original
      */
     public boolean wouldBeChangeTo(ConsumerConfiguration original) {
