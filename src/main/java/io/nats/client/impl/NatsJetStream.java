@@ -291,7 +291,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
                 // check to see if the user sent a different version than the server has
                 // because modifications are not allowed during create subscription
-                if (userCC.wouldBeChangeTo(serverCC)) {
+                ConsumerConfigurationComparer userCCC = new ConsumerConfigurationComparer(userCC);
+                if (userCCC.wouldBeChangeTo(serverCC)) {
                     throw JsSubExistingConsumerCannotBeModified.instance();
                 }
 
@@ -402,6 +403,41 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
 
         return sub;
+    }
+
+    static class ConsumerConfigurationComparer extends ConsumerConfiguration {
+        public ConsumerConfigurationComparer(ConsumerConfiguration cc) {
+            super(cc);
+        }
+
+        public boolean wouldBeChangeTo(ConsumerConfiguration serverCc) {
+            ConsumerConfigurationComparer serverCcc = new ConsumerConfigurationComparer(serverCc);
+            return (deliverPolicy != null && deliverPolicy != serverCcc.getDeliverPolicy())
+                || (ackPolicy != null && ackPolicy != serverCcc.getAckPolicy())
+                || (replayPolicy != null && replayPolicy != serverCcc.getReplayPolicy())
+
+                || (flowControl != null && flowControl != serverCcc.isFlowControl())
+                || (headersOnly != null && headersOnly != serverCcc.isHeadersOnly())
+
+                || CcNumeric.START_SEQ.wouldBeChange(startSeq, serverCcc.startSeq)
+                || CcNumeric.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.maxDeliver)
+                || CcNumeric.RATE_LIMIT.wouldBeChange(rateLimit, serverCcc.rateLimit)
+                || CcNumeric.MAX_ACK_PENDING.wouldBeChange(maxAckPending, serverCcc.maxAckPending)
+                || CcNumeric.MAX_PULL_WAITING.wouldBeChange(maxPullWaiting, serverCcc.maxPullWaiting)
+
+                || (ackWait != null && !ackWait.equals(serverCcc.ackWait))
+                || (idleHeartbeat != null && !idleHeartbeat.equals(serverCcc.idleHeartbeat))
+                || (startTime != null && !startTime.equals(serverCcc.startTime))
+
+                || (filterSubject != null && !filterSubject.equals(serverCcc.filterSubject))
+                || (description != null && !description.equals(serverCcc.description))
+                || (sampleFrequency != null && !sampleFrequency.equals(serverCcc.sampleFrequency))
+                || (deliverSubject != null && !deliverSubject.equals(serverCcc.deliverSubject))
+                || (deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup))
+                ;
+
+            // do not need to check Durable because the original is retrieved by the durable name
+        }
     }
 
     static class AsyncMessageHandler implements MessageHandler {

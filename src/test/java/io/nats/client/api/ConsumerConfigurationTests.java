@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 
-import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -116,100 +115,6 @@ public class ConsumerConfigurationTests extends TestBase {
         assertFalse(cc.maxPullWaitingWasSet());
         assertFalse(cc.flowControlWasSet());
         assertFalse(cc.headersOnlyWasSet());
-    }
-
-    @Test
-    public void testChanges() {
-        ConsumerConfiguration original = ConsumerConfiguration.builder().build();
-        assertFalse(original.wouldBeChangeTo(original));
-
-        assertFalse(ConsumerConfiguration.builder(original).deliverPolicy(DeliverPolicy.All).build()
-            .wouldBeChangeTo(original));
-        assertTrue(ConsumerConfiguration.builder(original).deliverPolicy(DeliverPolicy.New).build()
-            .wouldBeChangeTo(original));
-
-        assertFalse(ConsumerConfiguration.builder(original).ackPolicy(AckPolicy.Explicit).build()
-            .wouldBeChangeTo(original));
-        assertTrue(ConsumerConfiguration.builder(original).ackPolicy(AckPolicy.None).build()
-            .wouldBeChangeTo(original));
-
-        assertFalse(ConsumerConfiguration.builder(original).replayPolicy(ReplayPolicy.Instant).build()
-            .wouldBeChangeTo(original));
-        assertTrue(ConsumerConfiguration.builder(original).replayPolicy(ReplayPolicy.Original).build()
-            .wouldBeChangeTo(original));
-
-        ConsumerConfiguration ccTest = ConsumerConfiguration.builder(original).flowControl(1000).build();
-        assertFalse(ccTest.wouldBeChangeTo(ccTest));
-        assertTrue(ccTest.wouldBeChangeTo(original));
-
-        ccTest = ConsumerConfiguration.builder(original).idleHeartbeat(1000).build();
-        assertFalse(ccTest.wouldBeChangeTo(ccTest));
-        assertTrue(ccTest.wouldBeChangeTo(original));
-
-        ccTest = ConsumerConfiguration.builder(original).startTime(ZonedDateTime.now()).build();
-        assertFalse(ccTest.wouldBeChangeTo(ccTest));
-        assertTrue(ccTest.wouldBeChangeTo(original));
-
-        assertFalse(ConsumerConfiguration.builder(original).headersOnly(false).build()
-            .wouldBeChangeTo(original));
-        assertTrue(ConsumerConfiguration.builder(original).headersOnly(true).build()
-            .wouldBeChangeTo(original));
-
-        assertFalse(ConsumerConfiguration.builder(original).startSequence(CcNumeric.START_SEQ.initial).build()
-            .wouldBeChangeTo(original));
-        assertTrue(ConsumerConfiguration.builder(original).startSequence(new Long(99)).build()
-            .wouldBeChangeTo(original));
-
-        assertFalse(ConsumerConfiguration.builder(original).maxDeliver(CcNumeric.MAX_DELIVER.initial).build()
-            .wouldBeChangeTo(original));
-        assertTrue(ConsumerConfiguration.builder(original).maxDeliver(new Long(99)).build()
-            .wouldBeChangeTo(original));
-
-        assertFalse(ConsumerConfiguration.builder(original).rateLimit(CcNumeric.RATE_LIMIT.initial).build()
-            .wouldBeChangeTo(original));
-        assertTrue(ConsumerConfiguration.builder(original).rateLimit(new Long(99)).build()
-            .wouldBeChangeTo(original));
-
-        assertFalse(ConsumerConfiguration.builder(original).maxAckPending(CcNumeric.MAX_ACK_PENDING.initial).build()
-            .wouldBeChangeTo(original));
-        assertTrue(ConsumerConfiguration.builder(original).maxAckPending(new Long(99)).build()
-            .wouldBeChangeTo(original));
-
-        assertFalse(ConsumerConfiguration.builder(original).maxPullWaiting(CcNumeric.MAX_PULL_WAITING.initial).build()
-            .wouldBeChangeTo(original));
-        assertTrue(ConsumerConfiguration.builder(original).maxPullWaiting(new Long(99)).build()
-            .wouldBeChangeTo(original));
-
-
-        assertFalse(ConsumerConfiguration.builder(original).filterSubject(EMPTY).build()
-            .wouldBeChangeTo(original));
-        ccTest = ConsumerConfiguration.builder(original).filterSubject(PLAIN).build();
-        assertFalse(ccTest.wouldBeChangeTo(ccTest));
-        assertTrue(ccTest.wouldBeChangeTo(original));
-
-        assertFalse(ConsumerConfiguration.builder(original).description(EMPTY).build()
-            .wouldBeChangeTo(original));
-        ccTest = ConsumerConfiguration.builder(original).description(PLAIN).build();
-        assertFalse(ccTest.wouldBeChangeTo(ccTest));
-        assertTrue(ccTest.wouldBeChangeTo(original));
-
-        assertFalse(ConsumerConfiguration.builder(original).sampleFrequency(EMPTY).build()
-            .wouldBeChangeTo(original));
-        ccTest = ConsumerConfiguration.builder(original).sampleFrequency(PLAIN).build();
-        assertFalse(ccTest.wouldBeChangeTo(ccTest));
-        assertTrue(ccTest.wouldBeChangeTo(original));
-
-        assertFalse(ConsumerConfiguration.builder(original).deliverSubject(EMPTY).build()
-            .wouldBeChangeTo(original));
-        ccTest = ConsumerConfiguration.builder(original).deliverSubject(PLAIN).build();
-        assertFalse(ccTest.wouldBeChangeTo(ccTest));
-        assertTrue(ccTest.wouldBeChangeTo(original));
-
-        assertFalse(ConsumerConfiguration.builder(original).deliverGroup(EMPTY).build()
-            .wouldBeChangeTo(original));
-        ccTest = ConsumerConfiguration.builder(original).deliverGroup(PLAIN).build();
-        assertFalse(ccTest.wouldBeChangeTo(ccTest));
-        assertTrue(ccTest.wouldBeChangeTo(original));
     }
 
     private void assertAsBuilt(ConsumerConfiguration c, ZonedDateTime zdt) {

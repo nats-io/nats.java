@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
+import io.nats.client.api.PublishAck;
 import io.nats.client.support.NatsJetStreamConstants;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -379,11 +380,11 @@ public class JetStreamPushTests extends JetStreamTestBase {
     @Test
     public void testDeliveryPolicy() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context.
+            JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT_STAR);
+            createMemoryStream(jsm, STREAM, SUBJECT_STAR);
 
             String subjectA = subjectDot("A");
             String subjectB = subjectDot("B");
@@ -394,6 +395,8 @@ public class JetStreamPushTests extends JetStreamTestBase {
             js.publish(subjectA, dataBytes(3));
             js.publish(subjectB, dataBytes(91));
             js.publish(subjectB, dataBytes(92));
+
+            jsm.deleteMessage(STREAM, 4);
 
             // DeliverPolicy.All
             PushSubscribeOptions pso = PushSubscribeOptions.builder()
@@ -465,6 +468,23 @@ public class JetStreamPushTests extends JetStreamTestBase {
             sub = js.subscribe(subjectA, pso);
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertMessage(m, 4);
+
+            // DeliverPolicy.ByStartSequence with a deleted record
+            PublishAck pa4 = js.publish(subjectA, dataBytes(4));
+            PublishAck pa5 = js.publish(subjectA, dataBytes(5));
+            js.publish(subjectA, dataBytes(6));
+            jsm.deleteMessage(STREAM, pa4.getSeqno());
+            jsm.deleteMessage(STREAM, pa5.getSeqno());
+
+            pso = PushSubscribeOptions.builder()
+                .configuration(ConsumerConfiguration.builder()
+                    .deliverPolicy(DeliverPolicy.ByStartSequence)
+                    .startSequence(pa4.getSeqno())
+                    .build())
+                .build();
+            sub = js.subscribe(subjectA, pso);
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 6);
         });
     }
 

@@ -201,7 +201,7 @@ class PushStatusManager extends MessageManager {
         return false;
     }
 
-    private String extractFcSubject(Message msg) {
+    String extractFcSubject(Message msg) {
         return msg.getHeaders() == null ? null : msg.getHeaders().getFirst(CONSUMER_STALLED_HDR);
     }
 

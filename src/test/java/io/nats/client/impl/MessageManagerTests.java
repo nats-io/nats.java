@@ -159,6 +159,31 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertEquals(getFcSubject(3), asm.getLastFcSubject());
         assertEquals(getFcSubject(3), mc.fcSubject);
         assertEquals(3, mc.pubCount);
+
+        asm.manage(getHeartbeat());
+        assertEquals(getFcSubject(3), asm.getLastFcSubject());
+        assertEquals(getFcSubject(3), mc.fcSubject);
+        assertEquals(3, mc.pubCount);
+
+        // coverage sequences
+        asm.manage(getTestJsMessage(1));
+        assertEquals(1, asm.getLastStreamSequence());
+        assertEquals(1, asm.getLastConsumerSequence());
+
+        asm.manage(getTestJsMessage(2));
+        assertEquals(2, asm.getLastStreamSequence());
+        assertEquals(2, asm.getLastConsumerSequence());
+
+        // coverage beforeQueueProcessor
+        assertNotNull(asm.beforeQueueProcessor(getTestJsMessage()));
+        assertNotNull(asm.beforeQueueProcessor(get408()));
+        assertNotNull(asm.beforeQueueProcessor(getFcHeartbeat(9)));
+        assertNull(asm.beforeQueueProcessor(getHeartbeat()));
+
+        // coverage extractFcSubject
+        assertNull(asm.extractFcSubject(getTestJsMessage()));
+        assertNull(asm.extractFcSubject(getHeartbeat()));
+        assertNotNull(asm.extractFcSubject(getFcHeartbeat(9)));
     }
 
     @Test
@@ -181,6 +206,26 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertNull(asm.getLastFcSubject());
         assertNull(mc.fcSubject);
         assertEquals(0, mc.pubCount);
+
+        // coverage sequences
+        asm.manage(getTestJsMessage(1));
+        assertEquals(1, asm.getLastStreamSequence());
+        assertEquals(1, asm.getLastConsumerSequence());
+
+        asm.manage(getTestJsMessage(2));
+        assertEquals(2, asm.getLastStreamSequence());
+        assertEquals(2, asm.getLastConsumerSequence());
+
+        // coverage beforeQueueProcessor
+        assertNotNull(asm.beforeQueueProcessor(getTestJsMessage()));
+        assertNotNull(asm.beforeQueueProcessor(get408()));
+        assertNotNull(asm.beforeQueueProcessor(getFcHeartbeat(9)));
+        assertNull(asm.beforeQueueProcessor(getHeartbeat()));
+
+        // coverage extractFcSubject
+        assertNull(asm.extractFcSubject(getTestJsMessage()));
+        assertNull(asm.extractFcSubject(getHeartbeat()));
+        assertNotNull(asm.extractFcSubject(getFcHeartbeat(9)));
     }
 
     @Test

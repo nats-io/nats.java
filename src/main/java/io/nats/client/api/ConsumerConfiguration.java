@@ -39,29 +39,51 @@ public class ConsumerConfiguration implements JsonSerializable {
     public static final Duration MIN_ACK_WAIT = Duration.ofNanos(1);
     public static final Duration MIN_IDLE_HEARTBEAT = Duration.ofMillis(100);
 
-    private final DeliverPolicy deliverPolicy;
-    private final AckPolicy ackPolicy;
-    private final ReplayPolicy replayPolicy;
-    private final String description;
-    private final String durable;
-    private final String deliverSubject;
-    private final String deliverGroup;
-    private final String filterSubject;
-    private final String sampleFrequency;
-    private final ZonedDateTime startTime;
-    private final Duration ackWait;
-    private final Duration idleHeartbeat;
-    private final Long startSeq;
-    private final Long maxDeliver;
-    private final Long rateLimit;
-    private final Long maxAckPending;
-    private final Long maxPullWaiting;
-    private final Boolean flowControl;
-    private final Boolean headersOnly;
+    protected final DeliverPolicy deliverPolicy;
+    protected final AckPolicy ackPolicy;
+    protected final ReplayPolicy replayPolicy;
+    protected final String description;
+    protected final String durable;
+    protected final String deliverSubject;
+    protected final String deliverGroup;
+    protected final String filterSubject;
+    protected final String sampleFrequency;
+    protected final ZonedDateTime startTime;
+    protected final Duration ackWait;
+    protected final Duration idleHeartbeat;
+    protected final Long startSeq;
+    protected final Long maxDeliver;
+    protected final Long rateLimit;
+    protected final Long maxAckPending;
+    protected final Long maxPullWaiting;
+    protected final Boolean flowControl;
+    protected final Boolean headersOnly;
 
     private static DeliverPolicy GetOrDefault(DeliverPolicy p) { return p == null ? DeliverPolicy.All : p; }
     private static AckPolicy GetOrDefault(AckPolicy p) { return p == null ? AckPolicy.Explicit : p; }
     private static ReplayPolicy GetOrDefault(ReplayPolicy p) { return p == null ? ReplayPolicy.Instant : p; }
+
+    protected ConsumerConfiguration(ConsumerConfiguration cc) {
+        this.deliverPolicy = cc.deliverPolicy;
+        this.ackPolicy = cc.ackPolicy;
+        this.replayPolicy = cc.replayPolicy;
+        this.description = cc.description;
+        this.durable = cc.durable;
+        this.deliverSubject = cc.deliverSubject;
+        this.deliverGroup = cc.deliverGroup;
+        this.filterSubject = cc.filterSubject;
+        this.sampleFrequency = cc.sampleFrequency;
+        this.startTime = cc.startTime;
+        this.ackWait = cc.ackWait;
+        this.idleHeartbeat = cc.idleHeartbeat;
+        this.startSeq = cc.startSeq;
+        this.maxDeliver = cc.maxDeliver;
+        this.rateLimit = cc.rateLimit;
+        this.maxAckPending = cc.maxAckPending;
+        this.maxPullWaiting = cc.maxPullWaiting;
+        this.flowControl = cc.flowControl;
+        this.headersOnly = cc.headersOnly;
+    }
 
     // for the response from the server
     ConsumerConfiguration(String json) {
@@ -380,40 +402,6 @@ public class ConsumerConfiguration implements JsonSerializable {
      */
     public boolean headersOnlyWasSet() {
         return headersOnly != null;
-    }
-
-    /**
-     * INTERNAL METHOD ONLY, SUBJECT TO CHANGE
-     * Scoped public for easy access and testing.
-     * @param original the original configuration to compare to
-     * @return true if this configuration would be a change from the original
-     */
-    public boolean wouldBeChangeTo(ConsumerConfiguration original) {
-        return (deliverPolicy != null && deliverPolicy != original.getDeliverPolicy())
-            || (ackPolicy != null && ackPolicy != original.getAckPolicy())
-            || (replayPolicy != null && replayPolicy != original.getReplayPolicy())
-
-            || (flowControl != null && flowControl != original.isFlowControl())
-            || (headersOnly != null && headersOnly != original.isHeadersOnly())
-
-            || CcNumeric.START_SEQ.wouldBeChange(startSeq, original.startSeq)
-            || CcNumeric.MAX_DELIVER.wouldBeChange(maxDeliver, original.maxDeliver)
-            || CcNumeric.RATE_LIMIT.wouldBeChange(rateLimit, original.rateLimit)
-            || CcNumeric.MAX_ACK_PENDING.wouldBeChange(maxAckPending, original.maxAckPending)
-            || CcNumeric.MAX_PULL_WAITING.wouldBeChange(maxPullWaiting, original.maxPullWaiting)
-
-            || (ackWait != null && !ackWait.equals(original.ackWait))
-            || (idleHeartbeat != null && !idleHeartbeat.equals(original.idleHeartbeat))
-            || (startTime != null && !startTime.equals(original.startTime))
-
-            || (filterSubject != null && !filterSubject.equals(original.filterSubject))
-            || (description != null && !description.equals(original.description))
-            || (sampleFrequency != null && !sampleFrequency.equals(original.sampleFrequency))
-            || (deliverSubject != null && !deliverSubject.equals(original.deliverSubject))
-            || (deliverGroup != null && !deliverGroup.equals(original.deliverGroup))
-            ;
-
-        // do not need to check Durable because the original is retrieved by the durable name
     }
 
     /**
