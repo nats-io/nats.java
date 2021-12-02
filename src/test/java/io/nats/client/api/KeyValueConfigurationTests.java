@@ -18,48 +18,49 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class BucketConfigurationTests extends JetStreamTestBase {
+public class KeyValueConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testConstruction() {
 
         // builder
-        BucketConfiguration bc = BucketConfiguration.builder()
-                .name("bucketName")
-                .maxValues(333)
-                .maxHistoryPerKey(444)
-                .maxBucketSize(555)
-                .maxValueBytes(666)
-                .ttl(Duration.ofMillis(777))
-                .storageType(StorageType.Memory)
-                .replicas(2)
-                .duplicateWindow(Duration.ofMillis(888))
-                .build();
+        KeyValueConfiguration bc = KeyValueConfiguration.builder()
+            .name("bucketName")
+            .description("bucketDesc")
+            .maxValues(333)
+            .maxHistoryPerKey(44)
+            .maxBucketSize(555)
+            .maxValueBytes(666)
+            .ttl(Duration.ofMillis(777))
+            .storageType(StorageType.Memory)
+            .replicas(2)
+            .build();
         validate(bc);
 
-        validate(BucketConfiguration.builder(bc).build());
+        validate(KeyValueConfiguration.builder(bc).build());
 
-        validate(BucketConfiguration.instance(bc.getBackingConfig().toJson()));
+        validate(KeyValueConfiguration.instance(bc.getBackingConfig().toJson()));
 
-        bc = BucketConfiguration.builder()
+        bc = KeyValueConfiguration.builder()
                 .name("bucketName")
-                .duplicateWindow(999)
                 .build();
 
         assertEquals(1, bc.getMaxHistoryPerKey());
-        assertEquals(Duration.ofMillis(999), bc.getDuplicateWindow());
     }
 
-    private void validate(BucketConfiguration bc) {
-        assertEquals("bucketName", bc.getName());
+    private void validate(KeyValueConfiguration bc) {
+        assertEquals("bucketName", bc.getBucketName());
+        assertEquals("bucketDesc", bc.getDescription());
         assertEquals(333, bc.getMaxValues());
-        assertEquals(444, bc.getMaxHistoryPerKey());
+        assertEquals(44, bc.getMaxHistoryPerKey());
         assertEquals(555, bc.getMaxBucketSize());
         assertEquals(666, bc.getMaxValueBytes());
         assertEquals(Duration.ofMillis(777), bc.getTtl());
         assertEquals(StorageType.Memory, bc.getStorageType());
         assertEquals(2, bc.getReplicas());
-        assertEquals(Duration.ofMillis(888), bc.getDuplicateWindow());
+
+        assertTrue(bc.toString().contains("bucketName"));
     }
 }

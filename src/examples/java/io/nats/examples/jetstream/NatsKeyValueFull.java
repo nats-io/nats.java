@@ -14,9 +14,9 @@
 package io.nats.examples.jetstream;
 
 import io.nats.client.*;
-import io.nats.client.api.BucketConfiguration;
-import io.nats.client.api.BucketInfo;
-import io.nats.client.api.KvEntry;
+import io.nats.client.api.KeyValueConfiguration;
+import io.nats.client.api.KeyValueEntry;
+import io.nats.client.api.KeyValueStatus;
 import io.nats.client.api.StorageType;
 import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
@@ -48,13 +48,13 @@ public class NatsKeyValueFull {
             KeyValueManagement kvm = nc.keyValueManagement();
 
             // create the bucket
-            BucketConfiguration bc = BucketConfiguration.builder()
+            KeyValueConfiguration bc = KeyValueConfiguration.builder()
                     .name(BUCKET_NAME)
                     .maxHistoryPerKey(5)
                     .storageType(StorageType.Memory)
                     .build();
 
-            BucketInfo bi = kvm.createBucket(bc);
+            KeyValueStatus bi = kvm.create(bc);
             System.out.println(bi);
 
             // get the kv context for the specific bucket
@@ -117,7 +117,7 @@ public class NatsKeyValueFull {
             // entry gives detail about latest record of the key
             System.out.println("\n5. Get Entry");
 
-            KvEntry entry = kv.getEntry(BYTE_KEY);
+            KeyValueEntry entry = kv.getEntry(BYTE_KEY);
             System.out.println(BYTE_KEY + " entry: " + entry);
 
             entry = kv.getEntry(STRING_KEY);
@@ -128,7 +128,7 @@ public class NatsKeyValueFull {
 
             // delete a key
             System.out.println("\n6. Delete a key");
-            seq = kv.delete(BYTE_KEY);
+            kv.delete(BYTE_KEY);
             System.out.println("Sequence Number should be 4, got " + seq);
 
             // it's value is now null
@@ -190,7 +190,7 @@ public class NatsKeyValueFull {
 
             // delete the bucket
             System.out.println("\n9.2 Delete");
-            kvm.deleteBucket(BUCKET_NAME);
+            kvm.delete(BUCKET_NAME);
 
             try {
                 kvm.getBucketInfo(BUCKET_NAME);

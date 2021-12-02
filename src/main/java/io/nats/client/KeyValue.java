@@ -12,14 +12,26 @@
 // limitations under the License.
 package io.nats.client;
 
-import io.nats.client.api.KvEntry;
+import io.nats.client.api.KeyValueEntry;
+import io.nats.client.api.KeyValueOperation;
+import io.nats.client.api.KeyValueStatus;
+import io.nats.client.api.KeyValueWatcher;
+import io.nats.client.impl.NatsKeyValueWatchSubscription;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Key Value Store Management context for creation and access to key value buckets.
  */
 public interface KeyValue {
+
+    /**
+     * Get the name of the bucket.
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @return the name
+     */
+    String getBucketName();
 
     /**
      * Get the byte[] value for a key
@@ -67,7 +79,7 @@ public interface KeyValue {
      * @throws JetStreamApiException the request had an error related to the data
      * @throws IllegalArgumentException the server is not JetStream enabled
      */
-    KvEntry getEntry(String key) throws IOException, JetStreamApiException;
+    KeyValueEntry getEntry(String key) throws IOException, JetStreamApiException;
 
     /**
      * Put a byte[] as the value for a key
@@ -112,10 +124,92 @@ public interface KeyValue {
      * Deletes a key.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
-     * @return the sequence number for the DEL record
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    long delete(String key) throws IOException, JetStreamApiException;
+    void delete(String key) throws IOException, JetStreamApiException;
+
+    /**
+     * Purge all values/history from the specific key
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @param key the key
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    void purge(String key) throws IOException, JetStreamApiException;
+
+    /**
+     * Watch updates for a specific key
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @param key the key
+     * @param watcher the watcher
+     * @param metaOnly flag to receive KeyValueEntry metadata only. Use false to receive both metadata and headers
+     * @param operations the types of operations to watch for. If not supplied, all types will be watched for.
+     * @return The KeyValueWatchSubscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
+     */
+    NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, boolean metaOnly, KeyValueOperation... operations) throws IOException, JetStreamApiException, InterruptedException;
+
+    /**
+     * Watch updates for all keys
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @param watcher the watcher
+     * @param metaOnly flag to receive KeyValueEntry metadata only. Use false to receive both metadata and headers
+     * @param operations the types of operations to watch for. If not supplied, all types will be watched for.
+     * @return The KeyValueWatchSubscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
+     */
+    NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, boolean metaOnly, KeyValueOperation... operations) throws IOException, JetStreamApiException, InterruptedException;
+
+    /**
+     * Get the set of the keys in a bucket.
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @return Set of keys
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
+     */
+    List<String> keys() throws IOException, JetStreamApiException, InterruptedException;
+
+    /**
+     * Get the history (list of KvEntry) for a key
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @param key the key
+     * @return List of KvEntry
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
+     */
+    List<KeyValueEntry> history(String key) throws IOException, JetStreamApiException, InterruptedException;
+
+    /**
+     * Remove all current delete markers
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
+     */
+    void purgeDeletes() throws IOException, JetStreamApiException, InterruptedException;
+
+    /**
+     * Get the KeyValueStatus object
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @return the status object
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
+     */
+    KeyValueStatus getStatus() throws IOException, JetStreamApiException, InterruptedException;
 }

@@ -123,9 +123,11 @@ public class ValidatorTests {
     @Test
     public void testValidateMaxHistory() {
         assertEquals(1, validateMaxHistory(1));
-        assertEquals(-1, validateMaxHistory(-1));
-        assertThrows(IllegalArgumentException.class, () -> validateMaxHistory(0));
-        assertThrows(IllegalArgumentException.class, () -> validateMaxHistory(-2));
+        assertEquals(1, validateMaxHistory(0));
+        assertEquals(1, validateMaxHistory(-1));
+        assertEquals(1, validateMaxHistory(-2));
+        assertEquals(64, validateMaxHistory(64));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxHistory(65));
     }
 
     @Test
@@ -224,56 +226,66 @@ public class ValidatorTests {
 
     @Test
     public void testValidateBucketNameRequired() {
-        validateBucketNameRequired(PLAIN);
-        validateBucketNameRequired(PLAIN.toUpperCase());
-        validateBucketNameRequired(HAS_DASH);
-        validateBucketNameRequired(HAS_UNDER);
-        validateBucketNameRequired("numbers9ok");
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(null));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_SPACE));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_DOT));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_STAR));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_GT));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_DOLLAR));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_LOW));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_127));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_FWD_SLASH));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_EQUALS));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_TIC));
+        validateKvBucketNameRequired(PLAIN);
+        validateKvBucketNameRequired(PLAIN.toUpperCase());
+        validateKvBucketNameRequired(HAS_DASH);
+        validateKvBucketNameRequired(HAS_UNDER);
+        validateKvBucketNameRequired("numbers9ok");
+        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(null));
+        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_DOT));
+        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_STAR));
+        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_GT));
+        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_FWD_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_EQUALS));
+        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_TIC));
     }
 
     @Test
-    public void testValidateKeyRequired() {
-        validateKeyRequired(PLAIN);
-        validateKeyRequired(PLAIN.toUpperCase());
-        validateKeyRequired(HAS_DASH);
-        validateKeyRequired(HAS_UNDER);
-        validateKeyRequired(HAS_FWD_SLASH);
-        validateKeyRequired(HAS_EQUALS);
-        validateKeyRequired(HAS_DOT);
-        validateKeyRequired("numbers9ok");
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(null));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_SPACE));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_STAR));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_GT));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_DOLLAR));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_LOW));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_127));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_TIC));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(".starts.with.dot.not.allowed"));
+    public void testValidateWildcardKeyRequired() {
+        validateWildcardKvKeyRequired(PLAIN);
+        validateWildcardKvKeyRequired(PLAIN.toUpperCase());
+        validateWildcardKvKeyRequired(HAS_DASH);
+        validateWildcardKvKeyRequired(HAS_UNDER);
+        validateWildcardKvKeyRequired(HAS_FWD_SLASH);
+        validateWildcardKvKeyRequired(HAS_EQUALS);
+        validateWildcardKvKeyRequired(HAS_DOT);
+        validateWildcardKvKeyRequired(HAS_STAR);
+        validateWildcardKvKeyRequired(HAS_GT);
+        validateWildcardKvKeyRequired("numbers9ok");
+        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired(null));
+        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired(HAS_TIC));
+        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired("colon:isbetween9andA"));
+        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired(".starts.with.dot.not.allowed"));
     }
 
     @Test
-    public void testValidateNotSupplied() {
-        NatsJetStreamClientError err = new NatsJetStreamClientError("TEST", 999999, "desc");
-
-        // string version
-        validateNotSupplied((String)null, err);
-        validateNotSupplied("", err);
-        assertThrows(IllegalArgumentException.class, () -> validateNotSupplied("notempty", err));
-
-        validateNotSupplied(0, 0, err);
-        assertThrows(IllegalArgumentException.class, () -> validateNotSupplied(1, 0, err));
+    public void testValidateNonWildcardKeyRequired() {
+        validateNonWildcardKvKeyRequired(PLAIN);
+        validateNonWildcardKvKeyRequired(PLAIN.toUpperCase());
+        validateNonWildcardKvKeyRequired(HAS_DASH);
+        validateNonWildcardKvKeyRequired(HAS_UNDER);
+        validateNonWildcardKvKeyRequired(HAS_FWD_SLASH);
+        validateNonWildcardKvKeyRequired(HAS_EQUALS);
+        validateNonWildcardKvKeyRequired(HAS_DOT);
+        validateNonWildcardKvKeyRequired("numbers9ok");
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(null));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_STAR));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_GT));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_TIC));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired("colon:isbetween9andA"));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(".starts.with.dot.not.allowed"));
     }
 
     @Test

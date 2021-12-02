@@ -41,7 +41,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
     // ----------------------------------------------------------------------------------------------------
     // Management that is also needed by regular context
     // ----------------------------------------------------------------------------------------------------
-    protected ConsumerInfo _getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException {
+    ConsumerInfo _getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_CONSUMER_INFO, streamName, consumer);
         Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
@@ -61,7 +61,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         return new ConsumerInfo(resp).throwOnHasError();
     }
 
-    protected StreamInfo _getStreamInfo(String streamName) throws IOException, JetStreamApiException {
+    StreamInfo _getStreamInfo(String streamName) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_STREAM_INFO, streamName);
         Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new StreamInfo(resp).throwOnHasError();
@@ -70,7 +70,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
     // ----------------------------------------------------------------------------------------------------
     // Request Utils
     // ----------------------------------------------------------------------------------------------------
-    protected Message makeRequestResponseRequired(String subject, byte[] bytes, Duration timeout) throws IOException {
+    Message makeRequestResponseRequired(String subject, byte[] bytes, Duration timeout) throws IOException {
         try {
             return responseRequired(conn.request(prependPrefix(subject), bytes, timeout));
         } catch (InterruptedException e) {
@@ -78,7 +78,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         }
     }
 
-    protected Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timeout, boolean cancelOn503) throws IOException {
+    Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timeout, boolean cancelOn503) throws IOException {
         try {
             return responseRequired(conn.requestInternal(subject, headers, data, utf8mode, timeout, cancelOn503));
         } catch (InterruptedException e) {
@@ -86,14 +86,14 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         }
     }
 
-    protected Message responseRequired(Message respMessage) throws IOException {
+    Message responseRequired(Message respMessage) throws IOException {
         if (respMessage == null) {
             throw new IOException("Timeout or no response waiting for NATS JetStream server");
         }
         return respMessage;
     }
 
-    protected String prependPrefix(String subject) {
+    String prependPrefix(String subject) {
         return jso.getPrefix() + subject;
     }
 }

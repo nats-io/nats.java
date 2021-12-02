@@ -55,12 +55,16 @@ public abstract class Validator {
         });
     }
 
-    public static String validateBucketNameRequired(String s) {
+    public static String validateKvBucketNameRequired(String s) {
         return validateKvBucketName(s, "Bucket name", true);
     }
 
-    public static String validateKeyRequired(String s) {
-        return validateKvKey(s, "Key", true);
+    public static String validateWildcardKvKeyRequired(String s) {
+        return validateWildcardKvKey(s, "Key", true);
+    }
+
+    public static String validateNonWildcardKvKeyRequired(String s) {
+        return validateNonWildcardKvKey(s, "Key", true);
     }
 
     public static void validateNotSupplied(String s, NatsJetStreamClientError err) {
@@ -139,6 +143,15 @@ public abstract class Validator {
         });
     }
 
+    public static String validatePrintableExceptWildGt(String s, String label, boolean required) {
+        return _validate(s, required, label, () -> {
+            if (notPrintableOrHasWildGt(s)) {
+                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*` or `>` [" + s + "]");
+            }
+            return s;
+        });
+    }
+
     public static String validateKvBucketName(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
             if (notRestrictedTerm(s)) {
@@ -148,19 +161,19 @@ public abstract class Validator {
         });
     }
 
-    public static String validateKvKey(String s, String label, boolean required) {
+    public static String validateWildcardKvKey(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
-            if (notKvKey(s)) {
-                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `-`, `_`, `/`, `=` or `.` and cannot start with `.` [" + s + "]");
+            if (notWildcardKvKey(s)) {
+                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `*`, `-`, `_`, `/`, `=`, `>` or `.` and cannot start with `.` [" + s + "]");
             }
             return s;
         });
     }
 
-    public static String validatePrintableExceptWildGt(String s, String label, boolean required) {
+    public static String validateNonWildcardKvKey(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
-            if (notPrintableOrHasWildGt(s)) {
-                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*` or `>` [" + s + "]");
+            if (notNonWildcardKvKey(s)) {
+                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `-`, `_`, `/`, `=` or `.` and cannot start with `.` [" + s + "]");
             }
             return s;
         });
@@ -189,8 +202,14 @@ public abstract class Validator {
         return validateGtZeroOrMinus1(max, "Max Messages Per Subject");
     }
 
-    public static long validateMaxHistory(long max) {
-        return validateGtZeroOrMinus1(max, "Max History Per Key"); // max history is a kv alias to max per subject
+    public static int validateMaxHistory(int max) {
+        if (max < 2) {
+            return 1;
+        }
+        if (max > 64) {
+            throw new IllegalArgumentException("Max History Per Key cannot be more than 64.");
+        }
+        return max;
     }
 
     public static long validateMaxBytes(long max) {
@@ -240,18 +259,14 @@ public abstract class Validator {
         return Duration.ofMillis(millis);
     }
 
-
     public static Duration validateDurationNotRequiredNotLessThanMin(Duration provided, Duration minimum) {
-        if (provided != null && provided.toNanos() < minimum.toNanos())
-        {
+        if (provided != null && provided.toNanos() < minimum.toNanos()) {
             throw new IllegalArgumentException("Duration must be greater than or equal to " + minimum.toNanos() + " nanos.");
         }
-
         return provided;
     }
 
-    public static Duration validateDurationNotRequiredNotLessThanMin(long millis, Duration minimum)
-    {
+    public static Duration validateDurationNotRequiredNotLessThanMin(long millis, Duration minimum) {
         return validateDurationNotRequiredNotLessThanMin(Duration.ofMillis(millis), minimum);
     }
 
@@ -353,16 +368,16 @@ public abstract class Validator {
         return false;
     }
 
-    // limited-term = (A-Z, a-z, 0-9, dash 45, underscore 95, fwd-slash 47, equals 61)+
+    // limited-term = (A-Z, a-z, 0-9, dash 45, dot 46, fwd-slash 47, equals 61, underscore 95)+
     // kv-key-name = limited-term (dot limited-term)*
-    public static boolean notKvKey(String s) {
+    public static boolean notNonWildcardKvKey(String s) {
         if (s.charAt(0) == '.') {
             return true; // can't start with dot
         }
         for (int x = 0; x < s.length(); x++) {
             char c = s.charAt(x);
             if (c < '0') { // before 0
-                if (c == '-' || c == '.' || c == '/') { // only dash dot and and fwd slash are accepted
+                if (c == '-' || c == '.' || c == '/') { // only dash dot and fwd slash are accepted
                     continue;
                 }
                 return true; // "not"
@@ -372,6 +387,44 @@ public abstract class Validator {
             }
             if (c < 'A') {
                 if (c == '=') { // equals is accepted
+                    continue;
+                }
+                return true; // between 9 and A is "not limited"
+            }
+            if (c < '[') {
+                continue; // means it's A - Z
+            }
+            if (c < 'a') { // before a
+                if (c == '_') { // only underscore is accepted
+                    continue;
+                }
+                return true; // "not"
+            }
+            if (c > 'z') { // 122 is z, characters after of them are "not limited"
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //  (A-Z, a-z, 0-9, star 42, dash 45, dot 46, fwd-slash 47, equals 61, gt 62, underscore 95)+
+    public static boolean notWildcardKvKey(String s) {
+        if (s.charAt(0) == '.') {
+            return true; // can't start with dot
+        }
+        for (int x = 0; x < s.length(); x++) {
+            char c = s.charAt(x);
+            if (c < '0') { // before 0
+                if (c == '*' || c == '-' || c == '.' || c == '/') { // only star dash dot and fwd slash are accepted
+                    continue;
+                }
+                return true; // "not"
+            }
+            if (c < ':') {
+                continue; // means it's 0 - 9
+            }
+            if (c < 'A') {
+                if (c == '=' || c == '>') { // equals, gt is accepted
                     continue;
                 }
                 return true; // between 9 and A is "not limited"

@@ -19,6 +19,7 @@ import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.NatsMessage.ProtocolMessage;
 import io.nats.client.support.ByteArrayBuilder;
 import io.nats.client.support.NatsRequestCompletableFuture;
+import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -1936,18 +1937,20 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public KeyValue keyValue(String bucket) throws IOException {
+    public KeyValue keyValue(String bucketName) throws IOException {
+        Validator.validateKvBucketNameRequired(bucketName);
         ensureNotClosing();
-        return new NatsKeyValue(bucket, this, null);
+        return new NatsKeyValue(this, bucketName, null);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public KeyValue keyValue(String bucket, JetStreamOptions options) throws IOException {
+    public KeyValue keyValue(String bucketName, JetStreamOptions options) throws IOException {
+        Validator.validateKvBucketNameRequired(bucketName);
         ensureNotClosing();
-        return new NatsKeyValue(bucket, this, options);
+        return new NatsKeyValue(this, bucketName, options);
     }
 
     /**

@@ -13,10 +13,13 @@
 
 package io.nats.client.support;
 
-import io.nats.client.api.KvOperation;
+import io.nats.client.Message;
+import io.nats.client.api.KeyValueOperation;
 import io.nats.client.impl.Headers;
 
 import static io.nats.client.support.NatsConstants.DOT;
+import static io.nats.client.support.NatsJetStreamConstants.ROLLUP_HDR;
+import static io.nats.client.support.NatsJetStreamConstants.ROLLUP_HDR_SUBJECT;
 
 public abstract class NatsKeyValueUtil {
 
@@ -27,6 +30,17 @@ public abstract class NatsKeyValueUtil {
     public static final String KV_SUBJECT_PREFIX = "$KV.";
     public static final String KV_SUBJECT_SUFFIX = ".>";
     public static final String KV_OPERATION_HEADER_KEY = "KV-Operation";
+
+    public final static Headers DELETE_HEADERS;
+    public final static Headers PURGE_HEADERS;
+
+    static {
+        DELETE_HEADERS = new Headers()
+            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.DEL.name());
+        PURGE_HEADERS = new Headers()
+            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.PURGE.name())
+            .put(ROLLUP_HDR, ROLLUP_HDR_SUBJECT);
+    }
 
     public static String streamName(String bucketName) {
         return KV_STREAM_PREFIX + bucketName;
@@ -44,11 +58,26 @@ public abstract class NatsKeyValueUtil {
         return KV_SUBJECT_PREFIX + bucketName + DOT + key;
     }
 
-    public static Headers addDeleteHeader(Headers h) {
-        return h.put(KV_OPERATION_HEADER_KEY, KvOperation.DEL.name());
+    public static String getOperationHeader(Headers h) {
+        return h == null ? null : h.getFirst(KV_OPERATION_HEADER_KEY);
     }
 
-    public static String getHeader(Headers h) {
-        return h == null ? null : h.getFirst(KV_OPERATION_HEADER_KEY);
+    public static KeyValueOperation getOperation(Headers h, KeyValueOperation dflt) {
+        return KeyValueOperation.getOrDefault(getOperationHeader(h), dflt);
+    }
+
+    public static class BucketAndKey {
+        public final String bucket;
+        public final String key;
+
+        public BucketAndKey(Message m) {
+            this(m.getSubject());
+        }
+
+        public BucketAndKey(String subject) {
+            String[] split = subject.split("\\Q.\\E");
+            bucket = split[1];
+            key = split[2];
+        }
     }
 }

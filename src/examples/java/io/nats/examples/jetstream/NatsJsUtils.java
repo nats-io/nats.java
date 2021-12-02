@@ -69,7 +69,7 @@ public class NatsJsUtils {
         }
     }
 
-    public static StreamInfo createStream(JetStreamManagement jsm, String streamName, StorageType storageType, String[] subjects) throws IOException, JetStreamApiException {
+    public static StreamInfo createStream(JetStreamManagement jsm, String streamName, StorageType storageType, String... subjects) throws IOException, JetStreamApiException {
         // Create a stream, here will use a file storage type, and one subject,
         // the passed subject.
         StreamConfiguration sc = StreamConfiguration.builder()

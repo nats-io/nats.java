@@ -10,27 +10,18 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package io.nats.client.api;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
- * Key Value Operations Enum
+ * Use the KeyValueWatcher interface to watch for updates
  */
-public enum KvOperation {
-    PUT, DEL;
+public interface KeyValueWatcher {
 
-    private static final Map<String, KvOperation> strEnumHash = new HashMap<>();
-
-    static {
-        for (KvOperation kvo : KvOperation.values()) {
-            strEnumHash.put(kvo.name(), kvo);
-        }
-    }
-
-    public static KvOperation getOrDefault(String s, KvOperation dflt) {
-        KvOperation kvo = s == null ? null : strEnumHash.get(s.toUpperCase());
-        return kvo == null ? dflt : kvo;
-    }
+    /**
+     * Called when a key has been updated
+     *
+     * @param kve The entry for the updated key
+     */
+    void update(KeyValueEntry kve);
 }
