@@ -20,6 +20,7 @@ import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -197,13 +198,27 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     // ----------------------------------------------------------------------------------------------------
     // Subscribe
     // ----------------------------------------------------------------------------------------------------
-    private static PushSubscribeOptions DEFAULT_PUSH_OPTS = PushSubscribeOptions.builder().build();
+    private static final PushSubscribeOptions DEFAULT_PUSH_OPTS = PushSubscribeOptions.builder().build();
 
-    NatsJetStreamSubscription createSubscription(String subject,
+    static class SidCheckManager extends MessageManager {
+        @Override
+        boolean manage(Message msg) {
+            return !sub.getSID().equals(msg.getSID());
+        }
+    }
+
+    interface PushStatusMessageManagerFactory {
+        PushStatusMessageManager createPushStatusMessageManager(
+            NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode);
+    }
+
+    static PushStatusMessageManagerFactory PUSH_STATUS_MANAGER_FACTORY = PushStatusMessageManager::new;
+
+    JetStreamSubscription createSubscription(String subject,
                                                  String queueName,
-                                                 final NatsDispatcher dispatcher,
-                                                 final MessageHandler userHandler,
-                                                 final boolean autoAck,
+                                                 NatsDispatcher dispatcher,
+                                                 MessageHandler userHandler,
+                                                 boolean isAutoAck,
                                                  PushSubscribeOptions pushSubscribeOptions,
                                                  PullSubscribeOptions pullSubscribeOptions
     ) throws IOException, JetStreamApiException {
@@ -236,6 +251,9 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
             // figure out the queue name
             qgroup = validateMustMatchIfBothSupplied(userCC.getDeliverGroup(), queueName, JsSubQueueDeliverGroupMismatch);
+            if (so.isOrdered() && qgroup != null) {
+                throw JsSubOrderedNotAllowOnQueues.instance();
+            }
         }
 
         // 2A. Flow Control / heartbeat not always valid
@@ -249,11 +267,15 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
 
         // 2B. Did they tell me what stream? No? look it up.
+        final String fnlStream;
         if (stream == null) {
-            stream = lookupStreamBySubject(subject);
-            if (stream == null) {
+            fnlStream = lookupStreamBySubject(subject);
+            if (fnlStream == null) {
                 throw JsSubNoMatchingStreamForSubject.instance();
             }
+        }
+        else {
+            fnlStream = stream;
         }
 
         ConsumerConfiguration serverCC = null;
@@ -262,14 +284,15 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         // 3. Does this consumer already exist?
         if (consumerName != null) {
-            ConsumerInfo serverInfo = lookupConsumerInfo(stream, consumerName);
+            ConsumerInfo serverInfo = lookupConsumerInfo(fnlStream, consumerName);
 
             if (serverInfo != null) { // the consumer for that durable already exists
                 serverCC = serverInfo.getConsumerConfiguration();
 
                 // check to see if the user sent a different version than the server has
                 // because modifications are not allowed during create subscription
-                if (userCC.wouldBeChangeTo(serverCC)) {
+                ConsumerConfigurationComparer userCCC = new ConsumerConfigurationComparer(userCC);
+                if (userCCC.wouldBeChangeTo(serverCC)) {
                     throw JsSubExistingConsumerCannotBeModified.instance();
                 }
 
@@ -293,7 +316,6 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                         }
                     }
                     else { // else they requested a queue but this durable was not configured as queue
-                        // THIS CODE LEFT IN
                         throw JsSubExistingConsumerNotQueue.instance();
                     }
                 }
@@ -308,7 +330,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 if (subject == null) { // allowed if they had given both stream and durable
                     subject = userCC.getFilterSubject();
                 }
-                else if (!isFilterMatch(subject, serverCC.getFilterSubject(), stream)) {
+                else if (!isFilterMatch(subject, serverCC.getFilterSubject(), fnlStream)) {
                     throw JsSubSubjectDoesNotMatchFilter.instance();
                 }
 
@@ -320,72 +342,139 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
 
         // 4. If no deliver subject (inbox) provided or found, make an inbox.
-        if (inboxDeliver == null) {
-            inboxDeliver = conn.createInbox();
-        }
+        final String fnlInboxDeliver = inboxDeliver == null ? conn.createInbox() : inboxDeliver;
 
         // 5. If consumer does not exist, create
+        final String fnlConsumerName;
+        final ConsumerConfiguration fnlServerCC;
         if (serverCC == null) {
             ConsumerConfiguration.Builder ccBuilder = ConsumerConfiguration.builder(userCC);
 
             // Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
             if (!isPullMode) {
-                ccBuilder.deliverSubject(inboxDeliver);
+                ccBuilder.deliverSubject(fnlInboxDeliver);
             }
 
             if (userCC.getFilterSubject() == null) {
                 ccBuilder.filterSubject(subject);
             }
 
-            if (userCC.getDeliverGroup() == null && qgroup != null) {
-                ccBuilder.deliverGroup(qgroup);
-            }
+            ccBuilder.deliverGroup(qgroup);
 
             // createOrUpdateConsumer can fail for security reasons, maybe other reasons?
-            ConsumerInfo ci = _createConsumer(stream, ccBuilder.build());
-            consumerName = ci.getName();
-            serverCC = ci.getConsumerConfiguration();
+            ConsumerInfo ci = _createConsumer(fnlStream, ccBuilder.build());
+            fnlConsumerName = ci.getName();
+            fnlServerCC = ci.getConsumerConfiguration();
+        }
+        else {
+            fnlConsumerName = consumerName;
+            fnlServerCC = serverCC;
         }
 
         // 6. create the subscription. lambda needs final or effectively final vars
-        final String fnlStream = stream;
-        final String fnlConsumerName = consumerName;
-        final String fnlInboxDeliver = inboxDeliver;
-
-        final AutoStatusManager asm = isPullMode
-            ? new PullAutoStatusManager()
-            : new PushAutoStatusManager(conn, so, serverCC, qgroup != null, dispatcher == null);
-
-        NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
-            -> NatsJetStreamSubscription.getInstance(sid, lSubject, lQgroup, lConn, lDispatcher,
-            asm, this, isPullMode, fnlStream, fnlConsumerName, fnlInboxDeliver);
+        final MessageManager statusManager = isPullMode
+            ? new PullStatusMessageManager()
+            : PUSH_STATUS_MANAGER_FACTORY.createPushStatusMessageManager(conn, so, fnlServerCC, qgroup != null, dispatcher == null);
 
         NatsJetStreamSubscription sub;
-        if (dispatcher == null) {
-            sub = (NatsJetStreamSubscription) conn.createSubscription(inboxDeliver, qgroup, null, factory);
+        if (isPullMode) {
+            final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
+                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, this, fnlStream, fnlConsumerName, statusManager);
+            sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
         }
         else {
-            MessageHandler handler;
-            if (autoAck && serverCC.getAckPolicy() != AckPolicy.None) {
-                handler = msg -> {
-                    if (asm.manage(msg)) { return; }  // manager handled the message
-                    userHandler.onMessage(msg);
-                    if (msg.lastAck() == null || msg.lastAck() == AckType.AckProgress) {
-                        msg.ack();
-                    }
-                };
+            final MessageManager sidCheckManager = so.isOrdered() ? new SidCheckManager() : null;
+
+            final MessageManager orderedManager = so.isOrdered()
+                ? new OrderedManager(this, dispatcher, fnlStream, fnlServerCC)
+                : null;
+
+            final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
+                -> new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,
+                this, fnlStream, fnlConsumerName, sidCheckManager, statusManager, orderedManager);
+
+            if (dispatcher == null) {
+                sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
             }
             else {
-                handler = msg -> {
-                    if (asm.manage(msg)) { return; }  // manager handled the message
-                    userHandler.onMessage(msg);
-                };
+                AsyncMessageHandler handler = new AsyncMessageHandler(userHandler, isAutoAck, fnlServerCC, sidCheckManager, statusManager, orderedManager);
+                sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(fnlInboxDeliver, qgroup, handler, factory);
             }
-            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(inboxDeliver, qgroup, handler, factory);
         }
 
-        asm.setSub(sub);
         return sub;
+    }
+
+    static class ConsumerConfigurationComparer extends ConsumerConfiguration {
+        public ConsumerConfigurationComparer(ConsumerConfiguration cc) {
+            super(cc);
+        }
+
+        public boolean wouldBeChangeTo(ConsumerConfiguration serverCc) {
+            ConsumerConfigurationComparer serverCcc = new ConsumerConfigurationComparer(serverCc);
+            return (deliverPolicy != null && deliverPolicy != serverCcc.getDeliverPolicy())
+                || (ackPolicy != null && ackPolicy != serverCcc.getAckPolicy())
+                || (replayPolicy != null && replayPolicy != serverCcc.getReplayPolicy())
+
+                || (flowControl != null && flowControl != serverCcc.isFlowControl())
+                || (headersOnly != null && headersOnly != serverCcc.isHeadersOnly())
+
+                || CcNumeric.START_SEQ.wouldBeChange(startSeq, serverCcc.startSeq)
+                || CcNumeric.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.maxDeliver)
+                || CcNumeric.RATE_LIMIT.wouldBeChange(rateLimit, serverCcc.rateLimit)
+                || CcNumeric.MAX_ACK_PENDING.wouldBeChange(maxAckPending, serverCcc.maxAckPending)
+                || CcNumeric.MAX_PULL_WAITING.wouldBeChange(maxPullWaiting, serverCcc.maxPullWaiting)
+
+                || (ackWait != null && !ackWait.equals(serverCcc.ackWait))
+                || (idleHeartbeat != null && !idleHeartbeat.equals(serverCcc.idleHeartbeat))
+                || (startTime != null && !startTime.equals(serverCcc.startTime))
+
+                || (filterSubject != null && !filterSubject.equals(serverCcc.filterSubject))
+                || (description != null && !description.equals(serverCcc.description))
+                || (sampleFrequency != null && !sampleFrequency.equals(serverCcc.sampleFrequency))
+                || (deliverSubject != null && !deliverSubject.equals(serverCcc.deliverSubject))
+                || (deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup))
+                ;
+
+            // do not need to check Durable because the original is retrieved by the durable name
+        }
+    }
+
+    static class AsyncMessageHandler implements MessageHandler {
+        List<MessageManager> managers;
+        List<MessageHandler> handlers;
+
+        public AsyncMessageHandler(MessageHandler userHandler, boolean isAutoAck, ConsumerConfiguration fnlServerCC, MessageManager ... managers) {
+            handlers = new ArrayList<>();
+            handlers.add(userHandler);
+            if (isAutoAck && fnlServerCC.getAckPolicy() != AckPolicy.None) {
+                handlers.add(m -> {
+                    if (m.lastAck() == null || m.lastAck() == AckType.AckProgress) {
+                        m.ack();
+                    }
+                });
+            };
+
+            this.managers = new ArrayList<>();
+            for (MessageManager mm : managers) {
+                if (mm != null) {
+                    this.managers.add(mm);
+                }
+            }
+        }
+
+        @Override
+        public void onMessage(Message msg) throws InterruptedException {
+            for (MessageManager mm : managers) {
+                if (mm.manage(msg)) {
+                    return;
+                }
+            }
+
+            for (MessageHandler mh : handlers) {
+                mh.onMessage(msg);
+            }
+        }
     }
 
     private boolean isFilterMatch(String subscribeSubject, String filterSubject, String stream) throws IOException, JetStreamApiException {

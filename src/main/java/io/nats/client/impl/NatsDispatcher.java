@@ -88,20 +88,21 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
                     sub.incrementDeliveredCount();
                     this.incrementDeliveredCount();
 
-                    MessageHandler currentHandler = this.defaultHandler;
-                    MessageHandler customHandler = this.subscriptionHandlers.get(sub.getSID());
-                    if (customHandler != null) {
-                        currentHandler = customHandler;
+                    MessageHandler handler = this.subscriptionHandlers.get(sub.getSID());
+                    if (handler == null) {
+                        handler = defaultHandler;
                     }
 
-                    try {
-                        currentHandler.onMessage(msg);
-                    } catch (Exception exp) {
-                        this.connection.processException(exp);
-                    }
+                    if (handler != null) {
+                        try {
+                            handler.onMessage(msg);
+                        } catch (Exception exp) {
+                            this.connection.processException(exp);
+                        }
 
-                    if (sub.reachedUnsubLimit()) {
-                        this.connection.invalidate(sub);
+                        if (sub.reachedUnsubLimit()) {
+                            this.connection.invalidate(sub);
+                        }
                     }
                 }
 
@@ -184,7 +185,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             this.subscriptionHandlers.remove(sub.getSID());
         } else {
             NatsSubscription s = this.subscriptionsUsingDefaultHandler.get(sub.getSubject());
-            if (s.getSID() == sub.getSID()) {
+            if (s.getSID().equals(sub.getSID())) {
                 this.subscriptionsUsingDefaultHandler.remove(sub.getSubject());
             }
         }
@@ -276,6 +277,13 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         this.subscriptionsWithHandlers.put(sub.getSID(), sub);
         this.subscriptionHandlers.put(sub.getSID(), handler);
         return sub;
+    }
+
+    String reSubscribe(NatsSubscription sub, String subject, String queueName, MessageHandler handler) {
+        String sid = connection.reSubscribe(sub, subject, queueName);
+        this.subscriptionsWithHandlers.put(sid, sub);
+        this.subscriptionHandlers.put(sid, handler);
+        return sid;
     }
 
     private void checkBeforeSubImpl() {

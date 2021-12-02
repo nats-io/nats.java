@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.Dispatcher;
 import io.nats.client.Message;
+import io.nats.client.MessageHandler;
 import io.nats.client.Subscription;
 
 import java.time.Duration;
@@ -24,13 +25,13 @@ import java.util.function.Function;
 class NatsSubscription extends NatsConsumer implements Subscription {
 
     private String subject;
-    private String queueName;
+    private final String queueName;
     private String sid;
 
     private NatsDispatcher dispatcher;
     private MessageQueue incoming;
 
-    private AtomicLong unSubMessageLimit;
+    private final AtomicLong unSubMessageLimit;
 
     private Function<NatsMessage, NatsMessage> beforeQueueProcessor;
 
@@ -48,6 +49,40 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         }
 
         beforeQueueProcessor = m -> m;
+    }
+
+    void reSubscribe(String deliverSubject) {
+        // first unsubscribe
+        MessageHandler handler = null;
+        try {
+            if (dispatcher == null) {
+                unsubscribe();
+            }
+            else {
+                NatsDispatcher d = dispatcher; // unsubscribe eventually calls invalidate which nulls out dispatcher
+                handler = dispatcher.getSubscriptionHandlers().get(sid);
+                dispatcher.unsubscribe(this);
+                dispatcher = d;
+            }
+            connection.lenientFlushBuffer();
+        }
+        catch (RuntimeException re) {
+            IllegalStateException ise = new IllegalStateException("Subscription fatal error.", re);
+            connection.processException(ise);
+            if (dispatcher == null) {
+                throw ise;
+            }
+        }
+
+        // resubscribe to the server with a new deliver subject and a new queue
+        this.subject = deliverSubject;
+        if (this.dispatcher == null) {
+            this.incoming = new MessageQueue(false);
+            sid = connection.reSubscribe(this, deliverSubject, queueName);
+        }
+        else {
+            sid = dispatcher.reSubscribe(this, subject, queueName, handler);
+        }
     }
 
     public boolean isActive() {
@@ -80,15 +115,13 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         return (max > 0) && (max <= recv);
     }
 
-    @Override
-    public String getSID() {
+    String getSID() {
         return this.sid;
     }
 
     NatsDispatcher getNatsDispatcher() {
         return this.dispatcher;
     }
-
     /**
      * {@inheritDoc}
      */

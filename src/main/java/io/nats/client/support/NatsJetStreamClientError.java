@@ -22,10 +22,17 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError JsSubExistingQueueDoesNotMatchRequestedQueue = new NatsJetStreamClientError(SUB, 90015, "Existing consumer deliver group does not match requested queue / deliver group.");
     public static final NatsJetStreamClientError JsSubExistingConsumerCannotBeModified = new NatsJetStreamClientError(SUB, 90016, "Existing consumer cannot be modified.");
     public static final NatsJetStreamClientError JsSubConsumerNotFoundRequiredInBind = new NatsJetStreamClientError(SUB, 90017, "Consumer not found, required in bind mode.");
+    public static final NatsJetStreamClientError JsSubOrderedNotAllowOnQueues = new NatsJetStreamClientError(SUB, 90018, "Ordered consumer not allowed on queues.");
 
     public static final NatsJetStreamClientError JsSoDurableMismatch = new NatsJetStreamClientError(SO, 90101, "Builder durable must match the consumer configuration durable if both are provided.");
     public static final NatsJetStreamClientError JsSoDeliverGroupMismatch = new NatsJetStreamClientError(SO, 90102, "Builder deliver group must match the consumer configuration deliver group if both are provided.");
-    public static final NatsJetStreamClientError JsSoDeliverSubjectGroupMismatch = new NatsJetStreamClientError(SO, 90103, "Builder deliver subject must match the consumer configuration deliver subject if both are provided.");
+    public static final NatsJetStreamClientError JsSoDeliverSubjectMismatch = new NatsJetStreamClientError(SO, 90103, "Builder deliver subject must match the consumer configuration deliver subject if both are provided.");
+    public static final NatsJetStreamClientError JsSoOrderedNotAllowedWithBind = new NatsJetStreamClientError(SO, 90104, "Bind is not allowed with an ordered consumer.");
+    public static final NatsJetStreamClientError JsSoOrderedNotAllowedWithDeliverGroup = new NatsJetStreamClientError(SO, 90105, "Deliver group is not allowed with an ordered consumer.");
+    public static final NatsJetStreamClientError JsSoOrderedNotAllowedWithDurable = new NatsJetStreamClientError(SO, 90106, "Durable is not allowed with an ordered consumer.");
+    public static final NatsJetStreamClientError JsSoOrderedNotAllowedWithDeliverSubject = new NatsJetStreamClientError(SO, 90107, "Deliver subject is not allowed with an ordered consumer.");
+    public static final NatsJetStreamClientError JsSoOrderedRequiresAckPolicyNone = new NatsJetStreamClientError(SO, 90108, "Deliver subject is not allowed with an ordered consumer.");
+    public static final NatsJetStreamClientError JsSoOrderedRequiresMaxDeliver = new NatsJetStreamClientError(SO, 90109, "Max deliver is limited to 1 with an ordered consumer.");
 
     private final String id;
     private final String message;

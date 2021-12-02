@@ -536,12 +536,39 @@ messages, one for each message the previous batch was short. You can just ignore
 See `NatsJsPullSubExpire.java` and `NatsJsPullSubExpireUseCases.java`
 in the JetStream examples for detailed and runnable examples.
 
-### Subscription Creation
+### Ordered Push Subscription Option
+
+You can now set a Push Subscription option called "Ordered". 
+When you set this flag, library will take over creation of the consumer and create a subscription that guarantees the order of messages.
+This consumer will use flow control with a default heartbeat of 5 seconds. Messages will not require acks as the Ack Policy will be set to No Ack.
+When creating the subscription, there are some restrictions for the consumer configuration settings.
+
+- Ack policy must be AckPolicy.None (or left un-set). maxAckPending will be ignored.
+- Deliver Group (aka Queue) cannot be used
+- You cannot set a durable consumer name
+- You cannot set the deliver subject
+- max deliver can only be set to 1 (or left un-set)  
+- The idle heartbeat cannot be less than 5 seconds. Flow control will automatically be used.
+
+You can however set the deliver policy which will be used to start the subscription. 
+
+### Subscription Creation Checks
 
 Subscription creation has many checks to make sure that a valid, operable subscription can be made.
+`SO` group are validations that can occur when building push or pull subscribe options. 
+`SUB` group are validations that occur when creating a subscription. 
 
 | Name | Group | Code | Description |
 | --- | --- | --- | --- |
+| JsSoDurableMismatch | SO | 90101 | Builder durable must match the consumer configuration durable if both are provided. |
+| JsSoDeliverGroupMismatch | SO | 90102 | Builder deliver group must match the consumer configuration deliver group if both are provided. |
+| JsSoDeliverSubjectMismatch | SO | 90103 | Builder deliver subject must match the consumer configuration deliver subject if both are provided. |
+| JsSoOrderedNotAllowedWithBind | SO | 90104 | Bind is not allowed with an ordered consumer. |
+| JsSoOrderedNotAllowedWithDeliverGroup | SO | 90105 | Deliver group is not allowed with an ordered consumer. |
+| JsSoOrderedNotAllowedWithDurable | SO | 90106 | Durable is not allowed with an ordered consumer. |
+| JsSoOrderedNotAllowedWithDeliverSubject | SO | 90107 | Deliver subject is not allowed with an ordered consumer. |
+| JsSoOrderedRequiresAckPolicyNone | SO | 90108 | Deliver subject is not allowed with an ordered consumer. |
+| JsSoOrderedRequiresMaxDeliver | SO | 90109 | Max deliver is limited to 1 with an ordered consumer. |
 | JsSubPullCantHaveDeliverGroup | SUB | 90001 | Pull subscriptions can't have a deliver group. |
 | JsSubPullCantHaveDeliverSubject | SUB | 90002 | Pull subscriptions can't have a deliver subject. |
 | JsSubPushCantHaveMaxPullWaiting | SUB | 90003 | Push subscriptions cannot supply max pull waiting. |
@@ -551,6 +578,7 @@ Subscription creation has many checks to make sure that a valid, operable subscr
 | JsSubNoMatchingStreamForSubject | SUB | 90007 | No matching streams for subject. |
 | JsSubConsumerAlreadyConfiguredAsPush | SUB | 90008 | Consumer is already configured as a push consumer. |
 | JsSubConsumerAlreadyConfiguredAsPull | SUB | 90009 | Consumer is already configured as a pull consumer. |
+| _removed_ | SUB | 90010 | |
 | JsSubSubjectDoesNotMatchFilter | SUB | 90011 | Subject does not match consumer configuration filter. |
 | JsSubConsumerAlreadyBound | SUB | 90012 | Consumer is already bound to a subscription. |
 | JsSubExistingConsumerNotQueue | SUB | 90013 | Existing consumer is not configured as a queue / deliver group. |
@@ -558,6 +586,7 @@ Subscription creation has many checks to make sure that a valid, operable subscr
 | JsSubExistingQueueDoesNotMatchRequestedQueue | SUB | 90015 | Existing consumer deliver group does not match requested queue / deliver group. |
 | JsSubExistingConsumerCannotBeModified | SUB | 90016 | Existing consumer cannot be modified. |
 | JsSubConsumerNotFoundRequiredInBind | SUB | 90017 | Consumer not found, required in bind mode. |
+| JsSubOrderedNotAllowOnQueues | SUB | 90018 | Ordered consumer not allowed on queues. |
 
 ### Message Acknowledgements
 

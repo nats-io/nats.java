@@ -37,31 +37,53 @@ import static io.nats.client.support.Validator.validateDurationNotRequiredNotLes
 public class ConsumerConfiguration implements JsonSerializable {
 
     public static final Duration MIN_ACK_WAIT = Duration.ofNanos(1);
-    public static final Duration MIN_IDLE_HEARTBEAT = Duration.ZERO;
+    public static final Duration MIN_IDLE_HEARTBEAT = Duration.ofMillis(100);
 
-    private final DeliverPolicy deliverPolicy;
-    private final AckPolicy ackPolicy;
-    private final ReplayPolicy replayPolicy;
-    private final String description;
-    private final String durable;
-    private final String deliverSubject;
-    private final String deliverGroup;
-    private final String filterSubject;
-    private final String sampleFrequency;
-    private final ZonedDateTime startTime;
-    private final Duration ackWait;
-    private final Duration idleHeartbeat;
-    private final Long startSeq;
-    private final Long maxDeliver;
-    private final Long rateLimit;
-    private final Long maxAckPending;
-    private final Long maxPullWaiting;
-    private final Boolean flowControl;
-    private final Boolean headersOnly;
+    protected final DeliverPolicy deliverPolicy;
+    protected final AckPolicy ackPolicy;
+    protected final ReplayPolicy replayPolicy;
+    protected final String description;
+    protected final String durable;
+    protected final String deliverSubject;
+    protected final String deliverGroup;
+    protected final String filterSubject;
+    protected final String sampleFrequency;
+    protected final ZonedDateTime startTime;
+    protected final Duration ackWait;
+    protected final Duration idleHeartbeat;
+    protected final Long startSeq;
+    protected final Long maxDeliver;
+    protected final Long rateLimit;
+    protected final Long maxAckPending;
+    protected final Long maxPullWaiting;
+    protected final Boolean flowControl;
+    protected final Boolean headersOnly;
 
     private static DeliverPolicy GetOrDefault(DeliverPolicy p) { return p == null ? DeliverPolicy.All : p; }
     private static AckPolicy GetOrDefault(AckPolicy p) { return p == null ? AckPolicy.Explicit : p; }
     private static ReplayPolicy GetOrDefault(ReplayPolicy p) { return p == null ? ReplayPolicy.Instant : p; }
+
+    protected ConsumerConfiguration(ConsumerConfiguration cc) {
+        this.deliverPolicy = cc.deliverPolicy;
+        this.ackPolicy = cc.ackPolicy;
+        this.replayPolicy = cc.replayPolicy;
+        this.description = cc.description;
+        this.durable = cc.durable;
+        this.deliverSubject = cc.deliverSubject;
+        this.deliverGroup = cc.deliverGroup;
+        this.filterSubject = cc.filterSubject;
+        this.sampleFrequency = cc.sampleFrequency;
+        this.startTime = cc.startTime;
+        this.ackWait = cc.ackWait;
+        this.idleHeartbeat = cc.idleHeartbeat;
+        this.startSeq = cc.startSeq;
+        this.maxDeliver = cc.maxDeliver;
+        this.rateLimit = cc.rateLimit;
+        this.maxAckPending = cc.maxAckPending;
+        this.maxPullWaiting = cc.maxPullWaiting;
+        this.flowControl = cc.flowControl;
+        this.headersOnly = cc.headersOnly;
+    }
 
     // for the response from the server
     ConsumerConfiguration(String json) {
@@ -298,36 +320,88 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the header only flag indicating whether it's on or off
      * @return the flow control mode
      */
-    public boolean getHeadersOnly() {
+    public boolean isHeadersOnly() {
         return headersOnly != null && headersOnly;
     }
 
-    public boolean wouldBeChangeTo(ConsumerConfiguration original) {
-        return (deliverPolicy != null && deliverPolicy != original.deliverPolicy)
-            || (ackPolicy != null && ackPolicy != original.ackPolicy)
-            || (replayPolicy != null && replayPolicy != original.replayPolicy)
+    /**
+     * Gets whether deliver policy of this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean deliverPolicyWasSet() {
+        return deliverPolicy != null;
+    }
 
-            || (flowControl != null && flowControl != original.flowControl)
-            || (headersOnly != null && headersOnly != original.headersOnly)
+    /**
+     * Gets whether ack policy for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean ackPolicyWasSet() {
+        return ackPolicy != null;
+    }
 
-            || CcNumeric.START_SEQ.wouldBeChange(startSeq, original.startSeq)
-            || CcNumeric.MAX_DELIVER.wouldBeChange(maxDeliver, original.maxDeliver)
-            || CcNumeric.RATE_LIMIT.wouldBeChange(rateLimit, original.rateLimit)
-            || CcNumeric.MAX_ACK_PENDING.wouldBeChange(maxAckPending, original.maxAckPending)
-            || CcNumeric.MAX_PULL_WAITING.wouldBeChange(maxPullWaiting, original.maxPullWaiting)
+    /**
+     * Gets whether replay policy for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean replayPolicyWasSet() {
+        return replayPolicy != null;
+    }
 
-            || (ackWait != null && !ackWait.equals(original.ackWait))
-            || (idleHeartbeat != null && !idleHeartbeat.equals(original.idleHeartbeat))
-            || (startTime != null && !startTime.equals(original.startTime))
+    /**
+     * Gets whether start sequence for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean startSeqWasSet() {
+        return startSeq != null;
+    }
 
-            || (filterSubject != null && !filterSubject.equals(original.filterSubject))
-            || (description != null && !description.equals(original.description))
-            || (sampleFrequency != null && !sampleFrequency.equals(original.sampleFrequency))
-            || (deliverSubject != null && !deliverSubject.equals(original.deliverSubject))
-            || (deliverGroup != null && !deliverGroup.equals(original.deliverGroup))
-            ;
+    /**
+     * Gets whether max deliver for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean maxDeliverWasSet() {
+        return maxDeliver != null;
+    }
 
-        // do not need to check Durable because the original is retrieved by the durable name
+    /**
+     * Gets whether rate limit for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean rateLimitWasSet() {
+        return rateLimit != null;
+    }
+
+    /**
+     * Gets whether max ack pending for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean maxAckPendingWasSet() {
+        return maxAckPending != null;
+    }
+
+    /**
+     * Gets whether max pull waiting for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean maxPullWaitingWasSet() {
+        return maxPullWaiting != null;
+    }
+
+    /**
+     * Gets whether flow control for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean flowControlWasSet() {
+        return flowControl != null;
+    }
+
+    /**
+     * Gets whether headers only for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean headersOnlyWasSet() {
+        return headersOnly != null;
     }
 
     /**
@@ -728,6 +802,12 @@ public class ConsumerConfiguration implements JsonSerializable {
             '}';
     }
 
+    /**
+     * INTERNAL CLASS ONLY, SUBJECT TO CHANGE
+     * Helper class to identify the initial or default value of a numeric field
+     * and to make it easy to compare to other instances where the server provides
+     * a default value.
+     */
     public enum CcNumeric {
         START_SEQ(1, -1, -1),
         MAX_DELIVER(1, -1, -1),
@@ -751,10 +831,6 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         long valueOrInitial(Long val) {
             return val == null ? initial : val;
-        }
-
-        long initial(long val) {
-            return val < min ? initial : val;
         }
 
         public long comparable(Long val) {

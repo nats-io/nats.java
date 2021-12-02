@@ -26,12 +26,11 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
-public class PushAutoStatusManager implements AutoStatusManager {
+class PushStatusMessageManager extends MessageManager {
 
     private static final int THRESHOLD = 3;
 
     private final NatsConnection conn;
-    private NatsJetStreamSubscription sub;
 
     private final boolean syncMode;
     private final boolean queueMode;
@@ -46,11 +45,11 @@ public class PushAutoStatusManager implements AutoStatusManager {
     private long lastConsumerSeq;
 
     private final AtomicLong lastMsgReceived;
-    private AsmTimer asmTimer;
+    private HeartbeatTimer heartbeatTimer;
 
-    PushAutoStatusManager(NatsConnection conn, SubscribeOptions so,
-                          ConsumerConfiguration cc,
-                          boolean queueMode, boolean syncMode)
+    PushStatusMessageManager(NatsConnection conn, SubscribeOptions so,
+                             ConsumerConfiguration cc,
+                             boolean queueMode, boolean syncMode)
     {
         this.conn = conn;
         this.syncMode = syncMode;
@@ -85,27 +84,27 @@ public class PushAutoStatusManager implements AutoStatusManager {
         }
     }
 
-    // chicken or egg situation here. The handler needs the sub in case of error
-    // but the sub needs the handler in order to be created
-    public void setSub(NatsJetStreamSubscription sub) {
-        this.sub = sub;
+    @Override
+    void setSub(NatsJetStreamSubscription sub) {
+        super.setSub(sub);
         if (hb) {
             sub.setBeforeQueueProcessor(this::beforeQueueProcessor);
-            asmTimer = new AsmTimer();
+            heartbeatTimer = new HeartbeatTimer();
         }
     }
 
-    public void shutdown() {
-        if (asmTimer != null) {
-            asmTimer.shutdown();
+    @Override
+    void shutdown() {
+        if (heartbeatTimer != null) {
+            heartbeatTimer.shutdown();
         }
     }
 
-    class AsmTimer {
+    class HeartbeatTimer {
         Timer timer;
         boolean alive = true;
 
-        class AsmTimerTask extends TimerTask {
+        class HeartbeatTimerTask extends TimerTask {
             @Override
             public void run() {
                 long sinceLast = System.currentTimeMillis() - lastMsgReceived.get();
@@ -116,7 +115,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
             }
         }
 
-        public AsmTimer() {
+        public HeartbeatTimer() {
             restart();
         }
 
@@ -124,7 +123,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
             cancel();
             if (alive) {
                 timer = new Timer();
-                timer.schedule(new AsmTimerTask(), alarmPeriodSetting);
+                timer.schedule(new HeartbeatTimerTask(), alarmPeriodSetting);
             }
         }
 
@@ -151,8 +150,8 @@ public class PushAutoStatusManager implements AutoStatusManager {
     long getAlarmPeriodSetting() { return alarmPeriodSetting; }
 
     String getLastFcSubject() { return lastFcSubject; }
-    public long getLastStreamSequence() { return lastStreamSeq; }
-    public long getLastConsumerSequence() { return lastConsumerSeq; }
+    long getLastStreamSequence() { return lastStreamSeq; }
+    long getLastConsumerSequence() { return lastConsumerSeq; }
     long getLastMsgReceived() { return lastMsgReceived.get(); }
 
     NatsMessage beforeQueueProcessor(NatsMessage msg) {
@@ -166,7 +165,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
         return msg;
     }
 
-    public boolean manage(Message msg) {
+    boolean manage(Message msg) {
         if (msg.isStatusMessage()) {
             // this checks fc, hb and unknown
             // only process fc and hb if those flags are set
@@ -202,7 +201,7 @@ public class PushAutoStatusManager implements AutoStatusManager {
         return false;
     }
 
-    private String extractFcSubject(Message msg) {
+    String extractFcSubject(Message msg) {
         return msg.getHeaders() == null ? null : msg.getHeaders().getFirst(CONSUMER_STALLED_HDR);
     }
 

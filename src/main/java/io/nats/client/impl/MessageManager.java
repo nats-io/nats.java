@@ -15,10 +15,16 @@ package io.nats.client.impl;
 
 import io.nats.client.Message;
 
-public interface AutoStatusManager {
-    void setSub(NatsJetStreamSubscription sub);
+abstract class MessageManager {
+    protected NatsJetStreamSubscription sub;
 
-    boolean manage(Message msg);
+    boolean manage(Message msg) {
+        return false;
+    }
 
-    default void shutdown() {};
+    void setSub(NatsJetStreamSubscription sub) {
+        this.sub = sub;
+    }
+
+    void shutdown() {}
 }

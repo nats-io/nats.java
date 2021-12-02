@@ -16,8 +16,10 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
+import io.nats.client.api.PublishAck;
 import io.nats.client.support.NatsJetStreamConstants;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -29,7 +31,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
+import static io.nats.client.support.NatsJetStreamClientError.JsSubOrderedNotAllowOnQueues;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPushTests extends JetStreamTestBase {
@@ -220,7 +224,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         JetStreamSubscription sub = supplier.get(dispatcher, handler);
 
         // Wait for messages to arrive using the countdown latch.
-        msgLatch.await(10, TimeUnit.SECONDS);
+        assertTrue(msgLatch.await(10, TimeUnit.SECONDS));
 
         dispatcher.unsubscribe(sub);
 
@@ -240,16 +244,26 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertSubscription(sub, STREAM, null, null, false);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
-            // this should exception, can't pull on a push sub
-            assertThrows(IllegalStateException.class, () -> sub.pull(1));
-            assertThrows(IllegalStateException.class, () -> sub.pullNoWait(1));
-            assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, Duration.ofSeconds(1)));
-            assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, 1000));
-            assertThrows(IllegalStateException.class, () -> sub.fetch(1, 1000));
-            assertThrows(IllegalStateException.class, () -> sub.fetch(1, Duration.ofSeconds(1)));
-            assertThrows(IllegalStateException.class, () -> sub.iterate(1, 1000));
-            assertThrows(IllegalStateException.class, () -> sub.iterate(1, Duration.ofSeconds(1)));
+            assertCantPullOnPushSub(sub);
+            sub.unsubscribe();
+
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true).build();
+            sub = js.subscribe(SUBJECT, pso);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            assertCantPullOnPushSub(sub);
         });
+    }
+
+    private void assertCantPullOnPushSub(JetStreamSubscription sub) {
+        assertThrows(IllegalStateException.class, () -> sub.pull(1));
+        assertThrows(IllegalStateException.class, () -> sub.pullNoWait(1));
+        assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, Duration.ofSeconds(1)));
+        assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, 1000));
+        assertThrows(IllegalStateException.class, () -> sub.fetch(1, 1000));
+        assertThrows(IllegalStateException.class, () -> sub.fetch(1, Duration.ofSeconds(1)));
+        assertThrows(IllegalStateException.class, () -> sub.iterate(1, 1000));
+        assertThrows(IllegalStateException.class, () -> sub.iterate(1, Duration.ofSeconds(1)));
     }
 
     @Test
@@ -366,11 +380,11 @@ public class JetStreamPushTests extends JetStreamTestBase {
     @Test
     public void testDeliveryPolicy() throws Exception {
         runInJsServer(nc -> {
-            // Create our JetStream context.
+            JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT_STAR);
+            createMemoryStream(jsm, STREAM, SUBJECT_STAR);
 
             String subjectA = subjectDot("A");
             String subjectB = subjectDot("B");
@@ -381,6 +395,8 @@ public class JetStreamPushTests extends JetStreamTestBase {
             js.publish(subjectA, dataBytes(3));
             js.publish(subjectB, dataBytes(91));
             js.publish(subjectB, dataBytes(92));
+
+            jsm.deleteMessage(STREAM, 4);
 
             // DeliverPolicy.All
             PushSubscribeOptions pso = PushSubscribeOptions.builder()
@@ -452,6 +468,23 @@ public class JetStreamPushTests extends JetStreamTestBase {
             sub = js.subscribe(subjectA, pso);
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertMessage(m, 4);
+
+            // DeliverPolicy.ByStartSequence with a deleted record
+            PublishAck pa4 = js.publish(subjectA, dataBytes(4));
+            PublishAck pa5 = js.publish(subjectA, dataBytes(5));
+            js.publish(subjectA, dataBytes(6));
+            jsm.deleteMessage(STREAM, pa4.getSeqno());
+            jsm.deleteMessage(STREAM, pa5.getSeqno());
+
+            pso = PushSubscribeOptions.builder()
+                .configuration(ConsumerConfiguration.builder()
+                    .deliverPolicy(DeliverPolicy.ByStartSequence)
+                    .startSequence(pa4.getSeqno())
+                    .build())
+                .build();
+            sub = js.subscribe(subjectA, pso);
+            m = sub.nextMessage(Duration.ofSeconds(1));
+            assertMessage(m, 6);
         });
     }
 
@@ -495,7 +528,6 @@ public class JetStreamPushTests extends JetStreamTestBase {
             int count = 0;
             Set<String> set = new HashSet<>();
 
-
             ConsumerConfiguration cc = ConsumerConfiguration.builder().flowControl(1000).build();
             PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
             JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
@@ -510,6 +542,102 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             assertEquals(MSG_COUNT, count);
             assertTrue(fcps.get() > 0);
+
+            // coverage for subscribe options heartbeat directly
+            cc = ConsumerConfiguration.builder().idleHeartbeat(100).build();
+            pso = PushSubscribeOptions.builder().configuration(cc).build();
+            js.subscribe(SUBJECT, pso);
+        });
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // this allows me to intercept messages before it gets to the connection queue
+    // which is before the messages is available for nextMessage or before
+    // it gets dispatched to a handler.
+    static class OrderedTestPushStatusMessageManager extends PushStatusMessageManager {
+
+        public OrderedTestPushStatusMessageManager(NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode) {
+            super(conn, so, cc, queueMode, syncMode);
+        }
+
+        @Override
+        NatsMessage beforeQueueProcessor(NatsMessage msg) {
+            msg = super.beforeQueueProcessor(msg);
+            if (msg != null && msg.isJetStream()) {
+                long ss = msg.metaData().streamSequence();
+                long cs = msg.metaData().consumerSequence();
+                if ((ss == 2 && cs == 2) || (ss == 5 && cs == 4) || (ss == 8 && cs == 2) || (ss == 11 && cs == 4)) {
+                    return null;
+                }
+            }
+            return msg;
+        }
+    }
+
+    @Test
+    @Timeout(value = 30)
+    public void testOrdered() throws Exception {
+        runInJsServer(nc -> {
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, subject(1), subject(2));
+
+            NatsJetStream.PUSH_STATUS_MANAGER_FACTORY = OrderedTestPushStatusMessageManager::new;
+
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true).build();
+            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, QUEUE, pso));
+            assertTrue(iae.getMessage().contains(JsSubOrderedNotAllowOnQueues.id()));
+
+            JetStreamSubscription sub = js.subscribe(subject(1), pso);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // publish after interceptor is set before messages come in
+            jsPublish(js, subject(1), 101, 6);
+
+            int ss = 1;
+            int[] cs = new int[] {1, 1, 2, 3, 1, 2};
+
+            while (ss < 7) {
+                Message m = sub.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
+                if (m != null) {
+                    assertEquals(ss, m.metaData().streamSequence());
+                    assertEquals(cs[ss-1], m.metaData().consumerSequence());
+                    ++ss;
+                }
+            }
+
+            sub.unsubscribe(1);
+
+            // ----------------------------------------------------------------------------------------------------
+            // THIS IS ACTUALLY TESTING ASYNC SO I DON'T HAVE TO SETUP THE INTERCEPTOR IN OTHER CODE
+            // ----------------------------------------------------------------------------------------------------
+            CountDownLatch msgLatch = new CountDownLatch(6);
+            AtomicInteger received = new AtomicInteger();
+            AtomicLong[] ssFlags = new AtomicLong[6];
+            AtomicLong[] csFlags = new AtomicLong[6];
+            MessageHandler handler = hmsg -> {
+                int i = received.incrementAndGet() - 1;
+                ssFlags[i] = new AtomicLong(hmsg.metaData().streamSequence());
+                csFlags[i] = new AtomicLong(hmsg.metaData().consumerSequence());
+                msgLatch.countDown();
+            };
+
+            Dispatcher d = nc.createDispatcher();
+            sub = js.subscribe(subject(2), d, handler, false, pso);
+
+            // publish after sub to make sure interceptor is set before messages come in
+            jsPublish(js, subject(2), 201, 6);
+
+            assertTrue(msgLatch.await(5, TimeUnit.SECONDS));
+
+            while (ss < 13) {
+                assertEquals(ss, ssFlags[ss-7].get());
+                assertEquals(cs[ss-7], csFlags[ss-7].get());
+                ++ss;
+            }
+
+            d.unsubscribe(sub);
         });
     }
 }

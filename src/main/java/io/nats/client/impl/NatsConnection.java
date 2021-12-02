@@ -877,8 +877,7 @@ class NatsConnection implements Connection {
         }
 
         NatsSubscription sub;
-        long sidL = nextSid.getAndIncrement();
-        String sid = String.valueOf(sidL);
+        String sid = getNextSid();
 
         if (factory == null) {
             sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
@@ -890,6 +889,17 @@ class NatsConnection implements Connection {
 
         sendSubscriptionMessage(sid, subject, queueName, false);
         return sub;
+    }
+
+    String getNextSid() {
+        return Long.toString(nextSid.getAndIncrement());
+    }
+
+    String reSubscribe(NatsSubscription sub, String subject, String queueName) {
+        String sid = getNextSid();
+        sendSubscriptionMessage(sid, subject, queueName, false);
+        subscribers.put(sid, sub);
+        return sid;
     }
 
     void sendSubscriptionMessage(String sid, String subject, String queueName, boolean treatAsInternal) {

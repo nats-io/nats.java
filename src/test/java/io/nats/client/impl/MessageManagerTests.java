@@ -26,7 +26,7 @@ import static io.nats.client.support.Status.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("SameParameterValue")
-public class AutoStatusManagerTests extends JetStreamTestBase {
+public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void testConstruction() throws Exception {
@@ -41,7 +41,7 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
     }
 
     private void _pushConstruction(Connection conn, boolean hb, boolean fc, SubscribeOptions so, NatsJetStreamSubscription sub) {
-        PushAutoStatusManager manager = getManager(conn, so, sub, true, false);
+        PushStatusMessageManager manager = getManager(conn, so, sub, true, false);
         assertTrue(manager.isSyncMode());
         assertFalse(manager.isQueueMode());
         assertEquals(hb, manager.isHb());
@@ -65,7 +65,7 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
     }
 
     private void _status_handle_pushSync(Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
-        PushAutoStatusManager manager = getManager(conn, so, sub, true, false);
+        PushStatusMessageManager manager = getManager(conn, so, sub, true, false);
         assertFalse(manager.manage(getTestJsMessage(1)));
         assertTrue(manager.manage(getFlowControl(1)));
         assertTrue(manager.manage(getFcHeartbeat(1)));
@@ -78,7 +78,7 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
     public void test_status_handle_pull() throws Exception {
         runInJsServer(nc -> {
             NatsJetStreamSubscription sub = mockSub(nc);
-            PullAutoStatusManager manager = new PullAutoStatusManager();
+            PullStatusMessageManager manager = new PullStatusMessageManager();
             manager.setSub(sub);
             assertFalse(manager.manage(getTestJsMessage(1)));
             assertTrue(manager.manage(get404()));
@@ -89,7 +89,7 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
         });
     }
 
-    private void _status_handle_throws(NatsJetStreamSubscription sub, AutoStatusManager asm, Message m) {
+    private void _status_handle_throws(NatsJetStreamSubscription sub, MessageManager asm, Message m) {
         JetStreamStatusException jsse = assertThrows(JetStreamStatusException.class, () -> asm.manage(m));
         assertSame(sub, jsse.getSubscription());
         assertSame(m.getStatus(), jsse.getStatus());
@@ -107,7 +107,7 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
     }
 
     private void _status_handle_pushAsync(AsmEl el, Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
-        PushAutoStatusManager manager = getManager(conn, so, sub, false, false);
+        PushStatusMessageManager manager = getManager(conn, so, sub, false, false);
         el.reset();
         assertFalse(manager.manage(getTestJsMessage(1)));
         assertTrue(manager.manage(getFlowControl(1)));
@@ -133,7 +133,7 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
     public void test_push_fc() {
         SubscribeOptions so = push_hb_fc();
         MockPublishInternal mc = new MockPublishInternal();
-        PushAutoStatusManager asm = new PushAutoStatusManager(mc, so, so.getConsumerConfiguration(), false, true);
+        PushStatusMessageManager asm = new PushStatusMessageManager(mc, so, so.getConsumerConfiguration(), false, true);
         assertNull(asm.getLastFcSubject());
         asm.manage(getFlowControl(1));
         assertEquals(getFcSubject(1), asm.getLastFcSubject());
@@ -159,6 +159,31 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
         assertEquals(getFcSubject(3), asm.getLastFcSubject());
         assertEquals(getFcSubject(3), mc.fcSubject);
         assertEquals(3, mc.pubCount);
+
+        asm.manage(getHeartbeat());
+        assertEquals(getFcSubject(3), asm.getLastFcSubject());
+        assertEquals(getFcSubject(3), mc.fcSubject);
+        assertEquals(3, mc.pubCount);
+
+        // coverage sequences
+        asm.manage(getTestJsMessage(1));
+        assertEquals(1, asm.getLastStreamSequence());
+        assertEquals(1, asm.getLastConsumerSequence());
+
+        asm.manage(getTestJsMessage(2));
+        assertEquals(2, asm.getLastStreamSequence());
+        assertEquals(2, asm.getLastConsumerSequence());
+
+        // coverage beforeQueueProcessor
+        assertNotNull(asm.beforeQueueProcessor(getTestJsMessage()));
+        assertNotNull(asm.beforeQueueProcessor(get408()));
+        assertNotNull(asm.beforeQueueProcessor(getFcHeartbeat(9)));
+        assertNull(asm.beforeQueueProcessor(getHeartbeat()));
+
+        // coverage extractFcSubject
+        assertNull(asm.extractFcSubject(getTestJsMessage()));
+        assertNull(asm.extractFcSubject(getHeartbeat()));
+        assertNotNull(asm.extractFcSubject(getFcHeartbeat(9)));
     }
 
     @Test
@@ -169,7 +194,7 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
 
     private void _push_xfc(SubscribeOptions so) {
         MockPublishInternal mc = new MockPublishInternal();
-        PushAutoStatusManager asm = new PushAutoStatusManager(mc, so, so.getConsumerConfiguration(), false, true);
+        PushStatusMessageManager asm = new PushStatusMessageManager(mc, so, so.getConsumerConfiguration(), false, true);
         assertNull(asm.getLastFcSubject());
 
         asm.manage(getFlowControl(1));
@@ -181,6 +206,26 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
         assertNull(asm.getLastFcSubject());
         assertNull(mc.fcSubject);
         assertEquals(0, mc.pubCount);
+
+        // coverage sequences
+        asm.manage(getTestJsMessage(1));
+        assertEquals(1, asm.getLastStreamSequence());
+        assertEquals(1, asm.getLastConsumerSequence());
+
+        asm.manage(getTestJsMessage(2));
+        assertEquals(2, asm.getLastStreamSequence());
+        assertEquals(2, asm.getLastConsumerSequence());
+
+        // coverage beforeQueueProcessor
+        assertNotNull(asm.beforeQueueProcessor(getTestJsMessage()));
+        assertNotNull(asm.beforeQueueProcessor(get408()));
+        assertNotNull(asm.beforeQueueProcessor(getFcHeartbeat(9)));
+        assertNull(asm.beforeQueueProcessor(getHeartbeat()));
+
+        // coverage extractFcSubject
+        assertNull(asm.extractFcSubject(getTestJsMessage()));
+        assertNull(asm.extractFcSubject(getHeartbeat()));
+        assertNotNull(asm.extractFcSubject(getFcHeartbeat(9)));
     }
 
     @Test
@@ -204,17 +249,25 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
         // by the heartbeat listener and recorded as received
         sleep(1050); // slightly longer than the idle heartbeat
 
-        long preTime = ((PushAutoStatusManager)sub.getAsm()).getLastMsgReceived();
+        long preTime = findStatusManager(sub).getLastMsgReceived();
         assertTrue(preTime > before);
         sub.unsubscribe();
     }
+
+    PushStatusMessageManager findStatusManager(NatsJetStreamSubscription sub) {
+        for (MessageManager mm : sub.getManagers()) {
+            if (mm instanceof PushStatusMessageManager) {
+                return (PushStatusMessageManager)mm;
+            }
+        }
+        return null;
+    };
 
     private void _received_time_no(JetStream js, JetStreamManagement jsm, JetStreamSubscription sub) throws IOException, JetStreamApiException, InterruptedException {
         js.publish(SUBJECT, dataBytes(0));
         sub.nextMessage(1000);
         NatsJetStreamSubscription nsub = (NatsJetStreamSubscription)sub;
-        PushAutoStatusManager pasm = (PushAutoStatusManager)nsub.getAsm();
-        assertEquals(0, pasm.getLastMsgReceived());
+        assertEquals(0, findStatusManager(nsub).getLastMsgReceived());
         jsm.purgeStream(STREAM);
         sub.unsubscribe();
     }
@@ -228,7 +281,7 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
 
             // MessageAlarmTime default
             PushSubscribeOptions so = new PushSubscribeOptions.Builder().configuration(cc).build();
-            PushAutoStatusManager manager = getManager(nc, so, sub);
+            PushStatusMessageManager manager = getManager(nc, so, sub);
             assertEquals(1000, manager.getIdleHeartbeatSetting());
             assertEquals(3000, manager.getAlarmPeriodSetting());
 
@@ -257,7 +310,7 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
         runInJsServer(nc -> {
             NatsJetStreamSubscription sub = mockSub(nc);
             SubscribeOptions so = push_xhb_xfc();
-            PushAutoStatusManager manager = getManager(nc, so, sub);
+            PushStatusMessageManager manager = getManager(nc, so, sub);
             assertEquals(0, manager.getIdleHeartbeatSetting());
             assertEquals(0, manager.getAlarmPeriodSetting());
         });
@@ -287,12 +340,12 @@ public class AutoStatusManagerTests extends JetStreamTestBase {
         return new PushSubscribeOptions.Builder().configuration(cc_xfc_xhb()).build();
     }
 
-    private PushAutoStatusManager getManager(Connection conn, SubscribeOptions so, NatsJetStreamSubscription sub) {
+    private PushStatusMessageManager getManager(Connection conn, SubscribeOptions so, NatsJetStreamSubscription sub) {
         return getManager(conn, so, sub, true, false);
     }
 
-    private PushAutoStatusManager getManager(Connection conn, SubscribeOptions so, NatsJetStreamSubscription sub, boolean syncMode, boolean queueMode) {
-        PushAutoStatusManager asm = new PushAutoStatusManager((NatsConnection)conn, so, so.getConsumerConfiguration(), queueMode, syncMode);
+    private PushStatusMessageManager getManager(Connection conn, SubscribeOptions so, NatsJetStreamSubscription sub, boolean syncMode, boolean queueMode) {
+        PushStatusMessageManager asm = new PushStatusMessageManager((NatsConnection)conn, so, so.getConsumerConfiguration(), queueMode, syncMode);
         asm.setSub(sub);
         return asm;
     }
