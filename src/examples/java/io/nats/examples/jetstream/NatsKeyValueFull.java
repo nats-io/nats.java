@@ -27,7 +27,7 @@ import io.nats.examples.ExampleUtils;
 @SuppressWarnings("ImplicitArrayToString")
 public class NatsKeyValueFull {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsManageStreams [-s server]"
+            "\nUsage: java -cp <classpath> NatsKeyValueFull [-s server] [-buk bucket] [-d description]"
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
                     + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
                     + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
@@ -38,10 +38,11 @@ public class NatsKeyValueFull {
     private static final String LONG_KEY = "longKey";
     private static final String NOT_FOUND = "notFound";
 
-    private static final String BUCKET_NAME = "buk"; // "example-bucket-" + uniqueEnough();
-
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleUtils.optionalServer(args, usageString);
+        ExampleArgs exArgs = ExampleArgs.builder("Key Value Full Example", args, usageString)
+            .defaultBucket("exampleBucket")
+            .defaultDescription("Example Description")
+            .build();
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
             // get the kv management context
@@ -49,16 +50,17 @@ public class NatsKeyValueFull {
 
             // create the bucket
             KeyValueConfiguration bc = KeyValueConfiguration.builder()
-                    .name(BUCKET_NAME)
-                    .maxHistoryPerKey(5)
-                    .storageType(StorageType.Memory)
-                    .build();
+                .name(exArgs.bucket)
+                .description(exArgs.description)
+                .maxHistoryPerKey(5)
+                .storageType(StorageType.Memory)
+                .build();
 
-            KeyValueStatus bi = kvm.create(bc);
-            System.out.println(bi);
+            KeyValueStatus kvs = kvm.create(bc);
+            System.out.println(kvs);
 
             // get the kv context for the specific bucket
-            KeyValue kv = nc.keyValue(BUCKET_NAME);
+            KeyValue kv = nc.keyValue(exArgs.bucket);
 
             // Put some keys. Each key is put in a subject in the bucket (stream)
             // The put returns the sequence number in the bucket (stream)
@@ -139,9 +141,14 @@ public class NatsKeyValueFull {
             entry = kv.get(BYTE_KEY);
             System.out.println("Deleted " + BYTE_KEY + " entry: " + entry);
 
-            // if the key has been deleted or not found / never existed
-            // all varieties of get will return null
-            System.out.println("\n7. Keys not found");
+            // if the key does not exist there is no entry at all
+            System.out.println("\n7.1 Keys does not exist");
+            kv.get(NOT_FOUND);
+            System.out.println("Should be null: " + bvalue);
+
+            // if the key has been deleted there is an entry for it
+            // but the value will be null
+            System.out.println("\n7.2 Keys not found");
             bvalue = kv.get(BYTE_KEY).getValue();
             System.out.println("Should be null: " + bvalue);
 
@@ -149,15 +156,6 @@ public class NatsKeyValueFull {
             System.out.println("Should be null: " + svalue);
 
             lvalue = kv.get(BYTE_KEY).getValueAsLong();
-            System.out.println("Should be null: " + lvalue);
-
-            bvalue = kv.get(NOT_FOUND).getValue();
-            System.out.println("Should be null: " + bvalue);
-
-            svalue = kv.get(NOT_FOUND).getValueAsString();
-            System.out.println("Should be null: " + svalue);
-
-            lvalue = kv.get(NOT_FOUND).getValueAsLong();
             System.out.println("Should be null: " + lvalue);
 
             // Update values. You can even update a deleted key
@@ -185,19 +183,19 @@ public class NatsKeyValueFull {
 
             // let's check the bucket info
             System.out.println("\n9.1 Bucket before delete");
-            bi = kvm.getBucketInfo(BUCKET_NAME);
-            System.out.println(bi);
+            kvs = kvm.getBucketInfo(exArgs.bucket);
+            System.out.println(kvs);
 
             // delete the bucket
             System.out.println("\n9.2 Delete");
-            kvm.delete(BUCKET_NAME);
+            kvm.delete(exArgs.bucket);
 
             try {
-                kvm.getBucketInfo(BUCKET_NAME);
-                System.out.println("UH OH! Stream for bucket should not have been found!");
+                kvm.getBucketInfo(exArgs.bucket);
+                System.out.println("UH OH! Bucket should not have been found!");
             }
             catch (JetStreamApiException e) {
-                System.out.println("Stream for bucket was not found!");
+                System.out.println("Bucket was not found!");
             }
         }
         catch (Exception exp) {

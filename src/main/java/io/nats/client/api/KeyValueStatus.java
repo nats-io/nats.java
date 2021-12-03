@@ -35,9 +35,22 @@ public class KeyValueStatus {
         return config.getBucketName();
     }
 
+    /**
+     * Gets the description of this bucket.
+     * @return the description of the bucket.
+     */
+    public String getDescription() {
+        return config.getDescription();
+    }
+
+    /**
+     * Gets the info for the stream which backs the bucket
+     * @return the stream info
+     */
     public StreamInfo getBackingStreamInfo() {
         return streamInfo;
     }
+
     /**
      * Gets the stream configuration.
      * @return the stream configuration.
@@ -55,11 +68,35 @@ public class KeyValueStatus {
     }
 
     /**
+     * Gets the maximum number of values across all keys, including history values
+     * @return the maximum number of values for the bucket
+     */
+    public long getMaxValues() {
+        return config.getMaxValues();
+    }
+
+    /**
      * Gets the maximum number of history for any one key. Includes the current value.
      * @return the maximum number of values for any one key.
      */
     public long getMaxHistoryPerKey() {
         return config.getMaxHistoryPerKey();
+    }
+
+    /**
+     * Gets the maximum number of bytes for this bucket.
+     * @return the maximum number of bytes for this bucket.
+     */
+    public long getMaxBucketSize() {
+        return config.getMaxBucketSize();
+    }
+
+    /**
+     * Gets the maximum number of bytes for an individual value in the bucket.
+     * @return the maximum bytes for a value.
+     */
+    public long getMaxValueBytes() {
+        return config.getMaxValueBytes();
     }
 
     /**
@@ -71,10 +108,41 @@ public class KeyValueStatus {
     }
 
     /**
+     * Gets the storage type for this bucket.
+     * @return the storage type for this stream.
+     */
+    public StorageType getStorageType() {
+        return config.getStorageType();
+    }
+
+    /**
+     * Gets the number of replicas for this bucket.
+     * @return the number of replicas
+     */
+    public int getReplicas() {
+        return config.getReplicas();
+    }
+
+    /**
      * Gets the name of the type of backing store for the
      * @return the name of the store, currently only "JetStream"
      */
     public String getBackingStore() {
         return "JetStream";
+    }
+
+    @Override
+    public String toString() {
+        return "KeyValueStatus{" +
+            "name='" + getBucketName() + '\'' +
+            ", description='" + getDescription() + '\'' +
+            ", maxValues=" + getMaxValues() +
+            ", maxHistoryPerKey=" + getMaxHistoryPerKey() +
+            ", maxBucketSize=" + getMaxBucketSize() +
+            ", maxValueBytes=" + getMaxValueBytes() +
+            ", ttl=" + getTtl() +
+            ", storageType=" + getStorageType() +
+            ", replicas=" + getReplicas() +
+            '}';
     }
 }

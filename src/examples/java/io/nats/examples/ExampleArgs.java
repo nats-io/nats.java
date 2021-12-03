@@ -36,6 +36,8 @@ public class ExampleArgs {
     public int pullSize = Integer.MIN_VALUE;
     public Headers headers;
     public boolean containedUnknown = false;
+    public String bucket;
+    public String description;
 
     public boolean hasHeaders() {
         return headers != null && headers.size() > 0;
@@ -144,6 +146,12 @@ public class ExampleArgs {
             case "-dur":
                 durable = value;
                 break;
+            case "-buk":
+                bucket = value;
+                break;
+            case "-desc":
+                description = value;
+                break;
             case "-deliver":
                 deliverSubject = value;
                 break;
@@ -171,6 +179,8 @@ public class ExampleArgs {
         _banner("server", server);
         _banner("stream", stream);
         _banner("subject", subject);
+        _banner("bucket", bucket);
+        _banner("description", description);
         _banner("queue", queue);
         _banner("message", message);
         _banner("mirror", mirror);
@@ -263,6 +273,16 @@ public class ExampleArgs {
 
         public Builder defaultDurable(String durable) {
             ea.durable = durable;
+            return this;
+        }
+
+        public Builder defaultBucket(String bucket) {
+            ea.bucket = bucket;
+            return this;
+        }
+
+        public Builder defaultDescription(String description) {
+            ea.description = description;
             return this;
         }
 

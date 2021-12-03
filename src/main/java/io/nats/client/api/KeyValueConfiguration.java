@@ -48,8 +48,8 @@ public class KeyValueConfiguration {
     }
 
     /**
-     * Gets the name of this bucket.
-     * @return the name of the bucket.
+     * Gets the description of this bucket.
+     * @return the description of the bucket.
      */
     public String getDescription() {
         return sc.getDescription();
@@ -113,7 +113,7 @@ public class KeyValueConfiguration {
 
     @Override
     public String toString() {
-        return "BucketConfiguration{" +
+        return "KeyValueConfiguration{" +
             "name='" + bucketName + '\'' +
             ", description='" + getDescription() + '\'' +
             ", maxValues=" + getMaxValues() +
