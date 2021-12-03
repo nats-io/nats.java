@@ -313,7 +313,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
         String key2 = "msbsub.key2";
 
         Headers deleteHeaders = new Headers()
-            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.DEL.name());
+            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.DELETE.name());
         Headers purgeHeaders = new Headers()
             .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.PURGE.name())
             .put(ROLLUP_HDR, ROLLUP_HDR_SUBJECT);
@@ -356,9 +356,9 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             Object[] expecteds = new Object[] {
                 "a", "aa", "z", "zz",
-                KeyValueOperation.DEL, KeyValueOperation.DEL,
+                KeyValueOperation.DELETE, KeyValueOperation.DELETE,
                 "aaa", "zzz",
-                KeyValueOperation.DEL, KeyValueOperation.DEL,
+                KeyValueOperation.DELETE, KeyValueOperation.DELETE,
                 KeyValueOperation.PURGE, KeyValueOperation.PURGE,
             };
 

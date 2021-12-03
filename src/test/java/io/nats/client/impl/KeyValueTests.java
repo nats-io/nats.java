@@ -129,7 +129,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertNull(kv.get(byteKey).getValue());
 
             byteHistory.add(
-                    assertEntry(BUCKET, byteKey, KeyValueOperation.DEL, 4, null, now, kv.get(byteKey)));
+                    assertEntry(BUCKET, byteKey, KeyValueOperation.DELETE, 4, null, now, kv.get(byteKey)));
             assertHistory(byteHistory, kv.history(byteKey));
 
             // hashCode coverage
@@ -137,7 +137,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertNotEquals(byteHistory.get(0).hashCode(), byteHistory.get(1).hashCode());
 
             // but it's entry still exists
-            assertEntry(BUCKET, byteKey, KeyValueOperation.DEL, 4, null, now, kv.get(byteKey));
+            assertEntry(BUCKET, byteKey, KeyValueOperation.DELETE, 4, null, now, kv.get(byteKey));
 
             // let's check the bucket info
             status = kvm.getBucketInfo(BUCKET);
@@ -466,11 +466,11 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(op, entry.getOperation());
         assertEquals(seq, entry.getRevision());
         assertEquals(0, entry.getDelta());
-        if (op.isDelete()) {
-            assertNull(entry.getValue());
+        if (op == KeyValueOperation.PUT) {
+            assertEquals(value, new String(entry.getValue()));
         }
         else {
-            assertEquals(value, new String(entry.getValue()));
+            assertNull(entry.getValue());
         }
         assertTrue(now <= entry.getCreated().toEpochSecond());
 
@@ -494,7 +494,7 @@ public class KeyValueTests extends JetStreamTestBase {
         public List<KeyValueEntry> entries = new ArrayList<>();
 
         @Override
-        public void update(KeyValueEntry kve) {
+        public void watch(KeyValueEntry kve) {
             entries.add(kve);
         }
     }
@@ -536,9 +536,9 @@ public class KeyValueTests extends JetStreamTestBase {
             subs.add(kv.watch(key2, key2FullWatcher, false));
             subs.add(kv.watch(key2, key2MetaWatcher, true));
             subs.add(kv.watchAll(allPutWatcher, false, KeyValueOperation.PUT));
-            subs.add(kv.watchAll(allDelWatcher, true, KeyValueOperation.DEL));
+            subs.add(kv.watchAll(allDelWatcher, true, KeyValueOperation.DELETE));
             subs.add(kv.watchAll(allPurgeWatcher, true, KeyValueOperation.PURGE));
-            subs.add(kv.watchAll(allDelPurgeWatcher, true, KeyValueOperation.DEL, KeyValueOperation.PURGE));
+            subs.add(kv.watchAll(allDelPurgeWatcher, true, KeyValueOperation.DELETE, KeyValueOperation.PURGE));
             subs.add(kv.watchAll(allFullWatcher, false));
             subs.add(kv.watchAll(allMetaWatcher, true));
             subs.add(kv.watch("key.*", starFullWatcher, false));
@@ -563,18 +563,18 @@ public class KeyValueTests extends JetStreamTestBase {
             sleep(2000); // give time for the watches to get messages
 
             Object[] key1Expecteds = new Object[] {
-                "a", "aa", KeyValueOperation.DEL, "aaa", KeyValueOperation.DEL, KeyValueOperation.PURGE
+                "a", "aa", KeyValueOperation.DELETE, "aaa", KeyValueOperation.DELETE, KeyValueOperation.PURGE
             };
 
             Object[] key2Expecteds = new Object[] {
-                "z", "zz", KeyValueOperation.DEL, "zzz", KeyValueOperation.DEL, KeyValueOperation.PURGE
+                "z", "zz", KeyValueOperation.DELETE, "zzz", KeyValueOperation.DELETE, KeyValueOperation.PURGE
             };
 
             Object[] allExpecteds = new Object[] {
                 "a", "aa", "z", "zz",
-                KeyValueOperation.DEL, KeyValueOperation.DEL,
+                KeyValueOperation.DELETE, KeyValueOperation.DELETE,
                 "aaa", "zzz",
-                KeyValueOperation.DEL, KeyValueOperation.DEL,
+                KeyValueOperation.DELETE, KeyValueOperation.DELETE,
                 KeyValueOperation.PURGE, KeyValueOperation.PURGE,
                 null
             };
@@ -584,8 +584,8 @@ public class KeyValueTests extends JetStreamTestBase {
             };
 
             Object[] allDels = new Object[] {
-                KeyValueOperation.DEL, KeyValueOperation.DEL,
-                KeyValueOperation.DEL, KeyValueOperation.DEL
+                KeyValueOperation.DELETE, KeyValueOperation.DELETE,
+                KeyValueOperation.DELETE, KeyValueOperation.DELETE
             };
 
             Object[] allPurges = new Object[] {
@@ -593,8 +593,8 @@ public class KeyValueTests extends JetStreamTestBase {
             };
 
             Object[] allDelsPurges = new Object[] {
-                KeyValueOperation.DEL, KeyValueOperation.DEL,
-                KeyValueOperation.DEL, KeyValueOperation.DEL,
+                KeyValueOperation.DELETE, KeyValueOperation.DELETE,
+                KeyValueOperation.DELETE, KeyValueOperation.DELETE,
                 KeyValueOperation.PURGE, KeyValueOperation.PURGE
             };
 

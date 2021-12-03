@@ -23,5 +23,5 @@ public interface KeyValueWatcher {
      *
      * @param kve The entry for the updated key
      */
-    void update(KeyValueEntry kve);
+    void watch(KeyValueEntry kve);
 }

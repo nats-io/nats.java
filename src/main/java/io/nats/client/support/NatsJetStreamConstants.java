@@ -75,7 +75,7 @@ public interface NatsJetStreamConstants {
 
     String ROLLUP_HDR = "Nats-Rollup";
     String ROLLUP_HDR_SUBJECT = "sub";
-    String ROLLUP_HDR_ALL     = "all";
+    String ROLLUP_HDR_ALL = "all";
 
     int JS_CONSUMER_NOT_FOUND_ERR = 10014;
     int JS_NO_MESSAGE_FOUND_ERR = 10037;

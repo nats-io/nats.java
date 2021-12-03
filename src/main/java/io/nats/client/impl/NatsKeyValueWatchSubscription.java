@@ -44,14 +44,14 @@ public class NatsKeyValueWatchSubscription {
 
         MessageHandler handler;
         if (operations.length == 0) {
-            handler = m -> watcher.update(new KeyValueEntry(m));
+            handler = m -> watcher.watch(new KeyValueEntry(m));
         }
         else if (operations.length == 1) {
             final KeyValueOperation op = operations[0];
             handler = m -> {
                 KeyValueEntry kve = new KeyValueEntry(m);
                 if (kve.getOperation() == op) {
-                    watcher.update(kve);
+                    watcher.watch(kve);
                 }
             };
         }
@@ -60,7 +60,7 @@ public class NatsKeyValueWatchSubscription {
                 KeyValueEntry kve = new KeyValueEntry(m);
                 for (KeyValueOperation op : operations) {
                     if (kve.getOperation() == op) {
-                        watcher.update(kve);
+                        watcher.watch(kve);
                         return;
                     }
                 }

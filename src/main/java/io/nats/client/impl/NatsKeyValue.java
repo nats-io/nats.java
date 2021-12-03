@@ -140,7 +140,7 @@ public class NatsKeyValue implements KeyValue {
         List<String> list = new ArrayList<>();
         visitSubject(streamSubject(bucketName), DeliverPolicy.LastPerSubject, true, false, m -> {
             KeyValueOperation op = getOperation(m.getHeaders(), KeyValueOperation.PUT);
-            if (!op.isDelete()) {
+            if (op == KeyValueOperation.PUT) {
                 list.add(new BucketAndKey(m).key);
             }
         });
@@ -168,7 +168,7 @@ public class NatsKeyValue implements KeyValue {
         List<String> list = new ArrayList<>();
         visitSubject(streamSubject(bucketName), DeliverPolicy.LastPerSubject, true, false, m -> {
             KeyValueOperation op = getOperation(m.getHeaders(), KeyValueOperation.PUT);
-            if (op.isDelete()) {
+            if (op != KeyValueOperation.PUT) {
                 list.add(new BucketAndKey(m).key);
             }
         });

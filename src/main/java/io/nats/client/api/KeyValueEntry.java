@@ -106,7 +106,7 @@ public class KeyValueEntry extends ApiResponse<KeyValueEntry> {
             ", operation=" + op +
             ", revision=" + revision +
             ", delta=" + delta +
-            ", data=" + (value == null ? "null" : "[" + value.length + " bytes]") +
+            ", dataLen=" + dataLen +
             ", created=" + created +
             '}';
     }

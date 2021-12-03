@@ -36,9 +36,9 @@ public abstract class NatsKeyValueUtil {
 
     static {
         DELETE_HEADERS = new Headers()
-            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.DEL.name());
+            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.DELETE.getHeaderValue());
         PURGE_HEADERS = new Headers()
-            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.PURGE.name())
+            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.PURGE.getHeaderValue())
             .put(ROLLUP_HDR, ROLLUP_HDR_SUBJECT);
     }
 

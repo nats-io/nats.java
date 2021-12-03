@@ -19,27 +19,23 @@ import java.util.Map;
  * Key Value Operations Enum
  */
 public enum KeyValueOperation {
-    PUT(false), DEL(true), PURGE(true);
+    PUT("PUT"), DELETE("DEL"), PURGE("PURGE");
 
-    private final boolean del;
+    private final String headerValue;
 
-    KeyValueOperation(boolean del) {
-        this.del = del;
-    }
-
-    /**
-     * Is this operation a delete operation?
-     * @return true if this enum is a delete operation
-     */
-    public boolean isDelete() {
-        return del;
+    KeyValueOperation(String headerValue) {
+        this.headerValue = headerValue;
     }
 
     private static final Map<String, KeyValueOperation> strEnumHash = new HashMap<>();
 
+    public String getHeaderValue() {
+        return headerValue;
+    }
+
     static {
         for (KeyValueOperation kvo : KeyValueOperation.values()) {
-            strEnumHash.put(kvo.name(), kvo);
+            strEnumHash.put(kvo.headerValue, kvo);
         }
     }
 

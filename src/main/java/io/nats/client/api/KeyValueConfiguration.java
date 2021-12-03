@@ -135,7 +135,7 @@ public class KeyValueConfiguration {
     }
 
     /**
-     * Creates a builder to copy the stream configuration.
+     * Creates a builder to copy the key value configuration.
      * @param kvc an existing KeyValueConfiguration
      * @return a stream configuration builder
      */
