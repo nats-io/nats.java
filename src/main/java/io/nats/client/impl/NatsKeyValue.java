@@ -55,34 +55,7 @@ public class NatsKeyValue implements KeyValue {
      * {@inheritDoc}
      */
     @Override
-    public byte[] getValue(String key) throws IOException, JetStreamApiException {
-        KeyValueEntry entry = getEntry(key);
-        return entry == null ? null : entry.getValue();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String getStringValue(String key) throws IOException, JetStreamApiException {
-        KeyValueEntry entry = getEntry(key);
-        return entry == null ? null : entry.getValueAsString();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Long getLongValue(String key) throws IOException, JetStreamApiException {
-        KeyValueEntry entry = getEntry(key);
-        return entry == null ? null : entry.getValueAsLong();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public KeyValueEntry getEntry(String key) throws IOException, JetStreamApiException {
+    public KeyValueEntry get(String key) throws IOException, JetStreamApiException {
         validateNonWildcardKvKeyRequired(key);
         String subj = String.format(JSAPI_MSG_GET, stream);
         Message resp = js.makeRequestResponseRequired(subj, lastBySubjectBytes(keySubject(bucketName, key)), JetStreamOptions.DEFAULT_TIMEOUT);
@@ -121,8 +94,8 @@ public class NatsKeyValue implements KeyValue {
      * {@inheritDoc}
      */
     @Override
-    public long put(String key, long value) throws IOException, JetStreamApiException {
-        return put(key, Long.toString(value).getBytes(StandardCharsets.US_ASCII));
+    public long put(String key, Number value) throws IOException, JetStreamApiException {
+        return put(key, value.toString().getBytes(StandardCharsets.US_ASCII));
     }
 
     /**

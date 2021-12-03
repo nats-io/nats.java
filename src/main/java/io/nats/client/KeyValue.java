@@ -34,43 +34,7 @@ public interface KeyValue {
     String getBucketName();
 
     /**
-     * Get the byte[] value for a key
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param key the key
-     * @return the value or null if not found or deleted
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     * @throws IllegalArgumentException the server is not JetStream enabled
-     */
-    byte[] getValue(String key) throws IOException, JetStreamApiException;
-
-    /**
-     * Get the string value for a key
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param key the key
-     * @return the value as UTF-8 string or null if not found or deleted
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     * @throws IllegalArgumentException the server is not JetStream enabled
-     */
-    String getStringValue(String key) throws IOException, JetStreamApiException;
-
-    /**
-     * Get the number value for a key
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param key the key
-     * @return the value as number or null if not found or deleted
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     * @throws IllegalArgumentException the server is not JetStream enabled
-     */
-    Long getLongValue(String key) throws IOException, JetStreamApiException;
-
-    /**
-     * Get the full entry for a key
+     * Get the entry for a key
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @return the KvEntry object or null if not found.
@@ -79,7 +43,7 @@ public interface KeyValue {
      * @throws JetStreamApiException the request had an error related to the data
      * @throws IllegalArgumentException the server is not JetStream enabled
      */
-    KeyValueEntry getEntry(String key) throws IOException, JetStreamApiException;
+    KeyValueEntry get(String key) throws IOException, JetStreamApiException;
 
     /**
      * Put a byte[] as the value for a key
@@ -118,7 +82,7 @@ public interface KeyValue {
      * @throws JetStreamApiException the request had an error related to the data
      * @throws IllegalArgumentException the server is not JetStream enabled
      */
-    long put(String key, long value) throws IOException, JetStreamApiException;
+    long put(String key, Number value) throws IOException, JetStreamApiException;
 
     /**
      * Deletes a key.

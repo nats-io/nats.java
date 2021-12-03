@@ -77,38 +77,38 @@ public class NatsKeyValueFull {
             // so you can always get the bytes directly
             System.out.println("\n2. Get Value (Bytes)");
 
-            byte[] bvalue = kv.getValue(BYTE_KEY);
+            byte[] bvalue = kv.get(BYTE_KEY).getValue();
             System.out.println(BYTE_KEY + " from getValue: " + new String(bvalue));
 
-            bvalue = kv.getValue(STRING_KEY);
+            bvalue = kv.get(STRING_KEY).getValue();
             System.out.println(STRING_KEY + " from getValue: " + new String(bvalue));
 
-            bvalue = kv.getValue(LONG_KEY);
+            bvalue = kv.get(LONG_KEY).getValue();
             System.out.println(LONG_KEY + " from getValue: " + new String(bvalue));
 
             // if you know the value is not binary and can safely be read
             // as a UTF-8 string, the getStringValue method is ok to use
             System.out.println("\n3. Get String Value");
 
-            String svalue = kv.getStringValue(BYTE_KEY);
-            System.out.println(BYTE_KEY + " from getStringValue: " + svalue);
+            String svalue = kv.get(BYTE_KEY).getValueAsString();
+            System.out.println(BYTE_KEY + " from getValueAsString: " + svalue);
 
-            svalue = kv.getStringValue(STRING_KEY);
-            System.out.println(STRING_KEY + " from getStringValue: " + svalue);
+            svalue = kv.get(STRING_KEY).getValueAsString();
+            System.out.println(STRING_KEY + " from getValueAsString: " + svalue);
 
-            svalue = kv.getStringValue(LONG_KEY);
-            System.out.println(LONG_KEY + " from getStringValue: " + svalue);
+            svalue = kv.get(LONG_KEY).getValueAsString();
+            System.out.println(LONG_KEY + " from getValueAsString: " + svalue);
 
             // if you know the value is a long, you can use
             // the getLongValue method
             // if it's not a number a NumberFormatException is thrown
             System.out.println("\n4. Get Long Value");
 
-            Long lvalue = kv.getLongValue(LONG_KEY);
-            System.out.println(LONG_KEY + " from getLongValue: " + lvalue);
+            Long lvalue = kv.get(LONG_KEY).getValueAsLong();
+            System.out.println(LONG_KEY + " from getValueAsLong: " + lvalue);
 
             try {
-                kv.getLongValue(STRING_KEY);
+                kv.get(STRING_KEY).getValueAsLong();
             }
             catch (NumberFormatException nfe) {
                 System.out.println(STRING_KEY + " value is not a long!");
@@ -117,13 +117,13 @@ public class NatsKeyValueFull {
             // entry gives detail about latest record of the key
             System.out.println("\n5. Get Entry");
 
-            KeyValueEntry entry = kv.getEntry(BYTE_KEY);
+            KeyValueEntry entry = kv.get(BYTE_KEY);
             System.out.println(BYTE_KEY + " entry: " + entry);
 
-            entry = kv.getEntry(STRING_KEY);
+            entry = kv.get(STRING_KEY);
             System.out.println(STRING_KEY + " entry: " + entry);
 
-            entry = kv.getEntry(LONG_KEY);
+            entry = kv.get(LONG_KEY);
             System.out.println(LONG_KEY + " entry: " + entry);
 
             // delete a key
@@ -132,32 +132,32 @@ public class NatsKeyValueFull {
             System.out.println("Sequence Number should be 4, got " + seq);
 
             // it's value is now null
-            bvalue = kv.getValue(BYTE_KEY);
+            bvalue = kv.get(BYTE_KEY).getValue();
             System.out.println("Deleted value should be null: " + (bvalue == null));
 
             // but it's entry still exists
-            entry = kv.getEntry(BYTE_KEY);
+            entry = kv.get(BYTE_KEY);
             System.out.println("Deleted " + BYTE_KEY + " entry: " + entry);
 
             // if the key has been deleted or not found / never existed
             // all varieties of get will return null
             System.out.println("\n7. Keys not found");
-            bvalue = kv.getValue(BYTE_KEY);
+            bvalue = kv.get(BYTE_KEY).getValue();
             System.out.println("Should be null: " + bvalue);
 
-            svalue = kv.getStringValue(BYTE_KEY);
+            svalue = kv.get(BYTE_KEY).getValueAsString();
             System.out.println("Should be null: " + svalue);
 
-            lvalue = kv.getLongValue(BYTE_KEY);
+            lvalue = kv.get(BYTE_KEY).getValueAsLong();
             System.out.println("Should be null: " + lvalue);
 
-            bvalue = kv.getValue(NOT_FOUND);
+            bvalue = kv.get(NOT_FOUND).getValue();
             System.out.println("Should be null: " + bvalue);
 
-            svalue = kv.getStringValue(NOT_FOUND);
+            svalue = kv.get(NOT_FOUND).getValueAsString();
             System.out.println("Should be null: " + svalue);
 
-            lvalue = kv.getLongValue(NOT_FOUND);
+            lvalue = kv.get(NOT_FOUND).getValueAsLong();
             System.out.println("Should be null: " + lvalue);
 
             // Update values. You can even update a deleted key
@@ -174,14 +174,14 @@ public class NatsKeyValueFull {
             // values after updates
             System.out.println("\n8.2 Values after update");
 
-            svalue = kv.getStringValue(BYTE_KEY);
-            System.out.println(BYTE_KEY + " from getStringValue: " + svalue);
+            svalue = kv.get(BYTE_KEY).getValueAsString();
+            System.out.println(BYTE_KEY + " from getValueAsString: " + svalue);
 
-            svalue = kv.getStringValue(STRING_KEY);
-            System.out.println(STRING_KEY + " from getStringValue: " + svalue);
+            svalue = kv.get(STRING_KEY).getValueAsString();
+            System.out.println(STRING_KEY + " from getValueAsString: " + svalue);
 
-            lvalue = kv.getLongValue(LONG_KEY);
-            System.out.println(LONG_KEY + " from getLongValue: " + svalue);
+            lvalue = kv.get(LONG_KEY).getValueAsLong();
+            System.out.println(LONG_KEY + " from getValueAsLong: " + svalue);
 
             // let's check the bucket info
             System.out.println("\n9.1 Bucket before delete");

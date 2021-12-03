@@ -82,21 +82,21 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // retrieve the values. all types are stored as bytes
             // so you can always get the bytes directly
-            assertEquals(byteValue1, new String(kv.getValue(byteKey)));
-            assertEquals(stringValue1, new String(kv.getValue(stringKey)));
-            assertEquals("1", new String(kv.getValue(longKey)));
+            assertEquals(byteValue1, new String(kv.get(byteKey).getValue()));
+            assertEquals(stringValue1, new String(kv.get(stringKey).getValue()));
+            assertEquals("1", new String(kv.get(longKey).getValue()));
 
             // if you know the value is not binary and can safely be read
             // as a UTF-8 string, the getStringValue method is ok to use
-            assertEquals(byteValue1, kv.getStringValue(byteKey));
-            assertEquals(stringValue1, kv.getStringValue(stringKey));
-            assertEquals("1", kv.getStringValue(longKey));
+            assertEquals(byteValue1, kv.get(byteKey).getValueAsString());
+            assertEquals(stringValue1, kv.get(stringKey).getValueAsString());
+            assertEquals("1", kv.get(longKey).getValueAsString());
 
             // if you know the value is a long, you can use
             // the getLongValue method
             // if it's not a number a NumberFormatException is thrown
-            assertEquals(1, kv.getLongValue(longKey));
-            assertThrows(NumberFormatException.class, () -> kv.getLongValue(stringKey));
+            assertEquals(1, kv.get(longKey).getValueAsLong());
+            assertThrows(NumberFormatException.class, () -> kv.get(stringKey).getValueAsLong());
 
             // going to manually track history for verification later
             List<KeyValueEntry> byteHistory = new ArrayList<>();
@@ -105,13 +105,13 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // entry gives detail about latest entry of the key
             byteHistory.add(
-                    assertEntry(BUCKET, byteKey, KeyValueOperation.PUT, 1, byteValue1, now, kv.getEntry(byteKey)));
+                    assertEntry(BUCKET, byteKey, KeyValueOperation.PUT, 1, byteValue1, now, kv.get(byteKey)));
 
             stringHistory.add(
-                    assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 2, stringValue1, now, kv.getEntry(stringKey)));
+                    assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 2, stringValue1, now, kv.get(stringKey)));
 
             longHistory.add(
-                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 3, "1", now, kv.getEntry(longKey)));
+                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 3, "1", now, kv.get(longKey)));
 
             // history gives detail about the key
             assertHistory(byteHistory, kv.history(byteKey));
@@ -126,10 +126,10 @@ public class KeyValueTests extends JetStreamTestBase {
             // delete a key
             kv.delete(byteKey);
             // it's value is now null
-            assertNull(kv.getValue(byteKey));
+            assertNull(kv.get(byteKey).getValue());
 
             byteHistory.add(
-                    assertEntry(BUCKET, byteKey, KeyValueOperation.DEL, 4, null, now, kv.getEntry(byteKey)));
+                    assertEntry(BUCKET, byteKey, KeyValueOperation.DEL, 4, null, now, kv.get(byteKey)));
             assertHistory(byteHistory, kv.history(byteKey));
 
             // hashCode coverage
@@ -137,21 +137,21 @@ public class KeyValueTests extends JetStreamTestBase {
             assertNotEquals(byteHistory.get(0).hashCode(), byteHistory.get(1).hashCode());
 
             // but it's entry still exists
-            assertEntry(BUCKET, byteKey, KeyValueOperation.DEL, 4, null, now, kv.getEntry(byteKey));
+            assertEntry(BUCKET, byteKey, KeyValueOperation.DEL, 4, null, now, kv.get(byteKey));
 
             // let's check the bucket info
             status = kvm.getBucketInfo(BUCKET);
             assertEquals(4, status.getEntryCount());
             assertEquals(4, status.getBackingStreamInfo().getStreamState().getLastSequence());
 
-            // if the key has been deleted or not found / never existed
+            // if the key has been deleted
             // all varieties of get will return null
-            assertNull(kv.getValue(byteKey));
-            assertNull(kv.getStringValue(byteKey));
-            assertNull(kv.getLongValue(byteKey));
-            assertNull(kv.getValue(notFoundKey));
-            assertNull(kv.getStringValue(notFoundKey));
-            assertNull(kv.getLongValue(notFoundKey));
+            assertNull(kv.get(byteKey).getValue());
+            assertNull(kv.get(byteKey).getValueAsString());
+            assertNull(kv.get(byteKey).getValueAsLong());
+
+            // if the key does not exist (no history) there is no entry
+            assertNull(kv.get(notFoundKey));
 
             // Update values. You can even update a deleted key
             assertEquals(5, kv.put(byteKey, byteValue2.getBytes()));
@@ -159,21 +159,21 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(7, kv.put(longKey, 2));
 
             // values after updates
-            assertEquals(byteValue2, new String(kv.getValue(byteKey)));
-            assertEquals(stringValue2, kv.getStringValue(stringKey));
-            assertEquals(2, kv.getLongValue(longKey));
+            assertEquals(byteValue2, new String(kv.get(byteKey).getValue()));
+            assertEquals(stringValue2, kv.get(stringKey).getValueAsString());
+            assertEquals(2, kv.get(longKey).getValueAsLong());
 
             // entry and history after update
             byteHistory.add(
-                    assertEntry(BUCKET, byteKey, KeyValueOperation.PUT, 5, byteValue2, now, kv.getEntry(byteKey)));
+                    assertEntry(BUCKET, byteKey, KeyValueOperation.PUT, 5, byteValue2, now, kv.get(byteKey)));
             assertHistory(byteHistory, kv.history(byteKey));
 
             stringHistory.add(
-                    assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 6, stringValue2, now, kv.getEntry(stringKey)));
+                    assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 6, stringValue2, now, kv.get(stringKey)));
             assertHistory(stringHistory, kv.history(stringKey));
 
             longHistory.add(
-                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 7, "2", now, kv.getEntry(longKey)));
+                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 7, "2", now, kv.get(longKey)));
             assertHistory(longHistory, kv.history(longKey));
 
             // let's check the bucket info
@@ -183,10 +183,10 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // make sure it only keeps the correct amount of history
             assertEquals(8, kv.put(longKey, 3));
-            assertEquals(3, kv.getLongValue(longKey));
+            assertEquals(3, kv.get(longKey).getValueAsLong());
 
             longHistory.add(
-                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 8, "3", now, kv.getEntry(longKey)));
+                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 8, "3", now, kv.get(longKey)));
             assertHistory(longHistory, kv.history(longKey));
 
             status = kvm.getBucketInfo(BUCKET);
@@ -196,12 +196,12 @@ public class KeyValueTests extends JetStreamTestBase {
             // this would be the 4th entry for the longKey
             // sp the total records will stay the same
             assertEquals(9, kv.put(longKey, 4));
-            assertEquals(4, kv.getLongValue(longKey));
+            assertEquals(4, kv.get(longKey).getValueAsLong());
 
             // history only retains 3 records
             longHistory.remove(0);
             longHistory.add(
-                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 9, "4", now, kv.getEntry(longKey)));
+                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 9, "4", now, kv.get(longKey)));
             assertHistory(longHistory, kv.history(longKey));
 
             // record count does not increase
@@ -216,7 +216,7 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.purge(longKey);
             longHistory.clear();
             longHistory.add(
-                assertEntry(BUCKET, longKey, KeyValueOperation.PURGE, 10, null, now, kv.getEntry(longKey)));
+                assertEntry(BUCKET, longKey, KeyValueOperation.PURGE, 10, null, now, kv.get(longKey)));
             assertHistory(longHistory, kv.history(longKey));
 
             status = kvm.getBucketInfo(BUCKET);
@@ -229,7 +229,7 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.purge(byteKey);
             byteHistory.clear();
             byteHistory.add(
-                assertEntry(BUCKET, byteKey, KeyValueOperation.PURGE, 11, null, now, kv.getEntry(byteKey)));
+                assertEntry(BUCKET, byteKey, KeyValueOperation.PURGE, 11, null, now, kv.get(byteKey)));
             assertHistory(byteHistory, kv.history(byteKey));
 
             status = kvm.getBucketInfo(BUCKET);
@@ -242,7 +242,7 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.purge(stringKey);
             stringHistory.clear();
             stringHistory.add(
-                assertEntry(BUCKET, stringKey, KeyValueOperation.PURGE, 12, null, now, kv.getEntry(stringKey)));
+                assertEntry(BUCKET, stringKey, KeyValueOperation.PURGE, 12, null, now, kv.get(stringKey)));
             assertHistory(stringHistory, kv.history(stringKey));
 
             status = kvm.getBucketInfo(BUCKET);
@@ -267,23 +267,23 @@ public class KeyValueTests extends JetStreamTestBase {
             // put some more
             assertEquals(13, kv.put(longKey, 110));
             longHistory.add(
-                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 13, "110", now, kv.getEntry(longKey)));
+                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 13, "110", now, kv.get(longKey)));
 
             assertEquals(14, kv.put(longKey, 111));
             longHistory.add(
-                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 14, "111", now, kv.getEntry(longKey)));
+                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 14, "111", now, kv.get(longKey)));
 
             assertEquals(15, kv.put(longKey, 112));
             longHistory.add(
-                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 15, "112", now, kv.getEntry(longKey)));
+                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 15, "112", now, kv.get(longKey)));
 
             assertEquals(16, kv.put(stringKey, stringValue1));
             stringHistory.add(
-                    assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 16, stringValue1, now, kv.getEntry(stringKey)));
+                    assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 16, stringValue1, now, kv.get(stringKey)));
 
             assertEquals(17, kv.put(stringKey, stringValue2));
             stringHistory.add(
-                    assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 17, stringValue2, now, kv.getEntry(stringKey)));
+                    assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 17, stringValue2, now, kv.get(stringKey)));
 
             assertHistory(longHistory, kv.history(longKey));
             assertHistory(stringHistory, kv.history(stringKey));
