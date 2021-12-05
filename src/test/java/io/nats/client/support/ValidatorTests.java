@@ -246,24 +246,24 @@ public class ValidatorTests {
 
     @Test
     public void testValidateWildcardKeyRequired() {
-        validateWildcardKvKeyRequired(PLAIN);
-        validateWildcardKvKeyRequired(PLAIN.toUpperCase());
-        validateWildcardKvKeyRequired(HAS_DASH);
-        validateWildcardKvKeyRequired(HAS_UNDER);
-        validateWildcardKvKeyRequired(HAS_FWD_SLASH);
-        validateWildcardKvKeyRequired(HAS_EQUALS);
-        validateWildcardKvKeyRequired(HAS_DOT);
-        validateWildcardKvKeyRequired(HAS_STAR);
-        validateWildcardKvKeyRequired(HAS_GT);
-        validateWildcardKvKeyRequired("numbers9ok");
-        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired(null));
-        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired(HAS_SPACE));
-        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired(HAS_DOLLAR));
-        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired(HAS_LOW));
-        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired(HAS_127));
-        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired(HAS_TIC));
-        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired("colon:isbetween9andA"));
-        assertThrows(IllegalArgumentException.class, () -> validateWildcardKvKeyRequired(".starts.with.dot.not.allowed"));
+        validateKvKeyWildcardAllowedRequired(PLAIN);
+        validateKvKeyWildcardAllowedRequired(PLAIN.toUpperCase());
+        validateKvKeyWildcardAllowedRequired(HAS_DASH);
+        validateKvKeyWildcardAllowedRequired(HAS_UNDER);
+        validateKvKeyWildcardAllowedRequired(HAS_FWD_SLASH);
+        validateKvKeyWildcardAllowedRequired(HAS_EQUALS);
+        validateKvKeyWildcardAllowedRequired(HAS_DOT);
+        validateKvKeyWildcardAllowedRequired(HAS_STAR);
+        validateKvKeyWildcardAllowedRequired(HAS_GT);
+        validateKvKeyWildcardAllowedRequired("numbers9ok");
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(null));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_TIC));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired("colon:isbetween9andA"));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(".starts.with.dot.not.allowed"));
     }
 
     @Test

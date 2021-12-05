@@ -59,7 +59,7 @@ public abstract class Validator {
         return validateKvBucketName(s, "Bucket name", true);
     }
 
-    public static String validateWildcardKvKeyRequired(String s) {
+    public static String validateKvKeyWildcardAllowedRequired(String s) {
         return validateWildcardKvKey(s, "Key", true);
     }
 
@@ -407,7 +407,7 @@ public abstract class Validator {
         return false;
     }
 
-    //  (A-Z, a-z, 0-9, star 42, dash 45, dot 46, fwd-slash 47, equals 61, gt 62, underscore 95)+
+    // (A-Z, a-z, 0-9, star 42, dash 45, dot 46, fwd-slash 47, equals 61, gt 62, underscore 95)+
     public static boolean notWildcardKvKey(String s) {
         if (s.charAt(0) == '.') {
             return true; // can't start with dot

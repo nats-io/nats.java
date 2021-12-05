@@ -123,10 +123,8 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(3, status.getEntryCount());
             assertEquals(3, status.getBackingStreamInfo().getStreamState().getLastSequence());
 
-            // delete a key
+            // delete a key. Its entry will still exist, but it's value is null
             kv.delete(byteKey);
-            // it's value is now null
-            assertNull(kv.get(byteKey).getValue());
 
             byteHistory.add(
                     assertEntry(BUCKET, byteKey, KeyValueOperation.DELETE, 4, null, now, kv.get(byteKey)));
@@ -135,9 +133,6 @@ public class KeyValueTests extends JetStreamTestBase {
             // hashCode coverage
             assertEquals(byteHistory.get(0).hashCode(), byteHistory.get(0).hashCode());
             assertNotEquals(byteHistory.get(0).hashCode(), byteHistory.get(1).hashCode());
-
-            // but it's entry still exists
-            assertEntry(BUCKET, byteKey, KeyValueOperation.DELETE, 4, null, now, kv.get(byteKey));
 
             // let's check the bucket info
             status = kvm.getBucketInfo(BUCKET);

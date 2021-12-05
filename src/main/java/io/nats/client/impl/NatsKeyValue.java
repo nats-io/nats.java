@@ -121,7 +121,7 @@ public class NatsKeyValue implements KeyValue {
 
     @Override
     public NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, boolean metaOnly, KeyValueOperation... operations) throws IOException, JetStreamApiException, InterruptedException {
-        validateWildcardKvKeyRequired(key);
+        validateKvKeyWildcardAllowedRequired(key);
         validateNotNull(watcher, "Watcher is required");
         return new NatsKeyValueWatchSubscription(js, bucketName, key, metaOnly, watcher, operations);
     }
