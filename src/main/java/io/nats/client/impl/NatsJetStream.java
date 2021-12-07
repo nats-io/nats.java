@@ -448,11 +448,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             handlers = new ArrayList<>();
             handlers.add(userHandler);
             if (isAutoAck && fnlServerCC.getAckPolicy() != AckPolicy.None) {
-                handlers.add(m -> {
-                    if (m.lastAck() == null || m.lastAck() == AckType.AckProgress) {
-                        m.ack();
-                    }
-                });
+                handlers.add(Message::ack);
             };
 
             this.managers = new ArrayList<>();

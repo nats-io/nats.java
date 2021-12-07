@@ -41,12 +41,14 @@ class NatsJetStreamMessage extends InternalMessage {
      */
     @Override
     public void ackSync(Duration d) throws InterruptedException, TimeoutException {
-        validateDurationRequired(d);
-        Connection nc = getJetStreamValidatedConnection();
-        if (nc.request(replyTo, AckAck.bytes, d) == null) {
-            throw new TimeoutException("Ack response timed out.");
+        if (dontAdr15SkipAck()) {
+            validateDurationRequired(d);
+            Connection nc = getJetStreamValidatedConnection();
+            if (nc.request(replyTo, AckAck.bytes, d) == null) {
+                throw new TimeoutException("Ack response timed out.");
+            }
+            lastAck = AckAck;
         }
-        lastAck = AckAck;
     }
 
     /**
@@ -93,9 +95,15 @@ class NatsJetStreamMessage extends InternalMessage {
     }
 
     private void ackReply(AckType ackType) {
-        Connection nc = getJetStreamValidatedConnection();
-        nc.publish(replyTo, ackType.bytes);
-        lastAck = ackType;
+        if (dontAdr15SkipAck()) {
+            Connection nc = getJetStreamValidatedConnection();
+            nc.publish(replyTo, ackType.bytes);
+            lastAck = ackType;
+        }
+    }
+
+    private boolean dontAdr15SkipAck() {
+        return lastAck == null || !lastAck.terminal;
     }
 
     Connection getJetStreamValidatedConnection() {

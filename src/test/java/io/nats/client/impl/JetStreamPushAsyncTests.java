@@ -231,7 +231,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // publish a message
-            jsPublish(js, SUBJECT, 3);
+            jsPublish(js, SUBJECT, 5);
 
             // create a dispatcher without a default handler.
             Dispatcher dispatcher = nc.createDispatcher();
@@ -243,18 +243,30 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             // create our message handler, does not ack
             MessageHandler handler = (Message msg) -> {
                 NatsJetStreamMessage m = (NatsJetStreamMessage)msg;
-                if (flag.incrementAndGet() == 1) {
-                    m.replyTo = mockAckReply + "user";
+                int f = flag.incrementAndGet();
+                if (f == 1) {
+                    // set reply to before
+                    m.replyTo = mockAckReply + "ack";
                     m.ack();
                 }
-                else if (flag.get() == 2) {
+                else if (f == 2) {
+                    // set reply to before
+                    m.replyTo = mockAckReply + "nak";
+                    m.nak();
+                }
+                else if (f == 3) {
+                    // set reply to before
+                    m.replyTo = mockAckReply + "term";
+                    m.term();
+                }
+                else if (f == 4) {
+                    // set reply to AFTER
                     m.inProgress();
                     m.replyTo = mockAckReply + "progress";
                 }
                 else {
                     m.replyTo = mockAckReply + "system";
                 }
-                debug(m);
                 msgLatchRef.get().countDown();
             };
 
@@ -269,14 +281,18 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             JetStreamSubscription sub = js.subscribe(mockAckReply + "*");
             Message msg = sub.nextMessage(1000);
-            assertEquals(mockAckReply + "user", msg.getSubject());
+            assertEquals(mockAckReply + "ack", msg.getSubject());
+            msg = sub.nextMessage(1000);
+            assertEquals(mockAckReply + "nak", msg.getSubject());
+            msg = sub.nextMessage(1000);
+            assertEquals(mockAckReply + "term", msg.getSubject());
             msg = sub.nextMessage(1000);
             assertEquals(mockAckReply + "progress", msg.getSubject());
             msg = sub.nextMessage(1000);
             assertEquals(mockAckReply + "system", msg.getSubject());
 
             // coverage explicit no ack flag
-            msgLatchRef.set(new CountDownLatch(3));
+            msgLatchRef.set(new CountDownLatch(5));
             PushSubscribeOptions pso = ConsumerConfiguration.builder().ackWait(Duration.ofSeconds(100)).buildPushSubscribeOptions();
             async = js.subscribe(SUBJECT, dispatcher, handler, false, pso);
             assertTrue(msgLatchRef.get().await(10, TimeUnit.SECONDS));
@@ -287,7 +303,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             assertNull(sub.nextMessage(1000));
 
             // coverage explicit AckPolicyNone
-            msgLatchRef.set(new CountDownLatch(3));
+            msgLatchRef.set(new CountDownLatch(5));
             pso = ConsumerConfiguration.builder().ackPolicy(AckPolicy.None).buildPushSubscribeOptions();
             async = js.subscribe(SUBJECT, dispatcher, handler, true, pso);
             assertTrue(msgLatchRef.get().await(10, TimeUnit.SECONDS));
