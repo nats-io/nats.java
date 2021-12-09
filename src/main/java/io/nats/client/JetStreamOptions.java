@@ -17,7 +17,7 @@ import java.time.Duration;
 
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamConstants.*;
-import static io.nats.client.support.Validator.nullOrEmpty;
+import static io.nats.client.support.Validator.emptyAsNull;
 import static io.nats.client.support.Validator.validatePrefixOrDomain;
 
 /**
@@ -32,9 +32,17 @@ public class JetStreamOptions {
     private final String prefix;
     private final Duration requestTimeout;
     private final boolean publishNoAck;
+    private final boolean defaultPrefix;
 
-    private JetStreamOptions(String prefix, Duration requestTimeout, boolean publishNoAck) {
-        this.prefix = prefix;
+    private JetStreamOptions(String inPrefix, Duration requestTimeout, boolean publishNoAck) {
+        if (inPrefix == null) {
+            defaultPrefix = true;
+            this.prefix = DEFAULT_API_PREFIX;
+        }
+        else {
+            defaultPrefix = false;
+            this.prefix = inPrefix;
+        }
         this.requestTimeout = requestTimeout;
         this.publishNoAck = publishNoAck;
     }
@@ -54,6 +62,10 @@ public class JetStreamOptions {
      */
     public String getPrefix() {
         return prefix;
+    }
+
+    public boolean isDefaultPrefix() {
+        return defaultPrefix;
     }
 
     /**
@@ -104,7 +116,12 @@ public class JetStreamOptions {
 
         public Builder(JetStreamOptions jso) {
             if (jso != null) {
-                this.prefix = jso.prefix;
+                if (jso.isDefaultPrefix()) {
+                    this.prefix = null;
+                }
+                else {
+                    this.prefix = jso.prefix;
+                }
                 this.requestTimeout = jso.requestTimeout;
                 this.publishNoAck = jso.publishNoAck;
             }
@@ -128,8 +145,8 @@ public class JetStreamOptions {
          * @return the builder.
          */
         public Builder prefix(String prefix) {
-            this.prefix = prefix; // validated during build
-            this.domain = null; // build with one or the other
+            this.prefix = emptyAsNull(prefix); // validated during build
+            domain = this.prefix == null ? domain : null; // build with one or the other. don't change domain if prefix was cleared
             return this;
         }
 
@@ -142,8 +159,8 @@ public class JetStreamOptions {
          * @return the builder.
          */
         public Builder domain(String domain) {
-            this.domain = domain; // validated in domain manager
-            this.prefix = null; // build with one or the other
+            this.domain = emptyAsNull(domain); // validated in domain manager
+            prefix = this.domain == null ? prefix : null; // build with one or the other. don't change prefix if domain was cleared
             return this;
         }
 
@@ -162,29 +179,23 @@ public class JetStreamOptions {
          * @return JetStream options
          */
         public JetStreamOptions build() {
-            if (domain == null) {
-                prefix = validatePrefix(prefix);
+            String calculated = null;
+            if (domain != null) {
+                calculated = validateDomain(domain);
             }
-            else {
-                prefix = validateDomain(domain);
+            else if (prefix != null) {
+                calculated = validatePrefix(prefix);
             }
             this.requestTimeout = requestTimeout == null ? DEFAULT_TIMEOUT : requestTimeout;
-            return new JetStreamOptions(prefix, requestTimeout, publishNoAck);
+            return new JetStreamOptions(calculated, requestTimeout, publishNoAck);
         }
 
         private String validatePrefix(String prefix) {
-            if (nullOrEmpty(prefix)) {
-                return DEFAULT_API_PREFIX;
-            }
-
             String valid = validatePrefixOrDomain(prefix, "Prefix", true);
             return valid.endsWith(DOT) ? valid : valid + DOT;
         }
 
         private String validateDomain(String domain) {
-            if (nullOrEmpty(domain)) {
-                return DEFAULT_API_PREFIX;
-            }
             String valid = validatePrefixOrDomain(domain, "Domain", true);
             if (valid.endsWith(DOT)) {
                 return PREFIX_DOLLAR_JS_DOT + valid + PREFIX_API_DOT;

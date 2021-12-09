@@ -10,23 +10,26 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 package io.nats.client.api;
 
 /**
- * Use the KeyValueWatcher interface to watch for updates
+ * Key Value Watch Option
  */
-public interface KeyValueWatcher {
+public enum KeyValueWatchOption {
+//    type watchOpts struct {
+//        ctx context.Context
+//        // Do not send delete markers to the update channel.
+//        ignoreDeletes bool
+//        // Include all history per subject, not just last one.
+//        includeHistory bool
+//        // For watches, skip the last entry. Does not apply to history
+//        updatesOnly bool
+//        // retrieve only the meta data of the entry
+//        metaOnly bool
+//    }
 
     /**
-     * Called when a key has been updated
-     *
-     * @param kve The entry for the updated key
+     * Do not send delete or purge markers as updates.
      */
-    void watch(KeyValueEntry kve);
-
-    /**
-     * Called once if there is currently no data when the watch is created.
-     */
-    void noData();
+    IGNORE_DELETES, META_ONLY;
 }

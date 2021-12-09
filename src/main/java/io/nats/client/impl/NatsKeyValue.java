@@ -23,8 +23,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.nats.client.api.MessageGetRequest.lastBySubjectBytes;
-import static io.nats.client.support.NatsJetStreamConstants.JSAPI_MSG_GET;
 import static io.nats.client.support.NatsJetStreamConstants.JS_NO_MESSAGE_FOUND_ERR;
 import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
@@ -33,8 +31,8 @@ public class NatsKeyValue implements KeyValue {
 
     private final String bucketName;
     private final String stream;
-    private final NatsJetStream js;
-    private final JetStreamManagement jsm;
+    final NatsJetStream js;
+    final JetStreamManagement jsm;
 
     public NatsKeyValue(NatsConnection connection, String bucketName, JetStreamOptions options) throws IOException {
         this.bucketName = Validator.validateKvBucketNameRequired(bucketName);
@@ -56,10 +54,11 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public KeyValueEntry get(String key) throws IOException, JetStreamApiException {
-        validateNonWildcardKvKeyRequired(key);
-        String subj = String.format(JSAPI_MSG_GET, stream);
-        Message resp = js.makeRequestResponseRequired(subj, lastBySubjectBytes(keySubject(bucketName, key)), JetStreamOptions.DEFAULT_TIMEOUT);
-        MessageInfo mi = new MessageInfo(resp);
+        return getInternal(validateNonWildcardKvKeyRequired(key));
+    }
+
+    KeyValueEntry getInternal(String key) throws IOException, JetStreamApiException {
+        MessageInfo mi = jsm.getLastMessage(stream, keySubject(js.jso, bucketName, key));
         if (mi.hasError()) {
             if (mi.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {
                 return null; // run of the mill key not found
@@ -76,7 +75,7 @@ public class NatsKeyValue implements KeyValue {
     public long put(String key, byte[] value) throws IOException, JetStreamApiException {
         validateNonWildcardKvKeyRequired(key);
         PublishAck pa = js.publish(NatsMessage.builder()
-                .subject(keySubject(bucketName, key))
+                .subject(keySubject(js.jso, bucketName, key))
                 .data(value)
                 .build());
         return pa.getSeqno();
@@ -116,20 +115,20 @@ public class NatsKeyValue implements KeyValue {
 
     private void _deletePurge(String key, Headers h) throws IOException, JetStreamApiException {
         validateNonWildcardKvKeyRequired(key);
-        js.publish(NatsMessage.builder().subject(keySubject(bucketName, key)).headers(h).build());
+        js.publish(NatsMessage.builder().subject(keySubject(js.jso, bucketName, key)).headers(h).build());
     }
 
     @Override
-    public NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, boolean metaOnly, KeyValueOperation... operations) throws IOException, JetStreamApiException, InterruptedException {
+    public NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, ResultOption... resultOptions) throws IOException, JetStreamApiException, InterruptedException {
         validateKvKeyWildcardAllowedRequired(key);
         validateNotNull(watcher, "Watcher is required");
-        return new NatsKeyValueWatchSubscription(js, bucketName, key, metaOnly, watcher, operations);
+        return new NatsKeyValueWatchSubscription(this, bucketName, key, watcher, resultOptions);
     }
 
     @Override
-    public NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, boolean metaOnly, KeyValueOperation... operations) throws IOException, JetStreamApiException, InterruptedException {
+    public NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, ResultOption... resultOptions) throws IOException, JetStreamApiException, InterruptedException {
         validateNotNull(watcher, "Watcher is required");
-        return new NatsKeyValueWatchSubscription(js, bucketName, ">", metaOnly, watcher, operations);
+        return new NatsKeyValueWatchSubscription(this, bucketName, ">", watcher, resultOptions);
     }
 
     /**
@@ -151,10 +150,10 @@ public class NatsKeyValue implements KeyValue {
      * {@inheritDoc}
      */
     @Override
-    public List<KeyValueEntry> history(String key) throws IOException, JetStreamApiException, InterruptedException {
+    public List<KeyValueEntry> history(String key, ResultOption... resultOptions) throws IOException, JetStreamApiException, InterruptedException {
         validateNonWildcardKvKeyRequired(key);
         List<KeyValueEntry> list = new ArrayList<>();
-        visitSubject(keySubject(bucketName, key), DeliverPolicy.All, false, true, m -> {
+        visitSubject(keySubject(js.jso, bucketName, key), DeliverPolicy.All, false, true, m -> {
             list.add(new KeyValueEntry(m));
         });
         return list;
@@ -174,7 +173,7 @@ public class NatsKeyValue implements KeyValue {
         });
 
         for (String key : list) {
-            jsm.purgeStream(stream, PurgeOptions.subject(keySubject(bucketName, key)));
+            jsm.purgeStream(stream, PurgeOptions.subject(keySubject(js.jso, bucketName, key)));
         }
     }
 

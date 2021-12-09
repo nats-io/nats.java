@@ -13,7 +13,6 @@
 package io.nats.client;
 
 import io.nats.client.api.KeyValueEntry;
-import io.nats.client.api.KeyValueOperation;
 import io.nats.client.api.KeyValueStatus;
 import io.nats.client.api.KeyValueWatcher;
 import io.nats.client.impl.NatsKeyValueWatchSubscription;
@@ -25,6 +24,35 @@ import java.util.List;
  * Key Value Store Management context for creation and access to key value buckets.
  */
 public interface KeyValue {
+    enum ResultOption {
+        /**
+         * Do not include deletes or purges in results.
+         * Default is to include deletes.
+         * Applicable for watch/watchAll/history.
+         */
+        IGNORE_DELETE,
+
+        /**
+         * Only get meta data, skip value when retrieving data from the server.
+         * Applicable for watch/watchAll/history.
+         */
+        META_ONLY,
+
+        /**
+         * Watch starting at the first entry for all keys.
+         * Default is to start at the last per key.
+         * Applicable for watch/watchAll, N/A with history.
+         */
+        START_FIRST,
+
+        /**
+         * Watch starting when there are new entries for keys.
+         * Default is to start at the last per key.
+         * Applicable for watch/watchAll, N/A with history.
+         */
+        START_NEW
+
+    }
 
     /**
      * Get the name of the bucket.
@@ -109,29 +137,27 @@ public interface KeyValue {
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @param watcher the watcher
-     * @param metaOnly flag to receive KeyValueEntry metadata only. Use false to receive both metadata and headers
-     * @param operations the types of operations to watch for. If not supplied, all types will be watched for.
+     * @param resultOptions the result options to apply.
      * @return The KeyValueWatchSubscription
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      * @throws InterruptedException if the thread is interrupted
      */
-    NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, boolean metaOnly, KeyValueOperation... operations) throws IOException, JetStreamApiException, InterruptedException;
+    NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, ResultOption... resultOptions) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
      * Watch updates for all keys
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param watcher the watcher
-     * @param metaOnly flag to receive KeyValueEntry metadata only. Use false to receive both metadata and headers
-     * @param operations the types of operations to watch for. If not supplied, all types will be watched for.
+     * @param resultOptions the result options to apply.
      * @return The KeyValueWatchSubscription
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      * @throws InterruptedException if the thread is interrupted
      */
-    NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, boolean metaOnly, KeyValueOperation... operations) throws IOException, JetStreamApiException, InterruptedException;
+    NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, ResultOption... resultOptions) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
      * Get the set of the keys in a bucket.
@@ -148,13 +174,14 @@ public interface KeyValue {
      * Get the history (list of KvEntry) for a key
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
+     * @param resultOptions the result options to apply.
      * @return List of KvEntry
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      * @throws InterruptedException if the thread is interrupted
      */
-    List<KeyValueEntry> history(String key) throws IOException, JetStreamApiException, InterruptedException;
+    List<KeyValueEntry> history(String key, ResultOption... resultOptions) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
      * Remove all current delete markers

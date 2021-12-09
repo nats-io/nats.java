@@ -25,10 +25,32 @@ public class NatsKeyValueWatchSubscription {
 
     private final JetStreamSubscription sub;
 
-    public NatsKeyValueWatchSubscription(JetStream js, String bucketName, String keyPattern,
-                                         boolean headersOnly, final KeyValueWatcher watcher, KeyValueOperation[] operations) throws IOException, JetStreamApiException {
+    public NatsKeyValueWatchSubscription(NatsKeyValue kv, String bucketName, String keyPattern,
+                                         final KeyValueWatcher watcher,
+                                         KeyValue.ResultOption... resultOptions) throws IOException, JetStreamApiException {
         String stream = NatsKeyValueUtil.streamName(bucketName);
-        String subject = NatsKeyValueUtil.keySubject(bucketName, keyPattern);
+        String keySubject = NatsKeyValueUtil.keySubject(kv.js.jso, bucketName, keyPattern);
+
+        // figure out the result options
+        boolean headersOnly = false;
+        boolean ignoreDeletes = false;
+        DeliverPolicy deliverPolicy = DeliverPolicy.LastPerSubject;
+        for (KeyValue.ResultOption rop : resultOptions) {
+            if (rop != null) {
+                switch (rop) {
+                    case META_ONLY: headersOnly = true; break;
+                    case IGNORE_DELETE: ignoreDeletes = true; break;
+                    case START_NEW: deliverPolicy = DeliverPolicy.New; break;
+                    case START_FIRST: deliverPolicy = DeliverPolicy.All; break;
+                }
+            }
+        }
+
+        // Check if we have anything pending
+        KeyValueEntry kveAny = kv.getInternal(keyPattern);
+        if (kveAny == null) {
+            watcher.noData();
+        }
 
         PushSubscribeOptions pso = PushSubscribeOptions.builder()
             .stream(stream)
@@ -36,38 +58,27 @@ public class NatsKeyValueWatchSubscription {
             .configuration(
                 ConsumerConfiguration.builder()
                     .ackPolicy(AckPolicy.None)
-                    .deliverPolicy(DeliverPolicy.LastPerSubject)
+                    .deliverPolicy(deliverPolicy)
                     .headersOnly(headersOnly)
-                    .filterSubject(subject)
+                    .filterSubject(keySubject)
                     .build())
             .build();
 
+        // making this as efficient as possible
         MessageHandler handler;
-        if (operations.length == 0) {
-            handler = m -> watcher.watch(new KeyValueEntry(m));
-        }
-        else if (operations.length == 1) {
-            final KeyValueOperation op = operations[0];
+        if (ignoreDeletes) {
             handler = m -> {
-                KeyValueEntry kve = new KeyValueEntry(m);
-                if (kve.getOperation() == op) {
-                    watcher.watch(kve);
+                KeyValueEntry kveIg = new KeyValueEntry(m);
+                if (kveIg.getOperation().equals(KeyValueOperation.PUT)) {
+                    watcher.watch(kveIg);
                 }
             };
         }
         else {
-            handler = m -> {
-                KeyValueEntry kve = new KeyValueEntry(m);
-                for (KeyValueOperation op : operations) {
-                    if (kve.getOperation() == op) {
-                        watcher.watch(kve);
-                        return;
-                    }
-                }
-            };
+            handler = m -> watcher.watch(new KeyValueEntry(m));
         }
 
-        sub = js.subscribe(subject, getDispatcher(js), handler, false, pso);
+        sub = kv.js.subscribe(keySubject, getDispatcher(kv.js), handler, false, pso);
     }
 
     private static Dispatcher getDispatcher(JetStream js) {

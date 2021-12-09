@@ -13,6 +13,7 @@
 
 package io.nats.client.support;
 
+import io.nats.client.JetStreamOptions;
 import io.nats.client.Message;
 import io.nats.client.api.KeyValueOperation;
 import io.nats.client.impl.Headers;
@@ -54,8 +55,8 @@ public abstract class NatsKeyValueUtil {
         return KV_SUBJECT_PREFIX + bucketName + KV_SUBJECT_SUFFIX;
     }
 
-    public static String keySubject(String bucketName, String key) {
-        return KV_SUBJECT_PREFIX + bucketName + DOT + key;
+    public static String keySubject(JetStreamOptions jso, String bucketName, String key) {
+        return (jso.isDefaultPrefix() ? "" : jso.getPrefix()) + KV_SUBJECT_PREFIX + bucketName + DOT + key;
     }
 
     public static String getOperationHeader(Headers h) {

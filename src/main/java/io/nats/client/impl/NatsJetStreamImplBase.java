@@ -27,8 +27,8 @@ import java.time.Duration;
 
 class NatsJetStreamImplBase implements NatsJetStreamConstants {
 
-    protected final NatsConnection conn;
-    protected final JetStreamOptions jso;
+    final NatsConnection conn;
+    final JetStreamOptions jso;
 
     // ----------------------------------------------------------------------------------------------------
     // Create / Init

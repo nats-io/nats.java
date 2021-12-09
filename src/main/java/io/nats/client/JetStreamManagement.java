@@ -178,6 +178,17 @@ public interface JetStreamManagement {
     MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException;
 
     /**
+     * Return an info object about a message
+     * @param streamName the name of the stream.
+     * @param subject the subject to get the last message for
+     * @return The MessageInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    MessageInfo getLastMessage(String streamName, String subject) throws IOException, JetStreamApiException;
+
+    /**
      * Deletes a message.
      * @param streamName name of the stream
      * @param seq the sequence number of the message
