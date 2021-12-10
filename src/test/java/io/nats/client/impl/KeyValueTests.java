@@ -450,6 +450,15 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.delete(KEY);
             List<KeyValueEntry> hist = kv.history(KEY);
             kv.update(KEY, "abcd".getBytes(), hist.get(hist.size()-1).getRevision());
+
+            // 8. allowed to create a key that is purged
+            kv.purge(KEY);
+            kv.create(KEY, "abcde".getBytes());
+
+            // 9. allowed to update a key that is deleted, as long as you have it's revision
+            kv.purge(KEY);
+            hist = kv.history(KEY);
+            kv.update(KEY, "abcdef".getBytes(), hist.get(hist.size()-1).getRevision());
         });
     }
 
