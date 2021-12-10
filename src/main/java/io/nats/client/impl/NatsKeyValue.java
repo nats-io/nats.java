@@ -23,7 +23,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.nats.client.support.NatsJetStreamConstants.JS_NO_MESSAGE_FOUND_ERR;
+import static io.nats.client.support.NatsJetStreamConstants.*;
 import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
 
@@ -101,8 +101,37 @@ public class NatsKeyValue implements KeyValue {
      * {@inheritDoc}
      */
     @Override
+    public long create(String key, byte[] value) throws IOException, JetStreamApiException {
+        try {
+            return update(key, value, 0);
+        }
+        catch (JetStreamApiException e) {
+            if (e.getApiErrorCode() == JS_WRONG_LAST_SEQUENCE) {
+                // must check if the last message for this subject is a delete or purge
+                KeyValueEntry kve = getInternal(key);
+                if (kve != null && kve.getOperation() != KeyValueOperation.PUT) {
+                    return update(key, value, kve.getRevision());
+                }
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public long update(String key, byte[] value, long expectedRevision) throws IOException, JetStreamApiException {
+        Headers h = new Headers().add(EXPECTED_LAST_SUB_SEQ_HDR, Long.toString(expectedRevision));
+        return _publishWithNonWildcardKey(key, value, h).getSeqno();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void delete(String key) throws IOException, JetStreamApiException {
-        _deletePurge(key, DELETE_HEADERS);
+        _publishWithNonWildcardKey(key, null, DELETE_HEADERS);
     }
 
     /**
@@ -110,12 +139,12 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public void purge(String key) throws IOException, JetStreamApiException {
-        _deletePurge(key, PURGE_HEADERS);
+        _publishWithNonWildcardKey(key, null, PURGE_HEADERS);
     }
 
-    private void _deletePurge(String key, Headers h) throws IOException, JetStreamApiException {
+    private PublishAck _publishWithNonWildcardKey(String key, byte[] data, Headers h) throws IOException, JetStreamApiException {
         validateNonWildcardKvKeyRequired(key);
-        js.publish(NatsMessage.builder().subject(keySubject(js.jso, bucketName, key)).headers(h).build());
+        return js.publish(NatsMessage.builder().subject(keySubject(js.jso, bucketName, key)).data(data).headers(h).build());
     }
 
     @Override

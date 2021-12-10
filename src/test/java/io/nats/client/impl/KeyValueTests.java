@@ -414,6 +414,46 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testCreateAndUpdate() throws Exception {
+        runInJsServer(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            // create bucket
+            kvm.create(KeyValueConfiguration.builder()
+                .name(BUCKET)
+                .storageType(StorageType.Memory)
+                .maxHistoryPerKey(64)
+                .build());
+
+            KeyValue kv = nc.keyValue(BUCKET);
+
+            // 1. allowed to create something that does not exist
+            long rev1 = kv.create(KEY, "a".getBytes());
+
+            // 2. allowed to update with proper revision
+            kv.update(KEY, "ab".getBytes(), rev1);
+
+            // 3. not allowed to update with wrong revision
+            assertThrows(JetStreamApiException.class, () -> kv.update(KEY, "zzz".getBytes(), rev1));
+
+            // 4. not allowed to create a key that exists
+            assertThrows(JetStreamApiException.class, () -> kv.create(KEY, "zzz".getBytes()));
+
+            // 5. not allowed to update a key that does not exist
+            assertThrows(JetStreamApiException.class, () -> kv.update(KEY, "zzz".getBytes(), 1));
+
+            // 6. allowed to create a key that is deleted
+            kv.delete(KEY);
+            kv.create(KEY, "abc".getBytes());
+
+            // 7. allowed to update a key that is deleted, as long as you have it's revision
+            kv.delete(KEY);
+            List<KeyValueEntry> hist = kv.history(KEY);
+            kv.update(KEY, "abcd".getBytes(), hist.get(hist.size()-1).getRevision());
+        });
+    }
+
+    @Test
     public void testManageGetBucketNames() throws Exception {
         runInJsServer(nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();

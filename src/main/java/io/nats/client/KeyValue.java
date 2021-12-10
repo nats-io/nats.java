@@ -74,7 +74,7 @@ public interface KeyValue {
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @param value the bytes of the value
-     * @return the sequence number for the PUT record
+     * @return the revision number for the key
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
@@ -87,7 +87,7 @@ public interface KeyValue {
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @param value the UTF-8 string
-     * @return the sequence number for the PUT record
+     * @return the revision number for the key
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
@@ -100,13 +100,41 @@ public interface KeyValue {
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @param value the number
-     * @return the sequence number for the PUT record
+     * @return the revision number for the key
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      * @throws IllegalArgumentException the server is not JetStream enabled
      */
     long put(String key, Number value) throws IOException, JetStreamApiException;
+
+    /**
+     * Put as the value for a key iff the key does not exist (there is no history)
+     * or is deleted (history shows the key is deleted)
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @param key the key
+     * @param value the bytes of the value
+     * @return the revision number for the key
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws IllegalArgumentException the server is not JetStream enabled
+     */
+    long create(String key, byte[] value) throws IOException, JetStreamApiException;
+
+    /**
+     * Put as the value for a key iff the exists and its last revision matches the expected
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @param key the key
+     * @param value the number
+     * @param value the bytes of the value
+     * @return the revision number for the key
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws IllegalArgumentException the server is not JetStream enabled
+     */
+    long update(String key, byte[] value, long expectedRevision) throws IOException, JetStreamApiException;
 
     /**
      * Deletes a key.
@@ -133,7 +161,7 @@ public interface KeyValue {
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @param watcher the watcher
-     * @param watchOptions the result options to apply.
+     * @param watchOptions the result options to apply. If multiple conflicting options are supplied, that last options wins.
      * @return The KeyValueWatchSubscription
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -146,7 +174,7 @@ public interface KeyValue {
      * Watch updates for all keys
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param watcher the watcher
-     * @param watchOptions the result options to apply.
+     * @param watchOptions the result options to apply. If multiple conflicting options are supplied, that last options wins.
      * @return The KeyValueWatchSubscription
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
