@@ -26,7 +26,8 @@ public interface KeyValueWatcher {
     void watch(KeyValueEntry kve);
 
     /**
-     * Called once if there is currently no data when the watch is created.
+     * Called once if there is no data when the watch is created
+     * or if there is data, the first time the watch exhausts all existing data.
      */
-    void noData();
+    void endOfData();
 }

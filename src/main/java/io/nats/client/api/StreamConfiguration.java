@@ -327,25 +327,26 @@ public class StreamConfiguration implements JsonSerializable {
     @Override
     public String toString() {
         return "StreamConfiguration{" +
-                "name='" + name + '\'' +
-                ", description='" + description + '\'' +
-                ", subjects=" + subjects +
-                ", retentionPolicy=" + retentionPolicy +
-                ", maxConsumers=" + maxConsumers +
-                ", maxMsgs=" + maxMsgs +
-                ", maxBytes=" + maxBytes +
-                ", maxAge=" + maxAge +
-                ", maxMsgSize=" + maxMsgSize +
-                ", storageType=" + storageType +
-                ", replicas=" + replicas +
-                ", noAck=" + noAck +
-                ", template='" + templateOwner + '\'' +
-                ", discardPolicy=" + discardPolicy +
-                ", duplicateWindow=" + duplicateWindow +
-                ", " + objectString("mirror", mirror) +
-                ", " + objectString("placement", placement) +
-                ", sources=" + sources +
-                '}';
+            "name='" + name + '\'' +
+            ", description='" + description + '\'' +
+            ", subjects=" + subjects +
+            ", retentionPolicy=" + retentionPolicy +
+            ", maxConsumers=" + maxConsumers +
+            ", maxMsgs=" + maxMsgs +
+            ", maxMsgsPerSubject=" + maxMsgsPerSubject +
+            ", maxBytes=" + maxBytes +
+            ", maxAge=" + maxAge +
+            ", maxMsgSize=" + maxMsgSize +
+            ", storageType=" + storageType +
+            ", replicas=" + replicas +
+            ", noAck=" + noAck +
+            ", template='" + templateOwner + '\'' +
+            ", discardPolicy=" + discardPolicy +
+            ", duplicateWindow=" + duplicateWindow +
+            ", " + objectString("mirror", mirror) +
+            ", " + objectString("placement", placement) +
+            ", sources=" + sources +
+            '}';
     }
 
     /**

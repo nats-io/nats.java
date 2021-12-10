@@ -18,16 +18,18 @@ import io.nats.client.api.*;
 import io.nats.client.support.NatsKeyValueUtil;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class NatsKeyValueWatchSubscription {
     private static final Object dispatcherLock = new Object();
     private static NatsDispatcher dispatcher;
 
     private final JetStreamSubscription sub;
+    private final AtomicBoolean endOfDataSent;
 
     public NatsKeyValueWatchSubscription(NatsKeyValue kv, String bucketName, String keyPattern,
                                          final KeyValueWatcher watcher,
-                                         KeyValue.ResultOption... resultOptions) throws IOException, JetStreamApiException {
+                                         KeyValue.WatchOption... watchOptions) throws IOException, JetStreamApiException {
         String stream = NatsKeyValueUtil.streamName(bucketName);
         String keySubject = NatsKeyValueUtil.keySubject(kv.js.jso, bucketName, keyPattern);
 
@@ -35,21 +37,30 @@ public class NatsKeyValueWatchSubscription {
         boolean headersOnly = false;
         boolean ignoreDeletes = false;
         DeliverPolicy deliverPolicy = DeliverPolicy.LastPerSubject;
-        for (KeyValue.ResultOption rop : resultOptions) {
+        for (KeyValue.WatchOption rop : watchOptions) {
             if (rop != null) {
                 switch (rop) {
                     case META_ONLY: headersOnly = true; break;
                     case IGNORE_DELETE: ignoreDeletes = true; break;
-                    case START_NEW: deliverPolicy = DeliverPolicy.New; break;
-                    case START_FIRST: deliverPolicy = DeliverPolicy.All; break;
+                    case UPDATES_ONLY: deliverPolicy = DeliverPolicy.New; break;
+                    case INCLUDE_HISTORY: deliverPolicy = DeliverPolicy.All; break;
                 }
             }
         }
 
-        // Check if we have anything pending
-        KeyValueEntry kveAny = kv.getInternal(keyPattern);
-        if (kveAny == null) {
-            watcher.noData();
+        if (deliverPolicy == DeliverPolicy.New) {
+            watcher.endOfData();
+            endOfDataSent = new AtomicBoolean(true);
+        }
+        else {
+            KeyValueEntry kveCheckPending = kv.getInternal(keyPattern);
+            if (kveCheckPending == null) {
+                watcher.endOfData();
+                endOfDataSent = new AtomicBoolean(true);
+            }
+            else {
+                endOfDataSent = new AtomicBoolean(false);
+            }
         }
 
         PushSubscribeOptions pso = PushSubscribeOptions.builder()
@@ -64,19 +75,17 @@ public class NatsKeyValueWatchSubscription {
                     .build())
             .build();
 
-        // making this as efficient as possible
-        MessageHandler handler;
-        if (ignoreDeletes) {
-            handler = m -> {
-                KeyValueEntry kveIg = new KeyValueEntry(m);
-                if (kveIg.getOperation().equals(KeyValueOperation.PUT)) {
-                    watcher.watch(kveIg);
-                }
-            };
-        }
-        else {
-            handler = m -> watcher.watch(new KeyValueEntry(m));
-        }
+        final boolean includeDeletes = !ignoreDeletes;
+        MessageHandler handler = m -> {
+            KeyValueEntry kve = new KeyValueEntry(m);
+            if (includeDeletes || kve.getOperation().equals(KeyValueOperation.PUT)) {
+                watcher.watch(kve);
+            }
+            if (!endOfDataSent.get() && kve.getDelta() == 0) {
+                watcher.endOfData();
+                endOfDataSent.set(true);
+            }
+        };
 
         sub = kv.js.subscribe(keySubject, getDispatcher(kv.js), handler, false, pso);
     }

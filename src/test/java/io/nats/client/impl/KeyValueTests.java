@@ -487,27 +487,36 @@ public class KeyValueTests extends JetStreamTestBase {
 
     static class TestKeyValueWatcher implements KeyValueWatcher {
         public List<KeyValueEntry> entries = new ArrayList<>();
-        public boolean goNoData;
-        public KeyValue.ResultOption[] resultOptions;
+        KeyValue.WatchOption[] watchOptions;
         public boolean metaOnly;
+        public int endOfDataReceived;
+        public boolean noisy;
 
-        public TestKeyValueWatcher(KeyValue.ResultOption... resultOptions) {
-            this.resultOptions = resultOptions;
-            for (KeyValue.ResultOption ro : resultOptions) {
-                if (ro == KeyValue.ResultOption.META_ONLY) {
+        public TestKeyValueWatcher(KeyValue.WatchOption... watchOptions) {
+            this.watchOptions = watchOptions;
+            for (KeyValue.WatchOption ro : watchOptions) {
+                if (ro == KeyValue.WatchOption.META_ONLY) {
                     metaOnly = true;
+                    break;
                 }
             }
+        }
+
+        public TestKeyValueWatcher noisy() {
+            this.noisy = true;
+            return this;
         }
 
         @Override
         public void watch(KeyValueEntry kve) {
             entries.add(kve);
+            if (noisy) { System.out.println("WATCH " + kve); }
         }
 
         @Override
-        public void noData() {
-            goNoData = true;
+        public void endOfData() {
+            endOfDataReceived++;
+            if (noisy) { System.out.println("EOD " + endOfDataReceived); }
         }
     }
 
@@ -522,72 +531,100 @@ public class KeyValueTests extends JetStreamTestBase {
 
             kvm.create(KeyValueConfiguration.builder()
                 .name(BUCKET)
+                .maxHistoryPerKey(10)
                 .storageType(StorageType.Memory)
                 .build());
 
             KeyValue kv = nc.keyValue(BUCKET);
 
             TestKeyValueWatcher key1FullWatcher = new TestKeyValueWatcher();
-            TestKeyValueWatcher key1MetaWatcher = new TestKeyValueWatcher(KeyValue.ResultOption.META_ONLY);
+            TestKeyValueWatcher key1MetaWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
+            TestKeyValueWatcher key1StartNewWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
+            TestKeyValueWatcher key1StartAllWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
+            TestKeyValueWatcher key1AfterWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
+            TestKeyValueWatcher key1AfterIgDelWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY, KeyValue.WatchOption.IGNORE_DELETE);
+            TestKeyValueWatcher key1AfterStartNewWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY, KeyValue.WatchOption.UPDATES_ONLY);
+            TestKeyValueWatcher key1AfterStartFirstWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY, KeyValue.WatchOption.INCLUDE_HISTORY);
             TestKeyValueWatcher key2FullWatcher = new TestKeyValueWatcher();
-            TestKeyValueWatcher key2MetaWatcher = new TestKeyValueWatcher(KeyValue.ResultOption.META_ONLY);
+            TestKeyValueWatcher key2MetaWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
+            TestKeyValueWatcher key2AfterWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
+            TestKeyValueWatcher key2AfterStartNewWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY, KeyValue.WatchOption.UPDATES_ONLY);
+            TestKeyValueWatcher key2AfterStartFirstWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY, KeyValue.WatchOption.INCLUDE_HISTORY);
             TestKeyValueWatcher allAllFullWatcher = new TestKeyValueWatcher();
-            TestKeyValueWatcher allAllMetaWatcher = new TestKeyValueWatcher(KeyValue.ResultOption.META_ONLY);
-            TestKeyValueWatcher allPutFullWatcher = new TestKeyValueWatcher(KeyValue.ResultOption.IGNORE_DELETE);
-            TestKeyValueWatcher allPutMetaWatcher = new TestKeyValueWatcher(KeyValue.ResultOption.META_ONLY, KeyValue.ResultOption.IGNORE_DELETE);
+            TestKeyValueWatcher allAllMetaWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
+            TestKeyValueWatcher allIgDelFullWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.IGNORE_DELETE);
+            TestKeyValueWatcher allIgDelMetaWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY, KeyValue.WatchOption.IGNORE_DELETE);
             TestKeyValueWatcher starFullWatcher = new TestKeyValueWatcher();
-            TestKeyValueWatcher starMetaWatcher = new TestKeyValueWatcher(KeyValue.ResultOption.META_ONLY);
+            TestKeyValueWatcher starMetaWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
             TestKeyValueWatcher gtFullWatcher = new TestKeyValueWatcher();
-            TestKeyValueWatcher gtMetaWatcher = new TestKeyValueWatcher(KeyValue.ResultOption.META_ONLY);
+            TestKeyValueWatcher gtMetaWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
 
             List<NatsKeyValueWatchSubscription> subs = new ArrayList<>();
-            subs.add(kv.watch(key1, key1FullWatcher, key1FullWatcher.resultOptions));
-            subs.add(kv.watch(key1, key1MetaWatcher, key1MetaWatcher.resultOptions));
-            subs.add(kv.watch(key2, key2FullWatcher, key2FullWatcher.resultOptions));
-            subs.add(kv.watch(key2, key2MetaWatcher, key2MetaWatcher.resultOptions));
-            subs.add(kv.watchAll(allAllFullWatcher, allAllFullWatcher.resultOptions));
-            subs.add(kv.watchAll(allAllMetaWatcher, allAllMetaWatcher.resultOptions));
-            subs.add(kv.watchAll(allPutFullWatcher, allPutFullWatcher.resultOptions));
-            subs.add(kv.watchAll(allPutMetaWatcher, allPutMetaWatcher.resultOptions));
-            subs.add(kv.watch("key.*", starFullWatcher, starFullWatcher.resultOptions));
-            subs.add(kv.watch("key.*", starMetaWatcher, starMetaWatcher.resultOptions));
-            subs.add(kv.watch("key.>", gtFullWatcher, gtFullWatcher.resultOptions));
-            subs.add(kv.watch("key.>", gtMetaWatcher, gtMetaWatcher.resultOptions));
+
+            // subs created before data will only have 1 endOfData call
+            subs.add(kv.watch(key1, key1FullWatcher, key1FullWatcher.watchOptions));
+            subs.add(kv.watch(key1, key1MetaWatcher, key1MetaWatcher.watchOptions));
+            subs.add(kv.watch(key1, key1StartNewWatcher, key1StartNewWatcher.watchOptions));
+            subs.add(kv.watch(key1, key1StartAllWatcher, key1StartAllWatcher.watchOptions));
+            subs.add(kv.watch(key2, key2FullWatcher, key2FullWatcher.watchOptions));
+            subs.add(kv.watch(key2, key2MetaWatcher, key2MetaWatcher.watchOptions));
+            subs.add(kv.watchAll(allAllFullWatcher, allAllFullWatcher.watchOptions));
+            subs.add(kv.watchAll(allAllMetaWatcher, allAllMetaWatcher.watchOptions));
+            subs.add(kv.watchAll(allIgDelFullWatcher, allIgDelFullWatcher.watchOptions));
+            subs.add(kv.watchAll(allIgDelMetaWatcher, allIgDelMetaWatcher.watchOptions));
+            subs.add(kv.watch("key.*", starFullWatcher, starFullWatcher.watchOptions));
+            subs.add(kv.watch("key.*", starMetaWatcher, starMetaWatcher.watchOptions));
+            subs.add(kv.watch("key.>", gtFullWatcher, gtFullWatcher.watchOptions));
+            subs.add(kv.watch("key.>", gtMetaWatcher, gtMetaWatcher.watchOptions));
 
             kv.put(key1, "a");
             kv.put(key1, "aa");
             kv.put(key2, "z");
             kv.put(key2, "zz");
+
             kv.delete(key1);
             kv.delete(key2);
             kv.put(key1, "aaa");
             kv.put(key2, "zzz");
             kv.delete(key1);
-            kv.delete(key2);
+
             kv.purge(key1);
-            kv.purge(key2);
             kv.put(keyNull, (byte[])null);
+
+            sleep(100); // give time for all the data to be setup
+
+            subs.add(kv.watch(key1, key1AfterWatcher, key1AfterWatcher.watchOptions));
+            subs.add(kv.watch(key1, key1AfterIgDelWatcher, key1AfterIgDelWatcher.watchOptions));
+            subs.add(kv.watch(key1, key1AfterStartNewWatcher, key1AfterStartNewWatcher.watchOptions));
+            subs.add(kv.watch(key1, key1AfterStartFirstWatcher, key1AfterStartFirstWatcher.watchOptions));
+            subs.add(kv.watch(key2, key2AfterWatcher, key2AfterWatcher.watchOptions));
+            subs.add(kv.watch(key2, key2AfterStartNewWatcher, key2AfterStartNewWatcher.watchOptions));
+            subs.add(kv.watch(key2, key2AfterStartFirstWatcher, key2AfterStartFirstWatcher.watchOptions));
 
             sleep(2000); // give time for the watches to get messages
 
-            Object[] key1Expecteds = new Object[] {
+            Object[] key1AllExpecteds = new Object[] {
                 "a", "aa", KeyValueOperation.DELETE, "aaa", KeyValueOperation.DELETE, KeyValueOperation.PURGE
             };
 
-            Object[] key2Expecteds = new Object[] {
-                "z", "zz", KeyValueOperation.DELETE, "zzz", KeyValueOperation.DELETE, KeyValueOperation.PURGE
+            Object[] noExpecteds = new Object[0];
+            Object[] purgeOnlyExpecteds = new Object[] { KeyValueOperation.PURGE };
+
+            Object[] key2AllExpecteds = new Object[] {
+                "z", "zz", KeyValueOperation.DELETE, "zzz"
             };
+
+            Object[] key2AfterExpecteds = new Object[] { "zzz" };
 
             Object[] allExpecteds = new Object[] {
                 "a", "aa", "z", "zz",
                 KeyValueOperation.DELETE, KeyValueOperation.DELETE,
                 "aaa", "zzz",
-                KeyValueOperation.DELETE, KeyValueOperation.DELETE,
-                KeyValueOperation.PURGE, KeyValueOperation.PURGE,
+                KeyValueOperation.DELETE, KeyValueOperation.PURGE,
                 null
             };
 
-            Object[] allPuts = new Object[] {
+            Object[] allPutsExpecteds = new Object[] {
                 "a", "aa", "z", "zz", "aaa", "zzz", null
             };
 
@@ -600,15 +637,25 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.put(key1, "aaaa");
             kv.put(key2, "zzzz");
 
-            validateWatcher(key1Expecteds, key1FullWatcher);
-            validateWatcher(key1Expecteds, key1MetaWatcher);
-            validateWatcher(key2Expecteds, key2FullWatcher);
-            validateWatcher(key2Expecteds, key2MetaWatcher);
+            validateWatcher(key1AllExpecteds, key1FullWatcher);
+            validateWatcher(key1AllExpecteds, key1MetaWatcher);
+            validateWatcher(key1AllExpecteds, key1StartNewWatcher);
+            validateWatcher(key1AllExpecteds, key1StartAllWatcher);
+            validateWatcher(purgeOnlyExpecteds, key1AfterWatcher);
+            validateWatcher(noExpecteds, key1AfterIgDelWatcher);
+            validateWatcher(noExpecteds, key1AfterStartNewWatcher);
+            validateWatcher(purgeOnlyExpecteds, key1AfterStartFirstWatcher);
+
+            validateWatcher(key2AllExpecteds, key2FullWatcher);
+            validateWatcher(key2AllExpecteds, key2MetaWatcher);
+            validateWatcher(key2AfterExpecteds, key2AfterWatcher);
+            validateWatcher(noExpecteds, key2AfterStartNewWatcher);
+            validateWatcher(key2AllExpecteds, key2AfterStartFirstWatcher);
 
             validateWatcher(allExpecteds, allAllFullWatcher);
             validateWatcher(allExpecteds, allAllMetaWatcher);
-            validateWatcher(allPuts, allPutFullWatcher);
-            validateWatcher(allPuts, allPutMetaWatcher);
+            validateWatcher(allPutsExpecteds, allIgDelFullWatcher);
+            validateWatcher(allPutsExpecteds, allIgDelMetaWatcher);
 
             validateWatcher(allExpecteds, starFullWatcher);
             validateWatcher(allExpecteds, starMetaWatcher);
@@ -617,10 +664,14 @@ public class KeyValueTests extends JetStreamTestBase {
         });
     }
 
-    private void validateWatcher(Object[] expecteds, TestKeyValueWatcher watcher) {
+    private void validateWatcher(Object[] expectedKves, TestKeyValueWatcher watcher) {
+        assertEquals(expectedKves.length, watcher.entries.size());
+        assertEquals(1, watcher.endOfDataReceived);
+
         int aix = 0;
         ZonedDateTime lastCreated = ZonedDateTime.of(2000, 4, 1, 0, 0, 0, 0, ZoneId.systemDefault());
         long lastRevision = -1;
+
         for (KeyValueEntry kve : watcher.entries) {
 
             assertTrue(kve.getCreated().isAfter(lastCreated) || kve.getCreated().isEqual(lastCreated));
@@ -629,7 +680,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertTrue(lastRevision < kve.getRevision());
             lastRevision = kve.getRevision();
 
-            Object expected = expecteds[aix++];
+            Object expected = expectedKves[aix++];
             if (expected == null) {
                 assertSame(KeyValueOperation.PUT, kve.getOperation());
                 assertTrue(kve.getValue() == null || kve.getValue().length == 0);

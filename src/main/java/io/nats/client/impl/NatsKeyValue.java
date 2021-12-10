@@ -119,16 +119,16 @@ public class NatsKeyValue implements KeyValue {
     }
 
     @Override
-    public NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, ResultOption... resultOptions) throws IOException, JetStreamApiException, InterruptedException {
+    public NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, WatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
         validateKvKeyWildcardAllowedRequired(key);
         validateNotNull(watcher, "Watcher is required");
-        return new NatsKeyValueWatchSubscription(this, bucketName, key, watcher, resultOptions);
+        return new NatsKeyValueWatchSubscription(this, bucketName, key, watcher, watchOptions);
     }
 
     @Override
-    public NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, ResultOption... resultOptions) throws IOException, JetStreamApiException, InterruptedException {
+    public NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, WatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
         validateNotNull(watcher, "Watcher is required");
-        return new NatsKeyValueWatchSubscription(this, bucketName, ">", watcher, resultOptions);
+        return new NatsKeyValueWatchSubscription(this, bucketName, ">", watcher, watchOptions);
     }
 
     /**
@@ -150,7 +150,7 @@ public class NatsKeyValue implements KeyValue {
      * {@inheritDoc}
      */
     @Override
-    public List<KeyValueEntry> history(String key, ResultOption... resultOptions) throws IOException, JetStreamApiException, InterruptedException {
+    public List<KeyValueEntry> history(String key) throws IOException, JetStreamApiException, InterruptedException {
         validateNonWildcardKvKeyRequired(key);
         List<KeyValueEntry> list = new ArrayList<>();
         visitSubject(keySubject(js.jso, bucketName, key), DeliverPolicy.All, false, true, m -> {
