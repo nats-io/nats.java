@@ -148,14 +148,14 @@ public class NatsKeyValue implements KeyValue {
     }
 
     @Override
-    public NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, WatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
+    public NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
         validateKvKeyWildcardAllowedRequired(key);
         validateNotNull(watcher, "Watcher is required");
         return new NatsKeyValueWatchSubscription(this, bucketName, key, watcher, watchOptions);
     }
 
     @Override
-    public NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, WatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
+    public NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
         validateNotNull(watcher, "Watcher is required");
         return new NatsKeyValueWatchSubscription(this, bucketName, ">", watcher, watchOptions);
     }

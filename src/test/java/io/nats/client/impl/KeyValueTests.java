@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static io.nats.client.api.KeyValueWatchOption.*;
 import static io.nats.client.support.NatsKeyValueUtil.streamName;
 import static io.nats.client.support.NatsKeyValueUtil.streamSubject;
 import static org.junit.jupiter.api.Assertions.*;
@@ -536,15 +537,15 @@ public class KeyValueTests extends JetStreamTestBase {
 
     static class TestKeyValueWatcher implements KeyValueWatcher {
         public List<KeyValueEntry> entries = new ArrayList<>();
-        KeyValue.WatchOption[] watchOptions;
+        KeyValueWatchOption[] watchOptions;
         public boolean metaOnly;
         public int endOfDataReceived;
         public boolean noisy;
 
-        public TestKeyValueWatcher(KeyValue.WatchOption... watchOptions) {
+        public TestKeyValueWatcher(KeyValueWatchOption... watchOptions) {
             this.watchOptions = watchOptions;
-            for (KeyValue.WatchOption ro : watchOptions) {
-                if (ro == KeyValue.WatchOption.META_ONLY) {
+            for (KeyValueWatchOption wo : watchOptions) {
+                if (wo == META_ONLY) {
                     metaOnly = true;
                     break;
                 }
@@ -587,26 +588,26 @@ public class KeyValueTests extends JetStreamTestBase {
             KeyValue kv = nc.keyValue(BUCKET);
 
             TestKeyValueWatcher key1FullWatcher = new TestKeyValueWatcher();
-            TestKeyValueWatcher key1MetaWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
-            TestKeyValueWatcher key1StartNewWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
-            TestKeyValueWatcher key1StartAllWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
-            TestKeyValueWatcher key1AfterWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
-            TestKeyValueWatcher key1AfterIgDelWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY, KeyValue.WatchOption.IGNORE_DELETE);
-            TestKeyValueWatcher key1AfterStartNewWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY, KeyValue.WatchOption.UPDATES_ONLY);
-            TestKeyValueWatcher key1AfterStartFirstWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY, KeyValue.WatchOption.INCLUDE_HISTORY);
+            TestKeyValueWatcher key1MetaWatcher = new TestKeyValueWatcher(META_ONLY);
+            TestKeyValueWatcher key1StartNewWatcher = new TestKeyValueWatcher(META_ONLY);
+            TestKeyValueWatcher key1StartAllWatcher = new TestKeyValueWatcher(META_ONLY);
+            TestKeyValueWatcher key1AfterWatcher = new TestKeyValueWatcher(META_ONLY);
+            TestKeyValueWatcher key1AfterIgDelWatcher = new TestKeyValueWatcher(META_ONLY, IGNORE_DELETE);
+            TestKeyValueWatcher key1AfterStartNewWatcher = new TestKeyValueWatcher(META_ONLY, UPDATES_ONLY);
+            TestKeyValueWatcher key1AfterStartFirstWatcher = new TestKeyValueWatcher(META_ONLY, INCLUDE_HISTORY);
             TestKeyValueWatcher key2FullWatcher = new TestKeyValueWatcher();
-            TestKeyValueWatcher key2MetaWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
-            TestKeyValueWatcher key2AfterWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
-            TestKeyValueWatcher key2AfterStartNewWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY, KeyValue.WatchOption.UPDATES_ONLY);
-            TestKeyValueWatcher key2AfterStartFirstWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY, KeyValue.WatchOption.INCLUDE_HISTORY);
+            TestKeyValueWatcher key2MetaWatcher = new TestKeyValueWatcher(META_ONLY);
+            TestKeyValueWatcher key2AfterWatcher = new TestKeyValueWatcher(META_ONLY);
+            TestKeyValueWatcher key2AfterStartNewWatcher = new TestKeyValueWatcher(META_ONLY, UPDATES_ONLY);
+            TestKeyValueWatcher key2AfterStartFirstWatcher = new TestKeyValueWatcher(META_ONLY, INCLUDE_HISTORY);
             TestKeyValueWatcher allAllFullWatcher = new TestKeyValueWatcher();
-            TestKeyValueWatcher allAllMetaWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
-            TestKeyValueWatcher allIgDelFullWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.IGNORE_DELETE);
-            TestKeyValueWatcher allIgDelMetaWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY, KeyValue.WatchOption.IGNORE_DELETE);
+            TestKeyValueWatcher allAllMetaWatcher = new TestKeyValueWatcher(META_ONLY);
+            TestKeyValueWatcher allIgDelFullWatcher = new TestKeyValueWatcher(IGNORE_DELETE);
+            TestKeyValueWatcher allIgDelMetaWatcher = new TestKeyValueWatcher(META_ONLY, IGNORE_DELETE);
             TestKeyValueWatcher starFullWatcher = new TestKeyValueWatcher();
-            TestKeyValueWatcher starMetaWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
+            TestKeyValueWatcher starMetaWatcher = new TestKeyValueWatcher(META_ONLY);
             TestKeyValueWatcher gtFullWatcher = new TestKeyValueWatcher();
-            TestKeyValueWatcher gtMetaWatcher = new TestKeyValueWatcher(KeyValue.WatchOption.META_ONLY);
+            TestKeyValueWatcher gtMetaWatcher = new TestKeyValueWatcher(META_ONLY);
 
             List<NatsKeyValueWatchSubscription> subs = new ArrayList<>();
 

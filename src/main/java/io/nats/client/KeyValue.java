@@ -14,6 +14,7 @@ package io.nats.client;
 
 import io.nats.client.api.KeyValueEntry;
 import io.nats.client.api.KeyValueStatus;
+import io.nats.client.api.KeyValueWatchOption;
 import io.nats.client.api.KeyValueWatcher;
 import io.nats.client.impl.NatsKeyValueWatchSubscription;
 
@@ -24,31 +25,6 @@ import java.util.List;
  * Key Value Store Management context for creation and access to key value buckets.
  */
 public interface KeyValue {
-    enum WatchOption {
-        /**
-         * Do not include deletes or purges in results.
-         * Default is to include deletes.
-         */
-        IGNORE_DELETE,
-
-        /**
-         * Only get meta data, skip value when retrieving data from the server.
-         */
-        META_ONLY,
-
-        /**
-         * Watch starting at the first entry for all keys.
-         * Default is to start at the last per key.
-         */
-        INCLUDE_HISTORY,
-
-        /**
-         * Watch starting when there are new entries for keys.
-         * Default is to start at the last per key.
-         */
-        UPDATES_ONLY
-
-    }
 
     /**
      * Get the name of the bucket.
@@ -168,7 +144,7 @@ public interface KeyValue {
      * @throws JetStreamApiException the request had an error related to the data
      * @throws InterruptedException if the thread is interrupted
      */
-    NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, WatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException;
+    NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
      * Watch updates for all keys
@@ -181,7 +157,7 @@ public interface KeyValue {
      * @throws JetStreamApiException the request had an error related to the data
      * @throws InterruptedException if the thread is interrupted
      */
-    NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, WatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException;
+    NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
      * Get the set of the keys in a bucket.

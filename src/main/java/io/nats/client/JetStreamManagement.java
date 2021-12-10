@@ -178,7 +178,7 @@ public interface JetStreamManagement {
     MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException;
 
     /**
-     * Return an info object about a message
+     * Return an info object about the last message for a subject
      * @param streamName the name of the stream.
      * @param subject the subject to get the last message for
      * @return The MessageInfo

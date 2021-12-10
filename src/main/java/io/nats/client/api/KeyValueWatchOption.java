@@ -12,24 +12,27 @@
 // limitations under the License.
 package io.nats.client.api;
 
-/**
- * Key Value Watch Option
- */
 public enum KeyValueWatchOption {
-//    type watchOpts struct {
-//        ctx context.Context
-//        // Do not send delete markers to the update channel.
-//        ignoreDeletes bool
-//        // Include all history per subject, not just last one.
-//        includeHistory bool
-//        // For watches, skip the last entry. Does not apply to history
-//        updatesOnly bool
-//        // retrieve only the meta data of the entry
-//        metaOnly bool
-//    }
+    /**
+     * Do not include deletes or purges in results.
+     * Default is to include deletes.
+     */
+    IGNORE_DELETE,
 
     /**
-     * Do not send delete or purge markers as updates.
+     * Only get meta data, skip value when retrieving data from the server.
      */
-    IGNORE_DELETES, META_ONLY;
+    META_ONLY,
+
+    /**
+     * Watch starting at the first entry for all keys.
+     * Default is to start at the last per key.
+     */
+    INCLUDE_HISTORY,
+
+    /**
+     * Watch starting when there are new entries for keys.
+     * Default is to start at the last per key.
+     */
+    UPDATES_ONLY
 }

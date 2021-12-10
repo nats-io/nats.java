@@ -29,7 +29,7 @@ public class NatsKeyValueWatchSubscription {
 
     public NatsKeyValueWatchSubscription(NatsKeyValue kv, String bucketName, String keyPattern,
                                          final KeyValueWatcher watcher,
-                                         KeyValue.WatchOption... watchOptions) throws IOException, JetStreamApiException {
+                                         KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException {
         String stream = NatsKeyValueUtil.streamName(bucketName);
         String keySubject = NatsKeyValueUtil.keySubject(kv.js.jso, bucketName, keyPattern);
 
@@ -37,9 +37,9 @@ public class NatsKeyValueWatchSubscription {
         boolean headersOnly = false;
         boolean ignoreDeletes = false;
         DeliverPolicy deliverPolicy = DeliverPolicy.LastPerSubject;
-        for (KeyValue.WatchOption rop : watchOptions) {
-            if (rop != null) {
-                switch (rop) {
+        for (KeyValueWatchOption wo : watchOptions) {
+            if (wo != null) {
+                switch (wo) {
                     case META_ONLY: headersOnly = true; break;
                     case IGNORE_DELETE: ignoreDeletes = true; break;
                     case UPDATES_ONLY: deliverPolicy = DeliverPolicy.New; break;
