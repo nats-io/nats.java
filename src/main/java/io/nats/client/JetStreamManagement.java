@@ -60,7 +60,7 @@ public interface JetStreamManagement {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @return true if the delete succeeded
+     * @return true if the delete succeeded. Usually throws a JetStreamApiException otherwise
      */
     boolean deleteStream(String streamName) throws IOException, JetStreamApiException;
 

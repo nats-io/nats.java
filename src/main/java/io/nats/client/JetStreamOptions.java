@@ -64,6 +64,10 @@ public class JetStreamOptions {
         return prefix;
     }
 
+    /**
+     * Returns true if the prefix for this options is the default prefix.
+     * @return the true for default prefix.
+     */
     public boolean isDefaultPrefix() {
         return defaultPrefix;
     }
@@ -146,7 +150,9 @@ public class JetStreamOptions {
          */
         public Builder prefix(String prefix) {
             this.prefix = emptyAsNull(prefix); // validated during build
-            domain = this.prefix == null ? domain : null; // build with one or the other. don't change domain if prefix was cleared
+            if (this.prefix != null) {
+                domain = null; // build with one or the other
+            }
             return this;
         }
 
@@ -160,7 +166,9 @@ public class JetStreamOptions {
          */
         public Builder domain(String domain) {
             this.domain = emptyAsNull(domain); // validated in domain manager
-            prefix = this.domain == null ? prefix : null; // build with one or the other. don't change prefix if domain was cleared
+            if (this.domain != null) {
+                prefix = null; // build with one or the other
+            }
             return this;
         }
 

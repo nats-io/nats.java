@@ -30,7 +30,7 @@ import static io.nats.client.support.NatsKeyValueUtil.*;
 public class NatsKeyValueManagement implements KeyValueManagement {
     private final JetStreamManagement jsm;
 
-    public NatsKeyValueManagement(NatsConnection connection, JetStreamOptions options) throws IOException {
+    NatsKeyValueManagement(NatsConnection connection, JetStreamOptions options) throws IOException {
         jsm = new NatsJetStreamManagement(connection, options);
     }
 
@@ -46,7 +46,7 @@ public class NatsKeyValueManagement implements KeyValueManagement {
      * {@inheritDoc}
      */
     @Override
-    public List<String> getBucketsNames() throws IOException, JetStreamApiException, InterruptedException {
+    public List<String> getBucketNames() throws IOException, JetStreamApiException, InterruptedException {
         List<String> buckets = new ArrayList<>();
         List<String> names = jsm.getStreamNames();
         for (String name : names) {
@@ -63,7 +63,7 @@ public class NatsKeyValueManagement implements KeyValueManagement {
     @Override
     public KeyValueStatus getBucketInfo(String bucketName) throws IOException, JetStreamApiException {
         Validator.validateKvBucketNameRequired(bucketName);
-        return new KeyValueStatus(jsm.getStreamInfo(streamName(bucketName)));
+        return new KeyValueStatus(jsm.getStreamInfo(toStreamName(bucketName)));
     }
 
     /**
@@ -72,6 +72,6 @@ public class NatsKeyValueManagement implements KeyValueManagement {
     @Override
     public boolean delete(String bucketName) throws IOException, JetStreamApiException {
         Validator.validateKvBucketNameRequired(bucketName);
-        return jsm.deleteStream(streamName(bucketName));
+        return jsm.deleteStream(toStreamName(bucketName));
     }
 }

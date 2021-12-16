@@ -14,6 +14,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.NatsKeyValueUtil;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -24,8 +25,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import static io.nats.client.api.KeyValueWatchOption.*;
-import static io.nats.client.support.NatsKeyValueUtil.streamName;
-import static io.nats.client.support.NatsKeyValueUtil.streamSubject;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class KeyValueTests extends JetStreamTestBase {
@@ -59,7 +58,7 @@ public class KeyValueTests extends JetStreamTestBase {
             kvc = status.getConfiguration();
             assertEquals(BUCKET, status.getBucketName());
             assertEquals(BUCKET, kvc.getBucketName());
-            assertEquals(streamName(BUCKET), kvc.getBackingConfig().getName());
+            assertEquals(NatsKeyValueUtil.toStreamName(BUCKET), kvc.getBackingConfig().getName());
             assertEquals(-1, kvc.getMaxValues());
             assertEquals(3, status.getMaxHistoryPerKey());
             assertEquals(3, kvc.getMaxHistoryPerKey());
@@ -293,7 +292,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertThrows(JetStreamApiException.class, () -> kvm.delete(BUCKET));
             assertThrows(JetStreamApiException.class, () -> kvm.getBucketInfo(BUCKET));
 
-            assertEquals(0, kvm.getBucketsNames().size());
+            assertEquals(0, kvm.getBucketNames().size());
         });
     }
 
@@ -382,7 +381,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
             JetStream js = nc.jetStream();
 
-            JetStreamSubscription sub = js.subscribe(streamSubject(BUCKET));
+            JetStreamSubscription sub = js.subscribe(NatsKeyValueUtil.toStreamSubject(BUCKET));
 
             Message m = sub.nextMessage(1000);
             assertEquals("a", new String(m.getData()));
@@ -402,7 +401,7 @@ public class KeyValueTests extends JetStreamTestBase {
             sub.unsubscribe();
 
             kv.purgeDeletes();
-            sub = js.subscribe(streamSubject(BUCKET));
+            sub = js.subscribe(NatsKeyValueUtil.toStreamSubject(BUCKET));
 
             m = sub.nextMessage(1000);
             assertEquals("b", new String(m.getData()));
@@ -483,7 +482,7 @@ public class KeyValueTests extends JetStreamTestBase {
             createMemoryStream(nc, stream(1));
             createMemoryStream(nc, stream(2));
 
-            List<String> buckets = kvm.getBucketsNames();
+            List<String> buckets = kvm.getBucketNames();
             assertEquals(2, buckets.size());
             assertTrue(buckets.contains(bucket(1)));
             assertTrue(buckets.contains(bucket(2)));
@@ -537,12 +536,14 @@ public class KeyValueTests extends JetStreamTestBase {
 
     static class TestKeyValueWatcher implements KeyValueWatcher {
         public List<KeyValueEntry> entries = new ArrayList<>();
-        KeyValueWatchOption[] watchOptions;
+        public KeyValueWatchOption[] watchOptions;
+        public boolean beforeWatcher;
         public boolean metaOnly;
         public int endOfDataReceived;
-        public boolean noisy;
+        public boolean endBeforeEntries;
 
-        public TestKeyValueWatcher(KeyValueWatchOption... watchOptions) {
+        public TestKeyValueWatcher(boolean beforeWatcher, KeyValueWatchOption... watchOptions) {
+            this.beforeWatcher = beforeWatcher;
             this.watchOptions = watchOptions;
             for (KeyValueWatchOption wo : watchOptions) {
                 if (wo == META_ONLY) {
@@ -552,21 +553,16 @@ public class KeyValueTests extends JetStreamTestBase {
             }
         }
 
-        public TestKeyValueWatcher noisy() {
-            this.noisy = true;
-            return this;
-        }
-
         @Override
         public void watch(KeyValueEntry kve) {
             entries.add(kve);
-            if (noisy) { System.out.println("WATCH " + kve); }
         }
 
         @Override
         public void endOfData() {
-            endOfDataReceived++;
-            if (noisy) { System.out.println("EOD " + endOfDataReceived); }
+            if (++endOfDataReceived == 1 && entries.size() == 0) {
+                endBeforeEntries = true;
+            }
         }
     }
 
@@ -575,6 +571,31 @@ public class KeyValueTests extends JetStreamTestBase {
         String keyNull = "key.nl";
         String key1 = "key.1";
         String key2 = "key.2";
+
+        Object[] key1AllExpecteds = new Object[] {
+            "a", "aa", KeyValueOperation.DELETE, "aaa", KeyValueOperation.DELETE, KeyValueOperation.PURGE
+        };
+
+        Object[] noExpecteds = new Object[0];
+        Object[] purgeOnlyExpecteds = new Object[] { KeyValueOperation.PURGE };
+
+        Object[] key2AllExpecteds = new Object[] {
+            "z", "zz", KeyValueOperation.DELETE, "zzz"
+        };
+
+        Object[] key2AfterExpecteds = new Object[] { "zzz" };
+
+        Object[] allExpecteds = new Object[] {
+            "a", "aa", "z", "zz",
+            KeyValueOperation.DELETE, KeyValueOperation.DELETE,
+            "aaa", "zzz",
+            KeyValueOperation.DELETE, KeyValueOperation.PURGE,
+            null
+        };
+
+        Object[] allPutsExpecteds = new Object[] {
+            "a", "aa", "z", "zz", "aaa", "zzz", null
+        };
 
         runInJsServer(nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
@@ -587,31 +608,24 @@ public class KeyValueTests extends JetStreamTestBase {
 
             KeyValue kv = nc.keyValue(BUCKET);
 
-            TestKeyValueWatcher key1FullWatcher = new TestKeyValueWatcher();
-            TestKeyValueWatcher key1MetaWatcher = new TestKeyValueWatcher(META_ONLY);
-            TestKeyValueWatcher key1StartNewWatcher = new TestKeyValueWatcher(META_ONLY);
-            TestKeyValueWatcher key1StartAllWatcher = new TestKeyValueWatcher(META_ONLY);
-            TestKeyValueWatcher key1AfterWatcher = new TestKeyValueWatcher(META_ONLY);
-            TestKeyValueWatcher key1AfterIgDelWatcher = new TestKeyValueWatcher(META_ONLY, IGNORE_DELETE);
-            TestKeyValueWatcher key1AfterStartNewWatcher = new TestKeyValueWatcher(META_ONLY, UPDATES_ONLY);
-            TestKeyValueWatcher key1AfterStartFirstWatcher = new TestKeyValueWatcher(META_ONLY, INCLUDE_HISTORY);
-            TestKeyValueWatcher key2FullWatcher = new TestKeyValueWatcher();
-            TestKeyValueWatcher key2MetaWatcher = new TestKeyValueWatcher(META_ONLY);
-            TestKeyValueWatcher key2AfterWatcher = new TestKeyValueWatcher(META_ONLY);
-            TestKeyValueWatcher key2AfterStartNewWatcher = new TestKeyValueWatcher(META_ONLY, UPDATES_ONLY);
-            TestKeyValueWatcher key2AfterStartFirstWatcher = new TestKeyValueWatcher(META_ONLY, INCLUDE_HISTORY);
-            TestKeyValueWatcher allAllFullWatcher = new TestKeyValueWatcher();
-            TestKeyValueWatcher allAllMetaWatcher = new TestKeyValueWatcher(META_ONLY);
-            TestKeyValueWatcher allIgDelFullWatcher = new TestKeyValueWatcher(IGNORE_DELETE);
-            TestKeyValueWatcher allIgDelMetaWatcher = new TestKeyValueWatcher(META_ONLY, IGNORE_DELETE);
-            TestKeyValueWatcher starFullWatcher = new TestKeyValueWatcher();
-            TestKeyValueWatcher starMetaWatcher = new TestKeyValueWatcher(META_ONLY);
-            TestKeyValueWatcher gtFullWatcher = new TestKeyValueWatcher();
-            TestKeyValueWatcher gtMetaWatcher = new TestKeyValueWatcher(META_ONLY);
+            TestKeyValueWatcher key1FullWatcher = new TestKeyValueWatcher(true);
+            TestKeyValueWatcher key1MetaWatcher = new TestKeyValueWatcher(true, META_ONLY);
+            TestKeyValueWatcher key1StartNewWatcher = new TestKeyValueWatcher(true, META_ONLY);
+            TestKeyValueWatcher key1StartAllWatcher = new TestKeyValueWatcher(true, META_ONLY);
+            TestKeyValueWatcher key2FullWatcher = new TestKeyValueWatcher(true);
+            TestKeyValueWatcher key2MetaWatcher = new TestKeyValueWatcher(true, META_ONLY);
+            TestKeyValueWatcher allAllFullWatcher = new TestKeyValueWatcher(true);
+            TestKeyValueWatcher allAllMetaWatcher = new TestKeyValueWatcher(true, META_ONLY);
+            TestKeyValueWatcher allIgDelFullWatcher = new TestKeyValueWatcher(true, IGNORE_DELETE);
+            TestKeyValueWatcher allIgDelMetaWatcher = new TestKeyValueWatcher(true, META_ONLY, IGNORE_DELETE);
+            TestKeyValueWatcher starFullWatcher = new TestKeyValueWatcher(true);
+            TestKeyValueWatcher starMetaWatcher = new TestKeyValueWatcher(true, META_ONLY);
+            TestKeyValueWatcher gtFullWatcher = new TestKeyValueWatcher(true);
+            TestKeyValueWatcher gtMetaWatcher = new TestKeyValueWatcher(true, META_ONLY);
 
             List<NatsKeyValueWatchSubscription> subs = new ArrayList<>();
 
-            // subs created before data will only have 1 endOfData call
+            // subs created before data
             subs.add(kv.watch(key1, key1FullWatcher, key1FullWatcher.watchOptions));
             subs.add(kv.watch(key1, key1MetaWatcher, key1MetaWatcher.watchOptions));
             subs.add(kv.watch(key1, key1StartNewWatcher, key1StartNewWatcher.watchOptions));
@@ -631,17 +645,23 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.put(key1, "aa");
             kv.put(key2, "z");
             kv.put(key2, "zz");
-
             kv.delete(key1);
             kv.delete(key2);
             kv.put(key1, "aaa");
             kv.put(key2, "zzz");
             kv.delete(key1);
-
             kv.purge(key1);
             kv.put(keyNull, (byte[])null);
 
             sleep(100); // give time for all the data to be setup
+
+            TestKeyValueWatcher key1AfterWatcher = new TestKeyValueWatcher(false, META_ONLY);
+            TestKeyValueWatcher key1AfterIgDelWatcher = new TestKeyValueWatcher(false, META_ONLY, IGNORE_DELETE);
+            TestKeyValueWatcher key1AfterStartNewWatcher = new TestKeyValueWatcher(false, META_ONLY, UPDATES_ONLY);
+            TestKeyValueWatcher key1AfterStartFirstWatcher = new TestKeyValueWatcher(false, META_ONLY, INCLUDE_HISTORY);
+            TestKeyValueWatcher key2AfterWatcher = new TestKeyValueWatcher(false, META_ONLY);
+            TestKeyValueWatcher key2AfterStartNewWatcher = new TestKeyValueWatcher(false, META_ONLY, UPDATES_ONLY);
+            TestKeyValueWatcher key2AfterStartFirstWatcher = new TestKeyValueWatcher(false, META_ONLY, INCLUDE_HISTORY);
 
             subs.add(kv.watch(key1, key1AfterWatcher, key1AfterWatcher.watchOptions));
             subs.add(kv.watch(key1, key1AfterIgDelWatcher, key1AfterIgDelWatcher.watchOptions));
@@ -652,31 +672,6 @@ public class KeyValueTests extends JetStreamTestBase {
             subs.add(kv.watch(key2, key2AfterStartFirstWatcher, key2AfterStartFirstWatcher.watchOptions));
 
             sleep(2000); // give time for the watches to get messages
-
-            Object[] key1AllExpecteds = new Object[] {
-                "a", "aa", KeyValueOperation.DELETE, "aaa", KeyValueOperation.DELETE, KeyValueOperation.PURGE
-            };
-
-            Object[] noExpecteds = new Object[0];
-            Object[] purgeOnlyExpecteds = new Object[] { KeyValueOperation.PURGE };
-
-            Object[] key2AllExpecteds = new Object[] {
-                "z", "zz", KeyValueOperation.DELETE, "zzz"
-            };
-
-            Object[] key2AfterExpecteds = new Object[] { "zzz" };
-
-            Object[] allExpecteds = new Object[] {
-                "a", "aa", "z", "zz",
-                KeyValueOperation.DELETE, KeyValueOperation.DELETE,
-                "aaa", "zzz",
-                KeyValueOperation.DELETE, KeyValueOperation.PURGE,
-                null
-            };
-
-            Object[] allPutsExpecteds = new Object[] {
-                "a", "aa", "z", "zz", "aaa", "zzz", null
-            };
 
             // unsubscribe so the watchers don't get any more messages
             for (NatsKeyValueWatchSubscription sub : subs) {
@@ -691,16 +686,9 @@ public class KeyValueTests extends JetStreamTestBase {
             validateWatcher(key1AllExpecteds, key1MetaWatcher);
             validateWatcher(key1AllExpecteds, key1StartNewWatcher);
             validateWatcher(key1AllExpecteds, key1StartAllWatcher);
-            validateWatcher(purgeOnlyExpecteds, key1AfterWatcher);
-            validateWatcher(noExpecteds, key1AfterIgDelWatcher);
-            validateWatcher(noExpecteds, key1AfterStartNewWatcher);
-            validateWatcher(purgeOnlyExpecteds, key1AfterStartFirstWatcher);
 
             validateWatcher(key2AllExpecteds, key2FullWatcher);
             validateWatcher(key2AllExpecteds, key2MetaWatcher);
-            validateWatcher(key2AfterExpecteds, key2AfterWatcher);
-            validateWatcher(noExpecteds, key2AfterStartNewWatcher);
-            validateWatcher(key2AllExpecteds, key2AfterStartFirstWatcher);
 
             validateWatcher(allExpecteds, allAllFullWatcher);
             validateWatcher(allExpecteds, allAllMetaWatcher);
@@ -711,12 +699,25 @@ public class KeyValueTests extends JetStreamTestBase {
             validateWatcher(allExpecteds, starMetaWatcher);
             validateWatcher(allExpecteds, gtFullWatcher);
             validateWatcher(allExpecteds, gtMetaWatcher);
+
+            validateWatcher(purgeOnlyExpecteds, key1AfterWatcher);
+            validateWatcher(noExpecteds, key1AfterIgDelWatcher);
+            validateWatcher(noExpecteds, key1AfterStartNewWatcher);
+            validateWatcher(purgeOnlyExpecteds, key1AfterStartFirstWatcher);
+
+            validateWatcher(key2AfterExpecteds, key2AfterWatcher);
+            validateWatcher(noExpecteds, key2AfterStartNewWatcher);
+            validateWatcher(key2AllExpecteds, key2AfterStartFirstWatcher);
         });
     }
 
     private void validateWatcher(Object[] expectedKves, TestKeyValueWatcher watcher) {
         assertEquals(expectedKves.length, watcher.entries.size());
         assertEquals(1, watcher.endOfDataReceived);
+
+        if (expectedKves.length > 0) {
+            assertEquals(watcher.beforeWatcher, watcher.endBeforeEntries);
+        }
 
         int aix = 0;
         ZonedDateTime lastCreated = ZonedDateTime.of(2000, 4, 1, 0, 0, 0, 0, ZoneId.systemDefault());

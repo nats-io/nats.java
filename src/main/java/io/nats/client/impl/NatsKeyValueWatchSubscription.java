@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
-import io.nats.client.support.NatsKeyValueUtil;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -27,11 +26,8 @@ public class NatsKeyValueWatchSubscription {
     private final JetStreamSubscription sub;
     private final AtomicBoolean endOfDataSent;
 
-    public NatsKeyValueWatchSubscription(NatsKeyValue kv, String bucketName, String keyPattern,
-                                         final KeyValueWatcher watcher,
-                                         KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException {
-        String stream = NatsKeyValueUtil.streamName(bucketName);
-        String keySubject = NatsKeyValueUtil.keySubject(kv.js.jso, bucketName, keyPattern);
+    public NatsKeyValueWatchSubscription(NatsKeyValue kv, String keyPattern, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException {
+        String keySubject = kv.keySubject(keyPattern);
 
         // figure out the result options
         boolean headersOnly = false;
@@ -64,7 +60,7 @@ public class NatsKeyValueWatchSubscription {
         }
 
         PushSubscribeOptions pso = PushSubscribeOptions.builder()
-            .stream(stream)
+            .stream(kv.getStreamName())
             .ordered(true)
             .configuration(
                 ConsumerConfiguration.builder()
@@ -78,7 +74,7 @@ public class NatsKeyValueWatchSubscription {
         final boolean includeDeletes = !ignoreDeletes;
         MessageHandler handler = m -> {
             KeyValueEntry kve = new KeyValueEntry(m);
-            if (includeDeletes || kve.getOperation().equals(KeyValueOperation.PUT)) {
+            if (includeDeletes || kve.getOperation() == KeyValueOperation.PUT) {
                 watcher.watch(kve);
             }
             if (!endOfDataSent.get() && kve.getDelta() == 0) {

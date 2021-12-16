@@ -43,19 +43,19 @@ public abstract class NatsKeyValueUtil {
             .put(ROLLUP_HDR, ROLLUP_HDR_SUBJECT);
     }
 
-    public static String streamName(String bucketName) {
-        return KV_STREAM_PREFIX + bucketName;
-    }
-
     public static String extractBucketName(String streamName) {
         return streamName.substring(KV_STREAM_PREFIX_LEN);
     }
 
-    public static String streamSubject(String bucketName) {
+    public static String toStreamName(String bucketName) {
+        return KV_STREAM_PREFIX + bucketName;
+    }
+
+    public static String toStreamSubject(String bucketName) {
         return KV_SUBJECT_PREFIX + bucketName + KV_SUBJECT_SUFFIX;
     }
 
-    public static String keySubject(JetStreamOptions jso, String bucketName, String key) {
+    public static String toKeySubject(JetStreamOptions jso, String bucketName, String key) {
         return (jso.isDefaultPrefix() ? "" : jso.getPrefix()) + KV_SUBJECT_PREFIX + bucketName + DOT + key;
     }
 

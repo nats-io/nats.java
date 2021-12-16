@@ -99,7 +99,7 @@ public interface KeyValue {
     long create(String key, byte[] value) throws IOException, JetStreamApiException;
 
     /**
-     * Put as the value for a key iff the exists and its last revision matches the expected
+     * Put as the value for a key iff the key exists and its last revision matches the expected
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @param value the number
@@ -113,7 +113,7 @@ public interface KeyValue {
     long update(String key, byte[] value, long expectedRevision) throws IOException, JetStreamApiException;
 
     /**
-     * Deletes a key.
+     * Soft deletes the key by placing a delete marker.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @throws IOException covers various communication issues with the NATS
@@ -137,7 +137,7 @@ public interface KeyValue {
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @param watcher the watcher
-     * @param watchOptions the result options to apply. If multiple conflicting options are supplied, that last options wins.
+     * @param watchOptions the watch options to apply. If multiple conflicting options are supplied, the last options wins.
      * @return The KeyValueWatchSubscription
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -150,7 +150,7 @@ public interface KeyValue {
      * Watch updates for all keys
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param watcher the watcher
-     * @param watchOptions the result options to apply. If multiple conflicting options are supplied, that last options wins.
+     * @param watchOptions the watch options to apply. If multiple conflicting options are supplied, the last options wins.
      * @return The KeyValueWatchSubscription
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -160,9 +160,9 @@ public interface KeyValue {
     NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
-     * Get the set of the keys in a bucket.
+     * Get a list of the keys in a bucket.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @return Set of keys
+     * @return List of keys
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
@@ -171,7 +171,7 @@ public interface KeyValue {
     List<String> keys() throws IOException, JetStreamApiException, InterruptedException;
 
     /**
-     * Get the history (list of KvEntry) for a key
+     * Get the history (list of KeyValueEntry) for a key
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @return List of KvEntry
@@ -183,7 +183,7 @@ public interface KeyValue {
     List<KeyValueEntry> history(String key) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
-     * Remove all current delete markers
+     * Remove history from all keys that currently are deleted or purged.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption

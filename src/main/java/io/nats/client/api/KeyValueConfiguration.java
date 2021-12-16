@@ -273,8 +273,8 @@ public class KeyValueConfiguration {
          */
         public KeyValueConfiguration build() {
             name = validateKvBucketNameRequired(name);
-            scBuilder.name(streamName(name))
-                .subjects(streamSubject(name))
+            scBuilder.name(toStreamName(name))
+                .subjects(toStreamSubject(name))
                 .allowRollup(true)
                 .denyDelete(true);
             return new KeyValueConfiguration(scBuilder.build());
