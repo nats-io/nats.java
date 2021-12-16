@@ -233,12 +233,24 @@ public class NatsKeyValue implements KeyValue {
                     .headersOnly(headersOnly)
                     .build())
             .build();
+
         JetStreamSubscription sub = js.subscribe(subject, pso);
-        Message m = sub.nextMessage(Duration.ofMillis(5000)); // give plenty of time for the first
-        while (m != null) {
-            handler.onMessage(m);
-            m = sub.nextMessage(Duration.ofMillis(100)); // the rest should come pretty quick
+
+        try {
+            Duration d100 = Duration.ofMillis(100);
+            Message m = sub.nextMessage(Duration.ofMillis(5000)); // give plenty of time for the first
+            while (m != null) {
+                handler.onMessage(m);
+                if (m.metaData().pendingCount() == 0) {
+                    m = null;
+                }
+                else {
+                    m = sub.nextMessage(d100); // the rest should come pretty quick
+                }
+            }
         }
-        sub.unsubscribe();
+        finally {
+            sub.unsubscribe();
+        }
     }
 }

@@ -19,7 +19,7 @@ import io.nats.client.api.*;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class NatsKeyValueWatchSubscription {
+public class NatsKeyValueWatchSubscription implements AutoCloseable {
     private static final Object dispatcherLock = new Object();
     private static NatsDispatcher dispatcher;
 
@@ -103,5 +103,10 @@ public class NatsKeyValueWatchSubscription {
                 dispatcher = null;
             }
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        unsubscribe();
     }
 }
