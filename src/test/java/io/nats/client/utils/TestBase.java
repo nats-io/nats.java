@@ -265,7 +265,7 @@ public class TestBase {
         try { LockSupport.parkNanos(d.toNanos()); } catch (Exception ignored) { /* ignored */ }
     }
 
-    public static void debug(Object... debug) {
+    public static void debugPrintln(Object... debug) {
         StringBuilder sb = new StringBuilder();
         sb.append(System.currentTimeMillis());
         sb.append(" [");
