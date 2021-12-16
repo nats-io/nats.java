@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 import static io.nats.client.support.NatsConstants.DOT;
+import static io.nats.client.support.NatsJetStreamConstants.MAX_HISTORY_PER_KEY;
 import static io.nats.client.support.NatsJetStreamConstants.MAX_PULL_SIZE;
 
 public abstract class Validator {
@@ -206,8 +207,8 @@ public abstract class Validator {
         if (max < 2) {
             return 1;
         }
-        if (max > 64) {
-            throw new IllegalArgumentException("Max History Per Key cannot be more than 64.");
+        if (max > MAX_HISTORY_PER_KEY) {
+            throw new IllegalArgumentException("Max History Per Key cannot be more than " + MAX_HISTORY_PER_KEY);
         }
         return max;
     }

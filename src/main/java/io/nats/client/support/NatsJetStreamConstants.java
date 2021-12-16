@@ -6,6 +6,11 @@ public interface NatsJetStreamConstants {
      */
     int MAX_PULL_SIZE = 256;
 
+    /**
+     * The Max History Per Key KV key
+     */
+    int MAX_HISTORY_PER_KEY = 64;
+
     String PREFIX_DOLLAR_JS_DOT = "$JS.";
     String PREFIX_API_DOT = "API.";
     String DEFAULT_API_PREFIX = "$JS.API.";
