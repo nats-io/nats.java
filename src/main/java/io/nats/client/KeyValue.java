@@ -102,8 +102,8 @@ public interface KeyValue {
      * Put as the value for a key iff the key exists and its last revision matches the expected
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
-     * @param value the number
      * @param value the bytes of the value
+     * @param expectedRevision the expected last revision
      * @return the revision number for the key
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption

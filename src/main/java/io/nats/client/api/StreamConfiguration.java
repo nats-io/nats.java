@@ -730,7 +730,7 @@ public class StreamConfiguration implements JsonSerializable {
 
         /**
          * Set whether to allow the rollup feature for a stream
-         * @param allowRollup
+         * @param allowRollup the allow rollup setting
          * @return Builder
          */
         public Builder allowRollup(boolean allowRollup) {
@@ -740,7 +740,7 @@ public class StreamConfiguration implements JsonSerializable {
 
         /**
          * Set whether to deny deleting messages from the stream
-         * @param denyDelete
+         * @param denyDelete the deny delete setting
          * @return Builder
          */
         public Builder denyDelete(boolean denyDelete) {
@@ -751,7 +751,7 @@ public class StreamConfiguration implements JsonSerializable {
 
         /**
          * Set whether to deny purging messages from the stream
-         * @param denyPurge
+         * @param denyPurge the deny purge setting
          * @return Builder
          */
         public Builder denyPurge(boolean denyPurge) {
