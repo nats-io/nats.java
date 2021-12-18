@@ -136,13 +136,9 @@ public class KeyValueStatus {
         return "KeyValueStatus{" +
             "name='" + getBucketName() + '\'' +
             ", description='" + getDescription() + '\'' +
-            ", maxValues=" + getMaxValues() +
+            ", entryCount=" + getEntryCount() +
             ", maxHistoryPerKey=" + getMaxHistoryPerKey() +
-            ", maxBucketSize=" + getMaxBucketSize() +
-            ", maxValueBytes=" + getMaxValueBytes() +
             ", ttl=" + getTtl() +
-            ", storageType=" + getStorageType() +
-            ", replicas=" + getReplicas() +
             '}';
     }
 }

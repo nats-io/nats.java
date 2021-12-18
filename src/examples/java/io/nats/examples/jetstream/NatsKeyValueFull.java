@@ -63,17 +63,17 @@ public class NatsKeyValueFull {
             KeyValue kv = nc.keyValue(exArgs.bucket);
 
             // Put some keys. Each key is put in a subject in the bucket (stream)
-            // The put returns the sequence number in the bucket (stream)
+            // The put returns the Revision number in the bucket (stream)
             System.out.println("\n1. Put");
 
             long seq = kv.put(BYTE_KEY, "Byte Value 1".getBytes());
-            System.out.println("Sequence Number should be 1, got " + seq);
+            System.out.println("Revision number should be 1, got " + seq);
 
             seq = kv.put(STRING_KEY, "String Value 1");
-            System.out.println("Sequence Number should be 2, got " + seq);
+            System.out.println("Revision number should be 2, got " + seq);
 
             seq = kv.put(LONG_KEY, 1);
-            System.out.println("Sequence Number should be 3, got " + seq);
+            System.out.println("Revision number should be 3, got " + seq);
 
             // retrieve the values. all types are stored as bytes
             // so you can always get the bytes directly
@@ -131,20 +131,18 @@ public class NatsKeyValueFull {
             // delete a key
             System.out.println("\n6. Delete a key");
             kv.delete(BYTE_KEY);
-            System.out.println("Sequence Number should be 4, got " + seq);
 
-            // it's value is now null
-            bvalue = kv.get(BYTE_KEY).getValue();
+            // it's value is now null but there is a delete tombstone so there is an entry
+            KeyValueEntry kve = kv.get(BYTE_KEY);
+            bvalue = kve.getValue();
+            System.out.println("Delete tombstone entry: " + kve);
+            System.out.println("Revision number should be 4, got " + kve.getRevision());
             System.out.println("Deleted value should be null: " + (bvalue == null));
-
-            // but it's entry still exists
-            entry = kv.get(BYTE_KEY);
-            System.out.println("Deleted " + BYTE_KEY + " entry: " + entry);
 
             // if the key does not exist there is no entry at all
             System.out.println("\n7.1 Keys does not exist");
-            kv.get(NOT_FOUND);
-            System.out.println("Should be null: " + bvalue);
+            kve = kv.get(NOT_FOUND);
+            System.out.println("Entry for " + NOT_FOUND + " should be null: " + kve);
 
             // if the key has been deleted there is an entry for it
             // but the value will be null
@@ -161,13 +159,13 @@ public class NatsKeyValueFull {
             // Update values. You can even update a deleted key
             System.out.println("\n8.1 Update values");
             seq = kv.put(BYTE_KEY, "Byte Value 2".getBytes());
-            System.out.println("Sequence Number should be 5, got " + seq);
+            System.out.println("Revision number should be 5, got " + seq);
 
             seq = kv.put(STRING_KEY, "String Value 2");
-            System.out.println("Sequence Number should be 6, got " + seq);
+            System.out.println("Revision number should be 6, got " + seq);
 
             seq = kv.put(LONG_KEY, 2);
-            System.out.println("Sequence Number should be 7, got " + seq);
+            System.out.println("Revision number should be 7, got " + seq);
 
             // values after updates
             System.out.println("\n8.2 Values after update");
