@@ -58,13 +58,12 @@ public interface KeyValueManagement {
     KeyValueStatus getBucketInfo(String bucketName) throws IOException, JetStreamApiException;
 
     /**
-     * Deletes an existing bucket.
+     * Deletes an existing bucket. Will throw a JetStreamApiException if the delete fails.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param bucketName the stream name to use.
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @return true if the delete succeeded. Usually throws a JetStreamApiException otherwise
      */
-    boolean delete(String bucketName) throws IOException, JetStreamApiException;
+    void delete(String bucketName) throws IOException, JetStreamApiException;
 }

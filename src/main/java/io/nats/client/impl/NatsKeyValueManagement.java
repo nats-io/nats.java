@@ -70,8 +70,8 @@ public class NatsKeyValueManagement implements KeyValueManagement {
      * {@inheritDoc}
      */
     @Override
-    public boolean delete(String bucketName) throws IOException, JetStreamApiException {
+    public void delete(String bucketName) throws IOException, JetStreamApiException {
         Validator.validateKvBucketNameRequired(bucketName);
-        return jsm.deleteStream(toStreamName(bucketName));
+        jsm.deleteStream(toStreamName(bucketName));
     }
 }
