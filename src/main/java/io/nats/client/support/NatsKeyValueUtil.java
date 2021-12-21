@@ -13,10 +13,14 @@
 
 package io.nats.client.support;
 
-import io.nats.client.api.KvOperation;
+import io.nats.client.JetStreamOptions;
+import io.nats.client.Message;
+import io.nats.client.api.KeyValueOperation;
 import io.nats.client.impl.Headers;
 
 import static io.nats.client.support.NatsConstants.DOT;
+import static io.nats.client.support.NatsJetStreamConstants.ROLLUP_HDR;
+import static io.nats.client.support.NatsJetStreamConstants.ROLLUP_HDR_SUBJECT;
 
 public abstract class NatsKeyValueUtil {
 
@@ -28,27 +32,53 @@ public abstract class NatsKeyValueUtil {
     public static final String KV_SUBJECT_SUFFIX = ".>";
     public static final String KV_OPERATION_HEADER_KEY = "KV-Operation";
 
-    public static String streamName(String bucketName) {
-        return KV_STREAM_PREFIX + bucketName;
+    public final static Headers DELETE_HEADERS;
+    public final static Headers PURGE_HEADERS;
+
+    static {
+        DELETE_HEADERS = new Headers()
+            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.DELETE.getHeaderValue());
+        PURGE_HEADERS = new Headers()
+            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.PURGE.getHeaderValue())
+            .put(ROLLUP_HDR, ROLLUP_HDR_SUBJECT);
     }
 
     public static String extractBucketName(String streamName) {
         return streamName.substring(KV_STREAM_PREFIX_LEN);
     }
 
-    public static String streamSubject(String bucketName) {
+    public static String toStreamName(String bucketName) {
+        return KV_STREAM_PREFIX + bucketName;
+    }
+
+    public static String toStreamSubject(String bucketName) {
         return KV_SUBJECT_PREFIX + bucketName + KV_SUBJECT_SUFFIX;
     }
 
-    public static String keySubject(String bucketName, String key) {
-        return KV_SUBJECT_PREFIX + bucketName + DOT + key;
+    public static String toKeySubject(JetStreamOptions jso, String bucketName, String key) {
+        return (jso.isDefaultPrefix() ? "" : jso.getPrefix()) + KV_SUBJECT_PREFIX + bucketName + DOT + key;
     }
 
-    public static Headers addDeleteHeader(Headers h) {
-        return h.put(KV_OPERATION_HEADER_KEY, KvOperation.DEL.name());
-    }
-
-    public static String getHeader(Headers h) {
+    public static String getOperationHeader(Headers h) {
         return h == null ? null : h.getFirst(KV_OPERATION_HEADER_KEY);
+    }
+
+    public static KeyValueOperation getOperation(Headers h, KeyValueOperation dflt) {
+        return KeyValueOperation.getOrDefault(getOperationHeader(h), dflt);
+    }
+
+    public static class BucketAndKey {
+        public final String bucket;
+        public final String key;
+
+        public BucketAndKey(Message m) {
+            this(m.getSubject());
+        }
+
+        public BucketAndKey(String subject) {
+            String[] split = subject.split("\\Q.\\E");
+            bucket = split[1];
+            key = split[2];
+        }
     }
 }

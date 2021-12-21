@@ -14,16 +14,20 @@
 package io.nats.client.api;
 
 /**
- * Use the KeyValueEntryHandler interface to define the listener
- * for KvEntry. Each Dispatcher can have a single message handler, although the
- * handler can use the incoming message's subject to branch for the actual work.
+ * Use the KeyValueWatcher interface to watch for updates
  */
-public interface KvEntryHandler {
+public interface KeyValueWatcher {
 
     /**
-     * Called to deliver an entry to the handler.
+     * Called when a key has been updated
      *
-     * @param kve the received Message
+     * @param kve The entry for the updated key
      */
-    void handle(KvEntry kve);
+    void watch(KeyValueEntry kve);
+
+    /**
+     * Called once if there is no data when the watch is created
+     * or if there is data, the first time the watch exhausts all existing data.
+     */
+    void endOfData();
 }

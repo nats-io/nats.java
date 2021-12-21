@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import static io.nats.client.api.MessageGetRequest.lastBySubjectBytes;
 import static io.nats.client.api.MessageGetRequest.seqBytes;
 import static io.nats.client.support.ApiConstants.SEQ;
 import static io.nats.client.support.JsonUtils.simpleMessageBody;
@@ -68,6 +69,9 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         return new StreamInfo(resp).throwOnHasError();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean deleteStream(String streamName) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
@@ -171,6 +175,9 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         return clg.getConsumers();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<String> getStreamNames() throws IOException, JetStreamApiException {
         StreamNamesReader snr = new StreamNamesReader();
@@ -181,6 +188,9 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         return snr.getStrings();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<StreamInfo> getStreams() throws IOException, JetStreamApiException {
         StreamListReader slg = new StreamListReader();
@@ -191,6 +201,9 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         return slg.getStreams();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
@@ -199,6 +212,21 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         return new MessageInfo(resp).throwOnHasError();
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageInfo getLastMessage(String streamName, String subject) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
+        validateSubject(subject, true);
+        String getSubject = String.format(JSAPI_MSG_GET, streamName);
+        Message resp = makeRequestResponseRequired(getSubject, lastBySubjectBytes(subject), jso.getRequestTimeout());
+        return new MessageInfo(resp);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean deleteMessage(String streamName, long seq) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
