@@ -280,15 +280,15 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             dispatcher.unsubscribe(async);
 
             JetStreamSubscription sub = js.subscribe(mockAckReply + "*");
-            Message msg = sub.nextMessage(1000);
+            Message msg = sub.nextMessage(2000);
             assertEquals(mockAckReply + "ack", msg.getSubject());
-            msg = sub.nextMessage(1000);
+            msg = sub.nextMessage(2000);
             assertEquals(mockAckReply + "nak", msg.getSubject());
-            msg = sub.nextMessage(1000);
+            msg = sub.nextMessage(2000);
             assertEquals(mockAckReply + "term", msg.getSubject());
-            msg = sub.nextMessage(1000);
+            msg = sub.nextMessage(2000);
             assertEquals(mockAckReply + "progress", msg.getSubject());
-            msg = sub.nextMessage(1000);
+            msg = sub.nextMessage(2000);
             assertEquals(mockAckReply + "system", msg.getSubject());
 
             // coverage explicit no ack flag
