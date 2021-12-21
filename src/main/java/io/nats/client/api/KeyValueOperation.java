@@ -18,19 +18,29 @@ import java.util.Map;
 /**
  * Key Value Operations Enum
  */
-public enum KvOperation {
-    PUT, DEL;
+public enum KeyValueOperation {
+    PUT("PUT"), DELETE("DEL"), PURGE("PURGE");
 
-    private static final Map<String, KvOperation> strEnumHash = new HashMap<>();
+    private final String headerValue;
+
+    KeyValueOperation(String headerValue) {
+        this.headerValue = headerValue;
+    }
+
+    private static final Map<String, KeyValueOperation> strEnumHash = new HashMap<>();
+
+    public String getHeaderValue() {
+        return headerValue;
+    }
 
     static {
-        for (KvOperation kvo : KvOperation.values()) {
-            strEnumHash.put(kvo.name(), kvo);
+        for (KeyValueOperation kvo : KeyValueOperation.values()) {
+            strEnumHash.put(kvo.headerValue, kvo);
         }
     }
 
-    public static KvOperation getOrDefault(String s, KvOperation dflt) {
-        KvOperation kvo = s == null ? null : strEnumHash.get(s.toUpperCase());
+    public static KeyValueOperation getOrDefault(String s, KeyValueOperation dflt) {
+        KeyValueOperation kvo = s == null ? null : strEnumHash.get(s.toUpperCase());
         return kvo == null ? dflt : kvo;
     }
 }

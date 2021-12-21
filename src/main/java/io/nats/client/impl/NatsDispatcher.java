@@ -93,16 +93,14 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
                         handler = defaultHandler;
                     }
 
-                    if (handler != null) {
-                        try {
-                            handler.onMessage(msg);
-                        } catch (Exception exp) {
-                            this.connection.processException(exp);
-                        }
+                    try {
+                        handler.onMessage(msg);
+                    } catch (Exception exp) {
+                        this.connection.processException(exp);
+                    }
 
-                        if (sub.reachedUnsubLimit()) {
-                            this.connection.invalidate(sub);
-                        }
+                    if (sub.reachedUnsubLimit()) {
+                        this.connection.invalidate(sub);
                     }
                 }
 

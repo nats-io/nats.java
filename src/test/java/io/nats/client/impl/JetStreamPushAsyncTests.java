@@ -14,21 +14,18 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.api.AckPolicy;
-import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.ConsumerInfo;
+import io.nats.client.api.*;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.nats.client.support.NatsJetStreamConstants.*;
+import static io.nats.client.support.NatsKeyValueUtil.KV_OPERATION_HEADER_KEY;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPushAsyncTests extends JetStreamTestBase {
@@ -313,5 +310,145 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             // no messages should have been published to our mock reply
             assertNull(sub.nextMessage(1000));
         });
+    }
+
+    static class MemStorBugHandler implements MessageHandler {
+        public List<Message> messages = new ArrayList<>();
+
+        @Override
+        public void onMessage(Message msg) throws InterruptedException {
+            messages.add(msg);
+        }
+    }
+
+    @Test
+    public void testMemoryStorageServerBugPR2719() throws Exception {
+        String stream = "msb";
+        String sub = "msbsub.>";
+        String key1 = "msbsub.key1";
+        String key2 = "msbsub.key2";
+
+        Headers deleteHeaders = new Headers()
+            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.DELETE.name());
+        Headers purgeHeaders = new Headers()
+            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.PURGE.name())
+            .put(ROLLUP_HDR, ROLLUP_HDR_SUBJECT);
+
+        runInJsServer(nc -> {
+            StreamConfiguration sc = StreamConfiguration.builder()
+                .name(stream)
+                .storageType(StorageType.Memory)
+                .subjects(sub)
+                .allowRollup(true)
+                .denyDelete(true)
+                .build();
+
+            nc.jetStreamManagement().addStream(sc);
+
+            JetStream js = nc.jetStream();
+
+            MemStorBugHandler fullHandler = new MemStorBugHandler();
+            MemStorBugHandler onlyHandler = new MemStorBugHandler();
+
+            PushSubscribeOptions psoFull = ConsumerConfiguration.builder()
+                .ackPolicy(AckPolicy.None)
+                .deliverPolicy(DeliverPolicy.LastPerSubject)
+                .flowControl(5000)
+                .filterSubject(sub)
+                .headersOnly(false)
+                .buildPushSubscribeOptions();
+
+            PushSubscribeOptions psoOnly = ConsumerConfiguration.builder()
+                .ackPolicy(AckPolicy.None)
+                .deliverPolicy(DeliverPolicy.LastPerSubject)
+                .flowControl(5000)
+                .filterSubject(sub)
+                .headersOnly(true)
+                .buildPushSubscribeOptions();
+
+            Dispatcher d = nc.createDispatcher();
+            js.subscribe(sub, d, fullHandler, false, psoFull);
+            js.subscribe(sub, d, onlyHandler, false, psoOnly);
+
+            Object[] expecteds = new Object[] {
+                "a", "aa", "z", "zz",
+                KeyValueOperation.DELETE, KeyValueOperation.DELETE,
+                "aaa", "zzz",
+                KeyValueOperation.DELETE, KeyValueOperation.DELETE,
+                KeyValueOperation.PURGE, KeyValueOperation.PURGE,
+            };
+
+            js.publish(NatsMessage.builder().subject(key1).data((String)expecteds[0]).build());
+            js.publish(NatsMessage.builder().subject(key1).data((String)expecteds[1]).build());
+            js.publish(NatsMessage.builder().subject(key2).data((String)expecteds[2]).build());
+            js.publish(NatsMessage.builder().subject(key2).data((String)expecteds[3]).build());
+
+            js.publish(NatsMessage.builder().subject(key1).headers(deleteHeaders).build());
+            js.publish(NatsMessage.builder().subject(key2).headers(deleteHeaders).build());
+
+            js.publish(NatsMessage.builder().subject(key1).data((String)expecteds[6]).build());
+            js.publish(NatsMessage.builder().subject(key2).data((String)expecteds[7]).build());
+
+            js.publish(NatsMessage.builder().subject(key1).headers(deleteHeaders).build());
+            js.publish(NatsMessage.builder().subject(key2).headers(deleteHeaders).build());
+
+            js.publish(NatsMessage.builder().subject(key1).headers(purgeHeaders).build());
+            js.publish(NatsMessage.builder().subject(key2).headers(purgeHeaders).build());
+
+            sleep(2000); // give time for the handler to get messages
+
+            validateRegular(expecteds, fullHandler);
+            validateHeadersOnly(expecteds, onlyHandler);
+        });
+    }
+
+    private void validateHeadersOnly(Object[] expecteds, MemStorBugHandler handler) {
+        int aix = 0;
+        for (Message m : handler.messages) {
+            Object expected = expecteds[aix++];
+            Headers h = m.getHeaders();
+            assertNotNull(h);
+            if (expected instanceof String) {
+                assertTrue(m.getData() == null || m.getData().length == 0);
+                assertEquals("" + ((String)expected).length(), h.getFirst(MSG_SIZE_HDR));
+                assertNull(h.getFirst(KV_OPERATION_HEADER_KEY));
+                assertNull(h.getFirst(ROLLUP_HDR));
+            }
+            else {
+                assertTrue(m.getData() == null || m.getData().length == 0);
+                assertEquals("0", h.getFirst(MSG_SIZE_HDR));
+                assertEquals(expected, KeyValueOperation.valueOf(h.getFirst(KV_OPERATION_HEADER_KEY)));
+                if (expected == KeyValueOperation.PURGE) {
+                    assertEquals(ROLLUP_HDR_SUBJECT, h.getFirst(ROLLUP_HDR));
+                }
+                else {
+                    assertNull(h.getFirst(ROLLUP_HDR));
+                }
+            }
+        }
+    }
+
+    private void validateRegular(Object[] expecteds, MemStorBugHandler handler) {
+        int aix = 0;
+        for (Message m : handler.messages) {
+            Object expected = expecteds[aix++];
+            if (expected instanceof String) {
+                assertEquals(expected, new String(m.getData()));
+                assertNull(m.getHeaders());
+            }
+            else {
+                Headers h = m.getHeaders();
+                assertNotNull(h);
+                assertTrue(m.getData() == null || m.getData().length == 0);
+                assertNull(h.getFirst(MSG_SIZE_HDR));
+                assertEquals(expected, KeyValueOperation.valueOf(h.getFirst(KV_OPERATION_HEADER_KEY)));
+                if (expected == KeyValueOperation.PURGE) {
+                    assertEquals(ROLLUP_HDR_SUBJECT, h.getFirst(ROLLUP_HDR));
+                }
+                else {
+                    assertNull(h.getFirst(ROLLUP_HDR));
+                }
+            }
+        }
     }
 }

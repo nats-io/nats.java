@@ -67,7 +67,7 @@ class OrderedManager extends MessageManager {
                 return true;
             }
             lastStreamSeq = msg.metaData().streamSequence();
-            expectedConsumerSeq = receivedConsumerSeq + 1;
+            expectedConsumerSeq++;
         }
         return false;
     }

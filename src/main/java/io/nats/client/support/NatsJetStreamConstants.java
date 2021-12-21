@@ -6,6 +6,11 @@ public interface NatsJetStreamConstants {
      */
     int MAX_PULL_SIZE = 256;
 
+    /**
+     * The Max History Per Key KV key
+     */
+    int MAX_HISTORY_PER_KEY = 64;
+
     String PREFIX_DOLLAR_JS_DOT = "$JS.";
     String PREFIX_API_DOT = "API.";
     String DEFAULT_API_PREFIX = "$JS.API.";
@@ -71,9 +76,13 @@ public interface NatsJetStreamConstants {
     String LAST_CONSUMER_HDR = "Nats-Last-Consumer";
     String LAST_STREAM_HDR = "Nats-Last-Stream";
     String CONSUMER_STALLED_HDR = "Nats-Consumer-Stalled";
-    String ROLLUP_HDR = "Nats-Rollup";
     String MSG_SIZE_HDR = "Nats-Msg-Size";
+
+    String ROLLUP_HDR = "Nats-Rollup";
+    String ROLLUP_HDR_SUBJECT = "sub";
+    String ROLLUP_HDR_ALL = "all";
 
     int JS_CONSUMER_NOT_FOUND_ERR = 10014;
     int JS_NO_MESSAGE_FOUND_ERR = 10037;
+    int JS_WRONG_LAST_SEQUENCE = 10071;
 }

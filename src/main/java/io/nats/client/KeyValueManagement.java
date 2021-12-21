@@ -12,14 +12,11 @@
 // limitations under the License.
 package io.nats.client;
 
-import io.nats.client.api.BucketConfiguration;
-import io.nats.client.api.BucketInfo;
-import io.nats.client.api.KvEntry;
-import io.nats.client.api.PurgeResponse;
+import io.nats.client.api.KeyValueConfiguration;
+import io.nats.client.api.KeyValueStatus;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Key Value Store Management context for creation and access to key value buckets.
@@ -27,89 +24,19 @@ import java.util.Set;
 public interface KeyValueManagement {
 
     /**
-     * Create a bucket.
+     * Create a key value store.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param config the bucket configuration
+     * @param config the key value configuration
      * @return bucket info
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      * @throws IllegalArgumentException the server is not JetStream enabled
      */
-    BucketInfo createBucket(BucketConfiguration config) throws IOException, JetStreamApiException;
+    KeyValueStatus create(KeyValueConfiguration config) throws IOException, JetStreamApiException;
 
     /**
-     * Deletes an existing bucket.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param bucketName the stream name to use.
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     * @return true if the delete succeeded
-     */
-    boolean deleteBucket(String bucketName) throws IOException, JetStreamApiException;
-
-    /**
-     * Gets the info for an existing bucket.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param bucketName the stream name to use.
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     * @return stream information
-     */
-    BucketInfo getBucketInfo(String bucketName) throws IOException, JetStreamApiException;
-
-    /**
-     * Purge all keys/values/history from the bucket.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param bucketName the bucket name
-     * @return PurgeResponse the purge response
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     */
-    PurgeResponse purgeBucket(String bucketName) throws IOException, JetStreamApiException;
-
-    /**
-     * Purge all values/history from the specific key
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param bucketName the bucket name
-     * @param key the key
-     * @return PurgeResponse the purge response
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     */
-    PurgeResponse purgeKey(String bucketName, String key) throws IOException, JetStreamApiException;
-
-    /**
-     * Get the history (list of KvEntry) for a key
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param bucketName the bucket name
-     * @param key the key
-     * @return List of KvEntry
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     * @throws InterruptedException if the thread is interrupted
-     */
-    List<KvEntry> getHistory(String bucketName, String key) throws IOException, JetStreamApiException, InterruptedException;
-
-    /**
-     * Get the set of the keys in a bucket.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param bucketName the bucket name
-     * @return Set of keys
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     * @throws InterruptedException if the thread is interrupted
-     */
-    Set<String> keys(String bucketName) throws IOException, JetStreamApiException, InterruptedException;
-
-    /**
-     * Get the list of bucket names
+     * Get the list of bucket names.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @return list of bucket names
      * @throws IOException covers various communication issues with the NATS
@@ -117,5 +44,26 @@ public interface KeyValueManagement {
      * @throws JetStreamApiException the request had an error related to the data
      * @throws InterruptedException if the thread is interrupted
      */
-    List<String> bucketsNames() throws IOException, JetStreamApiException, InterruptedException;
+    List<String> getBucketNames() throws IOException, JetStreamApiException, InterruptedException;
+
+    /**
+     * Gets the info for an existing bucket.
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @param bucketName the bucket name to use
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @return the bucket status object
+     */
+    KeyValueStatus getBucketInfo(String bucketName) throws IOException, JetStreamApiException;
+
+    /**
+     * Deletes an existing bucket. Will throw a JetStreamApiException if the delete fails.
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @param bucketName the stream name to use.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    void delete(String bucketName) throws IOException, JetStreamApiException;
 }

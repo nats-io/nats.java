@@ -60,7 +60,7 @@ public interface JetStreamManagement {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @return true if the delete succeeded
+     * @return true if the delete succeeded. Usually throws a JetStreamApiException otherwise
      */
     boolean deleteStream(String streamName) throws IOException, JetStreamApiException;
 
@@ -176,6 +176,17 @@ public interface JetStreamManagement {
      * @throws JetStreamApiException the request had an error related to the data
      */
     MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException;
+
+    /**
+     * Return an info object about the last message for a subject
+     * @param streamName the name of the stream.
+     * @param subject the subject to get the last message for
+     * @return The MessageInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    MessageInfo getLastMessage(String streamName, String subject) throws IOException, JetStreamApiException;
 
     /**
      * Deletes a message.

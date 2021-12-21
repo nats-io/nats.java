@@ -452,21 +452,21 @@ public interface Connection extends AutoCloseable {
     /**
      * Gets a context for working with an Key Value bucket
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param bucket the bucket
+     * @param bucketName the bucket name
      * @return a KeyValue instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
-    KeyValue keyValue(String bucket) throws IOException;
+    KeyValue keyValue(String bucketName) throws IOException;
 
     /**
      * Gets a context for working with an Key Value bucket
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param bucket the bucket
+     * @param bucketName the bucket name
      * @param options JetStream options.
      * @return a KeyValue instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
-    KeyValue keyValue(String bucket, JetStreamOptions options) throws IOException;
+    KeyValue keyValue(String bucketName, JetStreamOptions options) throws IOException;
 
     /**
      * Gets a context for managing Key Value buckets
@@ -481,8 +481,7 @@ public interface Connection extends AutoCloseable {
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param options JetStream options.
      * @return a KeyValueManagement instance.
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
+     * @throws IOException various IO exception such as timeout or interruption
      */
     KeyValueManagement keyValueManagement(JetStreamOptions options) throws IOException;
 }

@@ -160,6 +160,12 @@ public final class JsonUtilsTests {
 
         JsonUtils.addField(sb, "lmax", Long.MAX_VALUE);
         assertEquals(59, sb.length());
+
+        JsonUtils.addField(sb, "btrue", true);
+        assertEquals(72, sb.length());
+
+        JsonUtils.addField(sb, "bfalse", false);
+        assertEquals(87, sb.length());
     }
 
     @Test
