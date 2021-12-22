@@ -2,19 +2,21 @@ package io.nats.client.impl;
 
 public enum AckType {
     // Acknowledgement protocol messages
-    AckAck("+ACK"),
-    AckNak("-NAK"),
-    AckProgress("+WPI"),
-    AckTerm("+TERM"),
+    AckAck("+ACK", true),
+    AckNak("-NAK", true),
+    AckProgress("+WPI", false),
+    AckTerm("+TERM", true),
 
     // pull only option
-    AckNext("+NXT");
+    AckNext("+NXT", false);
 
     public final String text;
     public final byte[] bytes;
+    public final boolean terminal;
 
-    AckType(String text) {
+    AckType(String text, boolean terminal) {
         this.text = text;
         this.bytes = text.getBytes();
+        this.terminal = terminal;
     }
 }
