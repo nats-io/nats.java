@@ -135,7 +135,7 @@ public class KeyValueEntry extends ApiResponse<KeyValueEntry> {
         if (revision != that.revision) return false;
         if (delta != that.delta) return false;
         if (!bucketAndKey.equals(that.bucketAndKey)) return false;
-        if (dataLen > 0 && !Arrays.equals(value, that.value)) return false;
+        if (!Arrays.equals(value, that.value)) return false;
         if (!created.equals(that.created)) return false;
         return op == that.op;
     }
