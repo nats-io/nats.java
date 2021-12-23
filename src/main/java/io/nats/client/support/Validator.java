@@ -195,10 +195,6 @@ public abstract class Validator {
         return validateGtZeroOrMinus1(max, "Max Messages");
     }
 
-    public static long validateMaxBucketValues(long max) {
-        return validateGtZeroOrMinus1(max, "Max Bucket Values"); // max bucket values is a kv alias to max messages
-    }
-
     public static long validateMaxMessagesPerSubject(long max) {
         return validateGtZeroOrMinus1(max, "Max Messages Per Subject");
     }
@@ -225,8 +221,8 @@ public abstract class Validator {
         return validateGtZeroOrMinus1(max, "Max Message Size");
     }
 
-    public static long validateMaxValueBytes(long max) {
-        return validateGtZeroOrMinus1(max, "Max Value Bytes"); // max value bytes is a kv alias to max message size
+    public static long validateMaxValueSize(long max) {
+        return validateGtZeroOrMinus1(max, "Max Value Size"); // max value size is a kv alias to max message size
     }
 
     public static int validateNumberOfReplicas(int replicas) {
