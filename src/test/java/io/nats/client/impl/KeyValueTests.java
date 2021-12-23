@@ -349,6 +349,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
             List<KeyValueEntry> history = kv.history(KEY);
             assertEquals(1, history.size());
+            assertEquals(2, history.get(0).getValueAsLong());
 
             kvm.create(KeyValueConfiguration.builder()
                 .name(bucket(2))
@@ -363,6 +364,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
             history = kv.history(KEY);
             assertEquals(2, history.size());
+            assertEquals(2, history.get(0).getValueAsLong());
+            assertEquals(3, history.get(1).getValueAsLong());
         });
     }
 
@@ -809,7 +812,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/kv_account.conf", false)) {
             Options acctA = new Options.Builder().server(ts.getURI()).userInfo("a", "a").build();
-            Options acctI = new Options.Builder().server(ts.getURI()).userInfo("i", "i").build();
+            Options acctI = new Options.Builder().server(ts.getURI()).userInfo("i", "i").inboxPrefix("forI").build();
 
             try (Connection connUserA = Nats.connect(acctA); Connection connUserI = Nats.connect(acctI) ) {
 
@@ -857,8 +860,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
                 kv_connA_bucketA.watchAll(watcher_connA_BucketA);
                 kv_connA_bucketI.watchAll(watcher_connA_BucketI);
-                // kv_connI_bucketA.watchAll(watcher_connI_BucketA); // TODO cannot test this cross account yet
-                // kv_connI_bucketI.watchAll(watcher_connI_BucketI); // TODO cannot test this cross account yet
+//                kv_connI_bucketA.watchAll(watcher_connI_BucketA);
+//                kv_connI_bucketI.watchAll(watcher_connI_BucketI);
 
                 // bucket a from user a: AA, check AA, IA
                 assertKveAccount(kv_connA_bucketA, key(11), kv_connA_bucketA, kv_connI_bucketA);
@@ -874,9 +877,9 @@ public class KeyValueTests extends JetStreamTestBase {
 
                 // check keys from each kv
                 assertKvAccountKeys(kv_connA_bucketA.keys(), key(11), key(12));
-                // assertKvAccountKeys(kv_connI_bucketA.keys(), key(11), key(12)); // TODO cannot test this cross account yet
+                assertKvAccountKeys(kv_connI_bucketA.keys(), key(11), key(12));
                 assertKvAccountKeys(kv_connA_bucketI.keys(), key(21), key(22));
-                // assertKvAccountKeys(kv_connI_bucketI.keys(), key(21), key(22)); // TODO cannot test this cross account yet
+                assertKvAccountKeys(kv_connI_bucketI.keys(), key(21), key(22));
 
 
                 Object[] expecteds = new Object[] {
@@ -886,8 +889,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
                 validateWatcher(expecteds, watcher_connA_BucketA);
                 validateWatcher(expecteds, watcher_connA_BucketI);
-                // validateWatcher(expecteds, watcher_connI_BucketA); // TODO cannot test this cross account yet
-                // validateWatcher(expecteds, watcher_connI_BucketI); // TODO cannot test this cross account yet
+//                validateWatcher(expecteds, watcher_connI_BucketA);
+//                validateWatcher(expecteds, watcher_connI_BucketI);
             }
         }
     }
@@ -920,11 +923,11 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(KeyValueOperation.DELETE, kveUserA.getOperation());
 
         assertKveAccountHistory(kvUserA.history(key), data(0), data(1), KeyValueOperation.DELETE);
-        // assertKveAccountHistory(kvUserI.history(key), data(0), data(1), KeyValueOperation.DELETE); // TODO cannot test this cross account yet
+        assertKveAccountHistory(kvUserI.history(key), data(0), data(1), KeyValueOperation.DELETE);
 
         kvWorker.purge(key);
         assertKveAccountHistory(kvUserA.history(key), KeyValueOperation.PURGE);
-        // assertKveAccountHistory(kvUserI.history(key), KeyValueOperation.PURGE); // TODO cannot test this cross account yet
+        assertKveAccountHistory(kvUserI.history(key), KeyValueOperation.PURGE);
 
         // leave data for keys checking
         kvWorker.put(key, dataBytes(2));

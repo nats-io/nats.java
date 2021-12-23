@@ -55,12 +55,12 @@ public abstract class NatsKeyValueUtil {
         return KV_SUBJECT_PREFIX + bucketName + KV_SUBJECT_SUFFIX;
     }
 
-    public static String toKeyApiSubject(String bucketName, String key) {
+    public static String toKeySubject(String bucketName, String key) {
         return  KV_SUBJECT_PREFIX + bucketName + DOT + key;
     }
 
-    public static String toKeyPubSubSubject(JetStreamOptions jso, String bucketName, String key) {
-        return (jso.isDefaultPrefix() ? "" : jso.getPrefix()) + toKeyApiSubject(bucketName, key);
+    public static String toKeySubjectConsiderPrefix(JetStreamOptions jso, String bucketName, String key) {
+        return (jso.isDefaultPrefix() ? "" : jso.getPrefix()) + toKeySubject(bucketName, key);
     }
 
     public static String getOperationHeader(Headers h) {
