@@ -16,6 +16,7 @@ import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsKeyValueUtil;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -606,6 +607,7 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
+    @Timeout(value = 60)
     public void testWatch() throws Exception {
         String keyNull = "key.nl";
         String key1 = "key.1";
@@ -721,7 +723,7 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.put(key1, "aaaa");
             kv.put(key2, "zzzz");
 
-            sleep(2000); // give time for the watches to get messages
+            sleep(5000); // give time for the watches to get messages
 
             validateWatcher(key1AllExpecteds, key1FullWatcher);
             validateWatcher(key1AllExpecteds, key1MetaWatcher);
