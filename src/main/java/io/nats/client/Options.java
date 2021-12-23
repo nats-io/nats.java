@@ -1161,13 +1161,13 @@ public class Options {
          * 
          * If the user and password are set in the server URL, they will override these values. However, in a clustering situation,
          * these values can be used as a fallback.
+         *
+         * use the char[] version instead for better security
          * 
          * @param userName a non-empty user name
          * @param password the password, in plain text
          * @return the Builder for chaining
-         * @deprecated use the char[] version instead for better security
          */
-        @Deprecated
         public Builder userInfo(String userName, String password) {
             this.username = userName.toCharArray();
             this.password = password.toCharArray();

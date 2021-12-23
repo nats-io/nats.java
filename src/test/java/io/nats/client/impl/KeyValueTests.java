@@ -17,6 +17,7 @@ import io.nats.client.api.*;
 import io.nats.client.support.NatsKeyValueUtil;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -756,5 +757,139 @@ public class KeyValueTests extends JetStreamTestBase {
                 assertSame(expected, kve.getOperation());
             }
         }
+    }
+
+    static final String BUCKET_CREATED_BY_USER_A = "bucketA";
+    static final String BUCKET_CREATED_BY_USER_I = "bucketI";
+
+    @Test
+    public void testWithAccount() throws Exception {
+
+
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/kv_account.conf", false)) {
+            Options acctA = new Options.Builder().server(ts.getURI()).userInfo("a", "a").build();
+            Options acctI = new Options.Builder().server(ts.getURI()).userInfo("i", "i").build();
+//            Options acctA = new Options.Builder().server(Options.DEFAULT_URL).userInfo("a", "a").build();
+//            Options acctI = new Options.Builder().server(Options.DEFAULT_URL).userInfo("i", "i").build();
+
+            try (Connection connUserA = Nats.connect(acctA); Connection connUserI = Nats.connect(acctI) ) {
+
+                // some prep
+                JetStreamOptions jsOpt_UserA_NoPrefix = JetStreamOptions.defaultOptions();
+                JetStreamOptions jsOpt_UserI_WithPrefix = JetStreamOptions.builder().prefix("fromA").build();
+
+                KeyValueManagement kvmUserA = connUserA.keyValueManagement(jsOpt_UserA_NoPrefix);
+                KeyValueManagement kvmUserI = connUserI.keyValueManagement(jsOpt_UserI_WithPrefix);
+
+                KeyValueConfiguration kvcA = KeyValueConfiguration.builder()
+                    .name(BUCKET_CREATED_BY_USER_A).storageType(StorageType.Memory).maxHistoryPerKey(64).build();
+
+                KeyValueConfiguration kvcI = KeyValueConfiguration.builder()
+                    .name(BUCKET_CREATED_BY_USER_I).storageType(StorageType.Memory).maxHistoryPerKey(64).build();
+
+                // testing KVM API
+                assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserA.create(kvcA).getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserI.create(kvcI).getBucketName());
+
+                assertKvAccountBucketNames(kvmUserA.getBucketNames());
+                assertKvAccountBucketNames(kvmUserI.getBucketNames());
+
+                assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserA.getBucketInfo(BUCKET_CREATED_BY_USER_A).getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserI.getBucketInfo(BUCKET_CREATED_BY_USER_A).getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserA.getBucketInfo(BUCKET_CREATED_BY_USER_I).getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserI.getBucketInfo(BUCKET_CREATED_BY_USER_I).getBucketName());
+
+                // some more prep
+                KeyValue kv_connA_bucketA = connUserA.keyValue(BUCKET_CREATED_BY_USER_A, jsOpt_UserA_NoPrefix);
+                KeyValue kv_connA_bucketI = connUserA.keyValue(BUCKET_CREATED_BY_USER_I, jsOpt_UserA_NoPrefix);
+                KeyValue kv_connI_bucketA = connUserI.keyValue(BUCKET_CREATED_BY_USER_A, jsOpt_UserI_WithPrefix);
+                KeyValue kv_connI_bucketI = connUserI.keyValue(BUCKET_CREATED_BY_USER_I, jsOpt_UserI_WithPrefix);
+
+                // check the names
+                assertEquals(BUCKET_CREATED_BY_USER_A, kv_connA_bucketA.getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_A, kv_connI_bucketA.getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kv_connA_bucketI.getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kv_connI_bucketI.getBucketName());
+
+                // bucket a from user a: AA, check AA, IA
+                assertKveAccount(kv_connA_bucketA, key(11), kv_connA_bucketA, kv_connI_bucketA);
+
+                // bucket a from user i: IA, check AA, IA
+                assertKveAccount(kv_connI_bucketA, key(12), kv_connA_bucketA, kv_connI_bucketA);
+
+                // bucket i from user a: AI, check AI, II
+                assertKveAccount(kv_connA_bucketI, key(21), kv_connA_bucketI, kv_connI_bucketI);
+
+                // bucket i from user i: II, check AI, II
+                assertKveAccount(kv_connI_bucketI, key(22), kv_connA_bucketI, kv_connI_bucketI);
+
+                // check keys from each kv
+                assertKvAccountKeys(kv_connA_bucketA.keys(), key(11), key(12));
+                // assertKvAccountKeys(kv_connI_bucketA.keys(), key(11), key(12)); // TODO cannot test this cross account yet
+                assertKvAccountKeys(kv_connA_bucketI.keys(), key(21), key(22));
+                // assertKvAccountKeys(kv_connI_bucketI.keys(), key(21), key(22)); // TODO cannot test this cross account yet
+            }
+        }
+    }
+
+    private void assertKvAccountBucketNames(List<String> bnames) {
+        assertEquals(2, bnames.size());
+        assertTrue(bnames.contains(BUCKET_CREATED_BY_USER_A));
+        assertTrue(bnames.contains(BUCKET_CREATED_BY_USER_I));
+    }
+
+    private void assertKvAccountKeys(List<String> keys, String key1, String key2) {
+        assertEquals(2, keys.size());
+        assertTrue(keys.contains(key1));
+        assertTrue(keys.contains(key2));
+    }
+
+    private void assertKveAccount(KeyValue kvWorker, String key, KeyValue kvUserA, KeyValue kvUserI) throws IOException, JetStreamApiException, InterruptedException {
+        kvWorker.create(key, dataBytes(0));
+        assertKveAccountGet(kvUserA, kvUserI, key, data(0));
+
+        kvWorker.put(key, dataBytes(1));
+        assertKveAccountGet(kvUserA, kvUserI, key, data(1));
+
+        kvWorker.delete(key);
+        KeyValueEntry kveUserA = kvUserA.get(key);
+        KeyValueEntry kveUserI = kvUserI.get(key);
+        assertNotNull(kveUserA);
+        assertNotNull(kveUserI);
+        assertEquals(kveUserA, kveUserI);
+        assertEquals(KeyValueOperation.DELETE, kveUserA.getOperation());
+
+        assertKveAccountHistory(kvUserA.history(key), data(0), data(1), KeyValueOperation.DELETE);
+        // assertKveAccountHistory(kvUserI.history(key), data(0), data(1), KeyValueOperation.DELETE); // TODO cannot test this cross account yet
+
+        kvWorker.purge(key);
+        assertKveAccountHistory(kvUserA.history(key), KeyValueOperation.PURGE);
+        // assertKveAccountHistory(kvUserI.history(key), KeyValueOperation.PURGE); // TODO cannot test this cross account yet
+
+        // leave data for keys checking
+        kvWorker.put(key, dataBytes(3));
+        assertKveAccountGet(kvUserA, kvUserI, key, data(3));
+    }
+
+    private void assertKveAccountHistory(List<KeyValueEntry> history, Object... expecteds) {
+        assertEquals(expecteds.length, history.size());
+        for (int x = 0; x < expecteds.length; x++) {
+            if (expecteds[x] instanceof String) {
+                assertEquals(expecteds[x], history.get(x).getValueAsString());
+            }
+            else {
+                assertEquals(expecteds[x], history.get(x).getOperation());
+            }
+        }
+    }
+
+    private void assertKveAccountGet(KeyValue kvUserA, KeyValue kvUserI, String key, String data) throws IOException, JetStreamApiException {
+        KeyValueEntry kveUserA = kvUserA.get(key);
+        KeyValueEntry kveUserI = kvUserI.get(key);
+        assertNotNull(kveUserA);
+        assertNotNull(kveUserI);
+        assertEquals(kveUserA, kveUserI);
+        assertEquals(data, kveUserA.getValueAsString());
+        assertEquals(KeyValueOperation.PUT, kveUserA.getOperation());
     }
 }

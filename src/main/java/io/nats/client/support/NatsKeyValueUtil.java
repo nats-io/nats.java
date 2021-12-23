@@ -55,8 +55,12 @@ public abstract class NatsKeyValueUtil {
         return KV_SUBJECT_PREFIX + bucketName + KV_SUBJECT_SUFFIX;
     }
 
-    public static String toKeySubject(JetStreamOptions jso, String bucketName, String key) {
-        return (jso.isDefaultPrefix() ? "" : jso.getPrefix()) + KV_SUBJECT_PREFIX + bucketName + DOT + key;
+    public static String toKeyApiSubject(String bucketName, String key) {
+        return  KV_SUBJECT_PREFIX + bucketName + DOT + key;
+    }
+
+    public static String toKeyPubSubSubject(JetStreamOptions jso, String bucketName, String key) {
+        return (jso.isDefaultPrefix() ? "" : jso.getPrefix()) + toKeyApiSubject(bucketName, key);
     }
 
     public static String getOperationHeader(Headers h) {
@@ -79,6 +83,24 @@ public abstract class NatsKeyValueUtil {
             String[] split = subject.split("\\Q.\\E");
             bucket = split[1];
             key = split[2];
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            BucketAndKey that = (BucketAndKey) o;
+
+            if (!bucket.equals(that.bucket)) return false;
+            return key.equals(that.key);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = bucket.hashCode();
+            result = 31 * result + key.hashCode();
+            return result;
         }
     }
 }

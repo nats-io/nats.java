@@ -44,8 +44,12 @@ public class NatsKeyValue implements KeyValue {
         jsm = new NatsJetStreamManagement(connection, options);
     }
 
-    String keySubject(String key) {
-        return toKeySubject(js.jso, bucketName, key);
+    String keyApiSubject(String key) {
+        return toKeyApiSubject(bucketName, key);
+    }
+
+    String keyPubSubSubject(String key) {
+        return toKeyPubSubSubject(js.jso, bucketName, key);
     }
 
     /**
@@ -69,11 +73,11 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public KeyValueEntry get(String key) throws IOException, JetStreamApiException {
-        return getInternal(validateNonWildcardKvKeyRequired(key));
+        return getLastMessage(validateNonWildcardKvKeyRequired(key));
     }
 
-    KeyValueEntry getInternal(String key) throws IOException, JetStreamApiException {
-        MessageInfo mi = jsm.getLastMessage(streamName, keySubject(key));
+    KeyValueEntry getLastMessage(String key) throws IOException, JetStreamApiException {
+        MessageInfo mi = jsm.getLastMessage(streamName, keyApiSubject(key));
         if (mi.hasError()) {
             if (mi.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {
                 return null; // run of the mill key not found
@@ -89,7 +93,7 @@ public class NatsKeyValue implements KeyValue {
     @Override
     public long put(String key, byte[] value) throws IOException, JetStreamApiException {
         validateNonWildcardKvKeyRequired(key);
-        return js.publish(NatsMessage.builder().subject(keySubject(key)).data(value).build()).getSeqno();
+        return js.publish(NatsMessage.builder().subject(keyPubSubSubject(key)).data(value).build()).getSeqno();
     }
 
     /**
@@ -119,7 +123,7 @@ public class NatsKeyValue implements KeyValue {
         catch (JetStreamApiException e) {
             if (e.getApiErrorCode() == JS_WRONG_LAST_SEQUENCE) {
                 // must check if the last message for this subject is a delete or purge
-                KeyValueEntry kve = getInternal(key);
+                KeyValueEntry kve = getLastMessage(key);
                 if (kve != null && kve.getOperation() != KeyValueOperation.PUT) {
                     return update(key, value, kve.getRevision());
                 }
@@ -155,7 +159,7 @@ public class NatsKeyValue implements KeyValue {
 
     private PublishAck _publishWithNonWildcardKey(String key, byte[] data, Headers h) throws IOException, JetStreamApiException {
         validateNonWildcardKvKeyRequired(key);
-        return js.publish(NatsMessage.builder().subject(keySubject(key)).data(data).headers(h).build());
+        return js.publish(NatsMessage.builder().subject(keyPubSubSubject(key)).data(data).headers(h).build());
     }
 
     @Override
@@ -177,7 +181,7 @@ public class NatsKeyValue implements KeyValue {
     @Override
     public List<String> keys() throws IOException, JetStreamApiException, InterruptedException {
         List<String> list = new ArrayList<>();
-        visitSubject(streamSubject, DeliverPolicy.LastPerSubject, true, false, m -> {
+        visitSubject(keyApiSubject(">"), DeliverPolicy.LastPerSubject, true, false, m -> {
             KeyValueOperation op = getOperation(m.getHeaders(), KeyValueOperation.PUT);
             if (op == KeyValueOperation.PUT) {
                 list.add(new BucketAndKey(m).key);
@@ -193,7 +197,7 @@ public class NatsKeyValue implements KeyValue {
     public List<KeyValueEntry> history(String key) throws IOException, JetStreamApiException, InterruptedException {
         validateNonWildcardKvKeyRequired(key);
         List<KeyValueEntry> list = new ArrayList<>();
-        visitSubject(keySubject(key), DeliverPolicy.All, false, true, m -> list.add(new KeyValueEntry(m)));
+        visitSubject(keyApiSubject(key), DeliverPolicy.All, false, true, m -> list.add(new KeyValueEntry(m)));
         return list;
     }
 
@@ -211,7 +215,7 @@ public class NatsKeyValue implements KeyValue {
         });
 
         for (String key : list) {
-            jsm.purgeStream(streamName, PurgeOptions.subject(keySubject(key)));
+            jsm.purgeStream(streamName, PurgeOptions.subject(keyApiSubject(key)));
         }
     }
 
