@@ -575,7 +575,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 30)
+    @Timeout(value = 60)
     public void testOrdered() throws Exception {
         runInJsServer(nc -> {
             JetStream js = nc.jetStream();
@@ -629,7 +629,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             // publish after sub to make sure interceptor is set before messages come in
             jsPublish(js, subject(2), 201, 6);
 
-            assertTrue(msgLatch.await(5, TimeUnit.SECONDS));
+            assertTrue(msgLatch.await(10, TimeUnit.SECONDS));
 
             while (ss < 13) {
                 assertEquals(ss, ssFlags[ss-7].get());

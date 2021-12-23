@@ -332,6 +332,40 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testMaxHistoryPerKey() throws Exception {
+        runInJsServer(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            // default maxHistoryPerKey is 1
+            kvm.create(KeyValueConfiguration.builder()
+                .name(bucket(1))
+                .storageType(StorageType.Memory)
+                .build());
+
+            KeyValue kv = nc.keyValue(bucket(1));
+            kv.put(KEY, 1);
+            kv.put(KEY, 2);
+
+            List<KeyValueEntry> history = kv.history(KEY);
+            assertEquals(1, history.size());
+
+            kvm.create(KeyValueConfiguration.builder()
+                .name(bucket(2))
+                .maxHistoryPerKey(2)
+                .storageType(StorageType.Memory)
+                .build());
+
+            kv = nc.keyValue(bucket(2));
+            kv.put(KEY, 1);
+            kv.put(KEY, 2);
+            kv.put(KEY, 3);
+
+            history = kv.history(KEY);
+            assertEquals(2, history.size());
+        });
+    }
+
+    @Test
     public void testHistoryDeletePurge() throws Exception {
         runInJsServer(nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
@@ -449,6 +483,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // 7. allowed to update a key that is deleted, as long as you have it's revision
             kv.delete(KEY);
+
+            sleep(200); // a little pause to make sure things get flushed
             List<KeyValueEntry> hist = kv.history(KEY);
             kv.update(KEY, "abcd".getBytes(), hist.get(hist.size()-1).getRevision());
 
@@ -458,6 +494,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // 9. allowed to update a key that is deleted, as long as you have it's revision
             kv.purge(KEY);
+
+            sleep(200); // a little pause to make sure things get flushed
             hist = kv.history(KEY);
             kv.update(KEY, "abcdef".getBytes(), hist.get(hist.size()-1).getRevision());
         });
@@ -672,7 +710,7 @@ public class KeyValueTests extends JetStreamTestBase {
             subs.add(kv.watch(key2, key2AfterStartNewWatcher, key2AfterStartNewWatcher.watchOptions));
             subs.add(kv.watch(key2, key2AfterStartFirstWatcher, key2AfterStartFirstWatcher.watchOptions));
 
-            sleep(2000); // give time for the watches to get messages
+            sleep(5000); // give time for the watches to get messages
 
             // unsubscribe so the watchers don't get any more messages
             for (NatsKeyValueWatchSubscription sub : subs) {
@@ -682,6 +720,8 @@ public class KeyValueTests extends JetStreamTestBase {
             // put some more data which should not be seen by watches
             kv.put(key1, "aaaa");
             kv.put(key2, "zzzz");
+
+            sleep(2000); // give time for the watches to get messages
 
             validateWatcher(key1AllExpecteds, key1FullWatcher);
             validateWatcher(key1AllExpecteds, key1MetaWatcher);

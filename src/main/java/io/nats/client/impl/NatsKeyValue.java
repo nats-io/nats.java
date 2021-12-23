@@ -181,7 +181,7 @@ public class NatsKeyValue implements KeyValue {
     @Override
     public List<String> keys() throws IOException, JetStreamApiException, InterruptedException {
         List<String> list = new ArrayList<>();
-        visitSubject(keyApiSubject(">"), DeliverPolicy.LastPerSubject, true, false, m -> {
+        visitSubject(keyPubSubSubject(">"), DeliverPolicy.LastPerSubject, true, false, m -> {
             KeyValueOperation op = getOperation(m.getHeaders(), KeyValueOperation.PUT);
             if (op == KeyValueOperation.PUT) {
                 list.add(new BucketAndKey(m).key);
@@ -197,7 +197,7 @@ public class NatsKeyValue implements KeyValue {
     public List<KeyValueEntry> history(String key) throws IOException, JetStreamApiException, InterruptedException {
         validateNonWildcardKvKeyRequired(key);
         List<KeyValueEntry> list = new ArrayList<>();
-        visitSubject(keyApiSubject(key), DeliverPolicy.All, false, true, m -> list.add(new KeyValueEntry(m)));
+        visitSubject(keyPubSubSubject(key), DeliverPolicy.All, false, true, m -> list.add(new KeyValueEntry(m)));
         return list;
     }
 
