@@ -765,12 +765,9 @@ public class KeyValueTests extends JetStreamTestBase {
     @Test
     public void testWithAccount() throws Exception {
 
-
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/kv_account.conf", false)) {
             Options acctA = new Options.Builder().server(ts.getURI()).userInfo("a", "a").build();
             Options acctI = new Options.Builder().server(ts.getURI()).userInfo("i", "i").build();
-//            Options acctA = new Options.Builder().server(Options.DEFAULT_URL).userInfo("a", "a").build();
-//            Options acctI = new Options.Builder().server(Options.DEFAULT_URL).userInfo("i", "i").build();
 
             try (Connection connUserA = Nats.connect(acctA); Connection connUserI = Nats.connect(acctI) ) {
 
@@ -811,6 +808,16 @@ public class KeyValueTests extends JetStreamTestBase {
                 assertEquals(BUCKET_CREATED_BY_USER_I, kv_connA_bucketI.getBucketName());
                 assertEquals(BUCKET_CREATED_BY_USER_I, kv_connI_bucketI.getBucketName());
 
+                TestKeyValueWatcher watcher_connA_BucketA = new TestKeyValueWatcher(true);
+                TestKeyValueWatcher watcher_connA_BucketI = new TestKeyValueWatcher(true);
+                TestKeyValueWatcher watcher_connI_BucketA = new TestKeyValueWatcher(true);
+                TestKeyValueWatcher watcher_connI_BucketI = new TestKeyValueWatcher(true);
+
+                kv_connA_bucketA.watchAll(watcher_connA_BucketA);
+                kv_connA_bucketI.watchAll(watcher_connA_BucketI);
+                // kv_connI_bucketA.watchAll(watcher_connI_BucketA); // TODO cannot test this cross account yet
+                // kv_connI_bucketI.watchAll(watcher_connI_BucketI); // TODO cannot test this cross account yet
+
                 // bucket a from user a: AA, check AA, IA
                 assertKveAccount(kv_connA_bucketA, key(11), kv_connA_bucketA, kv_connI_bucketA);
 
@@ -828,6 +835,17 @@ public class KeyValueTests extends JetStreamTestBase {
                 // assertKvAccountKeys(kv_connI_bucketA.keys(), key(11), key(12)); // TODO cannot test this cross account yet
                 assertKvAccountKeys(kv_connA_bucketI.keys(), key(21), key(22));
                 // assertKvAccountKeys(kv_connI_bucketI.keys(), key(21), key(22)); // TODO cannot test this cross account yet
+
+
+                Object[] expecteds = new Object[] {
+                    data(0), data(1), KeyValueOperation.DELETE, KeyValueOperation.PURGE, data(2),
+                    data(0), data(1), KeyValueOperation.DELETE, KeyValueOperation.PURGE, data(2)
+                };
+
+                validateWatcher(expecteds, watcher_connA_BucketA);
+                validateWatcher(expecteds, watcher_connA_BucketI);
+                // validateWatcher(expecteds, watcher_connI_BucketA); // TODO cannot test this cross account yet
+                // validateWatcher(expecteds, watcher_connI_BucketI); // TODO cannot test this cross account yet
             }
         }
     }
@@ -867,8 +885,8 @@ public class KeyValueTests extends JetStreamTestBase {
         // assertKveAccountHistory(kvUserI.history(key), KeyValueOperation.PURGE); // TODO cannot test this cross account yet
 
         // leave data for keys checking
-        kvWorker.put(key, dataBytes(3));
-        assertKveAccountGet(kvUserA, kvUserI, key, data(3));
+        kvWorker.put(key, dataBytes(2));
+        assertKveAccountGet(kvUserA, kvUserI, key, data(2));
     }
 
     private void assertKveAccountHistory(List<KeyValueEntry> history, Object... expecteds) {
