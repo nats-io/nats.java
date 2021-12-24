@@ -27,7 +27,7 @@ public class NatsKeyValueWatchSubscription implements AutoCloseable {
     private final AtomicBoolean endOfDataSent;
 
     public NatsKeyValueWatchSubscription(NatsKeyValue kv, String keyPattern, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException {
-        String keySubject = kv.keySubjectConsiderPrefix(keyPattern);
+        String keySubject = kv.keySubject(keyPattern);
 
         // figure out the result options
         boolean headersOnly = false;

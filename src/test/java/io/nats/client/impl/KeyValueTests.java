@@ -863,8 +863,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
                 kv_connA_bucketA.watchAll(watcher_connA_BucketA);
                 kv_connA_bucketI.watchAll(watcher_connA_BucketI);
-//                kv_connI_bucketA.watchAll(watcher_connI_BucketA);
-//                kv_connI_bucketI.watchAll(watcher_connI_BucketI);
+                kv_connI_bucketA.watchAll(watcher_connI_BucketA);
+                kv_connI_bucketI.watchAll(watcher_connI_BucketI);
 
                 // bucket a from user a: AA, check AA, IA
                 assertKveAccount(kv_connA_bucketA, key(11), kv_connA_bucketA, kv_connI_bucketA);
@@ -884,7 +884,6 @@ public class KeyValueTests extends JetStreamTestBase {
                 assertKvAccountKeys(kv_connA_bucketI.keys(), key(21), key(22));
                 assertKvAccountKeys(kv_connI_bucketI.keys(), key(21), key(22));
 
-
                 Object[] expecteds = new Object[] {
                     data(0), data(1), KeyValueOperation.DELETE, KeyValueOperation.PURGE, data(2),
                     data(0), data(1), KeyValueOperation.DELETE, KeyValueOperation.PURGE, data(2)
@@ -892,8 +891,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
                 validateWatcher(expecteds, watcher_connA_BucketA);
                 validateWatcher(expecteds, watcher_connA_BucketI);
-//                validateWatcher(expecteds, watcher_connI_BucketA);
-//                validateWatcher(expecteds, watcher_connI_BucketI);
+                validateWatcher(expecteds, watcher_connI_BucketA);
+                validateWatcher(expecteds, watcher_connI_BucketI);
             }
         }
     }
