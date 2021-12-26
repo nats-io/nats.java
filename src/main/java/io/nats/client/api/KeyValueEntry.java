@@ -44,7 +44,7 @@ public class KeyValueEntry extends ApiResponse<KeyValueEntry> {
         created = mi.getTime();
         revision = mi.getSeq();
         delta = 0;
-        op = NatsKeyValueUtil.getOperation(h, KeyValueOperation.PUT);
+        op = NatsKeyValueUtil.getOperation(h);
     }
 
     public KeyValueEntry(Message m) {
@@ -55,7 +55,7 @@ public class KeyValueEntry extends ApiResponse<KeyValueEntry> {
         created = m.metaData().timestamp();
         revision = m.metaData().streamSequence();
         delta = m.metaData().pendingCount();
-        op = NatsKeyValueUtil.getOperation(h, KeyValueOperation.PUT);
+        op = NatsKeyValueUtil.getOperation(h);
     }
 
     public String getBucket() {

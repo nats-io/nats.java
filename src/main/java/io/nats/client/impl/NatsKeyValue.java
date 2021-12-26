@@ -182,7 +182,7 @@ public class NatsKeyValue implements KeyValue {
     public List<String> keys() throws IOException, JetStreamApiException, InterruptedException {
         List<String> list = new ArrayList<>();
         visitSubject(keySubject(">"), DeliverPolicy.LastPerSubject, true, false, m -> {
-            KeyValueOperation op = getOperation(m.getHeaders(), KeyValueOperation.PUT);
+            KeyValueOperation op = getOperation(m.getHeaders());
             if (op == KeyValueOperation.PUT) {
                 list.add(new BucketAndKey(m).key);
             }
@@ -208,7 +208,7 @@ public class NatsKeyValue implements KeyValue {
     public void purgeDeletes()  throws IOException, JetStreamApiException, InterruptedException {
         List<String> list = new ArrayList<>();
         visitSubject(streamSubject, DeliverPolicy.LastPerSubject, true, false, m -> {
-            KeyValueOperation op = getOperation(m.getHeaders(), KeyValueOperation.PUT);
+            KeyValueOperation op = getOperation(m.getHeaders());
             if (op != KeyValueOperation.PUT) {
                 list.add(new BucketAndKey(m).key);
             }

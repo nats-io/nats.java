@@ -67,8 +67,8 @@ public abstract class NatsKeyValueUtil {
         return h == null ? null : h.getFirst(KV_OPERATION_HEADER_KEY);
     }
 
-    public static KeyValueOperation getOperation(Headers h, KeyValueOperation dflt) {
-        return KeyValueOperation.getOrDefault(getOperationHeader(h), dflt);
+    public static KeyValueOperation getOperation(Headers h) {
+        return KeyValueOperation.getOrDefault(getOperationHeader(h), KeyValueOperation.PUT);
     }
 
     public static class BucketAndKey {
