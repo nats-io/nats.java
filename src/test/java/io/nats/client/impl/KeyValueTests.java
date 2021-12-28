@@ -821,10 +821,20 @@ public class KeyValueTests extends JetStreamTestBase {
 
                 // some prep
                 JetStreamOptions jsOpt_UserA_NoPrefix = JetStreamOptions.defaultOptions();
-                JetStreamOptions jsOpt_UserI_WithPrefix = JetStreamOptions.builder().prefix("fromA").build();
+
+                JetStreamOptions jsOpt_UserI_BucketA_WithPrefix = JetStreamOptions.builder()
+                    .prefix("jsFromA")
+                    .featurePrefix("iBucketA")
+                    .build();
+
+                JetStreamOptions jsOpt_UserI_BucketI_WithPrefix = JetStreamOptions.builder()
+                    .prefix("jsFromA")
+                    .featurePrefix("iBucketI")
+                    .build();
 
                 KeyValueManagement kvmUserA = connUserA.keyValueManagement(jsOpt_UserA_NoPrefix);
-                KeyValueManagement kvmUserI = connUserI.keyValueManagement(jsOpt_UserI_WithPrefix);
+                KeyValueManagement kvmUserIBcktA = connUserI.keyValueManagement(jsOpt_UserI_BucketA_WithPrefix);
+                KeyValueManagement kvmUserIBcktI = connUserI.keyValueManagement(jsOpt_UserI_BucketI_WithPrefix);
 
                 KeyValueConfiguration kvcA = KeyValueConfiguration.builder()
                     .name(BUCKET_CREATED_BY_USER_A).storageType(StorageType.Memory).maxHistoryPerKey(64).build();
@@ -834,21 +844,21 @@ public class KeyValueTests extends JetStreamTestBase {
 
                 // testing KVM API
                 assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserA.create(kvcA).getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserI.create(kvcI).getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserIBcktI.create(kvcI).getBucketName());
 
                 assertKvAccountBucketNames(kvmUserA.getBucketNames());
-                assertKvAccountBucketNames(kvmUserI.getBucketNames());
+                assertKvAccountBucketNames(kvmUserIBcktI.getBucketNames());
 
                 assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserA.getBucketInfo(BUCKET_CREATED_BY_USER_A).getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserI.getBucketInfo(BUCKET_CREATED_BY_USER_A).getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserIBcktA.getBucketInfo(BUCKET_CREATED_BY_USER_A).getBucketName());
                 assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserA.getBucketInfo(BUCKET_CREATED_BY_USER_I).getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserI.getBucketInfo(BUCKET_CREATED_BY_USER_I).getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserIBcktI.getBucketInfo(BUCKET_CREATED_BY_USER_I).getBucketName());
 
                 // some more prep
                 KeyValue kv_connA_bucketA = connUserA.keyValue(BUCKET_CREATED_BY_USER_A, jsOpt_UserA_NoPrefix);
                 KeyValue kv_connA_bucketI = connUserA.keyValue(BUCKET_CREATED_BY_USER_I, jsOpt_UserA_NoPrefix);
-                KeyValue kv_connI_bucketA = connUserI.keyValue(BUCKET_CREATED_BY_USER_A, jsOpt_UserI_WithPrefix);
-                KeyValue kv_connI_bucketI = connUserI.keyValue(BUCKET_CREATED_BY_USER_I, jsOpt_UserI_WithPrefix);
+                KeyValue kv_connI_bucketA = connUserI.keyValue(BUCKET_CREATED_BY_USER_A, jsOpt_UserI_BucketA_WithPrefix);
+                KeyValue kv_connI_bucketI = connUserI.keyValue(BUCKET_CREATED_BY_USER_I, jsOpt_UserI_BucketI_WithPrefix);
 
                 // check the names
                 assertEquals(BUCKET_CREATED_BY_USER_A, kv_connA_bucketA.getBucketName());

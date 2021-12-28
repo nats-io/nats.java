@@ -29,22 +29,24 @@ public class JetStreamOptions {
     public static final Duration DEFAULT_TIMEOUT = Options.DEFAULT_CONNECTION_TIMEOUT;
     public static final JetStreamOptions DEFAULT_JS_OPTIONS = new Builder().build();
 
-    private final String prefix;
+    private final String jsPrefix;
     private final Duration requestTimeout;
     private final boolean publishNoAck;
     private final boolean defaultPrefix;
+    private final String featurePrefix;
 
-    private JetStreamOptions(String inPrefix, Duration requestTimeout, boolean publishNoAck) {
-        if (inPrefix == null) {
+    private JetStreamOptions(String inJsPrefix, String featurePrefix, Duration requestTimeout, boolean publishNoAck) {
+        if (inJsPrefix == null) {
             defaultPrefix = true;
-            this.prefix = DEFAULT_API_PREFIX;
+            this.jsPrefix = DEFAULT_API_PREFIX;
         }
         else {
             defaultPrefix = false;
-            this.prefix = inPrefix;
+            this.jsPrefix = inJsPrefix;
         }
         this.requestTimeout = requestTimeout;
         this.publishNoAck = publishNoAck;
+        this.featurePrefix = featurePrefix;
     }
 
     /**
@@ -58,10 +60,10 @@ public class JetStreamOptions {
     /**
      * Gets the prefix for this JetStream context. A prefix can be used in conjunction with
      * user permissions to restrict access to certain JetStream instances.
-     * @return the prefix to set.
+     * @return the prefix.
      */
     public String getPrefix() {
-        return prefix;
+        return jsPrefix;
     }
 
     /**
@@ -70,6 +72,14 @@ public class JetStreamOptions {
      */
     public boolean isDefaultPrefix() {
         return defaultPrefix;
+    }
+
+    /**
+     * Gets the feature [subject] prefix.
+     * @return the prefix.
+     */
+    public String getFeaturePrefix() {
+        return featurePrefix;
     }
 
     /**
@@ -111,8 +121,8 @@ public class JetStreamOptions {
      */
     public static class Builder {
 
-        private String prefix;
-        private String domain;
+        private String jsPrefix;
+        private String featurePrefix;
         private Duration requestTimeout;
         private boolean publishNoAck;
 
@@ -121,10 +131,10 @@ public class JetStreamOptions {
         public Builder(JetStreamOptions jso) {
             if (jso != null) {
                 if (jso.isDefaultPrefix()) {
-                    this.prefix = null;
+                    this.jsPrefix = null;
                 }
                 else {
-                    this.prefix = jso.prefix;
+                    this.jsPrefix = jso.jsPrefix;
                 }
                 this.requestTimeout = jso.requestTimeout;
                 this.publishNoAck = jso.publishNoAck;
@@ -149,9 +159,9 @@ public class JetStreamOptions {
          * @return the builder.
          */
         public Builder prefix(String prefix) {
-            this.prefix = emptyAsNull(prefix); // validated during build
-            if (this.prefix != null) {
-                domain = null; // build with one or the other
+            String temp = emptyAsNull(prefix);
+            if (temp != null) {
+                jsPrefix = validateJsPrefix(temp);
             }
             return this;
         }
@@ -165,10 +175,20 @@ public class JetStreamOptions {
          * @return the builder.
          */
         public Builder domain(String domain) {
-            this.domain = emptyAsNull(domain); // validated in domain manager
-            if (this.domain != null) {
-                prefix = null; // build with one or the other
+            String temp = emptyAsNull(domain);
+            if (temp != null) {
+                jsPrefix = validateJsDomain(temp);
             }
+            return this;
+        }
+
+        /**
+         * Sets the prefix for subject in features such as KeyValue.
+         * @param featurePrefix the feature prefix
+         * @return the builder.
+         */
+        public Builder featurePrefix(String featurePrefix) {
+            this.featurePrefix = validateFeaturePrefix(emptyAsNull(featurePrefix));
             return this;
         }
 
@@ -187,28 +207,26 @@ public class JetStreamOptions {
          * @return JetStream options
          */
         public JetStreamOptions build() {
-            String calculated = null;
-            if (domain != null) {
-                calculated = validateDomain(domain);
-            }
-            else if (prefix != null) {
-                calculated = validatePrefix(prefix);
-            }
             this.requestTimeout = requestTimeout == null ? DEFAULT_TIMEOUT : requestTimeout;
-            return new JetStreamOptions(calculated, requestTimeout, publishNoAck);
+            return new JetStreamOptions(jsPrefix, featurePrefix, requestTimeout, publishNoAck);
         }
 
-        private String validatePrefix(String prefix) {
+        private String validateJsPrefix(String prefix) {
             String valid = validatePrefixOrDomain(prefix, "Prefix", true);
             return valid.endsWith(DOT) ? valid : valid + DOT;
         }
 
-        private String validateDomain(String domain) {
+        private String validateJsDomain(String domain) {
             String valid = validatePrefixOrDomain(domain, "Domain", true);
             if (valid.endsWith(DOT)) {
                 return PREFIX_DOLLAR_JS_DOT + valid + PREFIX_API_DOT;
             }
             return PREFIX_DOLLAR_JS_DOT + valid + DOT + PREFIX_API_DOT;
+        }
+
+        private String validateFeaturePrefix(String prefix) {
+            String valid = validatePrefixOrDomain(prefix, "Feature Prefix", false);
+            return valid == null ? null : valid.endsWith(DOT) ? valid : valid + DOT;
         }
     }
 }
