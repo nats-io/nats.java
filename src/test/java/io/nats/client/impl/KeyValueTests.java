@@ -46,7 +46,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
         runInJsServer(nc -> {
             // get the kv management context
-            KeyValueManagement kvm = nc.keyValueManagement(JetStreamOptions.DEFAULT_JS_OPTIONS); // use options here for coverage
+            KeyValueManagement kvm = nc.keyValueManagement();
 
             // create the bucket
             KeyValueConfiguration kvc = KeyValueConfiguration.builder()
@@ -77,7 +77,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals("JetStream", status.getBackingStore());
 
             // get the kv context for the specific bucket
-            KeyValue kv = nc.keyValue(BUCKET, JetStreamOptions.DEFAULT_JS_OPTIONS); // use options here for coverage
+            KeyValue kv = nc.keyValue(BUCKET);
 
             // Put some keys. Each key is put in a subject in the bucket (stream)
             // The put returns the sequence number in the bucket (stream)
@@ -820,19 +820,17 @@ public class KeyValueTests extends JetStreamTestBase {
             try (Connection connUserA = Nats.connect(acctA); Connection connUserI = Nats.connect(acctI) ) {
 
                 // some prep
-                JetStreamOptions jsOpt_UserA_NoPrefix = JetStreamOptions.defaultOptions();
-
-                JetStreamOptions jsOpt_UserI_BucketA_WithPrefix = JetStreamOptions.builder()
-                    .prefix("jsFromA")
+                KeyValueOptions jsOpt_UserI_BucketA_WithPrefix = KeyValueOptions.builder()
                     .featurePrefix("iBucketA")
+                    .jetStreamOptions(JetStreamOptions.builder().prefix("jsFromA").build())
                     .build();
 
-                JetStreamOptions jsOpt_UserI_BucketI_WithPrefix = JetStreamOptions.builder()
-                    .prefix("jsFromA")
+                KeyValueOptions jsOpt_UserI_BucketI_WithPrefix = KeyValueOptions.builder()
                     .featurePrefix("iBucketI")
+                    .jetStreamOptions(JetStreamOptions.builder().prefix("jsFromA").build())
                     .build();
 
-                KeyValueManagement kvmUserA = connUserA.keyValueManagement(jsOpt_UserA_NoPrefix);
+                KeyValueManagement kvmUserA = connUserA.keyValueManagement();
                 KeyValueManagement kvmUserIBcktA = connUserI.keyValueManagement(jsOpt_UserI_BucketA_WithPrefix);
                 KeyValueManagement kvmUserIBcktI = connUserI.keyValueManagement(jsOpt_UserI_BucketI_WithPrefix);
 
@@ -855,8 +853,8 @@ public class KeyValueTests extends JetStreamTestBase {
                 assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserIBcktI.getBucketInfo(BUCKET_CREATED_BY_USER_I).getBucketName());
 
                 // some more prep
-                KeyValue kv_connA_bucketA = connUserA.keyValue(BUCKET_CREATED_BY_USER_A, jsOpt_UserA_NoPrefix);
-                KeyValue kv_connA_bucketI = connUserA.keyValue(BUCKET_CREATED_BY_USER_I, jsOpt_UserA_NoPrefix);
+                KeyValue kv_connA_bucketA = connUserA.keyValue(BUCKET_CREATED_BY_USER_A);
+                KeyValue kv_connA_bucketI = connUserA.keyValue(BUCKET_CREATED_BY_USER_I);
                 KeyValue kv_connI_bucketA = connUserI.keyValue(BUCKET_CREATED_BY_USER_A, jsOpt_UserI_BucketA_WithPrefix);
                 KeyValue kv_connI_bucketI = connUserI.keyValue(BUCKET_CREATED_BY_USER_I, jsOpt_UserI_BucketI_WithPrefix);
 

@@ -474,4 +474,8 @@ public abstract class Validator {
     {
         return ensureNotNullAndNotLessThanMin(Duration.ofMillis(providedMillis), minimum, dflt);
     }
+
+    public static String ensureEndsWithDot(String s) {
+        return s == null || s.endsWith(DOT) ? s : s + DOT;
+    }
 }

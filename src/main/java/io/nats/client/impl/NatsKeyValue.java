@@ -38,18 +38,20 @@ public class NatsKeyValue implements KeyValue {
     private final String defaultKeyPrefix;
     private final String publishKeyPrefix;
 
-    NatsKeyValue(NatsConnection connection, String bucketName, JetStreamOptions options) throws IOException {
+    NatsKeyValue(NatsConnection connection, String bucketName, KeyValueOptions kvo) throws IOException {
         this.bucketName = Validator.validateKvBucketNameRequired(bucketName);
         streamName = toStreamName(bucketName);
         streamSubject = toStreamSubject(bucketName);
-        js = new NatsJetStream(connection, options);
-        jsm = new NatsJetStreamManagement(connection, options);
         defaultKeyPrefix = toKeyPrefix(bucketName);
-        if (options == null || options.getFeaturePrefix() == null) {
+        if (kvo == null) {
+            js = new NatsJetStream(connection, null);
+            jsm = new NatsJetStreamManagement(connection, null);
             publishKeyPrefix = defaultKeyPrefix;
         }
         else {
-            publishKeyPrefix = options.getFeaturePrefix();
+            js = new NatsJetStream(connection, kvo.getJetStreamOptions());
+            jsm = new NatsJetStreamManagement(connection, kvo.getJetStreamOptions());
+            publishKeyPrefix = kvo.getFeaturePrefix() == null ? defaultKeyPrefix : kvo.getFeaturePrefix();
         }
     }
 

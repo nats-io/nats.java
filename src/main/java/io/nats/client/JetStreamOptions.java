@@ -15,10 +15,8 @@ package io.nats.client;
 
 import java.time.Duration;
 
-import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamConstants.*;
-import static io.nats.client.support.Validator.emptyAsNull;
-import static io.nats.client.support.Validator.validatePrefixOrDomain;
+import static io.nats.client.support.Validator.*;
 
 /**
  * The JetStreamOptions class specifies the general options for JetStream.
@@ -33,9 +31,8 @@ public class JetStreamOptions {
     private final Duration requestTimeout;
     private final boolean publishNoAck;
     private final boolean defaultPrefix;
-    private final String featurePrefix;
 
-    private JetStreamOptions(String inJsPrefix, String featurePrefix, Duration requestTimeout, boolean publishNoAck) {
+    private JetStreamOptions(String inJsPrefix, Duration requestTimeout, boolean publishNoAck) {
         if (inJsPrefix == null) {
             defaultPrefix = true;
             this.jsPrefix = DEFAULT_API_PREFIX;
@@ -46,7 +43,6 @@ public class JetStreamOptions {
         }
         this.requestTimeout = requestTimeout;
         this.publishNoAck = publishNoAck;
-        this.featurePrefix = featurePrefix;
     }
 
     /**
@@ -72,14 +68,6 @@ public class JetStreamOptions {
      */
     public boolean isDefaultPrefix() {
         return defaultPrefix;
-    }
-
-    /**
-     * Gets the feature [subject] prefix.
-     * @return the prefix.
-     */
-    public String getFeaturePrefix() {
-        return featurePrefix;
     }
 
     /**
@@ -136,7 +124,6 @@ public class JetStreamOptions {
                 else {
                     this.jsPrefix = jso.jsPrefix;
                 }
-                this.featurePrefix = jso.featurePrefix;
                 this.requestTimeout = jso.requestTimeout;
                 this.publishNoAck = jso.publishNoAck;
             }
@@ -162,7 +149,7 @@ public class JetStreamOptions {
         public Builder prefix(String prefix) {
             String temp = emptyAsNull(prefix);
             if (temp != null) {
-                jsPrefix = validateJsPrefix(temp);
+                jsPrefix = ensureEndsWithDot(validatePrefixOrDomain(temp, "Prefix", true));
             }
             return this;
         }
@@ -178,18 +165,9 @@ public class JetStreamOptions {
         public Builder domain(String domain) {
             String temp = emptyAsNull(domain);
             if (temp != null) {
-                jsPrefix = validateJsDomain(temp);
+                String valid = validatePrefixOrDomain(domain, "Prefix", true);
+                jsPrefix = PREFIX_DOLLAR_JS_DOT + ensureEndsWithDot(valid) + PREFIX_API_DOT;
             }
-            return this;
-        }
-
-        /**
-         * Sets the prefix for subject in features such as KeyValue.
-         * @param featurePrefix the feature prefix
-         * @return the builder.
-         */
-        public Builder featurePrefix(String featurePrefix) {
-            this.featurePrefix = validateFeaturePrefix(emptyAsNull(featurePrefix));
             return this;
         }
 
@@ -209,25 +187,7 @@ public class JetStreamOptions {
          */
         public JetStreamOptions build() {
             this.requestTimeout = requestTimeout == null ? DEFAULT_TIMEOUT : requestTimeout;
-            return new JetStreamOptions(jsPrefix, featurePrefix, requestTimeout, publishNoAck);
-        }
-
-        private String validateJsPrefix(String prefix) {
-            String valid = validatePrefixOrDomain(prefix, "Prefix", true);
-            return valid.endsWith(DOT) ? valid : valid + DOT;
-        }
-
-        private String validateJsDomain(String domain) {
-            String valid = validatePrefixOrDomain(domain, "Domain", true);
-            if (valid.endsWith(DOT)) {
-                return PREFIX_DOLLAR_JS_DOT + valid + PREFIX_API_DOT;
-            }
-            return PREFIX_DOLLAR_JS_DOT + valid + DOT + PREFIX_API_DOT;
-        }
-
-        private String validateFeaturePrefix(String prefix) {
-            String valid = validatePrefixOrDomain(prefix, "Feature Prefix", false);
-            return valid == null ? null : valid.endsWith(DOT) ? valid : valid + DOT;
+            return new JetStreamOptions(jsPrefix, requestTimeout, publishNoAck);
         }
     }
 }
