@@ -148,7 +148,7 @@ public class JetStreamOptions {
          * @return the builder.
          */
         public Builder prefix(String prefix) {
-            jsPrefix = ensureEndsWithDot(validatePrefixOrDomain(prefix, "Prefix", true));
+            jsPrefix = ensureEndsWithDot(validatePrefixOrDomain(prefix, "Prefix", false));
             return this;
         }
 
@@ -161,8 +161,8 @@ public class JetStreamOptions {
          * @return the builder.
          */
         public Builder domain(String domain) {
-            String valid = validatePrefixOrDomain(domain, "Prefix", true);
-            jsPrefix = PREFIX_DOLLAR_JS_DOT + ensureEndsWithDot(valid) + PREFIX_API_DOT;
+            String valid = validatePrefixOrDomain(domain, "Prefix", false);
+            jsPrefix = valid == null ? null : PREFIX_DOLLAR_JS_DOT + ensureEndsWithDot(valid) + PREFIX_API_DOT;
             return this;
         }
 
