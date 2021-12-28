@@ -136,6 +136,7 @@ public class JetStreamOptions {
                 else {
                     this.jsPrefix = jso.jsPrefix;
                 }
+                this.featurePrefix = jso.featurePrefix;
                 this.requestTimeout = jso.requestTimeout;
                 this.publishNoAck = jso.publishNoAck;
             }
