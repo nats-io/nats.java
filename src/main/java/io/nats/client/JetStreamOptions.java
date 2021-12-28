@@ -16,7 +16,8 @@ package io.nats.client;
 import java.time.Duration;
 
 import static io.nats.client.support.NatsJetStreamConstants.*;
-import static io.nats.client.support.Validator.*;
+import static io.nats.client.support.Validator.ensureEndsWithDot;
+import static io.nats.client.support.Validator.validatePrefixOrDomain;
 
 /**
  * The JetStreamOptions class specifies the general options for JetStream.
@@ -147,10 +148,7 @@ public class JetStreamOptions {
          * @return the builder.
          */
         public Builder prefix(String prefix) {
-            String temp = emptyAsNull(prefix);
-            if (temp != null) {
-                jsPrefix = ensureEndsWithDot(validatePrefixOrDomain(temp, "Prefix", true));
-            }
+            jsPrefix = ensureEndsWithDot(validatePrefixOrDomain(prefix, "Prefix", true));
             return this;
         }
 
@@ -163,11 +161,8 @@ public class JetStreamOptions {
          * @return the builder.
          */
         public Builder domain(String domain) {
-            String temp = emptyAsNull(domain);
-            if (temp != null) {
-                String valid = validatePrefixOrDomain(domain, "Prefix", true);
-                jsPrefix = PREFIX_DOLLAR_JS_DOT + ensureEndsWithDot(valid) + PREFIX_API_DOT;
-            }
+            String valid = validatePrefixOrDomain(domain, "Prefix", true);
+            jsPrefix = PREFIX_DOLLAR_JS_DOT + ensureEndsWithDot(valid) + PREFIX_API_DOT;
             return this;
         }
 
