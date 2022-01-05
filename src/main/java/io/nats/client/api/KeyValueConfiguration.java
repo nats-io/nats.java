@@ -20,7 +20,7 @@ import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
 
 /**
- * The BucketConfiguration class contains the configuration for of a Key Value bucket.
+ * The KeyValueConfiguration class contains the configuration for of a Key Value bucket.
  */
 public class KeyValueConfiguration {
     private final StreamConfiguration sc;
@@ -35,6 +35,10 @@ public class KeyValueConfiguration {
         bucketName = extractBucketName(sc.getName());
     }
 
+    /**
+     * Gets the stream configuration for the stream which backs the bucket
+     * @return the stream configuration
+     */
     public StreamConfiguration getBackingConfig() {
         return sc;
     }
@@ -56,14 +60,6 @@ public class KeyValueConfiguration {
     }
 
     /**
-     * Gets the maximum number of values across all keys, including history values
-     * @return the maximum number of values for the bucket
-     */
-    public long getMaxValues() {
-        return sc.getMaxMsgs();
-    }
-
-    /**
      * Gets the maximum number of history for any one key. Includes the current value.
      * @return the maximum number of values for any one key.
      */
@@ -80,10 +76,10 @@ public class KeyValueConfiguration {
     }
 
     /**
-     * Gets the maximum number of bytes for an individual value in the bucket.
-     * @return the maximum bytes for a value.
+     * Gets the maximum size for an individual value in the bucket.
+     * @return the maximum size for a value.
      */      
-    public long getMaxValueBytes() {
+    public long getMaxValueSize() {
         return sc.getMaxMsgSize();
     }
 
@@ -116,10 +112,9 @@ public class KeyValueConfiguration {
         return "KeyValueConfiguration{" +
             "name='" + bucketName + '\'' +
             ", description='" + getDescription() + '\'' +
-            ", maxValues=" + getMaxValues() +
             ", maxHistoryPerKey=" + getMaxHistoryPerKey() +
             ", maxBucketSize=" + getMaxBucketSize() +
-            ", maxValueBytes=" + getMaxValueBytes() +
+            ", maxValueSize=" + getMaxValueSize() +
             ", ttl=" + getTtl() +
             ", storageType=" + getStorageType() +
             ", replicas=" + getReplicas() +
@@ -127,8 +122,8 @@ public class KeyValueConfiguration {
     }
 
     /**
-     * Creates a builder for the stream configuration.
-     * @return a stream configuration builder
+     * Creates a builder for the Key Value Configuration.
+     * @return a key value configuration builder
      */
     public static KeyValueConfiguration.Builder builder() {
         return new KeyValueConfiguration.Builder();
@@ -144,10 +139,10 @@ public class KeyValueConfiguration {
     }
 
     /**
-     * BucketConfiguration is created using a Builder. The builder supports chaining and will
+     * KeyValueConfiguration is created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      *
-     * <p>{@code new BucketConfiguration.Builder().build()} will create a new BucketConfiguration.
+     * <p>{@code new KeyValueConfiguration.Builder().build()} will create a new KeyValueConfiguration.
      *
      */
     public static class Builder {
@@ -163,13 +158,14 @@ public class KeyValueConfiguration {
         }
 
         /**
-         * Update Builder, useful if you need to update a configuration
+         * Construct the builder by copying another configuration
          * @param kvc the configuration to copy
          */
         public Builder(KeyValueConfiguration kvc) {
             if (kvc == null) {
                 scBuilder = new StreamConfiguration.Builder();
                 maxHistoryPerKey(1);
+                replicas(1);
             }
             else {
                 scBuilder = new StreamConfiguration.Builder(kvc.sc);
@@ -198,18 +194,8 @@ public class KeyValueConfiguration {
         }
 
         /**
-         * Sets the maximum number of values across all keys, including history values in the BucketConfiguration.
-         * @param maxValues the maximum number of values
-         * @return Builder
-         */
-        public KeyValueConfiguration.Builder maxValues(long maxValues) {
-            scBuilder.maxMessages(validateMaxBucketValues(maxValues));
-            return this;
-        }
-
-        /**
          * Sets the maximum number of history for any one key. Includes the current value.
-         * @param maxHistoryPerKey the maximum number of messages
+         * @param maxHistoryPerKey the maximum history
          * @return Builder
          */
         public KeyValueConfiguration.Builder maxHistoryPerKey(int maxHistoryPerKey) {
@@ -218,7 +204,7 @@ public class KeyValueConfiguration {
         }
 
         /**
-         * Sets the maximum number of bytes in the BucketConfiguration.
+         * Sets the maximum number of bytes in the KeyValueConfiguration.
          * @param maxBucketSize the maximum number of bytes
          * @return Builder
          */
@@ -228,17 +214,17 @@ public class KeyValueConfiguration {
         }
 
         /**
-         * Sets the maximum number of bytes for an individual value in the BucketConfiguration.
-         * @param maxValueBytes the maximum number of bytes for a value
+         * Sets the maximum size for an individual value in the KeyValueConfiguration.
+         * @param maxValueSize the maximum size for a value
          * @return Builder
          */
-        public KeyValueConfiguration.Builder maxValueBytes(long maxValueBytes) {
-            scBuilder.maxMsgSize(validateMaxValueBytes(maxValueBytes));
+        public KeyValueConfiguration.Builder maxValueSize(long maxValueSize) {
+            scBuilder.maxMsgSize(validateMaxValueSize(maxValueSize));
             return this;
         }
 
         /**
-         * Sets the maximum for a value in this BucketConfiguration.
+         * Sets the maximum age for a value in this KeyValueConfiguration.
          * @param ttl the maximum age
          * @return Builder
          */
@@ -248,7 +234,7 @@ public class KeyValueConfiguration {
         }
 
         /**
-         * Sets the storage type in the BucketConfiguration.
+         * Sets the storage type in the KeyValueConfiguration.
          * @param storageType the storage type
          * @return Builder
          */
@@ -258,18 +244,18 @@ public class KeyValueConfiguration {
         }
 
         /**
-         * Sets the number of replicas a message must be stored on in the BucketConfiguration.
-         * @param replicas the number of replicas to store this message on
+         * Sets the number of replicas a message must be stored on in the KeyValueConfiguration.
+         * @param replicas the number of replicas
          * @return Builder
          */
         public KeyValueConfiguration.Builder replicas(int replicas) {
-            scBuilder.replicas(replicas);
+            scBuilder.replicas(Math.max(replicas, 1));
             return this;
         }
 
         /**
-         * Builds the BucketConfiguration
-         * @return a bucket configuration.
+         * Builds the KeyValueConfiguration
+         * @return the KeyValueConfiguration.
          */
         public KeyValueConfiguration build() {
             name = validateKvBucketNameRequired(name);

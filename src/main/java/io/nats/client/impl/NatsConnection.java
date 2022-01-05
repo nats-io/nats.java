@@ -1947,7 +1947,7 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public KeyValue keyValue(String bucketName, JetStreamOptions options) throws IOException {
+    public KeyValue keyValue(String bucketName, KeyValueOptions options) throws IOException {
         Validator.validateKvBucketNameRequired(bucketName);
         ensureNotClosing();
         return new NatsKeyValue(this, bucketName, options);
@@ -1966,7 +1966,7 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public KeyValueManagement keyValueManagement(JetStreamOptions options) throws IOException {
+    public KeyValueManagement keyValueManagement(KeyValueOptions options) throws IOException {
         ensureNotClosing();
         return new NatsKeyValueManagement(this, options);
     }

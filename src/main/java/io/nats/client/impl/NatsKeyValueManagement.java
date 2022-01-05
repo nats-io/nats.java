@@ -15,8 +15,8 @@ package io.nats.client.impl;
 
 import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamManagement;
-import io.nats.client.JetStreamOptions;
 import io.nats.client.KeyValueManagement;
+import io.nats.client.KeyValueOptions;
 import io.nats.client.api.KeyValueConfiguration;
 import io.nats.client.api.KeyValueStatus;
 import io.nats.client.support.Validator;
@@ -30,8 +30,8 @@ import static io.nats.client.support.NatsKeyValueUtil.*;
 public class NatsKeyValueManagement implements KeyValueManagement {
     private final JetStreamManagement jsm;
 
-    NatsKeyValueManagement(NatsConnection connection, JetStreamOptions options) throws IOException {
-        jsm = new NatsJetStreamManagement(connection, options);
+    NatsKeyValueManagement(NatsConnection connection, KeyValueOptions kvo) throws IOException {
+        jsm = new NatsJetStreamManagement(connection, kvo == null ? null : kvo.getJetStreamOptions());
     }
 
     /**

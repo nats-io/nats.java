@@ -575,7 +575,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 30)
+    @Timeout(value = 60)
     public void testOrdered() throws Exception {
         runInJsServer(nc -> {
             JetStream js = nc.jetStream();
@@ -591,19 +591,20 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             JetStreamSubscription sub = js.subscribe(subject(1), pso);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+            sleep(1000);
 
             // publish after interceptor is set before messages come in
             jsPublish(js, subject(1), 101, 6);
 
-            int ss = 1;
-            int[] cs = new int[] {1, 1, 2, 3, 1, 2};
+            int streamSeq = 1;
+            int[] expectedCnsmSeqs = new int[] {1, 1, 2, 3, 1, 2};
 
-            while (ss < 7) {
+            while (streamSeq < 7) {
                 Message m = sub.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
                 if (m != null) {
-                    assertEquals(ss, m.metaData().streamSequence());
-                    assertEquals(cs[ss-1], m.metaData().consumerSequence());
-                    ++ss;
+                    assertEquals(streamSeq, m.metaData().streamSequence());
+                    assertEquals(expectedCnsmSeqs[streamSeq-1], m.metaData().consumerSequence());
+                    ++streamSeq;
                 }
             }
 
@@ -625,16 +626,19 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             Dispatcher d = nc.createDispatcher();
             sub = js.subscribe(subject(2), d, handler, false, pso);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+            sleep(1000);
 
             // publish after sub to make sure interceptor is set before messages come in
             jsPublish(js, subject(2), 201, 6);
 
-            assertTrue(msgLatch.await(5, TimeUnit.SECONDS));
+            assertTrue(msgLatch.await(10, TimeUnit.SECONDS));
 
-            while (ss < 13) {
-                assertEquals(ss, ssFlags[ss-7].get());
-                assertEquals(cs[ss-7], csFlags[ss-7].get());
-                ++ss;
+            while (streamSeq < 13) {
+                int flagIdx = streamSeq - 7;
+                assertEquals(streamSeq, ssFlags[flagIdx].get());
+                assertEquals(expectedCnsmSeqs[flagIdx], csFlags[flagIdx].get());
+                ++streamSeq;
             }
 
             d.unsubscribe(sub);

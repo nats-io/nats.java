@@ -16,7 +16,9 @@ import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsKeyValueUtil;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -44,7 +46,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
         runInJsServer(nc -> {
             // get the kv management context
-            KeyValueManagement kvm = nc.keyValueManagement(JetStreamOptions.DEFAULT_JS_OPTIONS); // use options here for coverage
+            KeyValueManagement kvm = nc.keyValueManagement();
 
             // create the bucket
             KeyValueConfiguration kvc = KeyValueConfiguration.builder()
@@ -59,20 +61,23 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(BUCKET, status.getBucketName());
             assertEquals(BUCKET, kvc.getBucketName());
             assertEquals(NatsKeyValueUtil.toStreamName(BUCKET), kvc.getBackingConfig().getName());
-            assertEquals(-1, kvc.getMaxValues());
             assertEquals(3, status.getMaxHistoryPerKey());
             assertEquals(3, kvc.getMaxHistoryPerKey());
+            assertEquals(-1, status.getMaxBucketSize());
             assertEquals(-1, kvc.getMaxBucketSize());
-            assertEquals(-1, kvc.getMaxValueBytes());
+            assertEquals(-1, status.getMaxValueSize());
+            assertEquals(-1, kvc.getMaxValueSize());
             assertEquals(Duration.ZERO, status.getTtl());
             assertEquals(Duration.ZERO, kvc.getTtl());
+            assertEquals(StorageType.Memory, status.getStorageType());
             assertEquals(StorageType.Memory, kvc.getStorageType());
+            assertEquals(1, status.getReplicas());
             assertEquals(1, kvc.getReplicas());
             assertEquals(0, status.getEntryCount());
             assertEquals("JetStream", status.getBackingStore());
 
             // get the kv context for the specific bucket
-            KeyValue kv = nc.keyValue(BUCKET, JetStreamOptions.DEFAULT_JS_OPTIONS); // use options here for coverage
+            KeyValue kv = nc.keyValue(BUCKET);
 
             // Put some keys. Each key is put in a subject in the bucket (stream)
             // The put returns the sequence number in the bucket (stream)
@@ -331,6 +336,43 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testMaxHistoryPerKey() throws Exception {
+        runInJsServer(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            // default maxHistoryPerKey is 1
+            kvm.create(KeyValueConfiguration.builder()
+                .name(bucket(1))
+                .storageType(StorageType.Memory)
+                .build());
+
+            KeyValue kv = nc.keyValue(bucket(1));
+            kv.put(KEY, 1);
+            kv.put(KEY, 2);
+
+            List<KeyValueEntry> history = kv.history(KEY);
+            assertEquals(1, history.size());
+            assertEquals(2, history.get(0).getValueAsLong());
+
+            kvm.create(KeyValueConfiguration.builder()
+                .name(bucket(2))
+                .maxHistoryPerKey(2)
+                .storageType(StorageType.Memory)
+                .build());
+
+            kv = nc.keyValue(bucket(2));
+            kv.put(KEY, 1);
+            kv.put(KEY, 2);
+            kv.put(KEY, 3);
+
+            history = kv.history(KEY);
+            assertEquals(2, history.size());
+            assertEquals(2, history.get(0).getValueAsLong());
+            assertEquals(3, history.get(1).getValueAsLong());
+        });
+    }
+
+    @Test
     public void testHistoryDeletePurge() throws Exception {
         runInJsServer(nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
@@ -448,6 +490,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // 7. allowed to update a key that is deleted, as long as you have it's revision
             kv.delete(KEY);
+
+            sleep(200); // a little pause to make sure things get flushed
             List<KeyValueEntry> hist = kv.history(KEY);
             kv.update(KEY, "abcd".getBytes(), hist.get(hist.size()-1).getRevision());
 
@@ -457,6 +501,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // 9. allowed to update a key that is deleted, as long as you have it's revision
             kv.purge(KEY);
+
+            sleep(200); // a little pause to make sure things get flushed
             hist = kv.history(KEY);
             kv.update(KEY, "abcdef".getBytes(), hist.get(hist.size()-1).getRevision());
         });
@@ -567,6 +613,7 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
+    @Timeout(value = 60)
     public void testWatch() throws Exception {
         String keyNull = "key.nl";
         String key1 = "key.1";
@@ -671,7 +718,7 @@ public class KeyValueTests extends JetStreamTestBase {
             subs.add(kv.watch(key2, key2AfterStartNewWatcher, key2AfterStartNewWatcher.watchOptions));
             subs.add(kv.watch(key2, key2AfterStartFirstWatcher, key2AfterStartFirstWatcher.watchOptions));
 
-            sleep(2000); // give time for the watches to get messages
+            sleep(5000); // give time for the watches to get messages
 
             // unsubscribe so the watchers don't get any more messages
             for (NatsKeyValueWatchSubscription sub : subs) {
@@ -681,6 +728,8 @@ public class KeyValueTests extends JetStreamTestBase {
             // put some more data which should not be seen by watches
             kv.put(key1, "aaaa");
             kv.put(key2, "zzzz");
+
+            sleep(5000); // give time for the watches to get messages
 
             validateWatcher(key1AllExpecteds, key1FullWatcher);
             validateWatcher(key1AllExpecteds, key1MetaWatcher);
@@ -756,5 +805,164 @@ public class KeyValueTests extends JetStreamTestBase {
                 assertSame(expected, kve.getOperation());
             }
         }
+    }
+
+    static final String BUCKET_CREATED_BY_USER_A = "bucketA";
+    static final String BUCKET_CREATED_BY_USER_I = "bucketI";
+
+    @Test
+    public void testWithAccount() throws Exception {
+
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/kv_account.conf", false)) {
+            Options acctA = new Options.Builder().server(ts.getURI()).userInfo("a", "a").build();
+            Options acctI = new Options.Builder().server(ts.getURI()).userInfo("i", "i").inboxPrefix("forI").build();
+
+            try (Connection connUserA = Nats.connect(acctA); Connection connUserI = Nats.connect(acctI) ) {
+
+                // some prep
+                KeyValueOptions jsOpt_UserI_BucketA_WithPrefix = KeyValueOptions.builder()
+                    .featurePrefix("iBucketA")
+                    .jetStreamOptions(JetStreamOptions.builder().prefix("jsFromA").build())
+                    .build();
+
+                KeyValueOptions jsOpt_UserI_BucketI_WithPrefix = KeyValueOptions.builder()
+                    .featurePrefix("iBucketI")
+                    .jetStreamOptions(JetStreamOptions.builder().prefix("jsFromA").build())
+                    .build();
+
+                KeyValueManagement kvmUserA = connUserA.keyValueManagement();
+                KeyValueManagement kvmUserIBcktA = connUserI.keyValueManagement(jsOpt_UserI_BucketA_WithPrefix);
+                KeyValueManagement kvmUserIBcktI = connUserI.keyValueManagement(jsOpt_UserI_BucketI_WithPrefix);
+
+                KeyValueConfiguration kvcA = KeyValueConfiguration.builder()
+                    .name(BUCKET_CREATED_BY_USER_A).storageType(StorageType.Memory).maxHistoryPerKey(64).build();
+
+                KeyValueConfiguration kvcI = KeyValueConfiguration.builder()
+                    .name(BUCKET_CREATED_BY_USER_I).storageType(StorageType.Memory).maxHistoryPerKey(64).build();
+
+                // testing KVM API
+                assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserA.create(kvcA).getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserIBcktI.create(kvcI).getBucketName());
+
+                assertKvAccountBucketNames(kvmUserA.getBucketNames());
+                assertKvAccountBucketNames(kvmUserIBcktI.getBucketNames());
+
+                assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserA.getBucketInfo(BUCKET_CREATED_BY_USER_A).getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserIBcktA.getBucketInfo(BUCKET_CREATED_BY_USER_A).getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserA.getBucketInfo(BUCKET_CREATED_BY_USER_I).getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserIBcktI.getBucketInfo(BUCKET_CREATED_BY_USER_I).getBucketName());
+
+                // some more prep
+                KeyValue kv_connA_bucketA = connUserA.keyValue(BUCKET_CREATED_BY_USER_A);
+                KeyValue kv_connA_bucketI = connUserA.keyValue(BUCKET_CREATED_BY_USER_I);
+                KeyValue kv_connI_bucketA = connUserI.keyValue(BUCKET_CREATED_BY_USER_A, jsOpt_UserI_BucketA_WithPrefix);
+                KeyValue kv_connI_bucketI = connUserI.keyValue(BUCKET_CREATED_BY_USER_I, jsOpt_UserI_BucketI_WithPrefix);
+
+                // check the names
+                assertEquals(BUCKET_CREATED_BY_USER_A, kv_connA_bucketA.getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_A, kv_connI_bucketA.getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kv_connA_bucketI.getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kv_connI_bucketI.getBucketName());
+
+                TestKeyValueWatcher watcher_connA_BucketA = new TestKeyValueWatcher(true);
+                TestKeyValueWatcher watcher_connA_BucketI = new TestKeyValueWatcher(true);
+                TestKeyValueWatcher watcher_connI_BucketA = new TestKeyValueWatcher(true);
+                TestKeyValueWatcher watcher_connI_BucketI = new TestKeyValueWatcher(true);
+
+                kv_connA_bucketA.watchAll(watcher_connA_BucketA);
+                kv_connA_bucketI.watchAll(watcher_connA_BucketI);
+                kv_connI_bucketA.watchAll(watcher_connI_BucketA);
+                kv_connI_bucketI.watchAll(watcher_connI_BucketI);
+
+                // bucket a from user a: AA, check AA, IA
+                assertKveAccount(kv_connA_bucketA, key(11), kv_connA_bucketA, kv_connI_bucketA);
+
+                // bucket a from user i: IA, check AA, IA
+                assertKveAccount(kv_connI_bucketA, key(12), kv_connA_bucketA, kv_connI_bucketA);
+
+                // bucket i from user a: AI, check AI, II
+                assertKveAccount(kv_connA_bucketI, key(21), kv_connA_bucketI, kv_connI_bucketI);
+
+                // bucket i from user i: II, check AI, II
+                assertKveAccount(kv_connI_bucketI, key(22), kv_connA_bucketI, kv_connI_bucketI);
+
+                // check keys from each kv
+                assertKvAccountKeys(kv_connA_bucketA.keys(), key(11), key(12));
+                assertKvAccountKeys(kv_connI_bucketA.keys(), key(11), key(12));
+                assertKvAccountKeys(kv_connA_bucketI.keys(), key(21), key(22));
+                assertKvAccountKeys(kv_connI_bucketI.keys(), key(21), key(22));
+
+                Object[] expecteds = new Object[] {
+                    data(0), data(1), KeyValueOperation.DELETE, KeyValueOperation.PURGE, data(2),
+                    data(0), data(1), KeyValueOperation.DELETE, KeyValueOperation.PURGE, data(2)
+                };
+
+                validateWatcher(expecteds, watcher_connA_BucketA);
+                validateWatcher(expecteds, watcher_connA_BucketI);
+                validateWatcher(expecteds, watcher_connI_BucketA);
+                validateWatcher(expecteds, watcher_connI_BucketI);
+            }
+        }
+    }
+
+    private void assertKvAccountBucketNames(List<String> bnames) {
+        assertEquals(2, bnames.size());
+        assertTrue(bnames.contains(BUCKET_CREATED_BY_USER_A));
+        assertTrue(bnames.contains(BUCKET_CREATED_BY_USER_I));
+    }
+
+    private void assertKvAccountKeys(List<String> keys, String key1, String key2) {
+        assertEquals(2, keys.size());
+        assertTrue(keys.contains(key1));
+        assertTrue(keys.contains(key2));
+    }
+
+    private void assertKveAccount(KeyValue kvWorker, String key, KeyValue kvUserA, KeyValue kvUserI) throws IOException, JetStreamApiException, InterruptedException {
+        kvWorker.create(key, dataBytes(0));
+        assertKveAccountGet(kvUserA, kvUserI, key, data(0));
+
+        kvWorker.put(key, dataBytes(1));
+        assertKveAccountGet(kvUserA, kvUserI, key, data(1));
+
+        kvWorker.delete(key);
+        KeyValueEntry kveUserA = kvUserA.get(key);
+        KeyValueEntry kveUserI = kvUserI.get(key);
+        assertNotNull(kveUserA);
+        assertNotNull(kveUserI);
+        assertEquals(kveUserA, kveUserI);
+        assertEquals(KeyValueOperation.DELETE, kveUserA.getOperation());
+
+        assertKveAccountHistory(kvUserA.history(key), data(0), data(1), KeyValueOperation.DELETE);
+        assertKveAccountHistory(kvUserI.history(key), data(0), data(1), KeyValueOperation.DELETE);
+
+        kvWorker.purge(key);
+        assertKveAccountHistory(kvUserA.history(key), KeyValueOperation.PURGE);
+        assertKveAccountHistory(kvUserI.history(key), KeyValueOperation.PURGE);
+
+        // leave data for keys checking
+        kvWorker.put(key, dataBytes(2));
+        assertKveAccountGet(kvUserA, kvUserI, key, data(2));
+    }
+
+    private void assertKveAccountHistory(List<KeyValueEntry> history, Object... expecteds) {
+        assertEquals(expecteds.length, history.size());
+        for (int x = 0; x < expecteds.length; x++) {
+            if (expecteds[x] instanceof String) {
+                assertEquals(expecteds[x], history.get(x).getValueAsString());
+            }
+            else {
+                assertEquals(expecteds[x], history.get(x).getOperation());
+            }
+        }
+    }
+
+    private void assertKveAccountGet(KeyValue kvUserA, KeyValue kvUserI, String key, String data) throws IOException, JetStreamApiException {
+        KeyValueEntry kveUserA = kvUserA.get(key);
+        KeyValueEntry kveUserI = kvUserI.get(key);
+        assertNotNull(kveUserA);
+        assertNotNull(kveUserI);
+        assertEquals(kveUserA, kveUserI);
+        assertEquals(data, kveUserA.getValueAsString());
+        assertEquals(KeyValueOperation.PUT, kveUserA.getOperation());
     }
 }

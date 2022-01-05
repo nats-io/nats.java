@@ -105,14 +105,6 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateMaxBucketValues() {
-        assertEquals(1, validateMaxBucketValues(1));
-        assertEquals(-1, validateMaxBucketValues(-1));
-        assertThrows(IllegalArgumentException.class, () -> validateMaxBucketValues(0));
-        assertThrows(IllegalArgumentException.class, () -> validateMaxBucketValues(-2));
-    }
-
-    @Test
     public void testValidateMaxMessagesPerSubject() {
         assertEquals(1, validateMaxMessagesPerSubject(1));
         assertEquals(-1, validateMaxMessagesPerSubject(-1));
@@ -127,6 +119,7 @@ public class ValidatorTests {
         assertEquals(1, validateMaxHistory(-1));
         assertEquals(1, validateMaxHistory(-2));
         assertEquals(64, validateMaxHistory(64));
+        //noinspection ResultOfMethodCallIgnored
         assertThrows(IllegalArgumentException.class, () -> validateMaxHistory(65));
     }
 
@@ -156,9 +149,9 @@ public class ValidatorTests {
 
     @Test
     public void testValidateMaxValueBytes() {
-        assertEquals(1, validateMaxValueBytes(1));
-        assertEquals(-1, validateMaxValueBytes(-1));
-        assertThrows(IllegalArgumentException.class, () -> validateMaxValueBytes(0));
+        assertEquals(1, validateMaxValueSize(1));
+        assertEquals(-1, validateMaxValueSize(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxValueSize(0));
         assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(-2));
     }
 
