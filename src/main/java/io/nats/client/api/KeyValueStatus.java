@@ -44,7 +44,7 @@ public class KeyValueStatus {
     }
 
     /**
-     * Gets the info for the stream which backs the bucket
+     * Gets the info for the stream which backs the bucket. Valid for BackingStore "JetStream"
      * @return the stream info
      */
     public StreamInfo getBackingStreamInfo() {
@@ -52,8 +52,8 @@ public class KeyValueStatus {
     }
 
     /**
-     * Gets the stream configuration.
-     * @return the stream configuration.
+     * Gets the configuration object directly
+     * @return the configuration.
      */
     public KeyValueConfiguration getConfiguration() {
         return config;
@@ -65,14 +65,6 @@ public class KeyValueStatus {
      */
     public long getEntryCount() {
         return streamInfo.getStreamState().getMsgCount();
-    }
-
-    /**
-     * Gets the maximum number of values across all keys, including history values
-     * @return the maximum number of values for the bucket
-     */
-    public long getMaxValues() {
-        return config.getMaxValues();
     }
 
     /**
@@ -92,11 +84,11 @@ public class KeyValueStatus {
     }
 
     /**
-     * Gets the maximum number of bytes for an individual value in the bucket.
-     * @return the maximum bytes for a value.
+     * Gets the maximum size for an individual value in the bucket.
+     * @return the maximum size a value.
      */
-    public long getMaxValueBytes() {
-        return config.getMaxValueBytes();
+    public long getMaxValueSize() {
+        return config.getMaxValueSize();
     }
 
     /**
@@ -124,7 +116,7 @@ public class KeyValueStatus {
     }
 
     /**
-     * Gets the name of the type of backing store for the
+     * Gets the name of the type of backing store, currently only "JetStream"
      * @return the name of the store, currently only "JetStream"
      */
     public String getBackingStore() {
@@ -138,7 +130,11 @@ public class KeyValueStatus {
             ", description='" + getDescription() + '\'' +
             ", entryCount=" + getEntryCount() +
             ", maxHistoryPerKey=" + getMaxHistoryPerKey() +
+            ", maxBucketSize=" + getMaxBucketSize() +
+            ", maxValueSize=" + getMaxValueSize() +
             ", ttl=" + getTtl() +
+            ", storageType=" + getStorageType() +
+            ", replicas=" + getReplicas() +
             '}';
     }
 }

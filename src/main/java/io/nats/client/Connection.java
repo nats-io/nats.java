@@ -466,7 +466,7 @@ public interface Connection extends AutoCloseable {
      * @return a KeyValue instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
-    KeyValue keyValue(String bucketName, JetStreamOptions options) throws IOException;
+    KeyValue keyValue(String bucketName, KeyValueOptions options) throws IOException;
 
     /**
      * Gets a context for managing Key Value buckets
@@ -483,5 +483,5 @@ public interface Connection extends AutoCloseable {
      * @return a KeyValueManagement instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
-    KeyValueManagement keyValueManagement(JetStreamOptions options) throws IOException;
+    KeyValueManagement keyValueManagement(KeyValueOptions options) throws IOException;
 }
