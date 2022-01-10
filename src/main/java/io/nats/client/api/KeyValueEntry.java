@@ -24,9 +24,9 @@ import static io.nats.client.support.NatsJetStreamConstants.MSG_SIZE_HDR;
 import static io.nats.client.support.NatsKeyValueUtil.BucketAndKey;
 
 /**
- * The MessageInfo class contains information about a JetStream message.
+ * The KeyValueEntry represents a record in the Key Value history
  */
-public class KeyValueEntry extends ApiResponse<KeyValueEntry> {
+public class KeyValueEntry {
 
     private final BucketAndKey bucketAndKey;
     private final byte[] value;
