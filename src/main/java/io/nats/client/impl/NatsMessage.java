@@ -477,7 +477,10 @@ public class NatsMessage implements Message {
          * @return the builder
          */
         public Builder data(final String data) {
-            if (data != null) {
+            if (data == null) {
+                this.data = null;
+            }
+            else {
                 this.data = data.getBytes(StandardCharsets.UTF_8);
             }
             return this;
@@ -491,7 +494,12 @@ public class NatsMessage implements Message {
          * @return the builder
          */
         public Builder data(final String data, final Charset charset) {
-            this.data = data.getBytes(charset);
+            if (data == null) {
+                this.data = null;
+            }
+            else {
+                this.data = data.getBytes(charset);
+            }
             return this;
         }
 
@@ -504,6 +512,26 @@ public class NatsMessage implements Message {
         public Builder data(final byte[] data) {
             this.data = data;
             return this;
+        }
+
+        /**
+         * Set the data from a string converting using the
+         * charset StandardCharsets.UTF_8
+         *
+         * @param data    the data object
+         * @return the builder
+         */
+        public Builder data(final Object data) {
+            if (data == null) {
+                this.data = null;
+                return this;
+            }
+
+            if (data instanceof byte[]) {
+                return data((byte[])data);
+            }
+
+            return data(data.toString());
         }
 
         /**

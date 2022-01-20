@@ -157,7 +157,11 @@ public class ServerInfo {
         return getComparableVersion(version).compareTo(getComparableVersion(vTarget)) == 0;
     }
 
-    public boolean isOlderThanVersion(String vTarget) {
+    public boolean isSameOrNewerVersion(String vTarget) {
+        return getComparableVersion(version).compareTo(getComparableVersion(vTarget)) >= 0;
+    }
+
+    public boolean isOlderVersionThan(String vTarget) {
         return getComparableVersion(version).compareTo(getComparableVersion(vTarget)) < 0;
     }
 

@@ -1,0 +1,18 @@
+{
+  "name": "meta-name",
+  "description": "meta-desc",
+  "options": {
+    "link": {
+      "bucket": "link-bucket",
+      "name": "link-name"
+    },
+    "max_chunk_size": 65536
+  },
+  "bucket": "bucket",
+  "nuid": "123ABC456XYZ",
+  "size": 666666,
+  "mtime": "2022-01-11T22:22:22.000000000Z",
+  "chunks": 11,
+  "digest": "base64-url-encoded",
+  "deleted": true
+}

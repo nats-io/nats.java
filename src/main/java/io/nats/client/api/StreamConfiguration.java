@@ -324,6 +324,38 @@ public class StreamConfiguration implements JsonSerializable {
         return sources;
     }
 
+    /**
+     * Get the sealed setting flag
+     * @return the sealed setting
+     */
+    public boolean getSealed() {
+        return sealed;
+    }
+
+    /**
+     * Get the allow rollup setting flag
+     * @return the allow rollup setting
+     */
+    public boolean getAllowRollup() {
+        return allowRollup;
+    }
+
+    /**
+     * Get the deny delete setting flag
+     * @return the deny delete setting
+     */
+    public boolean getDenyDelete() {
+        return denyDelete;
+    }
+
+    /**
+     * Get the deny purge setting flag
+     * @return the deny purge setting
+     */
+    public boolean getDenyPurge() {
+        return denyPurge;
+    }
+
     @Override
     public String toString() {
         return "StreamConfiguration{" +
@@ -340,6 +372,10 @@ public class StreamConfiguration implements JsonSerializable {
             ", storageType=" + storageType +
             ", replicas=" + replicas +
             ", noAck=" + noAck +
+            ", sealed=" + sealed +
+            ", allowRollup=" + allowRollup +
+            ", denyDelete=" + denyDelete +
+            ", denyPurge=" + denyPurge +
             ", template='" + templateOwner + '\'' +
             ", discardPolicy=" + discardPolicy +
             ", duplicateWindow=" + duplicateWindow +
@@ -722,8 +758,13 @@ public class StreamConfiguration implements JsonSerializable {
             return this;
         }
 
-         // cannot be set by user
-        Builder sealed(boolean sealed) {
+        /**
+         * Set the flag to seal the stream. A sealed stream cannot be modified.
+         * Probably should be applied to an existing stream.
+         * @param sealed the sealed flag
+         * @return Builder
+         */
+        public Builder sealed(boolean sealed) {
             this.sealed = sealed;
             return this;
         }

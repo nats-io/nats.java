@@ -218,7 +218,7 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateBucketNameRequired() {
+    public void testValidateKvBucketNameRequired() {
         validateKvBucketNameRequired(PLAIN);
         validateKvBucketNameRequired(PLAIN.toUpperCase());
         validateKvBucketNameRequired(HAS_DASH);
@@ -235,6 +235,26 @@ public class ValidatorTests {
         assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_FWD_SLASH));
         assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_EQUALS));
         assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_TIC));
+    }
+
+    @Test
+    public void testValidateObjectStoreBucketNameRequired() {
+        validateObjectStoreBucketNameRequired(PLAIN);
+        validateObjectStoreBucketNameRequired(PLAIN.toUpperCase());
+        validateObjectStoreBucketNameRequired(HAS_DASH);
+        validateObjectStoreBucketNameRequired(HAS_UNDER);
+        validateObjectStoreBucketNameRequired("numbers9ok");
+        assertThrows(IllegalArgumentException.class, () -> validateObjectStoreBucketNameRequired(null));
+        assertThrows(IllegalArgumentException.class, () -> validateObjectStoreBucketNameRequired(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> validateObjectStoreBucketNameRequired(HAS_DOT));
+        assertThrows(IllegalArgumentException.class, () -> validateObjectStoreBucketNameRequired(HAS_STAR));
+        assertThrows(IllegalArgumentException.class, () -> validateObjectStoreBucketNameRequired(HAS_GT));
+        assertThrows(IllegalArgumentException.class, () -> validateObjectStoreBucketNameRequired(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> validateObjectStoreBucketNameRequired(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> validateObjectStoreBucketNameRequired(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> validateObjectStoreBucketNameRequired(HAS_FWD_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> validateObjectStoreBucketNameRequired(HAS_EQUALS));
+        assertThrows(IllegalArgumentException.class, () -> validateObjectStoreBucketNameRequired(HAS_TIC));
     }
 
     @Test

@@ -26,6 +26,8 @@ public interface ApiConstants {
     String API               = "api";
     String AUTH_REQUIRED     = "auth_required";
     String BYTES             = "bytes";
+    String BUCKET            = "bucket";
+    String CHUNKS            = "chunks";
     String CLIENT_ID         = "client_id";
     String CLIENT_IP         = "client_ip";
     String CLUSTER           = "cluster";
@@ -38,6 +40,7 @@ public interface ApiConstants {
     String CREATED           = "created";
     String CURRENT           = "current";
     String DATA              = "data";
+    String DELETED           = "deleted";
     String DELIVER           = "deliver";
     String DELIVER_GROUP     = "deliver_group";
     String DELIVER_POLICY    = "deliver_policy";
@@ -46,6 +49,7 @@ public interface ApiConstants {
     String DENY_DELETE       = "deny_delete";
     String DENY_PURGE        = "deny_purge";
     String DESCRIPTION       = "description";
+    String DIGEST            = "digest";
     String DISCARD           = "discard";
     String DOMAIN            = "domain";
     String DUPLICATE         = "duplicate";
@@ -74,10 +78,12 @@ public interface ApiConstants {
     String LAST_TS           = "last_ts";
     String LEADER            = "leader";
     String LIMIT             = "limit";
+    String LINK              = "link";
     String MAX_ACK_PENDING   = "max_ack_pending";
     String MAX_AGE           = "max_age";
     String MAX_BYTES         = "max_bytes";
     String MAX_CONSUMERS     = "max_consumers";
+    String MAX_CHUNK_SIZE    = "max_chunk_size";
     String MAX_DELIVER       = "max_deliver";
     String MAX_MEMORY        = "max_memory";
     String MAX_MSG_SIZE      = "max_msg_size";
@@ -89,10 +95,12 @@ public interface ApiConstants {
     String MAX_WAITING       = "max_waiting"; // this is correct! the meaning name is different than the field name
     String MEMORY            = "memory";
     String MESSAGES          = "messages";
+    String MTIME             = "mtime";
     String MIRROR            = "mirror";
     String NAME              = "name";
     String NO_ACK            = "no_ack";
     String NONCE             = "nonce";
+    String NUID              = "nuid";
     String NUM_ACK_PENDING   = "num_ack_pending";
     String NUM_PENDING       = "num_pending";
     String NUM_REDELIVERED   = "num_redelivered";
@@ -102,6 +110,7 @@ public interface ApiConstants {
     String OFFSET            = "offset";
     String OPT_START_SEQ     = "opt_start_seq";
     String OPT_START_TIME    = "opt_start_time";
+    String OPTIONS           = "options";
     String PLACEMENT         = "placement";
     String PORT              = "port";
     String PROTO             = "proto";
@@ -117,6 +126,7 @@ public interface ApiConstants {
     String SEQ               = "seq";
     String SERVER_ID         = "server_id";
     String SERVER_NAME       = "server_name";
+    String SIZE              = "size";
     String SOURCE            = "source";
     String SOURCES           = "sources";
     String STATE             = "state";
@@ -142,7 +152,9 @@ public interface ApiConstants {
     Pattern ALLOW_ROLLUP_HDRS_RE  = string_pattern(ALLOW_ROLLUP_HDRS);
     Pattern API_RE                = string_pattern(API);
     Pattern AUTH_REQUIRED_RE      = boolean_pattern(AUTH_REQUIRED);
+    Pattern BUCKET_RE             = string_pattern(BUCKET);
     Pattern BYTES_RE              = integer_pattern(BYTES);
+    Pattern CHUNKS_RE             = integer_pattern(CHUNKS);
     Pattern CLIENT_ID_RE          = integer_pattern(CLIENT_ID);
     Pattern CLIENT_IP_RE          = string_pattern(CLIENT_IP);
     Pattern CLUSTER_RE            = string_pattern(CLUSTER);
@@ -153,6 +165,7 @@ public interface ApiConstants {
     Pattern CURRENT_RE            = boolean_pattern(CURRENT);
     Pattern CREATED_RE            = string_pattern(CREATED);
     Pattern DATA_RE               = string_pattern(DATA);
+    Pattern DELETED_RE            = boolean_pattern(DELETED);
     Pattern DELIVER_RE            = string_pattern(DELIVER);
     Pattern DELIVER_GROUP_RE      = string_pattern(DELIVER_GROUP);
     Pattern DELIVER_POLICY_RE     = string_pattern(DELIVER_POLICY);
@@ -160,6 +173,7 @@ public interface ApiConstants {
     Pattern DENY_DELETE_RE        = string_pattern(DENY_DELETE);
     Pattern DENY_PURGE_RE         = string_pattern(DENY_PURGE);
     Pattern DESCRIPTION_RE        = string_pattern(DESCRIPTION);
+    Pattern DIGEST_RE             = string_pattern(DIGEST);
     Pattern DISCARD_RE            = string_pattern(DISCARD);
     Pattern DOMAIN_RE             = string_pattern(DOMAIN);
     Pattern DUPLICATE_RE          = boolean_pattern(DUPLICATE);
@@ -186,6 +200,7 @@ public interface ApiConstants {
     Pattern MAX_ACK_PENDING_RE    = integer_pattern(MAX_ACK_PENDING);
     Pattern MAX_AGE_RE            = integer_pattern(MAX_AGE);
     Pattern MAX_BYTES_RE          = integer_pattern(MAX_BYTES);
+    Pattern MAX_CHUNK_SIZE_RE     = integer_pattern(MAX_CHUNK_SIZE);
     Pattern MAX_CONSUMERS_RE      = integer_pattern(MAX_CONSUMERS);
     Pattern MAX_DELIVER_RE        = integer_pattern(MAX_DELIVER);
     Pattern MAX_MEMORY_RE         = integer_pattern(MAX_MEMORY);
@@ -198,9 +213,11 @@ public interface ApiConstants {
     Pattern MAX_WAITING_RE        = integer_pattern(MAX_WAITING);
     Pattern MEMORY_RE             = integer_pattern(MEMORY);
     Pattern MESSAGES_RE           = integer_pattern(MESSAGES);
+    Pattern MTIME_RE              = string_pattern(MTIME);
     Pattern NAME_RE               = string_pattern(NAME);
     Pattern NO_ACK_RE             = boolean_pattern(NO_ACK);
     Pattern NONCE_RE              = string_pattern(NONCE);
+    Pattern NUID_RE               = string_pattern(NUID);
     Pattern NUM_ACK_PENDING_RE    = integer_pattern(NUM_ACK_PENDING);
     Pattern NUM_PENDING_RE        = integer_pattern(NUM_PENDING);
     Pattern NUM_REDELIVERED_RE    = integer_pattern(NUM_REDELIVERED);
@@ -222,6 +239,7 @@ public interface ApiConstants {
     Pattern SEQ_RE                = integer_pattern(SEQ);
     Pattern SERVER_ID_RE          = string_pattern(SERVER_ID);
     Pattern SERVER_NAME_RE        = string_pattern(SERVER_NAME);
+    Pattern SIZE_RE               = integer_pattern(SIZE);
     Pattern STORAGE_RE            = integer_pattern(STORAGE);
     Pattern STORAGE_TYPE_RE       = string_pattern(STORAGE);
     Pattern STREAM_NAME_RE        = string_pattern(STREAM_NAME);

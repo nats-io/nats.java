@@ -184,9 +184,20 @@ public interface JetStreamManagement {
      * @return The MessageInfo
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
+     */
+    MessageInfo getLastMessage(String streamName, String subject) throws IOException;
+
+    /**
+     * Return an info object about the last message for a subject
+     * @param streamName the name of the stream.
+     * @param subject the subject to get the last message for
+     * @param throwOnHasError false to actually not check error. Used when callers optionally might want to not throw
+     * @return The MessageInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    MessageInfo getLastMessage(String streamName, String subject) throws IOException, JetStreamApiException;
+    MessageInfo getLastMessage(String streamName, String subject, boolean throwOnHasError) throws IOException, JetStreamApiException;
 
     /**
      * Deletes a message.

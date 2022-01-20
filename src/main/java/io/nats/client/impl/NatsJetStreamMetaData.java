@@ -15,15 +15,16 @@ package io.nats.client.impl;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
+
+import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
 
 /**
  * Jetstream meta data about a message, when applicable.
  */
 public class NatsJetStreamMetaData {
 
-    private static final long NANO_FACTOR = 10_00_000_000;
+    private static final long NANO_FACTOR = 10_00_000_000; // aka 1_000_000_000
 
     private final String prefix;
     private final String domain;
@@ -105,7 +106,7 @@ public class NatsJetStreamMetaData {
             long seconds = tsi / NANO_FACTOR;
             int nanos = (int) (tsi - ((tsi / NANO_FACTOR) * NANO_FACTOR));
             LocalDateTime ltd = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
-            timestamp = ZonedDateTime.of(ltd, ZoneId.systemDefault()); // I think this is safe b/c the zone should match local
+            timestamp = ZonedDateTime.of(ltd, ZONE_ID_GMT); // I think this is safe b/c the zone should match local
 
             this.pending = hasPending ? Long.parseLong(parts[streamIndex + 6]) : -1L;
         }

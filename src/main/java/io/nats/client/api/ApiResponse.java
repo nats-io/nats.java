@@ -46,7 +46,12 @@ public abstract class ApiResponse<T> {
 
     @SuppressWarnings("unchecked")
     public T throwOnHasError() throws JetStreamApiException {
-        if (hasError()) {
+        return throwOnHasError(true);
+    }
+
+    @SuppressWarnings("unchecked")
+    public T throwOnHasError(boolean checkError) throws JetStreamApiException {
+        if (checkError && hasError()) {
             throw new JetStreamApiException(this);
         }
         return (T)this;

@@ -13,53 +13,50 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.*;
+import io.nats.client.JetStreamApiException;
+import io.nats.client.KeyValue;
+import io.nats.client.KeyValueOptions;
+import io.nats.client.PurgeOptions;
 import io.nats.client.api.*;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.nats.client.support.NatsJetStreamConstants.*;
+import static io.nats.client.support.NatsJetStreamConstants.EXPECTED_LAST_SUB_SEQ_HDR;
+import static io.nats.client.support.NatsJetStreamConstants.JS_WRONG_LAST_SEQUENCE;
 import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
 
-public class NatsKeyValue implements KeyValue {
-
-    final NatsJetStream js;
-    final JetStreamManagement jsm;
+public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
 
     private final String bucketName;
     private final String streamName;
     private final String streamSubject;
-    private final String defaultKeyPrefix;
+    private final String plainKeyPrefix;
     private final String publishKeyPrefix;
 
     NatsKeyValue(NatsConnection connection, String bucketName, KeyValueOptions kvo) throws IOException {
+        super(connection, kvo);
         this.bucketName = Validator.validateKvBucketNameRequired(bucketName);
         streamName = toStreamName(bucketName);
         streamSubject = toStreamSubject(bucketName);
-        defaultKeyPrefix = toKeyPrefix(bucketName);
+        plainKeyPrefix = toKeyPrefix(bucketName);
         if (kvo == null) {
-            js = new NatsJetStream(connection, null);
-            jsm = new NatsJetStreamManagement(connection, null);
-            publishKeyPrefix = defaultKeyPrefix;
+            publishKeyPrefix = plainKeyPrefix;
         }
         else {
-            js = new NatsJetStream(connection, kvo.getJetStreamOptions());
-            jsm = new NatsJetStreamManagement(connection, kvo.getJetStreamOptions());
-            publishKeyPrefix = kvo.getFeaturePrefix() == null ? defaultKeyPrefix : kvo.getFeaturePrefix();
+            publishKeyPrefix = kvo.getFeaturePrefix() == null ? plainKeyPrefix : kvo.getFeaturePrefix();
         }
     }
 
-    String defaultKeySubject(String key) {
-        return defaultKeyPrefix + key;
+    String toPlainKeySubject(String key) {
+        return plainKeyPrefix + key;
     }
 
-    String publishKeySubject(String key) {
+    String toPublishKeySubject(String key) {
         return publishKeyPrefix + key;
     }
 
@@ -67,7 +64,7 @@ public class NatsKeyValue implements KeyValue {
      * {@inheritDoc}
      */
     @Override
-    public String getBucketName() {
+    public String getStoreName() {
         return bucketName;
     }
 
@@ -88,14 +85,7 @@ public class NatsKeyValue implements KeyValue {
     }
 
     KeyValueEntry getLastMessage(String key) throws IOException, JetStreamApiException {
-        MessageInfo mi = jsm.getLastMessage(streamName, defaultKeySubject(key));
-        if (mi.hasError()) {
-            if (mi.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {
-                return null; // run of the mill key not found
-            }
-            mi.throwOnHasError();
-        }
-        return new KeyValueEntry(mi);
+        return new KeyValueEntry(_getLastMessage(streamName, toPlainKeySubject(key)));
     }
 
     /**
@@ -169,7 +159,7 @@ public class NatsKeyValue implements KeyValue {
 
     private PublishAck _publishWithNonWildcardKey(String key, byte[] data, Headers h) throws IOException, JetStreamApiException {
         validateNonWildcardKvKeyRequired(key);
-        return js.publish(NatsMessage.builder().subject(publishKeySubject(key)).data(data).headers(h).build());
+        return _publish(toPublishKeySubject(key), data, h);
     }
 
     @Override
@@ -191,7 +181,7 @@ public class NatsKeyValue implements KeyValue {
     @Override
     public List<String> keys() throws IOException, JetStreamApiException, InterruptedException {
         List<String> list = new ArrayList<>();
-        visitSubject(defaultKeySubject(">"), DeliverPolicy.LastPerSubject, true, false, m -> {
+        visitSubject(toPlainKeySubject(">"), DeliverPolicy.LastPerSubject, true, false, m -> {
             KeyValueOperation op = getOperation(m.getHeaders());
             if (op == KeyValueOperation.PUT) {
                 list.add(new BucketAndKey(m).key);
@@ -207,7 +197,7 @@ public class NatsKeyValue implements KeyValue {
     public List<KeyValueEntry> history(String key) throws IOException, JetStreamApiException, InterruptedException {
         validateNonWildcardKvKeyRequired(key);
         List<KeyValueEntry> list = new ArrayList<>();
-        visitSubject(defaultKeySubject(key), DeliverPolicy.All, false, true, m -> list.add(new KeyValueEntry(m)));
+        visitSubject(toPlainKeySubject(key), DeliverPolicy.All, false, true, m -> list.add(new KeyValueEntry(m)));
         return list;
     }
 
@@ -225,7 +215,7 @@ public class NatsKeyValue implements KeyValue {
         });
 
         for (String key : list) {
-            jsm.purgeStream(streamName, PurgeOptions.subject(defaultKeySubject(key)));
+            jsm.purgeStream(streamName, PurgeOptions.subject(toPlainKeySubject(key)));
         }
     }
 
@@ -235,36 +225,5 @@ public class NatsKeyValue implements KeyValue {
     @Override
     public KeyValueStatus getStatus() throws IOException, JetStreamApiException, InterruptedException {
         return new KeyValueStatus(jsm.getStreamInfo(streamName));
-    }
-
-    private void visitSubject(String subject, DeliverPolicy deliverPolicy, boolean headersOnly, boolean ordered, MessageHandler handler) throws IOException, JetStreamApiException, InterruptedException {
-        PushSubscribeOptions pso = PushSubscribeOptions.builder()
-            .ordered(ordered)
-            .configuration(
-                ConsumerConfiguration.builder()
-                    .ackPolicy(AckPolicy.None)
-                    .deliverPolicy(deliverPolicy)
-                    .headersOnly(headersOnly)
-                    .build())
-            .build();
-
-        JetStreamSubscription sub = js.subscribe(subject, pso);
-
-        try {
-            Duration d100 = Duration.ofMillis(100);
-            Message m = sub.nextMessage(Duration.ofMillis(5000)); // give plenty of time for the first
-            while (m != null) {
-                handler.onMessage(m);
-                if (m.metaData().pendingCount() == 0) {
-                    m = null;
-                }
-                else {
-                    m = sub.nextMessage(d100); // the rest should come pretty quick
-                }
-            }
-        }
-        finally {
-            sub.unsubscribe();
-        }
     }
 }

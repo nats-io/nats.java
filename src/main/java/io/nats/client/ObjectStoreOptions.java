@@ -14,12 +14,12 @@
 package io.nats.client;
 
 /**
- * The KeyValueOptions class specifies the general options for KeyValue.
- * Options are created using the {@link KeyValueOptions.Builder Builder}.
+ * The ObjectStoreOptions class specifies the general options for ObjectStore.
+ * Options are created using the {@link ObjectStoreOptions.Builder Builder}.
  */
-public class KeyValueOptions extends FeatureOptions {
+public class ObjectStoreOptions extends FeatureOptions {
 
-    private KeyValueOptions(Builder b) {
+    private ObjectStoreOptions(Builder b) {
         super(b);
     }
 
@@ -33,18 +33,18 @@ public class KeyValueOptions extends FeatureOptions {
 
     /**
      * Creates a builder to copy the options.
-     * @param kvo an existing KeyValueOptions
+     * @param oso an existing ObjectStoreOptions
      * @return a stream configuration builder
      */
-    public static Builder builder(KeyValueOptions kvo) {
-        return new Builder(kvo);
+    public static Builder builder(ObjectStoreOptions oso) {
+        return new Builder(oso);
     }
 
     /**
      * KeyValueOptions can be created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      */
-    public static class Builder extends FeatureOptions.Builder<Builder, KeyValueOptions> {
+    public static class Builder extends FeatureOptions.Builder<ObjectStoreOptions.Builder, ObjectStoreOptions> {
 
         @Override
         protected Builder getThis() {
@@ -53,16 +53,16 @@ public class KeyValueOptions extends FeatureOptions {
 
         public Builder() { super(null); }
 
-        public Builder(KeyValueOptions kvo) {
-            super(kvo);
+        public Builder(ObjectStoreOptions oso) {
+            super(oso);
         }
 
         /**
-         * Builds the KeyValue options.
-         * @return KeyValue options
+         * Builds the ObjectStore options.
+         * @return ObjectStore options
          */
-        public KeyValueOptions build() {
-            return new KeyValueOptions(this);
+        public ObjectStoreOptions build() {
+            return new ObjectStoreOptions(this);
         }
     }
 }

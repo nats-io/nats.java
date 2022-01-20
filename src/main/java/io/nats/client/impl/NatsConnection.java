@@ -46,6 +46,13 @@ import static io.nats.client.support.Validator.validateNotNull;
 
 class NatsConnection implements Connection {
 
+    public static final String JET_STREAM = "Jet Stream";
+    public static final String JET_STREAM_MANAGEMENT = "JetStream Management";
+    public static final String KEY_VALUE = "Key Value";
+    public static final String KEY_VALUE_MANAGEMENT = "Key Value Management";
+    public static final String OBJECT_STORE = "Object Store";
+    public static final String OBJECT_STORE_MANAGEMENT = "Object Store Management";
+
     private final Options options;
 
     private final NatsStatistics statistics;
@@ -1511,7 +1518,7 @@ class NatsConnection implements Connection {
     }
 
     public long getMaxPayload() {
-        ServerInfo info = this.serverInfo.get();
+        ServerInfo info = getInfo();
 
         if (info == null) {
             return -1;
@@ -1554,7 +1561,7 @@ class NatsConnection implements Connection {
     }
 
     private void addDiscoveredServers(List<String> servers) {
-        ServerInfo info = this.serverInfo.get();
+        ServerInfo info = getInfo();
         if (info != null && info.getConnectURLs() != null) {
             for (String uri : info.getConnectURLs()) {
                 try {
@@ -1902,7 +1909,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public JetStream jetStream() throws IOException {
-        ensureNotClosing();
+        ensureNotClosing(JET_STREAM);
         return new NatsJetStream(this, null);
     }
 
@@ -1911,7 +1918,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public JetStream jetStream(JetStreamOptions options) throws IOException {
-        ensureNotClosing();
+        ensureNotClosing(JET_STREAM);
         return new NatsJetStream(this, options);
     }
 
@@ -1920,7 +1927,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public JetStreamManagement jetStreamManagement() throws IOException {
-        ensureNotClosing();
+        ensureNotClosing(JET_STREAM_MANAGEMENT);
         return new NatsJetStreamManagement(this, null);
     }
 
@@ -1929,7 +1936,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public JetStreamManagement jetStreamManagement(JetStreamOptions options) throws IOException {
-        ensureNotClosing();
+        ensureNotClosing(JET_STREAM_MANAGEMENT);
         return new NatsJetStreamManagement(this, options);
     }
 
@@ -1938,8 +1945,9 @@ class NatsConnection implements Connection {
      */
     @Override
     public KeyValue keyValue(String bucketName) throws IOException {
+        ensureServerAtLeast262(KEY_VALUE);
         Validator.validateKvBucketNameRequired(bucketName);
-        ensureNotClosing();
+        ensureNotClosing(KEY_VALUE);
         return new NatsKeyValue(this, bucketName, null);
     }
 
@@ -1948,8 +1956,9 @@ class NatsConnection implements Connection {
      */
     @Override
     public KeyValue keyValue(String bucketName, KeyValueOptions options) throws IOException {
+        ensureServerAtLeast262(KEY_VALUE);
         Validator.validateKvBucketNameRequired(bucketName);
-        ensureNotClosing();
+        ensureNotClosing(KEY_VALUE);
         return new NatsKeyValue(this, bucketName, options);
     }
 
@@ -1958,7 +1967,8 @@ class NatsConnection implements Connection {
      */
     @Override
     public KeyValueManagement keyValueManagement() throws IOException {
-        ensureNotClosing();
+        ensureServerAtLeast262(KEY_VALUE_MANAGEMENT);
+        ensureNotClosing(KEY_VALUE_MANAGEMENT);
         return new NatsKeyValueManagement(this, null);
     }
 
@@ -1967,13 +1977,62 @@ class NatsConnection implements Connection {
      */
     @Override
     public KeyValueManagement keyValueManagement(KeyValueOptions options) throws IOException {
-        ensureNotClosing();
+        ensureServerAtLeast262(KEY_VALUE_MANAGEMENT);
+        ensureNotClosing(KEY_VALUE_MANAGEMENT);
         return new NatsKeyValueManagement(this, options);
     }
 
-    private void ensureNotClosing() throws IOException {
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectStore objectStore(String storeName) throws IOException {
+        ensureServerAtLeast262(OBJECT_STORE);
+        ensureNotClosing(OBJECT_STORE);
+        Validator.validateObjectStoreBucketNameRequired(storeName);
+        return new NatsObjectStore(this, storeName, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectStore objectStore(String storeName, ObjectStoreOptions options) throws IOException {
+        ensureServerAtLeast262(OBJECT_STORE);
+        ensureNotClosing(OBJECT_STORE);
+        Validator.validateObjectStoreBucketNameRequired(storeName);
+        return new NatsObjectStore(this, storeName, options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectStoreManagement objectStoreManagement() throws IOException {
+        ensureServerAtLeast262(OBJECT_STORE_MANAGEMENT);
+        ensureNotClosing(OBJECT_STORE_MANAGEMENT);
+        return new NatsObjectStoreManagement(this, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectStoreManagement objectStoreManagement(ObjectStoreOptions options) throws IOException {
+        ensureServerAtLeast262(OBJECT_STORE_MANAGEMENT);
+        ensureNotClosing(OBJECT_STORE_MANAGEMENT);
+        return new NatsObjectStoreManagement(this, options);
+    }
+
+    private void ensureServerAtLeast262(String label) {
+        if (getInfo().isOlderVersionThan("2.6.2")) {
+            throw new IllegalStateException(label + " functionality requires at least version 2.6.2 of the server.");
+        }
+    }
+
+    private void ensureNotClosing(String label) throws IOException {
         if (isClosing() || isClosed()) {
-            throw new IOException("A JetStream context can't be established during close.");
+            throw new IOException("A " + label + " context can't be established while the connection is closed or closing.");
         }
     }
 }

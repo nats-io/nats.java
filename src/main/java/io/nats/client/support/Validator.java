@@ -57,11 +57,15 @@ public abstract class Validator {
     }
 
     public static String validateKvBucketNameRequired(String s) {
-        return validateKvBucketName(s, "Bucket name", true);
+        return validateRestrictedTerm(s, "Bucket name", true);
     }
 
     public static String validateKvKeyWildcardAllowedRequired(String s) {
         return validateWildcardKvKey(s, "Key", true);
+    }
+
+    public static String validateObjectStoreBucketNameRequired(String s) {
+        return validateRestrictedTerm(s, "Object Store name", true);
     }
 
     public static String validateNonWildcardKvKeyRequired(String s) {
@@ -153,7 +157,7 @@ public abstract class Validator {
         });
     }
 
-    public static String validateKvBucketName(String s, String label, boolean required) {
+    public static String validateRestrictedTerm(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
             if (notRestrictedTerm(s)) {
                 throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `-` or `_` [" + s + "]");
@@ -270,6 +274,12 @@ public abstract class Validator {
     public static void validateNotNull(Object o, String fieldName) {
         if (o == null) {
             throw new IllegalArgumentException(fieldName + " cannot be null");
+        }
+    }
+
+    public static void validateNotNullOrEmpty(String s, String fieldName) {
+        if (nullOrEmpty(s)) {
+            throw new IllegalArgumentException(fieldName + " cannot be null or empty");
         }
     }
 

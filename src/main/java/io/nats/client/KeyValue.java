@@ -31,7 +31,7 @@ public interface KeyValue {
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @return the name
      */
-    String getBucketName();
+    String getStoreName();
 
     /**
      * Get the entry for a key

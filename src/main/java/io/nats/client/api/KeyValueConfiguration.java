@@ -12,15 +12,13 @@
 // limitations under the License.
 package io.nats.client.api;
 
-import io.nats.client.support.NatsKeyValueUtil;
-
 import java.time.Duration;
 
 import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
 
 /**
- * The KeyValueConfiguration class contains the configuration for of a Key Value bucket.
+ * The KeyValueConfiguration class contains the configuration for a Key Value bucket.
  */
 public class KeyValueConfiguration {
     private final StreamConfiguration sc;
@@ -169,7 +167,7 @@ public class KeyValueConfiguration {
             }
             else {
                 scBuilder = new StreamConfiguration.Builder(kvc.sc);
-                name = NatsKeyValueUtil.extractBucketName(kvc.sc.getName());
+                name = extractBucketName(kvc.sc.getName());
             }
         }
 

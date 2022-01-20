@@ -55,29 +55,12 @@ public class KeyValueTests extends JetStreamTestBase {
                     .storageType(StorageType.Memory)
                     .build();
 
-            KeyValueStatus status = kvm.create(kvc);
-
-            kvc = status.getConfiguration();
-            assertEquals(BUCKET, status.getBucketName());
-            assertEquals(BUCKET, kvc.getBucketName());
-            assertEquals(NatsKeyValueUtil.toStreamName(BUCKET), kvc.getBackingConfig().getName());
-            assertEquals(3, status.getMaxHistoryPerKey());
-            assertEquals(3, kvc.getMaxHistoryPerKey());
-            assertEquals(-1, status.getMaxBucketSize());
-            assertEquals(-1, kvc.getMaxBucketSize());
-            assertEquals(-1, status.getMaxValueSize());
-            assertEquals(-1, kvc.getMaxValueSize());
-            assertEquals(Duration.ZERO, status.getTtl());
-            assertEquals(Duration.ZERO, kvc.getTtl());
-            assertEquals(StorageType.Memory, status.getStorageType());
-            assertEquals(StorageType.Memory, kvc.getStorageType());
-            assertEquals(1, status.getReplicas());
-            assertEquals(1, kvc.getReplicas());
-            assertEquals(0, status.getEntryCount());
-            assertEquals("JetStream", status.getBackingStore());
+            assertStatusAfterCreate(kvm.create(kvc));
+            assertStatusAfterCreate(kvm.getBucketInfo(BUCKET));
 
             // get the kv context for the specific bucket
             KeyValue kv = nc.keyValue(BUCKET);
+            assertStatusAfterCreate(kv.getStatus());
 
             // Put some keys. Each key is put in a subject in the bucket (stream)
             // The put returns the sequence number in the bucket (stream)
@@ -124,7 +107,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertHistory(longHistory, kv.history(longKey));
 
             // let's check the bucket info
-            status = kvm.getBucketInfo(BUCKET);
+            KeyValueStatus status = kvm.getBucketInfo(BUCKET);
             assertEquals(3, status.getEntryCount());
             assertEquals(3, status.getBackingStreamInfo().getStreamState().getLastSequence());
 
@@ -299,6 +282,27 @@ public class KeyValueTests extends JetStreamTestBase {
 
             assertEquals(0, kvm.getBucketNames().size());
         });
+    }
+
+    private void assertStatusAfterCreate(KeyValueStatus status) {
+        KeyValueConfiguration kvc = status.getConfiguration();
+        assertEquals(BUCKET, status.getBucketName());
+        assertEquals(BUCKET, kvc.getBucketName());
+        assertEquals(NatsKeyValueUtil.toStreamName(BUCKET), kvc.getBackingConfig().getName());
+        assertEquals(3, status.getMaxHistoryPerKey());
+        assertEquals(3, kvc.getMaxHistoryPerKey());
+        assertEquals(-1, status.getMaxBucketSize());
+        assertEquals(-1, kvc.getMaxBucketSize());
+        assertEquals(-1, status.getMaxValueSize());
+        assertEquals(-1, kvc.getMaxValueSize());
+        assertEquals(Duration.ZERO, status.getTtl());
+        assertEquals(Duration.ZERO, kvc.getTtl());
+        assertEquals(StorageType.Memory, status.getStorageType());
+        assertEquals(StorageType.Memory, kvc.getStorageType());
+        assertEquals(1, status.getReplicas());
+        assertEquals(1, kvc.getReplicas());
+        assertEquals(0, status.getEntryCount());
+        assertEquals("JetStream", status.getBackingStore());
     }
 
     @Test
@@ -859,10 +863,10 @@ public class KeyValueTests extends JetStreamTestBase {
                 KeyValue kv_connI_bucketI = connUserI.keyValue(BUCKET_CREATED_BY_USER_I, jsOpt_UserI_BucketI_WithPrefix);
 
                 // check the names
-                assertEquals(BUCKET_CREATED_BY_USER_A, kv_connA_bucketA.getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_A, kv_connI_bucketA.getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_I, kv_connA_bucketI.getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_I, kv_connI_bucketI.getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_A, kv_connA_bucketA.getStoreName());
+                assertEquals(BUCKET_CREATED_BY_USER_A, kv_connI_bucketA.getStoreName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kv_connA_bucketI.getStoreName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kv_connI_bucketI.getStoreName());
 
                 TestKeyValueWatcher watcher_connA_BucketA = new TestKeyValueWatcher(true);
                 TestKeyValueWatcher watcher_connA_BucketI = new TestKeyValueWatcher(true);

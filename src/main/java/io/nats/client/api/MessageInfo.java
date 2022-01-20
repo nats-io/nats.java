@@ -15,10 +15,12 @@ package io.nats.client.api;
 
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
+import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.JsonUtils;
 
 import java.time.ZonedDateTime;
+import java.util.regex.Matcher;
 
 import static io.nats.client.support.ApiConstants.*;
 
@@ -38,6 +40,11 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         subject = JsonUtils.readString(json, SUBJECT_RE);
         data = JsonUtils.readBase64(json, DATA_RE);
         seq = JsonUtils.readLong(json, SEQ_RE, 0);
+
+        Matcher m = TIME_RE.matcher(json);
+        String s = m.find() ? m.group(1) : null;
+        ZonedDateTime zdt = s == null ? ZonedDateTime.now() : DateTimeUtils.parseDateTime(s);
+
         time = JsonUtils.readDate(json, TIME_RE);
         byte[] hdrBytes = JsonUtils.readBase64(json, HDRS_RE);
         headers = hdrBytes == null ? null : new IncomingHeadersProcessor(hdrBytes).getHeaders();

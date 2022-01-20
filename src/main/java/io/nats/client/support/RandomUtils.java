@@ -40,4 +40,10 @@ public abstract class RandomUtils {
         buffer.flip();// need flip
         return buffer.getLong();
     }
+
+    public static byte[] nextBytes(int len) {
+        byte[] data = new byte[len];
+        PRAND.nextBytes(data);
+        return data;
+    }
 }

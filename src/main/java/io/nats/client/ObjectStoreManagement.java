@@ -12,55 +12,55 @@
 // limitations under the License.
 package io.nats.client;
 
-import io.nats.client.api.KeyValueConfiguration;
-import io.nats.client.api.KeyValueStatus;
+import io.nats.client.api.ObjectStoreConfiguration;
+import io.nats.client.api.ObjectStoreStatus;
 
 import java.io.IOException;
 import java.util.List;
 
 /**
- * Key Value Store Management context for creation and access to key value buckets.
+ * Object Store Management context for creation and access to object stores.
  */
-public interface KeyValueManagement {
+public interface ObjectStoreManagement {
 
     /**
-     * Create a key value store.
+     * Create an object store.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param config the key value configuration
+     * @param config the object store configuration
      * @return bucket info
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      * @throws IllegalArgumentException the server is not JetStream enabled
      */
-    KeyValueStatus create(KeyValueConfiguration config) throws IOException, JetStreamApiException;
+    ObjectStoreStatus create(ObjectStoreConfiguration config) throws IOException, JetStreamApiException;
 
     /**
-     * Get the list of bucket names.
+     * Get the list of object stores bucket names
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @return list of bucket names
+     * @return list of object stores bucket names
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      * @throws InterruptedException if the thread is interrupted
      */
-    List<String> getBucketNames() throws IOException, JetStreamApiException, InterruptedException;
+    List<String> getObjectStoreBucketNames() throws IOException, JetStreamApiException, InterruptedException;
 
     /**
-     * Gets the info for an existing bucket.
+     * Gets the info for an existing object store.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param bucketName the bucket name to use
+     * @param bucketName the object store bucket name to get info for
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      * @return the bucket status object
      */
-    KeyValueStatus getBucketInfo(String bucketName) throws IOException, JetStreamApiException;
+    ObjectStoreStatus getObjectStoreInfo(String bucketName) throws IOException, JetStreamApiException;
 
     /**
-     * Deletes an existing bucket. Will throw a JetStreamApiException if the delete fails.
+     * Deletes an existing object store. Will throw a JetStreamApiException if the delete fails.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param bucketName the bucket name to use.
+     * @param bucketName the object store bucket name to delete
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data

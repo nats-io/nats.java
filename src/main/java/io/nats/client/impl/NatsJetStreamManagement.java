@@ -216,12 +216,24 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      * {@inheritDoc}
      */
     @Override
-    public MessageInfo getLastMessage(String streamName, String subject) throws IOException, JetStreamApiException {
+    public MessageInfo getLastMessage(String streamName, String subject) throws IOException {
         validateNotNull(streamName, "Stream Name");
         validateSubject(subject, true);
         String getSubject = String.format(JSAPI_MSG_GET, streamName);
         Message resp = makeRequestResponseRequired(getSubject, lastBySubjectBytes(subject), jso.getRequestTimeout());
         return new MessageInfo(resp);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageInfo getLastMessage(String streamName, String subject, boolean throwOnHasError) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
+        validateSubject(subject, true);
+        String getSubject = String.format(JSAPI_MSG_GET, streamName);
+        Message resp = makeRequestResponseRequired(getSubject, lastBySubjectBytes(subject), jso.getRequestTimeout());
+        return new MessageInfo(resp).throwOnHasError(throwOnHasError);
     }
 
     /**

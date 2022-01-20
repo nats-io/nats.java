@@ -114,8 +114,18 @@ public abstract class JsonUtils {
     }
 
     public static String getJsonObject(String objectName, String json, String dflt) {
-        int[] indexes = getBracketIndexes(objectName, json, '{', '}', 0);
-        return indexes == null ? dflt : json.substring(indexes[0], indexes[1] + 1);
+        BracketIndexes bi = getBracketIndexes(objectName, json, '{', '}', 0);
+        return bi == null ? dflt : json.substring(bi.startIndex, bi.endIndex + 1);
+    }
+
+    public static String removeObject(String json, String objectName) {
+        BracketIndexes bi = getBracketIndexes(objectName, json, '{', '}', 0);
+        if (bi != null) {
+            // remove the entire object replacing it with a dummy field b/c getBracketIndexes doesn't consider
+            // if there is or isn't another object after it, so I don't have to worry about it neing/not being the last object
+            json = json.substring(0, bi.objStart) + "\"rmvd" + objectName.hashCode() + "\":\"\"" + json.substring(bi.endIndex + 1);
+        }
+        return json;
     }
 
     /**
@@ -127,11 +137,11 @@ public abstract class JsonUtils {
      */
     public static List<String> getObjectList(String objectName, String json) {
         List<String> items = new ArrayList<>();
-        int[] indexes = getBracketIndexes(objectName, json, '[', ']', -1);
-        if (indexes != null) {
+        BracketIndexes bi = getBracketIndexes(objectName, json, '[', ']', -1);
+        if (bi != null) {
             StringBuilder item = new StringBuilder();
             int depth = 0;
-            for (int x = indexes[0] + 1; x < indexes[1]; x++) {
+            for (int x = bi.startIndex + 1; x < bi.endIndex; x++) {
                 char c = json.charAt(x);
                 if (c == '{') {
                     item.append(c);
@@ -150,8 +160,19 @@ public abstract class JsonUtils {
         return items;
     }
 
-    private static int[] getBracketIndexes(String objectName, String json, char start, char end, int fromIndex) {
-        int[] result = new int[] {-1, -1};
+    static class BracketIndexes {
+        public int objStart;
+        public int startIndex;
+        public int endIndex;
+
+        public BracketIndexes(int objStart, int startIndex, int endIndex) {
+            this.objStart = objStart;
+            this.startIndex = startIndex;
+            this.endIndex = endIndex;
+        }
+    }
+
+    private static BracketIndexes getBracketIndexes(String objectName, String json, char start, char end, int fromIndex) {
         int objStart = json.indexOf(Q + objectName + Q, fromIndex);
         if (objStart != -1) {
             int startIx;
@@ -176,9 +197,7 @@ public abstract class JsonUtils {
                 }
                 else if (c == end) {
                     if (--depth == 0) {
-                        result[0] = startIx;
-                        result[1] = x;
-                        return result;
+                        return new BracketIndexes(objStart, startIx, x);
                     }
                 }
             }

@@ -121,8 +121,10 @@ public class TestBase {
     public static final String DELIVER = "deliver";
     public static final String MESSAGE_ID = "mid";
     public static final String BUCKET = "bucket";
+    public static final String OBJECT = "object";
     public static final String KEY = "key";
     public static final String DATA = "data";
+    public static final String DESCRIPTION = "description";
 
     public static String stream(int seq) {
         return STREAM + "-" + seq;
@@ -164,12 +166,20 @@ public class TestBase {
         return BUCKET + "-" + seq;
     }
 
+    public static String object(int seq) {
+        return OBJECT + "-" + seq;
+    }
+
     public static String key(int seq) {
         return KEY + "-" + seq;
     }
 
     public static String messageId(int seq) {
         return MESSAGE_ID + "-" + seq;
+    }
+
+    public static String description(int seq) {
+        return DESCRIPTION + "-" + seq;
     }
 
     public static String data(int seq) {
