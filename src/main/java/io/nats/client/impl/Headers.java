@@ -35,12 +35,13 @@ public class Headers {
 
 	private final Map<String, List<String>> valuesMap;
 	private final Map<String, Integer> lengthMap;
-	private byte[] serialized;
+	private final ByteArrayBuilder serializedBab;
 	private int dataLength;
 
 	public Headers() {
 		valuesMap = new HashMap<>();
 		lengthMap = new HashMap<>();
+		serializedBab = new ByteArrayBuilder();
 	}
 
 	public Headers(Headers headers) {
@@ -49,7 +50,6 @@ public class Headers {
 			valuesMap.putAll(headers.valuesMap);
 			lengthMap.putAll(headers.lengthMap);
 			dataLength = headers.dataLength;
-			serialized = null;
 		}
 	}
 
@@ -97,7 +97,7 @@ public class Headers {
 				dataLength += checked.len;
 				int oldLen = lengthMap.getOrDefault(key, 0);
 				lengthMap.put(key, oldLen + checked.len);
-				serialized = null; // since the data changed, clear this so it's rebuilt
+				serializedBab.clear(); // since the data changed, clear this so it's rebuilt
 			}
 		}
 	}
@@ -147,7 +147,7 @@ public class Headers {
 				dataLength = dataLength - lengthMap.getOrDefault(key, 0) + checked.len;
 				valuesMap.put(key, checked.list);
 				lengthMap.put(key, checked.len);
-				serialized = null; // since the data changed, clear this so it's rebuilt
+				serializedBab.clear(); // since the data changed, clear this so it's rebuilt
 			}
 		}
 	}
@@ -158,10 +158,13 @@ public class Headers {
 	 * @param keys the key or keys to remove
 	 */
 	public void remove(String... keys) {
+		int dlBefore = dataLength;
 		for (String key : keys) {
 			_remove(key);
 		}
-		serialized = null; // since the data changed, clear this so it's rebuilt
+		if (dlBefore != dataLength) {
+			serializedBab.clear(); // since the data changed, clear this so it's rebuilt
+		}
 	}
 
 	/**
@@ -170,10 +173,13 @@ public class Headers {
 	 * @param keys the key or keys to remove
 	 */
 	public void remove(Collection<String> keys) {
+		int dlBefore = dataLength;
 		for (String key : keys) {
 			_remove(key);
 		}
-		serialized = null; // since the data changed, clear this so it's rebuilt
+		if (dlBefore != dataLength) {
+			serializedBab.clear(); // since the data changed, clear this so it's rebuilt
+		}
 	}
 
 	private void _remove(String key) {
@@ -208,7 +214,7 @@ public class Headers {
 		valuesMap.clear();
 		lengthMap.clear();
 		dataLength = 0;
-		serialized = null;
+		serializedBab.clear(); // since the data changed, clear this so it's rebuilt
 	}
 
 	/**
@@ -327,7 +333,7 @@ public class Headers {
 	 * @return true if dirty
 	 */
 	public boolean isDirty() {
-		return serialized == null;
+		return serializedBab.length() == 0;
 	}
 
 	/**
@@ -347,10 +353,19 @@ public class Headers {
 	 * @return the bytes
 	 */
 	public byte[] getSerialized() {
-		if (serialized == null) {
-			serialized = appendSerialized(new ByteArrayBuilder(dataLength + NON_DATA_BYTES)).toByteArray();
+		return getSerializedBab().toByteArray();
+	}
+
+	/**
+	 * Returns the serialized bytes.
+	 *
+	 * @return the bytes
+	 */
+	public ByteArrayBuilder getSerializedBab() {
+		if (serializedBab.length() == 0) {
+			return appendSerialized(serializedBab);
 		}
-		return serialized;
+		return serializedBab;
 	}
 
 	/**

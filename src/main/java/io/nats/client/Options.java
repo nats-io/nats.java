@@ -172,6 +172,11 @@ public class Options {
      */
     public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
 
+    /**
+     * Size to limit writes to the buffer. Added to provided granularity for read vs write
+     * this is primarily changed for testing, {@link #getMaxWriteSize() getMaxWriteSize()}.
+     */
+    public static final int DEFAULT_MAX_WRITE_SIZE = DEFAULT_BUFFER_SIZE;
 
     /**
      * Default thread name prefix. Used by the default exectuor when creating threads.
@@ -188,14 +193,20 @@ public class Options {
     public static final String DEFAULT_INBOX_PREFIX = "_INBOX.";
 
     /**
+     * Deprecated. See {@link #DEFAULT_MAX_WRITE_COUNT}
+     */
+    @Deprecated
+    public static final int MAX_MESSAGES_IN_NETWORK_BUFFER = 1000;
+
+    /**
      * This value is used internally to limit the number of messages sent in a single network I/O.
      * The value returned by {@link #getBufferSize() getBufferSize()} is used first, but if the buffer
-     * size is large and the message sizes are small, this limit comes into play.
-     * 
-     * The choice of 1000 is arbitrary and based on testing across several operating systems. Use buffer
+     * size is large and the message sizes are small, this limit {@link #getMaxWriteCount() getMaxWriteCount()} comes into play.
+     *
+     * The choice of 100 is arbitrary and based on testing across several operating systems. Use buffer
      * size for tuning.
      */
-    public static final int MAX_MESSAGES_IN_NETWORK_BUFFER = 1000;
+    public static final int DEFAULT_MAX_WRITE_COUNT = 1000;
 
     /**
      * This value is used internally to limit the number of messages allowed in the outgoing queue. When
@@ -490,6 +501,8 @@ public class Options {
     private final String inboxPrefix;
     private boolean useOldRequestStyle;
     private final int bufferSize;
+    private final int maxWriteSize;
+    private final int maxWriteCount;
     private final boolean noEcho;
     private final boolean noHeaders;
     private final boolean noNoResponders;
@@ -563,6 +576,8 @@ public class Options {
         private char[] token = null;
         private boolean useOldRequestStyle = false;
         private int bufferSize = DEFAULT_BUFFER_SIZE;
+        private int maxWriteSize = DEFAULT_MAX_WRITE_SIZE;
+        private int maxWriteCount = DEFAULT_MAX_WRITE_COUNT;
         private boolean trackAdvancedStats = false;
         private boolean traceConnection = false;
         private boolean noEcho = false;
@@ -1140,6 +1155,26 @@ public class Options {
         }
 
         /**
+         * Sets the size to write to the buffer. Added to provided granularity for read vs write
+         * @param size the size in bytes to for writing to buffer
+         * @return the Builder for chaining
+         */
+        public Builder maxWriteSize(int size) {
+            this.maxWriteSize = size;
+            return this;
+        }
+
+        /**
+         * Sets the size to limit the number of messages sent in a single network I/O.
+         * @param maxWriteCount the limit
+         * @return the Builder for chaining
+         */
+        public Builder maxWriteCount(int maxWriteCount) {
+            this.maxWriteCount = maxWriteCount;
+            return this;
+        }
+
+        /**
          * Set the maximum number of bytes to buffer in the client when trying to
          * reconnect. When this value is exceeded the client will start to drop messages.
          * The count of dropped messages can be read from the {@link Statistics#getDroppedCount() Statistics}.
@@ -1393,6 +1428,8 @@ public class Options {
         this.useOldRequestStyle = b.useOldRequestStyle;
         this.maxControlLine = b.maxControlLine;
         this.bufferSize = b.bufferSize;
+        this.maxWriteSize = b.maxWriteSize;
+        this.maxWriteCount = b.maxWriteCount;
         this.noEcho = b.noEcho;
         this.noHeaders = b.noHeaders;
         this.noNoResponders = b.noNoResponders;
@@ -1631,6 +1668,20 @@ public class Options {
      */
     public int getBufferSize() {
         return bufferSize;
+    }
+
+    /**
+     * @return the default size for buffers in the connection code, see {@link Builder#maxWriteSize(int) maxWriteSize()} in the builder doc
+     */
+    public int getMaxWriteSize() {
+        return maxWriteSize;
+    }
+
+    /**
+     * @return the default size for buffers in the connection code, see {@link Builder#maxWriteCount(int) maxWriteCount()} in the builder doc
+     */
+    public int getMaxWriteCount() {
+        return maxWriteCount;
     }
 
     /**

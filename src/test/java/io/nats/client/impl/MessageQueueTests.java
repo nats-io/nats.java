@@ -468,7 +468,7 @@ public class MessageQueueTests {
 
         long before = q.sizeInBytes();
         q.pause();
-        q.filter((msg) -> {return Arrays.equals(expected, msg.getProtocolBytes());});
+        q.filter((msg) -> Arrays.equals(expected, msg.getProtocol().toByteArray()));
         q.resume();
         long after = q.sizeInBytes();
 
@@ -492,7 +492,7 @@ public class MessageQueueTests {
 
         long before = q.sizeInBytes();
         q.pause();
-        q.filter((msg) -> {return Arrays.equals(expected, msg.getProtocolBytes());});
+        q.filter((msg) -> Arrays.equals(expected, msg.getProtocol().toByteArray()));
         q.resume();
         long after = q.sizeInBytes();
 
@@ -516,7 +516,7 @@ public class MessageQueueTests {
 
         long before = q.sizeInBytes();
         q.pause();
-        q.filter((msg) -> {return Arrays.equals(expected, msg.getProtocolBytes());});
+        q.filter((msg) -> Arrays.equals(expected, msg.getProtocol().toByteArray()));
         q.resume();
         long after = q.sizeInBytes();
 

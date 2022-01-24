@@ -156,7 +156,7 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public void delete(String key) throws IOException, JetStreamApiException {
-        _publishWithNonWildcardKey(key, null, DELETE_HEADERS);
+        _publishWithNonWildcardKey(key, null, getDeleteHeaders());
     }
 
     /**
@@ -164,7 +164,7 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public void purge(String key) throws IOException, JetStreamApiException {
-        _publishWithNonWildcardKey(key, null, PURGE_HEADERS);
+        _publishWithNonWildcardKey(key, null, getPurgeHeaders());
     }
 
     private PublishAck _publishWithNonWildcardKey(String key, byte[] data, Headers h) throws IOException, JetStreamApiException {

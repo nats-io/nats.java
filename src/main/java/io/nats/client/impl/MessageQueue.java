@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -43,6 +44,45 @@ class MessageQueue {
     // A simple == is used to check if any message in the queue is this message.
     private final NatsMessage poisonPill;
 
+    // It's safe to do some optimizations for single reader mode, because there is promised to be only one thread.
+    static class SingleReaderLbq extends LinkedBlockingQueue<NatsMessage> {
+        public SingleReaderLbq(int capacity) {
+            super(capacity);
+        }
+
+        NatsMessage peeked;
+
+        @Override
+        public NatsMessage peek() {
+            if (peeked == null) {
+                peeked = super.peek();
+            }
+            return peeked;
+        }
+
+        @Override
+        public NatsMessage poll(long timeout, TimeUnit unit) throws InterruptedException {
+            if (peeked == null) {
+                return super.poll(timeout, unit);
+            }
+            return unpeek();
+        }
+
+        @Override
+        public NatsMessage poll() {
+            if (peeked == null) {
+                return super.poll();
+            }
+            return unpeek();
+        }
+
+        private NatsMessage unpeek() {
+            NatsMessage temp = peeked;
+            peeked = null;
+            return temp;
+        }
+    }
+
     /**
      * If publishHighwaterMark is set to 0 the underlying queue can grow forever (or until the max size of a linked blocking queue that is).
      * A value of 0 is used by readers to prevent the read thread from blocking.
@@ -53,7 +93,14 @@ class MessageQueue {
      * @param discardWhenFull allows to discard messages when the underlying queue is full
      */
     MessageQueue(boolean singleReaderMode, int publishHighwaterMark, boolean discardWhenFull) {
-        this.queue = publishHighwaterMark > 0 ? new LinkedBlockingQueue<NatsMessage>(publishHighwaterMark) : new LinkedBlockingQueue<NatsMessage>();
+        this.singleThreadedReader = singleReaderMode;
+        int capacity = publishHighwaterMark > 0 ? publishHighwaterMark : Integer.MAX_VALUE;
+        if (singleReaderMode) {
+            this.queue = new LinkedBlockingQueue<>(capacity);
+        }
+        else {
+            this.queue = new SingleReaderLbq(capacity);
+        }
         this.discardWhenFull = discardWhenFull;
         this.running = new AtomicInteger(RUNNING);
         this.sizeInBytes = new AtomicLong(0);
@@ -63,8 +110,6 @@ class MessageQueue {
         this.poisonPill = new NatsMessage("_poison", null, EMPTY_BODY);
 
         this.filterLock = new ReentrantLock();
-        
-        this.singleThreadedReader = singleReaderMode;
     }
 
     MessageQueue(boolean singleReaderMode) {
@@ -195,7 +240,7 @@ class MessageQueue {
 
         return msg;
     }
-    
+
     // Waits up to the timeout to try to accumulate multiple messages
     // Use the next field to read the entire set accumulated.
     // maxSize and maxMessages are both checked and if either is exceeded
@@ -207,7 +252,7 @@ class MessageQueue {
     // accumulate reads off the concurrent queue one at a time, so if multiple
     // readers are present, you could get out of order message delivery.
     NatsMessage accumulate(long maxSize, long maxMessages, Duration timeout)
-            throws InterruptedException {
+        throws InterruptedException {
 
         if (!this.singleThreadedReader) {
             throw new IllegalStateException("Accumulate is only supported in single reader mode.");
@@ -218,7 +263,6 @@ class MessageQueue {
         }
 
         NatsMessage msg = this.poll(timeout);
-
         if (msg == null) {
             return null;
         }
@@ -261,6 +305,56 @@ class MessageQueue {
         this.length.addAndGet(-count);
 
         return msg;
+    }
+
+    interface DirectAccumulator {
+        void accumulate(NatsMessage msg) throws IOException;
+    }
+
+    // Waits up to the timeout to try to accumulate multiple messages
+    // Use the next field to read the entire set accumulated.
+    // maxSize and maxMessages are both checked and if either is exceeded
+    // the method returns.
+    //
+    // A timeout of 0 will wait forever (or until the queue is stopped/drained)
+    //
+    // Only works in single reader mode, because we want to maintain order.
+    // accumulate reads off the concurrent queue one at a time, so if multiple
+    // readers are present, you could get out of order message delivery.
+    void accumulateDirect(long maxSize, long maxMessages, Duration timeout, DirectAccumulator acc) throws InterruptedException, IOException {
+
+        if (!this.singleThreadedReader) {
+            throw new IllegalStateException("Accumulate is only supported in single reader mode.");
+        }
+
+        if (!this.isRunning()) {
+            return;
+        }
+
+        long count = 0;
+        long size = 0;
+        if (maxSize <= 0) {
+            maxSize = Long.MAX_VALUE; // this effectively removes the size limit
+        }
+        NatsMessage msg = this.poll(timeout);
+        while (msg != null) {
+            acc.accumulate(msg);
+            size += msg.getSizeInBytes();
+            if (++count == maxMessages || size >= maxSize) {
+                break;
+            }
+
+            NatsMessage peeked = this.queue.peek();
+            if (peeked == null || peeked == this.poisonPill) {
+                break;
+            }
+            msg = this.queue.poll();
+        }
+
+        if (size > 0) {
+            this.sizeInBytes.addAndGet(-size);
+            this.length.addAndGet(-count);
+        }
     }
 
     // Returns a message or null

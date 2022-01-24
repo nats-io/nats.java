@@ -337,6 +337,8 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             .put(ROLLUP_HDR, ROLLUP_HDR_SUBJECT);
 
         runInJsServer(nc -> {
+            try { nc.jetStreamManagement().deleteStream(stream); } catch (Exception e) {}
+
             StreamConfiguration sc = StreamConfiguration.builder()
                 .name(stream)
                 .storageType(StorageType.Memory)

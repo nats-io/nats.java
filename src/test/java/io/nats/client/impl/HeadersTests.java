@@ -629,14 +629,6 @@ public class HeadersTests {
         return headers;
     }
 
-    private void assertContainsExactly(Collection<String> actual, String... expected) {
-        assertNotNull(actual);
-        assertEquals(actual.size(), expected.length);
-        for (String v : expected) {
-            assertTrue(actual.contains(v));
-        }
-    }
-
     @Test
     public void nullPathways() {
         Headers h = new Headers();
@@ -747,7 +739,10 @@ public class HeadersTests {
     }
 
     @Test
-    public void testToString() {
+    public void testMisc() {
+        Headers h = new Headers();
+        assertEquals("NATS/1.0\r\n\r\n", new String(h.getSerialized()));
+
         assertNotNull(new Status(1, "msg").toString()); // COVERAGE
     }
 }

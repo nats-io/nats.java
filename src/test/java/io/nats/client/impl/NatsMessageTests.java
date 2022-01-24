@@ -31,7 +31,7 @@ public class NatsMessageTests {
     @Test
     public void testSizeOnProtocolMessage() {
         NatsMessage msg = new NatsMessage.ProtocolMessage("PING");
-        assertEquals(msg.getProtocolBytes().length + 2, msg.getSizeInBytes(), "Size is set, with CRLF");
+        assertEquals(msg.getProtocol().length() + 2, msg.getSizeInBytes(), "Size is set, with CRLF");
         assertEquals("PING".getBytes(StandardCharsets.UTF_8).length + 2, msg.getSizeInBytes(), "Size is correct");
         assertTrue(msg.toString().contains("PING")); // toString COVERAGE
     }
@@ -45,12 +45,12 @@ public class NatsMessageTests {
 
         NatsMessage msg = new NatsMessage(subject, replyTo, body);
 
-        assertEquals(msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
+        assertEquals(msg.getProtocol().length() + body.length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
         assertEquals(protocol.getBytes(StandardCharsets.US_ASCII).length + body.length + 4, msg.getSizeInBytes(), "Size is correct");
 
         msg = new NatsMessage(subject, replyTo, body);
 
-        assertEquals(msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
+        assertEquals(msg.getProtocol().length() + body.length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
         assertEquals(protocol.getBytes(StandardCharsets.UTF_8).length + body.length + 4, msg.getSizeInBytes(), "Size is correct");
     }
 
@@ -182,43 +182,18 @@ public class NatsMessageTests {
         assertNotNull(m.getHeaders());
 
         m.headers = null; // we can do this because we have package access
-        m.dirty = true; // for later tests, also is true b/c we nerfed the headers
         assertFalse(m.hasHeaders());
         assertNull(m.getHeaders());
         assertNotNull(m.toString()); // COVERAGE
         assertNotNull(m.getOrCreateHeaders());
 
         NatsMessage.ProtocolMessage pm = new NatsMessage.ProtocolMessage((byte[])null);
-        assertNotNull(pm.protocolBytes);
-        assertEquals(0, pm.protocolBytes.length);
-
-        NatsMessage.InternalMessage scm = new NatsMessage.InternalMessage() {};
-        assertNull(scm.protocolBytes);
-        assertEquals(-1, scm.getControlLineLength());
+        assertNotNull(pm.protocolBab);
+        assertEquals(0, pm.protocolBab.length());
 
         // coverage coverage coverage
         NatsMessage nmCov = new NatsMessage("sub", "reply", null, true);
         assertTrue(nmCov.isUtf8mode());
-
-        nmCov.dirty = false;
-        nmCov.calculateIfDirty();
-
-        nmCov.dirty = false;
-        nmCov.headers = new Headers().add("foo", "bar");
-        nmCov.calculateIfDirty();
-
-        nmCov.dirty = false;
-        nmCov.headers = new Headers().add("foo", "bar");
-        nmCov.headers.getSerialized();
-        nmCov.calculateIfDirty();
-
-        assertTrue(nmCov.toDetailString().contains("HPUB sub reply 21 21"));
-        assertTrue(nmCov.toDetailString().contains("next=No"));
-
-        nmCov.protocolBytes = null;
-        nmCov.next = nmCov;
-        assertTrue(nmCov.toDetailString().contains("protocolBytes=null"));
-        assertTrue(nmCov.toDetailString().contains("next=Yes"));
     }
 
     @Test
