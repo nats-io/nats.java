@@ -534,7 +534,7 @@ public class NatsMessage implements Message {
          * @return the {@code NatsMessage}
          */
         public NatsMessage build() {
-            return new NatsMessage(subject, replyTo, headers, data, utf8mode);
+            return new NatsMessage(subject, replyTo, headers, data);
         }
     }
 

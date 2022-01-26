@@ -158,6 +158,7 @@ class NatsConnectionWriter implements Runnable {
                 } else {
                     this.outgoing.accumulateDirect(maxWriteSize, maxWriteCount, waitForMessage, accumulator);
                 }
+                dataPort.flush();
             }
         } catch (IOException | BufferOverflowException io) {
             this.connection.handleCommunicationIssue(io);
