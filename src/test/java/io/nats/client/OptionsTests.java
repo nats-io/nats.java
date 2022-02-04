@@ -36,6 +36,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class OptionsTests {
     @Test
+    public void testClientVersion() {
+        assertEquals("development", Nats.CLIENT_VERSION);
+    }
+
+    @Test
     public void testDefaultOptions() {
         Options o = new Options.Builder().build();
 
