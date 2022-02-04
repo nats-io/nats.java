@@ -143,6 +143,34 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             js.subscribe(SUBJECT, dispatcher, mh -> {}, false);
             js.subscribe(SUBJECT, dispatcher, mh -> {}, false, null);
             js.subscribe(SUBJECT, QUEUE, dispatcher, mh -> {}, false, null);
+
+            // bind with w/o subject
+            jsm.addOrUpdateConsumer(STREAM,
+                ConsumerConfiguration.builder()
+                    .durable(durable(101))
+                    .deliverSubject(deliver(101))
+                    .build());
+
+            PushSubscribeOptions psoBind = PushSubscribeOptions.bind(STREAM, durable(101));
+            js.subscribe(null, psoBind).unsubscribe();
+            js.subscribe("", psoBind).unsubscribe();
+            JetStreamSubscription sub = js.subscribe(null, dispatcher, mh -> {}, false, psoBind);
+            dispatcher.unsubscribe(sub);
+            js.subscribe("", dispatcher, mh -> {}, false, psoBind);
+
+            jsm.addOrUpdateConsumer(STREAM,
+                ConsumerConfiguration.builder()
+                    .durable(durable(102))
+                    .deliverSubject(deliver(102))
+                    .deliverGroup(queue(102))
+                    .build());
+
+            psoBind = PushSubscribeOptions.bind(STREAM, durable(102));
+            js.subscribe(null, queue(102), psoBind).unsubscribe();
+            js.subscribe("", queue(102), psoBind).unsubscribe();
+            sub = js.subscribe(null, queue(102), dispatcher, mh -> {}, false, psoBind);
+            dispatcher.unsubscribe(sub);
+            js.subscribe("", queue(102), dispatcher, mh -> {}, false, psoBind);
         });
     }
 
