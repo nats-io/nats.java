@@ -327,7 +327,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 }
 
                 // durable already exists, make sure the filter subject matches
-                if (subject == null) { // allowed if they had given both stream and durable
+                if (nullOrEmpty(subject)) { // allowed if they had given both stream and durable
                     subject = userCC.getFilterSubject();
                 }
                 else if (!isFilterMatch(subject, serverCC.getFilterSubject(), fnlStream)) {
