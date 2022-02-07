@@ -70,9 +70,7 @@ jar {
     bnd (['Implementation-Title': 'Java Nats',
           'Implementation-Version': jarVersion,
           'Implementation-Vendor': 'nats.io',
-          "Import-Package": "!net.i2p.crypto.eddsa.math",
-          "Import-Package": "net.i2p*",
-          "Import-Package": "io.nats*"]
+          "Import-Package": "!net.i2p.crypto.eddsa.math"]
     )
     exclude("io/nats/examples/**")
 }
