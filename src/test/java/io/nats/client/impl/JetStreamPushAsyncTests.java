@@ -60,10 +60,16 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
-            assertTrue(msgLatch.await(10, TimeUnit.SECONDS));
+            awaitAndAssert(msgLatch);
 
             assertEquals(10, received.get());
         });
+    }
+
+    // Flapper fix: For whatever reason 10 seconds isn't enough on slow machines
+    // I've put this in a function so all latch awaits give plenty of time
+    private void awaitAndAssert(CountDownLatch latch) throws InterruptedException {
+        assertTrue(latch.await(15, TimeUnit.SECONDS));
     }
 
     @Test
@@ -97,7 +103,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
-            assertTrue(msgLatch1.await(10, TimeUnit.SECONDS));
+            awaitAndAssert(msgLatch1);
 
             assertEquals(10, received1.get());
 
@@ -123,7 +129,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
-            assertTrue(msgLatch2.await(10, TimeUnit.SECONDS));
+            awaitAndAssert(msgLatch2);
             assertEquals(10, received2.get());
 
             ConsumerInfo ci = sub.getConsumerInfo();
@@ -209,7 +215,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
-            assertTrue(msgLatch.await(10, TimeUnit.SECONDS));
+            awaitAndAssert(msgLatch);
 
             assertEquals(MSG_COUNT, count.get());
             assertTrue(fcps.get() > 0);
@@ -274,7 +280,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
-            assertTrue(msgLatchRef.get().await(10, TimeUnit.SECONDS));
+            awaitAndAssert(msgLatchRef.get());
             assertEquals(0, msgLatchRef.get().getCount());
             dispatcher.unsubscribe(async);
 
@@ -294,7 +300,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             msgLatchRef.set(new CountDownLatch(pubCount));
             PushSubscribeOptions pso = ConsumerConfiguration.builder().ackWait(Duration.ofSeconds(100)).buildPushSubscribeOptions();
             async = js.subscribe(SUBJECT, dispatcher, handler, false, pso);
-            assertTrue(msgLatchRef.get().await(10, TimeUnit.SECONDS));
+            awaitAndAssert(msgLatchRef.get());
             assertEquals(0, msgLatchRef.get().getCount());
             dispatcher.unsubscribe(async);
 
@@ -305,7 +311,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             msgLatchRef.set(new CountDownLatch(pubCount));
             pso = ConsumerConfiguration.builder().ackPolicy(AckPolicy.None).buildPushSubscribeOptions();
             async = js.subscribe(SUBJECT, dispatcher, handler, true, pso);
-            assertTrue(msgLatchRef.get().await(10, TimeUnit.SECONDS));
+            awaitAndAssert(msgLatchRef.get());
             assertEquals(0, msgLatchRef.get().getCount());
             dispatcher.unsubscribe(async);
 
