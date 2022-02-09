@@ -933,7 +933,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         MAX_ACK_PENDING(0, 0, 20000L),
         MAX_PULL_WAITING(0, 0, 512),
         MAX_BATCH(1, -1, -1),
-        ACK_WAIT(0, 30, 30);
+        ACK_WAIT(Duration.ZERO.toNanos(), Duration.ofSeconds(30).toNanos(), Duration.ofSeconds(30).toNanos());
 
         long min;
         long initial;
@@ -964,7 +964,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         public long comparable(Duration d) {
-            Long val = d == null ? null : d.getSeconds();
+            Long val = d == null ? null : d.toNanos();
             return val == null || val < min || val == server ? initial : val;
         }
 

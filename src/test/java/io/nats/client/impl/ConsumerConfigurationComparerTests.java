@@ -155,7 +155,7 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertFalse(MAX_ACK_PENDING.wouldBeChange(-99L, MAX_ACK_PENDING.initial()));
         assertFalse(MAX_PULL_WAITING.wouldBeChange(-99L, MAX_PULL_WAITING.initial()));
         assertFalse(MAX_BATCH.wouldBeChange(-99L, MAX_BATCH.initial()));
-        assertFalse(ACK_WAIT.wouldBeChange(Duration.ofSeconds(-99), Duration.ofSeconds(ACK_WAIT.initial())));
+        assertFalse(ACK_WAIT.wouldBeChange(Duration.ofSeconds(-99), Duration.ofNanos(ACK_WAIT.initial())));
 
         // server vs initial
         assertFalse(START_SEQ.wouldBeChange(START_SEQ.server(), START_SEQ.initial()));
@@ -164,7 +164,7 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertFalse(MAX_ACK_PENDING.wouldBeChange(MAX_ACK_PENDING.server(), MAX_ACK_PENDING.initial()));
         assertFalse(MAX_PULL_WAITING.wouldBeChange(MAX_PULL_WAITING.server(), MAX_PULL_WAITING.initial()));
         assertFalse(MAX_BATCH.wouldBeChange(MAX_BATCH.server(), MAX_BATCH.initial()));
-        assertFalse(ACK_WAIT.wouldBeChange(Duration.ofSeconds(ACK_WAIT.server()), Duration.ofSeconds(ACK_WAIT.initial())));
+        assertFalse(ACK_WAIT.wouldBeChange(Duration.ofNanos(ACK_WAIT.server()), Duration.ofNanos(ACK_WAIT.initial())));
 
         assertTrue(START_SEQ.wouldBeChange(1L, null));
         assertTrue(MAX_DELIVER.wouldBeChange(1L, null));
