@@ -922,7 +922,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     /**
      * INTERNAL CLASS ONLY, SUBJECT TO CHANGE
-     * Helper class to identify the initial or default value of a numeric field
+     * Helper class to identify the initial or default value of a field
      * and to make it easy to compare to other instances where the server provides
      * a default value.
      */
@@ -945,9 +945,11 @@ public class ConsumerConfiguration implements JsonSerializable {
             this.server = server;
         }
 
+        public long min() { return min; }
         public long initial() {
             return initial;
         }
+        public long server() { return server; }
 
         long valueOrInitial(Long val) {
             return val == null ? initial : val;
