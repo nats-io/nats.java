@@ -625,6 +625,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .durable(durable(1))
                 .maxAckPending(65000)
                 .maxDeliver(5)
+                .maxBatch(10)
                 .replayPolicy(ReplayPolicy.Instant)
                 .build();
             jsm.addOrUpdateConsumer(STREAM, cc);
@@ -639,6 +640,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .durable(durable(21))
                 .startSequence(42)
                 .maxDeliver(43)
+                .maxBatch(47)
                 .rateLimit(44)
                 .maxAckPending(45)
                 .build();
@@ -674,6 +676,8 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .durable(durable(4))
                 .flowControl(1000)
                 .headersOnly(true)
+                .maxExpires(30000)
+                .inactiveThreshold(40000)
                 .ackWait(2000)
                 .build();
             jsm.addOrUpdateConsumer(STREAM, cc);
@@ -718,11 +722,14 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             ccbmEx(js, durBuilder().description("x"));
             ccbmEx(js, durBuilder().sampleFrequency("x"));
             ccbmEx(js, durBuilder().idleHeartbeat(Duration.ofMillis(1000)));
+            ccbmEx(js, durBuilder().maxExpires(Duration.ofMillis(1000)));
+            ccbmEx(js, durBuilder().inactiveThreshold(Duration.ofMillis(1000)));
 
             ccbmEx(js, durBuilder().startSequence(5));
             ccbmEx(js, durBuilder().maxDeliver(5));
             ccbmEx(js, durBuilder().rateLimit(5));
             ccbmEx(js, durBuilder().maxAckPending(5));
+            ccbmEx(js, durBuilder().maxBatch(5));
 
             ccbmOk(js, durBuilder().startSequence(0));
             ccbmOk(js, durBuilder().startSequence(-1));
@@ -730,8 +737,14 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             ccbmOk(js, durBuilder().maxDeliver(-1));
             ccbmOk(js, durBuilder().rateLimit(0));
             ccbmOk(js, durBuilder().rateLimit(-1));
-            ccbmOk(js, durBuilder().maxAckPending(20000)); // 20000 is the default
+            ccbmOk(js, durBuilder().maxAckPending(0));
+            ccbmOk(js, durBuilder().maxAckPending(-1));
+            ccbmOk(js, durBuilder().maxAckPending(20000)); // 20000 is the default set by the server
             ccbmOk(js, durBuilder().maxPullWaiting(0));
+            ccbmOk(js, durBuilder().maxPullWaiting(-1));
+            ccbmOk(js, durBuilder().maxBatch(0));
+            ccbmOk(js, durBuilder().maxBatch(-1));
+            ccbmOk(js, durBuilder().ackWait(Duration.ofSeconds(30)));
 
             ConsumerConfiguration.Builder builder2 = ConsumerConfiguration.builder().durable(durable(2));
             nc.jetStreamManagement().addOrUpdateConsumer(STREAM, builder2.build());
@@ -754,6 +767,45 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             ccbmEx(js, builder.maxAckPending(88));
         });
     }
+
+    static class ConsumerConfigurationChecker extends ConsumerConfiguration {
+        public ConsumerConfigurationChecker(ConsumerConfiguration cc) {
+            super(cc);
+        }
+        public Duration ackWait() { return ackWait; }
+        public Long maxDeliver() { return maxDeliver; }
+        public Long maxAckPending() { return maxAckPending; }
+        public Long maxPullWaiting() { return maxPullWaiting; }
+    }
+
+    // default json from server for reference
+    //    "durable_name": "durable",
+    //    "deliver_policy": "all",
+    //    "ack_policy": "explicit",
+    //    "ack_wait": 30000000000,
+    //    "max_deliver": -1,
+    //    "replay_policy": "instant",
+    //    "max_waiting": 512,
+    //    "max_ack_pending": 20000
+    @Test
+    public void testDefaultConsumerConfiguration() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            createDefaultTestStream(jsm);
+
+            ConsumerConfiguration cc =
+                ConsumerConfiguration.builder()
+                    .durable(DURABLE).build();
+            cc = jsm.addOrUpdateConsumer(STREAM, cc).getConsumerConfiguration();
+            ConsumerConfigurationChecker ccc = new ConsumerConfigurationChecker(cc);
+            assertEquals(Duration.ofSeconds(30), ccc.ackWait());
+            assertEquals(-1, ccc.maxDeliver());
+            assertEquals(512, ccc.maxPullWaiting());
+            assertEquals(20000, ccc.maxAckPending());
+        });
+    }
+
 
     private void ccbmOk(JetStream js, ConsumerConfiguration.Builder builder) throws IOException, JetStreamApiException {
         js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()).unsubscribe();

@@ -20,6 +20,7 @@ import io.nats.client.api.ReplayPolicy;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.time.ZonedDateTime;
 
 import static io.nats.client.support.NatsConstants.EMPTY;
@@ -64,6 +65,14 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertNotChange(ccTest, ccTest);
         assertChange(ccTest, orig);
 
+        ccTest = builder(orig).maxExpires(1000).build();
+        assertNotChange(ccTest, ccTest);
+        assertChange(ccTest, orig);
+
+        ccTest = builder(orig).inactiveThreshold(1000).build();
+        assertNotChange(ccTest, ccTest);
+        assertChange(ccTest, orig);
+
         ccTest = builder(orig).startTime(ZonedDateTime.now()).build();
         assertNotChange(ccTest, ccTest);
         assertChange(ccTest, orig);
@@ -85,6 +94,12 @@ public class ConsumerConfigurationComparerTests extends TestBase {
 
         assertNotChange(builder(orig).maxPullWaiting(0).build(), orig);
         assertChange(builder(orig).maxPullWaiting(new Long(99)).build(), orig);
+
+        assertNotChange(builder(orig).maxBatch(-1).build(), orig);
+        assertChange(builder(orig).maxBatch(new Long(99)).build(), orig);
+
+        assertNotChange(builder(orig).ackWait(Duration.ofSeconds(30)).build(), orig);
+        assertChange(builder(orig).ackWait(Duration.ofSeconds(31)).build(), orig);
 
         assertNotChange(builder(orig).filterSubject(EMPTY).build(), orig);
         ccTest = builder(orig).filterSubject(PLAIN).build();

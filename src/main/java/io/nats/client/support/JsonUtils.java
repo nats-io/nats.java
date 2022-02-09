@@ -476,6 +476,11 @@ public abstract class JsonUtils {
         }
     }
 
+    public static Long readLong(String json, Pattern pattern) {
+        Matcher m = pattern.matcher(json);
+        return m.find() ? safeParseLong(m.group(1)) : null;
+    }
+
     public static long readLong(String json, Pattern pattern, long dflt) {
         Matcher m = pattern.matcher(json);
         return m.find() ? safeParseLong(m.group(1), dflt) : dflt;
@@ -513,6 +518,11 @@ public abstract class JsonUtils {
     public static ZonedDateTime readDate(String json, Pattern pattern) {
         Matcher m = pattern.matcher(json);
         return m.find() ? DateTimeUtils.parseDateTime(m.group(1)) : null;
+    }
+
+    public static Duration readNanos(String json, Pattern pattern) {
+        Matcher m = pattern.matcher(json);
+        return m.find() ? Duration.ofNanos(Long.parseLong(m.group(1))) : null;
     }
 
     public static Duration readNanos(String json, Pattern pattern, Duration dflt) {

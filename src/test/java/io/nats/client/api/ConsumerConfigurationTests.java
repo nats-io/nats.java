@@ -13,7 +13,7 @@
 
 package io.nats.client.api;
 
-import io.nats.client.api.ConsumerConfiguration.CcNumeric;
+import io.nats.client.api.ConsumerConfiguration.CcChangeHelper;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
@@ -170,6 +170,9 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(128, c.getMaxPullWaiting());
         assertTrue(c.isHeadersOnly());
         assertEquals(99, c.getStartSequence());
+        assertEquals(55, c.getMaxBatch());
+        assertEquals(Duration.ofSeconds(40), c.getMaxExpires());
+        assertEquals(Duration.ofSeconds(50), c.getInactiveThreshold());
 
         assertDefaultCc(new ConsumerConfiguration("{}"));
     }
@@ -194,10 +197,10 @@ public class ConsumerConfigurationTests extends TestBase {
         assertFalse(c.isFlowControl());
         assertFalse(c.isHeadersOnly());
 
-        assertEquals(CcNumeric.START_SEQ.initial(), c.getStartSequence());
-        assertEquals(CcNumeric.MAX_DELIVER.initial(), c.getMaxDeliver());
-        assertEquals(CcNumeric.RATE_LIMIT.initial(), c.getRateLimit());
-        assertEquals(CcNumeric.MAX_ACK_PENDING.initial(), c.getMaxAckPending());
-        assertEquals(CcNumeric.MAX_PULL_WAITING.initial(), c.getMaxPullWaiting());
+        assertEquals(CcChangeHelper.START_SEQ.initial(), c.getStartSequence());
+        assertEquals(CcChangeHelper.MAX_DELIVER.initial(), c.getMaxDeliver());
+        assertEquals(CcChangeHelper.RATE_LIMIT.initial(), c.getRateLimit());
+        assertEquals(CcChangeHelper.MAX_ACK_PENDING.initial(), c.getMaxAckPending());
+        assertEquals(CcChangeHelper.MAX_PULL_WAITING.initial(), c.getMaxPullWaiting());
     }
 }
