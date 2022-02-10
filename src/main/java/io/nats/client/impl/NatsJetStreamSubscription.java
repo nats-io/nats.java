@@ -153,6 +153,22 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      * {@inheritDoc}
      */
     @Override
+    public void pullNoWait(int batchSize, Duration expiresIn) {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pullNoWait(int batchSize, long expiresInMillis) {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void pullExpiresIn(int batchSize, Duration expiresIn) {
         throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }

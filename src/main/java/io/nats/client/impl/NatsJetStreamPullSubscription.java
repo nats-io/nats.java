@@ -34,14 +34,6 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         super(sid, subject, null, connection, null, js, stream, consumer, statusManager);
     }
 
-    /*
-        NatsJetStreamSubscription(String sid, String subject, String queueName,
-                              NatsConnection connection, NatsDispatcher dispatcher,
-                              NatsJetStream js,
-                              String stream, String consumer,
-                              MessageManager... managers) {
-
-     */
     @Override
     boolean isPullMode() {
         return true;
@@ -61,6 +53,22 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     @Override
     public void pullNoWait(int batchSize) {
         _pull(batchSize, true, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pullNoWait(int batchSize, Duration expiresIn) {
+        _pull(batchSize, true, expiresIn);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pullNoWait(int batchSize, long expiresInMillis) {
+        _pull(batchSize, true, Duration.ofMillis(expiresInMillis));
     }
 
     /**
@@ -98,16 +106,9 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         List<Message> messages = new ArrayList<>(batchSize);
 
         try {
-            pullNoWait(batchSize);
+            pullExpiresIn(batchSize, maxWait);
             long endTime = System.currentTimeMillis() + maxWait.toMillis();
             read(messages, batchSize, endTime);
-            if (messages.size() == 0) {
-                long expiresIn = endTime - System.currentTimeMillis() - 10;
-                if (expiresIn > 0) {
-                    pullExpiresIn(batchSize, expiresIn);
-                    read(messages, batchSize, endTime);
-                }
-            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -160,7 +161,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public Iterator<Message> iterate(final int batchSize, long maxWaitMillis) {
-        pullNoWait(batchSize);
+        pullExpiresIn(batchSize, maxWaitMillis);
 
         return new Iterator<Message>() {
             int received = 0;

@@ -36,64 +36,76 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // create the stream.
             createDefaultTestStream(nc);
 
+            long fetchMs = 3000;
+            Duration fetchDur = Duration.ofMillis(fetchMs);
+            Duration ackWaitDur = Duration.ofMillis(fetchMs * 2);
+
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .ackWait(Duration.ofMillis(2500))
-                    .build();
+                .ackWait(ackWaitDur)
+                .build();
 
             PullSubscribeOptions options = PullSubscribeOptions.builder()
-                    .durable(DURABLE) // required
-                    .configuration(cc)
-                    .build();
+                .durable(DURABLE) // required
+                .configuration(cc)
+                .build();
 
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
             assertSubscription(sub, STREAM, DURABLE, null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
-            List<Message> messages = sub.fetch(10, Duration.ofSeconds(3));
+            List<Message> messages = sub.fetch(10, fetchDur);
             validateRead(0, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "A", 10);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10, fetchDur);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "B", 20);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10, fetchDur);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10, fetchDur);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "C", 5);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10, fetchDur);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "D", 15);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10, fetchDur);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10, fetchDur);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "E", 10);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            long timeB4 = System.currentTimeMillis();
+            messages = sub.fetch(10, fetchDur);
             validateRead(10, messages.size());
-            sleep(3000);
+            letPullExpire(ackWaitDur.toMillis(), timeB4);
 
             // message were not ack'ed
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10, fetchDur);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             assertThrows(IllegalArgumentException.class, () -> sub.fetch(10, null));
             assertThrows(IllegalArgumentException.class, () -> sub.fetch(10, Duration.ofSeconds(-1)));
         });
+    }
+
+    private void letPullExpire(long fetchMs, long timeB4) {
+        long ms = fetchMs + 100 - (System.currentTimeMillis() - timeB4);
+        if (ms > 0) {
+            sleep(ms);
+        }
     }
 
     @Test
@@ -105,8 +117,12 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // create the stream.
             createDefaultTestStream(nc);
 
+            long fetchMs = 3000;
+            Duration fetchDur = Duration.ofMillis(fetchMs);
+            Duration ackWaitDur = Duration.ofMillis(fetchMs * 2);
+
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .ackWait(Duration.ofMillis(2500))
+                    .ackWait(ackWaitDur)
                     .build();
 
             PullSubscribeOptions options = PullSubscribeOptions.builder()
@@ -118,52 +134,53 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertSubscription(sub, STREAM, DURABLE, null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
-            Iterator<Message> iterator = sub.iterate(10, Duration.ofSeconds(3));
+            Iterator<Message> iterator = sub.iterate(10, fetchDur);
             List<Message> messages = readMessages(iterator);
             validateRead(0, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "A", 10);
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "B", 20);
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "C", 5);
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "D", 15);
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "E", 10);
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            long timeB4 = System.currentTimeMillis();
+            iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(10, messages.size());
-            sleep(3000);
+            letPullExpire(ackWaitDur.toMillis(), timeB4);
 
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            iterator = sub.iterate(10, fetchDur);
             iterator.hasNext(); // calling hasNext twice in a row is for coverage
             messages = readMessages(iterator);
             validateRead(10, messages.size());
