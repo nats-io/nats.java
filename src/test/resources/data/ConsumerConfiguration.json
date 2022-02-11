@@ -17,5 +17,8 @@
   "idle_heartbeat": 20000000000,
   "flow_control": true,
   "max_waiting": 128,
-  "headers_only": true
+  "headers_only": true,
+  "max_batch": 55,
+  "max_expires": 40000000000,
+  "inactive_threshold": 50000000000
 }
