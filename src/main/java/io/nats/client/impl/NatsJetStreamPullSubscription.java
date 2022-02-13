@@ -18,7 +18,7 @@ import io.nats.client.support.JsonUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -60,6 +60,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pullNoWait(int batchSize, Duration expiresIn) {
+        durationGtZeroRequired(expiresIn, "NoWait");
         _pull(batchSize, true, expiresIn);
     }
 
@@ -68,6 +69,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pullNoWait(int batchSize, long expiresInMillis) {
+        durationGtZeroRequired(expiresInMillis, "NoWait");
         _pull(batchSize, true, Duration.ofMillis(expiresInMillis));
     }
 
@@ -85,52 +87,8 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pullExpiresIn(int batchSize, long expiresInMillis) {
-        pullExpiresIn(batchSize, Duration.ofMillis(expiresInMillis));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public List<Message> fetch(int batchSize, long maxWaitMillis) {
-        return fetch(batchSize, Duration.ofMillis(maxWaitMillis));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public List<Message> fetch(int batchSize, Duration maxWait) {
-        durationGtZeroRequired(maxWait, "Fetch max");
-
-        List<Message> messages = new ArrayList<>(batchSize);
-
-        try {
-            pullExpiresIn(batchSize, maxWait);
-            long endTime = System.currentTimeMillis() + maxWait.toMillis();
-            read(messages, batchSize, endTime);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
-        return messages;
-    }
-
-    private void read(List<Message> messages, int batchSize, long endTime) throws InterruptedException {
-        Message msg = nextMessageWithEndTime(endTime);
-        while (msg != null) {
-            messages.add(msg);
-            msg = null;
-            if (messages.size() < batchSize) {
-                msg = nextMessageWithEndTime(endTime);
-            }
-        }
-    }
-
-    private void durationGtZeroRequired(Duration duration, String label) {
-        if (duration == null || duration.toMillis() <= 0) {
-            throw new IllegalArgumentException(label + " must be supplied and greater than 0.");
-        }
+        durationGtZeroRequired(expiresInMillis, "Expires In");
+        _pull(batchSize, false, Duration.ofMillis(expiresInMillis));
     }
 
     private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
@@ -152,8 +110,50 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      * {@inheritDoc}
      */
     @Override
+    public List<Message> fetch(int batchSize, long maxWaitMillis) {
+        durationGtZeroRequired(maxWaitMillis, "Fetch");
+        return _fetch(batchSize, Duration.ofMillis(maxWaitMillis), maxWaitMillis);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<Message> fetch(int batchSize, Duration maxWait) {
+        durationGtZeroRequired(maxWait, "Fetch");
+        return _fetch(batchSize, maxWait, maxWait.toMillis());
+    }
+
+    private List<Message> _fetch(int batchSize, Duration maxWait, Long maxWaitMillis) {
+        try {
+            _pull(batchSize, false, maxWait);
+            return _nextUnmanaged(batchSize, maxWaitMillis);
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return Collections.emptyList();
+        }
+    }
+
+    private void durationGtZeroRequired(Duration duration, String label) {
+        if (duration == null || duration.toMillis() <= 0) {
+            throw new IllegalArgumentException(label + " wait duration must be supplied and greater than 0.");
+        }
+    }
+
+    private void durationGtZeroRequired(long millis, String label) {
+        if (millis <= 0) {
+            throw new IllegalArgumentException(label + " wait duration must be supplied and greater than 0.");
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public Iterator<Message> iterate(int batchSize, Duration maxWait) {
-        return iterate(batchSize, maxWait.toMillis());
+        durationGtZeroRequired(maxWait, "Iterate");
+        return _iterate(batchSize, maxWait, maxWait.toMillis());
     }
 
     /**
@@ -161,49 +161,41 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public Iterator<Message> iterate(final int batchSize, long maxWaitMillis) {
-        pullExpiresIn(batchSize, maxWaitMillis);
+        durationGtZeroRequired(maxWaitMillis, "Iterate");
+        return _iterate(batchSize, Duration.ofMillis(maxWaitMillis), maxWaitMillis);
+    }
+
+    private Iterator<Message> _iterate(final int batchSize, Duration maxWait, long maxWaitMillis) {
+        _pull(batchSize, false, maxWait);
 
         return new Iterator<Message>() {
             int received = 0;
-            long timeLeft = Long.MAX_VALUE;
+            boolean done = false;
             Message msg = null;
 
             @Override
             public boolean hasNext() {
                 try {
-                    if (msg == null) {
-                        if (timeLeft < 1) { // msg is null and no more time
-                            return false;
-                        }
-
-                        // first time check. Did not want to do it on construction
-                        // of iterator, waited until first hasNext call
-                        // this does 2 things. Gives the internal queue time to fill
-                        // as saves the full wait time until the user actually calls hasNext
-                        if (timeLeft == Long.MAX_VALUE) {
-                            timeLeft = maxWaitMillis;
-                        }
-
-                        long endTime = System.currentTimeMillis() + timeLeft;
-                        msg = nextMessageWithEndTime(endTime);
-                        if (msg == null) {
-                            timeLeft = 0;
-                            return false;
-                        }
-
-                        // msg is not null
-                        if (++received == batchSize) {
-                            timeLeft = 0; // don't need any more time, got entire batch
-                        }
-                        else {
-                            timeLeft = endTime - System.currentTimeMillis();
-                        }
+                    if (msg != null) {
+                        return true;
                     }
-                    // else message was not null, I guess they called hasNext multiple times w/o next
+
+                    if (done) {
+                        return false;
+                    }
+
+                    msg = _nextUnmanaged(maxWaitMillis);
+                    if (msg == null) {
+                        done = true;
+                        return false;
+                    }
+
+                    done = ++received == batchSize;
                     return true;
-                } catch (InterruptedException e) {
+                }
+                catch (InterruptedException e) {
                     msg = null;
-                    timeLeft = 0;
+                    done = true;
                     Thread.currentThread().interrupt();
                     return false;
                 }

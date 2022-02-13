@@ -56,11 +56,13 @@ public class JetStreamPullTests extends JetStreamTestBase {
             List<Message> messages = sub.fetch(10, fetchDur);
             validateRead(0, messages.size());
             messages.forEach(Message::ack);
+            sleep(fetchMs * 2); // let the pull expire
 
             jsPublish(js, SUBJECT, "A", 10);
             messages = sub.fetch(10, fetchDur);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
+            if (true) return;
 
             jsPublish(js, SUBJECT, "B", 20);
             messages = sub.fetch(10, fetchDur);
@@ -75,6 +77,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             messages = sub.fetch(10, fetchDur);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
+            sleep(fetchMs); // let the pull expire
 
             jsPublish(js, SUBJECT, "D", 15);
             messages = sub.fetch(10, fetchDur);
@@ -86,10 +89,9 @@ public class JetStreamPullTests extends JetStreamTestBase {
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "E", 10);
-            long timeB4 = System.currentTimeMillis();
             messages = sub.fetch(10, fetchDur);
             validateRead(10, messages.size());
-            letPullExpire(ackWaitDur.toMillis(), timeB4);
+            sleep(ackWaitDur.toMillis()); // let the acks wait expire, pull will also expire it's shorter
 
             // message were not ack'ed
             messages = sub.fetch(10, fetchDur);
@@ -101,13 +103,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
-    private void letPullExpire(long fetchMs, long timeB4) {
-        long ms = fetchMs + 100 - (System.currentTimeMillis() - timeB4);
-        if (ms > 0) {
-            sleep(ms);
-        }
-    }
-
     @Test
     public void testIterate() throws Exception {
         runInJsServer(nc -> {
@@ -117,7 +112,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // create the stream.
             createDefaultTestStream(nc);
 
-            long fetchMs = 3000;
+            long fetchMs = 5000;
             Duration fetchDur = Duration.ofMillis(fetchMs);
             Duration ackWaitDur = Duration.ofMillis(fetchMs * 2);
 
@@ -161,6 +156,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             messages = readMessages(iterator);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
+            sleep(fetchMs); // give time for the pull to expire
 
             jsPublish(js, SUBJECT, "D", 15);
             iterator = sub.iterate(10, fetchDur);
@@ -172,19 +168,23 @@ public class JetStreamPullTests extends JetStreamTestBase {
             messages = readMessages(iterator);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
+            sleep(fetchMs); // give time for the pull to expire
 
             jsPublish(js, SUBJECT, "E", 10);
-            long timeB4 = System.currentTimeMillis();
             iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(10, messages.size());
-            letPullExpire(ackWaitDur.toMillis(), timeB4);
+            sleep(ackWaitDur.toMillis()); // give time for the pull and the ack wait to expire
 
             iterator = sub.iterate(10, fetchDur);
-            iterator.hasNext(); // calling hasNext twice in a row is for coverage
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
+
+            jsPublish(js, SUBJECT, "F", 1);
+            iterator = sub.iterate(1, fetchDur);
+            iterator.hasNext(); // calling hasNext twice in a row is for coverage
+            iterator.hasNext(); // calling hasNext twice in a row is for coverage
         });
     }
 
@@ -548,21 +548,35 @@ public class JetStreamPullTests extends JetStreamTestBase {
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // Ack Wait timeout
-            jsPublish(js, SUBJECT, "WAIT", 1);
+            jsPublish(js, SUBJECT, "WAIT", 2);
 
-            sub.pull(1);
+            sub.pull(2);
             Message m = sub.nextMessage(1000);
             assertNotNull(m);
-
             assertEquals("WAIT1", new String(m.getData()));
+            System.out.println(m);
+
+            m = sub.nextMessage(1000);
+            assertNotNull(m);
+            assertEquals("WAIT2", new String(m.getData()));
+            System.out.println(m);
+
             sleep(2000);
 
-            sub.pull(1);
+            sub.pull(2);
             m = sub.nextMessage(1000);
             assertNotNull(m);
             assertEquals("WAIT1", new String(m.getData()));
+            m.ack();
+            System.out.println(m);
 
-            sub.pull(1);
+            m = sub.nextMessage(1000);
+            assertNotNull(m);
+            assertEquals("WAIT2", new String(m.getData()));
+            m.ack();
+            System.out.println(m);
+
+            sub.pull(2);
             m = sub.nextMessage(1000);
             assertNull(m);
         });

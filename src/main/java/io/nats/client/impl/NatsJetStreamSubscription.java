@@ -83,22 +83,22 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     @Override
     public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
         if (timeout == null || timeout.toMillis() <= 0) {
-            return nextMsgNullOrLteZero(timeout);
+            return _nextUnmanagedNullOrLteZero(timeout);
         }
 
-        return nextMessageWithEndTime(System.currentTimeMillis() + timeout.toMillis());
+        return _nextUnmanaged(timeout.toMillis());
     }
 
     @Override
     public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
         if (timeoutMillis <= 0) {
-            return nextMsgNullOrLteZero(Duration.ZERO);
+            return _nextUnmanagedNullOrLteZero(Duration.ZERO);
         }
 
-        return nextMessageWithEndTime(System.currentTimeMillis() + timeoutMillis);
+        return _nextUnmanaged(timeoutMillis);
     }
 
-    protected Message nextMsgNullOrLteZero(Duration timeout) throws InterruptedException {
+    protected Message _nextUnmanagedNullOrLteZero(Duration timeout) throws InterruptedException {
         // timeout null means don't wait at all, timeout <= 0 means wait forever
         // until we get an actual no (null) message or we get a message
         // that the managers do not handle
@@ -109,19 +109,41 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return msg;
     }
 
-    protected Message nextMessageWithEndTime(long endTime) throws InterruptedException {
+    private static final long MIN_MILLIS = 100;
+
+    protected Message _nextUnmanaged(long expires) throws InterruptedException {
+
         // timeout > 0 process as many messages we can in that time period
         // If we get a message that either manager handles, we try again, but
         // with a shorter timeout based on what we already used up
-        long millis = endTime - System.currentTimeMillis();
-        while (millis > 0) {
-            Message msg = nextMessageInternal(Duration.ofMillis(millis));
+        long timeLeft = expires;
+        long endTime = System.currentTimeMillis() + expires;
+        while (timeLeft > 0) {
+            Message msg = nextMessageInternal(Duration.ofMillis(Math.max(timeLeft, MIN_MILLIS)));
             if (msg != null && !anyManaged(msg)) { // not null and not managed means JS Message
                 return msg;
             }
-            millis = endTime - System.currentTimeMillis();
+            timeLeft = endTime - System.currentTimeMillis();
         }
         return null;
+    }
+
+    protected List<Message> _nextUnmanaged(int batchSize, long expires) throws InterruptedException {
+        List<Message> messages = new ArrayList<>(batchSize);
+
+        // timeout > 0 process as many messages we can in that time period
+        // If we get a message that either manager handles, we try again, but
+        // with a shorter timeout based on what we already used up
+        long timeLeft = expires;
+        long endTime = System.currentTimeMillis() + expires;
+        while (timeLeft > 0 && messages.size() < batchSize) {
+            Message msg = nextMessageInternal(Duration.ofMillis(Math.max(timeLeft, MIN_MILLIS)));
+            if (msg != null && !anyManaged(msg)) { // not null and not managed means JS Message
+                messages.add(msg);
+            }
+            timeLeft = endTime - System.currentTimeMillis();
+        }
+        return messages;
     }
 
     boolean anyManaged(Message msg) {
