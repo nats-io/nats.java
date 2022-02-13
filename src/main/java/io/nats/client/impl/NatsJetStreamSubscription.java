@@ -109,41 +109,25 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return msg;
     }
 
-    private static final long MIN_MILLIS = 100;
+    protected static final long MIN_MILLIS = 100;
 
-    protected Message _nextUnmanaged(long expires) throws InterruptedException {
+    protected Message _nextUnmanaged(long timeout) throws InterruptedException {
 
         // timeout > 0 process as many messages we can in that time period
         // If we get a message that either manager handles, we try again, but
         // with a shorter timeout based on what we already used up
-        long timeLeft = expires;
-        long endTime = System.currentTimeMillis() + expires;
-        while (timeLeft > 0) {
-            Message msg = nextMessageInternal(Duration.ofMillis(Math.max(timeLeft, MIN_MILLIS)));
-            if (msg != null && !anyManaged(msg)) { // not null and not managed means JS Message
+        long start = System.currentTimeMillis();
+        while ( (System.currentTimeMillis() - start) < timeout) {
+            Message msg = nextMessageInternal( Duration.ofMillis(Math.max(MIN_MILLIS, timeout - (System.currentTimeMillis() - start))) );
+            if (msg == null) {
+                return null; // normal timeout
+            }
+            if (!anyManaged(msg)) { // not managed means JS Message
                 return msg;
             }
-            timeLeft = endTime - System.currentTimeMillis();
+            // managed so try again while we have time
         }
         return null;
-    }
-
-    protected List<Message> _nextUnmanaged(int batchSize, long expires) throws InterruptedException {
-        List<Message> messages = new ArrayList<>(batchSize);
-
-        // timeout > 0 process as many messages we can in that time period
-        // If we get a message that either manager handles, we try again, but
-        // with a shorter timeout based on what we already used up
-        long timeLeft = expires;
-        long endTime = System.currentTimeMillis() + expires;
-        while (timeLeft > 0 && messages.size() < batchSize) {
-            Message msg = nextMessageInternal(Duration.ofMillis(Math.max(timeLeft, MIN_MILLIS)));
-            if (msg != null && !anyManaged(msg)) { // not null and not managed means JS Message
-                messages.add(msg);
-            }
-            timeLeft = endTime - System.currentTimeMillis();
-        }
-        return messages;
     }
 
     boolean anyManaged(Message msg) {

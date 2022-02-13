@@ -18,6 +18,7 @@ import io.nats.client.support.JsonUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -124,10 +125,27 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         return _fetch(batchSize, maxWait, maxWait.toMillis());
     }
 
-    private List<Message> _fetch(int batchSize, Duration maxWait, Long maxWaitMillis) {
+    private List<Message> _fetch(int batchSize, Duration maxWait, long maxWaitMillis) {
         try {
             _pull(batchSize, false, maxWait);
-            return _nextUnmanaged(batchSize, maxWaitMillis);
+
+            List<Message> messages = new ArrayList<>(batchSize);
+
+            // timeout > 0 process as many messages we can in that time period
+            // If we get a message that either manager handles, we try again, but
+            // with a shorter timeout based on what we already used up
+            long start = System.currentTimeMillis();
+            while ((System.currentTimeMillis() - start) < maxWaitMillis && messages.size() < batchSize) {
+                Message msg = nextMessageInternal( Duration.ofMillis(Math.max(MIN_MILLIS, maxWaitMillis - (System.currentTimeMillis() - start))) );
+                if (msg == null) {
+                    return messages; // normal timeout
+                }
+                if (!anyManaged(msg)) { // not null and not managed means JS Message
+                    messages.add(msg);
+                }
+                // managed so try again while we have time
+            }
+            return messages;
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();

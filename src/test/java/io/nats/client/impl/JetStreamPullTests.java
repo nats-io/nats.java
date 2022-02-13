@@ -56,13 +56,12 @@ public class JetStreamPullTests extends JetStreamTestBase {
             List<Message> messages = sub.fetch(10, fetchDur);
             validateRead(0, messages.size());
             messages.forEach(Message::ack);
-            sleep(fetchMs * 2); // let the pull expire
+            sleep(ackWaitDur.toMillis()); // let the pull expire
 
             jsPublish(js, SUBJECT, "A", 10);
             messages = sub.fetch(10, fetchDur);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
-            if (true) return;
 
             jsPublish(js, SUBJECT, "B", 20);
             messages = sub.fetch(10, fetchDur);
