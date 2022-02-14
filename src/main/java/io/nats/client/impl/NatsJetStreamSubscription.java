@@ -21,7 +21,6 @@ import io.nats.client.support.NatsJetStreamConstants;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -37,24 +36,21 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     protected String stream;
     protected String consumerName;
 
-    protected List<MessageManager> managers;
+    protected MessageManager[] managers;
 
     NatsJetStreamSubscription(String sid, String subject, String queueName,
                               NatsConnection connection, NatsDispatcher dispatcher,
                               NatsJetStream js,
                               String stream, String consumer,
-                              MessageManager... managers) {
+                              MessageManager[] inManagers) {
         super(sid, subject, queueName, connection, dispatcher);
         this.js = js;
         this.stream = stream;
         this.consumerName = consumer;
 
-        this.managers = new ArrayList<>();
+        managers = inManagers;
         for (MessageManager mm : managers) {
-            if (mm != null) {
-                this.managers.add(mm);
-                mm.setSub(this);
-            }
+            mm.setSub(this);
         }
     }
 
@@ -70,7 +66,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return false;
     }
 
-    List<MessageManager> getManagers() { return managers; } // internal, for testing
+    MessageManager[] getManagers() { return managers; } // internal, for testing
 
     @Override
     void invalidate() {
@@ -117,8 +113,9 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         // If we get a message that either manager handles, we try again, but
         // with a shorter timeout based on what we already used up
         long start = System.currentTimeMillis();
-        while ( (System.currentTimeMillis() - start) < timeout) {
-            Message msg = nextMessageInternal( Duration.ofMillis(Math.max(MIN_MILLIS, timeout - (System.currentTimeMillis() - start))) );
+        long elapsed = 0;
+        while (elapsed < timeout) {
+            Message msg = nextMessageInternal( Duration.ofMillis(Math.max(MIN_MILLIS, timeout - elapsed)) );
             if (msg == null) {
                 return null; // normal timeout
             }
@@ -126,6 +123,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 return msg;
             }
             // managed so try again while we have time
+            elapsed = System.currentTimeMillis() - start;
         }
         return null;
     }

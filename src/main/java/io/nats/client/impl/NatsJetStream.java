@@ -383,21 +383,27 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
         }
         else {
-            final MessageManager sidCheckManager = so.isOrdered() ? new SidCheckManager() : null;
-
-            final MessageManager orderedManager = so.isOrdered()
-                ? new OrderedManager(this, dispatcher, fnlStream, fnlServerCC)
-                : null;
+            final MessageManager[] managers;
+            if (so.isOrdered()) {
+                managers = new MessageManager[3];
+                managers[0] = new SidCheckManager();
+                managers[1] = statusManager;
+                managers[2] = new OrderedManager(this, dispatcher, fnlStream, fnlServerCC);
+            }
+            else {
+                managers = new MessageManager[1];
+                managers[0] = statusManager;
+            }
 
             final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
                 -> new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,
-                this, fnlStream, fnlConsumerName, sidCheckManager, statusManager, orderedManager);
+                this, fnlStream, fnlConsumerName, managers);
 
             if (dispatcher == null) {
                 sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
             }
             else {
-                AsyncMessageHandler handler = new AsyncMessageHandler(userHandler, isAutoAck, fnlServerCC, sidCheckManager, statusManager, orderedManager);
+                AsyncMessageHandler handler = new AsyncMessageHandler(userHandler, isAutoAck, fnlServerCC, managers);
                 sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(fnlInboxDeliver, qgroup, handler, factory);
             }
         }

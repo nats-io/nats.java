@@ -32,7 +32,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                                   NatsJetStream js,
                                   String stream, String consumer,
                                   MessageManager statusManager) {
-        super(sid, subject, null, connection, null, js, stream, consumer, statusManager);
+        super(sid, subject, null, connection, null, js, stream, consumer, new MessageManager[] {statusManager});
     }
 
     @Override
@@ -135,8 +135,9 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
             // If we get a message that either manager handles, we try again, but
             // with a shorter timeout based on what we already used up
             long start = System.currentTimeMillis();
-            while ((System.currentTimeMillis() - start) < maxWaitMillis && messages.size() < batchSize) {
-                Message msg = nextMessageInternal( Duration.ofMillis(Math.max(MIN_MILLIS, maxWaitMillis - (System.currentTimeMillis() - start))) );
+            long elapsed = 0;
+            while (elapsed < maxWaitMillis && messages.size() < batchSize) {
+                Message msg = nextMessageInternal( Duration.ofMillis(Math.max(MIN_MILLIS, maxWaitMillis - elapsed)) );
                 if (msg == null) {
                     return messages; // normal timeout
                 }
@@ -144,6 +145,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                     messages.add(msg);
                 }
                 // managed so try again while we have time
+                elapsed = System.currentTimeMillis() - start;
             }
             return messages;
         }
