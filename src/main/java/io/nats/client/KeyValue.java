@@ -46,6 +46,19 @@ public interface KeyValue {
     KeyValueEntry get(String key) throws IOException, JetStreamApiException;
 
     /**
+     * Get the specific revision of an entry for a key.
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @param key the key
+     * @param revision the revision
+     * @return the KvEntry object or null if not found.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws IllegalArgumentException the server is not JetStream enabled
+     */
+    KeyValueEntry get(String key, long revision) throws IOException, JetStreamApiException;
+
+    /**
      * Put a byte[] as the value for a key
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key

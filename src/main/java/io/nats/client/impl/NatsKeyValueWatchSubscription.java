@@ -49,7 +49,7 @@ public class NatsKeyValueWatchSubscription implements AutoCloseable {
             endOfDataSent = new AtomicBoolean(true);
         }
         else {
-            KeyValueEntry kveCheckPending = kv.getLastMessage(keyPattern);
+            KeyValueEntry kveCheckPending = kv._kvGetLastMessage(keyPattern);
             if (kveCheckPending == null) {
                 watcher.endOfData();
                 endOfDataSent = new AtomicBoolean(true);

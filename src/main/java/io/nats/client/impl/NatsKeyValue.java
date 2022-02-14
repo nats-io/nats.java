@@ -84,18 +84,41 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public KeyValueEntry get(String key) throws IOException, JetStreamApiException {
-        return getLastMessage(validateNonWildcardKvKeyRequired(key));
+        return _kvGetLastMessage(validateNonWildcardKvKeyRequired(key));
     }
 
-    KeyValueEntry getLastMessage(String key) throws IOException, JetStreamApiException {
-        MessageInfo mi = jsm.getLastMessage(streamName, defaultKeySubject(key));
-        if (mi.hasError()) {
-            if (mi.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {
-                return null; // run of the mill key not found
-            }
-            mi.throwOnHasError();
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public KeyValueEntry get(String key, long revision) throws IOException, JetStreamApiException {
+        return _kvGetMessage(validateNonWildcardKvKeyRequired(key), revision);
+    }
+
+    KeyValueEntry _kvGetLastMessage(String key) throws IOException, JetStreamApiException {
+        try {
+            return new KeyValueEntry(jsm.getLastMessage(streamName, defaultKeySubject(key)));
         }
-        return new KeyValueEntry(mi);
+        catch (JetStreamApiException jsae) {
+            if (jsae.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {
+                return null;
+            }
+            throw jsae;
+        }
+    }
+
+    private KeyValueEntry _kvGetMessage(String key, long revision) throws IOException, JetStreamApiException {
+        try {
+            MessageInfo mi = jsm.getMessage(streamName, revision);
+            KeyValueEntry kve = new KeyValueEntry(mi);
+            return key.equals(kve.getKey()) ? kve : null;
+        }
+        catch (JetStreamApiException jsae) {
+            if (jsae.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {
+                return null;
+            }
+            throw jsae;
+        }
     }
 
     /**
@@ -127,13 +150,14 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public long create(String key, byte[] value) throws IOException, JetStreamApiException {
+        validateNonWildcardKvKeyRequired(key);
         try {
             return update(key, value, 0);
         }
         catch (JetStreamApiException e) {
             if (e.getApiErrorCode() == JS_WRONG_LAST_SEQUENCE) {
                 // must check if the last message for this subject is a delete or purge
-                KeyValueEntry kve = getLastMessage(key);
+                KeyValueEntry kve = _kvGetLastMessage(key);
                 if (kve != null && kve.getOperation() != KeyValueOperation.PUT) {
                     return update(key, value, kve.getRevision());
                 }
@@ -147,6 +171,7 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public long update(String key, byte[] value, long expectedRevision) throws IOException, JetStreamApiException {
+        validateNonWildcardKvKeyRequired(key);
         Headers h = new Headers().add(EXPECTED_LAST_SUB_SEQ_HDR, Long.toString(expectedRevision));
         return _publishWithNonWildcardKey(key, value, h).getSeqno();
     }
@@ -156,6 +181,7 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public void delete(String key) throws IOException, JetStreamApiException {
+        validateNonWildcardKvKeyRequired(key);
         _publishWithNonWildcardKey(key, null, DELETE_HEADERS);
     }
 
