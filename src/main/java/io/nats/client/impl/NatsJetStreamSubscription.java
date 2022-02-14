@@ -112,8 +112,8 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         // timeout > 0 process as many messages we can in that time period
         // If we get a message that either manager handles, we try again, but
         // with a shorter timeout based on what we already used up
-        long start = System.currentTimeMillis();
         long elapsed = 0;
+        long start = System.currentTimeMillis();
         while (elapsed < timeout) {
             Message msg = nextMessageInternal( Duration.ofMillis(Math.max(MIN_MILLIS, timeout - elapsed)) );
             if (msg == null) {
