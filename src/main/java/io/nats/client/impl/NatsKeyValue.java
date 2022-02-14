@@ -109,8 +109,7 @@ public class NatsKeyValue implements KeyValue {
 
     private KeyValueEntry _kvGetMessage(String key, long revision) throws IOException, JetStreamApiException {
         try {
-            MessageInfo mi = jsm.getMessage(streamName, revision);
-            KeyValueEntry kve = new KeyValueEntry(mi);
+            KeyValueEntry kve = new KeyValueEntry(jsm.getMessage(streamName, revision));
             return key.equals(kve.getKey()) ? kve : null;
         }
         catch (JetStreamApiException jsae) {
