@@ -247,7 +247,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
             userCC = so.getConsumerConfiguration();
 
-            validateNotSupplied(userCC.getMaxPullWaiting(), ConsumerConfiguration.CcNumeric.MAX_PULL_WAITING.initial(), JsSubPushCantHaveMaxPullWaiting);
+            validateNotSupplied(userCC.getMaxPullWaiting(), ConsumerConfiguration.CcChangeHelper.MAX_PULL_WAITING.initial(), JsSubPushCantHaveMaxPullWaiting);
 
             // figure out the queue name
             qgroup = validateMustMatchIfBothSupplied(userCC.getDeliverGroup(), queueName, JsSubQueueDeliverGroupMismatch);
@@ -419,15 +419,19 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 || (flowControl != null && flowControl != serverCcc.isFlowControl())
                 || (headersOnly != null && headersOnly != serverCcc.isHeadersOnly())
 
-                || CcNumeric.START_SEQ.wouldBeChange(startSeq, serverCcc.startSeq)
-                || CcNumeric.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.maxDeliver)
-                || CcNumeric.RATE_LIMIT.wouldBeChange(rateLimit, serverCcc.rateLimit)
-                || CcNumeric.MAX_ACK_PENDING.wouldBeChange(maxAckPending, serverCcc.maxAckPending)
-                || CcNumeric.MAX_PULL_WAITING.wouldBeChange(maxPullWaiting, serverCcc.maxPullWaiting)
+                || CcChangeHelper.START_SEQ.wouldBeChange(startSeq, serverCcc.startSeq)
+                || CcChangeHelper.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.maxDeliver)
+                || CcChangeHelper.RATE_LIMIT.wouldBeChange(rateLimit, serverCcc.rateLimit)
+                || CcChangeHelper.MAX_ACK_PENDING.wouldBeChange(maxAckPending, serverCcc.maxAckPending)
+                || CcChangeHelper.MAX_PULL_WAITING.wouldBeChange(maxPullWaiting, serverCcc.maxPullWaiting)
+                || CcChangeHelper.MAX_BATCH.wouldBeChange(maxBatch, serverCcc.maxBatch)
 
-                || (ackWait != null && !ackWait.equals(serverCcc.ackWait))
+                || CcChangeHelper.ACK_WAIT.wouldBeChange(ackWait, serverCcc.ackWait)
+
                 || (idleHeartbeat != null && !idleHeartbeat.equals(serverCcc.idleHeartbeat))
                 || (startTime != null && !startTime.equals(serverCcc.startTime))
+                || (maxExpires != null && !maxExpires.equals(serverCcc.maxExpires))
+                || (inactiveThreshold != null && !inactiveThreshold.equals(serverCcc.inactiveThreshold))
 
                 || (filterSubject != null && !filterSubject.equals(serverCcc.filterSubject))
                 || (description != null && !description.equals(serverCcc.description))

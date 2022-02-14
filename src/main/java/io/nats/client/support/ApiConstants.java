@@ -65,6 +65,7 @@ public interface ApiConstants {
     String HEADERS_ONLY      = "headers_only";
     String HOST              = "host";
     String IDLE_HEARTBEAT    = "idle_heartbeat";
+    String INACTIVE_THRESHOLD= "inactive_threshold";
     String JETSTREAM         = "jetstream";
     String KEEP              = "keep";
     String LAG               = "lag";
@@ -76,9 +77,11 @@ public interface ApiConstants {
     String LIMIT             = "limit";
     String MAX_ACK_PENDING   = "max_ack_pending";
     String MAX_AGE           = "max_age";
+    String MAX_BATCH         = "max_batch";
     String MAX_BYTES         = "max_bytes";
     String MAX_CONSUMERS     = "max_consumers";
     String MAX_DELIVER       = "max_deliver";
+    String MAX_EXPIRES       = "max_expires";
     String MAX_MEMORY        = "max_memory";
     String MAX_MSG_SIZE      = "max_msg_size";
     String MAX_MSGS          = "max_msgs";
@@ -176,6 +179,7 @@ public interface ApiConstants {
     Pattern HEADERS_ONLY_RE       = boolean_pattern(HEADERS_ONLY);
     Pattern HOST_RE               = string_pattern(HOST);
     Pattern IDLE_HEARTBEAT_RE     = integer_pattern(IDLE_HEARTBEAT);
+    Pattern INACTIVE_THRESHOLD_RE = integer_pattern(INACTIVE_THRESHOLD);
     Pattern JET_STREAM_RE         = boolean_pattern(JETSTREAM);
     Pattern LAG_RE                = integer_pattern(LAG);
     Pattern LAME_DUCK_MODE_RE     = boolean_pattern(LAME_DUCK_MODE);
@@ -185,9 +189,11 @@ public interface ApiConstants {
     Pattern LIMIT_RE              = integer_pattern(LIMIT);
     Pattern MAX_ACK_PENDING_RE    = integer_pattern(MAX_ACK_PENDING);
     Pattern MAX_AGE_RE            = integer_pattern(MAX_AGE);
+    Pattern MAX_BATCH_RE          = integer_pattern(MAX_BATCH);
     Pattern MAX_BYTES_RE          = integer_pattern(MAX_BYTES);
     Pattern MAX_CONSUMERS_RE      = integer_pattern(MAX_CONSUMERS);
     Pattern MAX_DELIVER_RE        = integer_pattern(MAX_DELIVER);
+    Pattern MAX_EXPIRES_RE        = integer_pattern(MAX_EXPIRES);
     Pattern MAX_MEMORY_RE         = integer_pattern(MAX_MEMORY);
     Pattern MAX_MSG_SIZE_RE       = integer_pattern(MAX_MSG_SIZE);
     Pattern MAX_MSGS_RE           = integer_pattern(MAX_MSGS);
