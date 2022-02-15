@@ -19,7 +19,6 @@ import io.nats.client.support.JsonUtils;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -163,12 +162,11 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                 // managed so try again while we have time
                 timeLeft = maxWaitMillis - (System.currentTimeMillis() - start);
             }
-            return messages;
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return messages == null ? Collections.emptyList() : messages;
         }
+        return messages;
     }
 
     private List<Message> drainAlreadyBuffered(int batchSize) {
