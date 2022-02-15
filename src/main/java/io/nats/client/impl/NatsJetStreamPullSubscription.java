@@ -133,17 +133,20 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     }
 
     private List<Message> _fetch(int batchSize, long maxWaitMillis) {
-        List<Message> messages = null;
+        List<Message> messages = drainAlreadyBuffered(batchSize);
+
+        int batchLeft = batchSize - messages.size();
+        if (batchLeft == 0) {
+            return messages;
+        }
+
         try {
             long start = System.currentTimeMillis();
 
-            messages = drainAlreadyBuffered(batchSize);
-            int batchLeft = batchSize - messages.size();
-            if (batchLeft == 0) {
-                return messages;
-            }
-
-            Duration expires = Duration.ofMillis(maxWaitMillis > MIN_MILLIS ? maxWaitMillis - EXPIRE_LESS_MILLIS : maxWaitMillis);
+            Duration expires = Duration.ofMillis(
+                maxWaitMillis > MIN_MILLIS
+                    ? maxWaitMillis - EXPIRE_LESS_MILLIS
+                    : maxWaitMillis);
             _pull(batchLeft, false, expires);
 
             // timeout > 0 process as many messages we can in that time period
@@ -159,7 +162,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                     messages.add(msg);
                     batchLeft--;
                 }
-                // managed so try again while we have time
+                // try again while we have time
                 timeLeft = maxWaitMillis - (System.currentTimeMillis() - start);
             }
         }
