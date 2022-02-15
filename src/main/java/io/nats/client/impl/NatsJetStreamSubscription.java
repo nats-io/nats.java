@@ -105,7 +105,8 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return msg;
     }
 
-    protected static final long MIN_MILLIS = 100;
+    protected static final long MIN_MILLIS = 20;
+    protected static final long EXPIRE_LESS_MILLIS = 10;
 
     protected Message _nextUnmanaged(long timeout) throws InterruptedException {
 
