@@ -134,10 +134,11 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     }
 
     private List<Message> _fetch(int batchSize, long maxWaitMillis) {
+        List<Message> messages = null;
         try {
             long start = System.currentTimeMillis();
 
-            List<Message> messages = drainAlreadyBuffered(batchSize);
+            messages = drainAlreadyBuffered(batchSize);
             int batchLeft = batchSize - messages.size();
             if (batchLeft == 0) {
                 return messages;
@@ -166,7 +167,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return Collections.emptyList();
+            return messages == null ? Collections.emptyList() : messages;
         }
     }
 
