@@ -1003,6 +1003,9 @@ public class KeyValueTests extends JetStreamTestBase {
         assertNotEquals(bak1, bak4);
         assertNotEquals(bak3, bak1);
         assertNotEquals(bak4, bak1);
+
+        assertFalse(bak4.equals(null));
+        assertFalse(bak4.equals(new Object()));
     }
 
     @Test
@@ -1032,12 +1035,17 @@ public class KeyValueTests extends JetStreamTestBase {
             KeyValueEntry kve1_2 = kv1.get(key(2));
             KeyValueEntry kve2_1 = kv2.get(key(1));
 
+            assertEquals(kve1_1, kve1_1);
             assertEquals(kve1_1, kv1.get(key(1)));
             assertNotEquals(kve1_1, kve1_2);
             assertNotEquals(kve1_1, kve2_1);
 
             kv1.put(key(1), "ONE-PRIME");
             assertNotEquals(kve1_1, kv1.get(key(1)));
+
+            // coverage
+            assertFalse(kve1_1.equals(null));
+            assertFalse(kve1_1.equals(new Object()));
         });
     }
 }
