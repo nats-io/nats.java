@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static io.nats.client.api.KeyValueWatchOption.*;
+import static io.nats.client.support.NatsConstants.DOT;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class KeyValueTests extends JetStreamTestBase {
@@ -50,34 +51,20 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // create the bucket
             KeyValueConfiguration kvc = KeyValueConfiguration.builder()
-                    .name(BUCKET)
-                    .maxHistoryPerKey(3)
-                    .storageType(StorageType.Memory)
-                    .build();
+                .name(BUCKET)
+                .description(PLAIN)
+                .maxHistoryPerKey(3)
+                .storageType(StorageType.Memory)
+                .build();
 
             KeyValueStatus status = kvm.create(kvc);
-
-            kvc = status.getConfiguration();
-            assertEquals(BUCKET, status.getBucketName());
-            assertEquals(BUCKET, kvc.getBucketName());
-            assertEquals(NatsKeyValueUtil.toStreamName(BUCKET), kvc.getBackingConfig().getName());
-            assertEquals(3, status.getMaxHistoryPerKey());
-            assertEquals(3, kvc.getMaxHistoryPerKey());
-            assertEquals(-1, status.getMaxBucketSize());
-            assertEquals(-1, kvc.getMaxBucketSize());
-            assertEquals(-1, status.getMaxValueSize());
-            assertEquals(-1, kvc.getMaxValueSize());
-            assertEquals(Duration.ZERO, status.getTtl());
-            assertEquals(Duration.ZERO, kvc.getTtl());
-            assertEquals(StorageType.Memory, status.getStorageType());
-            assertEquals(StorageType.Memory, kvc.getStorageType());
-            assertEquals(1, status.getReplicas());
-            assertEquals(1, kvc.getReplicas());
-            assertEquals(0, status.getEntryCount());
-            assertEquals("JetStream", status.getBackingStore());
+            assertStatus(status);
 
             // get the kv context for the specific bucket
             KeyValue kv = nc.keyValue(BUCKET);
+            assertEquals(BUCKET, kv.getBucketName());
+            status = kv.getStatus();
+            assertStatus(status);
 
             // Put some keys. Each key is put in a subject in the bucket (stream)
             // The put returns the sequence number in the bucket (stream)
@@ -301,12 +288,39 @@ public class KeyValueTests extends JetStreamTestBase {
         });
     }
 
+    private void assertStatus(KeyValueStatus status) {
+        KeyValueConfiguration kvc;
+        kvc = status.getConfiguration();
+        assertEquals(BUCKET, status.getBucketName());
+        assertEquals(BUCKET, kvc.getBucketName());
+        assertEquals(PLAIN, status.getDescription());
+        assertEquals(PLAIN, kvc.getDescription());
+        assertEquals(NatsKeyValueUtil.toStreamName(BUCKET), kvc.getBackingConfig().getName());
+        assertEquals(3, status.getMaxHistoryPerKey());
+        assertEquals(3, kvc.getMaxHistoryPerKey());
+        assertEquals(-1, status.getMaxBucketSize());
+        assertEquals(-1, kvc.getMaxBucketSize());
+        assertEquals(-1, status.getMaxValueSize());
+        assertEquals(-1, kvc.getMaxValueSize());
+        assertEquals(Duration.ZERO, status.getTtl());
+        assertEquals(Duration.ZERO, kvc.getTtl());
+        assertEquals(StorageType.Memory, status.getStorageType());
+        assertEquals(StorageType.Memory, kvc.getStorageType());
+        assertEquals(1, status.getReplicas());
+        assertEquals(1, kvc.getReplicas());
+        assertEquals(0, status.getEntryCount());
+        assertEquals("JetStream", status.getBackingStore());
+
+        assertTrue(status.toString().contains(BUCKET));
+        assertTrue(status.toString().contains(PLAIN));
+    }
+
     @Test
     public void testKeys() throws Exception {
         runInJsServer(nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
 
-            // create bucket 1
+            // create bucket
             kvm.create(KeyValueConfiguration.builder()
                 .name(BUCKET)
                 .storageType(StorageType.Memory)
@@ -810,8 +824,8 @@ public class KeyValueTests extends JetStreamTestBase {
     static final String BUCKET_CREATED_BY_USER_A = "bucketA";
     static final String BUCKET_CREATED_BY_USER_I = "bucketI";
 
-    // TODO Implement https://github.com/nats-io/nats-architecture-and-design/issues/95
-    // @Test
+    // TODO Revisit after https://github.com/nats-io/nats-architecture-and-design/issues/95
+    @Test
     public void testWithAccount() throws Exception {
 
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/kv_account.conf", false)) {
@@ -826,10 +840,16 @@ public class KeyValueTests extends JetStreamTestBase {
                     .jetStreamOptions(JetStreamOptions.builder().prefix("jsFromA").build())
                     .build();
 
+                assertEquals("iBucketA.", jsOpt_UserI_BucketA_WithPrefix.getFeaturePrefix());
+                assertNotNull(jsOpt_UserI_BucketA_WithPrefix.getJetStreamOptions());
+
                 KeyValueOptions jsOpt_UserI_BucketI_WithPrefix = KeyValueOptions.builder()
                     .featurePrefix("iBucketI")
                     .jetStreamOptions(JetStreamOptions.builder().prefix("jsFromA").build())
                     .build();
+
+                assertEquals("iBucketI.", jsOpt_UserI_BucketI_WithPrefix.getFeaturePrefix());
+                assertNotNull(jsOpt_UserI_BucketI_WithPrefix.getJetStreamOptions());
 
                 KeyValueManagement kvmUserA = connUserA.keyValueManagement();
                 KeyValueManagement kvmUserIBcktA = connUserI.keyValueManagement(jsOpt_UserI_BucketA_WithPrefix);
@@ -965,5 +985,59 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(kveUserA, kveUserI);
         assertEquals(data, kveUserA.getValueAsString());
         assertEquals(KeyValueOperation.PUT, kveUserA.getOperation());
+    }
+
+    @Test
+    public void testCoverBucketAndKey() {
+        NatsKeyValueUtil.BucketAndKey bak1 = new NatsKeyValueUtil.BucketAndKey(DOT + BUCKET + DOT + KEY);
+        NatsKeyValueUtil.BucketAndKey bak2 = new NatsKeyValueUtil.BucketAndKey(DOT + BUCKET + DOT + KEY);
+        NatsKeyValueUtil.BucketAndKey bak3 = new NatsKeyValueUtil.BucketAndKey(DOT + bucket(1) + DOT + KEY);
+        NatsKeyValueUtil.BucketAndKey bak4 = new NatsKeyValueUtil.BucketAndKey(DOT + BUCKET + DOT + key(1));
+
+        assertEquals(BUCKET, bak1.bucket);
+        assertEquals(KEY, bak1.key);
+        assertEquals(bak1, bak1);
+        assertEquals(bak1, bak2);
+        assertEquals(bak2, bak1);
+        assertNotEquals(bak1, bak3);
+        assertNotEquals(bak1, bak4);
+        assertNotEquals(bak3, bak1);
+        assertNotEquals(bak4, bak1);
+    }
+
+    @Test
+    public void testKeyValueEntryEqualsImpl() throws Exception {
+        runInJsServer(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            // create bucket 1
+            kvm.create(KeyValueConfiguration.builder()
+                .name(bucket(1))
+                .storageType(StorageType.Memory)
+                .build());
+
+            // create bucket 2
+            kvm.create(KeyValueConfiguration.builder()
+                .name(bucket(2))
+                .storageType(StorageType.Memory)
+                .build());
+
+            KeyValue kv1 = nc.keyValue(bucket(1));
+            KeyValue kv2 = nc.keyValue(bucket(2));
+            kv1.put(key(1), "ONE");
+            kv1.put(key(2), "TWO");
+            kv2.put(key(1), "ONE");
+
+            KeyValueEntry kve1_1 = kv1.get(key(1));
+            KeyValueEntry kve1_2 = kv1.get(key(2));
+            KeyValueEntry kve2_1 = kv2.get(key(1));
+
+            assertEquals(kve1_1, kv1.get(key(1)));
+            assertNotEquals(kve1_1, kve1_2);
+            assertNotEquals(kve1_1, kve2_1);
+
+            kv1.put(key(1), "ONE-PRIME");
+            assertNotEquals(kve1_1, kv1.get(key(1)));
+        });
     }
 }

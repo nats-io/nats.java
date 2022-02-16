@@ -75,10 +75,6 @@ public class NatsKeyValue implements KeyValue {
         return streamName;
     }
 
-    String getStreamSubject() {
-        return streamSubject;
-    }
-
     /**
      * {@inheritDoc}
      */
@@ -134,6 +130,7 @@ public class NatsKeyValue implements KeyValue {
             if (e.getApiErrorCode() == JS_WRONG_LAST_SEQUENCE) {
                 // must check if the last message for this subject is a delete or purge
                 KeyValueEntry kve = getLastMessage(key);
+                System.out.println(e + " kve: " + kve);
                 if (kve != null && kve.getOperation() != KeyValueOperation.PUT) {
                     return update(key, value, kve.getRevision());
                 }
