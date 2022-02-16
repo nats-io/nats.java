@@ -28,7 +28,7 @@ public class ServerInfoTests {
         String encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(nonce);
         byte[] ascii = encoded.getBytes(StandardCharsets.US_ASCII);
 
-        String json = ResourceUtils.dataAsString("ServerInfoJson.txt").replace("<encoded>", encoded);
+        String json = ResourceUtils.dataAsString("ServerInfoJson.txt");
 
         ServerInfo info = new ServerInfo(json);
         assertEquals("serverId", info.getServerId());
