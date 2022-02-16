@@ -13,7 +13,7 @@
 
 package io.nats.client.api;
 
-import io.nats.client.api.ConsumerConfiguration.CcNumeric;
+import io.nats.client.api.ConsumerConfiguration.CcChangeHelper;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
@@ -47,6 +47,9 @@ public class ConsumerConfigurationTests extends TestBase {
             .deliverSubject(DELIVER)
             .flowControl(66000) // duration
             .maxPullWaiting(73)
+            .maxBatch(55)
+            .maxExpires(77000) // duration
+            .inactiveThreshold(88000) // duration
             .headersOnly(true)
             .build();
 
@@ -115,14 +118,13 @@ public class ConsumerConfigurationTests extends TestBase {
         assertFalse(cc.maxPullWaitingWasSet());
         assertFalse(cc.flowControlWasSet());
         assertFalse(cc.headersOnlyWasSet());
+        assertFalse(cc.maxBatchWasSet());
     }
 
     private void assertAsBuilt(ConsumerConfiguration c, ZonedDateTime zdt) {
         assertEquals(AckPolicy.Explicit, c.getAckPolicy());
         assertEquals(Duration.ofSeconds(99), c.getAckWait());
-        assertEquals(Duration.ofSeconds(66), c.getIdleHeartbeat());
         assertEquals(DeliverPolicy.ByStartSequence, c.getDeliverPolicy());
-        assertEquals(DELIVER, c.getDeliverSubject());
         assertEquals("blah", c.getDescription());
         assertEquals(DURABLE, c.getDurable());
         assertEquals("fs", c.getFilterSubject());
@@ -130,10 +132,16 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(6666, c.getMaxAckPending());
         assertEquals(4242, c.getRateLimit());
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
+        assertEquals("10s", c.getSampleFrequency());
         assertEquals(2001, c.getStartSequence());
         assertEquals(zdt, c.getStartTime());
-        assertEquals(73, c.getMaxPullWaiting());
+        assertEquals(DELIVER, c.getDeliverSubject());
         assertTrue(c.isFlowControl());
+        assertEquals(Duration.ofSeconds(66), c.getIdleHeartbeat());
+        assertEquals(73, c.getMaxPullWaiting());
+        assertEquals(55, c.getMaxBatch());
+        assertEquals(Duration.ofSeconds(77), c.getMaxExpires());
+        assertEquals(Duration.ofSeconds(88), c.getInactiveThreshold());
         assertTrue(c.isHeadersOnly());
         assertTrue(c.deliverPolicyWasSet());
         assertTrue(c.ackPolicyWasSet());
@@ -145,6 +153,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertTrue(c.maxPullWaitingWasSet());
         assertTrue(c.flowControlWasSet());
         assertTrue(c.headersOnlyWasSet());
+        assertTrue(c.maxBatchWasSet());
     }
 
     @Test
@@ -170,6 +179,9 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(128, c.getMaxPullWaiting());
         assertTrue(c.isHeadersOnly());
         assertEquals(99, c.getStartSequence());
+        assertEquals(55, c.getMaxBatch());
+        assertEquals(Duration.ofSeconds(40), c.getMaxExpires());
+        assertEquals(Duration.ofSeconds(50), c.getInactiveThreshold());
 
         assertDefaultCc(new ConsumerConfiguration("{}"));
     }
@@ -194,10 +206,10 @@ public class ConsumerConfigurationTests extends TestBase {
         assertFalse(c.isFlowControl());
         assertFalse(c.isHeadersOnly());
 
-        assertEquals(CcNumeric.START_SEQ.initial(), c.getStartSequence());
-        assertEquals(CcNumeric.MAX_DELIVER.initial(), c.getMaxDeliver());
-        assertEquals(CcNumeric.RATE_LIMIT.initial(), c.getRateLimit());
-        assertEquals(CcNumeric.MAX_ACK_PENDING.initial(), c.getMaxAckPending());
-        assertEquals(CcNumeric.MAX_PULL_WAITING.initial(), c.getMaxPullWaiting());
+        assertEquals(CcChangeHelper.START_SEQ.initial(), c.getStartSequence());
+        assertEquals(CcChangeHelper.MAX_DELIVER.initial(), c.getMaxDeliver());
+        assertEquals(CcChangeHelper.RATE_LIMIT.initial(), c.getRateLimit());
+        assertEquals(CcChangeHelper.MAX_ACK_PENDING.initial(), c.getMaxAckPending());
+        assertEquals(CcChangeHelper.MAX_PULL_WAITING.initial(), c.getMaxPullWaiting());
     }
 }
