@@ -15,11 +15,13 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -212,16 +214,53 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public void purgeDeletes()  throws IOException, JetStreamApiException, InterruptedException {
-        List<String> list = new ArrayList<>();
+        purgeDeletes(null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void purgeDeletes(KeyValuePurgeOptions options) throws IOException, JetStreamApiException, InterruptedException {
+        long dmThresh = options == null
+            ? KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS
+            : options.getDeleteMarkersThresholdMillis();
+
+        ZonedDateTime limit;
+        if (dmThresh < 0) {
+            limit = DateTimeUtils.fromNow(600000); // long enough in the future to clear all
+        }
+        else if (dmThresh == 0) {
+            limit = DateTimeUtils.fromNow(KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS);
+        }
+        else {
+            limit = DateTimeUtils.fromNow(-dmThresh);
+        }
+
+        List<String> keep0List = new ArrayList<>();
+        List<String> keep1List = new ArrayList<>();
         visitSubject(streamSubject, DeliverPolicy.LastPerSubject, true, false, m -> {
-            KeyValueOperation op = getOperation(m.getHeaders());
-            if (op != KeyValueOperation.PUT) {
-                list.add(new BucketAndKey(m).key);
+            KeyValueEntry kve = new KeyValueEntry(m);
+            if (kve.getOperation() != KeyValueOperation.PUT) {
+                if (kve.getCreated().isAfter(limit)) {
+                    keep1List.add(new BucketAndKey(m).key);
+                }
+                else {
+                    keep0List.add(new BucketAndKey(m).key);
+                }
             }
         });
 
-        for (String key : list) {
+        for (String key : keep0List) {
             jsm.purgeStream(streamName, PurgeOptions.subject(defaultKeySubject(key)));
+        }
+
+        for (String key : keep1List) {
+            PurgeOptions po = PurgeOptions.builder()
+                .subject(defaultKeySubject(key))
+                .keep(1)
+                .build();
+            jsm.purgeStream(streamName, po);
         }
     }
 

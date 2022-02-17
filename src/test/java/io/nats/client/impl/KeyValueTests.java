@@ -436,37 +436,36 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.purge(key(4));
 
             JetStream js = nc.jetStream();
+            assertPurgeDeleteEntries(js, new String[]{"a", null, "b", "c", null});
 
-            JetStreamSubscription sub = js.subscribe(NatsKeyValueUtil.toStreamSubject(BUCKET));
-
-            Message m = sub.nextMessage(1000);
-            assertEquals("a", new String(m.getData()));
-
-            m = sub.nextMessage(1000);
-            assertEquals(0, m.getData().length);
-
-            m = sub.nextMessage(1000);
-            assertEquals("b", new String(m.getData()));
-
-            m = sub.nextMessage(1000);
-            assertEquals("c", new String(m.getData()));
-
-            m = sub.nextMessage(1000);
-            assertEquals(0, m.getData().length);
-
-            sub.unsubscribe();
-
+            // default purge deletes uses the default threshold of 30 minutes
+            // so no markers will be deleted
             kv.purgeDeletes();
-            sub = js.subscribe(NatsKeyValueUtil.toStreamSubject(BUCKET));
+            assertPurgeDeleteEntries(js, new String[]{null, "b", "c", null});
 
-            m = sub.nextMessage(1000);
-            assertEquals("b", new String(m.getData()));
-
-            m = sub.nextMessage(1000);
-            assertEquals("c", new String(m.getData()));
-
-            sub.unsubscribe();
+            // no threshold causes all to be removed
+            kv.purgeDeletes(KeyValuePurgeOptions.builder().deleteMarkersNoThreshold().build());
+            assertPurgeDeleteEntries(js, new String[]{"b", "c"});
         });
+    }
+
+    private void assertPurgeDeleteEntries(JetStream js, String[] expected) throws IOException, JetStreamApiException, InterruptedException {
+        JetStreamSubscription sub = js.subscribe(NatsKeyValueUtil.toStreamSubject(BUCKET));
+
+        for (String s : expected) {
+            Message m = sub.nextMessage(1000);
+            KeyValueEntry kve = new KeyValueEntry(m);
+            if (s == null) {
+                assertNotEquals(KeyValueOperation.PUT, kve.getOperation());
+                assertEquals(0, kve.getDataLen());
+            }
+            else {
+                assertEquals(KeyValueOperation.PUT, kve.getOperation());
+                assertEquals(s, kve.getValueAsString());
+            }
+        }
+
+        sub.unsubscribe();
     }
 
     @Test
