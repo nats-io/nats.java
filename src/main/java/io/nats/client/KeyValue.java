@@ -180,7 +180,8 @@ public interface KeyValue {
     List<KeyValueEntry> history(String key) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
-     * Remove history from all keys that currently are deleted or purged.
+     * Remove history from all keys that currently are deleted or purged
+     * with using a default KeyValuePurgeOptions
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption

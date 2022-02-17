@@ -53,10 +53,9 @@ public class KeyValuePurgeOptions {
 
         /**
          * Set the delete marker threshold.
-         * Null or duration of 0 will assume the default threshold
-         * {@link #DEFAULT_THRESHOLD_MILLIS}
+         * Null or duration of 0 will assume the default threshold {@link #DEFAULT_THRESHOLD_MILLIS}
          * Duration less than zero will assume no threshold and will not keep any markers.
-         * @param deleteMarkersThreshold the threshold duration
+         * @param deleteMarkersThreshold the threshold duration or null
          * @return The builder
          */
         public Builder deleteMarkersThreshold(Duration deleteMarkersThreshold) {
@@ -66,9 +65,9 @@ public class KeyValuePurgeOptions {
         }
 
         /**
-         * Set the delete marker threshold. Null or duration of 0 will assume the default threshold
-         * {@link #DEFAULT_THRESHOLD_MILLIS}
-         * Duration less than zero will assume no threshold and will not keep any markers.
+         * Set the delete marker threshold.
+         * 0 will assume the default threshold {@link #DEFAULT_THRESHOLD_MILLIS}
+         * Less than zero will assume no threshold and will not keep any markers.
          * @param deleteMarkersThresholdMillis the threshold millis
          * @return The builder
          */
@@ -78,9 +77,7 @@ public class KeyValuePurgeOptions {
         }
 
         /**
-         * Set the delete marker threshold. Null or duration of 0 will assume the default threshold
-         * {@link #DEFAULT_THRESHOLD_MILLIS}
-         * Duration less than zero will assume no threshold adn wil not keep any markers.
+         * Set the delete marker threshold to -1 so as to not keep any markers
          * @return The builder
          */
         public Builder deleteMarkersNoThreshold() {

@@ -240,7 +240,8 @@ public class KeyValueTests extends JetStreamTestBase {
             assertKeys(kv.keys());
 
             // clear things
-            kv.purgeDeletes();
+            KeyValuePurgeOptions kvpo = KeyValuePurgeOptions.builder().deleteMarkersNoThreshold().build();
+            kv.purgeDeletes(kvpo);
             status = kvm.getBucketInfo(BUCKET);
             assertEquals(0, status.getEntryCount()); // purges are all gone
             assertEquals(12, status.getBackingStreamInfo().getStreamState().getLastSequence());
