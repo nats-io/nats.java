@@ -824,31 +824,24 @@ public class KeyValueTests extends JetStreamTestBase {
     static final String BUCKET_CREATED_BY_USER_A = "bucketA";
     static final String BUCKET_CREATED_BY_USER_I = "bucketI";
 
-    // TODO Revisit after https://github.com/nats-io/nats-architecture-and-design/issues/95
     @Test
     public void testWithAccount() throws Exception {
 
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/kv_account.conf", false)) {
             Options acctA = new Options.Builder().server(ts.getURI()).userInfo("a", "a").build();
-            Options acctI = new Options.Builder().server(ts.getURI()).userInfo("i", "i").inboxPrefix("forI").build();
+            Options acctI = new Options.Builder().server(ts.getURI()).userInfo("i", "i").inboxPrefix("ForI").build();
 
             try (Connection connUserA = Nats.connect(acctA); Connection connUserI = Nats.connect(acctI) ) {
 
                 // some prep
-                KeyValueOptions jsOpt_UserI_BucketA_WithPrefix = KeyValueOptions.builder()
-                    .featurePrefix("iBucketA")
-                    .jetStreamOptions(JetStreamOptions.builder().prefix("jsFromA").build())
-                    .build();
+                KeyValueOptions jsOpt_UserI_BucketA_WithPrefix =
+                    KeyValueOptions.builder().jsPrefix("FromA").build();
 
-                assertEquals("iBucketA.", jsOpt_UserI_BucketA_WithPrefix.getFeaturePrefix());
                 assertNotNull(jsOpt_UserI_BucketA_WithPrefix.getJetStreamOptions());
 
-                KeyValueOptions jsOpt_UserI_BucketI_WithPrefix = KeyValueOptions.builder()
-                    .featurePrefix("iBucketI")
-                    .jetStreamOptions(JetStreamOptions.builder().prefix("jsFromA").build())
-                    .build();
+                KeyValueOptions jsOpt_UserI_BucketI_WithPrefix =
+                    KeyValueOptions.builder().jsPrefix("FromA").build();
 
-                assertEquals("iBucketI.", jsOpt_UserI_BucketI_WithPrefix.getFeaturePrefix());
                 assertNotNull(jsOpt_UserI_BucketI_WithPrefix.getJetStreamOptions());
 
                 KeyValueManagement kvmUserA = connUserA.keyValueManagement();
