@@ -61,7 +61,7 @@ public class KeyValueOptions {
         private JetStreamOptions.Builder jsoBuilder;
 
         public Builder() {
-            jsoBuilder = new JetStreamOptions.Builder();
+            this(null);
         }
 
         public Builder(KeyValueOptions kvo) {
