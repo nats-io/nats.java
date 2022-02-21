@@ -75,6 +75,17 @@ public interface JetStreamManagement {
     StreamInfo getStreamInfo(String streamName) throws IOException, JetStreamApiException;
 
     /**
+     * Gets the info for an existing stream, and include subject info.
+     * @param streamName the stream name to use.
+     * @param subjectFilter the subject filter to use. Can be wildcard. Null is equivalent to all subjects, the same as '>'
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @return stream information
+     */
+    StreamInfo getStreamInfo(String streamName, String subjectFilter) throws IOException, JetStreamApiException;
+
+    /**
      * Purge stream messages
      * @param streamName the stream name to use.
      * @return PurgeResponse the purge response

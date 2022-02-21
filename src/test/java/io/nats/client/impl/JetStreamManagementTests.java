@@ -236,9 +236,34 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             assertThrows(JetStreamApiException.class, () -> jsm.getStreamInfo(STREAM));
-            createDefaultTestStream(jsm);
+
+            String[] subjects = new String[5];
+            for (int x = 0; x < 5; x++) {
+                subjects[x] = subject(x);
+            }
+            createMemoryStream(jsm, STREAM, subjects);
+
+            JetStream js = nc.jetStream();
+            for (int x = 0; x < 5; x++) {
+                jsPublish(js, subject(x), x + 1);
+            }
+
             StreamInfo si = jsm.getStreamInfo(STREAM);
             assertEquals(STREAM, si.getConfiguration().getName());
+            assertEquals(5, si.getStreamState().getSubjectCount());
+            assertNull(si.getStreamState().getSubjects());
+
+            si = jsm.getStreamInfo(STREAM, null);
+            assertEquals(STREAM, si.getConfiguration().getName());
+            assertEquals(5, si.getStreamState().getSubjectCount());
+            List<Subject> list = si.getStreamState().getSubjects();
+            assertNotNull(list);
+            assertEquals(5, list.size());
+            for (int x = 0; x < 5; x++) {
+                Subject s = list.get(x);
+                assertEquals(subject(x), s.getName());
+                assertEquals(x + 1, s.getCount());
+            }
         });
     }
 

@@ -16,6 +16,7 @@ package io.nats.client.api;
 import io.nats.client.support.JsonUtils;
 
 import java.time.ZonedDateTime;
+import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
 
@@ -25,8 +26,10 @@ public class StreamState {
     private final long firstSeq;
     private final long lastSeq;
     private final long consumerCount;
+    private final int subjectCount;
     private final ZonedDateTime firstTime;
     private final ZonedDateTime lastTime;
+    private final List<Subject> subjects;
 
     StreamState(String json) {
         msgs = JsonUtils.readLong(json, MESSAGES_RE, 0);
@@ -36,6 +39,8 @@ public class StreamState {
         consumerCount = JsonUtils.readLong(json, CONSUMER_COUNT_RE, 0);
         firstTime = JsonUtils.readDate(json, FIRST_TS_RE);
         lastTime = JsonUtils.readDate(json, LAST_TS_RE);
+        subjectCount = JsonUtils.readInt(json, NUM_SUBJECTS_RE, 0);
+        subjects = Subject.optionalListOf(JsonUtils.getJsonObject(SUBJECTS, json));
     }
 
     /**
@@ -101,16 +106,31 @@ public class StreamState {
         return consumerCount;
     }
 
+    /**
+     * Gets the count of subjects in the stream.
+     *
+     * @return the subject count
+     */
+    public int getSubjectCount() {
+        return subjectCount;
+    }
+
+    public List<Subject> getSubjects() {
+        return subjects;
+    }
+
     @Override
     public String toString() {
         return "StreamState{" +
-                "msgs=" + msgs +
-                ", bytes=" + bytes +
-                ", firstSeq=" + firstSeq +
-                ", lastSeq=" + lastSeq +
-                ", consumerCount=" + consumerCount +
-                ", firstTime=" + firstTime +
-                ", lastTime=" + lastTime +
-                '}';
+            "msgs=" + msgs +
+            ", bytes=" + bytes +
+            ", firstSeq=" + firstSeq +
+            ", lastSeq=" + lastSeq +
+            ", consumerCount=" + consumerCount +
+            ", firstTime=" + firstTime +
+            ", lastTime=" + lastTime +
+            ", subjectCount=" + subjectCount +
+            ", subjects=" + subjects +
+            '}';
     }
 }

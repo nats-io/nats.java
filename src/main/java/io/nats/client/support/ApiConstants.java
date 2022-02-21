@@ -100,6 +100,7 @@ public interface ApiConstants {
     String NUM_PENDING       = "num_pending";
     String NUM_REDELIVERED   = "num_redelivered";
     String NUM_REPLICAS      = "num_replicas";
+    String NUM_SUBJECTS      = "num_subjects";
     String NUM_WAITING       = "num_waiting";
     String OFFLINE           = "offline";
     String OFFSET            = "offset";
@@ -130,6 +131,7 @@ public interface ApiConstants {
     String STREAMS           = "streams";
     String SUBJECT           = "subject";
     String SUBJECTS          = "subjects";
+    String SUBJECTS_FILTER   = "subjects_filter";
     String SUCCESS           = "success";
     String TAGS              = "tags";
     String TEMPLATE_OWNER    = "template_owner";
@@ -211,6 +213,7 @@ public interface ApiConstants {
     Pattern NUM_PENDING_RE        = integer_pattern(NUM_PENDING);
     Pattern NUM_REDELIVERED_RE    = integer_pattern(NUM_REDELIVERED);
     Pattern NUM_REPLICAS_RE       = integer_pattern(NUM_REPLICAS);
+    Pattern NUM_SUBJECTS_RE       = integer_pattern(NUM_SUBJECTS);
     Pattern NUM_WAITING_RE        = integer_pattern(NUM_WAITING);
     Pattern OFFLINE_RE            = boolean_pattern(OFFLINE);
     Pattern OFFSET_RE             = integer_pattern(OFFSET);

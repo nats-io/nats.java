@@ -16,10 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamOptions;
 import io.nats.client.Message;
-import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.ConsumerCreateRequest;
-import io.nats.client.api.ConsumerInfo;
-import io.nats.client.api.StreamInfo;
+import io.nats.client.api.*;
 import io.nats.client.support.NatsJetStreamConstants;
 
 import java.io.IOException;
@@ -61,9 +58,10 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         return new ConsumerInfo(resp).throwOnHasError();
     }
 
-    StreamInfo _getStreamInfo(String streamName) throws IOException, JetStreamApiException {
+    StreamInfo _getStreamInfo(String streamName, String subjectFilter) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_STREAM_INFO, streamName);
-        Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
+        byte[] payload = subjectFilter == null ? null : StreamInfoRequest.filterSubjects(subjectFilter);
+        Message resp = makeRequestResponseRequired(subj, payload, jso.getRequestTimeout());
         return new StreamInfo(resp).throwOnHasError();
     }
 

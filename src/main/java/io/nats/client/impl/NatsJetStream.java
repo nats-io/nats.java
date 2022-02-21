@@ -496,7 +496,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     }
 
     private String lookupStreamSubject(String stream) throws IOException, JetStreamApiException {
-        StreamInfo si = _getStreamInfo(stream);
+        StreamInfo si = _getStreamInfo(stream, null);
         List<String> streamSubjects = si.getConfiguration().getSubjects();
         return streamSubjects.size() == 1 ? streamSubjects.get(0) : null;
     }

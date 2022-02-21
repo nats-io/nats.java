@@ -86,7 +86,20 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
     @Override
     public StreamInfo getStreamInfo(String streamName) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
-        return _getStreamInfo(streamName);
+        return _getStreamInfo(streamName, null);
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public StreamInfo getStreamInfo(String streamName, String subjectFilter) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
+        if (subjectFilter == null) {
+            return _getStreamInfo(streamName, ">");
+        }
+        return _getStreamInfo(streamName, subjectFilter);
     }
 
     /**
