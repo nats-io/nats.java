@@ -253,7 +253,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(5, si.getStreamState().getSubjectCount());
             assertNull(si.getStreamState().getSubjects());
 
-            si = jsm.getStreamInfo(STREAM, null);
+            si = jsm.getStreamInfoWithSubjectInfo(STREAM, null);
             assertEquals(STREAM, si.getConfiguration().getName());
             assertEquals(5, si.getStreamState().getSubjectCount());
             List<Subject> list = si.getStreamState().getSubjects();

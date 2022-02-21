@@ -83,7 +83,7 @@ public interface JetStreamManagement {
      * @throws JetStreamApiException the request had an error related to the data
      * @return stream information
      */
-    StreamInfo getStreamInfo(String streamName, String subjectFilter) throws IOException, JetStreamApiException;
+    StreamInfo getStreamInfoWithSubjectInfo(String streamName, String subjectFilter) throws IOException, JetStreamApiException;
 
     /**
      * Purge stream messages
