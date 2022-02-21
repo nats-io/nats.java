@@ -76,7 +76,7 @@ public class StreamInfoTests {
 
         Map<String, Subject> map = new HashMap<>();
         for (Subject su : ss.getSubjects()) {
-            map.put(su.getName(), su);
+            map.put(su.getSubject(), su);
         }
 
         Subject s = map.get("sub0");

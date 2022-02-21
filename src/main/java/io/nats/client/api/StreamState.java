@@ -115,6 +115,11 @@ public class StreamState {
         return subjectCount;
     }
 
+    /**
+     * Get the subjects. May be null if the Stream Info request did not ask for subjects
+     * or if there are no subjects.
+     * @return the list of subjects
+     */
     public List<Subject> getSubjects() {
         return subjects;
     }

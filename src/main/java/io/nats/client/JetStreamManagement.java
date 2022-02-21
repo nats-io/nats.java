@@ -77,7 +77,7 @@ public interface JetStreamManagement {
     /**
      * Gets the info for an existing stream, and include subject info.
      * @param streamName the stream name to use.
-     * @param subjectFilter the subject filter to use. Can be wildcard. Null is equivalent to all subjects, the same as '>'
+     * @param subjectFilter the subject filter to use. Can be wildcard. Null is equivalent to all subjects, the same as &gt;
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data

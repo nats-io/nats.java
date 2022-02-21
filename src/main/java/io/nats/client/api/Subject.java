@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Subject {
-    private final String name;
+    private final String subject;
     private final long count;
 
     static List<Subject> optionalListOf(String json) {
@@ -43,15 +43,23 @@ public class Subject {
         return list.isEmpty() ? null : list;
     }
 
-    public Subject(String name, long count) {
-        this.name = name;
+    private Subject(String subject, long count) {
+        this.subject = subject;
         this.count = count;
     }
 
-    public String getName() {
-        return name;
+    /**
+     * Get the subject
+     * @return the subject
+     */
+    public String getSubject() {
+        return subject;
     }
 
+    /**
+     * Get the subject message count
+     * @return the count
+     */
     public long getCount() {
         return count;
     }
@@ -59,7 +67,7 @@ public class Subject {
     @Override
     public String toString() {
         return "Subject{" +
-            "name='" + name + '\'' +
+            "name='" + subject + '\'' +
             ", count=" + count +
             '}';
     }
