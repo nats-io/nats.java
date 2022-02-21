@@ -265,7 +265,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(6, list.size());
             Map<String, Subject> map = new HashMap<>();
             for (Subject su : list) {
-                map.put(su.getSubject(), su);
+                map.put(su.getName(), su);
             }
             for (int x = 0; x < 5; x++) {
                 Subject s = map.get(subject(x));
