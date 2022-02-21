@@ -26,7 +26,7 @@ public class StreamState {
     private final long firstSeq;
     private final long lastSeq;
     private final long consumerCount;
-    private final int subjectCount;
+    private final long subjectCount;
     private final ZonedDateTime firstTime;
     private final ZonedDateTime lastTime;
     private final List<Subject> subjects;
@@ -39,7 +39,7 @@ public class StreamState {
         consumerCount = JsonUtils.readLong(json, CONSUMER_COUNT_RE, 0);
         firstTime = JsonUtils.readDate(json, FIRST_TS_RE);
         lastTime = JsonUtils.readDate(json, LAST_TS_RE);
-        subjectCount = JsonUtils.readInt(json, NUM_SUBJECTS_RE, 0);
+        subjectCount = JsonUtils.readLong(json, NUM_SUBJECTS_RE, 0);
         subjects = Subject.optionalListOf(JsonUtils.getJsonObject(SUBJECTS, json));
     }
 
@@ -111,7 +111,7 @@ public class StreamState {
      *
      * @return the subject count
      */
-    public int getSubjectCount() {
+    public long getSubjectCount() {
         return subjectCount;
     }
 
