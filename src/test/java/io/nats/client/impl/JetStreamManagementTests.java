@@ -20,7 +20,9 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -237,33 +239,42 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
             assertThrows(JetStreamApiException.class, () -> jsm.getStreamInfo(STREAM));
 
-            String[] subjects = new String[5];
+            String[] subjects = new String[6];
             for (int x = 0; x < 5; x++) {
                 subjects[x] = subject(x);
             }
+            subjects[5] = "foo.>";
             createMemoryStream(jsm, STREAM, subjects);
 
             JetStream js = nc.jetStream();
             for (int x = 0; x < 5; x++) {
                 jsPublish(js, subject(x), x + 1);
             }
+            jsPublish(js, "foo.bar", 6);
 
             StreamInfo si = jsm.getStreamInfo(STREAM);
             assertEquals(STREAM, si.getConfiguration().getName());
-            assertEquals(5, si.getStreamState().getSubjectCount());
+            assertEquals(6, si.getStreamState().getSubjectCount());
             assertNull(si.getStreamState().getSubjects());
 
             si = jsm.getStreamInfoWithSubjectInfo(STREAM, null);
             assertEquals(STREAM, si.getConfiguration().getName());
-            assertEquals(5, si.getStreamState().getSubjectCount());
+            assertEquals(6, si.getStreamState().getSubjectCount());
             List<Subject> list = si.getStreamState().getSubjects();
             assertNotNull(list);
-            assertEquals(5, list.size());
+            assertEquals(6, list.size());
+            Map<String, Subject> map = new HashMap<>();
+            for (Subject su : list) {
+                map.put(su.getName(), su);
+            }
             for (int x = 0; x < 5; x++) {
-                Subject s = list.get(x);
-                assertEquals(subject(x), s.getName());
+                Subject s = map.get(subject(x));
+                assertNotNull(s);
                 assertEquals(x + 1, s.getCount());
             }
+            Subject s = map.get("foo.bar");
+            assertNotNull(s);
+            assertEquals(6, s.getCount());
         });
     }
 
