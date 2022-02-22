@@ -65,7 +65,8 @@ public interface JetStreamManagement {
     boolean deleteStream(String streamName) throws IOException, JetStreamApiException;
 
     /**
-     * Gets the info for an existing stream.
+     * Gets the info for an existing stream.Does not retrieve subject information,
+     * see the overloaded version that accepts subject filter
      * @param streamName the stream name to use.
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -77,13 +78,13 @@ public interface JetStreamManagement {
     /**
      * Gets the info for an existing stream, and include subject info.
      * @param streamName the stream name to use.
-     * @param subjectFilter the subject filter to use. Can be wildcard. Null is equivalent to all subjects, the same as &gt;
+     * @param options the stream info options
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      * @return stream information
      */
-    StreamInfo getStreamInfoWithSubjectInfo(String streamName, String subjectFilter) throws IOException, JetStreamApiException;
+    StreamInfo getStreamInfo(String streamName, StreamInfoOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Purge stream messages

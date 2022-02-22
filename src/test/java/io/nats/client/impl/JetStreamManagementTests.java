@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -246,9 +247,13 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             subjects[5] = "foo.>";
             createMemoryStream(jsm, STREAM, subjects);
 
+            List<PublishAck> packs = new ArrayList<>();
             JetStream js = nc.jetStream();
             for (int x = 0; x < 5; x++) {
                 jsPublish(js, subject(x), x + 1);
+                PublishAck pa = jsPublish(js, subject(x), data(x + 2));
+                packs.add(pa);
+                jsm.deleteMessage(STREAM, pa.getSeqno());
             }
             jsPublish(js, "foo.bar", 6);
 
@@ -256,11 +261,15 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(STREAM, si.getConfiguration().getName());
             assertEquals(6, si.getStreamState().getSubjectCount());
             assertNull(si.getStreamState().getSubjects());
+            assertEquals(5, si.getStreamState().getDeletedCount());
+            assertEquals(0, si.getStreamState().getDeleted().size());
 
-            si = jsm.getStreamInfoWithSubjectInfo(STREAM, null);
+            si = jsm.getStreamInfo(STREAM, StreamInfoOptions.builder().allSubjects().deletedDetails().build());
             assertEquals(STREAM, si.getConfiguration().getName());
             assertEquals(6, si.getStreamState().getSubjectCount());
             List<Subject> list = si.getStreamState().getSubjects();
+            assertEquals(5, si.getStreamState().getDeletedCount());
+            assertEquals(5, si.getStreamState().getDeleted().size());
             assertNotNull(list);
             assertEquals(6, list.size());
             Map<String, Subject> map = new HashMap<>();
@@ -275,6 +284,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             Subject s = map.get("foo.bar");
             assertNotNull(s);
             assertEquals(6, s.getCount());
+
+            for (PublishAck pa : packs) {
+                assertTrue(si.getStreamState().getDeleted().contains(pa.getSeqno()));
+            }
         });
     }
 

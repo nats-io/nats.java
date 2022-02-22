@@ -38,6 +38,8 @@ public interface ApiConstants {
     String CREATED           = "created";
     String CURRENT           = "current";
     String DATA              = "data";
+    String DELETED           = "deleted";
+    String DELETED_DETAILS   = "deleted_details";
     String DELIVER           = "deliver";
     String DELIVER_GROUP     = "deliver_group";
     String DELIVER_POLICY    = "deliver_policy";
@@ -97,6 +99,7 @@ public interface ApiConstants {
     String NO_ACK            = "no_ack";
     String NONCE             = "nonce";
     String NUM_ACK_PENDING   = "num_ack_pending";
+    String NUM_DELETED       = "num_deleted";
     String NUM_PENDING       = "num_pending";
     String NUM_REDELIVERED   = "num_redelivered";
     String NUM_REPLICAS      = "num_replicas";
@@ -210,6 +213,7 @@ public interface ApiConstants {
     Pattern NO_ACK_RE             = boolean_pattern(NO_ACK);
     Pattern NONCE_RE              = string_pattern(NONCE);
     Pattern NUM_ACK_PENDING_RE    = integer_pattern(NUM_ACK_PENDING);
+    Pattern NUM_DELETED_RE        = integer_pattern(NUM_DELETED);
     Pattern NUM_PENDING_RE        = integer_pattern(NUM_PENDING);
     Pattern NUM_REDELIVERED_RE    = integer_pattern(NUM_REDELIVERED);
     Pattern NUM_REPLICAS_RE       = integer_pattern(NUM_REPLICAS);

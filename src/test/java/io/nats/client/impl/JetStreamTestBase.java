@@ -129,12 +129,16 @@ public class JetStreamTestBase extends TestBase {
         jsPublish(nc.jetStream(), subject, startId, count);
     }
 
-    public static PublishAck jsPublish(JetStream js) throws IOException, JetStreamApiException {
+    public static PublishAck jsPublish(JetStream js, String subject, String data) throws IOException, JetStreamApiException {
         Message msg = NatsMessage.builder()
-                .subject(SUBJECT)
-                .data(DATA.getBytes(StandardCharsets.US_ASCII))
-                .build();
+            .subject(subject)
+            .data(data.getBytes(StandardCharsets.US_ASCII))
+            .build();
         return js.publish(msg);
+    }
+
+    public static PublishAck jsPublish(JetStream js) throws IOException, JetStreamApiException {
+        return jsPublish(js, SUBJECT, DATA);
     }
 
     public static List<Message> readMessagesAck(JetStreamSubscription sub) throws InterruptedException {

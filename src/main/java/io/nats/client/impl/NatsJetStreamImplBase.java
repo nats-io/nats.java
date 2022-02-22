@@ -58,9 +58,9 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         return new ConsumerInfo(resp).throwOnHasError();
     }
 
-    StreamInfo _getStreamInfo(String streamName, String subjectFilter) throws IOException, JetStreamApiException {
+    StreamInfo _getStreamInfo(String streamName, StreamInfoOptions options) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_STREAM_INFO, streamName);
-        byte[] payload = subjectFilter == null ? null : StreamInfoRequest.filterSubjects(subjectFilter);
+        byte[] payload = options == null ? null : options.serialize();
         Message resp = makeRequestResponseRequired(subj, payload, jso.getRequestTimeout());
         return new StreamInfo(resp).throwOnHasError();
     }

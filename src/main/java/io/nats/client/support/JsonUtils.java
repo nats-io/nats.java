@@ -42,6 +42,7 @@ public abstract class JsonUtils {
     private static final String BOOLEAN_RE =  "\\s*(true|false)";
     private static final String INTEGER_RE =  "\\s*(-?\\d+)";
     private static final String STRING_ARRAY_RE = "\\s*\\[\\s*(\".+?\")\\s*\\]";
+    private static final String NUMBER_ARRAY_RE = "\\s*\\[\\s*(.+?)\\s*\\]";
     private static final String BEFORE_FIELD_RE = "\"";
     private static final String AFTER_FIELD_RE = "\"\\s*:\\s*";
 
@@ -87,6 +88,10 @@ public abstract class JsonUtils {
 
     public static Pattern string_array_pattern(String field) {
         return buildPattern(field, STRING_ARRAY_RE);
+    }
+
+    public static Pattern number_array_pattern(String field) {
+        return buildPattern(field, NUMBER_ARRAY_RE);
     }
 
     /**
@@ -206,6 +211,28 @@ public abstract class JsonUtils {
                 if (cleaned.length() > 0) {
                     list.add(jsonDecode(cleaned));
                 }
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Extract a list strings for list object name. Returns empty array if not found.
+     * Assumes that there are no brackets '{' or '}' in the actual data.
+     * @param objectName object name
+     * @param json source json
+     * @return a string list, empty if no values are found.
+     */
+    public static List<Long> getLongList(String objectName, String json) {
+        String flat = json.replaceAll("\r", "").replaceAll("\n", "");
+        List<Long> list = new ArrayList<>();
+        Matcher m = number_array_pattern(objectName).matcher(flat);
+        if (m.find()) {
+            String arrayString = m.group(1);
+            String[] raw = arrayString.split(",");
+
+            for (String s : raw) {
+                list.add(safeParseLong(s.trim()));
             }
         }
         return list;
