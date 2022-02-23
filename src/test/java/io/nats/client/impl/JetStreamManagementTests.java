@@ -268,9 +268,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(STREAM, si.getConfiguration().getName());
             assertEquals(6, si.getStreamState().getSubjectCount());
             List<Subject> list = si.getStreamState().getSubjects();
+            assertNotNull(list);
             assertEquals(5, si.getStreamState().getDeletedCount());
             assertEquals(5, si.getStreamState().getDeleted().size());
-            assertNotNull(list);
             assertEquals(6, list.size());
             Map<String, Subject> map = new HashMap<>();
             for (Subject su : list) {
