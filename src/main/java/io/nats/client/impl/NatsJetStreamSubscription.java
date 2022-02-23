@@ -21,7 +21,6 @@ import io.nats.client.support.NatsJetStreamConstants;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -37,24 +36,21 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     protected String stream;
     protected String consumerName;
 
-    protected List<MessageManager> managers;
+    protected MessageManager[] managers;
 
     NatsJetStreamSubscription(String sid, String subject, String queueName,
                               NatsConnection connection, NatsDispatcher dispatcher,
                               NatsJetStream js,
                               String stream, String consumer,
-                              MessageManager... managers) {
+                              MessageManager[] inManagers) {
         super(sid, subject, queueName, connection, dispatcher);
         this.js = js;
         this.stream = stream;
         this.consumerName = consumer;
 
-        this.managers = new ArrayList<>();
+        managers = inManagers;
         for (MessageManager mm : managers) {
-            if (mm != null) {
-                this.managers.add(mm);
-                mm.setSub(this);
-            }
+            mm.setSub(this);
         }
     }
 
@@ -70,7 +66,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return false;
     }
 
-    List<MessageManager> getManagers() { return managers; } // internal, for testing
+    MessageManager[] getManagers() { return managers; } // internal, for testing
 
     @Override
     void invalidate() {
@@ -83,22 +79,22 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     @Override
     public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
         if (timeout == null || timeout.toMillis() <= 0) {
-            return nextMsgNullOrLteZero(timeout);
+            return _nextUnmanagedNullOrLteZero(timeout);
         }
 
-        return nextMessageWithEndTime(System.currentTimeMillis() + timeout.toMillis());
+        return _nextUnmanaged(timeout.toMillis());
     }
 
     @Override
     public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
         if (timeoutMillis <= 0) {
-            return nextMsgNullOrLteZero(Duration.ZERO);
+            return _nextUnmanagedNullOrLteZero(Duration.ZERO);
         }
 
-        return nextMessageWithEndTime(System.currentTimeMillis() + timeoutMillis);
+        return _nextUnmanaged(timeoutMillis);
     }
 
-    protected Message nextMsgNullOrLteZero(Duration timeout) throws InterruptedException {
+    protected Message _nextUnmanagedNullOrLteZero(Duration timeout) throws InterruptedException {
         // timeout null means don't wait at all, timeout <= 0 means wait forever
         // until we get an actual no (null) message or we get a message
         // that the managers do not handle
@@ -109,17 +105,26 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return msg;
     }
 
-    protected Message nextMessageWithEndTime(long endTime) throws InterruptedException {
+    protected static final long MIN_MILLIS = 20;
+    protected static final long EXPIRE_LESS_MILLIS = 10;
+
+    protected Message _nextUnmanaged(long timeout) throws InterruptedException {
+
         // timeout > 0 process as many messages we can in that time period
         // If we get a message that either manager handles, we try again, but
         // with a shorter timeout based on what we already used up
-        long millis = endTime - System.currentTimeMillis();
-        while (millis > 0) {
-            Message msg = nextMessageInternal(Duration.ofMillis(millis));
-            if (msg != null && !anyManaged(msg)) { // not null and not managed means JS Message
+        long elapsed = 0;
+        long start = System.currentTimeMillis();
+        while (elapsed < timeout) {
+            Message msg = nextMessageInternal( Duration.ofMillis(Math.max(MIN_MILLIS, timeout - elapsed)) );
+            if (msg == null) {
+                return null; // normal timeout
+            }
+            if (!anyManaged(msg)) { // not managed means JS Message
                 return msg;
             }
-            millis = endTime - System.currentTimeMillis();
+            // managed so try again while we have time
+            elapsed = System.currentTimeMillis() - start;
         }
         return null;
     }
@@ -146,6 +151,22 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pullNoWait(int batchSize) {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pullNoWait(int batchSize, Duration expiresIn) {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pullNoWait(int batchSize, long expiresInMillis) {
         throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
