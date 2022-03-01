@@ -38,9 +38,9 @@ import static io.nats.client.support.NatsConstants.COLON;
 public abstract class JsonUtils {
     public static final String EMPTY_JSON = "{}";
 
-    private static final String STRING_RE  = "\\s*\"(.+?)\"";
-    private static final String BOOLEAN_RE =  "\\s*(true|false)";
-    private static final String INTEGER_RE =  "\\s*(-?\\d+)";
+    private static final String STRING_RE  = "\"(.+?)\"";
+    private static final String BOOLEAN_RE =  "(true|false)";
+    private static final String INTEGER_RE =  "(-?\\d+)";
     private static final String STRING_ARRAY_RE = "\\s*\\[\\s*(\".+?\")\\s*\\]";
     private static final String NUMBER_ARRAY_RE = "\\s*\\[\\s*(.+?)\\s*\\]";
     private static final String BEFORE_FIELD_RE = "\"";

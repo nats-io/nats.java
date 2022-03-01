@@ -163,6 +163,7 @@ public class StreamConfiguration implements JsonSerializable {
 
         // never write sealed
 
+        addFldWhenTrue(sb, SEALED, sealed);
         addFldWhenTrue(sb, ALLOW_ROLLUP_HDRS, allowRollup);
         addFldWhenTrue(sb, DENY_DELETE, denyDelete);
         addFldWhenTrue(sb, DENY_PURGE, denyPurge);
@@ -322,6 +323,38 @@ public class StreamConfiguration implements JsonSerializable {
      */
     public List<Source> getSources() {
         return sources;
+    }
+
+    /**
+     * Get the flag indicating whether or not the stream is sealed.
+     * @return the sealed flag
+     */
+    public boolean getSealed() {
+        return sealed;
+    }
+
+    /**
+     * Get the flag indicating whether or not the stream allows rollup.
+     * @return the allows rollup flag
+     */
+    public boolean getAllowRollup() {
+        return allowRollup;
+    }
+
+    /**
+     * Get the flag indicating whether or not deny delete is set for the stream
+     * @return the deny delete flag
+     */
+    public boolean getDenyDelete() {
+        return denyDelete;
+    }
+
+    /**
+     * Get the flag indicating whether or not deny purge is set for the stream
+     * @return the deny purge flag
+     */
+    public boolean getDenyPurge() {
+        return denyPurge;
     }
 
     @Override

@@ -147,7 +147,7 @@ public interface ApiConstants {
     Pattern ACK_POLICY_RE         = string_pattern(ACK_POLICY);
     Pattern ACK_WAIT_RE           = integer_pattern(ACK_WAIT);
     Pattern ACTIVE_RE             = integer_pattern(ACTIVE);
-    Pattern ALLOW_ROLLUP_HDRS_RE  = string_pattern(ALLOW_ROLLUP_HDRS);
+    Pattern ALLOW_ROLLUP_HDRS_RE  = boolean_pattern(ALLOW_ROLLUP_HDRS);
     Pattern API_RE                = string_pattern(API);
     Pattern AUTH_REQUIRED_RE      = boolean_pattern(AUTH_REQUIRED);
     Pattern BYTES_RE              = integer_pattern(BYTES);
@@ -165,8 +165,8 @@ public interface ApiConstants {
     Pattern DELIVER_GROUP_RE      = string_pattern(DELIVER_GROUP);
     Pattern DELIVER_POLICY_RE     = string_pattern(DELIVER_POLICY);
     Pattern DELIVER_SUBJECT_RE    = string_pattern(DELIVER_SUBJECT);
-    Pattern DENY_DELETE_RE        = string_pattern(DENY_DELETE);
-    Pattern DENY_PURGE_RE         = string_pattern(DENY_PURGE);
+    Pattern DENY_DELETE_RE        = boolean_pattern(DENY_DELETE);
+    Pattern DENY_PURGE_RE         = boolean_pattern(DENY_PURGE);
     Pattern DESCRIPTION_RE        = string_pattern(DESCRIPTION);
     Pattern DISCARD_RE            = string_pattern(DISCARD);
     Pattern DOMAIN_RE             = string_pattern(DOMAIN);
