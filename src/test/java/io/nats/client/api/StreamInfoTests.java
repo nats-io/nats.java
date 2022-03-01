@@ -91,6 +91,12 @@ public class StreamInfoTests {
         assertNotNull(s);
         assertEquals(3, s.getCount());
 
+        assertEquals(6, ss.getDeletedCount());
+        assertEquals(6, ss.getDeleted().size());
+        for (long x = 91; x < 97; x++) {
+            assertTrue(ss.getDeleted().contains(x));
+        }
+
         assertEquals(DateTimeUtils.parseDateTime("0001-01-01T00:00:00Z"), ss.getFirstTime());
         assertEquals(DateTimeUtils.parseDateTime("0001-01-01T00:00:00Z"), ss.getLastTime());
 

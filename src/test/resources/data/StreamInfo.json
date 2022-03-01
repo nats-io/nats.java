@@ -35,11 +35,13 @@
     "last_ts": "0001-01-01T00:00:00Z",
     "consumer_count": 15,
     "num_subjects": 3,
+    "num_deleted": 6,
     "subjects": {
       "sub0": 1,
       "sub1": 2,
       "x.foo": 3
-    }
+    },
+    "deleted": [91, 92, 93, 94, 95, 96]
   },
   "cluster": {
     "name": "clustername",
