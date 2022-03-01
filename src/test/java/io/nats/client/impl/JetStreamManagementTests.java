@@ -656,25 +656,45 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/js_authorization.conf", false)) {
             Options optionsSrc = new Options.Builder().server(ts.getURI())
-                    .userInfo("serviceup".toCharArray(), "uppass".toCharArray()).build();
+                .userInfo("serviceup".toCharArray(), "uppass".toCharArray()).build();
 
             try (Connection nc = Nats.connect(optionsSrc)) {
                 JetStreamManagement jsm = nc.jetStreamManagement();
 
                 // add streams with both account
                 StreamConfiguration sc = StreamConfiguration.builder()
-                        .name(STREAM)
-                        .storageType(StorageType.Memory)
-                        .subjects(subject(1))
-                        .build();
+                    .name(STREAM)
+                    .storageType(StorageType.Memory)
+                    .subjects(subject(1))
+                    .build();
                 StreamInfo si = jsm.addStream(sc);
 
                 sc = StreamConfiguration.builder(si.getConfiguration())
-                        .addSubjects(subject(2))
-                        .build();
+                    .addSubjects(subject(2))
+                    .build();
 
                 jsm.updateStream(sc);
             }
         }
+    }
+
+    @Test
+    public void testSealed() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            StreamInfo si = createMemoryStream(jsm, STREAM, SUBJECT);
+            assertFalse(si.getConfiguration().getSealed());
+
+            StreamConfiguration sc = new StreamConfiguration.Builder(si.getConfiguration()) {
+                @Override
+                public StreamConfiguration build() {
+                    sealed(true);
+                    return super.build();
+                }
+            }.build();
+            System.out.println(sc.toJson());
+            si = jsm.updateStream(sc);
+            assertTrue(si.getConfiguration().getSealed());
+        });
     }
 }

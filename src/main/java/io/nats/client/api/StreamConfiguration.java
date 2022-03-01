@@ -161,8 +161,6 @@ public class StreamConfiguration implements JsonSerializable {
         }
         addJsons(sb, SOURCES, sources);
 
-        // never write sealed
-
         addFldWhenTrue(sb, SEALED, sealed);
         addFldWhenTrue(sb, ALLOW_ROLLUP_HDRS, allowRollup);
         addFldWhenTrue(sb, DENY_DELETE, denyDelete);
@@ -755,8 +753,13 @@ public class StreamConfiguration implements JsonSerializable {
             return this;
         }
 
-         // cannot be set by user
-        Builder sealed(boolean sealed) {
+        /**
+         * Set whether to seal the stream.
+         * INTERNAL USE ONLY. Scoped protected for test purposes.
+         * @param sealed the sealed setting
+         * @return Builder
+         */
+        protected Builder sealed(boolean sealed) {
             this.sealed = sealed;
             return this;
         }

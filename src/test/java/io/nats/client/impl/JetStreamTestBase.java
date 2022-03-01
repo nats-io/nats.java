@@ -61,7 +61,7 @@ public class JetStreamTestBase extends TestBase {
     // ----------------------------------------------------------------------------------------------------
     // Management
     // ----------------------------------------------------------------------------------------------------
-    public static void createMemoryStream(JetStreamManagement jsm, String streamName, String... subjects)
+    public static StreamInfo createMemoryStream(JetStreamManagement jsm, String streamName, String... subjects)
             throws IOException, JetStreamApiException {
 
         StreamConfiguration sc = StreamConfiguration.builder()
@@ -69,20 +69,20 @@ public class JetStreamTestBase extends TestBase {
                 .storageType(StorageType.Memory)
                 .subjects(subjects).build();
 
-        jsm.addStream(sc);
+        return jsm.addStream(sc);
     }
 
-    public static void createMemoryStream(Connection nc, String streamName, String... subjects)
+    public static StreamInfo createMemoryStream(Connection nc, String streamName, String... subjects)
             throws IOException, JetStreamApiException {
-        createMemoryStream(nc.jetStreamManagement(), streamName, subjects);
+        return createMemoryStream(nc.jetStreamManagement(), streamName, subjects);
     }
 
-    public static void createDefaultTestStream(Connection nc) throws IOException, JetStreamApiException {
-        createMemoryStream(nc, STREAM, SUBJECT);
+    public static StreamInfo createDefaultTestStream(Connection nc) throws IOException, JetStreamApiException {
+        return createMemoryStream(nc, STREAM, SUBJECT);
     }
 
-    public static void createDefaultTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
-        createMemoryStream(jsm, STREAM, SUBJECT);
+    public static StreamInfo createDefaultTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
+        return createMemoryStream(jsm, STREAM, SUBJECT);
     }
 
     public static void debug(JetStreamManagement jsm, int n) throws IOException, JetStreamApiException {
