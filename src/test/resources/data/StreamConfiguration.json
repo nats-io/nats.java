@@ -11,10 +11,14 @@
   "max_msg_size": 734,
   "storage": "memory",
   "num_replicas": 5,
-  "no_ack": false,
+  "no_ack": true,
   "template_owner": "twnr",
   "discard": "new",
   "duplicate_window": 42000000000,
+  "sealed": true,
+  "deny_delete": true,
+  "deny_purge": true,
+  "allow_rollup_hdrs": true,
   "placement": {
     "cluster": "clstr",
     "tags": ["tag1", "tag2"]
