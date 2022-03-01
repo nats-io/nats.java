@@ -28,6 +28,30 @@ import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
 public final class JsonUtilsTests {
+    @Test
+    public void testRegex() {
+        String json = "{\"ss\": \"s1\", \"s_s\": \"s2\", \"bb\":true, \"b_b\":true, \"ii\":1, \"i_i\":2}";
+        Pattern s1Pat = JsonUtils.string_pattern("ss");
+        Pattern s2Pat = JsonUtils.string_pattern("s_s");
+        Pattern b1Pat = JsonUtils.boolean_pattern("bb");
+        Pattern b2Pat = JsonUtils.boolean_pattern("b_b");
+        Pattern i1Pat = JsonUtils.integer_pattern("ii");
+        Pattern i2Pat = JsonUtils.integer_pattern("i_i");
+
+        assertTrue(s1Pat.matcher(json).find());
+        assertTrue(s2Pat.matcher(json).find());
+        assertTrue(b1Pat.matcher(json).find());
+        assertTrue(b2Pat.matcher(json).find());
+        assertTrue(i1Pat.matcher(json).find());
+        assertTrue(i2Pat.matcher(json).find());
+
+        assertEquals("s1", JsonUtils.readString(json, s1Pat));
+        assertEquals("s2", JsonUtils.readString(json, s2Pat));
+        assertTrue(JsonUtils.readBoolean(json, b1Pat));
+        assertTrue(JsonUtils.readBoolean(json, b2Pat));
+        assertEquals(1, JsonUtils.readInt(json, i1Pat, -1));
+        assertEquals(2, JsonUtils.readInt(json, i2Pat, -1));
+    }
 
     @Test
     public void testParseStringArray() {

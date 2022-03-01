@@ -16,6 +16,7 @@ package io.nats.client.api;
 import io.nats.client.support.JsonUtils;
 
 import java.time.ZonedDateTime;
+import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
 
@@ -25,8 +26,12 @@ public class StreamState {
     private final long firstSeq;
     private final long lastSeq;
     private final long consumerCount;
+    private final long subjectCount;
+    private final long deletedCount;
     private final ZonedDateTime firstTime;
     private final ZonedDateTime lastTime;
+    private final List<Subject> subjects;
+    private final List<Long> deletedStreamSequences;
 
     StreamState(String json) {
         msgs = JsonUtils.readLong(json, MESSAGES_RE, 0);
@@ -36,6 +41,10 @@ public class StreamState {
         consumerCount = JsonUtils.readLong(json, CONSUMER_COUNT_RE, 0);
         firstTime = JsonUtils.readDate(json, FIRST_TS_RE);
         lastTime = JsonUtils.readDate(json, LAST_TS_RE);
+        subjectCount = JsonUtils.readLong(json, NUM_SUBJECTS_RE, 0);
+        deletedCount = JsonUtils.readLong(json, NUM_DELETED_RE, 0);
+        subjects = Subject.optionalListOf(JsonUtils.getJsonObject(SUBJECTS, json));
+        deletedStreamSequences = JsonUtils.getLongList(DELETED, json);
     }
 
     /**
@@ -101,16 +110,56 @@ public class StreamState {
         return consumerCount;
     }
 
+    /**
+     * Gets the count of subjects in the stream.
+     *
+     * @return the subject count
+     */
+    public long getSubjectCount() {
+        return subjectCount;
+    }
+
+    /**
+     * Get a list of the Subject objects. May be null if the Stream Info request did not ask for subjects
+     * or if there are no subjects.
+     * @return the list of subjects
+     */
+    public List<Subject> getSubjects() {
+        return subjects;
+    }
+
+    /**
+     * Gets the count of deleted messages
+     *
+     * @return the deleted count
+     */
+    public long getDeletedCount() {
+        return deletedCount;
+    }
+
+    /**
+     * Get a list of the Deleted objects. May be null if the Stream Info request did not ask for subjects
+     * or if there are no subjects.
+     * @return the list of subjects
+     */
+    public List<Long> getDeleted() {
+        return deletedStreamSequences;
+    }
+
     @Override
     public String toString() {
         return "StreamState{" +
-                "msgs=" + msgs +
-                ", bytes=" + bytes +
-                ", firstSeq=" + firstSeq +
-                ", lastSeq=" + lastSeq +
-                ", consumerCount=" + consumerCount +
-                ", firstTime=" + firstTime +
-                ", lastTime=" + lastTime +
-                '}';
+            "msgs=" + msgs +
+            ", bytes=" + bytes +
+            ", firstSeq=" + firstSeq +
+            ", lastSeq=" + lastSeq +
+            ", consumerCount=" + consumerCount +
+            ", firstTime=" + firstTime +
+            ", lastTime=" + lastTime +
+            ", subjectCount=" + subjectCount +
+            ", subjects=" + subjects +
+            ", deletedCount=" + deletedCount +
+            ", deleteds=" + deletedStreamSequences +
+            '}';
     }
 }
