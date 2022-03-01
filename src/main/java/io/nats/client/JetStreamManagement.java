@@ -66,6 +66,8 @@ public interface JetStreamManagement {
 
     /**
      * Gets the info for an existing stream.
+     * Does not retrieve any optional data.
+     * See the overloaded version that accepts StreamInfoOptions
      * @param streamName the stream name to use.
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -73,6 +75,18 @@ public interface JetStreamManagement {
      * @return stream information
      */
     StreamInfo getStreamInfo(String streamName) throws IOException, JetStreamApiException;
+
+    /**
+     * Gets the info for an existing stream, and include subject or deleted details
+     * as defined by StreamInfoOptions.
+     * @param streamName the stream name to use.
+     * @param options the stream info options. If null, request will not return any optional data.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @return stream information
+     */
+    StreamInfo getStreamInfo(String streamName, StreamInfoOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Purge stream messages
