@@ -317,6 +317,42 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testGetRevision() throws Exception {
+        runInJsServer(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            kvm.create(KeyValueConfiguration.builder()
+                .name(BUCKET)
+                .storageType(StorageType.Memory)
+                .maxHistoryPerKey(2)
+                .build());
+
+            KeyValue kv = nc.keyValue(BUCKET);
+            long seq1 = kv.put(KEY, 1);
+            long seq2 = kv.put(KEY, 2);
+            long seq3 = kv.put(KEY, 3);
+
+            KeyValueEntry kve = kv.get(KEY);
+            assertNotNull(kve);
+            assertEquals(3, kve.getValueAsLong());
+
+            kve = kv.get(KEY, seq3);
+            assertNotNull(kve);
+            assertEquals(3, kve.getValueAsLong());
+
+            kve = kv.get(KEY, seq2);
+            assertNotNull(kve);
+            assertEquals(2, kve.getValueAsLong());
+
+            kve = kv.get(KEY, seq1);
+            assertNull(kve);
+
+            kve = kv.get("notkey", seq3);
+            assertNull(kve);
+        });
+    }
+
+    @Test
     public void testKeys() throws Exception {
         runInJsServer(nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
