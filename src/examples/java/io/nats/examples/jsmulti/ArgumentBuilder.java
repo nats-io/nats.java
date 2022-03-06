@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2021-2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -16,10 +16,13 @@ package io.nats.examples.jsmulti;
 import io.nats.client.api.AckPolicy;
 import io.nats.client.api.StorageType;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static io.nats.examples.jsmulti.Constants.*;
 
 class ArgumentBuilder {
-    private StringBuilder sb = new StringBuilder();
+    private final List<String> args = new ArrayList<>();
 
     static ArgumentBuilder pubSync(String subject) { return new ArgumentBuilder().action(PUB_SYNC).subject(subject); }
     static ArgumentBuilder pubAsync(String subject) { return new ArgumentBuilder().action(PUB_ASYNC).subject(subject); }
@@ -30,11 +33,17 @@ class ArgumentBuilder {
     static ArgumentBuilder subPullQueue(String subject) { return new ArgumentBuilder().action(SUB_PULL_QUEUE).subject(subject); }
 
     Arguments build() {
-        return new Arguments(sb.toString().trim().split(" "));
+        return new Arguments(args.toArray(new String[0]));
+    }
+
+    private ArgumentBuilder add(String option) {
+        args.add("-" + option);
+        return this;
     }
 
     private ArgumentBuilder add(String option, Object value) {
-        sb.append('-').append(option).append(" ").append(value.toString()).append(" ");
+        args.add("-" + option);
+        args.add(value.toString());
         return this;
     }
 
@@ -44,6 +53,18 @@ class ArgumentBuilder {
 
     ArgumentBuilder server(String server) {
         return add("s", server);
+    }
+
+    ArgumentBuilder latencyAction(String action) {
+        return add("la", action);
+    }
+
+    ArgumentBuilder latencyTracking() {
+        return add("lt");
+    }
+
+    ArgumentBuilder optionsFactory(String optionsFactoryClassName) {
+        return add("of", optionsFactoryClassName);
     }
 
     ArgumentBuilder reportFrequency(int reportFrequency) {
@@ -71,6 +92,9 @@ class ArgumentBuilder {
     }
 
     ArgumentBuilder subject(String subject) {
+        if (subject == null) {
+            return this;
+        }
         return add("u", subject);
     }
 

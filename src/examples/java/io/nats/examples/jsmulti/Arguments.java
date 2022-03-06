@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2021-2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -27,22 +27,25 @@ import static io.nats.examples.jsmulti.Constants.*;
 // ----------------------------------------------------------------------------------------------------
 class Arguments{
 
-    String action;
-    String server = Options.DEFAULT_URL;
-    int reportFrequency = 1000;
-    String subject;
-    int messageCount = 1_000_000;
-    int threads = 1;
-    boolean connShared = true;
-    long jitter = 0;
-    int payloadSize = 128;
-    int roundSize = 100;
-    boolean pullTypeIterate = true;
-    AckPolicy ackPolicy = AckPolicy.Explicit;
-    int ackFrequency = 1;
-    int batchSize = 10;
-    final String queueDurable = "qd" + uniqueEnough();
-    final String queueName = "qn" + uniqueEnough();
+    public final String action;
+    public final String latencyAction;
+    public final boolean latencyTracking;
+    public final String server;
+    public final String optionsFactoryClassName;
+    public final int reportFrequency;
+    public final String subject;
+    public final int messageCount;
+    public final int threads;
+    public final boolean connShared;
+    public final long jitter;
+    public final int payloadSize;
+    public final int roundSize;
+    public final boolean pullTypeIterate;
+    public final AckPolicy ackPolicy;
+    public final int ackFrequency;
+    public final int batchSize;
+    public final String queueDurable = "qd" + uniqueEnough();
+    public final String queueName = "qn" + uniqueEnough();
 
     private byte[] _payload;
     byte[] getPayload() {
@@ -62,9 +65,16 @@ class Arguments{
 
     @Override
     public String toString() {
+        String lAction = latencyAction == null ? "" : "\n  latency action (-la)      " + latencyAction;
+        String lTracking = latencyAction == null && latencyTracking ? "\n  latency tracking (-lt)    On" : "";
+
+        String srv = optionsFactoryClassName == null
+            ? "\n  server (-s):              " + (server == null ? Options.DEFAULT_URL : server)
+            : "\n  options factory (-of)     " + optionsFactoryClassName;
+
         String s = "JetStream Multi-Tool Run Config:"
                 + "\n  action (-a):              " + action
-                + "\n  server (-s):              " + (server == null ? Options.DEFAULT_URL : server)
+                + lAction + lTracking + srv
                 + "\n  report frequency (-rf):   " + (reportFrequency == Integer.MAX_VALUE ? "no reporting" : "" + reportFrequency)
                 + "\n  subject (-u):             " + subject
                 + "\n  message count (-m):       " + messageCount
@@ -83,15 +93,16 @@ class Arguments{
             s += "\n  round size (-r):          " + roundSize;
         }
 
-        if (contains(SUB_ACTIONS, action)) {
+        if (contains(SUB_ACTIONS, action) || contains(SUB_ACTIONS, latencyAction)) {
             s += "\n  ack policy (-kp):         " + ackPolicy;
             s += "\n  ack frequency (-kf):      " + ackFrequency;
         }
 
-        if (contains(PULL_ACTIONS, action)) {
+        if (contains(PULL_ACTIONS, action) || contains(PULL_ACTIONS, latencyAction)) {
             s += "\n  pull type (-pt):          " + (pullTypeIterate ? ITERATE : FETCH);
             s += "\n  batch size (-b):          " + batchSize;
         }
+
         return s;
     }
 
@@ -100,54 +111,83 @@ class Arguments{
             exit();
         }
 
+        String _action = null;
+        String _latencyAction = null;
+        boolean _latencyHeaders = false;
+        String _server = Options.DEFAULT_URL;
+        String _optionsFactoryClassName = null;
+        int _reportFrequency = 1000;
+        String _subject = "sub" + uniqueEnough();
+        int _messageCount = 1_000_000;
+        int _threads = 1;
+        boolean _connShared = true;
+        long _jitter = 0;
+        int _payloadSize = 128;
+        int _roundSize = 100;
+        boolean _pullTypeIterate = true;
+        AckPolicy _ackPolicy = AckPolicy.Explicit;
+        int _ackFrequency = 1;
+        int _batchSize = 10;
+
         if (args != null && args.length > 0) {
+
             for (int x = 0; x < args.length; x++) {
                 String arg = args[x].trim();
                 switch (arg) {
                     case "-s":
-                        server = asString(args, ++x);
+                        _server = asString(args, ++x);
+                        break;
+                    case "-of":
+                        _optionsFactoryClassName = asString(args, ++x);
                         break;
                     case "-a":
-                        action = asString(args, ++x).toLowerCase();
+                        _action = asString(args, ++x).toLowerCase();
+                        break;
+                    case "-la":
+                        _latencyAction = asString(args, ++x).toLowerCase();
+                        _latencyHeaders = true;
+                        break;
+                    case "-lt":
+                        _latencyHeaders = true;
                         break;
                     case "-u":
-                        subject = asString(args, ++x);
+                        _subject = asString(args, ++x);
                         break;
                     case "-m":
-                        messageCount = asNumber(args, ++x, -1, "total messages");
+                        _messageCount = asNumber(args, ++x, -1, "total messages");
                         break;
                     case "-ps":
-                        payloadSize = asNumber(args, ++x, 65536, "payload size");
+                        _payloadSize = asNumber(args, ++x, 1048576, "payload size");
                         break;
                     case "-bs":
-                        batchSize = asNumber(args, ++x, 256, "batch size");
+                        _batchSize = asNumber(args, ++x, 256, "batch size");
                         break;
                     case "-rs":
-                        roundSize = asNumber(args, ++x, 1000, "round size");
+                        _roundSize = asNumber(args, ++x, 1000, "round size");
                         break;
                     case "-d":
-                        threads = asNumber(args, ++x, 10, "number of threads");
+                        _threads = asNumber(args, ++x, 10, "number of threads");
                         break;
                     case "-j":
-                        jitter = asNumber(args, ++x, 10_000, "jitter");
+                        _jitter = asNumber(args, ++x, 10_000, "jitter");
                         break;
                     case "-n":
-                        connShared = trueIfNot(args, ++x, "individual");
+                        _connShared = trueIfNot(args, ++x, "individual");
                         break;
                     case "-kp":
-                        ackPolicy = AckPolicy.get(asString(args, ++x).toLowerCase());
-                        if (ackPolicy == null) {
-                            ackPolicy = AckPolicy.Explicit;
+                        _ackPolicy = AckPolicy.get(asString(args, ++x).toLowerCase());
+                        if (_ackPolicy == null) {
+                            _ackPolicy = AckPolicy.Explicit;
                         }
                         break;
                     case "-kf":
-                        ackFrequency = asNumber(args, ++x, 256, "ack frequency");
+                        _ackFrequency = asNumber(args, ++x, 256, "ack frequency");
                         break;
                     case "-pt":
-                        pullTypeIterate = trueIfNot(args, ++x, "fetch");
+                        _pullTypeIterate = trueIfNot(args, ++x, "fetch");
                         break;
                     case "-rf":
-                        reportFrequency = asNumber(args, ++x, -2, "report frequency");
+                        _reportFrequency = asNumber(args, ++x, -2, "report frequency");
                         break;
                     case "":
                         break;
@@ -158,23 +198,48 @@ class Arguments{
             }
         }
 
-        if (action == null || !contains(ALL_ACTIONS, action)) {
+        if (!contains(ALL_ACTIONS, _action)) {
             error("Valid action required!");
         }
 
-        if (subject == null) {
-            error("Publish or Subscribe actions require subject name!");
+        if (_latencyAction != null) {
+            if (!contains(SUB_ACTIONS, _latencyAction)) {
+                error("Valid subscribe action required for latency!");
+            }
+            if (!contains(PUB_ACTIONS, _action)) {
+                error("Valid publish action required for latency!");
+            }
         }
 
-        if (threads < 2 && contains(QUEUE_ACTIONS, action)) {
+        if (_threads < 2 && (contains(QUEUE_ACTIONS, _action) || contains(QUEUE_ACTIONS, _latencyAction))) {
             error("Queue subscribing requires multiple threads!");
         }
 
-        try {
-            new Options.Builder().build().createURIForServer(server);
-        } catch (URISyntaxException e) {
-            error("Invalid server URI: " + server);
+        if (_optionsFactoryClassName == null && !_server.equals(Options.DEFAULT_URL)) {
+            try {
+                new Options.Builder().build().createURIForServer(_server);
+            } catch (URISyntaxException e) {
+                error("Invalid server URI: " + _server);
+            }
         }
+
+        action = _action;
+        latencyAction = _latencyAction;
+        latencyTracking = _latencyHeaders;
+        server = _server;
+        optionsFactoryClassName = _optionsFactoryClassName;
+        reportFrequency = _reportFrequency;
+        subject = _subject;
+        messageCount = _messageCount;
+        threads = _threads;
+        connShared = _connShared;
+        jitter = _jitter;
+        payloadSize = _payloadSize;
+        roundSize = _roundSize;
+        pullTypeIterate = _pullTypeIterate;
+        ackPolicy = _ackPolicy;
+        ackFrequency = _ackFrequency;
+        batchSize = _batchSize;
     }
 
     private static void error(String errMsg) {
@@ -188,7 +253,7 @@ class Arguments{
     }
 
     private static boolean contains(String list, String action) {
-        return Arrays.asList(list.split(" ")).contains(action);
+        return action != null && Arrays.asList(list.split(" ")).contains(action);
     }
 
     private static String normalize(String s) {

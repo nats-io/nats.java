@@ -94,6 +94,23 @@ _Builder_
 Arguments a = ArgumentBuilder ... .server("nats://myhost:4444") ...
 ```
 
+### Options Factory Argument
+
+`-of` Options factory class name. Takes precedence over `-s`. Must have a default constructor so it can be instantiated by reflection.
+
+By providing your own options factory you are able to connect to a server however you need to.
+For instance, you can provide your own authentication or could override JsMulti's default No-Op error listener.
+Make sure this value is a fully qualified class name with package, i.e. `com.myco.MyOptionsFactory`
+
+```java
+public class MyOptionsFactory implements OptionsFactory {
+    @Override
+    public Options getOptions(Arguments a) throws Exception {
+        return ... do work here
+    }
+}
+```
+
 ### Report Frequency
 
 `-rf` report frequency (number) how often to print progress, defaults to 1000 messages. <= 0 for no reporting. 
@@ -144,7 +161,7 @@ time spent in jitter is excluded from timings
 
 ### Publish Only Optional Arguments
 
-`-ps` payload size (number) for publishing, defaults to 128, maximum 65536"
+`-ps` payload size (number) for publishing, defaults to 128, maximum 1048576"
 
 `-rs` round size (number) for pubAsync, default to 100, maximum 1000.
 Publishing asynchronously uses the "sawtooth" pattern. This means we publish a round of messages, collecting all the futures that receive the PublishAck
