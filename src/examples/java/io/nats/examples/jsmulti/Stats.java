@@ -183,7 +183,6 @@ public class Stats {
     public static String format3(Number s) {
         if (s.longValue() >= 1_000_000_000) {
             return humanBytes(s.doubleValue());
-//            return format(s.longValue() / 1_000_000_000) + "B";
         }
         String f = format(s);
         int at = f.indexOf('.');
