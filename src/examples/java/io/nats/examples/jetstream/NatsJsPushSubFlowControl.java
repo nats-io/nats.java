@@ -56,7 +56,7 @@ public class NatsJsPushSubFlowControl {
             }
         };
 
-        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false, el))) {
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false, el, null))) {
 
             JetStreamManagement jsm = nc.jetStreamManagement();
 
