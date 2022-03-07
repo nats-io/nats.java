@@ -94,8 +94,10 @@ javadoc {
     options.overview = 'src/main/javadoc/overview.html' // relative to source root
     source = sourceSets.main.allJava
     title = "NATS.IO Java API"
-    excludes = ['io/nats/client/impl', 'io/nats/examples',
-                "io/nats/client/api/ConsumerCreateRequest.java"
+    excludes = ['io/nats/client/impl',
+                'io/nats/examples',
+                "io/nats/client/api/ConsumerCreateRequest.java",
+                "io/nats/client/api/MessageGetRequest.java"
     ]
     classpath = sourceSets.main.runtimeClasspath
     doLast {
