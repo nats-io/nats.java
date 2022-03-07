@@ -20,7 +20,7 @@ import static io.nats.client.support.ApiConstants.SEQ;
 import static io.nats.client.support.JsonUtils.*;
 
 /**
- * Object used to make a request for special message get requests
+ * Object used to make a request for special message get requests. Used Internally
  */
 public class MessageGetRequest implements JsonSerializable {
     private final long sequence;
