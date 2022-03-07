@@ -30,11 +30,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.nats.examples.jetstream.NatsJsUtils.createStreamExitWhenExists;
 
 /**
- * This example will demonstrate JetStream push subscribing using a durable consumer and a queue
+ * This example will demonstrate JetStream pull subscribing using a durable consumer and simulating a queue
  */
 public class NatsJsPullSubQueueSimulated {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPullSubQueueSimulated [-s server] [-strm stream] [-sub subject] [-q queue] [-dur durable] [-mcnt msgCount] [-scnt subCount]"
+        "\nUsage: java -cp <classpath> NatsJsPullSubQueueSimulated [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount] [-scnt subCount]"
             + "\n\nDefault Values:"
             + "\n   [-strm stream]   psqs-stream"
             + "\n   [-sub subject]   psqs-subject"
