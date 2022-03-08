@@ -17,17 +17,15 @@ import io.nats.client.*;
 import io.nats.client.api.*;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class NatsKeyValueWatchSubscription implements AutoCloseable {
     private static final Object dispatcherLock = new Object();
     private static NatsDispatcher dispatcher;
 
     private final JetStreamSubscription sub;
-    private final AtomicBoolean endOfDataSent;
 
     public NatsKeyValueWatchSubscription(NatsKeyValue kv, String keyPattern, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException {
-        String keySubject = kv.defaultKeySubject(keyPattern);
+        String keySubject = kv.rawKeySubject(keyPattern);
 
         // figure out the result options
         boolean headersOnly = false;
@@ -44,18 +42,14 @@ public class NatsKeyValueWatchSubscription implements AutoCloseable {
             }
         }
 
+        WatchMessageHandler handler = new WatchMessageHandler(watcher, !ignoreDeletes);
         if (deliverPolicy == DeliverPolicy.New) {
-            watcher.endOfData();
-            endOfDataSent = new AtomicBoolean(true);
+            handler.sendEndOfData();
         }
         else {
             KeyValueEntry kveCheckPending = kv._kvGetLastMessage(keyPattern);
             if (kveCheckPending == null) {
-                watcher.endOfData();
-                endOfDataSent = new AtomicBoolean(true);
-            }
-            else {
-                endOfDataSent = new AtomicBoolean(false);
+                handler.sendEndOfData();
             }
         }
 
@@ -71,19 +65,40 @@ public class NatsKeyValueWatchSubscription implements AutoCloseable {
                     .build())
             .build();
 
-        final boolean includeDeletes = !ignoreDeletes;
-        MessageHandler handler = m -> {
+        sub = kv.js.subscribe(keySubject, getDispatcher(kv.js), handler, false, pso);
+        if (!handler.endOfDataSent) {
+            long pending = sub.getConsumerInfo().getNumPending() + sub.getConsumerInfo().getDelivered().getConsumerSequence();
+            if (pending == 0) {
+                handler.sendEndOfData();
+            }
+        }
+    }
+
+    static class WatchMessageHandler implements MessageHandler {
+        private final KeyValueWatcher watcher;
+        private final boolean includeDeletes;
+        boolean endOfDataSent;
+
+        public WatchMessageHandler(KeyValueWatcher watcher, boolean includeDeletes) {
+            this.watcher = watcher;
+            this.includeDeletes = includeDeletes;
+        }
+
+        @Override
+        public void onMessage(Message m) throws InterruptedException {
             KeyValueEntry kve = new KeyValueEntry(m);
             if (includeDeletes || kve.getOperation() == KeyValueOperation.PUT) {
                 watcher.watch(kve);
             }
-            if (!endOfDataSent.get() && kve.getDelta() == 0) {
-                watcher.endOfData();
-                endOfDataSent.set(true);
+            if (!endOfDataSent && kve.getDelta() == 0) {
+                sendEndOfData();
             }
-        };
+        }
 
-        sub = kv.js.subscribe(keySubject, getDispatcher(kv.js), handler, false, pso);
+        private void sendEndOfData() {
+            endOfDataSent = true;
+            watcher.endOfData();
+        }
     }
 
     private static Dispatcher getDispatcher(JetStream js) {

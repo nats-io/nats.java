@@ -18,7 +18,6 @@ import io.nats.client.support.NatsKeyValueUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
-import java.util.Arrays;
 
 import static io.nats.client.support.NatsJetStreamConstants.MSG_SIZE_HDR;
 import static io.nats.client.support.NatsKeyValueUtil.BucketAndKey;
@@ -131,24 +130,14 @@ public class KeyValueEntry {
 
         KeyValueEntry that = (KeyValueEntry) o;
 
-        if (dataLen != that.dataLen) return false;
-        if (revision != that.revision) return false;
-        if (delta != that.delta) return false;
-        if (!bucketAndKey.equals(that.bucketAndKey)) return false;
-        if (!Arrays.equals(value, that.value)) return false;
-        if (!created.equals(that.created)) return false;
-        return op == that.op;
+        return bucketAndKey.equals(that.bucketAndKey)
+            && revision == that.revision;
     }
 
     @Override
     public int hashCode() {
         int result = bucketAndKey.hashCode();
-        result = 31 * result + Arrays.hashCode(value);
-        result = 31 * result + (int) (dataLen ^ (dataLen >>> 32));
-        result = 31 * result + created.hashCode();
         result = 31 * result + (int) (revision ^ (revision >>> 32));
-        result = 31 * result + (int) (delta ^ (delta >>> 32));
-        result = 31 * result + op.hashCode();
         return result;
     }
 }

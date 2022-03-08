@@ -15,32 +15,16 @@ package io.nats.client;
 
 import java.time.Duration;
 
-import static io.nats.client.support.Validator.ensureEndsWithDot;
-import static io.nats.client.support.Validator.validatePrefixOrDomain;
-
 /**
  * The KeyValueOptions class specifies the general options for KeyValueO.
  * Options are created using the {@link KeyValueOptions.Builder Builder}.
  */
 public class KeyValueOptions {
 
-    public static final Duration DEFAULT_TIMEOUT = Options.DEFAULT_CONNECTION_TIMEOUT;
-    public static final KeyValueOptions DEFAULT_JS_OPTIONS = new Builder().build();
-
-    private final String featurePrefix;
     private final JetStreamOptions jso;
 
-    private KeyValueOptions(String featurePrefix, JetStreamOptions jso) {
-        this.featurePrefix = featurePrefix;
+    private KeyValueOptions(JetStreamOptions jso) {
         this.jso = jso;
-    }
-
-    /**
-     * Gets the feature [subject] prefix.
-     * @return the prefix.
-     */
-    public String getFeaturePrefix() {
-        return featurePrefix;
     }
 
     /**
@@ -74,26 +58,19 @@ public class KeyValueOptions {
      */
     public static class Builder {
 
-        private String featurePrefix;
-        private JetStreamOptions jso;
+        private JetStreamOptions.Builder jsoBuilder;
 
-        public Builder() {}
-
-        public Builder(KeyValueOptions kvo) {
-            if (kvo != null) {
-                this.featurePrefix = kvo.featurePrefix;
-                this.jso = kvo.jso;
-            }
+        public Builder() {
+            this(null);
         }
 
-        /**
-         * Sets the prefix for subject in features such as KeyValue.
-         * @param featurePrefix the feature prefix
-         * @return the builder.
-         */
-        public Builder featurePrefix(String featurePrefix) {
-            this.featurePrefix = ensureEndsWithDot(validatePrefixOrDomain(featurePrefix, "Feature Prefix", false));
-            return this;
+        public Builder(KeyValueOptions kvo) {
+            if (kvo == null) {
+                jsoBuilder = new JetStreamOptions.Builder();
+            }
+            else {
+                jsoBuilder = new JetStreamOptions.Builder(kvo.jso);
+            }
         }
 
         /**
@@ -102,7 +79,42 @@ public class KeyValueOptions {
          * @return the builder.
          */
         public Builder jetStreamOptions(JetStreamOptions jso) {
-            this.jso = jso;
+            jsoBuilder = new JetStreamOptions.Builder(jso);
+            return this;
+        }
+
+        /**
+         * Sets the request timeout for JetStream API calls.
+         * @param requestTimeout the duration to wait for responses.
+         * @return the builder
+         */
+        public Builder jsRequestTimeout(Duration requestTimeout) {
+            jsoBuilder.requestTimeout(requestTimeout);
+            return this;
+        }
+
+        /**
+         * Sets the prefix for JetStream subjects. A prefix can be used in conjunction with
+         * user permissions to restrict access to certain JetStream instances. This must
+         * match the prefix used in the server.
+         * @param prefix the JetStream prefix
+         * @return the builder.
+         */
+        public Builder jsPrefix(String prefix) {
+            jsoBuilder.prefix(prefix);
+            return this;
+        }
+
+        /**
+         * Sets the domain for JetStream subjects, creating a standard prefix from that domain
+         * in the form $JS.(domain).API.
+         * A domain can be used in conjunction with user permissions to restrict access to certain JetStream instances.
+         * This must match the domain used in the server.
+         * @param domain the JetStream domain
+         * @return the builder.
+         */
+        public Builder jsDomain(String domain) {
+            jsoBuilder.domain(domain);
             return this;
         }
 
@@ -111,7 +123,7 @@ public class KeyValueOptions {
          * @return JetStream options
          */
         public KeyValueOptions build() {
-            return new KeyValueOptions(featurePrefix, jso);
+            return new KeyValueOptions(jsoBuilder.build());
         }
     }
 }

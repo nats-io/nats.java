@@ -12,10 +12,7 @@
 // limitations under the License.
 package io.nats.client;
 
-import io.nats.client.api.KeyValueEntry;
-import io.nats.client.api.KeyValueStatus;
-import io.nats.client.api.KeyValueWatchOption;
-import io.nats.client.api.KeyValueWatcher;
+import io.nats.client.api.*;
 import io.nats.client.impl.NatsKeyValueWatchSubscription;
 
 import java.io.IOException;
@@ -196,7 +193,8 @@ public interface KeyValue {
     List<KeyValueEntry> history(String key) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
-     * Remove history from all keys that currently are deleted or purged.
+     * Remove history from all keys that currently are deleted or purged
+     * with using a default KeyValuePurgeOptions
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -204,6 +202,16 @@ public interface KeyValue {
      * @throws InterruptedException if the thread is interrupted
      */
     void purgeDeletes() throws IOException, JetStreamApiException, InterruptedException;
+
+    /**
+     * Remove history from all keys that currently are deleted or purged, considering options.
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
+     */
+    void purgeDeletes(KeyValuePurgeOptions options) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
      * Get the KeyValueStatus object
