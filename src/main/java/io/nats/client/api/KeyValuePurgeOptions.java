@@ -17,6 +17,9 @@ import java.time.Duration;
 
 public class KeyValuePurgeOptions {
 
+    /**
+     * The default time in millis that is used for as the threshold to keep markers.
+     */
     public static long DEFAULT_THRESHOLD_MILLIS = Duration.ofMinutes(30).toMillis();
 
     private final long deleteMarkersThresholdMillis;
@@ -85,6 +88,10 @@ public class KeyValuePurgeOptions {
             return this;
         }
 
+        /**
+         * Build the Key Value Purge Options
+         * @return the options
+         */
         public KeyValuePurgeOptions build() {
             if (deleteMarkersThresholdMillis < 0) {
                 deleteMarkersThresholdMillis = -1;
