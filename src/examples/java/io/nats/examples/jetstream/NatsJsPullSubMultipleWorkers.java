@@ -30,15 +30,23 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.nats.examples.jetstream.NatsJsUtils.createStreamExitWhenExists;
 
 /**
- * This example will demonstrate JetStream pull subscribing using a durable consumer and simulating a queue
+ * This example will demonstrate JetStream pull subscribing using a durable consumer
+ * and sharing processing of the messages.
+ * NOTE: This example has multiple subscriptions for the same consumer.
+ * Typically those subscriptions would be running in their own JVM,
+ * or their own machine instance, etc. in order to horizontally scale them.
+ * This example just demonstrates the functionality of the subscriptions,
+ * not how a real application would typically work.
+ * That being said, a typical application may indeed have multiple consumers
+ * doing different subject processing and even may do both publishing and subscribing.
  */
-public class NatsJsPullSubQueueSimulated {
+public class NatsJsPullSubMultipleWorkers {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPullSubQueueSimulated [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount] [-scnt subCount]"
+        "\nUsage: java -cp <classpath> NatsJsPullSubMultipleWorkers [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount] [-scnt subCount]"
             + "\n\nDefault Values:"
-            + "\n   [-strm stream]   psqs-stream"
-            + "\n   [-sub subject]   psqs-subject"
-            + "\n   [-dur durable]   psqs-durable"
+            + "\n   [-strm stream]   psmw-stream"
+            + "\n   [-sub subject]   psmw-subject"
+            + "\n   [-dur durable]   psmw-durable"
             + "\n   [-mcnt msgCount] 100"
             + "\n   [-scnt subCount] 5"
             + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
@@ -47,10 +55,10 @@ public class NatsJsPullSubQueueSimulated {
             + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.builder("Push Subscribe, Durable Consumer, Queue", args, usageString)
-                .defaultStream("psqs-stream")
-                .defaultSubject("psqs-subject")
-                .defaultDurable("psqs-durable")
+        ExampleArgs exArgs = ExampleArgs.builder("Push Subscribe, Durable Consumer, Shared Processing", args, usageString)
+                .defaultStream("psmw-stream")
+                .defaultSubject("psmw-subject")
+                .defaultDurable("psmw-durable")
                 .defaultMsgCount(100)
                 .defaultSubCount(5)
                 .build();
@@ -81,13 +89,13 @@ public class NatsJsPullSubQueueSimulated {
             // - have a list of subscribers and threads so I can track them
             PullSubscribeOptions pso = PullSubscribeOptions.bind(exArgs.stream, exArgs.durable);
             AtomicInteger allReceived = new AtomicInteger();
-            List<JsPullQueueSimSubscriber> subscribers = new ArrayList<>();
+            List<JsPullSubWorker> subscribers = new ArrayList<>();
             List<Thread> subThreads = new ArrayList<>();
             for (int id = 1; id <= exArgs.subCount; id++) {
                 // setup the subscription
                 JetStreamSubscription sub = js.subscribe(exArgs.subject, pso);
                 // create and track the runnable
-                JsPullQueueSimSubscriber qs = new JsPullQueueSimSubscriber(id, exArgs, js, sub, allReceived);
+                JsPullSubWorker qs = new JsPullSubWorker(id, exArgs, js, sub, allReceived);
                 subscribers.add(qs);
                 // create, track and start the thread
                 Thread t = new Thread(qs);
@@ -107,7 +115,7 @@ public class NatsJsPullSubQueueSimulated {
             }
 
             // report
-            for (JsPullQueueSimSubscriber sub : subscribers) {
+            for (JsPullSubWorker sub : subscribers) {
                 sub.report();
             }
 
@@ -144,7 +152,7 @@ public class NatsJsPullSubQueueSimulated {
         }
     }
 
-    static class JsPullQueueSimSubscriber implements Runnable {
+    static class JsPullSubWorker implements Runnable {
         int id;
         int thisReceived;
         List<String> datas;
@@ -154,7 +162,7 @@ public class NatsJsPullSubQueueSimulated {
         JetStreamSubscription sub;
         AtomicInteger allReceived;
 
-        public JsPullQueueSimSubscriber(int id, ExampleArgs exArgs, JetStream js, JetStreamSubscription sub, AtomicInteger allReceived) {
+        public JsPullSubWorker(int id, ExampleArgs exArgs, JetStream js, JetStreamSubscription sub, AtomicInteger allReceived) {
             this.id = id;
             thisReceived = 0;
             datas = new ArrayList<>();
@@ -171,11 +179,11 @@ public class NatsJsPullSubQueueSimulated {
         @Override
         public void run() {
             while (allReceived.get() < exArgs.msgCount) {
-                List<Message> messages = sub.fetch(10, 500);
+                List<Message> messages = sub.fetch(5, 500);
                 while (messages != null && messages.size() > 0) {
-                    thisReceived += messages.size();
-                    allReceived.addAndGet(messages.size());
                     for (Message msg : messages) {
+                        thisReceived++;
+                        allReceived.incrementAndGet();
                         String data = new String(msg.getData(), StandardCharsets.US_ASCII);
                         datas.add(data);
                         System.out.printf("QS # %d message # %d %s\n", id, thisReceived, data);
