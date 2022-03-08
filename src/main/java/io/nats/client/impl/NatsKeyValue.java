@@ -15,11 +15,13 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,32 +37,37 @@ public class NatsKeyValue implements KeyValue {
     private final String bucketName;
     private final String streamName;
     private final String streamSubject;
-    private final String defaultKeyPrefix;
-    private final String publishKeyPrefix;
+    private final String rawKeyPrefix;
+    private final String pubSubKeyPrefix;
 
     NatsKeyValue(NatsConnection connection, String bucketName, KeyValueOptions kvo) throws IOException {
         this.bucketName = Validator.validateKvBucketNameRequired(bucketName);
         streamName = toStreamName(bucketName);
         streamSubject = toStreamSubject(bucketName);
-        defaultKeyPrefix = toKeyPrefix(bucketName);
+        rawKeyPrefix = toKeyPrefix(bucketName);
         if (kvo == null) {
             js = new NatsJetStream(connection, null);
             jsm = new NatsJetStreamManagement(connection, null);
-            publishKeyPrefix = defaultKeyPrefix;
+            pubSubKeyPrefix = rawKeyPrefix;
         }
         else {
             js = new NatsJetStream(connection, kvo.getJetStreamOptions());
             jsm = new NatsJetStreamManagement(connection, kvo.getJetStreamOptions());
-            publishKeyPrefix = kvo.getFeaturePrefix() == null ? defaultKeyPrefix : kvo.getFeaturePrefix();
+            if (kvo.getJetStreamOptions().isDefaultPrefix()) {
+                pubSubKeyPrefix = rawKeyPrefix;
+            }
+            else {
+                pubSubKeyPrefix = kvo.getJetStreamOptions().getPrefix() + rawKeyPrefix;
+            }
         }
     }
 
-    String defaultKeySubject(String key) {
-        return defaultKeyPrefix + key;
+    String rawKeySubject(String key) {
+        return rawKeyPrefix + key;
     }
 
-    String publishKeySubject(String key) {
-        return publishKeyPrefix + key;
+    String pubSubKeySubject(String key) {
+        return pubSubKeyPrefix + key;
     }
 
     /**
@@ -73,10 +80,6 @@ public class NatsKeyValue implements KeyValue {
 
     String getStreamName() {
         return streamName;
-    }
-
-    String getStreamSubject() {
-        return streamSubject;
     }
 
     /**
@@ -97,7 +100,7 @@ public class NatsKeyValue implements KeyValue {
 
     KeyValueEntry _kvGetLastMessage(String key) throws IOException, JetStreamApiException {
         try {
-            return new KeyValueEntry(jsm.getLastMessage(streamName, defaultKeySubject(key)));
+            return new KeyValueEntry(jsm.getLastMessage(streamName, rawKeySubject(key)));
         }
         catch (JetStreamApiException jsae) {
             if (jsae.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {
@@ -107,7 +110,7 @@ public class NatsKeyValue implements KeyValue {
         }
     }
 
-    private KeyValueEntry _kvGetMessage(String key, long revision) throws IOException, JetStreamApiException {
+    KeyValueEntry _kvGetMessage(String key, long revision) throws IOException, JetStreamApiException {
         try {
             KeyValueEntry kve = new KeyValueEntry(jsm.getMessage(streamName, revision));
             return key.equals(kve.getKey()) ? kve : null;
@@ -194,7 +197,7 @@ public class NatsKeyValue implements KeyValue {
 
     private PublishAck _publishWithNonWildcardKey(String key, byte[] data, Headers h) throws IOException, JetStreamApiException {
         validateNonWildcardKvKeyRequired(key);
-        return js.publish(NatsMessage.builder().subject(publishKeySubject(key)).data(data).headers(h).build());
+        return js.publish(NatsMessage.builder().subject(pubSubKeySubject(key)).data(data).headers(h).build());
     }
 
     @Override
@@ -216,7 +219,7 @@ public class NatsKeyValue implements KeyValue {
     @Override
     public List<String> keys() throws IOException, JetStreamApiException, InterruptedException {
         List<String> list = new ArrayList<>();
-        visitSubject(defaultKeySubject(">"), DeliverPolicy.LastPerSubject, true, false, m -> {
+        visitSubject(rawKeySubject(">"), DeliverPolicy.LastPerSubject, true, false, m -> {
             KeyValueOperation op = getOperation(m.getHeaders());
             if (op == KeyValueOperation.PUT) {
                 list.add(new BucketAndKey(m).key);
@@ -232,7 +235,7 @@ public class NatsKeyValue implements KeyValue {
     public List<KeyValueEntry> history(String key) throws IOException, JetStreamApiException, InterruptedException {
         validateNonWildcardKvKeyRequired(key);
         List<KeyValueEntry> list = new ArrayList<>();
-        visitSubject(defaultKeySubject(key), DeliverPolicy.All, false, true, m -> list.add(new KeyValueEntry(m)));
+        visitSubject(rawKeySubject(key), DeliverPolicy.All, false, true, m -> list.add(new KeyValueEntry(m)));
         return list;
     }
 
@@ -241,16 +244,53 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public void purgeDeletes()  throws IOException, JetStreamApiException, InterruptedException {
-        List<String> list = new ArrayList<>();
+        purgeDeletes(null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void purgeDeletes(KeyValuePurgeOptions options) throws IOException, JetStreamApiException, InterruptedException {
+        long dmThresh = options == null
+            ? KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS
+            : options.getDeleteMarkersThresholdMillis();
+
+        ZonedDateTime limit;
+        if (dmThresh < 0) {
+            limit = DateTimeUtils.fromNow(600000); // long enough in the future to clear all
+        }
+        else if (dmThresh == 0) {
+            limit = DateTimeUtils.fromNow(KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS);
+        }
+        else {
+            limit = DateTimeUtils.fromNow(-dmThresh);
+        }
+
+        List<String> keep0List = new ArrayList<>();
+        List<String> keep1List = new ArrayList<>();
         visitSubject(streamSubject, DeliverPolicy.LastPerSubject, true, false, m -> {
-            KeyValueOperation op = getOperation(m.getHeaders());
-            if (op != KeyValueOperation.PUT) {
-                list.add(new BucketAndKey(m).key);
+            KeyValueEntry kve = new KeyValueEntry(m);
+            if (kve.getOperation() != KeyValueOperation.PUT) {
+                if (kve.getCreated().isAfter(limit)) {
+                    keep1List.add(new BucketAndKey(m).key);
+                }
+                else {
+                    keep0List.add(new BucketAndKey(m).key);
+                }
             }
         });
 
-        for (String key : list) {
-            jsm.purgeStream(streamName, PurgeOptions.subject(defaultKeySubject(key)));
+        for (String key : keep0List) {
+            jsm.purgeStream(streamName, PurgeOptions.subject(rawKeySubject(key)));
+        }
+
+        for (String key : keep1List) {
+            PurgeOptions po = PurgeOptions.builder()
+                .subject(rawKeySubject(key))
+                .keep(1)
+                .build();
+            jsm.purgeStream(streamName, po);
         }
     }
 

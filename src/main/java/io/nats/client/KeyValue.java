@@ -12,10 +12,7 @@
 // limitations under the License.
 package io.nats.client;
 
-import io.nats.client.api.KeyValueEntry;
-import io.nats.client.api.KeyValueStatus;
-import io.nats.client.api.KeyValueWatchOption;
-import io.nats.client.api.KeyValueWatcher;
+import io.nats.client.api.*;
 import io.nats.client.impl.NatsKeyValueWatchSubscription;
 
 import java.io.IOException;
@@ -28,14 +25,12 @@ public interface KeyValue {
 
     /**
      * Get the name of the bucket.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @return the name
      */
     String getBucketName();
 
     /**
      * Get the entry for a key
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @return the KvEntry object or null if not found.
      * @throws IOException covers various communication issues with the NATS
@@ -47,7 +42,6 @@ public interface KeyValue {
 
     /**
      * Get the specific revision of an entry for a key.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @param revision the revision
      * @return the KvEntry object or null if not found.
@@ -60,7 +54,6 @@ public interface KeyValue {
 
     /**
      * Put a byte[] as the value for a key
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @param value the bytes of the value
      * @return the revision number for the key
@@ -73,7 +66,6 @@ public interface KeyValue {
 
     /**
      * Put a string as the value for a key
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @param value the UTF-8 string
      * @return the revision number for the key
@@ -86,7 +78,6 @@ public interface KeyValue {
 
     /**
      * Put a long as the value for a key
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @param value the number
      * @return the revision number for the key
@@ -100,7 +91,6 @@ public interface KeyValue {
     /**
      * Put as the value for a key iff the key does not exist (there is no history)
      * or is deleted (history shows the key is deleted)
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @param value the bytes of the value
      * @return the revision number for the key
@@ -113,7 +103,6 @@ public interface KeyValue {
 
     /**
      * Put as the value for a key iff the key exists and its last revision matches the expected
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @param value the bytes of the value
      * @param expectedRevision the expected last revision
@@ -127,7 +116,6 @@ public interface KeyValue {
 
     /**
      * Soft deletes the key by placing a delete marker.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -137,7 +125,6 @@ public interface KeyValue {
 
     /**
      * Purge all values/history from the specific key
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -147,7 +134,6 @@ public interface KeyValue {
 
     /**
      * Watch updates for a specific key
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @param watcher the watcher
      * @param watchOptions the watch options to apply. If multiple conflicting options are supplied, the last options wins.
@@ -161,7 +147,6 @@ public interface KeyValue {
 
     /**
      * Watch updates for all keys
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param watcher the watcher
      * @param watchOptions the watch options to apply. If multiple conflicting options are supplied, the last options wins.
      * @return The KeyValueWatchSubscription
@@ -174,7 +159,6 @@ public interface KeyValue {
 
     /**
      * Get a list of the keys in a bucket.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @return List of keys
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -185,7 +169,6 @@ public interface KeyValue {
 
     /**
      * Get the history (list of KeyValueEntry) for a key
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param key the key
      * @return List of KvEntry
      * @throws IOException covers various communication issues with the NATS
@@ -196,8 +179,8 @@ public interface KeyValue {
     List<KeyValueEntry> history(String key) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
-     * Remove history from all keys that currently are deleted or purged.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * Remove history from all keys that currently are deleted or purged
+     * with using a default KeyValuePurgeOptions
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
@@ -206,8 +189,16 @@ public interface KeyValue {
     void purgeDeletes() throws IOException, JetStreamApiException, InterruptedException;
 
     /**
+     * Remove history from all keys that currently are deleted or purged, considering options.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
+     */
+    void purgeDeletes(KeyValuePurgeOptions options) throws IOException, JetStreamApiException, InterruptedException;
+
+    /**
      * Get the KeyValueStatus object
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @return the status object
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption

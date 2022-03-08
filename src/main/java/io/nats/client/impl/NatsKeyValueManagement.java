@@ -14,11 +14,11 @@
 package io.nats.client.impl;
 
 import io.nats.client.JetStreamApiException;
-import io.nats.client.JetStreamManagement;
 import io.nats.client.KeyValueManagement;
 import io.nats.client.KeyValueOptions;
 import io.nats.client.api.KeyValueConfiguration;
 import io.nats.client.api.KeyValueStatus;
+import io.nats.client.api.StreamConfiguration;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
@@ -28,7 +28,7 @@ import java.util.List;
 import static io.nats.client.support.NatsKeyValueUtil.*;
 
 public class NatsKeyValueManagement implements KeyValueManagement {
-    private final JetStreamManagement jsm;
+    private final NatsJetStreamManagement jsm;
 
     NatsKeyValueManagement(NatsConnection connection, KeyValueOptions kvo) throws IOException {
         jsm = new NatsJetStreamManagement(connection, kvo == null ? null : kvo.getJetStreamOptions());
@@ -39,7 +39,11 @@ public class NatsKeyValueManagement implements KeyValueManagement {
      */
     @Override
     public KeyValueStatus create(KeyValueConfiguration config) throws IOException, JetStreamApiException {
-        return new KeyValueStatus(jsm.addStream(config.getBackingConfig()));
+        StreamConfiguration sc = config.getBackingConfig();
+        if ( jsm.conn.getServerInfo().isOlderThanVersion("2.7.2") ) {
+            sc = StreamConfiguration.builder(sc).discardPolicy(null).build(); // null discard policy will use default
+        }
+        return new KeyValueStatus(jsm.addStream(sc));
     }
 
     /**
