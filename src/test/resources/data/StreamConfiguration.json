@@ -9,7 +9,7 @@
   "max_bytes": 732,
   "max_age": 43000000000,
   "max_msg_size": 734,
-  "storage": "memory",
+  "storage": "MeMoRy", "storageComment": "funny case used to test getting StorageType enum",
   "num_replicas": 5,
   "no_ack": true,
   "template_owner": "twnr",
