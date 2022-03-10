@@ -64,7 +64,7 @@ public class ServerInfoTests {
         ServerInfo info235Beta2 = new ServerInfo(json.replace("1.2.3", "2.3.5-beta.2"));
         assertTrue(info.isOlderThanVersion("2.3.4"));
         assertTrue(info234.isOlderThanVersion("2.3.5"));
-        assertTrue(info235.isOlderThanVersion("2.3.5-beta.2"));
+        assertTrue(info235.isNewerVersionThan("2.3.5-beta.2"));
         assertTrue(info.isSameVersion("1.2.3"));
         assertTrue(info234.isSameVersion("2.3.4"));
         assertTrue(info235.isSameVersion("2.3.5"));
@@ -73,7 +73,7 @@ public class ServerInfoTests {
         assertFalse(info235Beta2.isSameVersion("2.3.5"));
         assertTrue(info234.isNewerVersionThan("1.2.3"));
         assertTrue(info235.isNewerVersionThan("2.3.4"));
-        assertTrue(info235Beta2.isNewerVersionThan("2.3.5"));
+        assertTrue(info235Beta2.isOlderThanVersion("2.3.5"));
 
         assertTrue(info234.isNewerVersionThan("not-a-number"));
         assertFalse(info234.isNewerVersionThan("2.3.5"));
