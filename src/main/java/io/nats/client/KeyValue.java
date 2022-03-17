@@ -190,6 +190,7 @@ public interface KeyValue {
 
     /**
      * Remove history from all keys that currently are deleted or purged, considering options.
+     * @param options the purge options
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
