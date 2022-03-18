@@ -240,6 +240,39 @@ public class RequestTests extends TestBase {
     }
 
     @Test
+    public void testRequireCleanupOnTimeoutCleanCompletable() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = new Options.Builder().server(ts.getURI())
+                    .requestCleanupInterval(Duration.ofHours(1))
+                    .noNoResponders().build();
+
+            NatsConnection nc = (NatsConnection) Nats.connect(options);
+            try {
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+
+                NatsMessage nm = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
+                long cleanupInterval = 100;
+
+                CompletableFuture<Message> future = nc.requestWithTimeout(nm, Duration.ofMillis(cleanupInterval));
+
+                Thread.sleep(2 * cleanupInterval + Options.DEFAULT_CONNECTION_TIMEOUT.toMillis());
+
+                nc.cleanResponses(false);
+
+                assertTrue(future.isCompletedExceptionally());
+                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+
+            } finally {
+                nc.close();
+                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+            }
+        }
+    }
+
+
+
+
+    @Test
     public void testRequireCleanupOnCancelFromNoResponders() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI())
