@@ -69,7 +69,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
     // Flapper fix: For whatever reason 10 seconds isn't enough on slow machines
     // I've put this in a function so all latch awaits give plenty of time
     private void awaitAndAssert(CountDownLatch latch) throws InterruptedException {
-        assertTrue(latch.await(15, TimeUnit.SECONDS));
+        assertTrue(latch.await(20, TimeUnit.SECONDS));
     }
 
     @Test
