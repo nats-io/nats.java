@@ -22,9 +22,7 @@ public enum AckType {
         this.terminal = terminal;
     }
 
-    public byte[] bodyBytes(Long delayNanoseconds) {
-        return delayNanoseconds == null || delayNanoseconds < 1
-            ? bytes
-            : (text + " {\"delay\": " + delayNanoseconds + "}").getBytes(StandardCharsets.US_ASCII);
+    public byte[] bodyBytes(long delayNanoseconds) {
+        return delayNanoseconds < 1 ? bytes : (text + " {\"delay\": " + delayNanoseconds + "}").getBytes(StandardCharsets.US_ASCII);
     }
 }

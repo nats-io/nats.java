@@ -34,7 +34,7 @@ class NatsJetStreamMessage extends InternalMessage {
      */
     @Override
     public void ack() {
-        ackReply(AckAck, null);
+        ackReply(AckAck, -1);
     }
 
     /**
@@ -57,7 +57,7 @@ class NatsJetStreamMessage extends InternalMessage {
      */
     @Override
     public void nak() {
-        ackReply(AckNak, null);
+        ackReply(AckNak, -1);
     }
 
     /**
@@ -73,7 +73,7 @@ class NatsJetStreamMessage extends InternalMessage {
      */
     @Override
     public void nakWithDelay(long nakDelayMillis) {
-        ackReply(AckNak, NANOS_PER_MILLI * nakDelayMillis);
+        ackReply(AckNak, nakDelayMillis * NANOS_PER_MILLI);
     }
 
     /**
@@ -81,7 +81,7 @@ class NatsJetStreamMessage extends InternalMessage {
      */
     @Override
     public void inProgress() {
-        ackReply(AckProgress, null);
+        ackReply(AckProgress, -1);
     }
 
     /**
@@ -89,7 +89,7 @@ class NatsJetStreamMessage extends InternalMessage {
      */
     @Override
     public void term() {
-        ackReply(AckTerm, null);
+        ackReply(AckTerm, -1);
     }
 
     /**
@@ -111,10 +111,10 @@ class NatsJetStreamMessage extends InternalMessage {
         return true; // NatsJetStreamMessage will never be created unless it's actually a JetStream Message
     }
 
-    private void ackReply(AckType ackType, Long optionalDelayNanos) {
+    private void ackReply(AckType ackType, long delayNanos) {
         if (ackHasntBeenTermed()) {
             Connection nc = getJetStreamValidatedConnection();
-            nc.publish(replyTo, ackType.bodyBytes(optionalDelayNanos));
+            nc.publish(replyTo, ackType.bodyBytes(delayNanos));
             lastAck = ackType;
         }
     }

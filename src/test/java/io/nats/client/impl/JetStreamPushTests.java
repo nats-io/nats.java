@@ -392,6 +392,24 @@ public class JetStreamPushTests extends JetStreamTestBase {
             message.ack();
 
             assertNull(sub.nextMessage(Duration.ofMillis(500)));
+
+            jsPublish(js, SUBJECT, "NAK", 3, 1);
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("NAK3", data);
+            message.nakWithDelay(Duration.ofSeconds(3)); // coverage to use both nakWithDelay
+
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
+
+            message = sub.nextMessage(Duration.ofSeconds(3000));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("NAK3", data);
+            message.ack();
+
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
         });
     }
 
