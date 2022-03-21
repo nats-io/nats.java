@@ -302,33 +302,16 @@ public class JetStreamPushTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
-            // NAK
-            jsPublish(js, SUBJECT, "NAK", 1);
+            // TERM
+            jsPublish(js, SUBJECT, "TERM", 1);
 
             Message message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
             String data = new String(message.getData());
-            assertEquals("NAK1", data);
-            message.nak();
-
-            message = sub.nextMessage(Duration.ofSeconds(1));
-            assertNotNull(message);
-            data = new String(message.getData());
-            assertEquals("NAK1", data);
-            message.ack();
-
-            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
-
-            // TERM
-            jsPublish(js, SUBJECT, "TERM", 1);
-
-            message = sub.nextMessage(Duration.ofSeconds(1));
-            assertNotNull(message);
-            data = new String(message.getData());
             assertEquals("TERM1", data);
             message.term();
 
-            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
             // Ack Wait timeout
             jsPublish(js, SUBJECT, "WAIT", 1);
@@ -362,7 +345,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             sleep(750);
             message.ack();
 
-            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
             // ACK Sync
             jsPublish(js, SUBJECT, "ACKSYNC", 1);
@@ -373,7 +356,42 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertEquals("ACKSYNC1", data);
             message.ackSync(Duration.ofSeconds(1));
 
-            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
+
+            // NAK
+            jsPublish(js, SUBJECT, "NAK", 1, 1);
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("NAK1", data);
+            message.nak();
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("NAK1", data);
+            message.ack();
+
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
+
+            jsPublish(js, SUBJECT, "NAK", 2, 1);
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("NAK2", data);
+            message.nakWithDelay(3000);
+
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
+
+            message = sub.nextMessage(Duration.ofSeconds(3000));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("NAK2", data);
+            message.ack();
+
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
         });
     }
 

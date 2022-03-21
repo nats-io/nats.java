@@ -101,7 +101,12 @@ public class JetStreamTestBase extends TestBase {
     // Publish / Read
     // ----------------------------------------------------------------------------------------------------
     public static void jsPublish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
-        for (int x = 1; x <= count; x++) {
+        jsPublish(js, subject, prefix, 1, count);
+    }
+
+    public static void jsPublish(JetStream js, String subject, String prefix, int startId, int count) throws IOException, JetStreamApiException {
+        int end = startId + count - 1;
+        for (int x = startId; x <= end; x++) {
             String data = prefix + x;
             js.publish(NatsMessage.builder()
                     .subject(subject)
