@@ -72,6 +72,10 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
         assertTrue(latch.await(20, TimeUnit.SECONDS));
     }
 
+    private void awaitAndAssertLonger(CountDownLatch latch) throws InterruptedException {
+        assertTrue(latch.await(30, TimeUnit.SECONDS));
+    }
+
     @Test
     public void testHandlerAutoAck() throws Exception {
         runInJsServer(nc -> {
@@ -280,7 +284,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
-            awaitAndAssert(msgLatchRef.get());
+            awaitAndAssertLonger(msgLatchRef.get());
             assertEquals(0, msgLatchRef.get().getCount());
             dispatcher.unsubscribe(async);
 
