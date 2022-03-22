@@ -217,11 +217,10 @@ public abstract class JsonUtils {
     }
 
     /**
-     * Extract a list strings for list object name. Returns empty array if not found.
-     * Assumes that there are no brackets '{' or '}' in the actual data.
+     * Extract a list longs for list object name. Returns empty array if not found.
      * @param objectName object name
      * @param json source json
-     * @return a string list, empty if no values are found.
+     * @return a long list, empty if no values are found.
      */
     public static List<Long> getLongList(String objectName, String json) {
         String flat = json.replaceAll("\r", "").replaceAll("\n", "");
@@ -234,6 +233,21 @@ public abstract class JsonUtils {
             for (String s : raw) {
                 list.add(safeParseLong(s.trim()));
             }
+        }
+        return list;
+    }
+
+    /**
+     * Extract a list durations for list object name. Returns empty array if not found.
+     * @param objectName object name
+     * @param json source json
+     * @return a duration list, empty if no values are found.
+     */
+    public static List<Duration> getDurationList(String objectName, String json) {
+        List<Long> longs = getLongList(objectName, json);
+        List<Duration> list = new ArrayList<>(longs.size());
+        for (Long l : longs) {
+            list.add(Duration.ofNanos(l));
         }
         return list;
     }
@@ -387,6 +401,30 @@ public abstract class JsonUtils {
         }
     }
 
+    interface ListAdder<T> {
+        void append(StringBuilder sb, T t);
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param list value list
+     * @param adder implementation to add value, including it's quotes if required
+     */
+    public static <T> void _addList(StringBuilder sb, String fname, List<T> list, ListAdder<T> adder) {
+        sb.append(Q);
+        jsonEncode(sb, fname);
+        sb.append("\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) {
+                sb.append(COMMA);
+            }
+            adder.append(sb, list.get(i));
+        }
+        sb.append("],");
+    }
+
     /**
      * Appends a json field to a string builder.
      * @param sb string builder
@@ -394,11 +432,9 @@ public abstract class JsonUtils {
      * @param strArray field value
      */
     public static void addStrings(StringBuilder sb, String fname, String[] strArray) {
-        if (strArray == null || strArray.length == 0) {
-            return;
+        if (strArray != null && strArray.length > 0) {
+            addStrings(sb, fname, Arrays.asList(strArray));
         }
-
-        addStrings(sb, fname, Arrays.asList(strArray));
     }
 
     /**
@@ -408,23 +444,13 @@ public abstract class JsonUtils {
      * @param strings field value
      */
     public static void addStrings(StringBuilder sb, String fname, List<String> strings) {
-        if (strings == null || strings.size() == 0) {
-            return;
+        if (strings != null && strings.size() > 0) {
+            _addList(sb, fname, strings, (sbs, s) -> {
+                sb.append(Q);
+                jsonEncode(sb, s);
+                sb.append(Q);
+            });
         }
-
-        sb.append(Q);
-        jsonEncode(sb, fname);
-        sb.append("\":[");
-        for (int i = 0; i < strings.size(); i++) {
-            String s = strings.get(i);
-            sb.append(Q);
-            jsonEncode(sb, s);
-            sb.append(Q);
-            if (i < strings.size()-1) {
-                sb.append(COMMA);
-            }
-        }
-        sb.append("],");
     }
 
     /**
@@ -434,21 +460,21 @@ public abstract class JsonUtils {
      * @param jsons field value
      */
     public static void addJsons(StringBuilder sb, String fname, List<? extends JsonSerializable> jsons) {
-        if (jsons == null || jsons.size() == 0) {
-            return;
+        if (jsons != null && jsons.size() > 0) {
+            _addList(sb, fname, jsons, (sbs, s) -> sbs.append(s.toJson()));
         }
+    }
 
-        sb.append(Q);
-        jsonEncode(sb, fname);
-        sb.append("\":[");
-        for (int i = 0; i < jsons.size(); i++) {
-            JsonSerializable s = jsons.get(i);
-            sb.append(s.toJson());
-            if (i < jsons.size()-1) {
-                sb.append(COMMA);
-            }
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param durations list of durations
+     */
+    public static void addDurations(StringBuilder sb, String fname, List<Duration> durations) {
+        if (durations != null && durations.size() > 0) {
+            _addList(sb, fname, durations, (sbs, dur) -> sbs.append(dur.toNanos()));
         }
-        sb.append("],");
     }
 
     /**

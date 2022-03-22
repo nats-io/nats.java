@@ -126,6 +126,21 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         ccTest = builder(orig).deliverGroup(PLAIN).build();
         assertNotChange(ccTest, ccTest);
         assertChange(ccTest, orig);
+
+        Duration[] nodurs = null;
+        assertNotChange(builder(orig).backoff(nodurs).build(), orig);
+        assertNotChange(builder(orig).backoff((Duration)null).build(), orig);
+        assertNotChange(builder(orig).backoff(new Duration[0]).build(), orig);
+        ccTest = builder(orig).backoff(1000, 2000).build();
+        assertNotChange(ccTest, ccTest);
+        assertChange(ccTest, orig);
+
+        long[] nolongs = null;
+        assertNotChange(builder(orig).backoff(nolongs).build(), orig);
+        assertNotChange(builder(orig).backoff(new long[0]).build(), orig);
+        ccTest = builder(orig).backoff(1000, 2000).build();
+        assertNotChange(ccTest, ccTest);
+        assertChange(ccTest, orig);
     }
 
     @Test

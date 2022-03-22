@@ -21,6 +21,8 @@ import io.nats.client.support.JsonUtils;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 
 import static io.nats.client.support.ApiConstants.*;
@@ -60,6 +62,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final Long maxBatch;
     protected final Boolean flowControl;
     protected final Boolean headersOnly;
+    protected final List<Duration> backoff;
 
     private static DeliverPolicy GetOrDefault(DeliverPolicy p) { return p == null ? DeliverPolicy.All : p; }
     private static AckPolicy GetOrDefault(AckPolicy p) { return p == null ? AckPolicy.Explicit : p; }
@@ -88,6 +91,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.maxBatch = cc.maxBatch;
         this.flowControl = cc.flowControl;
         this.headersOnly = cc.headersOnly;
+        this.backoff = new ArrayList<>(cc.backoff);
     }
 
     // for the response from the server
@@ -123,6 +127,8 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         flowControl = JsonUtils.readBoolean(json, FLOW_CONTROL_RE);
         headersOnly = JsonUtils.readBoolean(json, HEADERS_ONLY_RE);
+
+        backoff = JsonUtils.getDurationList(BACKOFF, json);
     }
 
     // For the builder
@@ -153,6 +159,8 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         this.flowControl = b.flowControl;
         this.headersOnly = b.headersOnly;
+
+        this.backoff = b.backoff;
     }
 
     /**
@@ -184,6 +192,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, MAX_BATCH, maxBatch);
         JsonUtils.addFieldAsNanos(sb, MAX_EXPIRES, maxExpires);
         JsonUtils.addFieldAsNanos(sb, INACTIVE_THRESHOLD, inactiveThreshold);
+        JsonUtils.addDurations(sb, BACKOFF, backoff);
         return endJson(sb).toString();
     }
 
@@ -365,6 +374,14 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
+     * Get the backoff list; may be empty, will never be null.
+     * @return the list
+     */
+    public List<Duration> getBackoff() {
+        return backoff;
+    }
+
+    /**
      * Gets whether deliver policy of this consumer configuration was set or left unset
      * @return true if the policy was set, false if the policy was not set
      */
@@ -504,6 +521,8 @@ public class ConsumerConfiguration implements JsonSerializable {
         private Boolean flowControl;
         private Boolean headersOnly;
 
+        private List<Duration> backoff = new ArrayList<>();
+
         public Builder() {}
 
         public Builder(ConsumerConfiguration cc) {
@@ -534,6 +553,8 @@ public class ConsumerConfiguration implements JsonSerializable {
 
                 this.flowControl = cc.flowControl;
                 this.headersOnly = cc.headersOnly;
+
+                this.backoff = new ArrayList<>(cc.backoff);
             }
         }
 
@@ -869,6 +890,38 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
+         * Set the list of backoff.
+         * @param backoffs zero or more backoff durations or an array of backoffs
+         * @return Builder
+         */
+        public Builder backoff(Duration... backoffs) {
+            this.backoff.clear();
+            if (backoffs != null) {
+                for (Duration d : backoffs) {
+                    if (d != null) {
+                        this.backoff.add(d);
+                    }
+                }
+            }
+            return this;
+        }
+
+        /**
+         * Set the list of backoff.
+         * @param backoffsMillis zero or more backoff in millis or an array of backoffsMillis
+         * @return Builder
+         */
+        public Builder backoff(long... backoffsMillis) {
+            this.backoff.clear();
+            if (backoffsMillis != null) {
+                for (long ms : backoffsMillis) {
+                    this.backoff.add(Duration.ofMillis(ms));
+                }
+            }
+            return this;
+        }
+
+        /**
          * Builds the ConsumerConfiguration
          * @return The consumer configuration.
          */
@@ -917,6 +970,7 @@ public class ConsumerConfiguration implements JsonSerializable {
             ", maxBatch=" + maxBatch +
             ", maxExpires=" + maxExpires +
             ", inactiveThreshold=" + inactiveThreshold +
+            ", backoff=" + backoff +
             '}';
     }
 
