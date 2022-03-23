@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -64,16 +63,6 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             assertEquals(10, received.get());
         });
-    }
-
-    // Flapper fix: For whatever reason 10 seconds isn't enough on slow machines
-    // I've put this in a function so all latch awaits give plenty of time
-    private void awaitAndAssert(CountDownLatch latch) throws InterruptedException {
-        assertTrue(latch.await(20, TimeUnit.SECONDS));
-    }
-
-    private void awaitAndAssertLonger(CountDownLatch latch) throws InterruptedException {
-        assertTrue(latch.await(30, TimeUnit.SECONDS));
     }
 
     @Test
@@ -284,7 +273,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
-            awaitAndAssertLonger(msgLatchRef.get());
+            awaitAndAssert(msgLatchRef.get());
             assertEquals(0, msgLatchRef.get().getCount());
             dispatcher.unsubscribe(async);
 

@@ -24,6 +24,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static io.nats.examples.jetstream.NatsJsUtils.printConsumerInfo;
@@ -328,17 +330,10 @@ public class JetStreamTestBase extends TestBase {
 
     }
 
-    public static Options.Builder optsWithEl() {
-        return new Options.Builder().errorListener(new ErrorListener() {
-            @Override
-            public void errorOccurred(Connection conn, String error) {}
-
-            @Override
-            public void exceptionOccurred(Connection conn, Exception exp) {}
-
-            @Override
-            public void slowConsumerDetected(Connection conn, Consumer consumer) {}
-        });
+    // Flapper fix: For whatever reason 10 seconds isn't enough on slow machines
+    // I've put this in a function so all latch awaits give plenty of time
+    public static void awaitAndAssert(CountDownLatch latch) throws InterruptedException {
+        assertTrue(latch.await(30, TimeUnit.SECONDS));
     }
 
     public static Options.Builder optsWithEl(ErrorListener el) {

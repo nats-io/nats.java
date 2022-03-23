@@ -28,7 +28,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -224,7 +223,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         JetStreamSubscription sub = supplier.get(dispatcher, handler);
 
         // Wait for messages to arrive using the countdown latch.
-        assertTrue(msgLatch.await(10, TimeUnit.SECONDS));
+        awaitAndAssert(msgLatch);
 
         dispatcher.unsubscribe(sub);
 
@@ -668,7 +667,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             // publish after sub to make sure interceptor is set before messages come in
             jsPublish(js, subject(2), 201, 6);
 
-            assertTrue(msgLatch.await(10, TimeUnit.SECONDS));
+            awaitAndAssert(msgLatch);
 
             while (streamSeq < 13) {
                 int flagIdx = streamSeq - 7;
