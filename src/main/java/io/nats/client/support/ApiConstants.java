@@ -25,6 +25,7 @@ public interface ApiConstants {
     String ALLOW_ROLLUP_HDRS = "allow_rollup_hdrs";
     String API               = "api";
     String AUTH_REQUIRED     = "auth_required";
+    String BACKOFF           = "backoff";
     String BYTES             = "bytes";
     String CLIENT_ID         = "client_id";
     String CLIENT_IP         = "client_ip";

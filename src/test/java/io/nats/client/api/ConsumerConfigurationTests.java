@@ -51,12 +51,14 @@ public class ConsumerConfigurationTests extends TestBase {
             .maxExpires(77000) // duration
             .inactiveThreshold(88000) // duration
             .headersOnly(true)
+            .backoff(1000, 2000, 3000)
             .build();
 
         assertAsBuilt(c, zdt);
 
         ConsumerCreateRequest ccr = new ConsumerCreateRequest(STREAM, c);
         assertEquals(STREAM, ccr.getStreamName());
+
         assertNotNull(ccr.getConfig());
 
         String json = ccr.toJson();
@@ -154,6 +156,10 @@ public class ConsumerConfigurationTests extends TestBase {
         assertTrue(c.flowControlWasSet());
         assertTrue(c.headersOnlyWasSet());
         assertTrue(c.maxBatchWasSet());
+        assertEquals(3, c.getBackoff().size());
+        assertEquals(Duration.ofSeconds(1), c.getBackoff().get(0));
+        assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
+        assertEquals(Duration.ofSeconds(3), c.getBackoff().get(2));
     }
 
     @Test
@@ -182,6 +188,10 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(55, c.getMaxBatch());
         assertEquals(Duration.ofSeconds(40), c.getMaxExpires());
         assertEquals(Duration.ofSeconds(50), c.getInactiveThreshold());
+        assertEquals(3, c.getBackoff().size());
+        assertEquals(Duration.ofSeconds(1), c.getBackoff().get(0));
+        assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
+        assertEquals(Duration.ofSeconds(3), c.getBackoff().get(2));
 
         assertDefaultCc(new ConsumerConfiguration("{}"));
     }
@@ -211,5 +221,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(CcChangeHelper.RATE_LIMIT.initial(), c.getRateLimit());
         assertEquals(CcChangeHelper.MAX_ACK_PENDING.initial(), c.getMaxAckPending());
         assertEquals(CcChangeHelper.MAX_PULL_WAITING.initial(), c.getMaxPullWaiting());
+
+        assertEquals(0, c.getBackoff().size());
     }
 }

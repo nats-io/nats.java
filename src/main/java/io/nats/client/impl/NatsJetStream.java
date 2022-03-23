@@ -443,6 +443,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 || (sampleFrequency != null && !sampleFrequency.equals(serverCcc.sampleFrequency))
                 || (deliverSubject != null && !deliverSubject.equals(serverCcc.deliverSubject))
                 || (deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup))
+
+                || !backoff.equals(serverCcc.backoff) // backoff will never be null, but can be empty
                 ;
 
             // do not need to check Durable because the original is retrieved by the durable name
