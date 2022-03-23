@@ -121,6 +121,18 @@ public interface Message {
 	void nak();
 
 	/**
+	 * nak acknowledges a JetStream message has been received but indicates that the message
+	 * is not completely processed and should be sent again later, after at least the delay amount.
+	 */
+	void nakWithDelay(Duration nakDelay);
+
+	/**
+	 * nak acknowledges a JetStream message has been received but indicates that the message
+	 * is not completely processed and should be sent again later, after at least the delay amount.
+	 */
+	void nakWithDelay(long nakDelayMillis);
+
+	/**
 	 * term prevents this message from every being delivered regardless of maxDeliverCount.
 	 */
 	void term();

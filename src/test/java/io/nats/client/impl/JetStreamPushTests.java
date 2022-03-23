@@ -28,7 +28,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -224,7 +223,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         JetStreamSubscription sub = supplier.get(dispatcher, handler);
 
         // Wait for messages to arrive using the countdown latch.
-        assertTrue(msgLatch.await(10, TimeUnit.SECONDS));
+        awaitAndAssert(msgLatch);
 
         dispatcher.unsubscribe(sub);
 
@@ -302,33 +301,16 @@ public class JetStreamPushTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
-            // NAK
-            jsPublish(js, SUBJECT, "NAK", 1);
+            // TERM
+            jsPublish(js, SUBJECT, "TERM", 1);
 
             Message message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
             String data = new String(message.getData());
-            assertEquals("NAK1", data);
-            message.nak();
-
-            message = sub.nextMessage(Duration.ofSeconds(1));
-            assertNotNull(message);
-            data = new String(message.getData());
-            assertEquals("NAK1", data);
-            message.ack();
-
-            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
-
-            // TERM
-            jsPublish(js, SUBJECT, "TERM", 1);
-
-            message = sub.nextMessage(Duration.ofSeconds(1));
-            assertNotNull(message);
-            data = new String(message.getData());
             assertEquals("TERM1", data);
             message.term();
 
-            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
             // Ack Wait timeout
             jsPublish(js, SUBJECT, "WAIT", 1);
@@ -362,7 +344,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             sleep(750);
             message.ack();
 
-            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
             // ACK Sync
             jsPublish(js, SUBJECT, "ACKSYNC", 1);
@@ -373,7 +355,60 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertEquals("ACKSYNC1", data);
             message.ackSync(Duration.ofSeconds(1));
 
-            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
+
+            // NAK
+            jsPublish(js, SUBJECT, "NAK", 1, 1);
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("NAK1", data);
+            message.nak();
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("NAK1", data);
+            message.ack();
+
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
+
+            jsPublish(js, SUBJECT, "NAK", 2, 1);
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("NAK2", data);
+            message.nakWithDelay(3000);
+
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
+
+            message = sub.nextMessage(Duration.ofSeconds(3000));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("NAK2", data);
+            message.ack();
+
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
+
+            jsPublish(js, SUBJECT, "NAK", 3, 1);
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("NAK3", data);
+            message.nakWithDelay(Duration.ofSeconds(3)); // coverage to use both nakWithDelay
+
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
+
+            message = sub.nextMessage(Duration.ofSeconds(3000));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("NAK3", data);
+            message.ack();
+
+            assertNull(sub.nextMessage(Duration.ofMillis(500)));
         });
     }
 
@@ -632,7 +667,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             // publish after sub to make sure interceptor is set before messages come in
             jsPublish(js, subject(2), 201, 6);
 
-            assertTrue(msgLatch.await(10, TimeUnit.SECONDS));
+            awaitAndAssert(msgLatch);
 
             while (streamSeq < 13) {
                 int flagIdx = streamSeq - 7;
