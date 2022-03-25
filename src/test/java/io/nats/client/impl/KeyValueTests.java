@@ -383,6 +383,11 @@ public class KeyValueTests extends JetStreamTestBase {
             for (int x = 2; x <= 10; x += 2) {
                 assertTrue(keys.contains("k" + x));
             }
+
+            String keyWithDot = "part1.part2.part3";
+            kv.put(keyWithDot, "key has dot");
+            KeyValueEntry kve = kv.get(keyWithDot);
+            assertEquals(keyWithDot, kve.getKey());
         });
     }
 
