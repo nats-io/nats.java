@@ -75,16 +75,9 @@ public abstract class NatsKeyValueUtil {
         }
 
         public BucketAndKey(String subject) {
-            String[] split = subject.split("\\Q.\\E");
+            String[] split = subject.split("\\Q.\\E", 3);
             bucket = split[1];
-            StringBuilder sb = new StringBuilder();
-            for (int x = 2; x < split.length; x++) {
-                if (x > 2) {
-                    sb.append(DOT);
-                }
-                sb.append(split[x]);
-            }
-            key = sb.toString();
+            key = split[2];
         }
 
         @Override
