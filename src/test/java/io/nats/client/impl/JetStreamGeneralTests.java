@@ -371,6 +371,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertEquals(data(1), new String(m.getData()));
             m.ack();
             s.unsubscribe();
+            sleep(250); // make sure the unsub happens
 
             jsPublish(js, SUBJECT, 2, 1);
             pso = PushSubscribeOptions.builder()

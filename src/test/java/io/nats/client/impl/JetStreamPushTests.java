@@ -153,7 +153,6 @@ public class JetStreamPushTests extends JetStreamTestBase {
                 .stream(STREAM)
                 .durable(DURABLE)
                 .bind(true)
-                .deliverSubject(deliverSubject)
                 .build();
             _testPushDurableSubSync(deliverSubject, nc, js, () -> js.subscribe(null, options2));
             _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.subscribe(null, d, h, false, options2));
@@ -181,7 +180,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         assertSubscription(sub, STREAM, DURABLE, deliverSubject, false);
 
         // read what is available
-        List<Message> messages = readMessagesAck(sub, Duration.ofSeconds(2));
+        List<Message> messages = readMessagesAck(sub);
         int total = messages.size();
         validateRedAndTotal(5, messages.size(), 5, total);
 
@@ -204,6 +203,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
         sub.unsubscribe();
         nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+        sleep(250); // make sure the unsub happens
     }
 
     private void _testPushDurableSubAsync(JetStream js, Dispatcher dispatcher, SubscriptionSupplierAsync supplier) throws IOException, JetStreamApiException, InterruptedException {
@@ -226,6 +226,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         awaitAndAssert(msgLatch);
 
         dispatcher.unsubscribe(sub);
+        sleep(250); // make sure the unsub happens
 
         assertEquals(5, received.get());
     }
