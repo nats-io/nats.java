@@ -152,10 +152,10 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                     .build());
 
             PushSubscribeOptions psoBind = PushSubscribeOptions.bind(STREAM, durable(101));
-            js.subscribe(null, psoBind).unsubscribe();
-            js.subscribe("", psoBind).unsubscribe();
+            unsubscribeEnsureNotBound(js.subscribe(null, psoBind));
+            unsubscribeEnsureNotBound(js.subscribe("", psoBind));
             JetStreamSubscription sub = js.subscribe(null, dispatcher, mh -> {}, false, psoBind);
-            dispatcher.unsubscribe(sub);
+            unsubscribeEnsureNotBound(dispatcher, sub);
             js.subscribe("", dispatcher, mh -> {}, false, psoBind);
 
             jsm.addOrUpdateConsumer(STREAM,
@@ -166,10 +166,10 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                     .build());
 
             psoBind = PushSubscribeOptions.bind(STREAM, durable(102));
-            js.subscribe(null, queue(102), psoBind).unsubscribe();
-            js.subscribe("", queue(102), psoBind).unsubscribe();
+            unsubscribeEnsureNotBound(js.subscribe(null, queue(102), psoBind));
+            unsubscribeEnsureNotBound(js.subscribe("", queue(102), psoBind));
             sub = js.subscribe(null, queue(102), dispatcher, mh -> {}, false, psoBind);
-            dispatcher.unsubscribe(sub);
+            unsubscribeEnsureNotBound(dispatcher, sub);
             js.subscribe("", queue(102), dispatcher, mh -> {}, false, psoBind);
         });
     }
@@ -370,8 +370,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertNotNull(m);
             assertEquals(data(1), new String(m.getData()));
             m.ack();
-            s.unsubscribe();
-            sleep(250); // make sure the unsub happens
+            unsubscribeEnsureNotBound(s);
 
             jsPublish(js, SUBJECT, 2, 1);
             pso = PushSubscribeOptions.builder()
@@ -384,7 +383,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertNotNull(m);
             assertEquals(data(2), new String(m.getData()));
             m.ack();
-            s.unsubscribe();
+            unsubscribeEnsureNotBound(s);
 
             jsPublish(js, SUBJECT, 3, 1);
             pso = PushSubscribeOptions.bind(STREAM, DURABLE);
@@ -424,7 +423,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertNotNull(m);
             assertEquals(data(1), new String(m.getData()));
             m.ack();
-            s.unsubscribe();
+            unsubscribeEnsureNotBound(s);
 
             jsPublish(js, SUBJECT, 2, 1);
             pso = PullSubscribeOptions.builder()
@@ -438,7 +437,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertNotNull(m);
             assertEquals(data(2), new String(m.getData()));
             m.ack();
-            s.unsubscribe();
+            unsubscribeEnsureNotBound(s);
 
             jsPublish(js, SUBJECT, 3, 1);
             pso = PullSubscribeOptions.bind(STREAM, DURABLE);
@@ -537,7 +536,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     private void subscribeOk(JetStream js, JetStreamManagement jsm, String fs, String ss) throws IOException, JetStreamApiException {
         int i = RandomUtils.PRAND.nextInt(); // just want a unique number
         setupConsumer(jsm, i, fs);
-        js.subscribe(ss, ConsumerConfiguration.builder().durable(durable(i)).buildPushSubscribeOptions()).unsubscribe();
+        unsubscribeEnsureNotBound(js.subscribe(ss, ConsumerConfiguration.builder().durable(durable(i)).buildPushSubscribeOptions()));
     }
 
     private void subscribeEx(JetStream js, JetStreamManagement jsm, String fs, String ss) throws IOException, JetStreamApiException {
@@ -589,7 +588,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             // this one is okay
             JetStreamSubscription sub = js.subscribe(SUBJECT, PullSubscribeOptions.builder().durable(durable(2)).build());
-            sub.unsubscribe(); // so I can re-use the durable
+            unsubscribeEnsureNotBound(sub); // so I can re-use the durable
 
             // try to push subscribe against a pull durable
             iae = assertThrows(IllegalArgumentException.class,
@@ -809,11 +808,11 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
 
     private void ccbmOk(JetStream js, ConsumerConfiguration.Builder builder) throws IOException, JetStreamApiException {
-        js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()).unsubscribe();
+        unsubscribeEnsureNotBound(js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()));
     }
 
     private void ccbmOkPull(JetStream js, ConsumerConfiguration.Builder builder) throws IOException, JetStreamApiException {
-        js.subscribe(SUBJECT, PullSubscribeOptions.builder().configuration(builder.build()).build()).unsubscribe();
+        unsubscribeEnsureNotBound(js.subscribe(SUBJECT, PullSubscribeOptions.builder().configuration(builder.build()).build()));
     }
 
     private void ccbmEx(JetStream js, ConsumerConfiguration.Builder builder) {
