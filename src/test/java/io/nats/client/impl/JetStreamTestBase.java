@@ -357,7 +357,11 @@ public class JetStreamTestBase extends TestBase {
     // Flapper fix: For whatever reason 10 seconds isn't enough on slow machines
     // I've put this in a function so all latch awaits give plenty of time
     public static void awaitAndAssert(CountDownLatch latch) throws InterruptedException {
-        assertTrue(latch.await(30, TimeUnit.SECONDS));
+        long start = System.currentTimeMillis();
+        while (latch.getCount() > 0 && System.currentTimeMillis() - start < 30000) {
+            latch.await(1, TimeUnit.SECONDS);
+        }
+        assertEquals(0, latch.getCount());
     }
 
     public static Options.Builder optsWithEl(ErrorListener el) {
