@@ -181,7 +181,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         assertSubscription(sub, STREAM, DURABLE, deliverSubject, false);
 
         // read what is available
-        List<Message> messages = readMessagesAck(sub);
+        List<Message> messages = readMessagesAck(sub, Duration.ofSeconds(2));
         int total = messages.size();
         validateRedAndTotal(5, messages.size(), 5, total);
 
