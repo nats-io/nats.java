@@ -42,7 +42,7 @@ public class JetStreamTestBase extends TestBase {
     public static final String InvalidMeta10Tokens = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000";
     public static final String InvalidMetaData = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.not-a-number";
 
-    public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(500);
+    public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(1000);
 
     public NatsMessage getTestNatsMessage() {
         return getTestMessage("replyTo");
@@ -330,10 +330,38 @@ public class JetStreamTestBase extends TestBase {
 
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // Subscription or test macros
+    // ----------------------------------------------------------------------------------------------------
+    public static void unsubscribeEnsureNotBound(JetStreamSubscription sub) throws IOException, JetStreamApiException {
+        sub.unsubscribe();
+        ensureNotBound(sub);
+    }
+
+    public static void unsubscribeEnsureNotBound(Dispatcher dispatcher, JetStreamSubscription sub) {
+        dispatcher.unsubscribe(sub);
+    }
+
+    public static void ensureNotBound(JetStreamSubscription sub) throws IOException, JetStreamApiException {
+        ConsumerInfo ci = sub.getConsumerInfo();
+        long start = System.currentTimeMillis();
+        while (ci.isPushBound()) {
+            if (System.currentTimeMillis() - start > 5000) {
+                return; // don't wait forever
+            }
+            sleep(5);
+            ci = sub.getConsumerInfo();
+        }
+    }
+
     // Flapper fix: For whatever reason 10 seconds isn't enough on slow machines
     // I've put this in a function so all latch awaits give plenty of time
     public static void awaitAndAssert(CountDownLatch latch) throws InterruptedException {
-        assertTrue(latch.await(30, TimeUnit.SECONDS));
+        long start = System.currentTimeMillis();
+        while (latch.getCount() > 0 && System.currentTimeMillis() - start < 30000) {
+            latch.await(1, TimeUnit.SECONDS);
+        }
+        assertEquals(0, latch.getCount());
     }
 
     public static Options.Builder optsWithEl(ErrorListener el) {

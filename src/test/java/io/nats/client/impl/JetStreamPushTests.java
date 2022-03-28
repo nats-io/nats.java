@@ -76,9 +76,10 @@ public class JetStreamPushTests extends JetStreamTestBase {
             total += messages0.size();
             validateRedAndTotal(0, messages0.size(), 5, total);
 
-            sub1.unsubscribe(); // needed for deliver subject version b/c the sub
-                                // would be identical. without ds, the ds is generated each
-                                // time so is unique
+            // needed for deliver subject version b/c the sub
+            // would be identical. without ds, the ds is generated each
+            // time so is unique
+            unsubscribeEnsureNotBound(sub1);
 
             // Subscription 2
             JetStreamSubscription sub2 = js.subscribe(SUBJECT, options);
@@ -96,7 +97,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             assertSameMessages(messages1, messages2);
 
-            sub2.unsubscribe();
+            unsubscribeEnsureNotBound(sub2);
 
             // Subscription 3 testing null timeout
             JetStreamSubscription sub3 = js.subscribe(SUBJECT, options);
@@ -153,7 +154,6 @@ public class JetStreamPushTests extends JetStreamTestBase {
                 .stream(STREAM)
                 .durable(DURABLE)
                 .bind(true)
-                .deliverSubject(deliverSubject)
                 .build();
             _testPushDurableSubSync(deliverSubject, nc, js, () -> js.subscribe(null, options2));
             _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.subscribe(null, d, h, false, options2));
@@ -181,7 +181,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         assertSubscription(sub, STREAM, DURABLE, deliverSubject, false);
 
         // read what is available
-        List<Message> messages = readMessagesAck(sub, Duration.ofSeconds(2));
+        List<Message> messages = readMessagesAck(sub);
         int total = messages.size();
         validateRedAndTotal(5, messages.size(), 5, total);
 
@@ -190,8 +190,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         total += messages.size();
         validateRedAndTotal(0, messages.size(), 5, total);
 
-        sub.unsubscribe();
-        nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+        unsubscribeEnsureNotBound(sub);
 
         // re-subscribe
         sub = supplier.get();
@@ -202,8 +201,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         total += messages.size();
         validateRedAndTotal(0, messages.size(), 5, total);
 
-        sub.unsubscribe();
-        nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+        unsubscribeEnsureNotBound(sub);
     }
 
     private void _testPushDurableSubAsync(JetStream js, Dispatcher dispatcher, SubscriptionSupplierAsync supplier) throws IOException, JetStreamApiException, InterruptedException {
@@ -225,7 +223,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         // Wait for messages to arrive using the countdown latch.
         awaitAndAssert(msgLatch);
 
-        dispatcher.unsubscribe(sub);
+        unsubscribeEnsureNotBound(dispatcher, sub);
 
         assertEquals(5, received.get());
     }
@@ -244,7 +242,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             assertCantPullOnPushSub(sub);
-            sub.unsubscribe();
+            unsubscribeEnsureNotBound(sub);
 
             PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true).build();
             sub = js.subscribe(SUBJECT, pso);
@@ -644,6 +642,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             }
 
             sub.unsubscribe(1);
+            ensureNotBound(sub);
 
             // ----------------------------------------------------------------------------------------------------
             // THIS IS ACTUALLY TESTING ASYNC SO I DON'T HAVE TO SETUP THE INTERCEPTOR IN OTHER CODE
@@ -676,7 +675,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
                 ++streamSeq;
             }
 
-            d.unsubscribe(sub);
+            unsubscribeEnsureNotBound(d, sub);
         });
     }
 }
