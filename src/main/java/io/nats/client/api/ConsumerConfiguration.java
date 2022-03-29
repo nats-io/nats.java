@@ -294,7 +294,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     /**
      * Gets the rate limit for this consumer configuration.
-     * @return the rate limit in msgs per second.
+     * @return the rate limit in bits per second
      */
     public long getRateLimit() {
         return CcChangeHelper.RATE_LIMIT.valueOrInitial(rateLimit);
@@ -720,21 +720,21 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * Set the rate limit of the ConsumerConfiguration or null to unset / clear.
-         * @param msgsPerSecond messages per second to deliver
+         * @param bitsPerSecond bits per second to deliver
          * @return Builder
          */
-        public Builder rateLimit(Long msgsPerSecond) {
-            this.rateLimit = msgsPerSecond;
+        public Builder rateLimit(Long bitsPerSecond) {
+            this.rateLimit = bitsPerSecond;
             return this;
         }
 
         /**
          * Set the rate limit of the ConsumerConfiguration.
-         * @param msgsPerSecond messages per second to deliver
+         * @param bitsPerSecond bits per second to deliver
          * @return Builder
          */
-        public Builder rateLimit(long msgsPerSecond) {
-            this.rateLimit = msgsPerSecond;
+        public Builder rateLimit(long bitsPerSecond) {
+            this.rateLimit = bitsPerSecond;
             return this;
         }
 
