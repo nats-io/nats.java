@@ -28,7 +28,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -122,63 +121,107 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
     @Test
     public void testPushDurableNullDeliver() throws Exception {
-        _testPushDurable(null);
+        _testPushDurable(false);
     }
 
     @Test
     public void testPushDurableWithDeliver() throws Exception {
-        _testPushDurable(DELIVER);
+        _testPushDurable(true);
     }
 
-    private void _testPushDurable(String deliverSubject) throws Exception {
+    private void _testPushDurable(boolean useDeliverSubject) throws Exception {
         runInJsServer(nc -> {
             // create the stream.
-            createDefaultTestStream(nc);
+            createMemoryStream(nc, STREAM, subjectDot(">"));
 
             // Create our JetStream context.
+            JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
             // For async, create a dispatcher without a default handler.
             Dispatcher dispatcher = nc.createDispatcher();
 
-            // Build our subscription options normally
-            PushSubscribeOptions options1 = PushSubscribeOptions.builder()
-                .durable(DURABLE)
-                .deliverSubject(deliverSubject)
-                .build();
-            _testPushDurableSubSync(deliverSubject, nc, js, () -> js.subscribe(SUBJECT, options1));
-            _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.subscribe(SUBJECT, d, h, false, options1));
+            // normal, no bind
+            _testPushDurableSubSync(jsm, js, 11, useDeliverSubject, false, (s, cc) -> {
+                PushSubscribeOptions options = PushSubscribeOptions.builder()
+                    .durable(cc.getDurable())
+                    .deliverSubject(cc.getDeliverSubject())
+                    .build();
+                return js.subscribe(s, options);
+            });
 
-            // bind long form
-            PushSubscribeOptions options2 = PushSubscribeOptions.builder()
-                .stream(STREAM)
-                .durable(DURABLE)
-                .bind(true)
-                .build();
-            _testPushDurableSubSync(deliverSubject, nc, js, () -> js.subscribe(null, options2));
-            _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.subscribe(null, d, h, false, options2));
+            _testPushDurableSubAsync(jsm, js, dispatcher, 12, useDeliverSubject, false, (s, d, h, cc) -> {
+                PushSubscribeOptions options = PushSubscribeOptions.builder()
+                    .durable(cc.getDurable())
+                    .deliverSubject(cc.getDeliverSubject())
+                    .build();
+                return js.subscribe(s, d, h, false, options);
+            });
 
-            // bind short form
-            PushSubscribeOptions options3 = PushSubscribeOptions.bind(STREAM, DURABLE);
-            _testPushDurableSubSync(deliverSubject, nc, js, () -> js.subscribe(null, options3));
-            _testPushDurableSubAsync(js, dispatcher, (d, h) -> js.subscribe(null, d, h, false, options3));
+            // use configuration, no bind
+            _testPushDurableSubSync(jsm, js, 21, useDeliverSubject, false, (s, cc) -> {
+                PushSubscribeOptions options = PushSubscribeOptions.builder().configuration(cc).build();
+                return js.subscribe(s, options);
+            });
+
+            _testPushDurableSubAsync(jsm, js, dispatcher, 22, useDeliverSubject, false, (s, d, h, cc) -> {
+                PushSubscribeOptions options = PushSubscribeOptions.builder().configuration(cc).build();
+                return js.subscribe(s, d, h, false, options);
+            });
+
+            if (useDeliverSubject) {
+                // bind long form
+                _testPushDurableSubSync(jsm, js, 31, true, true, (s, cc) -> {
+                    PushSubscribeOptions options = PushSubscribeOptions.builder().stream(STREAM).durable(cc.getDurable()).bind(true).build();
+                    return js.subscribe(s, options);
+                });
+
+                _testPushDurableSubAsync(jsm, js, dispatcher, 32, true, true, (s, d, h, cc) -> {
+                    PushSubscribeOptions options = PushSubscribeOptions.builder().stream(STREAM).durable(cc.getDurable()).bind(true).build();
+                    return js.subscribe(s, d, h, false, options);
+                });
+
+                // bind short form
+                _testPushDurableSubSync(jsm, js, 41, true, true, (s, cc) -> {
+                    PushSubscribeOptions options = PushSubscribeOptions.bind(STREAM, cc.getDurable());
+                    return js.subscribe(s, options);
+                });
+
+                _testPushDurableSubAsync(jsm, js, dispatcher, 42, true, true, (s, d, h, cc) -> {
+                    PushSubscribeOptions options = PushSubscribeOptions.bind(STREAM, cc.getDurable());
+                    return js.subscribe(s, d, h, false, options);
+                });
+            }
         });
     }
 
     private interface SubscriptionSupplier {
-        JetStreamSubscription get() throws IOException, JetStreamApiException;
+        JetStreamSubscription get(String subject, ConsumerConfiguration cc) throws IOException, JetStreamApiException;
     }
 
     private interface SubscriptionSupplierAsync {
-        JetStreamSubscription get(Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException;
+        JetStreamSubscription get(String subject, Dispatcher dispatcher, MessageHandler handler, ConsumerConfiguration cc) throws IOException, JetStreamApiException;
     }
 
-    private void _testPushDurableSubSync(String deliverSubject, Connection nc, JetStream js, SubscriptionSupplier supplier) throws InterruptedException, TimeoutException, IOException, JetStreamApiException {
-        // publish some messages
-        jsPublish(js, SUBJECT, 1, 5);
+    private void _testPushDurableSubSync(JetStreamManagement jsm, JetStream js, int id, boolean useDeliverSubject, boolean bind, SubscriptionSupplier supplier) throws Exception {
+        String durable = durable(id);
+        String subject = subjectDot("" + id);
+        String deliverSubject = useDeliverSubject ? deliver(id) : null;
+        ConsumerConfiguration cc = ConsumerConfiguration.builder()
+            .durable(durable)
+            .deliverSubject(deliverSubject)
+            .filterSubject(subject)
+            .build();
 
-        JetStreamSubscription sub = supplier.get();
-        assertSubscription(sub, STREAM, DURABLE, deliverSubject, false);
+        if (bind) {
+            jsm.addOrUpdateConsumer(STREAM, cc);
+        }
+
+        // publish some messages
+        jsPublish(js, subject, 1, 5);
+
+        JetStreamSubscription sub = supplier.get(subject, cc);
+        assertSubscription(sub, STREAM, durable, deliverSubject, false);
 
         // read what is available
         List<Message> messages = readMessagesAck(sub);
@@ -193,8 +236,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         unsubscribeEnsureNotBound(sub);
 
         // re-subscribe
-        sub = supplier.get();
-        nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+        sub = supplier.get(subject, cc);
 
         // read again, nothing should be there
         messages = readMessagesAck(sub);
@@ -204,9 +246,21 @@ public class JetStreamPushTests extends JetStreamTestBase {
         unsubscribeEnsureNotBound(sub);
     }
 
-    private void _testPushDurableSubAsync(JetStream js, Dispatcher dispatcher, SubscriptionSupplierAsync supplier) throws IOException, JetStreamApiException, InterruptedException {
+    private void _testPushDurableSubAsync(JetStreamManagement jsm, JetStream js, Dispatcher dispatcher, int id, boolean useDeliverSubject, boolean bind, SubscriptionSupplierAsync supplier) throws IOException, JetStreamApiException, InterruptedException {
+        String durable = durable(id);
+        String subject = subjectDot("" + id);
+        String deliverSubject = useDeliverSubject ? deliver(id) : null;
+        ConsumerConfiguration cc = ConsumerConfiguration.builder()
+            .durable(durable)
+            .deliverSubject(deliverSubject)
+            .filterSubject(subject)
+            .build();
+        if (bind) {
+            jsm.addOrUpdateConsumer(STREAM, cc);
+        }
+
         // publish some messages
-        jsPublish(js, SUBJECT, 5);
+        jsPublish(js, subject, 5);
 
         CountDownLatch msgLatch = new CountDownLatch(5);
         AtomicInteger received = new AtomicInteger();
@@ -218,7 +272,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         };
 
         // Subscribe using the handler
-        JetStreamSubscription sub = supplier.get(dispatcher, handler);
+        JetStreamSubscription sub = supplier.get(subject, dispatcher, handler, cc);
 
         // Wait for messages to arrive using the countdown latch.
         awaitAndAssert(msgLatch);
