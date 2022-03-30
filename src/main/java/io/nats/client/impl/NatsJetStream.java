@@ -247,7 +247,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
             userCC = so.getConsumerConfiguration();
 
-            validateNotSupplied(userCC.getMaxPullWaiting(), ConsumerConfiguration.CcChangeHelper.MAX_PULL_WAITING.initial(), JsSubPushCantHaveMaxPullWaiting);
+            validateNotSupplied(userCC.getMaxPullWaiting(), ConsumerConfiguration.CcChangeHelper.MAX_PULL_WAITING.Default, JsSubPushCantHaveMaxPullWaiting);
 
             // figure out the queue name
             qgroup = validateMustMatchIfBothSupplied(userCC.getDeliverGroup(), queueName, JsSubQueueDeliverGroupMismatch);

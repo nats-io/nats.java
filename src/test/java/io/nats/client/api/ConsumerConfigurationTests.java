@@ -216,11 +216,11 @@ public class ConsumerConfigurationTests extends TestBase {
         assertFalse(c.isFlowControl());
         assertFalse(c.isHeadersOnly());
 
-        assertEquals(CcChangeHelper.START_SEQ.initial(), c.getStartSequence());
-        assertEquals(CcChangeHelper.MAX_DELIVER.initial(), c.getMaxDeliver());
-        assertEquals(CcChangeHelper.RATE_LIMIT.initial(), c.getRateLimit());
-        assertEquals(CcChangeHelper.MAX_ACK_PENDING.initial(), c.getMaxAckPending());
-        assertEquals(CcChangeHelper.MAX_PULL_WAITING.initial(), c.getMaxPullWaiting());
+        assertEquals(CcChangeHelper.START_SEQ.Default, c.getStartSequence());
+        assertEquals(CcChangeHelper.MAX_DELIVER.Default, c.getMaxDeliver());
+        assertEquals(CcChangeHelper.RATE_LIMIT.Default, c.getRateLimit());
+        assertEquals(CcChangeHelper.MAX_ACK_PENDING.Default, c.getMaxAckPending());
+        assertEquals(CcChangeHelper.MAX_PULL_WAITING.Default, c.getMaxPullWaiting());
 
         assertEquals(0, c.getBackoff().size());
     }

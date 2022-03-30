@@ -786,7 +786,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     //    "max_deliver": -1,
     //    "replay_policy": "instant",
     //    "max_waiting": 512,
-    //    "max_ack_pending": 20000
+    //    "max_ack_pending": 1000 (20000 server v2.7.4 and older)
     @Test
     public void testDefaultConsumerConfiguration() throws Exception {
         runInJsServer(nc -> {
@@ -794,15 +794,18 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             createDefaultTestStream(jsm);
 
-            ConsumerConfiguration cc =
-                ConsumerConfiguration.builder()
-                    .durable(DURABLE).build();
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
             cc = jsm.addOrUpdateConsumer(STREAM, cc).getConsumerConfiguration();
             ConsumerConfigurationChecker ccc = new ConsumerConfigurationChecker(cc);
             assertEquals(Duration.ofSeconds(30), ccc.ackWait());
             assertEquals(-1, ccc.maxDeliver());
             assertEquals(512, ccc.maxPullWaiting());
-            assertEquals(20000, ccc.maxAckPending());
+            if (nc.getServerInfo().isNewerVersionThan("2.7.4")) {
+                assertEquals(1000, ccc.maxAckPending());
+            }
+            else {
+                assertEquals(20000, ccc.maxAckPending());
+            }
         });
     }
 
