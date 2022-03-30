@@ -997,25 +997,16 @@ public class ConsumerConfiguration implements JsonSerializable {
             this.Default = dflt;
         }
 
-        long valueOrDefault(Long val) {
-            return val == null ? Default : val;
-        }
-
-        public long comparable(Long val) {
-            return val == null || val < Min ? Default : val;
+        public long valueOrDefault(Long val) {
+            return val == null ? START_SEQ.Default : val;
         }
 
         public boolean wouldBeChange(Long user, Long srvr) {
-            return user != null && comparable(user) != comparable(srvr);
-        }
-
-        public long comparable(Duration d) {
-            Long val = d == null ? null : d.toNanos();
-            return val == null || val < Min ? Default : val;
+            return user != null && user != Default && !user.equals(srvr);
         }
 
         public boolean wouldBeChange(Duration user, Duration srvr) {
-            return user != null && comparable(user) != comparable(srvr);
+            return user != null && !user.equals(srvr);
         }
     }
 }
