@@ -82,22 +82,22 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertNotChange(builder(orig).headersOnly(false).build(), orig);
         assertChange(builder(orig).headersOnly(true).build(), orig);
 
-        assertChange(builder(orig).startSequence(-1).build(), orig);
+        assertNotChange(builder(orig).startSequence(-1).build(), orig);
         assertChange(builder(orig).startSequence(new Long(99)).build(), orig);
 
-        assertChange(builder(orig).maxDeliver(-1).build(), orig);
+        assertNotChange(builder(orig).maxDeliver(-1).build(), orig);
         assertChange(builder(orig).maxDeliver(new Long(99)).build(), orig);
 
-        assertChange(builder(orig).rateLimit(-1).build(), orig);
+        assertNotChange(builder(orig).rateLimit(-1).build(), orig);
         assertChange(builder(orig).rateLimit(new Long(99)).build(), orig);
 
-        assertChange(builder(orig).maxAckPending(0).build(), orig);
+        assertNotChange(builder(orig).maxAckPending(0).build(), orig);
         assertChange(builder(orig).maxAckPending(new Long(99)).build(), orig);
 
-        assertChange(builder(orig).maxPullWaiting(0).build(), orig);
+        assertNotChange(builder(orig).maxPullWaiting(0).build(), orig);
         assertChange(builder(orig).maxPullWaiting(new Long(99)).build(), orig);
 
-        assertChange(builder(orig).maxBatch(-1).build(), orig);
+        assertNotChange(builder(orig).maxBatch(-1).build(), orig);
         assertChange(builder(orig).maxBatch(new Long(99)).build(), orig);
 
         assertChange(builder(orig).ackWait(Duration.ofSeconds(30)).build(), orig);
@@ -175,12 +175,12 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertTrue(ACK_WAIT.wouldBeChange(Duration.ofSeconds(1), null));
 
         // even if set to default
-        assertTrue(START_SEQ.wouldBeChange(-1L, null));
-        assertTrue(MAX_DELIVER.wouldBeChange(-1L, null));
-        assertTrue(RATE_LIMIT.wouldBeChange(-1L, null));
-        assertTrue(MAX_ACK_PENDING.wouldBeChange(-1L, null));
-        assertTrue(MAX_PULL_WAITING.wouldBeChange(-1L, null));
-        assertTrue(MAX_BATCH.wouldBeChange(-1L, null));
+        assertFalse(START_SEQ.wouldBeChange(-1L, null));
+        assertFalse(MAX_DELIVER.wouldBeChange(-1L, null));
+        assertFalse(RATE_LIMIT.wouldBeChange(-1L, null));
+        assertFalse(MAX_ACK_PENDING.wouldBeChange(0L, null));
+        assertFalse(MAX_PULL_WAITING.wouldBeChange(0L, null));
+        assertFalse(MAX_BATCH.wouldBeChange(-1L, null));
 
         assertTrue(START_SEQ.wouldBeChange(1L, 2L));
         assertTrue(MAX_DELIVER.wouldBeChange(1L, 2L));
