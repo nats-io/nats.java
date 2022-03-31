@@ -116,6 +116,10 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
         return pushBound;
     }
 
+    public long getCalculatedPending() {
+        return numPending + delivered.getConsumerSequence();
+    }
+
     @Override
     public String toString() {
         return "ConsumerInfo{" +
