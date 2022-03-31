@@ -241,29 +241,30 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             // create our message handler, does not ack
             MessageHandler handler = (Message msg) -> {
                 NatsJetStreamMessage m = (NatsJetStreamMessage)msg;
+                // ack the real ack address for the server's sake.
+                // The message and handler code won't know anything about this,
+                // so its behavior won't be affected which is what we are testing
+                nc.publish(m.replyTo, AckType.AckAck.bodyBytes(-1));
+
                 int f = count.incrementAndGet();
                 if (f == 1) {
-                    // set reply to before
                     m.replyTo = mockAckReply + "ack";
                     m.ack();
                 }
                 else if (f == 2) {
-                    // set reply to before
                     m.replyTo = mockAckReply + "nak";
                     m.nak();
                 }
                 else if (f == 3) {
-                    // set reply to before
                     m.replyTo = mockAckReply + "term";
                     m.term();
                 }
                 else if (f == 4) {
-                    // set reply to AFTER
-                    m.inProgress();
                     m.replyTo = mockAckReply + "progress";
+                    m.inProgress();
                 }
                 else {
-                    m.replyTo = mockAckReply + "system";
+                    m.replyTo = mockAckReply + "auto";
                 }
                 msgLatchRef.get().countDown();
             };
@@ -277,28 +278,42 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             assertEquals(0, msgLatchRef.get().getCount());
             dispatcher.unsubscribe(async);
 
-            JetStreamSubscription sub = js.subscribe(mockAckReply + "*");
-            Message msg = sub.nextMessage(2000);
+            JetStreamSubscription mockAckReplySub = js.subscribe(mockAckReply + "*");
+            Message msg = mockAckReplySub.nextMessage(2000);
             assertEquals(mockAckReply + "ack", msg.getSubject());
-            msg = sub.nextMessage(500);
+            assertEquals("+ACK", new String(msg.getData()));
+
+            msg = mockAckReplySub.nextMessage(500);
             assertEquals(mockAckReply + "nak", msg.getSubject());
-            msg = sub.nextMessage(500);
+            assertEquals("-NAK", new String(msg.getData()));
+
+            msg = mockAckReplySub.nextMessage(500);
             assertEquals(mockAckReply + "term", msg.getSubject());
-            msg = sub.nextMessage(500);
+            assertEquals("+TERM", new String(msg.getData()));
+
+            msg = mockAckReplySub.nextMessage(500);
             assertEquals(mockAckReply + "progress", msg.getSubject());
-            msg = sub.nextMessage(500);
-            assertEquals(mockAckReply + "system", msg.getSubject());
+            assertEquals("+WPI", new String(msg.getData()));
+
+            // because it was in progress which is not a terminal ack, the auto ack acks
+            msg = mockAckReplySub.nextMessage(500);
+            assertEquals(mockAckReply + "progress", msg.getSubject());
+            assertEquals("+ACK", new String(msg.getData()));
+
+            msg = mockAckReplySub.nextMessage(500);
+            assertEquals(mockAckReply + "auto", msg.getSubject());
+            assertEquals("+ACK", new String(msg.getData()));
 
             // coverage explicit no ack flag
             msgLatchRef.set(new CountDownLatch(pubCount));
-            PushSubscribeOptions pso = ConsumerConfiguration.builder().ackWait(Duration.ofSeconds(100)).buildPushSubscribeOptions();
+            PushSubscribeOptions pso = ConsumerConfiguration.builder().ackWait(Duration.ofMinutes(2)).buildPushSubscribeOptions();
             async = js.subscribe(SUBJECT, dispatcher, handler, false, pso);
             awaitAndAssert(msgLatchRef.get());
             assertEquals(0, msgLatchRef.get().getCount());
             dispatcher.unsubscribe(async);
 
             // no messages should have been published to our mock reply
-            assertNull(sub.nextMessage(1000));
+            assertNull(mockAckReplySub.nextMessage(1000));
 
             // coverage explicit AckPolicyNone
             msgLatchRef.set(new CountDownLatch(pubCount));
@@ -309,7 +324,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             dispatcher.unsubscribe(async);
 
             // no messages should have been published to our mock reply
-            assertNull(sub.nextMessage(1000));
+            assertNull(mockAckReplySub.nextMessage(1000));
         });
     }
 
