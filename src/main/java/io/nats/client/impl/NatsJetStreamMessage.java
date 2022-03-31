@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.impl.AckType.*;
+import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 import static io.nats.client.support.Validator.validateDurationRequired;
 
 class NatsJetStreamMessage extends InternalMessage {
@@ -33,7 +34,7 @@ class NatsJetStreamMessage extends InternalMessage {
      */
     @Override
     public void ack() {
-        ackReply(AckAck);
+        ackReply(AckAck, -1);
     }
 
     /**
@@ -56,7 +57,23 @@ class NatsJetStreamMessage extends InternalMessage {
      */
     @Override
     public void nak() {
-        ackReply(AckNak);
+        ackReply(AckNak, -1);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void nakWithDelay(Duration nakDelay) {
+        ackReply(AckNak, nakDelay.toNanos());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void nakWithDelay(long nakDelayMillis) {
+        ackReply(AckNak, nakDelayMillis * NANOS_PER_MILLI);
     }
 
     /**
@@ -64,7 +81,7 @@ class NatsJetStreamMessage extends InternalMessage {
      */
     @Override
     public void inProgress() {
-        ackReply(AckProgress);
+        ackReply(AckProgress, -1);
     }
 
     /**
@@ -72,7 +89,7 @@ class NatsJetStreamMessage extends InternalMessage {
      */
     @Override
     public void term() {
-        ackReply(AckTerm);
+        ackReply(AckTerm, -1);
     }
 
     /**
@@ -94,10 +111,10 @@ class NatsJetStreamMessage extends InternalMessage {
         return true; // NatsJetStreamMessage will never be created unless it's actually a JetStream Message
     }
 
-    private void ackReply(AckType ackType) {
+    private void ackReply(AckType ackType, long delayNanos) {
         if (ackHasntBeenTermed()) {
             Connection nc = getJetStreamValidatedConnection();
-            nc.publish(replyTo, ackType.bytes);
+            nc.publish(replyTo, ackType.bodyBytes(delayNanos));
             lastAck = ackType;
         }
     }

@@ -247,7 +247,9 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
             userCC = so.getConsumerConfiguration();
 
-            validateNotSupplied(userCC.getMaxPullWaiting(), ConsumerConfiguration.CcNumeric.MAX_PULL_WAITING.initial(), JsSubPushCantHaveMaxPullWaiting);
+            if (userCC.maxPullWaitingWasSet()) {
+                throw JsSubPushCantHaveMaxPullWaiting.instance();
+            }
 
             // figure out the queue name
             qgroup = validateMustMatchIfBothSupplied(userCC.getDeliverGroup(), queueName, JsSubQueueDeliverGroupMismatch);
@@ -327,7 +329,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 }
 
                 // durable already exists, make sure the filter subject matches
-                if (subject == null) { // allowed if they had given both stream and durable
+                if (nullOrEmpty(subject)) { // allowed if they had given both stream and durable
                     subject = userCC.getFilterSubject();
                 }
                 else if (!isFilterMatch(subject, serverCC.getFilterSubject(), fnlStream)) {
@@ -372,32 +374,37 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
 
         // 6. create the subscription. lambda needs final or effectively final vars
-        final MessageManager statusManager = isPullMode
-            ? new PullStatusMessageManager()
-            : PUSH_STATUS_MANAGER_FACTORY.createPushStatusMessageManager(conn, so, fnlServerCC, qgroup != null, dispatcher == null);
-
         NatsJetStreamSubscription sub;
         if (isPullMode) {
+            final MessageManager[] managers = new MessageManager[] { new PullStatusMessageManager() };
             final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
-                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, this, fnlStream, fnlConsumerName, statusManager);
+                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, this, fnlStream, fnlConsumerName, managers);
             sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
         }
         else {
-            final MessageManager sidCheckManager = so.isOrdered() ? new SidCheckManager() : null;
-
-            final MessageManager orderedManager = so.isOrdered()
-                ? new OrderedManager(this, dispatcher, fnlStream, fnlServerCC)
-                : null;
+            final MessageManager statusManager =
+                PUSH_STATUS_MANAGER_FACTORY.createPushStatusMessageManager(conn, so, fnlServerCC, qgroup != null, dispatcher == null);
+            final MessageManager[] managers;
+            if (so.isOrdered()) {
+                managers = new MessageManager[3];
+                managers[0] = new SidCheckManager();
+                managers[1] = statusManager;
+                managers[2] = new OrderedManager(this, dispatcher, fnlStream, fnlServerCC);
+            }
+            else {
+                managers = new MessageManager[1];
+                managers[0] = statusManager;
+            }
 
             final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
                 -> new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,
-                this, fnlStream, fnlConsumerName, sidCheckManager, statusManager, orderedManager);
+                this, fnlStream, fnlConsumerName, managers);
 
             if (dispatcher == null) {
                 sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
             }
             else {
-                AsyncMessageHandler handler = new AsyncMessageHandler(userHandler, isAutoAck, fnlServerCC, sidCheckManager, statusManager, orderedManager);
+                AsyncMessageHandler handler = new AsyncMessageHandler(userHandler, isAutoAck, fnlServerCC, managers);
                 sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(fnlInboxDeliver, qgroup, handler, factory);
             }
         }
@@ -419,23 +426,28 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 || (flowControl != null && flowControl != serverCcc.isFlowControl())
                 || (headersOnly != null && headersOnly != serverCcc.isHeadersOnly())
 
-                || CcNumeric.START_SEQ.wouldBeChange(startSeq, serverCcc.startSeq)
-                || CcNumeric.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.maxDeliver)
-                || CcNumeric.RATE_LIMIT.wouldBeChange(rateLimit, serverCcc.rateLimit)
-                || CcNumeric.MAX_ACK_PENDING.wouldBeChange(maxAckPending, serverCcc.maxAckPending)
-                || CcNumeric.MAX_PULL_WAITING.wouldBeChange(maxPullWaiting, serverCcc.maxPullWaiting)
+                || CcChangeHelper.START_SEQ.wouldBeChange(startSeq, serverCcc.startSeq)
+                || CcChangeHelper.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.maxDeliver)
+                || CcChangeHelper.RATE_LIMIT.wouldBeChange(rateLimit, serverCcc.rateLimit)
+                || CcChangeHelper.MAX_ACK_PENDING.wouldBeChange(maxAckPending, serverCcc.maxAckPending)
+                || CcChangeHelper.MAX_PULL_WAITING.wouldBeChange(maxPullWaiting, serverCcc.maxPullWaiting)
+                || CcChangeHelper.MAX_BATCH.wouldBeChange(maxBatch, serverCcc.maxBatch)
 
-                || (ackWait != null && !ackWait.equals(serverCcc.ackWait))
+                || CcChangeHelper.ACK_WAIT.wouldBeChange(ackWait, serverCcc.ackWait)
+
                 || (idleHeartbeat != null && !idleHeartbeat.equals(serverCcc.idleHeartbeat))
                 || (startTime != null && !startTime.equals(serverCcc.startTime))
+                || (maxExpires != null && !maxExpires.equals(serverCcc.maxExpires))
+                || (inactiveThreshold != null && !inactiveThreshold.equals(serverCcc.inactiveThreshold))
 
                 || (filterSubject != null && !filterSubject.equals(serverCcc.filterSubject))
                 || (description != null && !description.equals(serverCcc.description))
                 || (sampleFrequency != null && !sampleFrequency.equals(serverCcc.sampleFrequency))
                 || (deliverSubject != null && !deliverSubject.equals(serverCcc.deliverSubject))
                 || (deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup))
-                ;
 
+                || !backoff.equals(serverCcc.backoff) // backoff will never be null, but can be empty
+                ;
             // do not need to check Durable because the original is retrieved by the durable name
         }
     }
@@ -492,7 +504,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     }
 
     private String lookupStreamSubject(String stream) throws IOException, JetStreamApiException {
-        StreamInfo si = _getStreamInfo(stream);
+        StreamInfo si = _getStreamInfo(stream, null);
         List<String> streamSubjects = si.getConfiguration().getSubjects();
         return streamSubjects.size() == 1 ? streamSubjects.get(0) : null;
     }

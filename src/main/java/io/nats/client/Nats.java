@@ -70,14 +70,21 @@ import java.io.IOException;
 public abstract class Nats {
 
     /**
-     * Current version of the library - {@value}
+     * Current version of the library
      */
-    public static final String CLIENT_VERSION = "2.13.3";
+    public static final String CLIENT_VERSION;
 
     /**
      * Current language of the library - {@value}
      */
     public static final String CLIENT_LANGUAGE = "java";
+
+    static {
+        String cv;
+        try { cv = Nats.class.getPackage().getImplementationVersion(); }
+        catch (Exception ignore) { cv = null; }
+        CLIENT_VERSION = cv == null ? "development" : cv;
+    }
 
     /**
      * Connect to the default URL, {@link Options#DEFAULT_URL Options.DEFAULT_URL}, with all of the

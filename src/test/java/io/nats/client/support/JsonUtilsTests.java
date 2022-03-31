@@ -13,21 +13,50 @@
 
 package io.nats.client.support;
 
+import io.nats.client.PurgeOptions;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
 import static io.nats.client.support.Encoding.jsonDecode;
 import static io.nats.client.support.Encoding.jsonEncode;
+import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
 public final class JsonUtilsTests {
+    @Test
+    public void testRegex() {
+        String json = "{\"ss\": \"s1\", \"s_s\": \"s2\", \"bb\":true, \"b_b\":true, \"ii\":1, \"i_i\":2}";
+        Pattern s1Pat = JsonUtils.string_pattern("ss");
+        Pattern s2Pat = JsonUtils.string_pattern("s_s");
+        Pattern b1Pat = JsonUtils.boolean_pattern("bb");
+        Pattern b2Pat = JsonUtils.boolean_pattern("b_b");
+        Pattern i1Pat = JsonUtils.integer_pattern("ii");
+        Pattern i2Pat = JsonUtils.integer_pattern("i_i");
+
+        assertTrue(s1Pat.matcher(json).find());
+        assertTrue(s2Pat.matcher(json).find());
+        assertTrue(b1Pat.matcher(json).find());
+        assertTrue(b2Pat.matcher(json).find());
+        assertTrue(i1Pat.matcher(json).find());
+        assertTrue(i2Pat.matcher(json).find());
+
+        assertEquals("s1", JsonUtils.readString(json, s1Pat));
+        assertEquals("s2", JsonUtils.readString(json, s2Pat));
+        assertTrue(JsonUtils.readBoolean(json, b1Pat));
+        assertTrue(JsonUtils.readBoolean(json, b2Pat));
+        assertEquals(1, JsonUtils.readInt(json, i1Pat, -1));
+        assertEquals(2, JsonUtils.readInt(json, i2Pat, -1));
+    }
 
     @Test
     public void testParseStringArray() {
@@ -100,7 +129,7 @@ public final class JsonUtilsTests {
     }
 
     @Test
-    public void testAddFlds() {
+    public void testAddFields() {
         StringBuilder sb = new StringBuilder();
 
         JsonUtils.addField(sb, "n/a", (String)null);
@@ -125,6 +154,12 @@ public final class JsonUtilsTests {
         assertEquals(0, sb.length());
 
         JsonUtils.addJsons(sb, "n/a", null);
+        assertEquals(0, sb.length());
+
+        JsonUtils.addDurations(sb, "n/a", null);
+        assertEquals(0, sb.length());
+
+        JsonUtils.addDurations(sb, "n/a", new ArrayList<>());
         assertEquals(0, sb.length());
 
         JsonUtils.addField(sb, "n/a", (Boolean)null);
@@ -166,6 +201,64 @@ public final class JsonUtilsTests {
 
         JsonUtils.addField(sb, "bfalse", false);
         assertEquals(87, sb.length());
+    }
+
+    static final String EXPECTED_LIST_JSON = "{\"a1\":[\"one\"],\"a2\":[\"two\",\"too\"],\"l1\":[\"one\"],\"l2\":[\"two\",\"too\"],\"j1\":[{\"filter\":\"sub1\",\"keep\":421}],\"j2\":[{\"filter\":\"sub2\",\"seq\":732},{\"filter\":\"sub3\"}],\"d1\":[1000000],\"d2\":[2000000,3000000]}";
+
+    @Test
+    public void testLists() {
+        StringBuilder sb = JsonUtils.beginJson();
+
+        String[] s1 = new String[]{"one"};
+        String[] s2 = new String[]{"two","too"};
+        List<String> l1 = Arrays.asList(s1);
+        List<String> l2 = Arrays.asList(s2);
+        JsonUtils.addStrings(sb, "a1", s1);
+        JsonUtils.addStrings(sb, "a2", s2);
+        JsonUtils.addStrings(sb, "l1", l1);
+        JsonUtils.addStrings(sb, "l2", l2);
+
+        PurgeOptions po1 = PurgeOptions.builder().keep(421).subject("sub1").build();
+        PurgeOptions po2 = PurgeOptions.builder().sequence(732).subject("sub2").build();
+        PurgeOptions po3 = PurgeOptions.builder().subject("sub3").build();
+
+        JsonUtils.addJsons(sb, "j1", Collections.singletonList(po1));
+        JsonUtils.addJsons(sb, "j2", Arrays.asList(po2, po3));
+
+        List<Duration> d1 = Collections.singletonList(Duration.ofMillis(1));
+        List<Duration> d2 = Arrays.asList(Duration.ofMillis(2), Duration.ofMillis(3));
+        JsonUtils.addDurations(sb, "d1", d1);
+        JsonUtils.addDurations(sb, "d2", d2);
+
+        String json = endJson(sb).toString();
+        assertEquals(EXPECTED_LIST_JSON, json);
+
+        List<String> sss = JsonUtils.getStringList("a1", json);
+        assertEquals(l1, sss);
+
+        sss = JsonUtils.getStringList("a2", json);
+        assertEquals(l2, sss);
+
+        sss = JsonUtils.getStringList("l1", json);
+        assertEquals(l1, sss);
+
+        sss = JsonUtils.getStringList("l2", json);
+        assertEquals(l2, sss);
+
+        List<Duration> ddd = JsonUtils.getDurationList("d1", json);
+        assertEquals(d1, ddd);
+
+        ddd = JsonUtils.getDurationList("d2", json);
+        assertEquals(d2, ddd);
+
+        sss = JsonUtils.getObjectList("j1", json);
+        assertEquals(1, sss.size());
+        assertEquals("{\"filter\":\"sub1\",\"keep\":421}", sss.get(0));
+
+        sss = JsonUtils.getObjectList("j2", json);
+        assertEquals(2, sss.size());
+        assertEquals("{\"filter\":\"sub2\",\"seq\":732}", sss.get(0));
+        assertEquals("{\"filter\":\"sub3\"}", sss.get(1));
     }
 
     @Test

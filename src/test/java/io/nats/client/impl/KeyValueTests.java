@@ -16,7 +16,6 @@ import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsKeyValueUtil;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -27,6 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static io.nats.client.api.KeyValueWatchOption.*;
+import static io.nats.client.support.NatsConstants.DOT;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class KeyValueTests extends JetStreamTestBase {
@@ -50,17 +50,20 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // create the bucket
             KeyValueConfiguration kvc = KeyValueConfiguration.builder()
-                    .name(BUCKET)
-                    .maxHistoryPerKey(3)
-                    .storageType(StorageType.Memory)
-                    .build();
+                .name(BUCKET)
+                .description(PLAIN)
+                .maxHistoryPerKey(3)
+                .storageType(StorageType.Memory)
+                .build();
 
-            assertStatusAfterCreate(kvm.create(kvc));
-            assertStatusAfterCreate(kvm.getBucketInfo(BUCKET));
+            KeyValueStatus status = kvm.create(kvc);
+            assertStatus(status);
 
             // get the kv context for the specific bucket
             KeyValue kv = nc.keyValue(BUCKET);
-            assertStatusAfterCreate(kv.getStatus());
+            assertEquals(BUCKET, kv.getBucketName());
+            status = kv.getStatus();
+            assertStatus(status);
 
             // Put some keys. Each key is put in a subject in the bucket (stream)
             // The put returns the sequence number in the bucket (stream)
@@ -107,7 +110,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertHistory(longHistory, kv.history(longKey));
 
             // let's check the bucket info
-            KeyValueStatus status = kvm.getBucketInfo(BUCKET);
+            status = kvm.getBucketInfo(BUCKET);
             assertEquals(3, status.getEntryCount());
             assertEquals(3, status.getBackingStreamInfo().getStreamState().getLastSequence());
 
@@ -236,7 +239,8 @@ public class KeyValueTests extends JetStreamTestBase {
             assertKeys(kv.keys());
 
             // clear things
-            kv.purgeDeletes();
+            KeyValuePurgeOptions kvpo = KeyValuePurgeOptions.builder().deleteMarkersNoThreshold().build();
+            kv.purgeDeletes(kvpo);
             status = kvm.getBucketInfo(BUCKET);
             assertEquals(0, status.getEntryCount()); // purges are all gone
             assertEquals(12, status.getBackingStreamInfo().getStreamState().getLastSequence());
@@ -284,10 +288,13 @@ public class KeyValueTests extends JetStreamTestBase {
         });
     }
 
-    private void assertStatusAfterCreate(KeyValueStatus status) {
-        KeyValueConfiguration kvc = status.getConfiguration();
+    private void assertStatus(KeyValueStatus status) {
+        KeyValueConfiguration kvc;
+        kvc = status.getConfiguration();
         assertEquals(BUCKET, status.getBucketName());
         assertEquals(BUCKET, kvc.getBucketName());
+        assertEquals(PLAIN, status.getDescription());
+        assertEquals(PLAIN, kvc.getDescription());
         assertEquals(NatsKeyValueUtil.toStreamName(BUCKET), kvc.getBackingConfig().getName());
         assertEquals(3, status.getMaxHistoryPerKey());
         assertEquals(3, kvc.getMaxHistoryPerKey());
@@ -303,6 +310,45 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(1, kvc.getReplicas());
         assertEquals(0, status.getEntryCount());
         assertEquals("JetStream", status.getBackingStore());
+
+        assertTrue(status.toString().contains(BUCKET));
+        assertTrue(status.toString().contains(PLAIN));
+    }
+
+    @Test
+    public void testGetRevision() throws Exception {
+        runInJsServer(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            kvm.create(KeyValueConfiguration.builder()
+                .name(BUCKET)
+                .storageType(StorageType.Memory)
+                .maxHistoryPerKey(2)
+                .build());
+
+            KeyValue kv = nc.keyValue(BUCKET);
+            long seq1 = kv.put(KEY, 1);
+            long seq2 = kv.put(KEY, 2);
+            long seq3 = kv.put(KEY, 3);
+
+            KeyValueEntry kve = kv.get(KEY);
+            assertNotNull(kve);
+            assertEquals(3, kve.getValueAsLong());
+
+            kve = kv.get(KEY, seq3);
+            assertNotNull(kve);
+            assertEquals(3, kve.getValueAsLong());
+
+            kve = kv.get(KEY, seq2);
+            assertNotNull(kve);
+            assertEquals(2, kve.getValueAsLong());
+
+            kve = kv.get(KEY, seq1);
+            assertNull(kve);
+
+            kve = kv.get("notkey", seq3);
+            assertNull(kve);
+        });
     }
 
     @Test
@@ -310,7 +356,7 @@ public class KeyValueTests extends JetStreamTestBase {
         runInJsServer(nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
 
-            // create bucket 1
+            // create bucket
             kvm.create(KeyValueConfiguration.builder()
                 .name(BUCKET)
                 .storageType(StorageType.Memory)
@@ -336,6 +382,11 @@ public class KeyValueTests extends JetStreamTestBase {
             for (int x = 2; x <= 10; x += 2) {
                 assertTrue(keys.contains("k" + x));
             }
+
+            String keyWithDot = "part1.part2.part3";
+            kv.put(keyWithDot, "key has dot");
+            KeyValueEntry kve = kv.get(keyWithDot);
+            assertEquals(keyWithDot, kve.getKey());
         });
     }
 
@@ -426,37 +477,36 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.purge(key(4));
 
             JetStream js = nc.jetStream();
+            assertPurgeDeleteEntries(js, new String[]{"a", null, "b", "c", null});
 
-            JetStreamSubscription sub = js.subscribe(NatsKeyValueUtil.toStreamSubject(BUCKET));
-
-            Message m = sub.nextMessage(1000);
-            assertEquals("a", new String(m.getData()));
-
-            m = sub.nextMessage(1000);
-            assertEquals(0, m.getData().length);
-
-            m = sub.nextMessage(1000);
-            assertEquals("b", new String(m.getData()));
-
-            m = sub.nextMessage(1000);
-            assertEquals("c", new String(m.getData()));
-
-            m = sub.nextMessage(1000);
-            assertEquals(0, m.getData().length);
-
-            sub.unsubscribe();
-
+            // default purge deletes uses the default threshold of 30 minutes
+            // so no markers will be deleted
             kv.purgeDeletes();
-            sub = js.subscribe(NatsKeyValueUtil.toStreamSubject(BUCKET));
+            assertPurgeDeleteEntries(js, new String[]{null, "b", "c", null});
 
-            m = sub.nextMessage(1000);
-            assertEquals("b", new String(m.getData()));
-
-            m = sub.nextMessage(1000);
-            assertEquals("c", new String(m.getData()));
-
-            sub.unsubscribe();
+            // no threshold causes all to be removed
+            kv.purgeDeletes(KeyValuePurgeOptions.builder().deleteMarkersNoThreshold().build());
+            assertPurgeDeleteEntries(js, new String[]{"b", "c"});
         });
+    }
+
+    private void assertPurgeDeleteEntries(JetStream js, String[] expected) throws IOException, JetStreamApiException, InterruptedException {
+        JetStreamSubscription sub = js.subscribe(NatsKeyValueUtil.toStreamSubject(BUCKET));
+
+        for (String s : expected) {
+            Message m = sub.nextMessage(1000);
+            KeyValueEntry kve = new KeyValueEntry(m);
+            if (s == null) {
+                assertNotEquals(KeyValueOperation.PUT, kve.getOperation());
+                assertEquals(0, kve.getDataLen());
+            }
+            else {
+                assertEquals(KeyValueOperation.PUT, kve.getOperation());
+                assertEquals(s, kve.getValueAsString());
+            }
+        }
+
+        sub.unsubscribe();
     }
 
     @Test
@@ -585,6 +635,7 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     static class TestKeyValueWatcher implements KeyValueWatcher {
+        public String name;
         public List<KeyValueEntry> entries = new ArrayList<>();
         public KeyValueWatchOption[] watchOptions;
         public boolean beforeWatcher;
@@ -592,7 +643,8 @@ public class KeyValueTests extends JetStreamTestBase {
         public int endOfDataReceived;
         public boolean endBeforeEntries;
 
-        public TestKeyValueWatcher(boolean beforeWatcher, KeyValueWatchOption... watchOptions) {
+        public TestKeyValueWatcher(String name, boolean beforeWatcher, KeyValueWatchOption... watchOptions) {
+            this.name = name;
             this.beforeWatcher = beforeWatcher;
             this.watchOptions = watchOptions;
             for (KeyValueWatchOption wo : watchOptions) {
@@ -601,6 +653,16 @@ public class KeyValueTests extends JetStreamTestBase {
                     break;
                 }
             }
+        }
+
+        @Override
+        public String toString() {
+            return "TestKeyValueWatcher{" +
+                "name='" + name + '\'' +
+                ", beforeWatcher=" + beforeWatcher +
+                ", metaOnly=" + metaOnly +
+                ", watchOptions=" + Arrays.toString(watchOptions) +
+                '}';
         }
 
         @Override
@@ -616,13 +678,16 @@ public class KeyValueTests extends JetStreamTestBase {
         }
     }
 
-    @Test
-    @Timeout(value = 60)
-    public void testWatch() throws Exception {
-        String keyNull = "key.nl";
-        String key1 = "key.1";
-        String key2 = "key.2";
+    static String TEST_WATCH_KEY_NULL = "key.nl";
+    static String TEST_WATCH_KEY_1 = "key.1";
+    static String TEST_WATCH_KEY_2 = "key.2";
 
+    interface TestWatchSubSupplier {
+        NatsKeyValueWatchSubscription get(KeyValue kv) throws Exception;
+    }
+
+    @Test
+    public void testWatch() throws Exception {
         Object[] key1AllExpecteds = new Object[] {
             "a", "aa", KeyValueOperation.DELETE, "aaa", KeyValueOperation.DELETE, KeyValueOperation.PURGE
         };
@@ -648,120 +713,94 @@ public class KeyValueTests extends JetStreamTestBase {
             "a", "aa", "z", "zz", "aaa", "zzz", null
         };
 
+        TestKeyValueWatcher key1FullWatcher = new TestKeyValueWatcher("key1FullWatcher", true);
+        TestKeyValueWatcher key1MetaWatcher = new TestKeyValueWatcher("key1MetaWatcher", true, META_ONLY);
+        TestKeyValueWatcher key1StartNewWatcher = new TestKeyValueWatcher("key1StartNewWatcher", true, META_ONLY);
+        TestKeyValueWatcher key1StartAllWatcher = new TestKeyValueWatcher("key1StartAllWatcher", true, META_ONLY);
+        TestKeyValueWatcher key2FullWatcher = new TestKeyValueWatcher("key2FullWatcher", true);
+        TestKeyValueWatcher key2MetaWatcher = new TestKeyValueWatcher("key2MetaWatcher", true, META_ONLY);
+        TestKeyValueWatcher allAllFullWatcher = new TestKeyValueWatcher("allAllFullWatcher", true);
+        TestKeyValueWatcher allAllMetaWatcher = new TestKeyValueWatcher("allAllMetaWatcher", true, META_ONLY);
+        TestKeyValueWatcher allIgDelFullWatcher = new TestKeyValueWatcher("allIgDelFullWatcher", true, IGNORE_DELETE);
+        TestKeyValueWatcher allIgDelMetaWatcher = new TestKeyValueWatcher("allIgDelMetaWatcher", true, META_ONLY, IGNORE_DELETE);
+        TestKeyValueWatcher starFullWatcher = new TestKeyValueWatcher("starFullWatcher", true);
+        TestKeyValueWatcher starMetaWatcher = new TestKeyValueWatcher("starMetaWatcher", true, META_ONLY);
+        TestKeyValueWatcher gtFullWatcher = new TestKeyValueWatcher("gtFullWatcher", true);
+        TestKeyValueWatcher gtMetaWatcher = new TestKeyValueWatcher("gtMetaWatcher", true, META_ONLY);
+        TestKeyValueWatcher key1AfterWatcher = new TestKeyValueWatcher("key1AfterWatcher", false, META_ONLY);
+        TestKeyValueWatcher key1AfterIgDelWatcher = new TestKeyValueWatcher("key1AfterIgDelWatcher", false, META_ONLY, IGNORE_DELETE);
+        TestKeyValueWatcher key1AfterStartNewWatcher = new TestKeyValueWatcher("key1AfterStartNewWatcher", false, META_ONLY, UPDATES_ONLY);
+        TestKeyValueWatcher key1AfterStartFirstWatcher = new TestKeyValueWatcher("key1AfterStartFirstWatcher", false, META_ONLY, INCLUDE_HISTORY);
+        TestKeyValueWatcher key2AfterWatcher = new TestKeyValueWatcher("key2AfterWatcher", false, META_ONLY);
+        TestKeyValueWatcher key2AfterStartNewWatcher = new TestKeyValueWatcher("key2AfterStartNewWatcher", false, META_ONLY, UPDATES_ONLY);
+        TestKeyValueWatcher key2AfterStartFirstWatcher = new TestKeyValueWatcher("key2AfterStartFirstWatcher", false, META_ONLY, INCLUDE_HISTORY);
+
         runInJsServer(nc -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
-
-            kvm.create(KeyValueConfiguration.builder()
-                .name(BUCKET)
-                .maxHistoryPerKey(10)
-                .storageType(StorageType.Memory)
-                .build());
-
-            KeyValue kv = nc.keyValue(BUCKET);
-
-            TestKeyValueWatcher key1FullWatcher = new TestKeyValueWatcher(true);
-            TestKeyValueWatcher key1MetaWatcher = new TestKeyValueWatcher(true, META_ONLY);
-            TestKeyValueWatcher key1StartNewWatcher = new TestKeyValueWatcher(true, META_ONLY);
-            TestKeyValueWatcher key1StartAllWatcher = new TestKeyValueWatcher(true, META_ONLY);
-            TestKeyValueWatcher key2FullWatcher = new TestKeyValueWatcher(true);
-            TestKeyValueWatcher key2MetaWatcher = new TestKeyValueWatcher(true, META_ONLY);
-            TestKeyValueWatcher allAllFullWatcher = new TestKeyValueWatcher(true);
-            TestKeyValueWatcher allAllMetaWatcher = new TestKeyValueWatcher(true, META_ONLY);
-            TestKeyValueWatcher allIgDelFullWatcher = new TestKeyValueWatcher(true, IGNORE_DELETE);
-            TestKeyValueWatcher allIgDelMetaWatcher = new TestKeyValueWatcher(true, META_ONLY, IGNORE_DELETE);
-            TestKeyValueWatcher starFullWatcher = new TestKeyValueWatcher(true);
-            TestKeyValueWatcher starMetaWatcher = new TestKeyValueWatcher(true, META_ONLY);
-            TestKeyValueWatcher gtFullWatcher = new TestKeyValueWatcher(true);
-            TestKeyValueWatcher gtMetaWatcher = new TestKeyValueWatcher(true, META_ONLY);
-
-            List<NatsKeyValueWatchSubscription> subs = new ArrayList<>();
-
-            // subs created before data
-            subs.add(kv.watch(key1, key1FullWatcher, key1FullWatcher.watchOptions));
-            subs.add(kv.watch(key1, key1MetaWatcher, key1MetaWatcher.watchOptions));
-            subs.add(kv.watch(key1, key1StartNewWatcher, key1StartNewWatcher.watchOptions));
-            subs.add(kv.watch(key1, key1StartAllWatcher, key1StartAllWatcher.watchOptions));
-            subs.add(kv.watch(key2, key2FullWatcher, key2FullWatcher.watchOptions));
-            subs.add(kv.watch(key2, key2MetaWatcher, key2MetaWatcher.watchOptions));
-            subs.add(kv.watchAll(allAllFullWatcher, allAllFullWatcher.watchOptions));
-            subs.add(kv.watchAll(allAllMetaWatcher, allAllMetaWatcher.watchOptions));
-            subs.add(kv.watchAll(allIgDelFullWatcher, allIgDelFullWatcher.watchOptions));
-            subs.add(kv.watchAll(allIgDelMetaWatcher, allIgDelMetaWatcher.watchOptions));
-            subs.add(kv.watch("key.*", starFullWatcher, starFullWatcher.watchOptions));
-            subs.add(kv.watch("key.*", starMetaWatcher, starMetaWatcher.watchOptions));
-            subs.add(kv.watch("key.>", gtFullWatcher, gtFullWatcher.watchOptions));
-            subs.add(kv.watch("key.>", gtMetaWatcher, gtMetaWatcher.watchOptions));
-
-            kv.put(key1, "a");
-            kv.put(key1, "aa");
-            kv.put(key2, "z");
-            kv.put(key2, "zz");
-            kv.delete(key1);
-            kv.delete(key2);
-            kv.put(key1, "aaa");
-            kv.put(key2, "zzz");
-            kv.delete(key1);
-            kv.purge(key1);
-            kv.put(keyNull, (byte[])null);
-
-            sleep(100); // give time for all the data to be setup
-
-            TestKeyValueWatcher key1AfterWatcher = new TestKeyValueWatcher(false, META_ONLY);
-            TestKeyValueWatcher key1AfterIgDelWatcher = new TestKeyValueWatcher(false, META_ONLY, IGNORE_DELETE);
-            TestKeyValueWatcher key1AfterStartNewWatcher = new TestKeyValueWatcher(false, META_ONLY, UPDATES_ONLY);
-            TestKeyValueWatcher key1AfterStartFirstWatcher = new TestKeyValueWatcher(false, META_ONLY, INCLUDE_HISTORY);
-            TestKeyValueWatcher key2AfterWatcher = new TestKeyValueWatcher(false, META_ONLY);
-            TestKeyValueWatcher key2AfterStartNewWatcher = new TestKeyValueWatcher(false, META_ONLY, UPDATES_ONLY);
-            TestKeyValueWatcher key2AfterStartFirstWatcher = new TestKeyValueWatcher(false, META_ONLY, INCLUDE_HISTORY);
-
-            subs.add(kv.watch(key1, key1AfterWatcher, key1AfterWatcher.watchOptions));
-            subs.add(kv.watch(key1, key1AfterIgDelWatcher, key1AfterIgDelWatcher.watchOptions));
-            subs.add(kv.watch(key1, key1AfterStartNewWatcher, key1AfterStartNewWatcher.watchOptions));
-            subs.add(kv.watch(key1, key1AfterStartFirstWatcher, key1AfterStartFirstWatcher.watchOptions));
-            subs.add(kv.watch(key2, key2AfterWatcher, key2AfterWatcher.watchOptions));
-            subs.add(kv.watch(key2, key2AfterStartNewWatcher, key2AfterStartNewWatcher.watchOptions));
-            subs.add(kv.watch(key2, key2AfterStartFirstWatcher, key2AfterStartFirstWatcher.watchOptions));
-
-            sleep(5000); // give time for the watches to get messages
-
-            // unsubscribe so the watchers don't get any more messages
-            for (NatsKeyValueWatchSubscription sub : subs) {
-                sub.unsubscribe();
-            }
-
-            // put some more data which should not be seen by watches
-            kv.put(key1, "aaaa");
-            kv.put(key2, "zzzz");
-
-            sleep(5000); // give time for the watches to get messages
-
-            validateWatcher(key1AllExpecteds, key1FullWatcher);
-            validateWatcher(key1AllExpecteds, key1MetaWatcher);
-            validateWatcher(key1AllExpecteds, key1StartNewWatcher);
-            validateWatcher(key1AllExpecteds, key1StartAllWatcher);
-
-            validateWatcher(key2AllExpecteds, key2FullWatcher);
-            validateWatcher(key2AllExpecteds, key2MetaWatcher);
-
-            validateWatcher(allExpecteds, allAllFullWatcher);
-            validateWatcher(allExpecteds, allAllMetaWatcher);
-            validateWatcher(allPutsExpecteds, allIgDelFullWatcher);
-            validateWatcher(allPutsExpecteds, allIgDelMetaWatcher);
-
-            validateWatcher(allExpecteds, starFullWatcher);
-            validateWatcher(allExpecteds, starMetaWatcher);
-            validateWatcher(allExpecteds, gtFullWatcher);
-            validateWatcher(allExpecteds, gtMetaWatcher);
-
-            validateWatcher(purgeOnlyExpecteds, key1AfterWatcher);
-            validateWatcher(noExpecteds, key1AfterIgDelWatcher);
-            validateWatcher(noExpecteds, key1AfterStartNewWatcher);
-            validateWatcher(purgeOnlyExpecteds, key1AfterStartFirstWatcher);
-
-            validateWatcher(key2AfterExpecteds, key2AfterWatcher);
-            validateWatcher(noExpecteds, key2AfterStartNewWatcher);
-            validateWatcher(key2AllExpecteds, key2AfterStartFirstWatcher);
+            _testWatch(nc, key1FullWatcher, key1AllExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1FullWatcher, key1FullWatcher.watchOptions));
+            _testWatch(nc, key1MetaWatcher, key1AllExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1MetaWatcher, key1MetaWatcher.watchOptions));
+            _testWatch(nc, key1StartNewWatcher, key1AllExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1StartNewWatcher, key1StartNewWatcher.watchOptions));
+            _testWatch(nc, key1StartAllWatcher, key1AllExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1StartAllWatcher, key1StartAllWatcher.watchOptions));
+            _testWatch(nc, key2FullWatcher, key2AllExpecteds, kv -> kv.watch(TEST_WATCH_KEY_2, key2FullWatcher, key2FullWatcher.watchOptions));
+            _testWatch(nc, key2MetaWatcher, key2AllExpecteds, kv -> kv.watch(TEST_WATCH_KEY_2, key2MetaWatcher, key2MetaWatcher.watchOptions));
+            _testWatch(nc, allAllFullWatcher, allExpecteds, kv -> kv.watchAll(allAllFullWatcher, allAllFullWatcher.watchOptions));
+            _testWatch(nc, allAllMetaWatcher, allExpecteds, kv -> kv.watchAll(allAllMetaWatcher, allAllMetaWatcher.watchOptions));
+            _testWatch(nc, allIgDelFullWatcher, allPutsExpecteds, kv -> kv.watchAll(allIgDelFullWatcher, allIgDelFullWatcher.watchOptions));
+            _testWatch(nc, allIgDelMetaWatcher, allPutsExpecteds, kv -> kv.watchAll(allIgDelMetaWatcher, allIgDelMetaWatcher.watchOptions));
+            _testWatch(nc, starFullWatcher, allExpecteds, kv -> kv.watch("key.*", starFullWatcher, starFullWatcher.watchOptions));
+            _testWatch(nc, starMetaWatcher, allExpecteds, kv -> kv.watch("key.*", starMetaWatcher, starMetaWatcher.watchOptions));
+            _testWatch(nc, gtFullWatcher, allExpecteds, kv -> kv.watch("key.>", gtFullWatcher, gtFullWatcher.watchOptions));
+            _testWatch(nc, gtMetaWatcher, allExpecteds, kv -> kv.watch("key.>", gtMetaWatcher, gtMetaWatcher.watchOptions));
+            _testWatch(nc, key1AfterWatcher, purgeOnlyExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterWatcher, key1AfterWatcher.watchOptions));
+            _testWatch(nc, key1AfterIgDelWatcher, noExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterIgDelWatcher, key1AfterIgDelWatcher.watchOptions));
+            _testWatch(nc, key1AfterStartNewWatcher, noExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterStartNewWatcher, key1AfterStartNewWatcher.watchOptions));
+            _testWatch(nc, key1AfterStartFirstWatcher, purgeOnlyExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterStartFirstWatcher, key1AfterStartFirstWatcher.watchOptions));
+            _testWatch(nc, key2AfterWatcher, key2AfterExpecteds, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterWatcher, key2AfterWatcher.watchOptions));
+            _testWatch(nc, key2AfterStartNewWatcher, noExpecteds, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterStartNewWatcher, key2AfterStartNewWatcher.watchOptions));
+            _testWatch(nc, key2AfterStartFirstWatcher, key2AllExpecteds, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterStartFirstWatcher, key2AfterStartFirstWatcher.watchOptions));
         });
+    }
+
+    private void _testWatch(Connection nc, TestKeyValueWatcher watcher, Object[] expectedKves, TestWatchSubSupplier supplier) throws Exception {
+        KeyValueManagement kvm = nc.keyValueManagement();
+
+        String bucket = BUCKET + watcher.name;
+        kvm.create(KeyValueConfiguration.builder()
+            .name(bucket)
+            .maxHistoryPerKey(10)
+            .storageType(StorageType.Memory)
+            .build());
+
+        KeyValue kv = nc.keyValue(bucket);
+
+        // subs created before data
+        NatsKeyValueWatchSubscription sub = null;
+
+        if (watcher.beforeWatcher) {
+            sub = supplier.get(kv);
+        }
+
+        kv.put(TEST_WATCH_KEY_1, "a");
+        kv.put(TEST_WATCH_KEY_1, "aa");
+        kv.put(TEST_WATCH_KEY_2, "z");
+        kv.put(TEST_WATCH_KEY_2, "zz");
+        kv.delete(TEST_WATCH_KEY_1);
+        kv.delete(TEST_WATCH_KEY_2);
+        kv.put(TEST_WATCH_KEY_1, "aaa");
+        kv.put(TEST_WATCH_KEY_2, "zzz");
+        kv.delete(TEST_WATCH_KEY_1);
+        kv.purge(TEST_WATCH_KEY_1);
+        kv.put(TEST_WATCH_KEY_NULL, (byte[])null);
+
+        if (!watcher.beforeWatcher) {
+            sub = supplier.get(kv);
+        }
+
+        sleep(1500); // give time for the watches to get messages
+
+        validateWatcher(expectedKves, watcher);
+        //noinspection ConstantConditions
+        sub.unsubscribe();
+        kvm.delete(bucket);
     }
 
     private void validateWatcher(Object[] expectedKves, TestKeyValueWatcher watcher) {
@@ -819,20 +858,20 @@ public class KeyValueTests extends JetStreamTestBase {
 
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/kv_account.conf", false)) {
             Options acctA = new Options.Builder().server(ts.getURI()).userInfo("a", "a").build();
-            Options acctI = new Options.Builder().server(ts.getURI()).userInfo("i", "i").inboxPrefix("forI").build();
+            Options acctI = new Options.Builder().server(ts.getURI()).userInfo("i", "i").inboxPrefix("ForI").build();
 
             try (Connection connUserA = Nats.connect(acctA); Connection connUserI = Nats.connect(acctI) ) {
 
                 // some prep
-                KeyValueOptions jsOpt_UserI_BucketA_WithPrefix = KeyValueOptions.builder()
-                    .featurePrefix("iBucketA")
-                    .jetStreamOptions(JetStreamOptions.builder().prefix("jsFromA").build())
-                    .build();
+                KeyValueOptions jsOpt_UserI_BucketA_WithPrefix =
+                    KeyValueOptions.builder().jsPrefix("FromA").build();
 
-                KeyValueOptions jsOpt_UserI_BucketI_WithPrefix = KeyValueOptions.builder()
-                    .featurePrefix("iBucketI")
-                    .jetStreamOptions(JetStreamOptions.builder().prefix("jsFromA").build())
-                    .build();
+                assertNotNull(jsOpt_UserI_BucketA_WithPrefix.getJetStreamOptions());
+
+                KeyValueOptions jsOpt_UserI_BucketI_WithPrefix =
+                    KeyValueOptions.builder().jsPrefix("FromA").build();
+
+                assertNotNull(jsOpt_UserI_BucketI_WithPrefix.getJetStreamOptions());
 
                 KeyValueManagement kvmUserA = connUserA.keyValueManagement();
                 KeyValueManagement kvmUserIBcktA = connUserI.keyValueManagement(jsOpt_UserI_BucketA_WithPrefix);
@@ -863,15 +902,15 @@ public class KeyValueTests extends JetStreamTestBase {
                 KeyValue kv_connI_bucketI = connUserI.keyValue(BUCKET_CREATED_BY_USER_I, jsOpt_UserI_BucketI_WithPrefix);
 
                 // check the names
-                assertEquals(BUCKET_CREATED_BY_USER_A, kv_connA_bucketA.getStoreName());
-                assertEquals(BUCKET_CREATED_BY_USER_A, kv_connI_bucketA.getStoreName());
-                assertEquals(BUCKET_CREATED_BY_USER_I, kv_connA_bucketI.getStoreName());
-                assertEquals(BUCKET_CREATED_BY_USER_I, kv_connI_bucketI.getStoreName());
+                assertEquals(BUCKET_CREATED_BY_USER_A, kv_connA_bucketA.getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_A, kv_connI_bucketA.getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kv_connA_bucketI.getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kv_connI_bucketI.getBucketName());
 
-                TestKeyValueWatcher watcher_connA_BucketA = new TestKeyValueWatcher(true);
-                TestKeyValueWatcher watcher_connA_BucketI = new TestKeyValueWatcher(true);
-                TestKeyValueWatcher watcher_connI_BucketA = new TestKeyValueWatcher(true);
-                TestKeyValueWatcher watcher_connI_BucketI = new TestKeyValueWatcher(true);
+                TestKeyValueWatcher watcher_connA_BucketA = new TestKeyValueWatcher("watcher_connA_BucketA", true);
+                TestKeyValueWatcher watcher_connA_BucketI = new TestKeyValueWatcher("watcher_connA_BucketI", true);
+                TestKeyValueWatcher watcher_connI_BucketA = new TestKeyValueWatcher("watcher_connI_BucketA", true);
+                TestKeyValueWatcher watcher_connI_BucketI = new TestKeyValueWatcher("watcher_connI_BucketI", true);
 
                 kv_connA_bucketA.watchAll(watcher_connA_BucketA);
                 kv_connA_bucketI.watchAll(watcher_connA_BucketI);
@@ -968,5 +1007,67 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(kveUserA, kveUserI);
         assertEquals(data, kveUserA.getValueAsString());
         assertEquals(KeyValueOperation.PUT, kveUserA.getOperation());
+    }
+
+    @Test
+    public void testCoverBucketAndKey() {
+        NatsKeyValueUtil.BucketAndKey bak1 = new NatsKeyValueUtil.BucketAndKey(DOT + BUCKET + DOT + KEY);
+        NatsKeyValueUtil.BucketAndKey bak2 = new NatsKeyValueUtil.BucketAndKey(DOT + BUCKET + DOT + KEY);
+        NatsKeyValueUtil.BucketAndKey bak3 = new NatsKeyValueUtil.BucketAndKey(DOT + bucket(1) + DOT + KEY);
+        NatsKeyValueUtil.BucketAndKey bak4 = new NatsKeyValueUtil.BucketAndKey(DOT + BUCKET + DOT + key(1));
+
+        assertEquals(BUCKET, bak1.bucket);
+        assertEquals(KEY, bak1.key);
+        assertEquals(bak1, bak1);
+        assertEquals(bak1, bak2);
+        assertEquals(bak2, bak1);
+        assertNotEquals(bak1, bak3);
+        assertNotEquals(bak1, bak4);
+        assertNotEquals(bak3, bak1);
+        assertNotEquals(bak4, bak1);
+
+        assertFalse(bak4.equals(null));
+        assertFalse(bak4.equals(new Object()));
+    }
+
+    @Test
+    public void testKeyValueEntryEqualsImpl() throws Exception {
+        runInJsServer(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            // create bucket 1
+            kvm.create(KeyValueConfiguration.builder()
+                .name(bucket(1))
+                .storageType(StorageType.Memory)
+                .build());
+
+            // create bucket 2
+            kvm.create(KeyValueConfiguration.builder()
+                .name(bucket(2))
+                .storageType(StorageType.Memory)
+                .build());
+
+            KeyValue kv1 = nc.keyValue(bucket(1));
+            KeyValue kv2 = nc.keyValue(bucket(2));
+            kv1.put(key(1), "ONE");
+            kv1.put(key(2), "TWO");
+            kv2.put(key(1), "ONE");
+
+            KeyValueEntry kve1_1 = kv1.get(key(1));
+            KeyValueEntry kve1_2 = kv1.get(key(2));
+            KeyValueEntry kve2_1 = kv2.get(key(1));
+
+            assertEquals(kve1_1, kve1_1);
+            assertEquals(kve1_1, kv1.get(key(1)));
+            assertNotEquals(kve1_1, kve1_2);
+            assertNotEquals(kve1_1, kve2_1);
+
+            kv1.put(key(1), "ONE-PRIME");
+            assertNotEquals(kve1_1, kv1.get(key(1)));
+
+            // coverage
+            assertFalse(kve1_1.equals(null));
+            assertFalse(kve1_1.equals(new Object()));
+        });
     }
 }

@@ -20,8 +20,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import static io.nats.client.api.MessageGetRequest.lastBySubjectBytes;
-import static io.nats.client.api.MessageGetRequest.seqBytes;
 import static io.nats.client.support.ApiConstants.SEQ;
 import static io.nats.client.support.JsonUtils.simpleMessageBody;
 import static io.nats.client.support.Validator.*;
@@ -86,7 +84,17 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
     @Override
     public StreamInfo getStreamInfo(String streamName) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
-        return _getStreamInfo(streamName);
+        return _getStreamInfo(streamName, null);
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public StreamInfo getStreamInfo(String streamName, StreamInfoOptions options) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
+        return _getStreamInfo(streamName, options);
     }
 
     /**
@@ -208,7 +216,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
     public MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
         String subj = String.format(JSAPI_MSG_GET, streamName);
-        Message resp = makeRequestResponseRequired(subj, seqBytes(seq), jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(subj, MessageGetRequest.seqBytes(seq), jso.getRequestTimeout());
         return new MessageInfo(resp).throwOnHasError();
     }
 
@@ -220,8 +228,8 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         validateNotNull(streamName, "Stream Name");
         validateSubject(subject, true);
         String getSubject = String.format(JSAPI_MSG_GET, streamName);
-        Message resp = makeRequestResponseRequired(getSubject, lastBySubjectBytes(subject), jso.getRequestTimeout());
-        return new MessageInfo(resp);
+        Message resp = makeRequestResponseRequired(getSubject, MessageGetRequest.lastBySubjectBytes(subject), jso.getRequestTimeout());
+        return new MessageInfo(resp).throwOnHasError();
     }
 
     /**

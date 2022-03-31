@@ -20,8 +20,10 @@ import io.nats.client.api.ReplayPolicy;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.time.ZonedDateTime;
 
+import static io.nats.client.api.ConsumerConfiguration.CcChangeHelper.*;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -45,6 +47,7 @@ public class ConsumerConfigurationComparerTests extends TestBase {
     @Test
     public void testChanges() {
         ConsumerConfiguration orig = ConsumerConfiguration.builder().build();
+
         assertNotChange(orig, orig);
 
         assertNotChange(builder(orig).deliverPolicy(DeliverPolicy.All).build(), orig);
@@ -61,6 +64,14 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertChange(ccTest, orig);
 
         ccTest = builder(orig).idleHeartbeat(1000).build();
+        assertNotChange(ccTest, ccTest);
+        assertChange(ccTest, orig);
+
+        ccTest = builder(orig).maxExpires(1000).build();
+        assertNotChange(ccTest, ccTest);
+        assertChange(ccTest, orig);
+
+        ccTest = builder(orig).inactiveThreshold(1000).build();
         assertNotChange(ccTest, ccTest);
         assertChange(ccTest, orig);
 
@@ -86,6 +97,12 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertNotChange(builder(orig).maxPullWaiting(0).build(), orig);
         assertChange(builder(orig).maxPullWaiting(new Long(99)).build(), orig);
 
+        assertNotChange(builder(orig).maxBatch(-1).build(), orig);
+        assertChange(builder(orig).maxBatch(new Long(99)).build(), orig);
+
+        assertChange(builder(orig).ackWait(Duration.ofSeconds(30)).build(), orig);
+        assertChange(builder(orig).ackWait(Duration.ofSeconds(31)).build(), orig);
+
         assertNotChange(builder(orig).filterSubject(EMPTY).build(), orig);
         ccTest = builder(orig).filterSubject(PLAIN).build();
         assertNotChange(ccTest, ccTest);
@@ -110,5 +127,67 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         ccTest = builder(orig).deliverGroup(PLAIN).build();
         assertNotChange(ccTest, ccTest);
         assertChange(ccTest, orig);
+
+        Duration[] nodurs = null;
+        assertNotChange(builder(orig).backoff(nodurs).build(), orig);
+        assertNotChange(builder(orig).backoff((Duration)null).build(), orig);
+        assertNotChange(builder(orig).backoff(new Duration[0]).build(), orig);
+        ccTest = builder(orig).backoff(1000, 2000).build();
+        assertNotChange(ccTest, ccTest);
+        assertChange(ccTest, orig);
+
+        long[] nolongs = null;
+        assertNotChange(builder(orig).backoff(nolongs).build(), orig);
+        assertNotChange(builder(orig).backoff(new long[0]).build(), orig);
+        ccTest = builder(orig).backoff(1000, 2000).build();
+        assertNotChange(ccTest, ccTest);
+        assertChange(ccTest, orig);
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    @Test
+    public void testChangeHelper() {
+        // value
+        assertFalse(START_SEQ.wouldBeChange(2L, 2L));
+        assertFalse(MAX_DELIVER.wouldBeChange(2L, 2L));
+        assertFalse(RATE_LIMIT.wouldBeChange(2L, 2L));
+        assertFalse(MAX_ACK_PENDING.wouldBeChange(2L, 2L));
+        assertFalse(MAX_PULL_WAITING.wouldBeChange(2L, 2L));
+        assertFalse(MAX_BATCH.wouldBeChange(2L, 2L));
+        assertFalse(ACK_WAIT.wouldBeChange(Duration.ofSeconds(2), Duration.ofSeconds(2)));
+
+        // null
+        assertFalse(START_SEQ.wouldBeChange(null, 2L));
+        assertFalse(MAX_DELIVER.wouldBeChange(null, 2L));
+        assertFalse(RATE_LIMIT.wouldBeChange(null, 2L));
+        assertFalse(MAX_ACK_PENDING.wouldBeChange(null, 2L));
+        assertFalse(MAX_PULL_WAITING.wouldBeChange(null, 2L));
+        assertFalse(MAX_BATCH.wouldBeChange(null, 2L));
+        assertFalse(ACK_WAIT.wouldBeChange(null, Duration.ofSeconds(2)));
+
+        // value vs not set
+        assertTrue(START_SEQ.wouldBeChange(1L, null));
+        assertTrue(MAX_DELIVER.wouldBeChange(1L, null));
+        assertTrue(RATE_LIMIT.wouldBeChange(1L, null));
+        assertTrue(MAX_ACK_PENDING.wouldBeChange(1L, null));
+        assertTrue(MAX_PULL_WAITING.wouldBeChange(1L, null));
+        assertTrue(MAX_BATCH.wouldBeChange(1L, null));
+        assertTrue(ACK_WAIT.wouldBeChange(Duration.ofSeconds(1), null));
+
+        // even if set to default
+        assertFalse(START_SEQ.wouldBeChange(-1L, null));
+        assertFalse(MAX_DELIVER.wouldBeChange(-1L, null));
+        assertFalse(RATE_LIMIT.wouldBeChange(-1L, null));
+        assertFalse(MAX_ACK_PENDING.wouldBeChange(0L, null));
+        assertFalse(MAX_PULL_WAITING.wouldBeChange(0L, null));
+        assertFalse(MAX_BATCH.wouldBeChange(-1L, null));
+
+        assertTrue(START_SEQ.wouldBeChange(1L, 2L));
+        assertTrue(MAX_DELIVER.wouldBeChange(1L, 2L));
+        assertTrue(RATE_LIMIT.wouldBeChange(1L, 2L));
+        assertTrue(MAX_ACK_PENDING.wouldBeChange(1L, 2L));
+        assertTrue(MAX_PULL_WAITING.wouldBeChange(1L, 2L));
+        assertTrue(MAX_BATCH.wouldBeChange(1L, 2L));
+        assertTrue(ACK_WAIT.wouldBeChange(Duration.ofSeconds(1), Duration.ofSeconds(2)));
     }
 }

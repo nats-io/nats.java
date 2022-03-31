@@ -21,13 +21,14 @@ import io.nats.client.support.JsonUtils;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
-import static io.nats.client.support.Validator.emptyAsNull;
-import static io.nats.client.support.Validator.validateDurationNotRequiredNotLessThanMin;
+import static io.nats.client.support.Validator.*;
 
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and
@@ -51,13 +52,17 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final ZonedDateTime startTime;
     protected final Duration ackWait;
     protected final Duration idleHeartbeat;
+    protected final Duration maxExpires;
+    protected final Duration inactiveThreshold;
     protected final Long startSeq;
     protected final Long maxDeliver;
     protected final Long rateLimit;
     protected final Long maxAckPending;
     protected final Long maxPullWaiting;
+    protected final Long maxBatch;
     protected final Boolean flowControl;
     protected final Boolean headersOnly;
+    protected final List<Duration> backoff;
 
     private static DeliverPolicy GetOrDefault(DeliverPolicy p) { return p == null ? DeliverPolicy.All : p; }
     private static AckPolicy GetOrDefault(AckPolicy p) { return p == null ? AckPolicy.Explicit : p; }
@@ -76,25 +81,29 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.startTime = cc.startTime;
         this.ackWait = cc.ackWait;
         this.idleHeartbeat = cc.idleHeartbeat;
+        this.maxExpires = cc.maxExpires;
+        this.inactiveThreshold = cc.inactiveThreshold;
         this.startSeq = cc.startSeq;
         this.maxDeliver = cc.maxDeliver;
         this.rateLimit = cc.rateLimit;
         this.maxAckPending = cc.maxAckPending;
         this.maxPullWaiting = cc.maxPullWaiting;
+        this.maxBatch = cc.maxBatch;
         this.flowControl = cc.flowControl;
         this.headersOnly = cc.headersOnly;
+        this.backoff = new ArrayList<>(cc.backoff);
     }
 
     // for the response from the server
     ConsumerConfiguration(String json) {
         Matcher m = DELIVER_POLICY_RE.matcher(json);
-        deliverPolicy = m.find() ? GetOrDefault(DeliverPolicy.get(m.group(1))) : GetOrDefault((DeliverPolicy)null);
+        deliverPolicy = GetOrDefault(m.find() ? DeliverPolicy.get(m.group(1)) : null);
 
         m = ACK_POLICY_RE.matcher(json);
-        ackPolicy = m.find() ? GetOrDefault(AckPolicy.get(m.group(1))) : GetOrDefault((AckPolicy)null);
+        ackPolicy = GetOrDefault(m.find() ? AckPolicy.get(m.group(1)) : null);
 
         m = REPLAY_POLICY_RE.matcher(json);
-        replayPolicy = m.find() ? GetOrDefault(ReplayPolicy.get(m.group(1))) : GetOrDefault((ReplayPolicy)null);
+        replayPolicy = GetOrDefault(m.find() ? ReplayPolicy.get(m.group(1)) : null);
 
         description = JsonUtils.readString(json, DESCRIPTION_RE);
         durable = JsonUtils.readString(json, DURABLE_NAME_RE);
@@ -104,16 +113,22 @@ public class ConsumerConfiguration implements JsonSerializable {
         sampleFrequency = JsonUtils.readString(json, SAMPLE_FREQ_RE);
 
         startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
-        ackWait = JsonUtils.readNanos(json, ACK_WAIT_RE, (Duration)null);
-        idleHeartbeat = JsonUtils.readNanos(json, IDLE_HEARTBEAT_RE, (Duration)null);
+        ackWait = JsonUtils.readNanos(json, ACK_WAIT_RE);
+        idleHeartbeat = JsonUtils.readNanos(json, IDLE_HEARTBEAT_RE);
+        maxExpires = JsonUtils.readNanos(json, MAX_EXPIRES_RE);
+        inactiveThreshold = JsonUtils.readNanos(json, INACTIVE_THRESHOLD_RE);
 
-        startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, CcNumeric.START_SEQ.initial());
-        maxDeliver = JsonUtils.readLong(json, MAX_DELIVER_RE, CcNumeric.MAX_DELIVER.initial());
-        rateLimit = JsonUtils.readLong(json, RATE_LIMIT_BPS_RE, CcNumeric.RATE_LIMIT.initial());
-        maxAckPending = JsonUtils.readLong(json, MAX_ACK_PENDING_RE, CcNumeric.MAX_ACK_PENDING.initial());
-        maxPullWaiting = JsonUtils.readLong(json, MAX_WAITING_RE, CcNumeric.MAX_PULL_WAITING.initial());
+        startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE);
+        maxDeliver = JsonUtils.readLong(json, MAX_DELIVER_RE);
+        rateLimit = JsonUtils.readLong(json, RATE_LIMIT_BPS_RE);
+        maxAckPending = JsonUtils.readLong(json, MAX_ACK_PENDING_RE);
+        maxPullWaiting = JsonUtils.readLong(json, MAX_WAITING_RE);
+        maxBatch = JsonUtils.readLong(json, MAX_BATCH_RE);
+
         flowControl = JsonUtils.readBoolean(json, FLOW_CONTROL_RE);
         headersOnly = JsonUtils.readBoolean(json, HEADERS_ONLY_RE);
+
+        backoff = JsonUtils.getDurationList(BACKOFF, json);
     }
 
     // For the builder
@@ -132,14 +147,20 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.deliverSubject = b.deliverSubject;
         this.deliverGroup = b.deliverGroup;
         this.idleHeartbeat = b.idleHeartbeat;
-        this.flowControl = b.flowControl;
-        this.headersOnly = b.headersOnly;
+        this.maxExpires = b.maxExpires;
+        this.inactiveThreshold = b.inactiveThreshold;
 
         this.startSeq = b.startSeq;
         this.maxDeliver = b.maxDeliver;
         this.rateLimit = b.rateLimit;
         this.maxAckPending = b.maxAckPending;
         this.maxPullWaiting = b.maxPullWaiting;
+        this.maxBatch = b.maxBatch;
+
+        this.flowControl = b.flowControl;
+        this.headersOnly = b.headersOnly;
+
+        this.backoff = b.backoff;
     }
 
     /**
@@ -166,8 +187,12 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, RATE_LIMIT_BPS, rateLimit);
         JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
         JsonUtils.addFldWhenTrue(sb, FLOW_CONTROL, flowControl);
-        JsonUtils.addFldWhenTrue(sb, HEADERS_ONLY, headersOnly);
         JsonUtils.addField(sb, ApiConstants.MAX_WAITING, maxPullWaiting);
+        JsonUtils.addFldWhenTrue(sb, HEADERS_ONLY, headersOnly);
+        JsonUtils.addField(sb, MAX_BATCH, maxBatch);
+        JsonUtils.addFieldAsNanos(sb, MAX_EXPIRES, maxExpires);
+        JsonUtils.addFieldAsNanos(sb, INACTIVE_THRESHOLD, inactiveThreshold);
+        JsonUtils.addDurations(sb, BACKOFF, backoff);
         return endJson(sb).toString();
     }
 
@@ -216,7 +241,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the start sequence.
      */
     public long getStartSequence() {
-        return CcNumeric.START_SEQ.valueOrInitial(startSeq);
+        return CcChangeHelper.START_SEQ.valueOrDefault(startSeq);
     }
 
     /**
@@ -248,7 +273,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the max delivery amount.
      */
     public long getMaxDeliver() {
-        return CcNumeric.MAX_DELIVER.valueOrInitial(maxDeliver);
+        return CcChangeHelper.MAX_DELIVER.valueOrDefault(maxDeliver);
     }
 
     /**
@@ -269,10 +294,10 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     /**
      * Gets the rate limit for this consumer configuration.
-     * @return the rate limit in msgs per second.
+     * @return the rate limit in bits per second
      */
     public long getRateLimit() {
-        return CcNumeric.RATE_LIMIT.valueOrInitial(rateLimit);
+        return CcChangeHelper.RATE_LIMIT.valueOrDefault(rateLimit);
     }
 
     /**
@@ -280,7 +305,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return maximum ack pending.
      */
     public long getMaxAckPending() {
-        return CcNumeric.MAX_ACK_PENDING.valueOrInitial(maxAckPending);
+        return CcChangeHelper.MAX_ACK_PENDING.valueOrDefault(maxAckPending);
     }
 
     /**
@@ -313,7 +338,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the max pull waiting
      */
     public long getMaxPullWaiting() {
-        return CcNumeric.MAX_PULL_WAITING.valueOrInitial(maxPullWaiting);
+        return CcChangeHelper.MAX_PULL_WAITING.valueOrDefault(maxPullWaiting);
     }
 
     /**
@@ -322,6 +347,38 @@ public class ConsumerConfiguration implements JsonSerializable {
      */
     public boolean isHeadersOnly() {
         return headersOnly != null && headersOnly;
+    }
+
+    /**
+     * Get the max batch size for the server to allow on pull requests.
+     * @return the max batch size
+     */
+    public Long getMaxBatch() {
+        return CcChangeHelper.MAX_BATCH.valueOrDefault(maxBatch);
+    }
+
+    /**
+     * Get the max amount of expire time for the server to allow on pull requests.
+     * @return the max expire
+     */
+    public Duration getMaxExpires() {
+        return maxExpires;
+    }
+
+    /**
+     * Get the amount of time before the ephemeral consumer is deemed inactive.
+     * @return the inactive threshold
+     */
+    public Duration getInactiveThreshold() {
+        return inactiveThreshold;
+    }
+
+    /**
+     * Get the backoff list; may be empty, will never be null.
+     * @return the list
+     */
+    public List<Duration> getBackoff() {
+        return backoff;
     }
 
     /**
@@ -350,7 +407,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     /**
      * Gets whether start sequence for this consumer configuration was set or left unset
-     * @return true if the policy was set, false if the policy was not set
+     * @return true if the start sequence was set by the user
      */
     public boolean startSeqWasSet() {
         return startSeq != null;
@@ -358,7 +415,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     /**
      * Gets whether max deliver for this consumer configuration was set or left unset
-     * @return true if the policy was set, false if the policy was not set
+     * @return true if max deliver was set by the user
      */
     public boolean maxDeliverWasSet() {
         return maxDeliver != null;
@@ -366,7 +423,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     /**
      * Gets whether rate limit for this consumer configuration was set or left unset
-     * @return true if the policy was set, false if the policy was not set
+     * @return true if rate limit was set by the user
      */
     public boolean rateLimitWasSet() {
         return rateLimit != null;
@@ -374,7 +431,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     /**
      * Gets whether max ack pending for this consumer configuration was set or left unset
-     * @return true if the policy was set, false if the policy was not set
+     * @return true if mac ack pending was set by the user
      */
     public boolean maxAckPendingWasSet() {
         return maxAckPending != null;
@@ -382,10 +439,18 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     /**
      * Gets whether max pull waiting for this consumer configuration was set or left unset
-     * @return true if the policy was set, false if the policy was not set
+     * @return true if max pull waiting was set by the user
      */
     public boolean maxPullWaitingWasSet() {
         return maxPullWaiting != null;
+    }
+
+    /**
+     * Gets whether max batch for this consumer configuration was set or left unset
+     * @return true if max batch was set by the user
+     */
+    public boolean maxBatchWasSet() {
+        return maxBatch != null;
     }
 
     /**
@@ -443,14 +508,20 @@ public class ConsumerConfiguration implements JsonSerializable {
         private ZonedDateTime startTime;
         private Duration ackWait;
         private Duration idleHeartbeat;
+        private Duration maxExpires;
+        private Duration inactiveThreshold;
 
         private Long startSeq;
         private Long maxDeliver;
         private Long rateLimit;
         private Long maxAckPending;
         private Long maxPullWaiting;
+        private Long maxBatch;
+
         private Boolean flowControl;
         private Boolean headersOnly;
+
+        private List<Duration> backoff = new ArrayList<>();
 
         public Builder() {}
 
@@ -470,14 +541,20 @@ public class ConsumerConfiguration implements JsonSerializable {
                 this.startTime = cc.startTime;
                 this.ackWait = cc.ackWait;
                 this.idleHeartbeat = cc.idleHeartbeat;
+                this.maxExpires = cc.maxExpires;
+                this.inactiveThreshold = cc.inactiveThreshold;
 
                 this.startSeq = cc.startSeq;
                 this.maxDeliver = cc.maxDeliver;
                 this.rateLimit = cc.rateLimit;
                 this.maxAckPending = cc.maxAckPending;
                 this.maxPullWaiting = cc.maxPullWaiting;
+                this.maxBatch = cc.maxBatch;
+
                 this.flowControl = cc.flowControl;
                 this.headersOnly = cc.headersOnly;
+
+                this.backoff = new ArrayList<>(cc.backoff);
             }
         }
 
@@ -643,21 +720,21 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * Set the rate limit of the ConsumerConfiguration or null to unset / clear.
-         * @param msgsPerSecond messages per second to deliver
+         * @param bitsPerSecond bits per second to deliver
          * @return Builder
          */
-        public Builder rateLimit(Long msgsPerSecond) {
-            this.rateLimit = msgsPerSecond;
+        public Builder rateLimit(Long bitsPerSecond) {
+            this.rateLimit = bitsPerSecond;
             return this;
         }
 
         /**
          * Set the rate limit of the ConsumerConfiguration.
-         * @param msgsPerSecond messages per second to deliver
+         * @param bitsPerSecond bits per second to deliver
          * @return Builder
          */
-        public Builder rateLimit(long msgsPerSecond) {
-            this.rateLimit = msgsPerSecond;
+        public Builder rateLimit(long bitsPerSecond) {
+            this.rateLimit = bitsPerSecond;
             return this;
         }
 
@@ -722,6 +799,46 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
+         * sets the max amount of expire time for the server to allow on pull requests.
+         * @param maxExpires the max expire duration
+         * @return Builder
+         */
+        public Builder maxExpires(Duration maxExpires) {
+            this.maxExpires = validateDurationNotRequiredGtOrEqZero(maxExpires, null);
+            return this;
+        }
+
+        /**
+         * sets the max amount of expire time for the server to allow on pull requests.
+         * @param maxExpires the max expire duration in milliseconds
+         * @return Builder
+         */
+        public Builder maxExpires(long maxExpires) {
+            this.maxExpires = validateDurationNotRequiredGtOrEqZero(maxExpires);
+            return this;
+        }
+
+        /**
+         * sets the amount of time before the ephemeral consumer is deemed inactive.
+         * @param inactiveThreshold the idle heart beat duration
+         * @return Builder
+         */
+        public Builder inactiveThreshold(Duration inactiveThreshold) {
+            this.inactiveThreshold = validateDurationNotRequiredGtOrEqZero(inactiveThreshold, null);
+            return this;
+        }
+
+        /**
+         * sets the amount of time before the ephemeral consumer is deemed inactive.
+         * @param inactiveThreshold the idle heart beat duration in milliseconds
+         * @return Builder
+         */
+        public Builder inactiveThreshold(long inactiveThreshold) {
+            this.inactiveThreshold = validateDurationNotRequiredGtOrEqZero(inactiveThreshold);
+            return this;
+        }
+
+        /**
          * sets the max pull waiting, the number of pulls that can be outstanding on a pull consumer, pulls received after this is reached are ignored.
          * Use null to unset / clear.
          * @param maxPullWaiting the max pull waiting
@@ -743,12 +860,64 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
+         * sets the max batch size for the server to allow on pull requests.
+         * @param maxBatch the max batch size
+         * @return Builder
+         */
+        public Builder maxBatch(Long maxBatch) {
+            this.maxBatch = maxBatch;
+            return this;
+        }
+
+        /**
+         * sets the max batch size for the server to allow on pull requests.
+         * @param maxBatch the max batch size
+         * @return Builder
+         */
+        public Builder maxBatch(long maxBatch) {
+            this.maxBatch = maxBatch;
+            return this;
+        }
+
+        /**
          * set the headers only flag
          * @param headersOnly the flag
          * @return Builder
          */
         public Builder headersOnly(Boolean headersOnly) {
             this.headersOnly = headersOnly;
+            return this;
+        }
+
+        /**
+         * Set the list of backoff.
+         * @param backoffs zero or more backoff durations or an array of backoffs
+         * @return Builder
+         */
+        public Builder backoff(Duration... backoffs) {
+            this.backoff.clear();
+            if (backoffs != null) {
+                for (Duration d : backoffs) {
+                    if (d != null) {
+                        this.backoff.add(d);
+                    }
+                }
+            }
+            return this;
+        }
+
+        /**
+         * Set the list of backoff.
+         * @param backoffsMillis zero or more backoff in millis or an array of backoffsMillis
+         * @return Builder
+         */
+        public Builder backoff(long... backoffsMillis) {
+            this.backoff.clear();
+            if (backoffsMillis != null) {
+                for (long ms : backoffsMillis) {
+                    this.backoff.add(Duration.ofMillis(ms));
+                }
+            }
             return this;
         }
 
@@ -798,47 +967,46 @@ public class ConsumerConfiguration implements JsonSerializable {
             ", idleHeartbeat=" + idleHeartbeat +
             ", flowControl=" + flowControl +
             ", maxPullWaiting=" + maxPullWaiting +
-            ", headersOnly=" + headersOnly +
+            ", maxBatch=" + maxBatch +
+            ", maxExpires=" + maxExpires +
+            ", inactiveThreshold=" + inactiveThreshold +
+            ", backoff=" + backoff +
             '}';
     }
 
     /**
      * INTERNAL CLASS ONLY, SUBJECT TO CHANGE
-     * Helper class to identify the initial or default value of a numeric field
+     * Helper class to identify the initial or default value of a field
      * and to make it easy to compare to other instances where the server provides
      * a default value.
      */
-    public enum CcNumeric {
-        START_SEQ(1, -1, -1),
-        MAX_DELIVER(1, -1, -1),
-        RATE_LIMIT(1, -1, -1),
-        MAX_ACK_PENDING(0, 0, 20000L),
-        MAX_PULL_WAITING(0, 0, 512);
+    public enum CcChangeHelper {
+        START_SEQ(1, -1),
+        MAX_DELIVER(1, -1),
+        RATE_LIMIT(1, -1),
+        MAX_ACK_PENDING(0, 0),
+        MAX_PULL_WAITING(0, 0),
+        MAX_BATCH(1, -1),
+        ACK_WAIT(Duration.ZERO.toNanos(), Duration.ofSeconds(30).toNanos());
 
-        long min;
-        long initial;
-        long server;
+        public final long Min;
+        public final long Default;
 
-        CcNumeric(long min, long initial, long server) {
-            this.min = min;
-            this.initial = initial;
-            this.server = server;
+        CcChangeHelper(long min, long dflt) {
+            this.Min = min;
+            this.Default = dflt;
         }
 
-        public long initial() {
-            return initial;
-        }
-
-        long valueOrInitial(Long val) {
-            return val == null ? initial : val;
-        }
-
-        public long comparable(Long val) {
-            return val == null || val < min || val == server ? initial : val;
+        public long valueOrDefault(Long val) {
+            return val == null ? START_SEQ.Default : val;
         }
 
         public boolean wouldBeChange(Long user, Long srvr) {
-            return user != null && comparable(user) != comparable(srvr);
+            return user != null && user != Default && !user.equals(srvr);
+        }
+
+        public boolean wouldBeChange(Duration user, Duration srvr) {
+            return user != null && !user.equals(srvr);
         }
     }
 }

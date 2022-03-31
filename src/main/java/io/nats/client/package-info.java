@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -15,8 +15,8 @@
  * The Java NATS client is encapsulated into this single package {@code io.nats.client}. Applications
  * will start from the {@link io.nats.client.Nats Nats} class to connect to the NATS server. Once connected, they can
  * use the {@link io.nats.client.Connection Connection} object to publish messages or create subscriptions.
- * 
+ *
  * @since 2.0.0
- * @version 2.13.3
+ * @version 2
  */
 package io.nats.client;

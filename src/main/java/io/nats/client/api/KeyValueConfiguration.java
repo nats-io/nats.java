@@ -260,6 +260,7 @@ public class KeyValueConfiguration {
             scBuilder.name(toStreamName(name))
                 .subjects(toStreamSubject(name))
                 .allowRollup(true)
+                .discardPolicy(DiscardPolicy.New)
                 .denyDelete(true);
             return new KeyValueConfiguration(scBuilder.build());
         }

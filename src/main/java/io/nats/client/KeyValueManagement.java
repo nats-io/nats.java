@@ -25,7 +25,6 @@ public interface KeyValueManagement {
 
     /**
      * Create a key value store.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param config the key value configuration
      * @return bucket info
      * @throws IOException covers various communication issues with the NATS
@@ -37,7 +36,6 @@ public interface KeyValueManagement {
 
     /**
      * Get the list of bucket names.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @return list of bucket names
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -48,7 +46,6 @@ public interface KeyValueManagement {
 
     /**
      * Gets the info for an existing bucket.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param bucketName the bucket name to use
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -59,8 +56,7 @@ public interface KeyValueManagement {
 
     /**
      * Deletes an existing bucket. Will throw a JetStreamApiException if the delete fails.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param bucketName the bucket name to use.
+     * @param bucketName the stream name to use.
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data

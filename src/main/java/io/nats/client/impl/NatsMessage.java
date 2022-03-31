@@ -335,6 +335,22 @@ public class NatsMessage implements Message {
      * {@inheritDoc}
      */
     @Override
+    public void nakWithDelay(Duration nakDelay) {
+        // do nothing. faster. saves checking whether a message is jetstream or not
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void nakWithDelay(long nakDelayMillis) {
+        // do nothing. faster. saves checking whether a message is jetstream or not
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void inProgress() {
         // do nothing. faster. saves checking whether a message is jetstream or not
     }

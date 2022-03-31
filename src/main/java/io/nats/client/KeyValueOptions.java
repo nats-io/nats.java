@@ -13,14 +13,26 @@
 
 package io.nats.client;
 
+import java.time.Duration;
+
 /**
- * The KeyValueOptions class specifies the general options for KeyValue.
+ * The KeyValueOptions class specifies the general options for KeyValueO.
  * Options are created using the {@link KeyValueOptions.Builder Builder}.
  */
-public class KeyValueOptions extends FeatureOptions {
+public class KeyValueOptions {
 
-    private KeyValueOptions(Builder b) {
-        super(b);
+    private final JetStreamOptions jso;
+
+    private KeyValueOptions(JetStreamOptions jso) {
+        this.jso = jso;
+    }
+
+    /**
+     * Gets the JetStream options for a KeyValue store
+     * @return the options
+     */
+    public JetStreamOptions getJetStreamOptions() {
+        return jso;
     }
 
     /**
@@ -33,36 +45,85 @@ public class KeyValueOptions extends FeatureOptions {
 
     /**
      * Creates a builder to copy the options.
-     * @param kvo an existing KeyValueOptions
+     * @param jso an existing JetStreamOptions
      * @return a stream configuration builder
      */
-    public static Builder builder(KeyValueOptions kvo) {
-        return new Builder(kvo);
+    public static Builder builder(KeyValueOptions jso) {
+        return new Builder(jso);
     }
 
     /**
      * KeyValueOptions can be created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      */
-    public static class Builder extends FeatureOptions.Builder<Builder, KeyValueOptions> {
+    public static class Builder {
 
-        @Override
-        protected Builder getThis() {
-            return this;
+        private JetStreamOptions.Builder jsoBuilder;
+
+        public Builder() {
+            this(null);
         }
 
-        public Builder() { super(null); }
-
         public Builder(KeyValueOptions kvo) {
-            super(kvo);
+            if (kvo == null) {
+                jsoBuilder = new JetStreamOptions.Builder();
+            }
+            else {
+                jsoBuilder = new JetStreamOptions.Builder(kvo.jso);
+            }
         }
 
         /**
-         * Builds the KeyValue options.
-         * @return KeyValue options
+         * Sets the JetStreamOptions.
+         * @param jso the JetStreamOptions
+         * @return the builder.
+         */
+        public Builder jetStreamOptions(JetStreamOptions jso) {
+            jsoBuilder = new JetStreamOptions.Builder(jso);
+            return this;
+        }
+
+        /**
+         * Sets the request timeout for JetStream API calls.
+         * @param requestTimeout the duration to wait for responses.
+         * @return the builder
+         */
+        public Builder jsRequestTimeout(Duration requestTimeout) {
+            jsoBuilder.requestTimeout(requestTimeout);
+            return this;
+        }
+
+        /**
+         * Sets the prefix for JetStream subjects. A prefix can be used in conjunction with
+         * user permissions to restrict access to certain JetStream instances. This must
+         * match the prefix used in the server.
+         * @param prefix the JetStream prefix
+         * @return the builder.
+         */
+        public Builder jsPrefix(String prefix) {
+            jsoBuilder.prefix(prefix);
+            return this;
+        }
+
+        /**
+         * Sets the domain for JetStream subjects, creating a standard prefix from that domain
+         * in the form $JS.(domain).API.
+         * A domain can be used in conjunction with user permissions to restrict access to certain JetStream instances.
+         * This must match the domain used in the server.
+         * @param domain the JetStream domain
+         * @return the builder.
+         */
+        public Builder jsDomain(String domain) {
+            jsoBuilder.domain(domain);
+            return this;
+        }
+
+        /**
+         * Builds the JetStream options.
+         * @return JetStream options
          */
         public KeyValueOptions build() {
-            return new KeyValueOptions(this);
+            return new KeyValueOptions(jsoBuilder.build());
         }
     }
 }

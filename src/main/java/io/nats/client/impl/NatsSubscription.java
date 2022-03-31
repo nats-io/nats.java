@@ -181,7 +181,9 @@ class NatsSubscription extends NatsConsumer implements Subscription {
             throw new IllegalStateException("This subscription became inactive.");
         }
 
-        this.incrementDeliveredCount();
+        if (msg != null) {
+            this.incrementDeliveredCount();
+        }
 
         if (this.reachedUnsubLimit()) {
             this.connection.invalidate(this);

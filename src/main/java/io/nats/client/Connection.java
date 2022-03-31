@@ -184,6 +184,18 @@ public interface Connection extends AutoCloseable {
      * Send a request. The returned future will be completed when the
      * response comes back.
      *
+     * @param subject the subject for the service that will handle the request
+     * @param body the content of the message
+     * @param timeout the time to wait for a response
+     * @return a Future for the response, which may be cancelled on error or timed out
+     */
+    CompletableFuture<Message> requestWithTimeout(String subject, byte[] body, Duration timeout);
+
+
+    /**
+     * Send a request. The returned future will be completed when the
+     * response comes back.
+     *
      * <p>The Message object allows you to set a replyTo, but in requests,
      * the replyTo is reserved for internal use as the address for the
      * server to respond to the client with the consumer's reply.</p>
@@ -193,6 +205,20 @@ public interface Connection extends AutoCloseable {
      */
     CompletableFuture<Message> request(Message message);
 
+    /**
+     * Send a request. The returned future will be completed when the
+     * response comes back.
+     *
+     * <p>The Message object allows you to set a replyTo, but in requests,
+     * the replyTo is reserved for internal use as the address for the
+     * server to respond to the client with the consumer's reply.</p>
+     *
+     * @param message the message
+     * @param timeout the time to wait for a response
+     * @return a Future for the response, which may be cancelled on error or timed out
+     */
+    CompletableFuture<Message> requestWithTimeout(Message message, Duration timeout);
+    
     /**
      * Send a request and returns the reply or null. This version of request is equivalent
      * to calling get on the future returned from {@link #request(String, byte[]) request()} with

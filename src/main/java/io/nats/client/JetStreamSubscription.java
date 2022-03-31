@@ -39,8 +39,6 @@ public interface JetStreamSubscription extends Subscription {
     /**
      * Do a pull in noWait mode with the specified batch size.
      *
-     * When when no messages are available a response with a 404 status header will be returned
-     *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
      *
@@ -50,17 +48,37 @@ public interface JetStreamSubscription extends Subscription {
     void pullNoWait(int batchSize);
 
     /**
+     * Do a pull in noWait mode with the specified batch size.
+     *
+     * ! Pull subscriptions only. Push subscription will throw IllegalStateException
+     * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
+     *
+     * @param batchSize the size of the batch
+     * @param expiresIn how long from now this request should be expired from the server wait list
+     * @throws IllegalStateException if not a pull subscription.
+     */
+    void pullNoWait(int batchSize, Duration expiresIn);
+
+    /**
+     * Do a pull in noWait mode with the specified batch size.
+     *
+     * ! Pull subscriptions only. Push subscription will throw IllegalStateException
+     * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
+     *
+     * @param batchSize the size of the batch
+     * @param expiresInMillis how long from now this request should be expired from the server wait list, in milliseconds
+     * @throws IllegalStateException if not a pull subscription.
+     */
+    void pullNoWait(int batchSize, long expiresInMillis);
+
+    /**
      * Initiate pull for all messages available before expiration.
      * <p>
      * <code>sub.nextMessage(timeout)</code> can return a:
      * <ul>
      * <li>regular message
      * <li>null
-     * <li>408 status message
      * </ul>
-     * <p>
-     * Multiple 408 status messages may come. Each one indicates a
-     * missing item from the previous batch and can be discarded.
      * <p>
      *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
@@ -80,11 +98,7 @@ public interface JetStreamSubscription extends Subscription {
      * <ul>
      * <li>regular message
      * <li>null
-     * <li>408 status message
      * </ul>
-     * <p>
-     * Multiple 408 status messages may come. Each one indicates a
-     * missing item from the previous batch and can be discarded.
      * <p>
      *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException

@@ -39,11 +39,13 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     @Test
     public void testRoundTrip() throws Exception {
         StreamConfiguration sc = StreamConfiguration.builder(getTestConfiguration())
-                .mirror(null)
-                .sources()
-                .replicas(1)
-                .templateOwner(null)
-                .build();
+            .mirror(null)
+            .sources()
+            .replicas(1)
+            .templateOwner(null)
+            .allowRollup(false)
+            .sealed(false)
+            .build();
 
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -65,25 +67,29 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         // builder
         StreamConfiguration.Builder builder = StreamConfiguration.builder()
-                .name(testSc.getName())
-                .description(testSc.getDescription())
-                .subjects(testSc.getSubjects())
-                .retentionPolicy(testSc.getRetentionPolicy())
-                .maxConsumers(testSc.getMaxConsumers())
-                .maxMessages(testSc.getMaxMsgs())
-                .maxMessagesPerSubject(testSc.getMaxMsgsPerSubject())
-                .maxBytes(testSc.getMaxBytes())
-                .maxAge(testSc.getMaxAge())
-                .maxMsgSize(testSc.getMaxMsgSize())
-                .storageType(testSc.getStorageType())
-                .replicas(testSc.getReplicas())
-                .noAck(testSc.getNoAck())
-                .templateOwner(testSc.getTemplateOwner())
-                .discardPolicy(testSc.getDiscardPolicy())
-                .duplicateWindow(testSc.getDuplicateWindow())
-                .placement(testSc.getPlacement())
-                .mirror(testSc.getMirror())
-                .sources(testSc.getSources());
+            .name(testSc.getName())
+            .description(testSc.getDescription())
+            .subjects(testSc.getSubjects())
+            .retentionPolicy(testSc.getRetentionPolicy())
+            .maxConsumers(testSc.getMaxConsumers())
+            .maxMessages(testSc.getMaxMsgs())
+            .maxMessagesPerSubject(testSc.getMaxMsgsPerSubject())
+            .maxBytes(testSc.getMaxBytes())
+            .maxAge(testSc.getMaxAge())
+            .maxMsgSize(testSc.getMaxMsgSize())
+            .storageType(testSc.getStorageType())
+            .replicas(testSc.getReplicas())
+            .noAck(testSc.getNoAck())
+            .templateOwner(testSc.getTemplateOwner())
+            .discardPolicy(testSc.getDiscardPolicy())
+            .duplicateWindow(testSc.getDuplicateWindow())
+            .placement(testSc.getPlacement())
+            .mirror(testSc.getMirror())
+            .sources(testSc.getSources())
+            .sealed(testSc.getSealed())
+            .allowRollup(testSc.getAllowRollup())
+            .denyDelete(testSc.getDenyDelete())
+            .denyPurge(testSc.getDenyPurge());
         validate(builder.build(), false);
         validate(builder.addSources((Source)null).build(), false);
 
@@ -319,7 +325,6 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(Duration.ofNanos(42000000000L), sc.getDuplicateWindow());
         assertEquals(734, sc.getMaxMsgSize());
         assertEquals(StorageType.Memory, sc.getStorageType());
-        assertFalse(sc.getNoAck());
         assertSame(DiscardPolicy.New, sc.getDiscardPolicy());
 
         assertNotNull(sc.getPlacement());
@@ -334,6 +339,12 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             assertEquals(1, sc.getReplicas());
         }
         else {
+            assertTrue(sc.getNoAck());
+            assertTrue(sc.getSealed());
+            assertTrue(sc.getDenyDelete());
+            assertTrue(sc.getDenyPurge());
+            assertTrue(sc.getAllowRollup());
+
             assertEquals(5, sc.getReplicas());
             assertEquals("twnr", sc.getTemplateOwner());
             assertNotNull(sc.getMirror());

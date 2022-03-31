@@ -13,58 +13,68 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamApiException;
-import io.nats.client.KeyValue;
-import io.nats.client.KeyValueOptions;
-import io.nats.client.PurgeOptions;
+import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.nats.client.support.NatsJetStreamConstants.EXPECTED_LAST_SUB_SEQ_HDR;
-import static io.nats.client.support.NatsJetStreamConstants.JS_WRONG_LAST_SEQUENCE;
+import static io.nats.client.support.NatsJetStreamConstants.*;
 import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
 
-public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
+public class NatsKeyValue implements KeyValue {
+
+    final NatsJetStream js;
+    final JetStreamManagement jsm;
 
     private final String bucketName;
     private final String streamName;
     private final String streamSubject;
-    private final String plainKeyPrefix;
-    private final String publishKeyPrefix;
+    private final String rawKeyPrefix;
+    private final String pubSubKeyPrefix;
 
     NatsKeyValue(NatsConnection connection, String bucketName, KeyValueOptions kvo) throws IOException {
-        super(connection, kvo);
         this.bucketName = Validator.validateKvBucketNameRequired(bucketName);
         streamName = toStreamName(bucketName);
         streamSubject = toStreamSubject(bucketName);
-        plainKeyPrefix = toKeyPrefix(bucketName);
+        rawKeyPrefix = toKeyPrefix(bucketName);
         if (kvo == null) {
-            publishKeyPrefix = plainKeyPrefix;
+            js = new NatsJetStream(connection, null);
+            jsm = new NatsJetStreamManagement(connection, null);
+            pubSubKeyPrefix = rawKeyPrefix;
         }
         else {
-            publishKeyPrefix = kvo.getFeaturePrefix() == null ? plainKeyPrefix : kvo.getFeaturePrefix();
+            js = new NatsJetStream(connection, kvo.getJetStreamOptions());
+            jsm = new NatsJetStreamManagement(connection, kvo.getJetStreamOptions());
+            if (kvo.getJetStreamOptions().isDefaultPrefix()) {
+                pubSubKeyPrefix = rawKeyPrefix;
+            }
+            else {
+                pubSubKeyPrefix = kvo.getJetStreamOptions().getPrefix() + rawKeyPrefix;
+            }
         }
     }
 
-    String toPlainKeySubject(String key) {
-        return plainKeyPrefix + key;
+    String rawKeySubject(String key) {
+        return rawKeyPrefix + key;
     }
 
-    String toPublishKeySubject(String key) {
-        return publishKeyPrefix + key;
+    String pubSubKeySubject(String key) {
+        return pubSubKeyPrefix + key;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public String getStoreName() {
+    public String getBucketName() {
         return bucketName;
     }
 
@@ -72,20 +82,45 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
         return streamName;
     }
 
-    String getStreamSubject() {
-        return streamSubject;
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public KeyValueEntry get(String key) throws IOException, JetStreamApiException {
+        return _kvGetLastMessage(validateNonWildcardKvKeyRequired(key));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public KeyValueEntry get(String key) throws IOException, JetStreamApiException {
-        return getLastMessage(validateNonWildcardKvKeyRequired(key));
+    public KeyValueEntry get(String key, long revision) throws IOException, JetStreamApiException {
+        return _kvGetMessage(validateNonWildcardKvKeyRequired(key), revision);
     }
 
-    KeyValueEntry getLastMessage(String key) throws IOException, JetStreamApiException {
-        return new KeyValueEntry(_getLastMessage(streamName, toPlainKeySubject(key)));
+    KeyValueEntry _kvGetLastMessage(String key) throws IOException, JetStreamApiException {
+        try {
+            return new KeyValueEntry(jsm.getLastMessage(streamName, rawKeySubject(key)));
+        }
+        catch (JetStreamApiException jsae) {
+            if (jsae.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {
+                return null;
+            }
+            throw jsae;
+        }
+    }
+
+    KeyValueEntry _kvGetMessage(String key, long revision) throws IOException, JetStreamApiException {
+        try {
+            KeyValueEntry kve = new KeyValueEntry(jsm.getMessage(streamName, revision));
+            return key.equals(kve.getKey()) ? kve : null;
+        }
+        catch (JetStreamApiException jsae) {
+            if (jsae.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {
+                return null;
+            }
+            throw jsae;
+        }
     }
 
     /**
@@ -117,13 +152,14 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public long create(String key, byte[] value) throws IOException, JetStreamApiException {
+        validateNonWildcardKvKeyRequired(key);
         try {
             return update(key, value, 0);
         }
         catch (JetStreamApiException e) {
             if (e.getApiErrorCode() == JS_WRONG_LAST_SEQUENCE) {
                 // must check if the last message for this subject is a delete or purge
-                KeyValueEntry kve = getLastMessage(key);
+                KeyValueEntry kve = _kvGetLastMessage(key);
                 if (kve != null && kve.getOperation() != KeyValueOperation.PUT) {
                     return update(key, value, kve.getRevision());
                 }
@@ -137,6 +173,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public long update(String key, byte[] value, long expectedRevision) throws IOException, JetStreamApiException {
+        validateNonWildcardKvKeyRequired(key);
         Headers h = new Headers().add(EXPECTED_LAST_SUB_SEQ_HDR, Long.toString(expectedRevision));
         return _publishWithNonWildcardKey(key, value, h).getSeqno();
     }
@@ -146,6 +183,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public void delete(String key) throws IOException, JetStreamApiException {
+        validateNonWildcardKvKeyRequired(key);
         _publishWithNonWildcardKey(key, null, DELETE_HEADERS);
     }
 
@@ -159,7 +197,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
 
     private PublishAck _publishWithNonWildcardKey(String key, byte[] data, Headers h) throws IOException, JetStreamApiException {
         validateNonWildcardKvKeyRequired(key);
-        return _publish(toPublishKeySubject(key), data, h);
+        return js.publish(NatsMessage.builder().subject(pubSubKeySubject(key)).data(data).headers(h).build());
     }
 
     @Override
@@ -181,7 +219,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
     @Override
     public List<String> keys() throws IOException, JetStreamApiException, InterruptedException {
         List<String> list = new ArrayList<>();
-        visitSubject(toPlainKeySubject(">"), DeliverPolicy.LastPerSubject, true, false, m -> {
+        visitSubject(rawKeySubject(">"), DeliverPolicy.LastPerSubject, true, false, m -> {
             KeyValueOperation op = getOperation(m.getHeaders());
             if (op == KeyValueOperation.PUT) {
                 list.add(new BucketAndKey(m).key);
@@ -197,7 +235,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
     public List<KeyValueEntry> history(String key) throws IOException, JetStreamApiException, InterruptedException {
         validateNonWildcardKvKeyRequired(key);
         List<KeyValueEntry> list = new ArrayList<>();
-        visitSubject(toPlainKeySubject(key), DeliverPolicy.All, false, true, m -> list.add(new KeyValueEntry(m)));
+        visitSubject(rawKeySubject(key), DeliverPolicy.All, false, true, m -> list.add(new KeyValueEntry(m)));
         return list;
     }
 
@@ -206,16 +244,53 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public void purgeDeletes()  throws IOException, JetStreamApiException, InterruptedException {
-        List<String> list = new ArrayList<>();
+        purgeDeletes(null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void purgeDeletes(KeyValuePurgeOptions options) throws IOException, JetStreamApiException, InterruptedException {
+        long dmThresh = options == null
+            ? KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS
+            : options.getDeleteMarkersThresholdMillis();
+
+        ZonedDateTime limit;
+        if (dmThresh < 0) {
+            limit = DateTimeUtils.fromNow(600000); // long enough in the future to clear all
+        }
+        else if (dmThresh == 0) {
+            limit = DateTimeUtils.fromNow(KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS);
+        }
+        else {
+            limit = DateTimeUtils.fromNow(-dmThresh);
+        }
+
+        List<String> keep0List = new ArrayList<>();
+        List<String> keep1List = new ArrayList<>();
         visitSubject(streamSubject, DeliverPolicy.LastPerSubject, true, false, m -> {
-            KeyValueOperation op = getOperation(m.getHeaders());
-            if (op != KeyValueOperation.PUT) {
-                list.add(new BucketAndKey(m).key);
+            KeyValueEntry kve = new KeyValueEntry(m);
+            if (kve.getOperation() != KeyValueOperation.PUT) {
+                if (kve.getCreated().isAfter(limit)) {
+                    keep1List.add(new BucketAndKey(m).key);
+                }
+                else {
+                    keep0List.add(new BucketAndKey(m).key);
+                }
             }
         });
 
-        for (String key : list) {
-            jsm.purgeStream(streamName, PurgeOptions.subject(toPlainKeySubject(key)));
+        for (String key : keep0List) {
+            jsm.purgeStream(streamName, PurgeOptions.subject(rawKeySubject(key)));
+        }
+
+        for (String key : keep1List) {
+            PurgeOptions po = PurgeOptions.builder()
+                .subject(rawKeySubject(key))
+                .keep(1)
+                .build();
+            jsm.purgeStream(streamName, po);
         }
     }
 
@@ -225,5 +300,36 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
     @Override
     public KeyValueStatus getStatus() throws IOException, JetStreamApiException, InterruptedException {
         return new KeyValueStatus(jsm.getStreamInfo(streamName));
+    }
+
+    private void visitSubject(String subject, DeliverPolicy deliverPolicy, boolean headersOnly, boolean ordered, MessageHandler handler) throws IOException, JetStreamApiException, InterruptedException {
+        PushSubscribeOptions pso = PushSubscribeOptions.builder()
+            .ordered(ordered)
+            .configuration(
+                ConsumerConfiguration.builder()
+                    .ackPolicy(AckPolicy.None)
+                    .deliverPolicy(deliverPolicy)
+                    .headersOnly(headersOnly)
+                    .build())
+            .build();
+
+        JetStreamSubscription sub = js.subscribe(subject, pso);
+
+        try {
+            Duration d100 = Duration.ofMillis(100);
+            Message m = sub.nextMessage(Duration.ofMillis(5000)); // give plenty of time for the first
+            while (m != null) {
+                handler.onMessage(m);
+                if (m.metaData().pendingCount() == 0) {
+                    m = null;
+                }
+                else {
+                    m = sub.nextMessage(d100); // the rest should come pretty quick
+                }
+            }
+        }
+        finally {
+            sub.unsubscribe();
+        }
     }
 }

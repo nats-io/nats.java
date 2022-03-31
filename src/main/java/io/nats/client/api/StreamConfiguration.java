@@ -161,8 +161,7 @@ public class StreamConfiguration implements JsonSerializable {
         }
         addJsons(sb, SOURCES, sources);
 
-        // never write sealed
-
+        addFldWhenTrue(sb, SEALED, sealed);
         addFldWhenTrue(sb, ALLOW_ROLLUP_HDRS, allowRollup);
         addFldWhenTrue(sb, DENY_DELETE, denyDelete);
         addFldWhenTrue(sb, DENY_PURGE, denyPurge);
@@ -325,32 +324,32 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Get the sealed setting flag
-     * @return the sealed setting
+     * Get the flag indicating whether or not the stream is sealed.
+     * @return the sealed flag
      */
     public boolean getSealed() {
         return sealed;
     }
 
     /**
-     * Get the allow rollup setting flag
-     * @return the allow rollup setting
+     * Get the flag indicating whether or not the stream allows rollup.
+     * @return the allows rollup flag
      */
     public boolean getAllowRollup() {
         return allowRollup;
     }
 
     /**
-     * Get the deny delete setting flag
-     * @return the deny delete setting
+     * Get the flag indicating whether or not deny delete is set for the stream
+     * @return the deny delete flag
      */
     public boolean getDenyDelete() {
         return denyDelete;
     }
 
     /**
-     * Get the deny purge setting flag
-     * @return the deny purge setting
+     * Get the flag indicating whether or not deny purge is set for the stream
+     * @return the deny purge flag
      */
     public boolean getDenyPurge() {
         return denyPurge;
@@ -372,10 +371,6 @@ public class StreamConfiguration implements JsonSerializable {
             ", storageType=" + storageType +
             ", replicas=" + replicas +
             ", noAck=" + noAck +
-            ", sealed=" + sealed +
-            ", allowRollup=" + allowRollup +
-            ", denyDelete=" + denyDelete +
-            ", denyPurge=" + denyPurge +
             ", template='" + templateOwner + '\'' +
             ", discardPolicy=" + discardPolicy +
             ", duplicateWindow=" + duplicateWindow +
@@ -759,12 +754,12 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Set the flag to seal the stream. A sealed stream cannot be modified.
-         * Probably should be applied to an existing stream.
-         * @param sealed the sealed flag
+         * Set whether to seal the stream.
+         * INTERNAL USE ONLY. Scoped protected for test purposes.
+         * @param sealed the sealed setting
          * @return Builder
          */
-        public Builder sealed(boolean sealed) {
+        protected Builder sealed(boolean sealed) {
             this.sealed = sealed;
             return this;
         }

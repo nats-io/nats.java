@@ -1028,6 +1028,17 @@ class NatsConnection implements Connection {
     }
 
     @Override
+    public CompletableFuture<Message> requestWithTimeout(String subject, byte[] body, Duration timeout) {
+        return requestFutureInternal(subject, null, body, options.supportUTF8Subjects(), timeout, true);
+    }
+
+    @Override
+    public CompletableFuture<Message> requestWithTimeout(Message message, Duration timeout) {
+        validateNotNull(message, "Message");
+        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), timeout, true);
+    }
+
+    @Override
     public CompletableFuture<Message> request(Message message) {
         validateNotNull(message, "Message");
         return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), null, true);

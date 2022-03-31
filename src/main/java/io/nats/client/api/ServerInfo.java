@@ -142,7 +142,7 @@ public class ServerInfo {
             String[] v = vString.replaceAll("v", "").replaceAll("-", ".").split("\\Q.\\E");
             int at = vString.indexOf("-");
             return "" + (Integer.parseInt(v[0]) * 10000) + (Integer.parseInt(v[1]) * 100) + Integer.parseInt(v[2])
-                    + (at == -1 ? "" : vString.substring(at));
+                    + (at == -1 ? "~" : vString.substring(at));
         }
         catch (NumberFormatException nfe) {
             return "";

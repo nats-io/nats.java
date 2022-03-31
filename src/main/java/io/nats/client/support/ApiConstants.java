@@ -25,6 +25,7 @@ public interface ApiConstants {
     String ALLOW_ROLLUP_HDRS = "allow_rollup_hdrs";
     String API               = "api";
     String AUTH_REQUIRED     = "auth_required";
+    String BACKOFF           = "backoff";
     String BYTES             = "bytes";
     String BUCKET            = "bucket";
     String CHUNKS            = "chunks";
@@ -41,6 +42,7 @@ public interface ApiConstants {
     String CURRENT           = "current";
     String DATA              = "data";
     String DELETED           = "deleted";
+    String DELETED_DETAILS   = "deleted_details";
     String DELIVER           = "deliver";
     String DELIVER_GROUP     = "deliver_group";
     String DELIVER_POLICY    = "deliver_policy";
@@ -69,6 +71,7 @@ public interface ApiConstants {
     String HEADERS_ONLY      = "headers_only";
     String HOST              = "host";
     String IDLE_HEARTBEAT    = "idle_heartbeat";
+    String INACTIVE_THRESHOLD= "inactive_threshold";
     String JETSTREAM         = "jetstream";
     String KEEP              = "keep";
     String LAG               = "lag";
@@ -81,10 +84,12 @@ public interface ApiConstants {
     String LINK              = "link";
     String MAX_ACK_PENDING   = "max_ack_pending";
     String MAX_AGE           = "max_age";
+    String MAX_BATCH         = "max_batch";
     String MAX_BYTES         = "max_bytes";
     String MAX_CONSUMERS     = "max_consumers";
     String MAX_CHUNK_SIZE    = "max_chunk_size";
     String MAX_DELIVER       = "max_deliver";
+    String MAX_EXPIRES       = "max_expires";
     String MAX_MEMORY        = "max_memory";
     String MAX_MSG_SIZE      = "max_msg_size";
     String MAX_MSGS          = "max_msgs";
@@ -102,9 +107,11 @@ public interface ApiConstants {
     String NONCE             = "nonce";
     String NUID              = "nuid";
     String NUM_ACK_PENDING   = "num_ack_pending";
+    String NUM_DELETED       = "num_deleted";
     String NUM_PENDING       = "num_pending";
     String NUM_REDELIVERED   = "num_redelivered";
     String NUM_REPLICAS      = "num_replicas";
+    String NUM_SUBJECTS      = "num_subjects";
     String NUM_WAITING       = "num_waiting";
     String OFFLINE           = "offline";
     String OFFSET            = "offset";
@@ -137,6 +144,7 @@ public interface ApiConstants {
     String STREAMS           = "streams";
     String SUBJECT           = "subject";
     String SUBJECTS          = "subjects";
+    String SUBJECTS_FILTER   = "subjects_filter";
     String SUCCESS           = "success";
     String TAGS              = "tags";
     String TEMPLATE_OWNER    = "template_owner";
@@ -149,7 +157,7 @@ public interface ApiConstants {
     Pattern ACK_POLICY_RE         = string_pattern(ACK_POLICY);
     Pattern ACK_WAIT_RE           = integer_pattern(ACK_WAIT);
     Pattern ACTIVE_RE             = integer_pattern(ACTIVE);
-    Pattern ALLOW_ROLLUP_HDRS_RE  = string_pattern(ALLOW_ROLLUP_HDRS);
+    Pattern ALLOW_ROLLUP_HDRS_RE  = boolean_pattern(ALLOW_ROLLUP_HDRS);
     Pattern API_RE                = string_pattern(API);
     Pattern AUTH_REQUIRED_RE      = boolean_pattern(AUTH_REQUIRED);
     Pattern BUCKET_RE             = string_pattern(BUCKET);
@@ -170,8 +178,8 @@ public interface ApiConstants {
     Pattern DELIVER_GROUP_RE      = string_pattern(DELIVER_GROUP);
     Pattern DELIVER_POLICY_RE     = string_pattern(DELIVER_POLICY);
     Pattern DELIVER_SUBJECT_RE    = string_pattern(DELIVER_SUBJECT);
-    Pattern DENY_DELETE_RE        = string_pattern(DENY_DELETE);
-    Pattern DENY_PURGE_RE         = string_pattern(DENY_PURGE);
+    Pattern DENY_DELETE_RE        = boolean_pattern(DENY_DELETE);
+    Pattern DENY_PURGE_RE         = boolean_pattern(DENY_PURGE);
     Pattern DESCRIPTION_RE        = string_pattern(DESCRIPTION);
     Pattern DIGEST_RE             = string_pattern(DIGEST);
     Pattern DISCARD_RE            = string_pattern(DISCARD);
@@ -190,6 +198,7 @@ public interface ApiConstants {
     Pattern HEADERS_ONLY_RE       = boolean_pattern(HEADERS_ONLY);
     Pattern HOST_RE               = string_pattern(HOST);
     Pattern IDLE_HEARTBEAT_RE     = integer_pattern(IDLE_HEARTBEAT);
+    Pattern INACTIVE_THRESHOLD_RE = integer_pattern(INACTIVE_THRESHOLD);
     Pattern JET_STREAM_RE         = boolean_pattern(JETSTREAM);
     Pattern LAG_RE                = integer_pattern(LAG);
     Pattern LAME_DUCK_MODE_RE     = boolean_pattern(LAME_DUCK_MODE);
@@ -199,10 +208,12 @@ public interface ApiConstants {
     Pattern LIMIT_RE              = integer_pattern(LIMIT);
     Pattern MAX_ACK_PENDING_RE    = integer_pattern(MAX_ACK_PENDING);
     Pattern MAX_AGE_RE            = integer_pattern(MAX_AGE);
+    Pattern MAX_BATCH_RE          = integer_pattern(MAX_BATCH);
     Pattern MAX_BYTES_RE          = integer_pattern(MAX_BYTES);
     Pattern MAX_CHUNK_SIZE_RE     = integer_pattern(MAX_CHUNK_SIZE);
     Pattern MAX_CONSUMERS_RE      = integer_pattern(MAX_CONSUMERS);
     Pattern MAX_DELIVER_RE        = integer_pattern(MAX_DELIVER);
+    Pattern MAX_EXPIRES_RE        = integer_pattern(MAX_EXPIRES);
     Pattern MAX_MEMORY_RE         = integer_pattern(MAX_MEMORY);
     Pattern MAX_MSG_SIZE_RE       = integer_pattern(MAX_MSG_SIZE);
     Pattern MAX_MSGS_RE           = integer_pattern(MAX_MSGS);
@@ -219,9 +230,11 @@ public interface ApiConstants {
     Pattern NONCE_RE              = string_pattern(NONCE);
     Pattern NUID_RE               = string_pattern(NUID);
     Pattern NUM_ACK_PENDING_RE    = integer_pattern(NUM_ACK_PENDING);
+    Pattern NUM_DELETED_RE        = integer_pattern(NUM_DELETED);
     Pattern NUM_PENDING_RE        = integer_pattern(NUM_PENDING);
     Pattern NUM_REDELIVERED_RE    = integer_pattern(NUM_REDELIVERED);
     Pattern NUM_REPLICAS_RE       = integer_pattern(NUM_REPLICAS);
+    Pattern NUM_SUBJECTS_RE       = integer_pattern(NUM_SUBJECTS);
     Pattern NUM_WAITING_RE        = integer_pattern(NUM_WAITING);
     Pattern OFFLINE_RE            = boolean_pattern(OFFLINE);
     Pattern OFFSET_RE             = integer_pattern(OFFSET);

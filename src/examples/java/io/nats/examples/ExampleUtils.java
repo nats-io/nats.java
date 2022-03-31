@@ -29,52 +29,55 @@ public class ExampleUtils {
         return Options.DEFAULT_URL;
     }
 
+    public static final ConnectionListener EXAMPLE_CONNECTION_LISTENER = (conn, type) -> System.out.println("Status change "+ type);
+
+    public static final ErrorListener EXAMPLE_ERROR_LISTENER = new ErrorListener() {
+        public void exceptionOccurred(Connection conn, Exception exp) {
+            System.out.println("Exception " + exp.getMessage());
+        }
+
+        public void errorOccurred(Connection conn, String type) {
+            System.out.println("Error " + type);
+        }
+
+        public void slowConsumerDetected(Connection conn, Consumer consumer) {
+            System.out.println("Slow consumer");
+        }
+    };
+
     public static Options createExampleOptions(String[] args) throws Exception {
         String server = getServer(args);
-        return createExampleOptions(server, false, null);
+        return createExampleOptions(server, false, EXAMPLE_ERROR_LISTENER, EXAMPLE_CONNECTION_LISTENER);
     }
 
     public static Options createExampleOptions(String[] args, boolean allowReconnect) throws Exception {
         String server = getServer(args);
-        return createExampleOptions(server, allowReconnect, null);
+        return createExampleOptions(server, allowReconnect, EXAMPLE_ERROR_LISTENER, EXAMPLE_CONNECTION_LISTENER);
     }
 
     public static Options createExampleOptions(String server) throws Exception {
-        return createExampleOptions(server, false, null);
+        return createExampleOptions(server, false, EXAMPLE_ERROR_LISTENER, EXAMPLE_CONNECTION_LISTENER);
     }
 
     public static Options createExampleOptions(String server, ErrorListener el) throws Exception {
-        return createExampleOptions(server, false, el);
+        return createExampleOptions(server, false, el, EXAMPLE_CONNECTION_LISTENER);
     }
 
     public static Options createExampleOptions(String server, boolean allowReconnect) throws Exception {
-        return createExampleOptions(server, allowReconnect, null);
+        return createExampleOptions(server, allowReconnect, EXAMPLE_ERROR_LISTENER, EXAMPLE_CONNECTION_LISTENER);
     }
 
-    public static Options createExampleOptions(String server, boolean allowReconnect, ErrorListener el) throws Exception {
-        if (el == null) {
-            el = new ErrorListener() {
-                public void exceptionOccurred(Connection conn, Exception exp) {
-                    System.out.println("Exception " + exp.getMessage());
-                }
+    public static Options createExampleOptions(String server, boolean allowReconnect, ErrorListener el, ConnectionListener cl) throws Exception {
 
-                public void errorOccurred(Connection conn, String type) {
-                    System.out.println("Error " + type);
-                }
-
-                public void slowConsumerDetected(Connection conn, Consumer consumer) {
-                    System.out.println("Slow consumer");
-                }
-            };
-        }
+        if (el == null) { el = new ErrorListener() {}; }
 
         Options.Builder builder = new Options.Builder()
             .server(server)
             .connectionTimeout(Duration.ofSeconds(5))
             .pingInterval(Duration.ofSeconds(10))
             .reconnectWait(Duration.ofSeconds(1))
-            .errorListener(el)
-            .connectionListener((conn, type) -> System.out.println("Status change "+type));
+            .connectionListener(cl)
+            .errorListener(el);
 
         if (!allowReconnect) {
             builder = builder.noReconnect();
@@ -90,12 +93,6 @@ public class ExampleUtils {
         }
         return builder.build();
     }
-
-    // Publish:   [options] <subject> <message>
-    // Request:   [options] <subject> <message>
-
-    // Subscribe: [options] <subject> <msgCount>
-    // Reply:     [options] <subject> <msgCount>
 
     public static ExampleArgs optionalServer(String[] args, String usageString) {
         ExampleArgs ea = new ExampleArgs(args, null, usageString);
@@ -153,18 +150,7 @@ public class ExampleUtils {
     }
 
     public static String uniqueEnough() {
-        String hex = Long.toHexString(System.currentTimeMillis()).substring(6);
-        StringBuilder sb = new StringBuilder();
-        for (int x = 0; x < hex.length(); x++) {
-            char c = hex.charAt(x);
-            if (c < 58) {
-                sb.append((char)(c+55));
-            }
-            else {
-                sb.append(c);
-            }
-        }
-        return sb.toString();
+        return NUID.nextGlobal();
     }
 
     public static String randomString(int length) {
@@ -172,6 +158,6 @@ public class ExampleUtils {
         while (sb.length() < length) {
             sb.append(Long.toHexString(ThreadLocalRandom.current().nextLong()));
         }
-        return sb.toString();
+        return sb.substring(0, length);
     }
 }
