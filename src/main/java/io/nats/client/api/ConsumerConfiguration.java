@@ -241,7 +241,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the start sequence.
      */
     public long getStartSequence() {
-        return CcChangeHelper.START_SEQ.valueOrInitial(startSeq);
+        return CcChangeHelper.START_SEQ.valueOrDefault(startSeq);
     }
 
     /**
@@ -273,7 +273,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the max delivery amount.
      */
     public long getMaxDeliver() {
-        return CcChangeHelper.MAX_DELIVER.valueOrInitial(maxDeliver);
+        return CcChangeHelper.MAX_DELIVER.valueOrDefault(maxDeliver);
     }
 
     /**
@@ -297,7 +297,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the rate limit in bits per second
      */
     public long getRateLimit() {
-        return CcChangeHelper.RATE_LIMIT.valueOrInitial(rateLimit);
+        return CcChangeHelper.RATE_LIMIT.valueOrDefault(rateLimit);
     }
 
     /**
@@ -305,7 +305,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return maximum ack pending.
      */
     public long getMaxAckPending() {
-        return CcChangeHelper.MAX_ACK_PENDING.valueOrInitial(maxAckPending);
+        return CcChangeHelper.MAX_ACK_PENDING.valueOrDefault(maxAckPending);
     }
 
     /**
@@ -338,7 +338,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the max pull waiting
      */
     public long getMaxPullWaiting() {
-        return CcChangeHelper.MAX_PULL_WAITING.valueOrInitial(maxPullWaiting);
+        return CcChangeHelper.MAX_PULL_WAITING.valueOrDefault(maxPullWaiting);
     }
 
     /**
@@ -354,7 +354,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the max batch size
      */
     public Long getMaxBatch() {
-        return CcChangeHelper.MAX_BATCH.valueOrInitial(maxBatch);
+        return CcChangeHelper.MAX_BATCH.valueOrDefault(maxBatch);
     }
 
     /**
@@ -981,49 +981,32 @@ public class ConsumerConfiguration implements JsonSerializable {
      * a default value.
      */
     public enum CcChangeHelper {
-        START_SEQ(1, -1, -1),
-        MAX_DELIVER(1, -1, -1),
-        RATE_LIMIT(1, -1, -1),
-        MAX_ACK_PENDING(0, 0, 20000L),
-        MAX_PULL_WAITING(0, 0, 512),
-        MAX_BATCH(1, -1, -1),
-        ACK_WAIT(Duration.ZERO.toNanos(), Duration.ofSeconds(30).toNanos(), Duration.ofSeconds(30).toNanos());
+        START_SEQ(1, -1),
+        MAX_DELIVER(1, -1),
+        RATE_LIMIT(1, -1),
+        MAX_ACK_PENDING(0, 0),
+        MAX_PULL_WAITING(0, 0),
+        MAX_BATCH(1, -1),
+        ACK_WAIT(Duration.ZERO.toNanos(), Duration.ofSeconds(30).toNanos());
 
-        long min;
-        long initial;
-        long server;
+        public final long Min;
+        public final long Default;
 
-        CcChangeHelper(long min, long initial, long server) {
-            this.min = min;
-            this.initial = initial;
-            this.server = server;
+        CcChangeHelper(long min, long dflt) {
+            this.Min = min;
+            this.Default = dflt;
         }
 
-        public long min() { return min; }
-        public long initial() {
-            return initial;
-        }
-        public long server() { return server; }
-
-        long valueOrInitial(Long val) {
-            return val == null ? initial : val;
-        }
-
-        public long comparable(Long val) {
-            return val == null || val < min || val == server ? initial : val;
+        public long valueOrDefault(Long val) {
+            return val == null ? START_SEQ.Default : val;
         }
 
         public boolean wouldBeChange(Long user, Long srvr) {
-            return user != null && comparable(user) != comparable(srvr);
-        }
-
-        public long comparable(Duration d) {
-            Long val = d == null ? null : d.toNanos();
-            return val == null || val < min || val == server ? initial : val;
+            return user != null && user != Default && !user.equals(srvr);
         }
 
         public boolean wouldBeChange(Duration user, Duration srvr) {
-            return user != null && comparable(user) != comparable(srvr);
+            return user != null && !user.equals(srvr);
         }
     }
 }

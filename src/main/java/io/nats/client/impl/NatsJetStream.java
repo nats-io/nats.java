@@ -247,7 +247,9 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
             userCC = so.getConsumerConfiguration();
 
-            validateNotSupplied(userCC.getMaxPullWaiting(), ConsumerConfiguration.CcChangeHelper.MAX_PULL_WAITING.initial(), JsSubPushCantHaveMaxPullWaiting);
+            if (userCC.maxPullWaitingWasSet()) {
+                throw JsSubPushCantHaveMaxPullWaiting.instance();
+            }
 
             // figure out the queue name
             qgroup = validateMustMatchIfBothSupplied(userCC.getDeliverGroup(), queueName, JsSubQueueDeliverGroupMismatch);
@@ -446,7 +448,6 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
                 || !backoff.equals(serverCcc.backoff) // backoff will never be null, but can be empty
                 ;
-
             // do not need to check Durable because the original is retrieved by the durable name
         }
     }

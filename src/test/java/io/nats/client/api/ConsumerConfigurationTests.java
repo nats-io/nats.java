@@ -13,7 +13,6 @@
 
 package io.nats.client.api;
 
-import io.nats.client.api.ConsumerConfiguration.CcChangeHelper;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
@@ -216,11 +215,11 @@ public class ConsumerConfigurationTests extends TestBase {
         assertFalse(c.isFlowControl());
         assertFalse(c.isHeadersOnly());
 
-        assertEquals(CcChangeHelper.START_SEQ.initial(), c.getStartSequence());
-        assertEquals(CcChangeHelper.MAX_DELIVER.initial(), c.getMaxDeliver());
-        assertEquals(CcChangeHelper.RATE_LIMIT.initial(), c.getRateLimit());
-        assertEquals(CcChangeHelper.MAX_ACK_PENDING.initial(), c.getMaxAckPending());
-        assertEquals(CcChangeHelper.MAX_PULL_WAITING.initial(), c.getMaxPullWaiting());
+        assertEquals(-1, c.getStartSequence());
+        assertEquals(-1, c.getMaxDeliver());
+        assertEquals(-1, c.getRateLimit());
+        assertEquals(-1, c.getMaxAckPending());
+        assertEquals(-1, c.getMaxPullWaiting());
 
         assertEquals(0, c.getBackoff().size());
     }
