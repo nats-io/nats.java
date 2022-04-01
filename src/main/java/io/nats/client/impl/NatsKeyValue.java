@@ -313,14 +313,13 @@ public class NatsKeyValue implements KeyValue {
                     .build())
             .build();
 
+        Duration timeout = js.jso.getRequestTimeout();
         JetStreamSubscription sub = js.subscribe(subject, pso);
-
         try {
-            Duration timeout = js.jso.getRequestTimeout();
-            Message m = sub.nextMessage(timeout);
-            long pending = sub.getConsumerInfo().getCalculatedPending();
             boolean lastWasNull = false;
-            while (true) {
+            long pending = sub.getConsumerInfo().getCalculatedPending();
+            while (pending > 0) { // no need to loop if nothing pending
+                Message m = sub.nextMessage(timeout);
                 if (m == null) {
                     if (lastWasNull) {
                         return;
@@ -334,7 +333,6 @@ public class NatsKeyValue implements KeyValue {
                     }
                     lastWasNull = false;
                 }
-                m = sub.nextMessage(timeout);
             }
         }
         finally {
