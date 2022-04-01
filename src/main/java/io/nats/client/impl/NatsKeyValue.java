@@ -322,7 +322,7 @@ public class NatsKeyValue implements KeyValue {
                 Message m = sub.nextMessage(timeout);
                 if (m == null) {
                     if (lastWasNull) {
-                        return;
+                        return; // two timeouts in a row is enough
                     }
                     lastWasNull = true;
                 }
