@@ -313,18 +313,25 @@ public class NatsKeyValue implements KeyValue {
                     .build())
             .build();
 
+        Duration timeout = js.jso.getRequestTimeout();
         JetStreamSubscription sub = js.subscribe(subject, pso);
-
         try {
-            Duration d100 = Duration.ofMillis(100);
-            Message m = sub.nextMessage(Duration.ofMillis(5000)); // give plenty of time for the first
-            while (m != null) {
-                handler.onMessage(m);
-                if (m.metaData().pendingCount() == 0) {
-                    m = null;
+            boolean lastWasNull = false;
+            long pending = sub.getConsumerInfo().getCalculatedPending();
+            while (pending > 0) { // no need to loop if nothing pending
+                Message m = sub.nextMessage(timeout);
+                if (m == null) {
+                    if (lastWasNull) {
+                        return; // two timeouts in a row is enough
+                    }
+                    lastWasNull = true;
                 }
                 else {
-                    m = sub.nextMessage(d100); // the rest should come pretty quick
+                    handler.onMessage(m);
+                    if (--pending == 0) {
+                        return;
+                    }
+                    lastWasNull = false;
                 }
             }
         }

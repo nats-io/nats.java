@@ -67,7 +67,7 @@ public class NatsKeyValueWatchSubscription implements AutoCloseable {
 
         sub = kv.js.subscribe(keySubject, getDispatcher(kv.js), handler, false, pso);
         if (!handler.endOfDataSent) {
-            long pending = sub.getConsumerInfo().getNumPending() + sub.getConsumerInfo().getDelivered().getConsumerSequence();
+            long pending = sub.getConsumerInfo().getCalculatedPending();
             if (pending == 0) {
                 handler.sendEndOfData();
             }
