@@ -773,7 +773,7 @@ class NatsConnection implements Connection {
     }
 
     private void checkPayloadSize(byte[] body) {
-        if (body != null && body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
+        if (options.clientSideLimitChecks() && body != null && body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
             throw new IllegalArgumentException(
                     "Message payload size exceed server configuration " + body.length + " vs " + this.getMaxPayload());
         }

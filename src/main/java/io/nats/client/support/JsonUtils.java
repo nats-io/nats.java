@@ -407,6 +407,7 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json field to a string builder.
+     * @param <T> the list type
      * @param sb string builder
      * @param fname fieldname
      * @param list value list
