@@ -123,12 +123,14 @@ public interface Message {
 	/**
 	 * nak acknowledges a JetStream message has been received but indicates that the message
 	 * is not completely processed and should be sent again later, after at least the delay amount.
+	 * @param nakDelay tell the server how long to delay before processing the ack
 	 */
 	void nakWithDelay(Duration nakDelay);
 
 	/**
 	 * nak acknowledges a JetStream message has been received but indicates that the message
 	 * is not completely processed and should be sent again later, after at least the delay amount.
+	 * @param nakDelayMillis tell the server how long to delay before processing the ack
 	 */
 	void nakWithDelay(long nakDelayMillis);
 

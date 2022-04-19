@@ -294,9 +294,13 @@ public class Options {
      */
     public static final String PROP_NO_HEADERS = PFX + "noheaders";
     /**
-     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noHeaders() noHeaders}.
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noNoResponders() noNoResponders}.
      */
     public static final String PROP_NO_NORESPONDERS = PFX + "nonoresponders";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#clientSideLimitChecks() clientSideLimitChecks}.
+     */
+    public static final String PROP_CLIENT_SIDE_LIMIT_CHECKS = PFX + "clientsidelimitchecks";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#connectionName(String)
      * connectionName}.
@@ -493,6 +497,7 @@ public class Options {
     private final boolean noEcho;
     private final boolean noHeaders;
     private final boolean noNoResponders;
+    private final boolean clientSideLimitChecks;
     private final boolean utf8Support;
     private final int maxMessagesInOutgoingQueue;
     private final boolean discardMessagesWhenOutgoingQueueFull;
@@ -568,6 +573,7 @@ public class Options {
         private boolean noEcho = false;
         private boolean noHeaders = false;
         private boolean noNoResponders = false;
+        private boolean clientSideLimitChecks = true;
         private boolean utf8Support = false;
         private String inboxPrefix = DEFAULT_INBOX_PREFIX;
         private int maxMessagesInOutgoingQueue = DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
@@ -682,6 +688,10 @@ public class Options {
 
             if (props.containsKey(PROP_NO_NORESPONDERS)) {
                 this.noNoResponders = Boolean.parseBoolean(props.getProperty(PROP_NO_NORESPONDERS));
+            }
+
+            if (props.containsKey(PROP_CLIENT_SIDE_LIMIT_CHECKS)) {
+                this.clientSideLimitChecks = Boolean.parseBoolean(props.getProperty(PROP_CLIENT_SIDE_LIMIT_CHECKS));
             }
 
             if (props.containsKey(PROP_UTF8_SUBJECTS)) {
@@ -866,6 +876,16 @@ public class Options {
          */
         public Builder noNoResponders() {
             this.noNoResponders = true;
+            return this;
+        }
+
+        /**
+         * Set client side limit checks. Default is true
+         * @param checks the checks flag
+         * @return the Builder for chaining
+         */
+        public Builder clientSideLimitChecks(boolean checks) {
+            this.clientSideLimitChecks = checks;
             return this;
         }
 
@@ -1396,6 +1416,7 @@ public class Options {
         this.noEcho = b.noEcho;
         this.noHeaders = b.noHeaders;
         this.noNoResponders = b.noNoResponders;
+        this.clientSideLimitChecks = b.clientSideLimitChecks;
         this.utf8Support = b.utf8Support;
         this.inboxPrefix = b.inboxPrefix;
         this.traceConnection = b.traceConnection;
@@ -1513,10 +1534,17 @@ public class Options {
     }
 
     /**
-     * @return is NoRespnders ignored disabled, see {@link Builder#noNoResponders() noNoResponders()} in the builder doc
+     * @return is NoResponders ignored disabled, see {@link Builder#noNoResponders() noNoResponders()} in the builder doc
      */
     public boolean isNoNoResponders() {
         return noNoResponders;
+    }
+
+    /**
+     * @return clientSideLimitChecks flag, see {@link Builder#clientSideLimitChecks() clientSideLimitChecks()} in the builder doc
+     */
+    public boolean clientSideLimitChecks() {
+        return clientSideLimitChecks;
     }
 
     /**
