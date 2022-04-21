@@ -998,7 +998,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         public long valueOrDefault(Long val) {
-            return val == null ? START_SEQ.Default : val;
+            return val == null ? Default : val;
         }
 
         public boolean wouldBeChange(Long user, Long srvr) {
