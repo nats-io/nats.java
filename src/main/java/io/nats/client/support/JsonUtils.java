@@ -365,7 +365,7 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
-    public static void addUnsigned(StringBuilder sb, String fname, Integer value) {
+    public static void addFieldWhenGtZero(StringBuilder sb, String fname, Integer value) {
         if (value != null && value > 0) {
             sb.append(Q);
             jsonEncode(sb, fname);
@@ -393,7 +393,7 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
-    public static void addUnsigned(StringBuilder sb, String fname, Long value) {
+    public static void addFieldWhenGtZero(StringBuilder sb, String fname, Long value) {
         if (value != null && value > 0) {
             sb.append(Q);
             jsonEncode(sb, fname);
