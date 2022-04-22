@@ -427,11 +427,11 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 || (headersOnly != null && headersOnly != serverCcc.isHeadersOnly())
 
                 || CcChangeHelper.START_SEQ.wouldBeChange(startSeq, serverCcc.getStartSequence())
-                || CcChangeHelper.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.getMaxDeliver())
+                || CcChangeHelper.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.maxDeliver)
                 || CcChangeHelper.RATE_LIMIT.wouldBeChange(rateLimit, serverCcc.getRateLimit())
-                || CcChangeHelper.MAX_ACK_PENDING.wouldBeChange(maxAckPending, serverCcc.getMaxAckPending())
-                || CcChangeHelper.MAX_PULL_WAITING.wouldBeChange(maxPullWaiting, serverCcc.getMaxPullWaiting())
-                || CcChangeHelper.MAX_BATCH.wouldBeChange(maxBatch, serverCcc.getMaxBatch())
+                || CcChangeHelper.MAX_ACK_PENDING.wouldBeChange(maxAckPending, serverCcc.maxAckPending)
+                || CcChangeHelper.MAX_PULL_WAITING.wouldBeChange(maxPullWaiting, serverCcc.maxPullWaiting)
+                || CcChangeHelper.MAX_BATCH.wouldBeChange(maxBatch, serverCcc.maxBatch)
 
                 || CcChangeHelper.ACK_WAIT.wouldBeChange(ackWait, serverCcc.ackWait)
 
