@@ -426,9 +426,9 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 || (flowControl != null && flowControl != serverCcc.isFlowControl())
                 || (headersOnly != null && headersOnly != serverCcc.isHeadersOnly())
 
-                || CcChangeHelper.START_SEQ.wouldBeChange(startSeq, serverCcc.getStartSequence())
+                || CcChangeHelper.START_SEQ.wouldBeChange(startSeq, serverCcc.startSeq)
                 || CcChangeHelper.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.maxDeliver)
-                || CcChangeHelper.RATE_LIMIT.wouldBeChange(rateLimit, serverCcc.getRateLimit())
+                || CcChangeHelper.RATE_LIMIT.wouldBeChange(rateLimit, serverCcc.rateLimit)
                 || CcChangeHelper.MAX_ACK_PENDING.wouldBeChange(maxAckPending, serverCcc.maxAckPending)
                 || CcChangeHelper.MAX_PULL_WAITING.wouldBeChange(maxPullWaiting, serverCcc.maxPullWaiting)
                 || CcChangeHelper.MAX_BATCH.wouldBeChange(maxBatch, serverCcc.maxBatch)
