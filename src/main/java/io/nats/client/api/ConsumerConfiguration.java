@@ -175,7 +175,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, DELIVER_SUBJECT, deliverSubject);
         JsonUtils.addField(sb, DELIVER_GROUP, deliverGroup);
         JsonUtils.addField(sb, DELIVER_POLICY, GetOrDefault(deliverPolicy).toString());
-        JsonUtils.addField(sb, OPT_START_SEQ, startSeq);
+        JsonUtils.addUnsigned(sb, OPT_START_SEQ, startSeq);
         JsonUtils.addField(sb, OPT_START_TIME, startTime);
         JsonUtils.addField(sb, ACK_POLICY, GetOrDefault(ackPolicy).toString());
         JsonUtils.addFieldAsNanos(sb, ACK_WAIT, ackWait);
@@ -184,7 +184,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, FILTER_SUBJECT, filterSubject);
         JsonUtils.addField(sb, REPLAY_POLICY, GetOrDefault(replayPolicy).toString());
         JsonUtils.addField(sb, SAMPLE_FREQ, sampleFrequency);
-        JsonUtils.addField(sb, RATE_LIMIT_BPS, rateLimit);
+        JsonUtils.addUnsigned(sb, RATE_LIMIT_BPS, rateLimit);
         JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
         JsonUtils.addFldWhenTrue(sb, FLOW_CONTROL, flowControl);
         JsonUtils.addField(sb, ApiConstants.MAX_WAITING, maxPullWaiting);
@@ -981,11 +981,11 @@ public class ConsumerConfiguration implements JsonSerializable {
      * a default value.
      */
     public enum CcChangeHelper {
-        START_SEQ(1, -1),
+        START_SEQ(1, 0),
         MAX_DELIVER(1, -1),
-        RATE_LIMIT(1, -1),
-        MAX_ACK_PENDING(0, 0),
-        MAX_PULL_WAITING(0, 0),
+        RATE_LIMIT(1, 0),
+        MAX_ACK_PENDING(0, -1),
+        MAX_PULL_WAITING(0, -1),
         MAX_BATCH(1, -1),
         ACK_WAIT(Duration.ZERO.toNanos(), Duration.ofSeconds(30).toNanos());
 

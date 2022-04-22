@@ -725,26 +725,24 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             ccbmEx(js, durBuilder().maxExpires(Duration.ofMillis(1000)));
             ccbmEx(js, durBuilder().inactiveThreshold(Duration.ofMillis(1000)));
 
-            ccbmEx(js, durBuilder().startSequence(0));
             ccbmEx(js, durBuilder().startSequence(5));
             ccbmEx(js, durBuilder().maxDeliver(0));
             ccbmEx(js, durBuilder().maxDeliver(5));
-            ccbmEx(js, durBuilder().rateLimit(0));
             ccbmEx(js, durBuilder().rateLimit(5));
             ccbmEx(js, durBuilder().maxAckPending(5));
             ccbmEx(js, durBuilder().maxBatch(0));
             ccbmEx(js, durBuilder().maxBatch(5));
 
-            ccbmOk(js, durBuilder().startSequence(-1));
+            ccbmOk(js, durBuilder().startSequence(0));
             ccbmOk(js, durBuilder().maxDeliver(-1));
-            ccbmOk(js, durBuilder().rateLimit(-1));
-            ccbmOk(js, durBuilder().maxAckPending(0));
+            ccbmOk(js, durBuilder().rateLimit(0));
+            ccbmOk(js, durBuilder().maxAckPending(-1));
             ccbmOk(js, durBuilder().maxBatch(-1));
             ccbmOk(js, durBuilder().ackWait(Duration.ofSeconds(30)));
 
             ConsumerConfiguration.Builder durBuilder2 = ConsumerConfiguration.builder().durable(durable(2));
             nc.jetStreamManagement().addOrUpdateConsumer(STREAM, durBuilder2.build());
-            ccbmOkPull(js, durBuilder2.maxPullWaiting(0));
+            ccbmOkPull(js, durBuilder2.maxPullWaiting(-1));
             ccbmExPull(js, durBuilder2.maxPullWaiting(5));
             ccbmExPull(js, durBuilder2.maxPullWaiting(999));
             ccbmOkPull(js, durBuilder2.maxPullWaiting(512)); // 512 is the default

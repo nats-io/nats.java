@@ -365,8 +365,36 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
+    public static void addUnsigned(StringBuilder sb, String fname, Integer value) {
+        if (value != null && value > 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
+        }
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param value field value
+     */
     public static void addField(StringBuilder sb, String fname, Long value) {
         if (value != null && value >= 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
+        }
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param value field value
+     */
+    public static void addUnsigned(StringBuilder sb, String fname, Long value) {
+        if (value != null && value > 0) {
             sb.append(Q);
             jsonEncode(sb, fname);
             sb.append(QCOLON).append(value).append(COMMA);
