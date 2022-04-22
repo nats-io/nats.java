@@ -241,7 +241,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the start sequence.
      */
     public long getStartSequence() {
-        return CcChangeHelper.START_SEQ.valueOrDefault(startSeq);
+        return CcChangeHelper.START_SEQ.getOrUnset(startSeq);
     }
 
     /**
@@ -273,7 +273,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the max delivery amount.
      */
     public long getMaxDeliver() {
-        return CcChangeHelper.MAX_DELIVER.valueOrDefault(maxDeliver);
+        return CcChangeHelper.MAX_DELIVER.getOrUnset(maxDeliver);
     }
 
     /**
@@ -297,7 +297,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the rate limit in bits per second
      */
     public long getRateLimit() {
-        return CcChangeHelper.RATE_LIMIT.valueOrDefault(rateLimit);
+        return CcChangeHelper.RATE_LIMIT.getOrUnset(rateLimit);
     }
 
     /**
@@ -305,7 +305,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return maximum ack pending.
      */
     public long getMaxAckPending() {
-        return CcChangeHelper.MAX_ACK_PENDING.valueOrDefault(maxAckPending);
+        return CcChangeHelper.MAX_ACK_PENDING.getOrUnset(maxAckPending);
     }
 
     /**
@@ -338,7 +338,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the max pull waiting
      */
     public long getMaxPullWaiting() {
-        return CcChangeHelper.MAX_PULL_WAITING.valueOrDefault(maxPullWaiting);
+        return CcChangeHelper.MAX_PULL_WAITING.getOrUnset(maxPullWaiting);
     }
 
     /**
@@ -354,7 +354,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the max batch size
      */
     public Long getMaxBatch() {
-        return CcChangeHelper.MAX_BATCH.valueOrDefault(maxBatch);
+        return CcChangeHelper.MAX_BATCH.getOrUnset(maxBatch);
     }
 
     /**
@@ -979,30 +979,40 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Helper class to identify the initial or default value of a field
      * and to make it easy to compare to other instances where the server provides
      * a default value.
+     *
+     * These is is what the server returns for a default consumer.
+     * Start Sequence and Pull Waiting are not sent
+     * 	"max_deliver": -1,
+     * 	"max_waiting": 512,
+     * 	"max_ack_pending": 1000,
+     * 	"max_batch": 512
+     * 	"ack_wait": 30000000000,
      */
     public enum CcChangeHelper {
-        START_SEQ(1, 0),
-        MAX_DELIVER(1, -1),
-        RATE_LIMIT(1, 0),
-        MAX_ACK_PENDING(0, -1),
-        MAX_PULL_WAITING(0, -1),
-        MAX_BATCH(1, -1),
-        ACK_WAIT(Duration.ZERO.toNanos(), Duration.ofSeconds(30).toNanos());
+        START_SEQ(0, 0, -1),    // unsigned number
+        MAX_DELIVER(0, -1, -1), // zero is because on the server 0 is the same as -1
+        RATE_LIMIT(0, 0, -1),   // unsigned number
+        MAX_ACK_PENDING(0, -1, 1000L),
+        MAX_PULL_WAITING(0, -1, 512),
+        MAX_BATCH(0, -1, 512),
+        ACK_WAIT(0, 0, 30000000000L); // Duration / Nanos
 
         public final long Min;
-        public final long Default;
+        public final long Unset;
+        public final long Server;
 
-        CcChangeHelper(long min, long dflt) {
+        CcChangeHelper(long min, long unset, long server) {
             this.Min = min;
-            this.Default = dflt;
+            this.Unset = unset;
+            this.Server = server;
         }
 
-        public long valueOrDefault(Long val) {
-            return val == null ? Default : val;
+        public long getOrUnset(Long val) {
+            return val == null ? Unset : val;
         }
 
         public boolean wouldBeChange(Long user, Long srvr) {
-            return user != null && user != Default && !user.equals(srvr);
+            return user != null && user != Unset && !user.equals(srvr);
         }
 
         public boolean wouldBeChange(Duration user, Duration srvr) {
