@@ -74,12 +74,6 @@ public abstract class Validator {
         }
     }
 
-    public static void validateNotSupplied(long l, long dflt, NatsJetStreamClientError err) {
-        if (l > dflt) {
-            throw err.instance();
-        }
-    }
-
     public static String validateMustMatchIfBothSupplied(String s1, String s2, NatsJetStreamClientError err) {
         // s1   | s2   || result
         // ---- | ---- || --------------
