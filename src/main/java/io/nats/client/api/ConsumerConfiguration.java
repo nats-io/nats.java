@@ -37,7 +37,10 @@ import static io.nats.client.support.Validator.*;
  */
 public class ConsumerConfiguration implements JsonSerializable {
 
-    public static final Duration MIN_ACK_WAIT = Duration.ofNanos(1);
+    public static final DeliverPolicy DEFAULT_DELIVER_POLICY = DeliverPolicy.All;
+    public static final AckPolicy DEFAULT_ACK_POLICY = AckPolicy.Explicit;
+    public static final ReplayPolicy DEFAULT_REPLAY_POLICY = ReplayPolicy.Instant;
+
     public static final Duration MIN_IDLE_HEARTBEAT = Duration.ofMillis(100);
 
     protected final DeliverPolicy deliverPolicy;
@@ -54,9 +57,9 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final Duration idleHeartbeat;
     protected final Duration maxExpires;
     protected final Duration inactiveThreshold;
-    protected final Long startSeq;
+    protected final Long startSeq; // server side this is unsigned
     protected final Long maxDeliver;
-    protected final Long rateLimit;
+    protected final Long rateLimit; // server side this is unsigned
     protected final Long maxAckPending;
     protected final Long maxPullWaiting;
     protected final Long maxBatch;
@@ -64,9 +67,9 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final Boolean headersOnly;
     protected final List<Duration> backoff;
 
-    private static DeliverPolicy GetOrDefault(DeliverPolicy p) { return p == null ? DeliverPolicy.All : p; }
-    private static AckPolicy GetOrDefault(AckPolicy p) { return p == null ? AckPolicy.Explicit : p; }
-    private static ReplayPolicy GetOrDefault(ReplayPolicy p) { return p == null ? ReplayPolicy.Instant : p; }
+    private static DeliverPolicy GetOrDefault(DeliverPolicy p) { return p == null ? DEFAULT_DELIVER_POLICY : p; }
+    private static AckPolicy GetOrDefault(AckPolicy p) { return p == null ? DEFAULT_ACK_POLICY : p; }
+    private static ReplayPolicy GetOrDefault(ReplayPolicy p) { return p == null ? DEFAULT_REPLAY_POLICY : p; }
 
     protected ConsumerConfiguration(ConsumerConfiguration cc) {
         this.deliverPolicy = cc.deliverPolicy;
@@ -179,7 +182,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, OPT_START_TIME, startTime);
         JsonUtils.addField(sb, ACK_POLICY, GetOrDefault(ackPolicy).toString());
         JsonUtils.addFieldAsNanos(sb, ACK_WAIT, ackWait);
-        JsonUtils.addField(sb, MAX_DELIVER, maxDeliver);
+        JsonUtils.addFieldWhenGtZero(sb, MAX_DELIVER, maxDeliver);
         JsonUtils.addField(sb, MAX_ACK_PENDING, maxAckPending);
         JsonUtils.addField(sb, FILTER_SUBJECT, filterSubject);
         JsonUtils.addField(sb, REPLAY_POLICY, GetOrDefault(replayPolicy).toString());
@@ -241,7 +244,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the start sequence.
      */
     public long getStartSequence() {
-        return CcChangeHelper.START_SEQ.getOrUnset(startSeq);
+        return LongChangeHelper.START_SEQ.getOrUnset(startSeq);
     }
 
     /**
@@ -273,7 +276,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the max delivery amount.
      */
     public long getMaxDeliver() {
-        return CcChangeHelper.MAX_DELIVER.getOrUnset(maxDeliver);
+        return LongChangeHelper.MAX_DELIVER.getOrUnset(maxDeliver);
     }
 
     /**
@@ -297,7 +300,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the rate limit in bits per second
      */
     public long getRateLimit() {
-        return CcChangeHelper.RATE_LIMIT.getOrUnset(rateLimit);
+        return LongChangeHelper.RATE_LIMIT.getOrUnset(rateLimit);
     }
 
     /**
@@ -305,7 +308,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return maximum ack pending.
      */
     public long getMaxAckPending() {
-        return CcChangeHelper.MAX_ACK_PENDING.getOrUnset(maxAckPending);
+        return LongChangeHelper.MAX_ACK_PENDING.getOrUnset(maxAckPending);
     }
 
     /**
@@ -338,7 +341,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the max pull waiting
      */
     public long getMaxPullWaiting() {
-        return CcChangeHelper.MAX_PULL_WAITING.getOrUnset(maxPullWaiting);
+        return LongChangeHelper.MAX_PULL_WAITING.getOrUnset(maxPullWaiting);
     }
 
     /**
@@ -354,7 +357,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the max batch size
      */
     public Long getMaxBatch() {
-        return CcChangeHelper.MAX_BATCH.getOrUnset(maxBatch);
+        return LongChangeHelper.MAX_BATCH.getOrUnset(maxBatch);
     }
 
     /**
@@ -614,7 +617,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder startSequence(Long sequence) {
-            this.startSeq = sequence;
+            this.startSeq = LongChangeHelper.START_SEQ.forBuilder(sequence);
             return this;
         }
 
@@ -624,7 +627,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder startSequence(long sequence) {
-            this.startSeq = sequence;
+            this.startSeq = LongChangeHelper.START_SEQ.forBuilder(sequence);
             return this;
         }
 
@@ -654,7 +657,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder ackWait(Duration timeout) {
-            this.ackWait = validateDurationNotRequiredNotLessThanMin(timeout, MIN_ACK_WAIT);
+            this.ackWait = DurationChangeHelper.ACK_WAIT.forBuilder(timeout);
             return this;
         }
 
@@ -664,7 +667,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder ackWait(long timeoutMillis) {
-            this.ackWait = validateDurationNotRequiredNotLessThanMin(timeoutMillis, MIN_ACK_WAIT);
+            this.ackWait = DurationChangeHelper.ACK_WAIT.forBuilder(Duration.ofMillis(timeoutMillis));
             return this;
         }
 
@@ -674,7 +677,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxDeliver(Long maxDeliver) {
-            this.maxDeliver = maxDeliver;
+            this.maxDeliver = LongChangeHelper.MAX_DELIVER.forBuilder(maxDeliver);
             return this;
         }
 
@@ -684,7 +687,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxDeliver(long maxDeliver) {
-            this.maxDeliver = maxDeliver;
+            this.maxDeliver = LongChangeHelper.MAX_DELIVER.forBuilder(maxDeliver);
             return this;
         }
 
@@ -724,7 +727,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder rateLimit(Long bitsPerSecond) {
-            this.rateLimit = bitsPerSecond;
+            this.rateLimit = LongChangeHelper.RATE_LIMIT.forBuilder(bitsPerSecond);
             return this;
         }
 
@@ -734,7 +737,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder rateLimit(long bitsPerSecond) {
-            this.rateLimit = bitsPerSecond;
+            this.rateLimit = LongChangeHelper.RATE_LIMIT.forBuilder(bitsPerSecond);
             return this;
         }
 
@@ -744,7 +747,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxAckPending(Long maxAckPending) {
-            this.maxAckPending = maxAckPending;
+            this.maxAckPending = LongChangeHelper.MAX_ACK_PENDING.forBuilder(maxAckPending);
             return this;
         }
 
@@ -754,7 +757,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxAckPending(long maxAckPending) {
-            this.maxAckPending = maxAckPending;
+            this.maxAckPending = LongChangeHelper.MAX_ACK_PENDING.forBuilder(maxAckPending);
             return this;
         }
 
@@ -845,7 +848,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxPullWaiting(Long maxPullWaiting) {
-            this.maxPullWaiting = maxPullWaiting;
+            this.maxPullWaiting = LongChangeHelper.MAX_PULL_WAITING.forBuilder(maxPullWaiting);
             return this;
         }
 
@@ -855,7 +858,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxPullWaiting(long maxPullWaiting) {
-            this.maxPullWaiting = maxPullWaiting;
+            this.maxPullWaiting = LongChangeHelper.MAX_PULL_WAITING.forBuilder(maxPullWaiting);
             return this;
         }
 
@@ -865,7 +868,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxBatch(Long maxBatch) {
-            this.maxBatch = maxBatch;
+            this.maxBatch = LongChangeHelper.MAX_BATCH.forBuilder(maxBatch);
             return this;
         }
 
@@ -875,7 +878,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxBatch(long maxBatch) {
-            this.maxBatch = maxBatch;
+            this.maxBatch = LongChangeHelper.MAX_BATCH.forBuilder(maxBatch);
             return this;
         }
 
@@ -976,47 +979,85 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     /**
      * INTERNAL CLASS ONLY, SUBJECT TO CHANGE
-     * Helper class to identify the initial or default value of a field
-     * and to make it easy to compare to other instances where the server provides
-     * a default value.
+     * Helper class to manage min / default / unset / server values.
      *
-     * These is is what the server returns for a default consumer.
-     * Start Sequence and Pull Waiting are not sent
-     * 	"max_deliver": -1,
-     * 	"max_waiting": 512,
+     * These are what the server returns for a default consumer.
+     *
+     * 	"max_deliver": -1
      * 	"max_ack_pending": 1000,
-     * 	"max_batch": 512
-     * 	"ack_wait": 30000000000,
+     * 	"max_waiting": push:omitted pull:512,
+     * 	"max_batch": omitted
+     *
+     * The server will treat max_deliver of 0 as -1, that's why returns it
      */
-    public enum CcChangeHelper {
-        START_SEQ(0, 0, -1),    // unsigned number
-        MAX_DELIVER(0, -1, -1), // zero is because on the server 0 is the same as -1
-        RATE_LIMIT(0, 0, -1),   // unsigned number
-        MAX_ACK_PENDING(0, -1, 1000L),
-        MAX_PULL_WAITING(0, -1, 512),
-        MAX_BATCH(0, -1, 512),
-        ACK_WAIT(0, 0, 30000000000L); // Duration / Nanos
+    public enum LongChangeHelper {
+        START_SEQ(false, null, null),
+        RATE_LIMIT(false, null, null),
+        MAX_DELIVER(true, -1L, -1L),
+        MAX_ACK_PENDING(true, 1000L, 1000L),
+        MAX_PULL_WAITING(true, null, 512L),
+        MAX_BATCH(true, null, null);
 
         public final long Min;
         public final long Unset;
-        public final long Server;
+        public final Long ServerPush;
+        public final Long ServerPull;
 
-        CcChangeHelper(long min, long unset, long server) {
-            this.Min = min;
-            this.Unset = unset;
-            this.Server = server;
+        LongChangeHelper(boolean signed, Long push, Long pull) {
+            Min = signed ? 0 : 1;
+            Unset = signed ? -1 : 0;
+            ServerPush = push;
+            ServerPull = pull;
         }
 
         public long getOrUnset(Long val) {
             return val == null ? Unset : val;
         }
 
-        public boolean wouldBeChange(Long user, Long srvr) {
-            return user != null && user != Unset && !user.equals(srvr);
+        public boolean wouldBeChange(Long user, Long server) {
+            return user != null && !user.equals(getOrUnset(server));
         }
 
-        public boolean wouldBeChange(Duration user, Duration srvr) {
-            return user != null && !user.equals(srvr);
+        public Long forBuilder(Long proposed) {
+            return proposed == null || proposed < Min ? Unset : proposed;
+        }
+    }
+
+    /**
+     * INTERNAL CLASS ONLY, SUBJECT TO CHANGE
+     * Helper class to manage min / default / unset / server values.
+     *
+     * These are what the server returns for a default consumer.
+     *
+     * 	"ack_wait": 30000000000,
+     */
+    public enum DurationChangeHelper {
+        ACK_WAIT(30000000000L, 30000000000L); // Nanos
+
+        public final Duration Min;
+        public final Duration Unset;
+        public final Duration ServerPush;
+        public final Duration ServerPull;
+        public final long MinNanos;
+
+        DurationChangeHelper(long push, long pull) {
+            Min = Duration.ofNanos(1);
+            Unset = Duration.ofNanos(0);
+            ServerPush = Duration.ofNanos(push);
+            ServerPull = Duration.ofNanos(pull);
+            MinNanos = 1;
+        }
+
+        public Duration getOrUnset(Duration val) {
+            return val == null ? Unset : val;
+        }
+
+        public boolean wouldBeChange(Duration user, Duration server) {
+            return user != null && !user.equals(getOrUnset(server));
+        }
+
+        public Duration forBuilder(Duration proposed) {
+            return proposed == null || proposed.toNanos() < MinNanos ? Unset : proposed;
         }
     }
 }

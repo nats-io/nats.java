@@ -251,6 +251,10 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 throw JsSubPushCantHaveMaxPullWaiting.instance();
             }
 
+            if (userCC.maxBatchWasSet()) {
+                throw JsSubPushCantHaveMaxBatch.instance();
+            }
+
             // figure out the queue name
             qgroup = validateMustMatchIfBothSupplied(userCC.getDeliverGroup(), queueName, JsSubQueueDeliverGroupMismatch);
             if (so.isOrdered() && qgroup != null) {
@@ -426,14 +430,14 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 || (flowControl != null && flowControl != serverCcc.isFlowControl())
                 || (headersOnly != null && headersOnly != serverCcc.isHeadersOnly())
 
-                || CcChangeHelper.START_SEQ.wouldBeChange(startSeq, serverCcc.getStartSequence())
-                || CcChangeHelper.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.getMaxDeliver())
-                || CcChangeHelper.RATE_LIMIT.wouldBeChange(rateLimit, serverCcc.getRateLimit())
-                || CcChangeHelper.MAX_ACK_PENDING.wouldBeChange(maxAckPending, serverCcc.getMaxAckPending())
-                || CcChangeHelper.MAX_PULL_WAITING.wouldBeChange(maxPullWaiting, serverCcc.getMaxPullWaiting())
-                || CcChangeHelper.MAX_BATCH.wouldBeChange(maxBatch, serverCcc.getMaxBatch())
+                || LongChangeHelper.START_SEQ.wouldBeChange(startSeq, serverCcc.startSeq)
+                || LongChangeHelper.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.maxDeliver)
+                || LongChangeHelper.RATE_LIMIT.wouldBeChange(rateLimit, serverCcc.rateLimit)
+                || LongChangeHelper.MAX_ACK_PENDING.wouldBeChange(maxAckPending, serverCcc.maxAckPending)
+                || LongChangeHelper.MAX_PULL_WAITING.wouldBeChange(maxPullWaiting, serverCcc.maxPullWaiting)
+                || LongChangeHelper.MAX_BATCH.wouldBeChange(maxBatch, serverCcc.maxBatch)
 
-                || CcChangeHelper.ACK_WAIT.wouldBeChange(ackWait, serverCcc.ackWait)
+                || DurationChangeHelper.ACK_WAIT.wouldBeChange(ackWait, serverCcc.ackWait)
 
                 || (idleHeartbeat != null && !idleHeartbeat.equals(serverCcc.idleHeartbeat))
                 || (startTime != null && !startTime.equals(serverCcc.startTime))

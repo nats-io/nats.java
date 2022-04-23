@@ -118,6 +118,8 @@ public class TestBase {
     public static final String SUBJECT_GT = SUBJECT + ".>";
     public static final String QUEUE = "queue";
     public static final String DURABLE = "durable";
+    public static final String PUSH_DURABLE = "push-" + DURABLE;
+    public static final String PULL_DURABLE = "pull-" + DURABLE;
     public static final String DELIVER = "deliver";
     public static final String MESSAGE_ID = "mid";
     public static final String BUCKET = "bucket";
