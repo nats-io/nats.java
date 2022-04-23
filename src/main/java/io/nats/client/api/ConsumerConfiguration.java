@@ -1032,7 +1032,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * 	"ack_wait": 30000000000,
      */
     public enum DurationChangeHelper {
-        ACK_WAIT(30000000000L, 30000000000L); // Nanos
+        ACK_WAIT(Duration.ofSeconds(30), Duration.ofSeconds(30)); // Nanos
 
         public final Duration Min;
         public final Duration Unset;
@@ -1040,11 +1040,11 @@ public class ConsumerConfiguration implements JsonSerializable {
         public final Duration ServerPull;
         public final long MinNanos;
 
-        DurationChangeHelper(long push, long pull) {
+        DurationChangeHelper(Duration push, Duration pull) {
             Min = Duration.ofNanos(1);
             Unset = Duration.ofNanos(0);
-            ServerPush = Duration.ofNanos(push);
-            ServerPull = Duration.ofNanos(pull);
+            ServerPush = push;
+            ServerPull = pull;
             MinNanos = 1;
         }
 
