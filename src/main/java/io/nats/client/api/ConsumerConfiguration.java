@@ -67,10 +67,6 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final Boolean headersOnly;
     protected final List<Duration> backoff;
 
-    private static DeliverPolicy GetOrDefault(DeliverPolicy p) { return p == null ? DEFAULT_DELIVER_POLICY : p; }
-    private static AckPolicy GetOrDefault(AckPolicy p) { return p == null ? DEFAULT_ACK_POLICY : p; }
-    private static ReplayPolicy GetOrDefault(ReplayPolicy p) { return p == null ? DEFAULT_REPLAY_POLICY : p; }
-
     protected ConsumerConfiguration(ConsumerConfiguration cc) {
         this.deliverPolicy = cc.deliverPolicy;
         this.ackPolicy = cc.ackPolicy;
@@ -100,13 +96,13 @@ public class ConsumerConfiguration implements JsonSerializable {
     // for the response from the server
     ConsumerConfiguration(String json) {
         Matcher m = DELIVER_POLICY_RE.matcher(json);
-        deliverPolicy = GetOrDefault(m.find() ? DeliverPolicy.get(m.group(1)) : null);
+        deliverPolicy = m.find() ? DeliverPolicy.get(m.group(1)) : null;
 
         m = ACK_POLICY_RE.matcher(json);
-        ackPolicy = GetOrDefault(m.find() ? AckPolicy.get(m.group(1)) : null);
+        ackPolicy = m.find() ? AckPolicy.get(m.group(1)) : null;
 
         m = REPLAY_POLICY_RE.matcher(json);
-        replayPolicy = GetOrDefault(m.find() ? ReplayPolicy.get(m.group(1)) : null);
+        replayPolicy = m.find() ? ReplayPolicy.get(m.group(1)) : null;
 
         description = JsonUtils.readString(json, DESCRIPTION_RE);
         durable = JsonUtils.readString(json, DURABLE_NAME_RE);
@@ -128,8 +124,8 @@ public class ConsumerConfiguration implements JsonSerializable {
         maxPullWaiting = JsonUtils.readLong(json, MAX_WAITING_RE);
         maxBatch = JsonUtils.readLong(json, MAX_BATCH_RE);
 
-        flowControl = JsonUtils.readBoolean(json, FLOW_CONTROL_RE);
-        headersOnly = JsonUtils.readBoolean(json, HEADERS_ONLY_RE);
+        flowControl = JsonUtils.readBoolean(json, FLOW_CONTROL_RE, null);
+        headersOnly = JsonUtils.readBoolean(json, HEADERS_ONLY_RE, null);
 
         backoff = JsonUtils.getDurationList(BACKOFF, json);
     }
@@ -977,6 +973,10 @@ public class ConsumerConfiguration implements JsonSerializable {
             '}';
     }
 
+    private static DeliverPolicy GetOrDefault(DeliverPolicy p) { return p == null ? DEFAULT_DELIVER_POLICY : p; }
+    private static AckPolicy GetOrDefault(AckPolicy p) { return p == null ? DEFAULT_ACK_POLICY : p; }
+    private static ReplayPolicy GetOrDefault(ReplayPolicy p) { return p == null ? DEFAULT_REPLAY_POLICY : p; }
+
     /**
      * INTERNAL CLASS ONLY, SUBJECT TO CHANGE
      * Helper class to manage min / default / unset / server values.
@@ -991,21 +991,21 @@ public class ConsumerConfiguration implements JsonSerializable {
      * The server will treat max_deliver of 0 as -1, that's why returns it
      */
     public enum LongChangeHelper {
-        START_SEQ(false, null, null),
-        RATE_LIMIT(false, null, null),
-        MAX_DELIVER(true, -1L, -1L),
-        MAX_ACK_PENDING(true, 1000L, 1000L),
-        MAX_PULL_WAITING(true, null, 512L),
-        MAX_BATCH(true, null, null);
+        START_SEQ(1, 0, null, null),  // unsigned
+        RATE_LIMIT(1, 0, null, null), // unsigned
+        MAX_DELIVER(1, -1, -1L, -1L),  // 0 is treated the same as -1 on the server, which is why the server doesn't omit this
+        MAX_ACK_PENDING(0, -1, 1000L, 1000L),
+        MAX_PULL_WAITING(0, -1, null, 512L),
+        MAX_BATCH(0, -1, null, null);
 
         public final long Min;
         public final long Unset;
         public final Long ServerPush;
         public final Long ServerPull;
 
-        LongChangeHelper(boolean signed, Long push, Long pull) {
-            Min = signed ? 0 : 1;
-            Unset = signed ? -1 : 0;
+        LongChangeHelper(long min, long unset, Long push, Long pull) {
+            Min = min;
+            Unset = unset;
             ServerPush = push;
             ServerPull = pull;
         }

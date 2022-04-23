@@ -546,6 +546,14 @@ public abstract class JsonUtils {
         return m.find() && Boolean.parseBoolean(m.group(1));
     }
 
+    public static Boolean readBoolean(String json, Pattern pattern, Boolean dflt) {
+        Matcher m = pattern.matcher(json);
+        if (m.find()) {
+            return Boolean.parseBoolean(m.group(1));
+        }
+        return dflt;
+    }
+
     public static int readInt(String json, Pattern pattern, int dflt) {
         Matcher m = pattern.matcher(json);
         return m.find() ? Integer.parseInt(m.group(1)) : dflt;

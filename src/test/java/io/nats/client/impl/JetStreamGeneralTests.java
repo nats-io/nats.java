@@ -702,120 +702,77 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testConsumerCannotBeModified() throws Exception {
+    public void testSubscribeDurableConsumerMustMatch() throws Exception {
         runInJsServer(nc -> {
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createDefaultTestStream(jsm);
 
-            Builder builder = pushDurableBuilder();
-            nc.jetStreamManagement().addOrUpdateConsumer(STREAM, builder.build());
+            // push
+            nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pushDurableBuilder().build());
 
-            ccbmExPush(js, pushDurableBuilder().deliverPolicy(DeliverPolicy.Last));
-            ccbmExPush(js, pushDurableBuilder().deliverPolicy(DeliverPolicy.New));
-            ccbmExPush(js, pushDurableBuilder().ackPolicy(AckPolicy.None));
-            ccbmExPush(js, pushDurableBuilder().ackPolicy(AckPolicy.All));
-            ccbmExPush(js, pushDurableBuilder().replayPolicy(ReplayPolicy.Original));
+            changeExPush(js, pushDurableBuilder().deliverPolicy(DeliverPolicy.Last));
+            changeExPush(js, pushDurableBuilder().deliverPolicy(DeliverPolicy.New));
+            changeExPush(js, pushDurableBuilder().ackPolicy(AckPolicy.None));
+            changeExPush(js, pushDurableBuilder().ackPolicy(AckPolicy.All));
+            changeExPush(js, pushDurableBuilder().replayPolicy(ReplayPolicy.Original));
 
-            ccbmExPush(js, pushDurableBuilder().startTime(ZonedDateTime.now()));
-            ccbmExPush(js, pushDurableBuilder().ackWait(Duration.ofMillis(1)));
-            ccbmExPush(js, pushDurableBuilder().description("x"));
-            ccbmExPush(js, pushDurableBuilder().sampleFrequency("x"));
-            ccbmExPush(js, pushDurableBuilder().idleHeartbeat(Duration.ofMillis(1000)));
-            ccbmExPush(js, pushDurableBuilder().maxExpires(Duration.ofMillis(1000)));
-            ccbmExPush(js, pushDurableBuilder().inactiveThreshold(Duration.ofMillis(1000)));
+            changeExPush(js, pushDurableBuilder().startTime(ZonedDateTime.now()));
+            changeExPush(js, pushDurableBuilder().ackWait(Duration.ofMillis(1)));
+            changeExPush(js, pushDurableBuilder().description("x"));
+            changeExPush(js, pushDurableBuilder().sampleFrequency("x"));
+            changeExPush(js, pushDurableBuilder().idleHeartbeat(Duration.ofMillis(1000)));
+            changeExPush(js, pushDurableBuilder().maxExpires(Duration.ofMillis(1000)));
+            changeExPush(js, pushDurableBuilder().inactiveThreshold(Duration.ofMillis(1000)));
 
-            ccbmExPush(js, pushDurableBuilder().startSequence(LongChangeHelper.START_SEQ.Min));
-            ccbmExPush(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.Min));
-            ccbmExPush(js, pushDurableBuilder().rateLimit(LongChangeHelper.RATE_LIMIT.Min));
-            ccbmExPush(js, pushDurableBuilder().maxAckPending(LongChangeHelper.MAX_ACK_PENDING.Min));
-            ccbmExPush(js, pushDurableBuilder().ackWait(DurationChangeHelper.ACK_WAIT.Min));
+            changeExPush(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.Min));
+            changeExPush(js, pushDurableBuilder().maxAckPending(LongChangeHelper.MAX_ACK_PENDING.Min));
+            changeExPush(js, pushDurableBuilder().startSequence(LongChangeHelper.START_SEQ.Min));
+            changeExPush(js, pushDurableBuilder().rateLimit(LongChangeHelper.RATE_LIMIT.Min));
+            changeExPush(js, pushDurableBuilder().ackWait(DurationChangeHelper.ACK_WAIT.Min));
 
-            ccbmOk(js, pushDurableBuilder().startSequence(LongChangeHelper.START_SEQ.ServerPush));
-            ccbmOk(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.ServerPush));
-            ccbmOk(js, pushDurableBuilder().rateLimit(LongChangeHelper.RATE_LIMIT.ServerPush));
-            ccbmOk(js, pushDurableBuilder().maxAckPending(LongChangeHelper.MAX_ACK_PENDING.ServerPush));
-            ccbmOk(js, pushDurableBuilder().ackWait(DurationChangeHelper.ACK_WAIT.ServerPush));
+            changeOkPush(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.Unset));
+            changeExPush(js, pushDurableBuilder().maxAckPending(LongChangeHelper.MAX_ACK_PENDING.Unset));
+            changeOkPush(js, pushDurableBuilder().startSequence(LongChangeHelper.START_SEQ.Unset));
+            changeOkPush(js, pushDurableBuilder().rateLimit(LongChangeHelper.RATE_LIMIT.Unset));
+            changeExPush(js, pushDurableBuilder().ackWait(DurationChangeHelper.ACK_WAIT.Unset));
 
-            ccbmOk(js, pushDurableBuilder().startSequence(LongChangeHelper.START_SEQ.Unset));
-            ccbmOk(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.Unset));
-            ccbmOk(js, pushDurableBuilder().rateLimit(LongChangeHelper.RATE_LIMIT.Unset));
+            changeOkPush(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.ServerPush));
+            changeOkPush(js, pushDurableBuilder().maxAckPending(LongChangeHelper.MAX_ACK_PENDING.ServerPush));
+            changeOkPush(js, pushDurableBuilder().startSequence(LongChangeHelper.START_SEQ.ServerPush));
+            changeOkPush(js, pushDurableBuilder().rateLimit(LongChangeHelper.RATE_LIMIT.ServerPush));
+            changeOkPush(js, pushDurableBuilder().ackWait(DurationChangeHelper.ACK_WAIT.ServerPush));
 
-            ccbmOk(js, pushDurableBuilder().maxAckPending(LongChangeHelper.MAX_ACK_PENDING.ServerPush));
-            ccbmOk(js, pushDurableBuilder().ackWait(DurationChangeHelper.ACK_WAIT.ServerPush));
+            // pull
+            nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pullDurableBuilder().build());
 
-            builder = pullDurableBuilder();
-            nc.jetStreamManagement().addOrUpdateConsumer(STREAM, builder.build());
+            changeExPull(js, pullDurableBuilder().maxPullWaiting(LongChangeHelper.MAX_PULL_WAITING.Min));
+            changeExPull(js, pullDurableBuilder().maxBatch(LongChangeHelper.MAX_BATCH.Min));
 
-            ccbmExPull(js, pullDurableBuilder().maxPullWaiting(LongChangeHelper.MAX_PULL_WAITING.Min));
-            ccbmExPull(js, pullDurableBuilder().maxBatch(LongChangeHelper.MAX_BATCH.Min));
+            changeExPull(js, pullDurableBuilder().maxPullWaiting(LongChangeHelper.MAX_PULL_WAITING.Unset));
+            changeOkPull(js, pullDurableBuilder().maxBatch(LongChangeHelper.MAX_BATCH.Unset));
 
-            ccbmOkPull(js, pullDurableBuilder().maxPullWaiting(LongChangeHelper.MAX_PULL_WAITING.ServerPull));
-            ccbmOkPull(js, pullDurableBuilder().maxBatch(LongChangeHelper.MAX_BATCH.ServerPull));
-
-            ccbmExPull(js, pullDurableBuilder().maxPullWaiting(LongChangeHelper.MAX_PULL_WAITING.Unset));
-
-            ccbmOkPull(js, pullDurableBuilder().maxBatch(LongChangeHelper.MAX_BATCH.Unset));
+            changeOkPull(js, pullDurableBuilder().maxPullWaiting(LongChangeHelper.MAX_PULL_WAITING.ServerPull));
+            changeOkPull(js, pullDurableBuilder().maxBatch(LongChangeHelper.MAX_BATCH.ServerPull));
         });
     }
 
-    static class ConsumerConfigurationChecker extends ConsumerConfiguration {
-        public ConsumerConfigurationChecker(ConsumerConfiguration cc) {
-            super(cc);
-        }
-        public Duration ackWait() { return ackWait; }
-        public Long maxDeliver() { return maxDeliver; }
-        public Long maxAckPending() { return maxAckPending; }
-        public Long maxPullWaiting() { return maxPullWaiting; }
-    }
-
-    @Test
-    public void testDefaultConsumerConfiguration() throws Exception {
-        // default json from server for reference
-        //    "durable_name": "durable",
-        //    "deliver_policy": "all",
-        //    "ack_policy": "explicit",
-        //    "ack_wait": 30000000000,
-        //    "max_deliver": -1,
-        //    "replay_policy": "instant",
-        //    "max_waiting": 512,
-        //    "max_ack_pending": 1000 (20000 server v2.7.4 and older)
-        runInJsServer(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
-            createDefaultTestStream(jsm);
-
-            ConsumerConfiguration cc = builder().durable(DURABLE).build();
-            cc = jsm.addOrUpdateConsumer(STREAM, cc).getConsumerConfiguration();
-            ConsumerConfigurationChecker ccc = new ConsumerConfigurationChecker(cc);
-            assertEquals(Duration.ofSeconds(30), ccc.ackWait());
-            assertEquals(-1, ccc.maxDeliver());
-            assertEquals(512, ccc.maxPullWaiting());
-            if (nc.getServerInfo().isNewerVersionThan("2.7.4")) {
-                assertEquals(1000, ccc.maxAckPending());
-            }
-            else {
-                assertEquals(20000, ccc.maxAckPending());
-            }
-        });
-    }
-
-    private void ccbmOk(JetStream js, Builder builder) throws IOException, JetStreamApiException {
+    private void changeOkPush(JetStream js, Builder builder) throws IOException, JetStreamApiException {
         unsubscribeEnsureNotBound(js.subscribe(SUBJECT, builder.buildPushSubscribeOptions()));
     }
 
-    private void ccbmOkPull(JetStream js, Builder builder) throws IOException, JetStreamApiException {
+    private void changeOkPull(JetStream js, Builder builder) throws IOException, JetStreamApiException {
         unsubscribeEnsureNotBound(js.subscribe(SUBJECT, builder.buildPullSubscribeOptions()));
     }
 
-    private void ccbmExPush(JetStream js, Builder builder) {
+    private void changeExPush(JetStream js, Builder builder) {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()));
         assertTrue(iae.getMessage().contains(JsSubExistingConsumerCannotBeModified.id()));
     }
 
-    private void ccbmExPull(JetStream js, Builder builder) {
+    private void changeExPull(JetStream js, Builder builder) {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> js.subscribe(SUBJECT, PullSubscribeOptions.builder().configuration(builder.build()).build()));
         assertTrue(iae.getMessage().contains(JsSubExistingConsumerCannotBeModified.id()));
