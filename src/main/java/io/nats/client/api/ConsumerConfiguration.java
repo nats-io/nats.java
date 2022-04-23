@@ -1042,7 +1042,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         DurationChangeHelper(Duration push, Duration pull) {
             Min = Duration.ofNanos(1);
-            Unset = Duration.ofNanos(0);
+            Unset = Duration.ZERO;
             ServerPush = push;
             ServerPull = pull;
             MinNanos = 1;
