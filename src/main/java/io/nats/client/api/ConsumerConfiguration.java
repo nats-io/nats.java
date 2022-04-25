@@ -980,32 +980,19 @@ public class ConsumerConfiguration implements JsonSerializable {
     /**
      * INTERNAL CLASS ONLY, SUBJECT TO CHANGE
      * Helper class to manage min / default / unset / server values.
-     *
-     * These are what the server returns for a default consumer.
-     *
-     * 	"max_deliver": -1
-     * 	"max_ack_pending": 1000,
-     * 	"max_waiting": push:omitted pull:512,
-     * 	"max_batch": omitted
-     *
-     * The server will treat max_deliver of 0 as -1, that's why returns it
      */
     public enum LongChangeHelper {
-        MAX_DELIVER(1, -1, -1L, -1L),  // 0 is treated the same as -1 on the server, which is why the server doesn't omit this
-        MAX_ACK_PENDING(0, -1, 1000L, 1000L),
-        MAX_PULL_WAITING(0, -1, null, 512L),
-        MAX_BATCH(0, -1, null, null);
+        MAX_DELIVER(1, -1),  // 0 is treated the same as -1 on the server, which is why the server doesn't omit this
+        MAX_ACK_PENDING(0, -1),
+        MAX_PULL_WAITING(0, -1),
+        MAX_BATCH(0, -1);
 
         public final long Min;
         public final long Unset;
-        public final Long ServerPush;
-        public final Long ServerPull;
 
-        LongChangeHelper(long min, long unset, Long push, Long pull) {
+        LongChangeHelper(long min, long unset) {
             Min = min;
             Unset = unset;
-            ServerPush = push;
-            ServerPull = pull;
         }
 
         public long getOrUnset(Long val) {
@@ -1024,28 +1011,17 @@ public class ConsumerConfiguration implements JsonSerializable {
     /**
      * INTERNAL CLASS ONLY, SUBJECT TO CHANGE
      * Helper class to manage min / default / unset / server values.
-     *
-     * These fields are unsigned long on the server.
-     *
-     * These are what the server returns for a default consumer.
-     *
-     * 	"opt_start_seq": omitted
-     * 	"rate_limit_bps": omitted
      */
     public enum UlongChangeHelper {
-        START_SEQ(1, 0, null, null),
-        RATE_LIMIT(1, 0, null, null);
+        START_SEQ(1, 0),
+        RATE_LIMIT(1, 0);
 
         public final long Min;
         public final long Unset;
-        public final Long ServerPush;
-        public final Long ServerPull;
 
-        UlongChangeHelper(long min, long unset, Long push, Long pull) {
+        UlongChangeHelper(long min, long unset) {
             Min = min;
             Unset = unset;
-            ServerPush = push;
-            ServerPull = pull;
         }
 
         public long getOrUnset(Long val) {
@@ -1064,25 +1040,17 @@ public class ConsumerConfiguration implements JsonSerializable {
     /**
      * INTERNAL CLASS ONLY, SUBJECT TO CHANGE
      * Helper class to manage min / default / unset / server values.
-     *
-     * These are what the server returns for a default consumer.
-     *
-     * 	"ack_wait": 30000000000,
      */
     public enum DurationChangeHelper {
-        ACK_WAIT(Duration.ofSeconds(30), Duration.ofSeconds(30)); // Nanos
+        ACK_WAIT(); // Nanos
 
         public final Duration Min;
         public final Duration Unset;
-        public final Duration ServerPush;
-        public final Duration ServerPull;
         public final long MinNanos;
 
-        DurationChangeHelper(Duration push, Duration pull) {
+        DurationChangeHelper() {
             Min = Duration.ofNanos(1);
             Unset = Duration.ZERO;
-            ServerPush = push;
-            ServerPull = pull;
             MinNanos = 1;
         }
 

@@ -738,12 +738,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             changeOkPush(js, pushDurableBuilder().rateLimit(UlongChangeHelper.RATE_LIMIT.Unset));
             changeExPush(js, pushDurableBuilder().ackWait(DurationChangeHelper.ACK_WAIT.Unset));
 
-            changeOkPush(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.ServerPush));
-            changeOkPush(js, pushDurableBuilder().maxAckPending(LongChangeHelper.MAX_ACK_PENDING.ServerPush));
-            changeOkPush(js, pushDurableBuilder().startSequence(UlongChangeHelper.START_SEQ.ServerPush));
-            changeOkPush(js, pushDurableBuilder().rateLimit(UlongChangeHelper.RATE_LIMIT.ServerPush));
-            changeOkPush(js, pushDurableBuilder().ackWait(DurationChangeHelper.ACK_WAIT.ServerPush));
-
             // pull
             nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pullDurableBuilder().build());
 
@@ -752,9 +746,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             changeExPull(js, pullDurableBuilder().maxPullWaiting(LongChangeHelper.MAX_PULL_WAITING.Unset));
             changeOkPull(js, pullDurableBuilder().maxBatch(LongChangeHelper.MAX_BATCH.Unset));
-
-            changeOkPull(js, pullDurableBuilder().maxPullWaiting(LongChangeHelper.MAX_PULL_WAITING.ServerPull));
-            changeOkPull(js, pullDurableBuilder().maxBatch(LongChangeHelper.MAX_BATCH.ServerPull));
         });
     }
 
