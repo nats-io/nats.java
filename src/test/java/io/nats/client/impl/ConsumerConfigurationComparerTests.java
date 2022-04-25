@@ -169,6 +169,17 @@ public class ConsumerConfigurationComparerTests extends TestBase {
             assertFalse(h.wouldBeChange(h.Unset, null));     // has unset value versus server not set
         }
 
+        for (UlongChangeHelper h : UlongChangeHelper.values()) {
+            assertFalse(h.wouldBeChange(h.Min, h.Min));    // has value vs server has same value
+            assertTrue(h.wouldBeChange(h.Min, h.Min + 1)); // has value vs server has different value
+
+            assertFalse(h.wouldBeChange(null, h.Min));       // value not set vs server has value
+            assertFalse(h.wouldBeChange(null, h.Unset));     // value not set vs server has unset value
+
+            assertTrue(h.wouldBeChange(h.Min, null));        // has value vs server not set
+            assertFalse(h.wouldBeChange(h.Unset, null));     // has unset value versus server not set
+        }
+
         for (DurationChangeHelper h : DurationChangeHelper.values()) {
             assertFalse(h.wouldBeChange(h.Min, h.Min));    // has value vs server has same value
             assertTrue(h.wouldBeChange(h.Min, Duration.ofNanos(h.MinNanos + 1))); // has value vs server has different value
