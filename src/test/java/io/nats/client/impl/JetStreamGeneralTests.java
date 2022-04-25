@@ -728,20 +728,20 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             changeExPush(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.Min));
             changeExPush(js, pushDurableBuilder().maxAckPending(LongChangeHelper.MAX_ACK_PENDING.Min));
-            changeExPush(js, pushDurableBuilder().startSequence(LongChangeHelper.START_SEQ.Min));
-            changeExPush(js, pushDurableBuilder().rateLimit(LongChangeHelper.RATE_LIMIT.Min));
+            changeExPush(js, pushDurableBuilder().startSequence(UlongChangeHelper.START_SEQ.Min));
+            changeExPush(js, pushDurableBuilder().rateLimit(UlongChangeHelper.RATE_LIMIT.Min));
             changeExPush(js, pushDurableBuilder().ackWait(DurationChangeHelper.ACK_WAIT.Min));
 
             changeOkPush(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.Unset));
             changeExPush(js, pushDurableBuilder().maxAckPending(LongChangeHelper.MAX_ACK_PENDING.Unset));
-            changeOkPush(js, pushDurableBuilder().startSequence(LongChangeHelper.START_SEQ.Unset));
-            changeOkPush(js, pushDurableBuilder().rateLimit(LongChangeHelper.RATE_LIMIT.Unset));
+            changeOkPush(js, pushDurableBuilder().startSequence(UlongChangeHelper.START_SEQ.Unset));
+            changeOkPush(js, pushDurableBuilder().rateLimit(UlongChangeHelper.RATE_LIMIT.Unset));
             changeExPush(js, pushDurableBuilder().ackWait(DurationChangeHelper.ACK_WAIT.Unset));
 
             changeOkPush(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.ServerPush));
             changeOkPush(js, pushDurableBuilder().maxAckPending(LongChangeHelper.MAX_ACK_PENDING.ServerPush));
-            changeOkPush(js, pushDurableBuilder().startSequence(LongChangeHelper.START_SEQ.ServerPush));
-            changeOkPush(js, pushDurableBuilder().rateLimit(LongChangeHelper.RATE_LIMIT.ServerPush));
+            changeOkPush(js, pushDurableBuilder().startSequence(UlongChangeHelper.START_SEQ.ServerPush));
+            changeOkPush(js, pushDurableBuilder().rateLimit(UlongChangeHelper.RATE_LIMIT.ServerPush));
             changeOkPush(js, pushDurableBuilder().ackWait(DurationChangeHelper.ACK_WAIT.ServerPush));
 
             // pull

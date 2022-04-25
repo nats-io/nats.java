@@ -240,7 +240,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the start sequence.
      */
     public long getStartSequence() {
-        return LongChangeHelper.START_SEQ.getOrUnset(startSeq);
+        return UlongChangeHelper.START_SEQ.getOrUnset(startSeq);
     }
 
     /**
@@ -296,7 +296,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the rate limit in bits per second
      */
     public long getRateLimit() {
-        return LongChangeHelper.RATE_LIMIT.getOrUnset(rateLimit);
+        return UlongChangeHelper.RATE_LIMIT.getOrUnset(rateLimit);
     }
 
     /**
@@ -613,7 +613,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder startSequence(Long sequence) {
-            this.startSeq = LongChangeHelper.START_SEQ.forBuilder(sequence);
+            this.startSeq = UlongChangeHelper.START_SEQ.forBuilder(sequence);
             return this;
         }
 
@@ -623,7 +623,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder startSequence(long sequence) {
-            this.startSeq = LongChangeHelper.START_SEQ.forBuilder(sequence);
+            this.startSeq = UlongChangeHelper.START_SEQ.forBuilder(sequence);
             return this;
         }
 
@@ -723,7 +723,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder rateLimit(Long bitsPerSecond) {
-            this.rateLimit = LongChangeHelper.RATE_LIMIT.forBuilder(bitsPerSecond);
+            this.rateLimit = UlongChangeHelper.RATE_LIMIT.forBuilder(bitsPerSecond);
             return this;
         }
 
@@ -733,7 +733,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder rateLimit(long bitsPerSecond) {
-            this.rateLimit = LongChangeHelper.RATE_LIMIT.forBuilder(bitsPerSecond);
+            this.rateLimit = UlongChangeHelper.RATE_LIMIT.forBuilder(bitsPerSecond);
             return this;
         }
 
@@ -991,8 +991,6 @@ public class ConsumerConfiguration implements JsonSerializable {
      * The server will treat max_deliver of 0 as -1, that's why returns it
      */
     public enum LongChangeHelper {
-        START_SEQ(1, 0, null, null),  // unsigned
-        RATE_LIMIT(1, 0, null, null), // unsigned
         MAX_DELIVER(1, -1, -1L, -1L),  // 0 is treated the same as -1 on the server, which is why the server doesn't omit this
         MAX_ACK_PENDING(0, -1, 1000L, 1000L),
         MAX_PULL_WAITING(0, -1, null, 512L),
@@ -1004,6 +1002,46 @@ public class ConsumerConfiguration implements JsonSerializable {
         public final Long ServerPull;
 
         LongChangeHelper(long min, long unset, Long push, Long pull) {
+            Min = min;
+            Unset = unset;
+            ServerPush = push;
+            ServerPull = pull;
+        }
+
+        public long getOrUnset(Long val) {
+            return val == null ? Unset : val;
+        }
+
+        public boolean wouldBeChange(Long user, Long server) {
+            return user != null && !user.equals(getOrUnset(server));
+        }
+
+        public Long forBuilder(Long proposed) {
+            return proposed == null || proposed < Min ? Unset : proposed;
+        }
+    }
+
+    /**
+     * INTERNAL CLASS ONLY, SUBJECT TO CHANGE
+     * Helper class to manage min / default / unset / server values.
+     *
+     * These fields are unsigned long on the server.
+     *
+     * These are what the server returns for a default consumer.
+     *
+     * 	"opt_start_seq": omitted
+     * 	"rate_limit_bps": omitted
+     */
+    public enum UlongChangeHelper {
+        START_SEQ(1, 0, null, null),
+        RATE_LIMIT(1, 0, null, null);
+
+        public final long Min;
+        public final long Unset;
+        public final Long ServerPush;
+        public final Long ServerPull;
+
+        UlongChangeHelper(long min, long unset, Long push, Long pull) {
             Min = min;
             Unset = unset;
             ServerPush = push;

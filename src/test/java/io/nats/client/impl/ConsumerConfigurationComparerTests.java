@@ -26,6 +26,8 @@ import java.time.ZonedDateTime;
 import static io.nats.client.api.ConsumerConfiguration.*;
 import static io.nats.client.api.ConsumerConfiguration.DurationChangeHelper.ACK_WAIT;
 import static io.nats.client.api.ConsumerConfiguration.LongChangeHelper.*;
+import static io.nats.client.api.ConsumerConfiguration.UlongChangeHelper.RATE_LIMIT;
+import static io.nats.client.api.ConsumerConfiguration.UlongChangeHelper.START_SEQ;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
