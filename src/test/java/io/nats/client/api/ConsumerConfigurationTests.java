@@ -215,9 +215,9 @@ public class ConsumerConfigurationTests extends TestBase {
         assertFalse(c.isFlowControl());
         assertFalse(c.isHeadersOnly());
 
-        assertEquals(-1, c.getStartSequence());
+        assertEquals(0, c.getStartSequence());
         assertEquals(-1, c.getMaxDeliver());
-        assertEquals(-1, c.getRateLimit());
+        assertEquals(0, c.getRateLimit());
         assertEquals(-1, c.getMaxAckPending());
         assertEquals(-1, c.getMaxPullWaiting());
 

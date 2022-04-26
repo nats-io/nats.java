@@ -365,8 +365,36 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
+    public static void addFieldWhenGtZero(StringBuilder sb, String fname, Integer value) {
+        if (value != null && value > 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
+        }
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param value field value
+     */
     public static void addField(StringBuilder sb, String fname, Long value) {
         if (value != null && value >= 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
+        }
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param value field value
+     */
+    public static void addFieldWhenGtZero(StringBuilder sb, String fname, Long value) {
+        if (value != null && value > 0) {
             sb.append(Q);
             jsonEncode(sb, fname);
             sb.append(QCOLON).append(value).append(COMMA);
@@ -516,6 +544,14 @@ public abstract class JsonUtils {
     public static boolean readBoolean(String json, Pattern pattern) {
         Matcher m = pattern.matcher(json);
         return m.find() && Boolean.parseBoolean(m.group(1));
+    }
+
+    public static Boolean readBoolean(String json, Pattern pattern, Boolean dflt) {
+        Matcher m = pattern.matcher(json);
+        if (m.find()) {
+            return Boolean.parseBoolean(m.group(1));
+        }
+        return dflt;
     }
 
     public static int readInt(String json, Pattern pattern, int dflt) {

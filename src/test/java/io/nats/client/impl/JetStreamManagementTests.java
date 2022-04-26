@@ -692,7 +692,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     return super.build();
                 }
             }.build();
-            System.out.println(sc.toJson());
             si = jsm.updateStream(sc);
             assertTrue(si.getConfiguration().getSealed());
         });

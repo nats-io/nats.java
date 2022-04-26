@@ -201,6 +201,18 @@ public final class JsonUtilsTests {
 
         JsonUtils.addField(sb, "bfalse", false);
         assertEquals(87, sb.length());
+
+        JsonUtils.addFieldWhenGtZero(sb, "intnotgt0", 0);
+        assertEquals(87, sb.length());
+
+        JsonUtils.addFieldWhenGtZero(sb, "longnotgt0", 0L);
+        assertEquals(87, sb.length());
+
+        JsonUtils.addFieldWhenGtZero(sb, "intgt0", 1L);
+        assertEquals(98, sb.length());
+
+        JsonUtils.addFieldWhenGtZero(sb, "longgt0", 1L);
+        assertEquals(110, sb.length());
     }
 
     static final String EXPECTED_LIST_JSON = "{\"a1\":[\"one\"],\"a2\":[\"two\",\"too\"],\"l1\":[\"one\"],\"l2\":[\"two\",\"too\"],\"j1\":[{\"filter\":\"sub1\",\"keep\":421}],\"j2\":[{\"filter\":\"sub2\",\"seq\":732},{\"filter\":\"sub3\"}],\"d1\":[1000000],\"d2\":[2000000,3000000]}";

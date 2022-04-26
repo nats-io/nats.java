@@ -587,6 +587,7 @@ Subscription creation has many checks to make sure that a valid, operable subscr
 | JsSubExistingConsumerCannotBeModified | SUB | 90016 | Existing consumer cannot be modified. |
 | JsSubConsumerNotFoundRequiredInBind | SUB | 90017 | Consumer not found, required in bind mode. |
 | JsSubOrderedNotAllowOnQueues | SUB | 90018 | Ordered consumer not allowed on queues. |
+| JsSubPushCantHaveMaxBatch | SUB | 90019 | Push subscriptions cannot supply max batch. |
 
 ### Message Acknowledgements
 
