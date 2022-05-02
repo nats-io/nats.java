@@ -726,26 +726,43 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             changeExPush(js, pushDurableBuilder().maxExpires(Duration.ofMillis(1000)));
             changeExPush(js, pushDurableBuilder().inactiveThreshold(Duration.ofMillis(1000)));
 
+            // value
             changeExPush(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.Min));
-            changeExPush(js, pushDurableBuilder().maxAckPending(LongChangeHelper.MAX_ACK_PENDING.Min));
-            changeExPush(js, pushDurableBuilder().startSequence(UlongChangeHelper.START_SEQ.Min));
-            changeExPush(js, pushDurableBuilder().rateLimit(UlongChangeHelper.RATE_LIMIT.Min));
-            changeExPush(js, pushDurableBuilder().ackWait(DurationChangeHelper.ACK_WAIT.Min));
+            changeExPush(js, pushDurableBuilder().maxAckPending(0));
+            changeExPush(js, pushDurableBuilder().ackWait(0));
 
+            // value unsigned
+            changeExPush(js, pushDurableBuilder().startSequence(1));
+            changeExPush(js, pushDurableBuilder().rateLimit(1));
+
+            // unset doesn't fail because the server provides a value equal to the unset
             changeOkPush(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.Unset));
-            changeExPush(js, pushDurableBuilder().maxAckPending(LongChangeHelper.MAX_ACK_PENDING.Unset));
-            changeOkPush(js, pushDurableBuilder().startSequence(UlongChangeHelper.START_SEQ.Unset));
-            changeOkPush(js, pushDurableBuilder().rateLimit(UlongChangeHelper.RATE_LIMIT.Unset));
-            changeExPush(js, pushDurableBuilder().ackWait(DurationChangeHelper.ACK_WAIT.Unset));
+
+            // unset doesn't fail because the server does not provide a value
+            // negatives are considered the unset
+            changeOkPush(js, pushDurableBuilder().startSequence(UNSET_ULONG));
+            changeOkPush(js, pushDurableBuilder().startSequence(-1));
+            changeOkPush(js, pushDurableBuilder().rateLimit(UNSET_ULONG));
+            changeOkPush(js, pushDurableBuilder().rateLimit(-1));
+
+            // unset fail b/c the server does set a value that is not equal to the unset or the minimum
+            changeExPush(js, pushDurableBuilder().maxAckPending(UNSET_LONG));
+            changeExPush(js, pushDurableBuilder().maxAckPending(0));
+            changeExPush(js, pushDurableBuilder().ackWait(UNSET_LONG));
+            changeExPush(js, pushDurableBuilder().ackWait(0));
 
             // pull
             nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pullDurableBuilder().build());
 
-            changeExPull(js, pullDurableBuilder().maxPullWaiting(LongChangeHelper.MAX_PULL_WAITING.Min));
-            changeExPull(js, pullDurableBuilder().maxBatch(LongChangeHelper.MAX_BATCH.Min));
+            // value
+            changeExPull(js, pullDurableBuilder().maxPullWaiting(0));
+            changeExPull(js, pullDurableBuilder().maxBatch(0));
 
-            changeExPull(js, pullDurableBuilder().maxPullWaiting(LongChangeHelper.MAX_PULL_WAITING.Unset));
-            changeOkPull(js, pullDurableBuilder().maxBatch(LongChangeHelper.MAX_BATCH.Unset));
+            // unsets fail b/c the server does set a value
+            changeExPull(js, pullDurableBuilder().maxPullWaiting(-1));
+
+            // unset
+            changeOkPull(js, pullDurableBuilder().maxBatch(-1));
         });
     }
 

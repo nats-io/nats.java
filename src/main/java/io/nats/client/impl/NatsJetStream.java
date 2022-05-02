@@ -430,19 +430,22 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 || (flowControl != null && flowControl != serverCcc.isFlowControl())
                 || (headersOnly != null && headersOnly != serverCcc.isHeadersOnly())
 
-                || UlongChangeHelper.START_SEQ.wouldBeChange(startSeq, serverCcc.startSeq)
+                || (startSeq != null && !startSeq.equals(serverCcc.getStartSequence()))
+                || (rateLimit != null && !rateLimit.equals(serverCcc.getStartSequence()))
+
+                // MaxDeliver is a special case because -1 and 0 are unset where other unsigned -1 is unset
                 || LongChangeHelper.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.maxDeliver)
-                || UlongChangeHelper.RATE_LIMIT.wouldBeChange(rateLimit, serverCcc.rateLimit)
-                || LongChangeHelper.MAX_ACK_PENDING.wouldBeChange(maxAckPending, serverCcc.maxAckPending)
-                || LongChangeHelper.MAX_PULL_WAITING.wouldBeChange(maxPullWaiting, serverCcc.maxPullWaiting)
-                || LongChangeHelper.MAX_BATCH.wouldBeChange(maxBatch, serverCcc.maxBatch)
 
-                || DurationChangeHelper.ACK_WAIT.wouldBeChange(ackWait, serverCcc.ackWait)
+                || (maxAckPending != null && !maxAckPending.equals(serverCcc.getMaxAckPending()))
+                || (maxPullWaiting != null && !maxPullWaiting.equals(serverCcc.getMaxPullWaiting()))
+                || (maxBatch != null && !maxBatch.equals(serverCcc.getMaxBatch()))
 
-                || (idleHeartbeat != null && !idleHeartbeat.equals(serverCcc.idleHeartbeat))
+                || (ackWait != null && !ackWait.equals(getOrUnset(serverCcc.ackWait)))
+                || (idleHeartbeat != null && !idleHeartbeat.equals(getOrUnset(serverCcc.idleHeartbeat)))
+                || (maxExpires != null && !maxExpires.equals(getOrUnset(serverCcc.maxExpires)))
+                || (inactiveThreshold != null && !inactiveThreshold.equals(getOrUnset(serverCcc.inactiveThreshold)))
+
                 || (startTime != null && !startTime.equals(serverCcc.startTime))
-                || (maxExpires != null && !maxExpires.equals(serverCcc.maxExpires))
-                || (inactiveThreshold != null && !inactiveThreshold.equals(serverCcc.inactiveThreshold))
 
                 || (filterSubject != null && !filterSubject.equals(serverCcc.filterSubject))
                 || (description != null && !description.equals(serverCcc.description))

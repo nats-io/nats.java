@@ -24,10 +24,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 
 import static io.nats.client.api.ConsumerConfiguration.*;
-import static io.nats.client.api.ConsumerConfiguration.DurationChangeHelper.ACK_WAIT;
-import static io.nats.client.api.ConsumerConfiguration.LongChangeHelper.*;
-import static io.nats.client.api.ConsumerConfiguration.UlongChangeHelper.RATE_LIMIT;
-import static io.nats.client.api.ConsumerConfiguration.UlongChangeHelper.START_SEQ;
+import static io.nats.client.api.ConsumerConfiguration.LongChangeHelper.MAX_DELIVER;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -86,33 +83,33 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertNotChange(builder(orig).headersOnly(false).build(), orig);
         assertChange(builder(orig).headersOnly(true).build(), orig);
 
-        assertNotChange(builder(orig).startSequence(START_SEQ.Unset).build(), orig);
+        assertNotChange(builder(orig).startSequence(UNSET_ULONG).build(), orig);
         assertNotChange(builder(orig).startSequence(null).build(), orig);
-        assertChange(builder(orig).startSequence(START_SEQ.Min).build(), orig);
+        assertChange(builder(orig).startSequence(1).build(), orig);
 
         assertNotChange(builder(orig).maxDeliver(MAX_DELIVER.Unset).build(), orig);
         assertNotChange(builder(orig).maxDeliver(null).build(), orig);
         assertChange(builder(orig).maxDeliver(MAX_DELIVER.Min).build(), orig);
 
-        assertNotChange(builder(orig).rateLimit(RATE_LIMIT.Unset).build(), orig);
+        assertNotChange(builder(orig).rateLimit(UNSET_ULONG).build(), orig);
         assertNotChange(builder(orig).rateLimit(null).build(), orig);
-        assertChange(builder(orig).rateLimit(RATE_LIMIT.Min).build(), orig);
+        assertChange(builder(orig).rateLimit(1).build(), orig);
 
-        assertNotChange(builder(orig).maxAckPending(MAX_ACK_PENDING.Unset).build(), orig);
+        assertNotChange(builder(orig).maxAckPending(UNSET_LONG).build(), orig);
         assertNotChange(builder(orig).maxAckPending(null).build(), orig);
-        assertChange(builder(orig).maxAckPending(MAX_ACK_PENDING.Min).build(), orig);
+        assertChange(builder(orig).maxAckPending(1).build(), orig);
 
-        assertNotChange(builder(orig).maxPullWaiting(MAX_PULL_WAITING.Unset).build(), orig);
+        assertNotChange(builder(orig).maxPullWaiting(UNSET_LONG).build(), orig);
         assertNotChange(builder(orig).maxPullWaiting(null).build(), orig);
-        assertChange(builder(orig).maxPullWaiting(MAX_PULL_WAITING.Min).build(), orig);
+        assertChange(builder(orig).maxPullWaiting(1).build(), orig);
 
-        assertNotChange(builder(orig).maxBatch(MAX_BATCH.Unset).build(), orig);
+        assertNotChange(builder(orig).maxBatch(UNSET_LONG).build(), orig);
         assertNotChange(builder(orig).maxBatch(null).build(), orig);
-        assertChange(builder(orig).maxBatch(MAX_BATCH.Min).build(), orig);
+        assertChange(builder(orig).maxBatch(1).build(), orig);
 
-        assertNotChange(builder(orig).ackWait(ACK_WAIT.Unset).build(), orig);
+        assertNotChange(builder(orig).ackWait(DURATION_UNSET_LONG).build(), orig);
         assertNotChange(builder(orig).ackWait(null).build(), orig);
-        assertChange(builder(orig).ackWait(ACK_WAIT.Min).build(), orig);
+        assertChange(builder(orig).ackWait(1).build(), orig);
 
         assertNotChange(builder(orig).filterSubject(EMPTY).build(), orig);
         ccTest = builder(orig).filterSubject(PLAIN).build();
@@ -161,28 +158,6 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         for (LongChangeHelper h : LongChangeHelper.values()) {
             assertFalse(h.wouldBeChange(h.Min, h.Min));    // has value vs server has same value
             assertTrue(h.wouldBeChange(h.Min, h.Min + 1)); // has value vs server has different value
-
-            assertFalse(h.wouldBeChange(null, h.Min));       // value not set vs server has value
-            assertFalse(h.wouldBeChange(null, h.Unset));     // value not set vs server has unset value
-
-            assertTrue(h.wouldBeChange(h.Min, null));        // has value vs server not set
-            assertFalse(h.wouldBeChange(h.Unset, null));     // has unset value versus server not set
-        }
-
-        for (UlongChangeHelper h : UlongChangeHelper.values()) {
-            assertFalse(h.wouldBeChange(h.Min, h.Min));    // has value vs server has same value
-            assertTrue(h.wouldBeChange(h.Min, h.Min + 1)); // has value vs server has different value
-
-            assertFalse(h.wouldBeChange(null, h.Min));       // value not set vs server has value
-            assertFalse(h.wouldBeChange(null, h.Unset));     // value not set vs server has unset value
-
-            assertTrue(h.wouldBeChange(h.Min, null));        // has value vs server not set
-            assertFalse(h.wouldBeChange(h.Unset, null));     // has unset value versus server not set
-        }
-
-        for (DurationChangeHelper h : DurationChangeHelper.values()) {
-            assertFalse(h.wouldBeChange(h.Min, h.Min));    // has value vs server has same value
-            assertTrue(h.wouldBeChange(h.Min, Duration.ofNanos(h.MinNanos + 1))); // has value vs server has different value
 
             assertFalse(h.wouldBeChange(null, h.Min));       // value not set vs server has value
             assertFalse(h.wouldBeChange(null, h.Unset));     // value not set vs server has unset value
