@@ -36,13 +36,14 @@ import static io.nats.client.support.Validator.emptyAsNull;
  * Options are created using a PublishOptions.Builder.
  */
 public class ConsumerConfiguration implements JsonSerializable {
+    @Deprecated
+    public static final Duration DURATION_MIN = Duration.ofNanos(1);
 
     public static final DeliverPolicy DEFAULT_DELIVER_POLICY = DeliverPolicy.All;
     public static final AckPolicy DEFAULT_ACK_POLICY = AckPolicy.Explicit;
     public static final ReplayPolicy DEFAULT_REPLAY_POLICY = ReplayPolicy.Instant;
 
     public static final Duration DURATION_UNSET = Duration.ZERO;
-    public static final Duration DURATION_MIN = Duration.ofNanos(1);
     public static final Duration MIN_IDLE_HEARTBEAT = Duration.ofMillis(100);
 
     public static final long LONG_UNSET = -1;
