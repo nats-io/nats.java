@@ -298,8 +298,9 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 // check to see if the user sent a different version than the server has
                 // because modifications are not allowed during create subscription
                 ConsumerConfigurationComparer userCCC = new ConsumerConfigurationComparer(userCC);
-                if (userCCC.wouldBeChangeTo(serverCC)) {
-                    throw JsSubExistingConsumerCannotBeModified.instance();
+                List<String> changes = userCCC.getChanges(serverCC);
+                if (changes.size() > 0) {
+                    throw JsSubExistingConsumerCannotBeModified.instance("Changed fields: " + changes.toString());
                 }
 
                 // deliver subject must be null/empty for pull, defined for push
@@ -421,41 +422,49 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             super(cc);
         }
 
-        public boolean wouldBeChangeTo(ConsumerConfiguration serverCc) {
+        public List<String> getChanges(ConsumerConfiguration serverCc) {
             ConsumerConfigurationComparer serverCcc = new ConsumerConfigurationComparer(serverCc);
-            return (deliverPolicy != null && deliverPolicy != serverCcc.getDeliverPolicy())
-                || (ackPolicy != null && ackPolicy != serverCcc.getAckPolicy())
-                || (replayPolicy != null && replayPolicy != serverCcc.getReplayPolicy())
+            List<String> changes = new ArrayList<>();
 
-                || (flowControl != null && flowControl != serverCcc.isFlowControl())
-                || (headersOnly != null && headersOnly != serverCcc.isHeadersOnly())
+            record(deliverPolicy != null && deliverPolicy != serverCcc.getDeliverPolicy(), "deliverPolicy", changes);
+            record(ackPolicy != null && ackPolicy != serverCcc.getAckPolicy(), "ackPolicy", changes);
+            record(replayPolicy != null && replayPolicy != serverCcc.getReplayPolicy(), "replayPolicy", changes);
 
-                || (startSeq != null && !startSeq.equals(serverCcc.getStartSequence()))
-                || (rateLimit != null && !rateLimit.equals(serverCcc.getStartSequence()))
+            record(flowControl != null && flowControl != serverCcc.isFlowControl(), "flowControl", changes);
+            record(headersOnly != null && headersOnly != serverCcc.isHeadersOnly(), "headersOnly", changes);
 
-                // MaxDeliver is a special case because -1 and 0 are unset where other unsigned -1 is unset
-                || LongChangeHelper.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.maxDeliver)
+            record(startSeq != null && !startSeq.equals(serverCcc.getStartSequence()), "startSequence", changes);
+            record(rateLimit != null && !rateLimit.equals(serverCcc.getStartSequence()), "rateLimit", changes);
 
-                || (maxAckPending != null && !maxAckPending.equals(serverCcc.getMaxAckPending()))
-                || (maxPullWaiting != null && !maxPullWaiting.equals(serverCcc.getMaxPullWaiting()))
-                || (maxBatch != null && !maxBatch.equals(serverCcc.getMaxBatch()))
+            // MaxDeliver is a special case because -1 and 0 are unset where other unsigned -1 is unset
+            record(LongChangeHelper.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.maxDeliver), "maxDeliver", changes);
 
-                || (ackWait != null && !ackWait.equals(getOrUnset(serverCcc.ackWait)))
-                || (idleHeartbeat != null && !idleHeartbeat.equals(getOrUnset(serverCcc.idleHeartbeat)))
-                || (maxExpires != null && !maxExpires.equals(getOrUnset(serverCcc.maxExpires)))
-                || (inactiveThreshold != null && !inactiveThreshold.equals(getOrUnset(serverCcc.inactiveThreshold)))
+            record(maxAckPending != null && !maxAckPending.equals(serverCcc.getMaxAckPending()), "maxAckPending", changes);
+            record(maxPullWaiting != null && !maxPullWaiting.equals(serverCcc.getMaxPullWaiting()), "maxPullWaiting", changes);
+            record(maxBatch != null && !maxBatch.equals(serverCcc.getMaxBatch()), "maxBatch", changes);
 
-                || (startTime != null && !startTime.equals(serverCcc.startTime))
+            record(ackWait != null && !ackWait.equals(getOrUnset(serverCcc.ackWait)), "ackWait", changes);
+            record(idleHeartbeat != null && !idleHeartbeat.equals(getOrUnset(serverCcc.idleHeartbeat)), "idleHeartbeat", changes);
+            record(maxExpires != null && !maxExpires.equals(getOrUnset(serverCcc.maxExpires)), "maxExpires", changes);
+            record(inactiveThreshold != null && !inactiveThreshold.equals(getOrUnset(serverCcc.inactiveThreshold)), "inactiveThreshold", changes);
 
-                || (filterSubject != null && !filterSubject.equals(serverCcc.filterSubject))
-                || (description != null && !description.equals(serverCcc.description))
-                || (sampleFrequency != null && !sampleFrequency.equals(serverCcc.sampleFrequency))
-                || (deliverSubject != null && !deliverSubject.equals(serverCcc.deliverSubject))
-                || (deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup))
+            record(startTime != null && !startTime.equals(serverCcc.startTime), "startTime", changes);
 
-                || !backoff.equals(serverCcc.backoff) // backoff will never be null, but can be empty
-                ;
+            record(filterSubject != null && !filterSubject.equals(serverCcc.filterSubject), "filterSubject", changes);
+            record(description != null && !description.equals(serverCcc.description), "description", changes);
+            record(sampleFrequency != null && !sampleFrequency.equals(serverCcc.sampleFrequency), "sampleFrequency", changes);
+            record(deliverSubject != null && !deliverSubject.equals(serverCcc.deliverSubject), "deliverSubject", changes);
+            record(deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup), "deliverGroup", changes);
+
+            record(!backoff.equals(serverCcc.backoff), "backoff", changes); // backoff will never be null, but can be empty
+
             // do not need to check Durable because the original is retrieved by the durable name
+
+            return changes;
+        }
+
+        private void record(boolean isChange, String field, List<String> changes) {
+            if (isChange) { changes.add(field); }
         }
     }
 

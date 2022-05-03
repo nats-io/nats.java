@@ -48,12 +48,20 @@ public class NatsJetStreamClientError {
         message = String.format("[%s] %s", id, description);
         this.kind = kind;
     }
-    
+
     public RuntimeException instance() {
+        return _instance(message);
+    }
+
+    public RuntimeException instance(String extraMessage) {
+        return _instance(message + " " + extraMessage);
+    }
+
+    private RuntimeException _instance(String msg) {
         if (kind == KIND_ILLEGAL_ARGUMENT) {
-            return new IllegalArgumentException(message);
+            return new IllegalArgumentException(msg);
         }
-        return new IllegalStateException(message);
+        return new IllegalStateException(msg);
     }
 
     public String id() {

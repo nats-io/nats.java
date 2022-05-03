@@ -22,23 +22,27 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.List;
 
 import static io.nats.client.api.ConsumerConfiguration.*;
 import static io.nats.client.api.ConsumerConfiguration.LongChangeHelper.MAX_DELIVER;
 import static io.nats.client.support.NatsConstants.EMPTY;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ConsumerConfigurationComparerTests extends TestBase {
 
     private void assertNotChange(ConsumerConfiguration original, ConsumerConfiguration server) {
         NatsJetStream.ConsumerConfigurationComparer originalCCC = new NatsJetStream.ConsumerConfigurationComparer(original);
-        assertFalse(originalCCC.wouldBeChangeTo(server));
+        assertEquals(0, originalCCC.getChanges(server).size());
     }
 
-    private void assertChange(ConsumerConfiguration original, ConsumerConfiguration server) {
+    private void assertChange(ConsumerConfiguration original, ConsumerConfiguration server, String... changeFields) {
         NatsJetStream.ConsumerConfigurationComparer originalCCC = new NatsJetStream.ConsumerConfigurationComparer(original);
-        assertTrue(originalCCC.wouldBeChangeTo(server));
+        List<String> changes = originalCCC.getChanges(server);
+        assertEquals(changeFields.length, changes.size());
+        for (String ch : changeFields) {
+            assertTrue(changes.contains(ch));
+        }
     }
 
     private Builder builder(ConsumerConfiguration orig) {
@@ -46,95 +50,95 @@ public class ConsumerConfigurationComparerTests extends TestBase {
     }
 
     @Test
-    public void testChanges() {
+    public void testChangeFieldsIdentified() {
         ConsumerConfiguration orig = ConsumerConfiguration.builder().build();
 
         assertNotChange(orig, orig);
 
         assertNotChange(builder(orig).deliverPolicy(DeliverPolicy.All).build(), orig);
-        assertChange(builder(orig).deliverPolicy(DeliverPolicy.New).build(), orig);
+        assertChange(builder(orig).deliverPolicy(DeliverPolicy.New).build(), orig, "deliverPolicy");
 
         assertNotChange(builder(orig).ackPolicy(AckPolicy.Explicit).build(), orig);
-        assertChange(builder(orig).ackPolicy(AckPolicy.None).build(), orig);
+        assertChange(builder(orig).ackPolicy(AckPolicy.None).build(), orig, "ackPolicy");
 
         assertNotChange(builder(orig).replayPolicy(ReplayPolicy.Instant).build(), orig);
-        assertChange(builder(orig).replayPolicy(ReplayPolicy.Original).build(), orig);
+        assertChange(builder(orig).replayPolicy(ReplayPolicy.Original).build(), orig, "replayPolicy");
 
         ConsumerConfiguration ccTest = builder(orig).flowControl(1000).build();
         assertNotChange(ccTest, ccTest);
-        assertChange(ccTest, orig);
+        assertChange(ccTest, orig, "flowControl", "idleHeartbeat");
 
         ccTest = builder(orig).idleHeartbeat(1000).build();
         assertNotChange(ccTest, ccTest);
-        assertChange(ccTest, orig);
+        assertChange(ccTest, orig, "idleHeartbeat");
 
         ccTest = builder(orig).maxExpires(1000).build();
         assertNotChange(ccTest, ccTest);
-        assertChange(ccTest, orig);
+        assertChange(ccTest, orig, "maxExpires");
 
         ccTest = builder(orig).inactiveThreshold(1000).build();
         assertNotChange(ccTest, ccTest);
-        assertChange(ccTest, orig);
+        assertChange(ccTest, orig, "inactiveThreshold");
 
         ccTest = builder(orig).startTime(ZonedDateTime.now()).build();
         assertNotChange(ccTest, ccTest);
-        assertChange(ccTest, orig);
+        assertChange(ccTest, orig, "startTime");
 
         assertNotChange(builder(orig).headersOnly(false).build(), orig);
-        assertChange(builder(orig).headersOnly(true).build(), orig);
+        assertChange(builder(orig).headersOnly(true).build(), orig, "headersOnly");
 
         assertNotChange(builder(orig).startSequence(UNSET_ULONG).build(), orig);
         assertNotChange(builder(orig).startSequence(null).build(), orig);
-        assertChange(builder(orig).startSequence(1).build(), orig);
+        assertChange(builder(orig).startSequence(1).build(), orig, "startSequence");
 
         assertNotChange(builder(orig).maxDeliver(MAX_DELIVER.Unset).build(), orig);
         assertNotChange(builder(orig).maxDeliver(null).build(), orig);
-        assertChange(builder(orig).maxDeliver(MAX_DELIVER.Min).build(), orig);
+        assertChange(builder(orig).maxDeliver(MAX_DELIVER.Min).build(), orig, "maxDeliver");
 
         assertNotChange(builder(orig).rateLimit(UNSET_ULONG).build(), orig);
         assertNotChange(builder(orig).rateLimit(null).build(), orig);
-        assertChange(builder(orig).rateLimit(1).build(), orig);
+        assertChange(builder(orig).rateLimit(1).build(), orig, "rateLimit");
 
         assertNotChange(builder(orig).maxAckPending(UNSET_LONG).build(), orig);
         assertNotChange(builder(orig).maxAckPending(null).build(), orig);
-        assertChange(builder(orig).maxAckPending(1).build(), orig);
+        assertChange(builder(orig).maxAckPending(1).build(), orig, "maxAckPending");
 
         assertNotChange(builder(orig).maxPullWaiting(UNSET_LONG).build(), orig);
         assertNotChange(builder(orig).maxPullWaiting(null).build(), orig);
-        assertChange(builder(orig).maxPullWaiting(1).build(), orig);
+        assertChange(builder(orig).maxPullWaiting(1).build(), orig, "maxPullWaiting");
 
         assertNotChange(builder(orig).maxBatch(UNSET_LONG).build(), orig);
         assertNotChange(builder(orig).maxBatch(null).build(), orig);
-        assertChange(builder(orig).maxBatch(1).build(), orig);
+        assertChange(builder(orig).maxBatch(1).build(), orig, "maxBatch");
 
         assertNotChange(builder(orig).ackWait(DURATION_UNSET_LONG).build(), orig);
         assertNotChange(builder(orig).ackWait(null).build(), orig);
-        assertChange(builder(orig).ackWait(1).build(), orig);
+        assertChange(builder(orig).ackWait(1).build(), orig, "ackWait");
 
         assertNotChange(builder(orig).filterSubject(EMPTY).build(), orig);
         ccTest = builder(orig).filterSubject(PLAIN).build();
         assertNotChange(ccTest, ccTest);
-        assertChange(ccTest, orig);
+        assertChange(ccTest, orig, "filterSubject");
 
         assertNotChange(builder(orig).description(EMPTY).build(), orig);
         ccTest = builder(orig).description(PLAIN).build();
         assertNotChange(ccTest, ccTest);
-        assertChange(ccTest, orig);
+        assertChange(ccTest, orig, "description");
 
         assertNotChange(builder(orig).sampleFrequency(EMPTY).build(), orig);
         ccTest = builder(orig).sampleFrequency(PLAIN).build();
         assertNotChange(ccTest, ccTest);
-        assertChange(ccTest, orig);
+        assertChange(ccTest, orig, "sampleFrequency");
 
         assertNotChange(builder(orig).deliverSubject(EMPTY).build(), orig);
         ccTest = builder(orig).deliverSubject(PLAIN).build();
         assertNotChange(ccTest, ccTest);
-        assertChange(ccTest, orig);
+        assertChange(ccTest, orig, "deliverSubject");
 
         assertNotChange(builder(orig).deliverGroup(EMPTY).build(), orig);
         ccTest = builder(orig).deliverGroup(PLAIN).build();
         assertNotChange(ccTest, ccTest);
-        assertChange(ccTest, orig);
+        assertChange(ccTest, orig, "deliverGroup");
 
         Duration[] nodurs = null;
         assertNotChange(builder(orig).backoff(nodurs).build(), orig);
@@ -142,14 +146,14 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertNotChange(builder(orig).backoff(new Duration[0]).build(), orig);
         ccTest = builder(orig).backoff(1000, 2000).build();
         assertNotChange(ccTest, ccTest);
-        assertChange(ccTest, orig);
+        assertChange(ccTest, orig, "backoff");
 
         long[] nolongs = null;
         assertNotChange(builder(orig).backoff(nolongs).build(), orig);
         assertNotChange(builder(orig).backoff(new long[0]).build(), orig);
         ccTest = builder(orig).backoff(1000, 2000).build();
         assertNotChange(ccTest, ccTest);
-        assertChange(ccTest, orig);
+        assertChange(ccTest, orig, "backoff");
     }
 
     @SuppressWarnings("ConstantConditions")
