@@ -190,18 +190,6 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateDurationNotRequiredNotLessThanMin() {
-        Duration min = Duration.ofMillis(99);
-        Duration less = Duration.ofMillis(9);
-        Duration more = Duration.ofMillis(9999);
-
-        assertNull(validateDurationNotRequiredNotLessThanMin(null, min));
-        assertEquals(more, validateDurationNotRequiredNotLessThanMin(more, min));
-
-        assertThrows(IllegalArgumentException.class, () -> validateDurationNotRequiredNotLessThanMin(less, min));
-    }
-
-    @Test
     public void testValidateGtEqZero() {
         assertEquals(0, validateGtEqZero(0, "test"));
         assertEquals(1, validateGtEqZero(1, "test"));

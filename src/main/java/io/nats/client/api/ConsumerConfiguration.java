@@ -29,7 +29,6 @@ import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.Validator.emptyAsNull;
-import static io.nats.client.support.Validator.validateDurationNotRequiredNotLessThanMin;
 
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and
@@ -42,14 +41,16 @@ public class ConsumerConfiguration implements JsonSerializable {
     public static final AckPolicy DEFAULT_ACK_POLICY = AckPolicy.Explicit;
     public static final ReplayPolicy DEFAULT_REPLAY_POLICY = ReplayPolicy.Instant;
 
+    public static final Duration DURATION_UNSET = Duration.ZERO;
+    public static final Duration DURATION_MIN = Duration.ofNanos(1);
+    public static final Duration MIN_IDLE_HEARTBEAT = Duration.ofMillis(100);
+
     public static final long UNSET_LONG = -1;
     public static final long UNSET_ULONG = 0;
     public static final long DURATION_UNSET_LONG = 0;
     public static final long DURATION_MIN_LONG = 1;
-
-    public static final Duration DURATION_UNSET = Duration.ZERO;
-    public static final Duration DURATION_MIN = Duration.ofNanos(1);
-    public static final Duration MIN_IDLE_HEARTBEAT = Duration.ofMillis(100);
+    public static final long MIN_IDLE_HEARTBEAT_NANOS = MIN_IDLE_HEARTBEAT.toNanos();
+    public static final long MIN_IDLE_HEARTBEAT_MILLIS = MIN_IDLE_HEARTBEAT.toMillis();
 
     protected final DeliverPolicy deliverPolicy;
     protected final AckPolicy ackPolicy;
@@ -771,7 +772,21 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder idleHeartbeat(Duration idleHeartbeat) {
-            this.idleHeartbeat = validateDurationNotRequiredNotLessThanMin(idleHeartbeat, MIN_IDLE_HEARTBEAT);
+            if (idleHeartbeat == null) {
+                this.idleHeartbeat = null;
+            }
+            else {
+                long nanos = idleHeartbeat.toNanos();
+                if (nanos <= DURATION_UNSET_LONG) {
+                    this.idleHeartbeat = DURATION_UNSET;
+                }
+                else if (nanos < MIN_IDLE_HEARTBEAT_NANOS) {
+                    throw new IllegalArgumentException("Duration must be greater than or equal to " + MIN_IDLE_HEARTBEAT_NANOS + " nanos.");
+                }
+                else {
+                    this.idleHeartbeat = idleHeartbeat;
+                }
+            }
             return this;
         }
 
@@ -781,7 +796,15 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder idleHeartbeat(long idleHeartbeatMillis) {
-            this.idleHeartbeat = validateDurationNotRequiredNotLessThanMin(idleHeartbeatMillis, MIN_IDLE_HEARTBEAT);
+            if (idleHeartbeatMillis <= DURATION_UNSET_LONG) {
+                this.idleHeartbeat = DURATION_UNSET;
+            }
+            else if (idleHeartbeatMillis < MIN_IDLE_HEARTBEAT_MILLIS) {
+                throw new IllegalArgumentException("Duration must be greater than or equal to " + MIN_IDLE_HEARTBEAT_MILLIS + " milliseconds.");
+            }
+            else {
+                this.idleHeartbeat = Duration.ofMillis(idleHeartbeatMillis);
+            }
             return this;
         }
 

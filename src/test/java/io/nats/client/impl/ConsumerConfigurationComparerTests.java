@@ -51,7 +51,13 @@ public class ConsumerConfigurationComparerTests extends TestBase {
 
     @Test
     public void testChangeFieldsIdentified() {
-        ConsumerConfiguration orig = ConsumerConfiguration.builder().build();
+        ConsumerConfiguration orig = ConsumerConfiguration.builder()
+            // because this is how the object will be set from the server
+            .ackWait(DURATION_UNSET_LONG)
+            .idleHeartbeat(DURATION_UNSET_LONG)
+            .maxExpires(DURATION_UNSET_LONG)
+            .inactiveThreshold(DURATION_UNSET_LONG)
+            .build();
 
         assertNotChange(orig, orig);
 
@@ -68,13 +74,33 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertNotChange(ccTest, ccTest);
         assertChange(ccTest, orig, "flowControl", "idleHeartbeat");
 
+        assertNotChange(builder(orig).ackWait(DURATION_UNSET_LONG).build(), orig);
+        assertNotChange(builder(orig).ackWait(null).build(), orig);
+        assertChange(builder(orig).ackWait(DURATION_MIN_LONG).build(), orig, "ackWait");
+
+        ccTest = builder(orig).ackWait(1000).build();
+        assertNotChange(ccTest, ccTest);
+        assertChange(ccTest, orig, "ackWait");
+
+        assertNotChange(builder(orig).idleHeartbeat(DURATION_UNSET_LONG).build(), orig);
+        assertNotChange(builder(orig).idleHeartbeat(null).build(), orig);
+        assertChange(builder(orig).idleHeartbeat(MIN_IDLE_HEARTBEAT_MILLIS).build(), orig, "idleHeartbeat");
+
         ccTest = builder(orig).idleHeartbeat(1000).build();
         assertNotChange(ccTest, ccTest);
         assertChange(ccTest, orig, "idleHeartbeat");
 
+        assertNotChange(builder(orig).maxExpires(DURATION_UNSET_LONG).build(), orig);
+        assertNotChange(builder(orig).maxExpires(null).build(), orig);
+        assertChange(builder(orig).maxExpires(DURATION_MIN_LONG).build(), orig, "maxExpires");
+
         ccTest = builder(orig).maxExpires(1000).build();
         assertNotChange(ccTest, ccTest);
         assertChange(ccTest, orig, "maxExpires");
+
+        assertNotChange(builder(orig).inactiveThreshold(DURATION_UNSET_LONG).build(), orig);
+        assertNotChange(builder(orig).inactiveThreshold(null).build(), orig);
+        assertChange(builder(orig).inactiveThreshold(DURATION_MIN_LONG).build(), orig, "inactiveThreshold");
 
         ccTest = builder(orig).inactiveThreshold(1000).build();
         assertNotChange(ccTest, ccTest);
@@ -110,10 +136,6 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertNotChange(builder(orig).maxBatch(UNSET_LONG).build(), orig);
         assertNotChange(builder(orig).maxBatch(null).build(), orig);
         assertChange(builder(orig).maxBatch(1).build(), orig, "maxBatch");
-
-        assertNotChange(builder(orig).ackWait(DURATION_UNSET_LONG).build(), orig);
-        assertNotChange(builder(orig).ackWait(null).build(), orig);
-        assertChange(builder(orig).ackWait(1).build(), orig, "ackWait");
 
         assertNotChange(builder(orig).filterSubject(EMPTY).build(), orig);
         ccTest = builder(orig).filterSubject(PLAIN).build();

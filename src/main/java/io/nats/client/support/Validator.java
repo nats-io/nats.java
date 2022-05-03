@@ -250,17 +250,6 @@ public abstract class Validator {
         return Duration.ofMillis(millis);
     }
 
-    public static Duration validateDurationNotRequiredNotLessThanMin(Duration provided, Duration minimum) {
-        if (provided != null && provided.toNanos() < minimum.toNanos()) {
-            throw new IllegalArgumentException("Duration must be greater than or equal to " + minimum.toNanos() + " nanos.");
-        }
-        return provided;
-    }
-
-    public static Duration validateDurationNotRequiredNotLessThanMin(long millis, Duration minimum) {
-        return validateDurationNotRequiredNotLessThanMin(Duration.ofMillis(millis), minimum);
-    }
-
     public static void validateNotNull(Object o, String fieldName) {
         if (o == null) {
             throw new IllegalArgumentException(fieldName + " cannot be null");
