@@ -45,8 +45,8 @@ public class ConsumerConfiguration implements JsonSerializable {
     public static final Duration DURATION_MIN = Duration.ofNanos(1);
     public static final Duration MIN_IDLE_HEARTBEAT = Duration.ofMillis(100);
 
-    public static final long UNSET_LONG = -1;
-    public static final long UNSET_ULONG = 0;
+    public static final long LONG_UNSET = -1;
+    public static final long ULONG_UNSET = 0;
     public static final long DURATION_UNSET_LONG = 0;
     public static final long DURATION_MIN_LONG = 1;
     public static final long MIN_IDLE_HEARTBEAT_NANOS = MIN_IDLE_HEARTBEAT.toNanos();
@@ -1013,12 +1013,12 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     protected static long getOrUnset(Long val)
     {
-        return val == null ? UNSET_LONG : val;
+        return val == null ? LONG_UNSET : val;
     }
 
     protected static long getOrUnsetUlong(Long val)
     {
-        return val == null || val < 0 ? UNSET_ULONG : val;
+        return val == null || val < 0 ? ULONG_UNSET : val;
     }
 
     protected static Duration getOrUnset(Duration val)
@@ -1028,12 +1028,12 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     private static Long normalize(Long l)
     {
-        return l == null ? null : l <= UNSET_LONG ? UNSET_LONG : l;
+        return l == null ? null : l <= LONG_UNSET ? LONG_UNSET : l;
     }
 
     private static Long normalizeUlong(Long u)
     {
-        return u == null ? null : u <= UNSET_ULONG ? UNSET_ULONG : u;
+        return u == null ? null : u <= ULONG_UNSET ? ULONG_UNSET : u;
     }
 
     private static Duration normalize(Duration d)

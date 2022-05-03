@@ -743,15 +743,15 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             // unset doesn't fail because the server does not provide a value
             // negatives are considered the unset
-            changeOkPush(js, pushDurableBuilder().startSequence(UNSET_ULONG));
+            changeOkPush(js, pushDurableBuilder().startSequence(ULONG_UNSET));
             changeOkPush(js, pushDurableBuilder().startSequence(-1));
-            changeOkPush(js, pushDurableBuilder().rateLimit(UNSET_ULONG));
+            changeOkPush(js, pushDurableBuilder().rateLimit(ULONG_UNSET));
             changeOkPush(js, pushDurableBuilder().rateLimit(-1));
 
             // unset fail b/c the server does set a value that is not equal to the unset or the minimum
-            changeExPush(js, pushDurableBuilder().maxAckPending(UNSET_LONG), "maxAckPending");
+            changeExPush(js, pushDurableBuilder().maxAckPending(LONG_UNSET), "maxAckPending");
             changeExPush(js, pushDurableBuilder().maxAckPending(0), "maxAckPending");
-            changeExPush(js, pushDurableBuilder().ackWait(UNSET_LONG), "ackWait");
+            changeExPush(js, pushDurableBuilder().ackWait(LONG_UNSET), "ackWait");
             changeExPush(js, pushDurableBuilder().ackWait(0), "ackWait");
 
             // pull
