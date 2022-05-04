@@ -1393,8 +1393,20 @@ class NatsConnection implements Connection {
                 // does not need to be queued, for instance heartbeats
                 // that are not flow control and are already seen by the
                 // auto status manager
+
+//                byte[] data = msg.data;
+//                String dd = data == null ? "null" : new String(data);
+//                String meta = msg.isStatusMessage() ? ("ST: " + msg.getStatus()) : (msg.isJetStream() ? ("JS: " + msg.metaData()) : "null");
+//                System.out.println("conn " + msg.subject + " | " + dd + " | " + meta);
+
+                if (msg.isStatusMessage()) {
+                    System.out.println("ST " + msg.getStatus());
+                }
                 msg = sub.getBeforeQueueProcessor().apply(msg);
                 if (msg != null) {
+//                    if (msg.isJetStream()) {
+//                        System.out.println("JS " + msg + " " + msg.metaData());
+//                    }
                     q.push(msg);
                 }
             }
