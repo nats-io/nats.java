@@ -369,7 +369,6 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
             ccBuilder.deliverGroup(qgroup);
 
-            // createOrUpdateConsumer can fail for security reasons, maybe other reasons?
             settledServerCC = ccBuilder.build();
             settledConsumerName = null;
         }
@@ -414,10 +413,22 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             }
         }
 
-        // 7. If the consumer
+        // 7. The consumer might need to be created, do it here
         if (settledConsumerName == null) {
-            ConsumerInfo ci = _createConsumer(fnlStream, settledServerCC);
-            sub.setConsumerName(ci.getName());
+            try {
+                ConsumerInfo ci = _createConsumer(fnlStream, settledServerCC);
+                sub.setConsumerName(ci.getName());
+            }
+            catch (IOException | JetStreamApiException e) {
+                // create consumer can fail, unsubscribe and then throw the exception to the user
+                if (dispatcher == null) {
+                    sub.unsubscribe();
+                }
+                else {
+                    dispatcher.unsubscribe(sub);
+                }
+                throw e;
+            }
         }
 
         return sub;
