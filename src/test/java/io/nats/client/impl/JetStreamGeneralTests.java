@@ -712,40 +712,60 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // push
             nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pushDurableBuilder().build());
 
-            changeExPush(js, pushDurableBuilder().deliverPolicy(DeliverPolicy.Last));
-            changeExPush(js, pushDurableBuilder().deliverPolicy(DeliverPolicy.New));
-            changeExPush(js, pushDurableBuilder().ackPolicy(AckPolicy.None));
-            changeExPush(js, pushDurableBuilder().ackPolicy(AckPolicy.All));
-            changeExPush(js, pushDurableBuilder().replayPolicy(ReplayPolicy.Original));
+            changeExPush(js, pushDurableBuilder().deliverPolicy(DeliverPolicy.Last), "deliverPolicy");
+            changeExPush(js, pushDurableBuilder().deliverPolicy(DeliverPolicy.New), "deliverPolicy");
+            changeExPush(js, pushDurableBuilder().ackPolicy(AckPolicy.None), "ackPolicy");
+            changeExPush(js, pushDurableBuilder().ackPolicy(AckPolicy.All), "ackPolicy");
+            changeExPush(js, pushDurableBuilder().replayPolicy(ReplayPolicy.Original), "replayPolicy");
 
-            changeExPush(js, pushDurableBuilder().startTime(ZonedDateTime.now()));
-            changeExPush(js, pushDurableBuilder().ackWait(Duration.ofMillis(1)));
-            changeExPush(js, pushDurableBuilder().description("x"));
-            changeExPush(js, pushDurableBuilder().sampleFrequency("x"));
-            changeExPush(js, pushDurableBuilder().idleHeartbeat(Duration.ofMillis(1000)));
-            changeExPush(js, pushDurableBuilder().maxExpires(Duration.ofMillis(1000)));
-            changeExPush(js, pushDurableBuilder().inactiveThreshold(Duration.ofMillis(1000)));
+            changeExPush(js, pushDurableBuilder().flowControl(10000), "flowControl");
+            changeExPush(js, pushDurableBuilder().headersOnly(true), "headersOnly");
 
-            changeExPush(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.Min));
-            changeExPush(js, pushDurableBuilder().maxAckPending(LongChangeHelper.MAX_ACK_PENDING.Min));
-            changeExPush(js, pushDurableBuilder().startSequence(UlongChangeHelper.START_SEQ.Min));
-            changeExPush(js, pushDurableBuilder().rateLimit(UlongChangeHelper.RATE_LIMIT.Min));
-            changeExPush(js, pushDurableBuilder().ackWait(DurationChangeHelper.ACK_WAIT.Min));
+            changeExPush(js, pushDurableBuilder().startTime(ZonedDateTime.now()), "startTime");
+            changeExPush(js, pushDurableBuilder().ackWait(Duration.ofMillis(1)), "ackWait");
+            changeExPush(js, pushDurableBuilder().description("x"), "description");
+            changeExPush(js, pushDurableBuilder().sampleFrequency("x"), "sampleFrequency");
+            changeExPush(js, pushDurableBuilder().idleHeartbeat(Duration.ofMillis(1000)), "idleHeartbeat");
+            changeExPush(js, pushDurableBuilder().maxExpires(Duration.ofMillis(1000)), "maxExpires");
+            changeExPush(js, pushDurableBuilder().inactiveThreshold(Duration.ofMillis(1000)), "inactiveThreshold");
 
+            // value
+            changeExPush(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.Min), "maxDeliver");
+            changeExPush(js, pushDurableBuilder().maxAckPending(0), "maxAckPending");
+            changeExPush(js, pushDurableBuilder().ackWait(0), "ackWait");
+
+            // value unsigned
+            changeExPush(js, pushDurableBuilder().startSequence(1), "startSequence");
+            changeExPush(js, pushDurableBuilder().rateLimit(1), "rateLimit");
+
+            // unset doesn't fail because the server provides a value equal to the unset
             changeOkPush(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.Unset));
-            changeExPush(js, pushDurableBuilder().maxAckPending(LongChangeHelper.MAX_ACK_PENDING.Unset));
-            changeOkPush(js, pushDurableBuilder().startSequence(UlongChangeHelper.START_SEQ.Unset));
-            changeOkPush(js, pushDurableBuilder().rateLimit(UlongChangeHelper.RATE_LIMIT.Unset));
-            changeExPush(js, pushDurableBuilder().ackWait(DurationChangeHelper.ACK_WAIT.Unset));
+
+            // unset doesn't fail because the server does not provide a value
+            // negatives are considered the unset
+            changeOkPush(js, pushDurableBuilder().startSequence(ULONG_UNSET));
+            changeOkPush(js, pushDurableBuilder().startSequence(-1));
+            changeOkPush(js, pushDurableBuilder().rateLimit(ULONG_UNSET));
+            changeOkPush(js, pushDurableBuilder().rateLimit(-1));
+
+            // unset fail b/c the server does set a value that is not equal to the unset or the minimum
+            changeExPush(js, pushDurableBuilder().maxAckPending(LONG_UNSET), "maxAckPending");
+            changeExPush(js, pushDurableBuilder().maxAckPending(0), "maxAckPending");
+            changeExPush(js, pushDurableBuilder().ackWait(LONG_UNSET), "ackWait");
+            changeExPush(js, pushDurableBuilder().ackWait(0), "ackWait");
 
             // pull
             nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pullDurableBuilder().build());
 
-            changeExPull(js, pullDurableBuilder().maxPullWaiting(LongChangeHelper.MAX_PULL_WAITING.Min));
-            changeExPull(js, pullDurableBuilder().maxBatch(LongChangeHelper.MAX_BATCH.Min));
+            // value
+            changeExPull(js, pullDurableBuilder().maxPullWaiting(0), "maxPullWaiting");
+            changeExPull(js, pullDurableBuilder().maxBatch(0), "maxBatch");
 
-            changeExPull(js, pullDurableBuilder().maxPullWaiting(LongChangeHelper.MAX_PULL_WAITING.Unset));
-            changeOkPull(js, pullDurableBuilder().maxBatch(LongChangeHelper.MAX_BATCH.Unset));
+            // unsets fail b/c the server does set a value
+            changeExPull(js, pullDurableBuilder().maxPullWaiting(-1), "maxPullWaiting");
+
+            // unset
+            changeOkPull(js, pullDurableBuilder().maxBatch(-1));
         });
     }
 
@@ -757,16 +777,22 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         unsubscribeEnsureNotBound(js.subscribe(SUBJECT, builder.buildPullSubscribeOptions()));
     }
 
-    private void changeExPush(JetStream js, Builder builder) {
+    private void changeExPush(JetStream js, Builder builder, String changedField) {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()));
-        assertTrue(iae.getMessage().contains(JsSubExistingConsumerCannotBeModified.id()));
+        _changeEx(iae, changedField);
     }
 
-    private void changeExPull(JetStream js, Builder builder) {
+    private void changeExPull(JetStream js, Builder builder, String changedField) {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> js.subscribe(SUBJECT, PullSubscribeOptions.builder().configuration(builder.build()).build()));
-        assertTrue(iae.getMessage().contains(JsSubExistingConsumerCannotBeModified.id()));
+        _changeEx(iae, changedField);
+    }
+
+    private void _changeEx(IllegalArgumentException iae, String changedField) {
+        String iaeMessage = iae.getMessage();
+        assertTrue(iaeMessage.contains(JsSubExistingConsumerCannotBeModified.id()));
+        assertTrue(iaeMessage.contains(changedField));
     }
 
     private Builder pushDurableBuilder() {
