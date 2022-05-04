@@ -46,12 +46,16 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         super(sid, subject, queueName, connection, dispatcher);
         this.js = js;
         this.stream = stream;
-        this.consumerName = consumer;
+        this.consumerName = consumer; // might be null, someone will call setConsumerName
 
         managers = inManagers;
         for (MessageManager mm : managers) {
             mm.setSub(this);
         }
+    }
+
+    void setConsumerName(String consumerName) {
+        this.consumerName = consumerName;
     }
 
     String getConsumerName() {
