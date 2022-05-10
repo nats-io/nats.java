@@ -305,6 +305,13 @@ public class ValidatorTests {
     }
 
     @Test
+    public void testValidateGtZero() {
+        assertEquals(1, validateGtZero(1, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateGtZero(0, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateGtZero(-1, "test"));
+    }
+
+    @Test
     public void testValidateGtZeroOrMinus1() {
         assertEquals(1, validateGtZeroOrMinus1(1, "test"));
         assertEquals(-1, validateGtZeroOrMinus1(-1, "test"));
