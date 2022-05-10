@@ -179,20 +179,16 @@ class PushStatusMessageManager extends MessageManager {
                 if (fc) {
                     _processFlowControl(msg.getReplyTo(), ErrorListener.FlowControlSource.FLOW_CONTROL);
                 }
-                return true;
             }
-
-            if (status.isHeartbeat()) {
+            else if (status.isHeartbeat()) {
                 if (fc) {
                     // status flowControlSubject is set in the beforeQueueProcessor
                     _processFlowControl(extractFcSubject(msg), ErrorListener.FlowControlSource.HEARTBEAT);
                 }
-                return true;
             }
-
-            // if this status is unknown to us, always use the error handler.
-            // If it's a sync call, also throw an exception
-            if (!PUSH_KNOWN_STATUS_CODES.contains(status.getCode())) {
+            else if (!PUSH_KNOWN_STATUS_CODES.contains(status.getCode())) {
+                // If this status is unknown to us, always use the error handler.
+                // If it's a sync call, also throw an exception
                 conn.getOptions().getErrorListener().unhandledStatus(conn, sub, status);
                 if (syncMode) {
                     throw new JetStreamStatusException(sub, status);
