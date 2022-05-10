@@ -173,13 +173,6 @@ public abstract class Validator {
         });
     }
 
-    public static int validatePullBatchSize(int pullBatchSize) {
-        if (pullBatchSize < 1) {
-            throw new IllegalArgumentException("Pull Batch Size must be greater than 0 [" + pullBatchSize + "]");
-        }
-        return pullBatchSize;
-    }
-
     public static long validateMaxConsumers(long max) {
         return validateGtZeroOrMinus1(max, "Max Consumers");
     }

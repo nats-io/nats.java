@@ -2,11 +2,6 @@ package io.nats.client.support;
 
 public interface NatsJetStreamConstants {
     /**
-     * The maximum pull size
-     */
-    int MAX_PULL_SIZE = 256;
-
-    /**
      * The Max History Per Key KV key
      */
     int MAX_HISTORY_PER_KEY = 64;

@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import static io.nats.client.support.NatsConstants.EMPTY;
-import static io.nats.client.support.NatsJetStreamConstants.MAX_PULL_SIZE;
 import static io.nats.client.support.Validator.*;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.TestBase.*;
@@ -77,15 +76,6 @@ public class ValidatorTests {
         notAllowedRequired(Validator::validateDurable, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
         notAllowedRequired(Validator::validateDurable, UTF_ONLY_STRINGS);
         allowedNotRequiredEmptyAsNull(Validator::validateDurable, Arrays.asList(null, EMPTY));
-    }
-
-    @Test
-    public void testValidatePullBatchSize() {
-        assertEquals(1, validatePullBatchSize(1));
-        assertEquals(MAX_PULL_SIZE, validatePullBatchSize(MAX_PULL_SIZE));
-        assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(0));
-        assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(-1));
-        assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(MAX_PULL_SIZE + 1));
     }
 
     @Test
