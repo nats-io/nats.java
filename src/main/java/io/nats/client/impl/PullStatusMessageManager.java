@@ -21,7 +21,7 @@ import java.util.List;
 
 class PullStatusMessageManager extends MessageManager {
 
-    private static final List<Integer> PULL_KNOWN_STATUS_CODES = Arrays.asList(404, 408);
+    private static final List<Integer> PULL_KNOWN_STATUS_CODES = Arrays.asList(404, 408, 409);
 
     private int lastStatusCode = -1;
 
