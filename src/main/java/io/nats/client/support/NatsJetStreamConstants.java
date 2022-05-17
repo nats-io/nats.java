@@ -2,8 +2,9 @@ package io.nats.client.support;
 
 public interface NatsJetStreamConstants {
     /**
-     * The maximum pull size
+     * The maximum pull size [NO LONGER ENFORCED]
      */
+    @Deprecated
     int MAX_PULL_SIZE = 256;
 
     /**

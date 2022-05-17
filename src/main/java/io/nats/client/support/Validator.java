@@ -18,7 +18,6 @@ import java.time.Duration;
 
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamConstants.MAX_HISTORY_PER_KEY;
-import static io.nats.client.support.NatsJetStreamConstants.MAX_PULL_SIZE;
 
 public abstract class Validator {
     private Validator() {
@@ -174,13 +173,6 @@ public abstract class Validator {
         });
     }
 
-    public static int validatePullBatchSize(int pullBatchSize) {
-        if (pullBatchSize < 1 || pullBatchSize > MAX_PULL_SIZE) {
-            throw new IllegalArgumentException("Pull Batch Size must be between 1 and " + MAX_PULL_SIZE + " inclusive [" + pullBatchSize + "]");
-        }
-        return pullBatchSize;
-    }
-
     public static long validateMaxConsumers(long max) {
         return validateGtZeroOrMinus1(max, "Max Consumers");
     }
@@ -254,6 +246,13 @@ public abstract class Validator {
         if (o == null) {
             throw new IllegalArgumentException(fieldName + " cannot be null");
         }
+    }
+
+    public static int validateGtZero(int i, String label) {
+        if (i < 1) {
+            throw new IllegalArgumentException(label + " must be greater than zero");
+        }
+        return i;
     }
 
     public static long validateGtZeroOrMinus1(long l, String label) {

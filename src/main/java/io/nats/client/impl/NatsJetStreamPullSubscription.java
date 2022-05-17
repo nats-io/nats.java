@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import static io.nats.client.support.Validator.validatePullBatchSize;
+import static io.nats.client.support.Validator.validateGtZero;
 
 public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
@@ -100,7 +100,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     }
 
     private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
-        int batch = validatePullBatchSize(batchSize);
+        int batch = validateGtZero(batchSize, "Pull batch size");
         String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
         connection.publish(publishSubject, getSubject(), getPullJson(batch, noWait, expiresIn));
         connection.lenientFlushBuffer();
