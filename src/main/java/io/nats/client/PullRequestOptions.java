@@ -92,11 +92,21 @@ public class PullRequestOptions implements JsonSerializable {
     }
 
     /**
-     * Creates a builder for the pull options
+     * Creates a builder for the pull options, starting with batchsize
+     * @param batchSize the size of the batch. Must be greater than 0
      * @return a pull options builder
      */
-    public static Builder builder() {
-        return new Builder();
+    public static Builder builder(int batchSize) {
+        return new Builder().batchSize(batchSize);
+    }
+
+    /**
+     * Creates a builder for the pull options, setting no wait and batchsize
+     * @param batchSize the size of the batch. Must be greater than 0
+     * @return a pull options builder
+     */
+    public static Builder noWait(int batchSize) {
+        return new Builder().batchSize(batchSize).noWait();
     }
 
     public static class Builder {

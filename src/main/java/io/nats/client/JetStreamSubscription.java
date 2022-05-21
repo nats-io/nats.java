@@ -26,7 +26,7 @@ import java.util.List;
 public interface JetStreamSubscription extends Subscription {
 
     /**
-     * Polls for new messages, overriding the default batch size for this pull only.
+     * Do a pull with the specified batch size.
      *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
@@ -35,6 +35,17 @@ public interface JetStreamSubscription extends Subscription {
      * @throws IllegalStateException if not a pull subscription.
      */
     void pull(int batchSize);
+
+    /**
+     * Do a pull with the specified request options
+     *
+     * ! Pull subscriptions only. Push subscription will throw IllegalStateException
+     * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
+     *
+     * @param pullRequestOptions the size of the batch
+     * @throws IllegalStateException if not a pull subscription.
+     */
+    void pull(PullRequestOptions pullRequestOptions);
 
     /**
      * Do a pull in noWait mode with the specified batch size.

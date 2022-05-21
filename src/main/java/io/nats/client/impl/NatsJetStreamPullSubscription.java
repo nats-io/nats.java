@@ -23,20 +23,12 @@ import java.util.List;
 
 public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
-    private PullStatusMessageManager psmm;
-
     NatsJetStreamPullSubscription(String sid, String subject,
                                   NatsConnection connection,
                                   NatsJetStream js,
                                   String stream, String consumer,
                                   MessageManager[] managers) {
         super(sid, subject, null, connection, null, js, stream, consumer, managers);
-        for (MessageManager mm : managers) {
-            if (mm instanceof PullStatusMessageManager) {
-                psmm = (PullStatusMessageManager)mm;
-                break;
-            }
-        }
     }
 
     @Override
@@ -49,7 +41,17 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pull(int batchSize) {
-        _pull(batchSize, false, null);
+        pull(PullRequestOptions.builder(batchSize).build());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pull(PullRequestOptions pullRequestOptions) {
+        String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
+        connection.publish(publishSubject, getSubject(), pullRequestOptions.serialize());
+        connection.lenientFlushBuffer();
     }
 
     /**
@@ -57,7 +59,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pullNoWait(int batchSize) {
-        _pull(batchSize, true, null);
+        pull(PullRequestOptions.noWait(batchSize).build());
     }
 
     /**
@@ -65,8 +67,8 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pullNoWait(int batchSize, Duration expiresIn) {
-        durationGtZeroRequired(expiresIn, "NoWait");
-        _pull(batchSize, true, expiresIn);
+        durationGtZeroRequired(expiresIn, "NoWait With Expiration");
+        pull(PullRequestOptions.noWait(batchSize).expiresIn(expiresIn).build());
     }
 
     /**
@@ -74,8 +76,8 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pullNoWait(int batchSize, long expiresInMillis) {
-        durationGtZeroRequired(expiresInMillis, "NoWait");
-        _pull(batchSize, true, Duration.ofMillis(expiresInMillis));
+        durationGtZeroRequired(expiresInMillis, "NoWait With Expiration");
+        pull(PullRequestOptions.noWait(batchSize).expiresIn(expiresInMillis).build());
     }
 
     /**
@@ -84,7 +86,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     @Override
     public void pullExpiresIn(int batchSize, Duration expiresIn) {
         durationGtZeroRequired(expiresIn, "Expires In");
-        _pull(batchSize, false, expiresIn);
+        pull(PullRequestOptions.builder(batchSize).expiresIn(expiresIn).build());
     }
 
     /**
@@ -93,17 +95,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     @Override
     public void pullExpiresIn(int batchSize, long expiresInMillis) {
         durationGtZeroRequired(expiresInMillis, "Expires In");
-        _pull(batchSize, false, Duration.ofMillis(expiresInMillis));
-    }
-
-    private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
-        _pull(PullRequestOptions.builder().batchSize(batchSize).noWait(noWait).expiresIn(expiresIn).build());
-    }
-
-    private void _pull(PullRequestOptions opts) {
-        String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
-        connection.publish(publishSubject, getSubject(), opts.serialize());
-        connection.lenientFlushBuffer();
+        pull(PullRequestOptions.builder(batchSize).expiresIn(expiresInMillis).build());
     }
 
     /**
@@ -139,7 +131,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                 maxWaitMillis > MIN_MILLIS
                     ? maxWaitMillis - EXPIRE_LESS_MILLIS
                     : maxWaitMillis);
-            _pull(batchLeft, false, expires);
+            pull(PullRequestOptions.builder(batchLeft).expiresIn(expires).build());
 
             // timeout > 0 process as many messages we can in that time period
             // If we get a message that either manager handles, we try again, but
@@ -202,7 +194,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     @Override
     public Iterator<Message> iterate(int batchSize, Duration maxWait) {
         durationGtZeroRequired(maxWait, "Iterate");
-        return _iterate(batchSize, maxWait, null);
+        return _iterate(batchSize, maxWait.toMillis());
     }
 
     /**
@@ -211,10 +203,10 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     @Override
     public Iterator<Message> iterate(final int batchSize, long maxWaitMillis) {
         durationGtZeroRequired(maxWaitMillis, "Iterate");
-        return _iterate(batchSize, null, maxWaitMillis);
+        return _iterate(batchSize, maxWaitMillis);
     }
 
-    private Iterator<Message> _iterate(final int batchSize, Duration maxWait, Long maxWaitMillis) {
+    private Iterator<Message> _iterate(final int batchSize, long maxWaitMillis) {
         final List<Message> buffered = drainAlreadyBuffered(batchSize);
 
         // if there was a full batch buffered, no need to pull, just iterate over the list you already have
@@ -234,9 +226,9 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         }
 
         // if there were some messages buffered, reduce the raw pull batch size
-        _pull(batchLeft, false, maxWait == null ? Duration.ofMillis(maxWaitMillis) : maxWait);
+        pull(PullRequestOptions.builder(batchLeft).expiresIn(maxWaitMillis).build());
 
-        final long timeout = maxWaitMillis == null ? maxWait.toMillis() : maxWaitMillis;
+        final long timeout = maxWaitMillis;
 
         // the iterator is also more complicated
         return new Iterator<Message>() {

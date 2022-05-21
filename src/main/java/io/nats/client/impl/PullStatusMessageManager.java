@@ -23,22 +23,13 @@ class PullStatusMessageManager extends MessageManager {
 
     private static final List<Integer> PULL_KNOWN_STATUS_CODES = Arrays.asList(404, 408, 409);
 
-    private int lastStatusCode = -1;
-
     boolean manage(Message msg) {
         if (msg.isStatusMessage()) {
-            lastStatusCode = msg.getStatus().getCode();
-            if ( !PULL_KNOWN_STATUS_CODES.contains(lastStatusCode) ) {
+            if ( !PULL_KNOWN_STATUS_CODES.contains(msg.getStatus().getCode()) ) {
                 throw new JetStreamStatusException(sub, msg.getStatus());
             }
             return true;
         }
-
-        lastStatusCode = -1;
         return false;
-    }
-
-    public int getLastStatusCode() {
-        return lastStatusCode;
     }
 }
