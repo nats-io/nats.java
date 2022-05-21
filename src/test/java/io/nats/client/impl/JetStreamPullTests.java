@@ -625,4 +625,47 @@ public class JetStreamPullTests extends JetStreamTestBase {
     private interface SubscriptionSupplier {
         JetStreamSubscription get() throws IOException, JetStreamApiException;
     }
+
+    @Test
+    public void testPullRequestOptions() throws Exception {
+        assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder().batchSize(0).build());
+
+        PullRequestOptions pro = PullRequestOptions.builder()
+            .batchSize(1)
+            .build();
+
+        assertEquals(1, pro.getBatchSize());
+        assertEquals(0, pro.getMaxBytes());
+        assertNull(pro.getExpiresIn());
+        assertNull(pro.getIdleHeartbeat());
+        assertFalse(pro.isNoWait());
+
+        pro = PullRequestOptions.builder()
+            .batchSize(11)
+            .maxBytes(21)
+            .expiresIn(101)
+            .idleHeartbeat(201)
+            .noWait()
+            .build();
+
+        assertEquals(11, pro.getBatchSize());
+        assertEquals(21, pro.getMaxBytes());
+        assertEquals(101, pro.getExpiresIn().toMillis());
+        assertEquals(201, pro.getIdleHeartbeat().toMillis());
+        assertTrue(pro.isNoWait());
+
+        pro = PullRequestOptions.builder()
+            .batchSize(12)
+            .maxBytes(22)
+            .expiresIn(Duration.ofMillis(102))
+            .idleHeartbeat(Duration.ofMillis(202))
+            .noWait(true)
+            .build();
+
+        assertEquals(12, pro.getBatchSize());
+        assertEquals(22, pro.getMaxBytes());
+        assertEquals(102, pro.getExpiresIn().toMillis());
+        assertEquals(202, pro.getIdleHeartbeat().toMillis());
+        assertTrue(pro.isNoWait());
+    }
 }

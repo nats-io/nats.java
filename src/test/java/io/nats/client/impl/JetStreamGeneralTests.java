@@ -627,6 +627,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .maxAckPending(65000)
                 .maxDeliver(5)
                 .maxBatch(10)
+                .maxBytes(11)
                 .replayPolicy(ReplayPolicy.Instant)
                 .build();
             jsm.addOrUpdateConsumer(STREAM, cc);
@@ -642,6 +643,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .startSequence(42)
                 .maxDeliver(43)
                 .maxBatch(47)
+                .maxBytes(48)
                 .rateLimit(44)
                 .maxAckPending(45)
                 .build();
@@ -730,7 +732,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             changeExPush(js, pushDurableBuilder().inactiveThreshold(Duration.ofMillis(1000)), "inactiveThreshold");
 
             // value
-            changeExPush(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.Min), "maxDeliver");
+            changeExPush(js, pushDurableBuilder().maxDeliver(IntegerChangeHelper.MAX_DELIVER.Min), "maxDeliver");
             changeExPush(js, pushDurableBuilder().maxAckPending(0), "maxAckPending");
             changeExPush(js, pushDurableBuilder().ackWait(0), "ackWait");
 
@@ -739,7 +741,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             changeExPush(js, pushDurableBuilder().rateLimit(1), "rateLimit");
 
             // unset doesn't fail because the server provides a value equal to the unset
-            changeOkPush(js, pushDurableBuilder().maxDeliver(LongChangeHelper.MAX_DELIVER.Unset));
+            changeOkPush(js, pushDurableBuilder().maxDeliver(INTEGER_UNSET));
 
             // unset doesn't fail because the server does not provide a value
             // negatives are considered the unset
@@ -760,12 +762,14 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // value
             changeExPull(js, pullDurableBuilder().maxPullWaiting(0), "maxPullWaiting");
             changeExPull(js, pullDurableBuilder().maxBatch(0), "maxBatch");
+            changeExPull(js, pullDurableBuilder().maxBytes(0), "maxBytes");
 
             // unsets fail b/c the server does set a value
             changeExPull(js, pullDurableBuilder().maxPullWaiting(-1), "maxPullWaiting");
 
             // unset
             changeOkPull(js, pullDurableBuilder().maxBatch(-1));
+            changeOkPull(js, pullDurableBuilder().maxBytes(-1));
         });
     }
 
@@ -880,6 +884,11 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             PushSubscribeOptions pushCantHaveMb = PushSubscribeOptions.builder().configuration(ccCantHave).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushCantHaveMb));
             assertTrue(iae.getMessage().contains(JsSubPushCantHaveMaxBatch.id()));
+
+            ccCantHave = builder().maxBytes(1L).build();
+            PushSubscribeOptions pushCantHaveMby = PushSubscribeOptions.builder().configuration(ccCantHave).build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushCantHaveMby));
+            assertTrue(iae.getMessage().contains(JsSubPushCantHaveMaxBytes.id()));
 
             // create some consumers
             PushSubscribeOptions psoDurNoQ = PushSubscribeOptions.builder().durable("durNoQ").build();

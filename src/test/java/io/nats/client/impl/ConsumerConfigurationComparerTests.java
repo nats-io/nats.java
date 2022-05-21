@@ -25,7 +25,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 import static io.nats.client.api.ConsumerConfiguration.*;
-import static io.nats.client.api.ConsumerConfiguration.LongChangeHelper.MAX_DELIVER;
+import static io.nats.client.api.ConsumerConfiguration.IntegerChangeHelper.MAX_DELIVER;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -101,7 +101,7 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertNotChange(builder(orig).startSequence(null).build(), orig);
         assertChange(builder(orig).startSequence(1).build(), orig, "startSequence");
 
-        assertNotChange(builder(orig).maxDeliver(MAX_DELIVER.Unset).build(), orig);
+        assertNotChange(builder(orig).maxDeliver(INTEGER_UNSET).build(), orig);
         assertNotChange(builder(orig).maxDeliver(null).build(), orig);
         assertChange(builder(orig).maxDeliver(MAX_DELIVER.Min).build(), orig, "maxDeliver");
 
@@ -120,6 +120,10 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertNotChange(builder(orig).maxBatch(LONG_UNSET).build(), orig);
         assertNotChange(builder(orig).maxBatch(null).build(), orig);
         assertChange(builder(orig).maxBatch(1).build(), orig, "maxBatch");
+
+        assertNotChange(builder(orig).maxBytes(LONG_UNSET).build(), orig);
+        assertNotChange(builder(orig).maxBytes(null).build(), orig);
+        assertChange(builder(orig).maxBytes(1).build(), orig, "maxBytes");
 
         assertNotChange(builder(orig).filterSubject(EMPTY).build(), orig);
         ccTest = builder(orig).filterSubject(PLAIN).build();
@@ -165,15 +169,15 @@ public class ConsumerConfigurationComparerTests extends TestBase {
     @SuppressWarnings("ConstantConditions")
     @Test
     public void testChangeHelpers() {
-        for (LongChangeHelper h : LongChangeHelper.values()) {
+        for (IntegerChangeHelper h : IntegerChangeHelper.values()) {
             assertFalse(h.wouldBeChange(h.Min, h.Min));    // has value vs server has same value
             assertTrue(h.wouldBeChange(h.Min, h.Min + 1)); // has value vs server has different value
 
-            assertFalse(h.wouldBeChange(null, h.Min));       // value not set vs server has value
-            assertFalse(h.wouldBeChange(null, h.Unset));     // value not set vs server has unset value
+            assertFalse(h.wouldBeChange(null, h.Min));         // value not set vs server has value
+            assertFalse(h.wouldBeChange(null, INTEGER_UNSET));// value not set vs server has unset value
 
-            assertTrue(h.wouldBeChange(h.Min, null));        // has value vs server not set
-            assertFalse(h.wouldBeChange(h.Unset, null));     // has unset value versus server not set
+            assertTrue(h.wouldBeChange(h.Min, null));          // has value vs server not set
+            assertFalse(h.wouldBeChange(INTEGER_UNSET, null)); // has unset value versus server not set
         }
     }
 }

@@ -554,6 +554,11 @@ public abstract class JsonUtils {
         return dflt;
     }
 
+    public static Integer readInteger(String json, Pattern pattern) {
+        Matcher m = pattern.matcher(json);
+        return m.find() ? Integer.parseInt(m.group(1)) : null;
+    }
+
     public static int readInt(String json, Pattern pattern, int dflt) {
         Matcher m = pattern.matcher(json);
         return m.find() ? Integer.parseInt(m.group(1)) : dflt;

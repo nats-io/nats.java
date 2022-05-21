@@ -255,6 +255,10 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 throw JsSubPushCantHaveMaxBatch.instance();
             }
 
+            if (userCC.maxBytesWasSet()) {
+                throw JsSubPushCantHaveMaxBytes.instance();
+            }
+
             // figure out the queue name
             qgroup = validateMustMatchIfBothSupplied(userCC.getDeliverGroup(), queueName, JsSubQueueDeliverGroupMismatch);
             if (so.isOrdered() && qgroup != null) {
@@ -454,11 +458,12 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             record(rateLimit != null && !rateLimit.equals(serverCcc.getStartSequence()), "rateLimit", changes);
 
             // MaxDeliver is a special case because -1 and 0 are unset where other unsigned -1 is unset
-            record(LongChangeHelper.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.maxDeliver), "maxDeliver", changes);
+            record(IntegerChangeHelper.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.maxDeliver), "maxDeliver", changes);
 
-            record(maxAckPending != null && !maxAckPending.equals(serverCcc.getMaxAckPending()), "maxAckPending", changes);
-            record(maxPullWaiting != null && !maxPullWaiting.equals(serverCcc.getMaxPullWaiting()), "maxPullWaiting", changes);
-            record(maxBatch != null && !maxBatch.equals(serverCcc.getMaxBatch()), "maxBatch", changes);
+            record(maxAckPending != null && !maxAckPending.equals((int)serverCcc.getMaxAckPending()), "maxAckPending", changes);
+            record(maxPullWaiting != null && !maxPullWaiting.equals((int)serverCcc.getMaxPullWaiting()), "maxPullWaiting", changes);
+            record(maxBatch != null && !maxBatch.equals(serverCcc.getMaxBatch().intValue()), "maxBatch", changes);
+            record(maxBytes != null && !maxBytes.equals(serverCcc.getMaxBytes()), "maxBytes", changes);
 
             record(ackWait != null && !ackWait.equals(getOrUnset(serverCcc.ackWait)), "ackWait", changes);
             record(idleHeartbeat != null && !idleHeartbeat.equals(getOrUnset(serverCcc.idleHeartbeat)), "idleHeartbeat", changes);

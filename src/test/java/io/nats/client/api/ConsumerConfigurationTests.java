@@ -47,6 +47,7 @@ public class ConsumerConfigurationTests extends TestBase {
             .flowControl(66000) // duration
             .maxPullWaiting(73)
             .maxBatch(55)
+            .maxBytes(56)
             .maxExpires(77000) // duration
             .inactiveThreshold(88000) // duration
             .headersOnly(true)
@@ -120,6 +121,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertFalse(cc.flowControlWasSet());
         assertFalse(cc.headersOnlyWasSet());
         assertFalse(cc.maxBatchWasSet());
+        assertFalse(cc.maxBytesWasSet());
     }
 
     private void assertAsBuilt(ConsumerConfiguration c, ZonedDateTime zdt) {
@@ -141,6 +143,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(66), c.getIdleHeartbeat());
         assertEquals(73, c.getMaxPullWaiting());
         assertEquals(55, c.getMaxBatch());
+        assertEquals(56, c.getMaxBytes());
         assertEquals(Duration.ofSeconds(77), c.getMaxExpires());
         assertEquals(Duration.ofSeconds(88), c.getInactiveThreshold());
         assertTrue(c.isHeadersOnly());
@@ -155,6 +158,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertTrue(c.flowControlWasSet());
         assertTrue(c.headersOnlyWasSet());
         assertTrue(c.maxBatchWasSet());
+        assertTrue(c.maxBytesWasSet());
         assertEquals(3, c.getBackoff().size());
         assertEquals(Duration.ofSeconds(1), c.getBackoff().get(0));
         assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
@@ -185,6 +189,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertTrue(c.isHeadersOnly());
         assertEquals(99, c.getStartSequence());
         assertEquals(55, c.getMaxBatch());
+        assertEquals(56, c.getMaxBytes());
         assertEquals(Duration.ofSeconds(40), c.getMaxExpires());
         assertEquals(Duration.ofSeconds(50), c.getInactiveThreshold());
         assertEquals(3, c.getBackoff().size());

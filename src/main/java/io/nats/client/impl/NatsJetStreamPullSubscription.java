@@ -14,15 +14,12 @@
 package io.nats.client.impl;
 
 import io.nats.client.Message;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.PullRequestOptions;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
-import static io.nats.client.support.Validator.validateGtZero;
 
 public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
@@ -100,18 +97,13 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     }
 
     private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
-        int batch = validateGtZero(batchSize, "Pull batch size");
-        String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
-        connection.publish(publishSubject, getSubject(), getPullJson(batch, noWait, expiresIn));
-        connection.lenientFlushBuffer();
+        _pull(PullRequestOptions.builder().batchSize(batchSize).noWait(noWait).expiresIn(expiresIn).build());
     }
 
-    byte[] getPullJson(int batch, boolean noWait, Duration expiresIn) {
-        StringBuilder sb = JsonUtils.beginJson();
-        JsonUtils.addField(sb, "batch", batch);
-        JsonUtils.addFldWhenTrue(sb, "no_wait", noWait);
-        JsonUtils.addFieldAsNanos(sb, "expires", expiresIn);
-        return JsonUtils.endJson(sb).toString().getBytes(StandardCharsets.US_ASCII);
+    private void _pull(PullRequestOptions opts) {
+        String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
+        connection.publish(publishSubject, getSubject(), opts.serialize());
+        connection.lenientFlushBuffer();
     }
 
     /**

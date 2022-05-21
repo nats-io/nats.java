@@ -45,26 +45,6 @@ public class PurgeOptions implements JsonSerializable {
         return endJson(sb).toString();
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        PurgeOptions options = (PurgeOptions) o;
-
-        if (seq != options.seq) return false;
-        if (keep != options.keep) return false;
-        return subject != null ? subject.equals(options.subject) : options.subject == null;
-    }
-
-    @Override
-    public int hashCode() {
-        int result = subject != null ? subject.hashCode() : 0;
-        result = 31 * result + (int) (seq ^ (seq >>> 32));
-        result = 31 * result + (int) (keep ^ (keep >>> 32));
-        return result;
-    }
-
     /**
      * Get the subject for the Purge Options
      * @return the subject
@@ -141,6 +121,10 @@ public class PurgeOptions implements JsonSerializable {
             return this;
         }
 
+        /**
+         * Build the PurgeOptions
+         * @return the built PurgeOptions
+         */
         public PurgeOptions build() {
             validateSubject(subject, false);
 
