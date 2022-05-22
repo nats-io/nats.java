@@ -447,4 +447,19 @@ public class MessageManagerTests extends JetStreamTestBase {
         JetStream js = nc.jetStream();
         return (NatsJetStreamSubscription) js.subscribe(SUBJECT);
     }
+
+    static class TestMessageManager extends MessageManager {
+        NatsJetStreamSubscription getSub() { return sub; }
+    }
+
+    @Test
+    public void testMessageManagerInterfaceDefaultImplCoverage() {
+        TestMessageManager tmm = new TestMessageManager();
+        NatsJetStreamSubscription sub =
+            new NatsJetStreamSubscription("sid", "sub", null, null, null, null, "stream", "con", new MessageManager[]{tmm});
+        tmm.setSub(sub);
+        assertFalse(tmm.manage(null));
+        assertSame(sub, tmm.getSub());
+        tmm.shutdown();
+    }
 }

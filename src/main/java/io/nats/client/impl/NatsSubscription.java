@@ -90,7 +90,8 @@ class NatsSubscription extends NatsConsumer implements Subscription {
     }
 
     void setBeforeQueueProcessor(Function<NatsMessage, NatsMessage> beforeQueueProcessor) {
-        this.beforeQueueProcessor = beforeQueueProcessor == null ? m -> m : beforeQueueProcessor;
+        // assumes not null
+        this.beforeQueueProcessor = beforeQueueProcessor;
     }
 
     public Function<NatsMessage, NatsMessage> getBeforeQueueProcessor() {

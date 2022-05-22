@@ -345,7 +345,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the flow control mode
      */
     public boolean isFlowControl() {
-        return flowControl != null && flowControl;
+        return Boolean.TRUE.equals(flowControl);
     }
 
     /**
@@ -1072,11 +1072,11 @@ public class ConsumerConfiguration implements JsonSerializable {
         return val == null ? DURATION_UNSET : val;
     }
 
-    private static Integer normalizeToInt(Number proposed) {
+    protected static Integer normalizeToInt(Number proposed) {
         return normalizeToInt(proposed, LONG_UNSET + 1);
     }
 
-    private static Integer normalizeToInt(Number proposed, long min) {
+    protected static Integer normalizeToInt(Number proposed, long min) {
         if (proposed == null) {
             return null;
         }
@@ -1093,24 +1093,24 @@ public class ConsumerConfiguration implements JsonSerializable {
         return (int)l;
     }
 
-    private static Long normalizeUlong(Long u)
+    protected static Long normalizeUlong(Long u)
     {
         return u == null ? null : u <= ULONG_UNSET ? ULONG_UNSET : u;
     }
 
-    private static Duration normalize(Duration d)
+    protected static Duration normalize(Duration d)
     {
         return d == null ? null : d.toNanos() <= DURATION_UNSET_LONG ? DURATION_UNSET : d;
     }
 
-    private static Duration normalizeDuration(long millis)
+    protected static Duration normalizeDuration(long millis)
     {
         return millis <= DURATION_UNSET_LONG ? DURATION_UNSET : Duration.ofMillis(millis);
     }
 
-    private static DeliverPolicy GetOrDefault(DeliverPolicy p) { return p == null ? DEFAULT_DELIVER_POLICY : p; }
-    private static AckPolicy GetOrDefault(AckPolicy p) { return p == null ? DEFAULT_ACK_POLICY : p; }
-    private static ReplayPolicy GetOrDefault(ReplayPolicy p) { return p == null ? DEFAULT_REPLAY_POLICY : p; }
+    protected static DeliverPolicy GetOrDefault(DeliverPolicy p) { return p == null ? DEFAULT_DELIVER_POLICY : p; }
+    protected static AckPolicy GetOrDefault(AckPolicy p) { return p == null ? DEFAULT_ACK_POLICY : p; }
+    protected static ReplayPolicy GetOrDefault(ReplayPolicy p) { return p == null ? DEFAULT_REPLAY_POLICY : p; }
 
     /**
      * INTERNAL CLASS ONLY, SUBJECT TO CHANGE
