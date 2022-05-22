@@ -267,7 +267,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
 
         // 2A. Flow Control / heartbeat not always valid
-        if (userCC.isFlowControl() || (userCC.getIdleHeartbeat() != null && userCC.getIdleHeartbeat().toMillis() > 0)) {
+        if (userCC.getIdleHeartbeat() != null && userCC.getIdleHeartbeat().toMillis() > 0) {
             if (isPullMode) {
                 throw JsSubFcHbNotValidPull.instance();
             }
