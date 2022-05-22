@@ -696,13 +696,4 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertTrue(si.getConfiguration().getSealed());
         });
     }
-
-    @Test
-    public void testStorageTypeCoverage() {
-        assertEquals(StorageType.File, StorageType.get("file"));
-        assertEquals(StorageType.File, StorageType.get("FILE"));
-        assertEquals(StorageType.Memory, StorageType.get("memory"));
-        assertEquals(StorageType.Memory, StorageType.get("MEMORY"));
-        assertNull(StorageType.get("nope"));
-    }
 }
