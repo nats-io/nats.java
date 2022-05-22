@@ -732,7 +732,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             changeExPush(js, pushDurableBuilder().inactiveThreshold(Duration.ofMillis(1000)), "inactiveThreshold");
 
             // value
-            changeExPush(js, pushDurableBuilder().maxDeliver(IntegerChangeHelper.MAX_DELIVER.Min), "maxDeliver");
+            changeExPush(js, pushDurableBuilder().maxDeliver(MAX_DELIVER_MIN), "maxDeliver");
             changeExPush(js, pushDurableBuilder().maxAckPending(0), "maxAckPending");
             changeExPush(js, pushDurableBuilder().ackWait(0), "ackWait");
 

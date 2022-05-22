@@ -25,9 +25,9 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 import static io.nats.client.api.ConsumerConfiguration.*;
-import static io.nats.client.api.ConsumerConfiguration.IntegerChangeHelper.MAX_DELIVER;
 import static io.nats.client.support.NatsConstants.EMPTY;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ConsumerConfigurationComparerTests extends TestBase {
 
@@ -103,7 +103,7 @@ public class ConsumerConfigurationComparerTests extends TestBase {
 
         assertNotChange(builder(orig).maxDeliver(INTEGER_UNSET).build(), orig);
         assertNotChange(builder(orig).maxDeliver(null).build(), orig);
-        assertChange(builder(orig).maxDeliver(MAX_DELIVER.Min).build(), orig, "maxDeliver");
+        assertChange(builder(orig).maxDeliver(MAX_DELIVER_MIN).build(), orig, "maxDeliver");
 
         assertNotChange(builder(orig).rateLimit(ULONG_UNSET).build(), orig);
         assertNotChange(builder(orig).rateLimit(null).build(), orig);
@@ -164,20 +164,5 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         ccTest = builder(orig).backoff(1000, 2000).build();
         assertNotChange(ccTest, ccTest);
         assertChange(ccTest, orig, "backoff");
-    }
-
-    @SuppressWarnings("ConstantConditions")
-    @Test
-    public void testChangeHelpers() {
-        for (IntegerChangeHelper h : IntegerChangeHelper.values()) {
-            assertFalse(h.wouldBeChange(h.Min, h.Min));    // has value vs server has same value
-            assertTrue(h.wouldBeChange(h.Min, h.Min + 1)); // has value vs server has different value
-
-            assertFalse(h.wouldBeChange(null, h.Min));         // value not set vs server has value
-            assertFalse(h.wouldBeChange(null, INTEGER_UNSET));// value not set vs server has unset value
-
-            assertTrue(h.wouldBeChange(h.Min, null));          // has value vs server not set
-            assertFalse(h.wouldBeChange(INTEGER_UNSET, null)); // has unset value versus server not set
-        }
     }
 }

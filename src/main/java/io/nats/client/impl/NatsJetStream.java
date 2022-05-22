@@ -457,13 +457,11 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             record(startSeq != null && !startSeq.equals(serverCcc.getStartSequence()), "startSequence", changes);
             record(rateLimit != null && !rateLimit.equals(serverCcc.getStartSequence()), "rateLimit", changes);
 
-            // MaxDeliver is a special case because -1 and 0 are unset where other unsigned -1 is unset
-            record(IntegerChangeHelper.MAX_DELIVER.wouldBeChange(maxDeliver, serverCcc.maxDeliver), "maxDeliver", changes);
-
-            record(maxAckPending != null && !maxAckPending.equals((int)serverCcc.getMaxAckPending()), "maxAckPending", changes);
-            record(maxPullWaiting != null && !maxPullWaiting.equals((int)serverCcc.getMaxPullWaiting()), "maxPullWaiting", changes);
-            record(maxBatch != null && !maxBatch.equals(serverCcc.getMaxBatch().intValue()), "maxBatch", changes);
-            record(maxBytes != null && !maxBytes.equals(serverCcc.getMaxBytes()), "maxBytes", changes);
+            recordIfChanged(maxDeliver, serverCcc.getMaxDeliver(), "maxDeliver", changes);
+            recordIfChanged(maxAckPending, serverCcc.getMaxAckPending(), "maxAckPending", changes);
+            recordIfChanged(maxPullWaiting, serverCcc.getMaxPullWaiting(), "maxPullWaiting", changes);
+            recordIfChanged(maxBatch, serverCcc.getMaxBatch(), "maxBatch", changes);
+            recordIfChanged(maxBytes, serverCcc.getMaxBytes(), "maxBytes", changes);
 
             record(ackWait != null && !ackWait.equals(getOrUnset(serverCcc.ackWait)), "ackWait", changes);
             record(idleHeartbeat != null && !idleHeartbeat.equals(getOrUnset(serverCcc.idleHeartbeat)), "idleHeartbeat", changes);
@@ -483,6 +481,10 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             // do not need to check Durable because the original is retrieved by the durable name
 
             return changes;
+        }
+
+        private void recordIfChanged(Integer user, long server, String field, List<String> changes) {
+            record(user != null && user.longValue() != server, field, changes);
         }
 
         private void record(boolean isChange, String field, List<String> changes) {
