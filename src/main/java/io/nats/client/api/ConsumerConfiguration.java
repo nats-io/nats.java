@@ -51,6 +51,9 @@ public class ConsumerConfiguration implements JsonSerializable {
     public static final long ULONG_UNSET = 0;
     public static final long DURATION_UNSET_LONG = 0;
     public static final long DURATION_MIN_LONG = 1;
+    public static final int STANDARD_MIN = 0;
+    public static final int MAX_DELIVER_MIN = 1;
+
     public static final long MIN_IDLE_HEARTBEAT_NANOS = MIN_IDLE_HEARTBEAT.toNanos();
     public static final long MIN_IDLE_HEARTBEAT_MILLIS = MIN_IDLE_HEARTBEAT.toMillis();
 
@@ -287,8 +290,8 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the max delivery amount of this consumer configuration.
      * @return the max delivery amount.
      */
-    public long getMaxDeliver() {
-        return IntegerChangeHelper.MAX_DELIVER.getOrUnset(maxDeliver);
+    public int getMaxDeliver() {
+        return getOrUnset(maxDeliver);
     }
 
     /**
@@ -319,7 +322,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the maximum ack pending configuration.
      * @return maximum ack pending.
      */
-    public long getMaxAckPending() {
+    public int getMaxAckPending() {
         return getOrUnset(maxAckPending);
     }
 
@@ -345,14 +348,14 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the flow control mode
      */
     public boolean isFlowControl() {
-        return Boolean.TRUE.equals(flowControl);
+        return flowControl != null && flowControl;
     }
 
     /**
      * Get the number of pulls that can be outstanding on a pull consumer
      * @return the max pull waiting
      */
-    public long getMaxPullWaiting() {
+    public int getMaxPullWaiting() {
         return getOrUnset(maxPullWaiting);
     }
 
@@ -368,15 +371,15 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the max batch size for the server to allow on pull requests.
      * @return the max batch size
      */
-    public Long getMaxBatch() {
-        return (long)getOrUnset(maxBatch);
+    public int getMaxBatch() {
+        return getOrUnset(maxBatch);
     }
 
     /**
      * Get the max bytes size for the server to allow on pull requests.
      * @return the max byte size
      */
-    public Integer getMaxBytes() {
+    public int getMaxBytes() {
         return getOrUnset(maxBytes);
     }
 
@@ -707,7 +710,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxDeliver(Long maxDeliver) {
-            this.maxDeliver = IntegerChangeHelper.MAX_DELIVER.normalize(maxDeliver);
+            this.maxDeliver = normalizeToInt(maxDeliver, MAX_DELIVER_MIN);
             return this;
         }
 
@@ -717,7 +720,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxDeliver(long maxDeliver) {
-            this.maxDeliver = IntegerChangeHelper.MAX_DELIVER.normalize(maxDeliver);
+            this.maxDeliver = normalizeToInt(maxDeliver, MAX_DELIVER_MIN);
             return this;
         }
 
@@ -777,7 +780,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxAckPending(Long maxAckPending) {
-            this.maxAckPending = normalizeToInt(maxAckPending);
+            this.maxAckPending = normalizeToInt(maxAckPending, STANDARD_MIN);
             return this;
         }
 
@@ -787,7 +790,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxAckPending(long maxAckPending) {
-            this.maxAckPending = normalizeToInt(maxAckPending);
+            this.maxAckPending = normalizeToInt(maxAckPending, STANDARD_MIN);
             return this;
         }
 
@@ -900,7 +903,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxPullWaiting(Long maxPullWaiting) {
-            this.maxPullWaiting = normalizeToInt(maxPullWaiting);
+            this.maxPullWaiting = normalizeToInt(maxPullWaiting, STANDARD_MIN);
             return this;
         }
 
@@ -910,7 +913,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxPullWaiting(long maxPullWaiting) {
-            this.maxPullWaiting = normalizeToInt(maxPullWaiting);
+            this.maxPullWaiting = normalizeToInt(maxPullWaiting, STANDARD_MIN);
             return this;
         }
 
@@ -920,7 +923,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxBatch(Long maxBatch) {
-            this.maxBatch = normalizeToInt(maxBatch);
+            this.maxBatch = normalizeToInt(maxBatch, STANDARD_MIN);
             return this;
         }
 
@@ -930,7 +933,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxBatch(long maxBatch) {
-            this.maxBatch = normalizeToInt(maxBatch);
+            this.maxBatch = normalizeToInt(maxBatch, STANDARD_MIN);
             return this;
         }
 
@@ -940,7 +943,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxBytes(Long maxBytes) {
-            this.maxBytes = normalizeToInt(maxBytes);
+            this.maxBytes = normalizeToInt(maxBytes, STANDARD_MIN);
             return this;
         }
 
@@ -950,7 +953,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxBytes(long maxBytes) {
-            this.maxBytes = normalizeToInt(maxBytes);
+            this.maxBytes = normalizeToInt(maxBytes, STANDARD_MIN);
             return this;
         }
 
@@ -1072,16 +1075,11 @@ public class ConsumerConfiguration implements JsonSerializable {
         return val == null ? DURATION_UNSET : val;
     }
 
-    protected static Integer normalizeToInt(Number proposed) {
-        return normalizeToInt(proposed, LONG_UNSET + 1);
-    }
-
-    protected static Integer normalizeToInt(Number proposed, long min) {
-        if (proposed == null) {
+    private static Integer normalizeToInt(Long l, int min) {
+        if (l == null) {
             return null;
         }
 
-        long l = proposed.longValue();
         if (l < min) {
             return INTEGER_UNSET;
         }
@@ -1090,51 +1088,25 @@ public class ConsumerConfiguration implements JsonSerializable {
             return Integer.MAX_VALUE;
         }
 
-        return (int)l;
+        return l.intValue();
     }
 
-    protected static Long normalizeUlong(Long u)
+    private static Long normalizeUlong(Long u)
     {
         return u == null ? null : u <= ULONG_UNSET ? ULONG_UNSET : u;
     }
 
-    protected static Duration normalize(Duration d)
+    private static Duration normalize(Duration d)
     {
         return d == null ? null : d.toNanos() <= DURATION_UNSET_LONG ? DURATION_UNSET : d;
     }
 
-    protected static Duration normalizeDuration(long millis)
+    private static Duration normalizeDuration(long millis)
     {
         return millis <= DURATION_UNSET_LONG ? DURATION_UNSET : Duration.ofMillis(millis);
     }
 
-    protected static DeliverPolicy GetOrDefault(DeliverPolicy p) { return p == null ? DEFAULT_DELIVER_POLICY : p; }
-    protected static AckPolicy GetOrDefault(AckPolicy p) { return p == null ? DEFAULT_ACK_POLICY : p; }
-    protected static ReplayPolicy GetOrDefault(ReplayPolicy p) { return p == null ? DEFAULT_REPLAY_POLICY : p; }
-
-    /**
-     * INTERNAL CLASS ONLY, SUBJECT TO CHANGE
-     * Helper class to manage min / default / unset / server values.
-     */
-    public enum IntegerChangeHelper {
-        MAX_DELIVER(1);  // 0 is treated the same as -1 on the server, which is why the server doesn't omit this
-
-        public final int Min;
-
-        IntegerChangeHelper(int min) {
-            Min = min;
-        }
-
-        public int getOrUnset(Integer val) {
-            return val == null ? INTEGER_UNSET : val;
-        }
-
-        public boolean wouldBeChange(Integer user, Integer server) {
-            return user != null && !user.equals(getOrUnset(server));
-        }
-
-        public Integer normalize(Number proposed) {
-            return normalizeToInt(proposed, Min);
-        }
-    }
+    private static DeliverPolicy GetOrDefault(DeliverPolicy p) { return p == null ? DEFAULT_DELIVER_POLICY : p; }
+    private static AckPolicy GetOrDefault(AckPolicy p) { return p == null ? DEFAULT_ACK_POLICY : p; }
+    private static ReplayPolicy GetOrDefault(ReplayPolicy p) { return p == null ? DEFAULT_REPLAY_POLICY : p; }
 }
