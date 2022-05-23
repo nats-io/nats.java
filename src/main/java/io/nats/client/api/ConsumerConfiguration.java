@@ -290,7 +290,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the max delivery amount of this consumer configuration.
      * @return the max delivery amount.
      */
-    public long getMaxDeliver() {
+    public int getMaxDeliver() {
         return getOrUnset(maxDeliver);
     }
 
@@ -322,7 +322,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the maximum ack pending configuration.
      * @return maximum ack pending.
      */
-    public long getMaxAckPending() {
+    public int getMaxAckPending() {
         return getOrUnset(maxAckPending);
     }
 
@@ -355,7 +355,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the number of pulls that can be outstanding on a pull consumer
      * @return the max pull waiting
      */
-    public long getMaxPullWaiting() {
+    public int getMaxPullWaiting() {
         return getOrUnset(maxPullWaiting);
     }
 
@@ -371,7 +371,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the max batch size for the server to allow on pull requests.
      * @return the max batch size
      */
-    public long getMaxBatch() {
+    public int getMaxBatch() {
         return getOrUnset(maxBatch);
     }
 
@@ -1075,12 +1075,11 @@ public class ConsumerConfiguration implements JsonSerializable {
         return val == null ? DURATION_UNSET : val;
     }
 
-    private static Integer normalizeToInt(Number proposed, long min) {
-        if (proposed == null) {
+    private static Integer normalizeToInt(Long l, int min) {
+        if (l == null) {
             return null;
         }
 
-        long l = proposed.longValue();
         if (l < min) {
             return INTEGER_UNSET;
         }
@@ -1089,7 +1088,7 @@ public class ConsumerConfiguration implements JsonSerializable {
             return Integer.MAX_VALUE;
         }
 
-        return (int)l;
+        return l.intValue();
     }
 
     private static Long normalizeUlong(Long u)
