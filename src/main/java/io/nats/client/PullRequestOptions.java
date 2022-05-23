@@ -92,7 +92,7 @@ public class PullRequestOptions implements JsonSerializable {
     }
 
     /**
-     * Creates a builder for the pull options, starting with batchsize
+     * Creates a builder for the pull options, with batch size since it's always required
      * @param batchSize the size of the batch. Must be greater than 0
      * @return a pull options builder
      */
@@ -101,7 +101,7 @@ public class PullRequestOptions implements JsonSerializable {
     }
 
     /**
-     * Creates a builder for the pull options, setting no wait and batchsize
+     * Creates a builder for the pull options, setting no wait to true and accepting batch size
      * @param batchSize the size of the batch. Must be greater than 0
      * @return a pull options builder
      */
@@ -117,7 +117,7 @@ public class PullRequestOptions implements JsonSerializable {
         private Duration idleHeartbeat;
 
         /**
-         * Set the batch size
+         * Set the batch size for the pull
          * @param batchSize the size of the batch. Must be greater than 0
          * @return the builder
          */
@@ -127,8 +127,8 @@ public class PullRequestOptions implements JsonSerializable {
         }
 
         /**
-         *
-         * @param maxBytes
+         * The maximum bytes for the pull
+         * @param maxBytes the maximum bytes
          * @return the builder
          */
         public Builder maxBytes(int maxBytes) {
@@ -176,7 +176,7 @@ public class PullRequestOptions implements JsonSerializable {
         }
 
         /**
-         * Set the idle heartbeat in millis
+         * Set the idle heartbeat time in millis
          * @param idleHeartbeatMillis the millis
          * @return the builder
          */

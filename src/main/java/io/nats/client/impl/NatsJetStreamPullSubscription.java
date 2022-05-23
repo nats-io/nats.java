@@ -67,7 +67,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pullNoWait(int batchSize, Duration expiresIn) {
-        durationGtZeroRequired(expiresIn, "NoWait With Expiration");
+        durationGtZeroRequired(expiresIn, "NoWait Expires In");
         pull(PullRequestOptions.noWait(batchSize).expiresIn(expiresIn).build());
     }
 
@@ -76,7 +76,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pullNoWait(int batchSize, long expiresInMillis) {
-        durationGtZeroRequired(expiresInMillis, "NoWait With Expiration");
+        durationGtZeroRequired(expiresInMillis, "NoWait Expires In");
         pull(PullRequestOptions.noWait(batchSize).expiresIn(expiresInMillis).build());
     }
 
