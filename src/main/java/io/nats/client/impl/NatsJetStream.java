@@ -449,11 +449,11 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             if (startSeq != null && !startSeq.equals(serverCcc.getStartSequence())) { changes.add("startSequence"); };
             if (rateLimit != null && !rateLimit.equals(serverCcc.getStartSequence())) { changes.add("rateLimit"); };
 
-            if (maxDeliver != null && maxDeliver.equals(serverCcc.getMaxDeliver())) { changes.add("maxDeliver"); };
-            if (maxAckPending != null && maxAckPending.equals(serverCcc.getMaxAckPending())) { changes.add("maxAckPending"); };
-            if (maxPullWaiting != null && maxPullWaiting.equals(serverCcc.getMaxPullWaiting())) { changes.add("maxPullWaiting"); };
-            if (maxBatch != null && maxBatch.equals(serverCcc.getMaxBatch())) { changes.add("maxBatch"); };
-            if (maxBytes != null && maxBytes.equals(serverCcc.getMaxBytes())) { changes.add("maxBytes"); };
+            if (maxDeliver != null && !maxDeliver.equals(serverCcc.getMaxDeliver())) { changes.add("maxDeliver"); };
+            if (maxAckPending != null && !maxAckPending.equals(serverCcc.getMaxAckPending())) { changes.add("maxAckPending"); };
+            if (maxPullWaiting != null && !maxPullWaiting.equals(serverCcc.getMaxPullWaiting())) { changes.add("maxPullWaiting"); };
+            if (maxBatch != null && !maxBatch.equals(serverCcc.getMaxBatch())) { changes.add("maxBatch"); };
+            if (maxBytes != null && !maxBytes.equals(serverCcc.getMaxBytes())) { changes.add("maxBytes"); };
 
             if (ackWait != null && !ackWait.equals(getOrUnset(serverCcc.ackWait))) { changes.add("ackWait"); };
             if (idleHeartbeat != null && !idleHeartbeat.equals(getOrUnset(serverCcc.idleHeartbeat))) { changes.add("idleHeartbeat"); };
