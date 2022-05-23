@@ -447,48 +447,40 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             ConsumerConfigurationComparer serverCcc = new ConsumerConfigurationComparer(serverCc);
             List<String> changes = new ArrayList<>();
 
-            record(deliverPolicy != null && deliverPolicy != serverCcc.getDeliverPolicy(), "deliverPolicy", changes);
-            record(ackPolicy != null && ackPolicy != serverCcc.getAckPolicy(), "ackPolicy", changes);
-            record(replayPolicy != null && replayPolicy != serverCcc.getReplayPolicy(), "replayPolicy", changes);
+            if (deliverPolicy != null && deliverPolicy != serverCcc.getDeliverPolicy()) { changes.add("deliverPolicy"); };
+            if (ackPolicy != null && ackPolicy != serverCcc.getAckPolicy()) { changes.add("ackPolicy"); };
+            if (replayPolicy != null && replayPolicy != serverCcc.getReplayPolicy()) { changes.add("replayPolicy"); };
 
-            record(flowControl != null && flowControl != serverCcc.isFlowControl(), "flowControl", changes);
-            record(headersOnly != null && headersOnly != serverCcc.isHeadersOnly(), "headersOnly", changes);
+            if (flowControl != null && flowControl != serverCcc.isFlowControl()) { changes.add("flowControl"); };
+            if (headersOnly != null && headersOnly != serverCcc.isHeadersOnly()) { changes.add("headersOnly"); };
 
-            record(startSeq != null && !startSeq.equals(serverCcc.getStartSequence()), "startSequence", changes);
-            record(rateLimit != null && !rateLimit.equals(serverCcc.getStartSequence()), "rateLimit", changes);
+            if (startSeq != null && !startSeq.equals(serverCcc.getStartSequence())) { changes.add("startSequence"); };
+            if (rateLimit != null && !rateLimit.equals(serverCcc.getStartSequence())) { changes.add("rateLimit"); };
 
-            recordIfChanged(maxDeliver, serverCcc.getMaxDeliver(), "maxDeliver", changes);
-            recordIfChanged(maxAckPending, serverCcc.getMaxAckPending(), "maxAckPending", changes);
-            recordIfChanged(maxPullWaiting, serverCcc.getMaxPullWaiting(), "maxPullWaiting", changes);
-            recordIfChanged(maxBatch, serverCcc.getMaxBatch(), "maxBatch", changes);
-            recordIfChanged(maxBytes, serverCcc.getMaxBytes(), "maxBytes", changes);
+            if (maxDeliver != null && maxDeliver.equals(serverCcc.getMaxDeliver())) { changes.add("maxDeliver"); };
+            if (maxAckPending != null && maxAckPending.equals(serverCcc.getMaxAckPending())) { changes.add("maxAckPending"); };
+            if (maxPullWaiting != null && maxPullWaiting.equals(serverCcc.getMaxPullWaiting())) { changes.add("maxPullWaiting"); };
+            if (maxBatch != null && maxBatch.equals(serverCcc.getMaxBatch())) { changes.add("maxBatch"); };
+            if (maxBytes != null && maxBytes.equals(serverCcc.getMaxBytes())) { changes.add("maxBytes"); };
 
-            record(ackWait != null && !ackWait.equals(getOrUnset(serverCcc.ackWait)), "ackWait", changes);
-            record(idleHeartbeat != null && !idleHeartbeat.equals(getOrUnset(serverCcc.idleHeartbeat)), "idleHeartbeat", changes);
-            record(maxExpires != null && !maxExpires.equals(getOrUnset(serverCcc.maxExpires)), "maxExpires", changes);
-            record(inactiveThreshold != null && !inactiveThreshold.equals(getOrUnset(serverCcc.inactiveThreshold)), "inactiveThreshold", changes);
+            if (ackWait != null && !ackWait.equals(getOrUnset(serverCcc.ackWait))) { changes.add("ackWait"); };
+            if (idleHeartbeat != null && !idleHeartbeat.equals(getOrUnset(serverCcc.idleHeartbeat))) { changes.add("idleHeartbeat"); };
+            if (maxExpires != null && !maxExpires.equals(getOrUnset(serverCcc.maxExpires))) { changes.add("maxExpires"); };
+            if (inactiveThreshold != null && !inactiveThreshold.equals(getOrUnset(serverCcc.inactiveThreshold))) { changes.add("inactiveThreshold"); };
 
-            record(startTime != null && !startTime.equals(serverCcc.startTime), "startTime", changes);
+            if (startTime != null && !startTime.equals(serverCcc.startTime)) { changes.add("startTime"); };
 
-            record(filterSubject != null && !filterSubject.equals(serverCcc.filterSubject), "filterSubject", changes);
-            record(description != null && !description.equals(serverCcc.description), "description", changes);
-            record(sampleFrequency != null && !sampleFrequency.equals(serverCcc.sampleFrequency), "sampleFrequency", changes);
-            record(deliverSubject != null && !deliverSubject.equals(serverCcc.deliverSubject), "deliverSubject", changes);
-            record(deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup), "deliverGroup", changes);
+            if (filterSubject != null && !filterSubject.equals(serverCcc.filterSubject)) { changes.add("filterSubject"); };
+            if (description != null && !description.equals(serverCcc.description)) { changes.add("description"); };
+            if (sampleFrequency != null && !sampleFrequency.equals(serverCcc.sampleFrequency)) { changes.add("sampleFrequency"); };
+            if (deliverSubject != null && !deliverSubject.equals(serverCcc.deliverSubject)) { changes.add("deliverSubject"); };
+            if (deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup)) { changes.add("deliverGroup"); };
 
-            record(!backoff.equals(serverCcc.backoff), "backoff", changes); // backoff will never be null, but can be empty
+            if (!backoff.equals(serverCcc.backoff)) { changes.add("backoff"); }; // backoff will never be null, but can be empty
 
             // do not need to check Durable because the original is retrieved by the durable name
 
             return changes;
-        }
-
-        private void recordIfChanged(Integer user, long server, String field, List<String> changes) {
-            record(user != null && user.longValue() != server, field, changes);
-        }
-
-        private void record(boolean isChange, String field, List<String> changes) {
-            if (isChange) { changes.add(field); }
         }
     }
 
