@@ -933,11 +933,11 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             PushSubscribeOptions psoPushCcFc = PushSubscribeOptions.builder().configuration(ccFc).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, "cantHaveQ", psoPushCcFc));
-            assertTrue(iae.getMessage().contains(JsSubFcHbHbNotValidQueue.id()));
+            assertTrue(iae.getMessage().contains(JsSubFcHbNotValidQueue.id()));
 
             PushSubscribeOptions psoPushCcHb = PushSubscribeOptions.builder().configuration(ccHb).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, "cantHaveQ", psoPushCcHb));
-            assertTrue(iae.getMessage().contains(JsSubFcHbHbNotValidQueue.id()));
+            assertTrue(iae.getMessage().contains(JsSubFcHbNotValidQueue.id()));
         });
     }
 }

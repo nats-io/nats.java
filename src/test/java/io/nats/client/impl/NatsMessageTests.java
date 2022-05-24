@@ -121,6 +121,8 @@ public class NatsMessageTests {
         m.ack();
         m.ackSync(Duration.ZERO);
         m.nak();
+        m.nakWithDelay(Duration.ZERO);
+        m.nakWithDelay(0);
         m.inProgress();
         m.term();
         assertThrows(IllegalStateException.class, m::metaData);
@@ -137,6 +139,13 @@ public class NatsMessageTests {
         assertFalse(m.isStatusMessage());
         assertNotNull(m.toString());
         assertNotNull(m.toDetailString());
+
+        m = NatsMessage.builder()
+            .subject("test").replyTo("reply")
+            .data("very long data to string truncates with dot dot dot", StandardCharsets.US_ASCII)
+            .build();
+        assertNotNull(m.toString());
+        assertTrue(m.toString().contains("..."));
 
         // no reply to, no data
         m = NatsMessage.builder().subject("test").build();

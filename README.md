@@ -574,7 +574,7 @@ Subscription creation has many checks to make sure that a valid, operable subscr
 | JsSubPushCantHaveMaxPullWaiting | SUB | 90003 | Push subscriptions cannot supply max pull waiting. |
 | JsSubQueueDeliverGroupMismatch | SUB | 90004 | Queue / deliver group mismatch. |
 | JsSubFcHbNotValidPull | SUB | 90005 | Flow Control and/or heartbeat is not valid with a pull subscription. |
-| JsSubFcHbHbNotValidQueue | SUB | 90006 | Flow Control and/or heartbeat is not valid in queue mode. |
+| JsSubFcHbNotValidQueue | SUB | 90006 | Flow Control and/or heartbeat is not valid in queue mode. |
 | JsSubNoMatchingStreamForSubject | SUB | 90007 | No matching streams for subject. |
 | JsSubConsumerAlreadyConfiguredAsPush | SUB | 90008 | Consumer is already configured as a push consumer. |
 | JsSubConsumerAlreadyConfiguredAsPull | SUB | 90009 | Consumer is already configured as a pull consumer. |

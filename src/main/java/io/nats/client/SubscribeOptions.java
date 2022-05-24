@@ -50,7 +50,7 @@ public abstract class SubscribeOptions {
         stream = validateStreamName(builder.stream, bind); // required when bind mode
 
         String durable = validateMustMatchIfBothSupplied(builder.durable, builder.cc == null ? null : builder.cc.getDurable(), JsSoDurableMismatch);
-        durable = validateDurable(durable, pull || bind); // required when pull or bind
+        durable = validateDurable(durable, bind); // required when bind
 
         deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, builder.cc == null ? null : builder.cc.getDeliverGroup(), JsSoDeliverGroupMismatch);
 

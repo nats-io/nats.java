@@ -45,11 +45,20 @@ public class KeyValueOptions {
 
     /**
      * Creates a builder to copy the options.
+     * @param kvo an existing KeyValueOptions
+     * @return a stream configuration builder
+     */
+    public static Builder builder(KeyValueOptions kvo) {
+        return new Builder(kvo);
+    }
+
+    /**
+     * Creates a builder to copy the options.
      * @param jso an existing JetStreamOptions
      * @return a stream configuration builder
      */
-    public static Builder builder(KeyValueOptions jso) {
-        return new Builder(jso);
+    public static Builder builder(JetStreamOptions jso) {
+        return new Builder().jetStreamOptions(jso);
     }
 
     /**

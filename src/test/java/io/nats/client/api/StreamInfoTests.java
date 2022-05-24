@@ -22,6 +22,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static io.nats.client.support.ApiConstants.DELETED_DETAILS;
+import static io.nats.client.support.ApiConstants.SUBJECTS_FILTER;
 import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static io.nats.client.support.JsonUtils.printFormatted;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
@@ -157,5 +159,26 @@ public class StreamInfoTests {
     public void testToString() {
         // COVERAGE
         assertNotNull(new StreamInfo(json).toString());
+    }
+
+    @Test
+    public void testStreamInfoOptionsCoverage() {
+        StreamInfoOptions opts = StreamInfoOptions.filterSubjects("sub");
+        String json = opts.toJson();
+        assertTrue(json.contains(SUBJECTS_FILTER));
+        assertTrue(json.contains("sub"));
+        assertFalse(json.contains(DELETED_DETAILS));
+
+        opts = StreamInfoOptions.allSubjects();
+        json = opts.toJson();
+        assertTrue(json.contains(SUBJECTS_FILTER));
+        assertTrue(json.contains(">"));
+        assertFalse(json.contains(DELETED_DETAILS));
+
+        opts = StreamInfoOptions.deletedDetails();
+        json = opts.toJson();
+        assertTrue(json.contains(DELETED_DETAILS));
+        assertTrue(json.contains("true"));
+        assertFalse(json.contains(SUBJECTS_FILTER));
     }
 }

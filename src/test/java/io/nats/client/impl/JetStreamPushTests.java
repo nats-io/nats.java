@@ -308,7 +308,10 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
     private void assertCantPullOnPushSub(JetStreamSubscription sub) {
         assertThrows(IllegalStateException.class, () -> sub.pull(1));
+        assertThrows(IllegalStateException.class, () -> sub.pull(PullRequestOptions.builder(1).build()));
         assertThrows(IllegalStateException.class, () -> sub.pullNoWait(1));
+        assertThrows(IllegalStateException.class, () -> sub.pullNoWait(1, Duration.ofSeconds(1)));
+        assertThrows(IllegalStateException.class, () -> sub.pullNoWait(1, 1000));
         assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, Duration.ofSeconds(1)));
         assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, 1000));
         assertThrows(IllegalStateException.class, () -> sub.fetch(1, 1000));
@@ -361,6 +364,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             String data = new String(message.getData());
             assertEquals("TERM1", data);
             message.term();
+            assertEquals(AckType.AckTerm, message.lastAck());
 
             assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
@@ -373,6 +377,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertEquals("WAIT1", data);
             sleep(2000);
             message.ack(); // this ack came too late so will be ignored
+            assertEquals(AckType.AckAck, message.lastAck());
 
             message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
@@ -387,14 +392,19 @@ public class JetStreamPushTests extends JetStreamTestBase {
             data = new String(message.getData());
             assertEquals("PRO1", data);
             message.inProgress();
+            assertEquals(AckType.AckProgress, message.lastAck());
             sleep(750);
             message.inProgress();
+            assertEquals(AckType.AckProgress, message.lastAck());
             sleep(750);
             message.inProgress();
+            assertEquals(AckType.AckProgress, message.lastAck());
             sleep(750);
             message.inProgress();
+            assertEquals(AckType.AckProgress, message.lastAck());
             sleep(750);
             message.ack();
+            assertEquals(AckType.AckAck, message.lastAck());
 
             assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
@@ -406,6 +416,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             data = new String(message.getData());
             assertEquals("ACKSYNC1", data);
             message.ackSync(Duration.ofSeconds(1));
+            assertEquals(AckType.AckAck, message.lastAck());
 
             assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
@@ -417,12 +428,14 @@ public class JetStreamPushTests extends JetStreamTestBase {
             data = new String(message.getData());
             assertEquals("NAK1", data);
             message.nak();
+            assertEquals(AckType.AckNak, message.lastAck());
 
             message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
             data = new String(message.getData());
             assertEquals("NAK1", data);
             message.ack();
+            assertEquals(AckType.AckAck, message.lastAck());
 
             assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
@@ -433,6 +446,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             data = new String(message.getData());
             assertEquals("NAK2", data);
             message.nakWithDelay(3000);
+            assertEquals(AckType.AckNak, message.lastAck());
 
             assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
@@ -441,6 +455,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             data = new String(message.getData());
             assertEquals("NAK2", data);
             message.ack();
+            assertEquals(AckType.AckAck, message.lastAck());
 
             assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
@@ -451,6 +466,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             data = new String(message.getData());
             assertEquals("NAK3", data);
             message.nakWithDelay(Duration.ofSeconds(3)); // coverage to use both nakWithDelay
+            assertEquals(AckType.AckNak, message.lastAck());
 
             assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
@@ -459,6 +475,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             data = new String(message.getData());
             assertEquals("NAK3", data);
             message.ack();
+            assertEquals(AckType.AckAck, message.lastAck());
 
             assertNull(sub.nextMessage(Duration.ofMillis(500)));
         });
