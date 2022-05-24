@@ -229,7 +229,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             validateRedAndTotal(0, messages.size(), 10, total);
 
             // re-issue the pull
-            sub.pull(10);
+            sub.pull(PullRequestOptions.builder(10).build()); // coverage of the build api
 
             // read what is available, should be 4 left over
             messages = readMessagesAck(sub);
@@ -624,5 +624,47 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     private interface SubscriptionSupplier {
         JetStreamSubscription get() throws IOException, JetStreamApiException;
+    }
+
+    @Test
+    public void testPullRequestOptions() {
+        assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(0).build());
+        assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(-1).build());
+
+        PullRequestOptions pro = PullRequestOptions.builder(11).build();
+        assertEquals(11, pro.getBatchSize());
+        assertEquals(0, pro.getMaxBytes());
+        assertNull(pro.getExpiresIn());
+        assertNull(pro.getIdleHeartbeat());
+        assertFalse(pro.isNoWait());
+
+        pro = PullRequestOptions.noWait(21).build();
+        assertEquals(21, pro.getBatchSize());
+        assertEquals(0, pro.getMaxBytes());
+        assertNull(pro.getExpiresIn());
+        assertNull(pro.getIdleHeartbeat());
+        assertTrue(pro.isNoWait());
+
+        pro = PullRequestOptions.builder(31)
+            .maxBytes(32)
+            .expiresIn(33)
+            .idleHeartbeat(34)
+            .noWait()
+            .build();
+        assertEquals(31, pro.getBatchSize());
+        assertEquals(32, pro.getMaxBytes());
+        assertEquals(33, pro.getExpiresIn().toMillis());
+        assertEquals(34, pro.getIdleHeartbeat().toMillis());
+        assertTrue(pro.isNoWait());
+
+        pro = PullRequestOptions.builder(41)
+            .expiresIn(Duration.ofMillis(43))
+            .idleHeartbeat(Duration.ofMillis(44))
+            .build();
+        assertEquals(41, pro.getBatchSize());
+        assertEquals(0, pro.getMaxBytes());
+        assertEquals(43, pro.getExpiresIn().toMillis());
+        assertEquals(44, pro.getIdleHeartbeat().toMillis());
+        assertFalse(pro.isNoWait());
     }
 }

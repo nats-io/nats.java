@@ -87,12 +87,6 @@ public class SubscribeOptionsTests extends TestBase {
         assertNull(PushSubscribeOptions.builder().build().getDurable());
 
         // pull
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder()
-                .durable(null)
-                .configuration(ConsumerConfiguration.builder().durable(null).build())
-                .build()
-                .getDurable());
-
         assertEquals("y", PullSubscribeOptions.builder()
                 .durable(null)
                 .configuration(ConsumerConfiguration.builder().durable("y").build())
@@ -115,8 +109,6 @@ public class SubscribeOptionsTests extends TestBase {
                 .durable("x")
                 .configuration(ConsumerConfiguration.builder().durable("y").build())
                 .build());
-
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().build());
     }
 
     @Test
@@ -227,13 +219,6 @@ public class SubscribeOptionsTests extends TestBase {
 
         ConsumerConfiguration ccBadDur = ConsumerConfiguration.builder().durable(HAS_DOT).build();
         assertThrows(IllegalArgumentException.class, () -> builder1.configuration(ccBadDur).build());
-
-        // durable required direct or in configuration
-        PullSubscribeOptions.Builder builder2 = PullSubscribeOptions.builder();
-        assertThrows(IllegalArgumentException.class, builder2::build);
-
-        ConsumerConfiguration ccNoDur = ConsumerConfiguration.builder().build();
-        assertThrows(IllegalArgumentException.class, () -> builder2.configuration(ccNoDur).build());
 
         // durable directly
         PullSubscribeOptions.builder().durable(DURABLE).build();

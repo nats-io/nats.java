@@ -26,6 +26,7 @@ public interface ApiConstants {
     String API               = "api";
     String AUTH_REQUIRED     = "auth_required";
     String BACKOFF           = "backoff";
+    String BATCH             = "batch";
     String BYTES             = "bytes";
     String CLIENT_ID         = "client_id";
     String CLIENT_IP         = "client_ip";
@@ -56,6 +57,7 @@ public interface ApiConstants {
     String DURABLE_NAME      = "durable_name";
     String ERR_CODE          = "err_code";
     String ERROR             = "error";
+    String EXPIRES           = "expires";
     String EXTERNAL          = "external";
     String FILTER            = "filter";
     String FILTER_SUBJECT    = "filter_subject";
@@ -98,6 +100,7 @@ public interface ApiConstants {
     String MIRROR            = "mirror";
     String NAME              = "name";
     String NO_ACK            = "no_ack";
+    String NO_WAIT           = "no_wait";
     String NONCE             = "nonce";
     String NUM_ACK_PENDING   = "num_ack_pending";
     String NUM_DELETED       = "num_deleted";

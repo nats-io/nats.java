@@ -26,7 +26,7 @@ import java.util.List;
 public interface JetStreamSubscription extends Subscription {
 
     /**
-     * Polls for new messages, overriding the default batch size for this pull only.
+     * Initiate pull with the specified batch size.
      *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
@@ -37,7 +37,18 @@ public interface JetStreamSubscription extends Subscription {
     void pull(int batchSize);
 
     /**
-     * Do a pull in noWait mode with the specified batch size.
+     * Initiate pull with the specified request options
+     *
+     * ! Pull subscriptions only. Push subscription will throw IllegalStateException
+     * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
+     *
+     * @param pullRequestOptions the options object
+     * @throws IllegalStateException if not a pull subscription.
+     */
+    void pull(PullRequestOptions pullRequestOptions);
+
+    /**
+     * Initiate pull in noWait mode with the specified batch size.
      *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
@@ -48,7 +59,7 @@ public interface JetStreamSubscription extends Subscription {
     void pullNoWait(int batchSize);
 
     /**
-     * Do a pull in noWait mode with the specified batch size.
+     * Initiate pull in noWait mode with the specified batch size.
      *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
@@ -60,7 +71,7 @@ public interface JetStreamSubscription extends Subscription {
     void pullNoWait(int batchSize, Duration expiresIn);
 
     /**
-     * Do a pull in noWait mode with the specified batch size.
+     * Initiate pull in noWait mode with the specified batch size.
      *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      * ! Primitive API for Advanced use only. Prefer Fetch or Iterate

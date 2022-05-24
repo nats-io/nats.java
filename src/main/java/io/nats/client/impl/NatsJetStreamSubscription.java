@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamSubscription;
 import io.nats.client.Message;
+import io.nats.client.PullRequestOptions;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.support.NatsJetStreamConstants;
 
@@ -147,6 +148,14 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pull(int batchSize) {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pull(PullRequestOptions pullRequestOptions) {
         throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 

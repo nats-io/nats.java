@@ -25,9 +25,9 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 import static io.nats.client.api.ConsumerConfiguration.*;
-import static io.nats.client.api.ConsumerConfiguration.LongChangeHelper.MAX_DELIVER;
 import static io.nats.client.support.NatsConstants.EMPTY;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ConsumerConfigurationComparerTests extends TestBase {
 
@@ -101,9 +101,9 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertNotChange(builder(orig).startSequence(null).build(), orig);
         assertChange(builder(orig).startSequence(1).build(), orig, "startSequence");
 
-        assertNotChange(builder(orig).maxDeliver(MAX_DELIVER.Unset).build(), orig);
+        assertNotChange(builder(orig).maxDeliver(INTEGER_UNSET).build(), orig);
         assertNotChange(builder(orig).maxDeliver(null).build(), orig);
-        assertChange(builder(orig).maxDeliver(MAX_DELIVER.Min).build(), orig, "maxDeliver");
+        assertChange(builder(orig).maxDeliver(MAX_DELIVER_MIN).build(), orig, "maxDeliver");
 
         assertNotChange(builder(orig).rateLimit(ULONG_UNSET).build(), orig);
         assertNotChange(builder(orig).rateLimit(null).build(), orig);
@@ -120,6 +120,10 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertNotChange(builder(orig).maxBatch(LONG_UNSET).build(), orig);
         assertNotChange(builder(orig).maxBatch(null).build(), orig);
         assertChange(builder(orig).maxBatch(1).build(), orig, "maxBatch");
+
+        assertNotChange(builder(orig).maxBytes(LONG_UNSET).build(), orig);
+        assertNotChange(builder(orig).maxBytes(null).build(), orig);
+        assertChange(builder(orig).maxBytes(1).build(), orig, "maxBytes");
 
         assertNotChange(builder(orig).filterSubject(EMPTY).build(), orig);
         ccTest = builder(orig).filterSubject(PLAIN).build();
@@ -160,20 +164,5 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         ccTest = builder(orig).backoff(1000, 2000).build();
         assertNotChange(ccTest, ccTest);
         assertChange(ccTest, orig, "backoff");
-    }
-
-    @SuppressWarnings("ConstantConditions")
-    @Test
-    public void testChangeHelpers() {
-        for (LongChangeHelper h : LongChangeHelper.values()) {
-            assertFalse(h.wouldBeChange(h.Min, h.Min));    // has value vs server has same value
-            assertTrue(h.wouldBeChange(h.Min, h.Min + 1)); // has value vs server has different value
-
-            assertFalse(h.wouldBeChange(null, h.Min));       // value not set vs server has value
-            assertFalse(h.wouldBeChange(null, h.Unset));     // value not set vs server has unset value
-
-            assertTrue(h.wouldBeChange(h.Min, null));        // has value vs server not set
-            assertFalse(h.wouldBeChange(h.Unset, null));     // has unset value versus server not set
-        }
     }
 }

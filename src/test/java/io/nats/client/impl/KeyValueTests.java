@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
+import static io.nats.client.api.KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS;
 import static io.nats.client.api.KeyValueWatchOption.*;
 import static io.nats.client.support.NatsConstants.DOT;
 import static org.junit.jupiter.api.Assertions.*;
@@ -96,13 +98,13 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // entry gives detail about latest entry of the key
             byteHistory.add(
-                    assertEntry(BUCKET, byteKey, KeyValueOperation.PUT, 1, byteValue1, now, kv.get(byteKey)));
+                assertEntry(BUCKET, byteKey, KeyValueOperation.PUT, 1, byteValue1, now, kv.get(byteKey)));
 
             stringHistory.add(
-                    assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 2, stringValue1, now, kv.get(stringKey)));
+                assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 2, stringValue1, now, kv.get(stringKey)));
 
             longHistory.add(
-                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 3, "1", now, kv.get(longKey)));
+                assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 3, "1", now, kv.get(longKey)));
 
             // history gives detail about the key
             assertHistory(byteHistory, kv.history(byteKey));
@@ -118,7 +120,7 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.delete(byteKey);
 
             byteHistory.add(
-                    assertEntry(BUCKET, byteKey, KeyValueOperation.DELETE, 4, null, now, kv.get(byteKey)));
+                assertEntry(BUCKET, byteKey, KeyValueOperation.DELETE, 4, null, now, kv.get(byteKey)));
             assertHistory(byteHistory, kv.history(byteKey));
 
             // hashCode coverage
@@ -151,15 +153,15 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // entry and history after update
             byteHistory.add(
-                    assertEntry(BUCKET, byteKey, KeyValueOperation.PUT, 5, byteValue2, now, kv.get(byteKey)));
+                assertEntry(BUCKET, byteKey, KeyValueOperation.PUT, 5, byteValue2, now, kv.get(byteKey)));
             assertHistory(byteHistory, kv.history(byteKey));
 
             stringHistory.add(
-                    assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 6, stringValue2, now, kv.get(stringKey)));
+                assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 6, stringValue2, now, kv.get(stringKey)));
             assertHistory(stringHistory, kv.history(stringKey));
 
             longHistory.add(
-                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 7, "2", now, kv.get(longKey)));
+                assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 7, "2", now, kv.get(longKey)));
             assertHistory(longHistory, kv.history(longKey));
 
             // let's check the bucket info
@@ -172,7 +174,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(3, kv.get(longKey).getValueAsLong());
 
             longHistory.add(
-                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 8, "3", now, kv.get(longKey)));
+                assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 8, "3", now, kv.get(longKey)));
             assertHistory(longHistory, kv.history(longKey));
 
             status = kvm.getBucketInfo(BUCKET);
@@ -187,7 +189,7 @@ public class KeyValueTests extends JetStreamTestBase {
             // history only retains 3 records
             longHistory.remove(0);
             longHistory.add(
-                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 9, "4", now, kv.get(longKey)));
+                assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 9, "4", now, kv.get(longKey)));
             assertHistory(longHistory, kv.history(longKey));
 
             // record count does not increase
@@ -254,23 +256,23 @@ public class KeyValueTests extends JetStreamTestBase {
             // put some more
             assertEquals(13, kv.put(longKey, 110));
             longHistory.add(
-                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 13, "110", now, kv.get(longKey)));
+                assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 13, "110", now, kv.get(longKey)));
 
             assertEquals(14, kv.put(longKey, 111));
             longHistory.add(
-                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 14, "111", now, kv.get(longKey)));
+                assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 14, "111", now, kv.get(longKey)));
 
             assertEquals(15, kv.put(longKey, 112));
             longHistory.add(
-                    assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 15, "112", now, kv.get(longKey)));
+                assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 15, "112", now, kv.get(longKey)));
 
             assertEquals(16, kv.put(stringKey, stringValue1));
             stringHistory.add(
-                    assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 16, stringValue1, now, kv.get(stringKey)));
+                assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 16, stringValue1, now, kv.get(stringKey)));
 
             assertEquals(17, kv.put(stringKey, stringValue2));
             stringHistory.add(
-                    assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 17, stringValue2, now, kv.get(stringKey)));
+                assertEntry(BUCKET, stringKey, KeyValueOperation.PUT, 17, stringValue2, now, kv.get(stringKey)));
 
             assertHistory(longHistory, kv.history(longKey));
             assertHistory(stringHistory, kv.history(stringKey));
@@ -479,9 +481,14 @@ public class KeyValueTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
             assertPurgeDeleteEntries(js, new String[]{"a", null, "b", "c", null});
 
-            // default purge deletes uses the default threshold of 30 minutes
+            // default purge deletes uses the default threshold
             // so no markers will be deleted
             kv.purgeDeletes();
+            assertPurgeDeleteEntries(js, new String[]{null, "b", "c", null});
+
+            // deleteMarkersThreshold of 0 the default threshold
+            // so no markers will be deleted
+            kv.purgeDeletes(KeyValuePurgeOptions.builder().deleteMarkersThreshold(0).build());
             assertPurgeDeleteEntries(js, new String[]{null, "b", "c", null});
 
             // no threshold causes all to be removed
@@ -547,7 +554,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
             sleep(200); // a little pause to make sure things get flushed
             List<KeyValueEntry> hist = kv.history(KEY);
-            kv.update(KEY, "abcd".getBytes(), hist.get(hist.size()-1).getRevision());
+            kv.update(KEY, "abcd".getBytes(), hist.get(hist.size() - 1).getRevision());
 
             // 8. allowed to create a key that is purged
             kv.purge(KEY);
@@ -558,7 +565,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
             sleep(200); // a little pause to make sure things get flushed
             hist = kv.history(KEY);
-            kv.update(KEY, "abcdef".getBytes(), hist.get(hist.size()-1).getRevision());
+            kv.update(KEY, "abcdef".getBytes(), hist.get(hist.size() - 1).getRevision());
         });
     }
 
@@ -569,15 +576,15 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // create bucket 1
             kvm.create(KeyValueConfiguration.builder()
-                    .name(bucket(1))
-                    .storageType(StorageType.Memory)
-                    .build());
+                .name(bucket(1))
+                .storageType(StorageType.Memory)
+                .build());
 
             // create bucket 2
             kvm.create(KeyValueConfiguration.builder()
-                    .name(bucket(2))
-                    .storageType(StorageType.Memory)
-                    .build());
+                .name(bucket(2))
+                .storageType(StorageType.Memory)
+                .build());
 
             createMemoryStream(nc, stream(1));
             createMemoryStream(nc, stream(2));
@@ -688,20 +695,20 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testWatch() throws Exception {
-        Object[] key1AllExpecteds = new Object[] {
+        Object[] key1AllExpecteds = new Object[]{
             "a", "aa", KeyValueOperation.DELETE, "aaa", KeyValueOperation.DELETE, KeyValueOperation.PURGE
         };
 
         Object[] noExpecteds = new Object[0];
-        Object[] purgeOnlyExpecteds = new Object[] { KeyValueOperation.PURGE };
+        Object[] purgeOnlyExpecteds = new Object[]{KeyValueOperation.PURGE};
 
-        Object[] key2AllExpecteds = new Object[] {
+        Object[] key2AllExpecteds = new Object[]{
             "z", "zz", KeyValueOperation.DELETE, "zzz"
         };
 
-        Object[] key2AfterExpecteds = new Object[] { "zzz" };
+        Object[] key2AfterExpecteds = new Object[]{"zzz"};
 
-        Object[] allExpecteds = new Object[] {
+        Object[] allExpecteds = new Object[]{
             "a", "aa", "z", "zz",
             KeyValueOperation.DELETE, KeyValueOperation.DELETE,
             "aaa", "zzz",
@@ -709,7 +716,7 @@ public class KeyValueTests extends JetStreamTestBase {
             null
         };
 
-        Object[] allPutsExpecteds = new Object[] {
+        Object[] allPutsExpecteds = new Object[]{
             "a", "aa", "z", "zz", "aaa", "zzz", null
         };
 
@@ -789,7 +796,7 @@ public class KeyValueTests extends JetStreamTestBase {
         kv.put(TEST_WATCH_KEY_2, "zzz");
         kv.delete(TEST_WATCH_KEY_1);
         kv.purge(TEST_WATCH_KEY_1);
-        kv.put(TEST_WATCH_KEY_NULL, (byte[])null);
+        kv.put(TEST_WATCH_KEY_NULL, (byte[]) null);
 
         if (!watcher.beforeWatcher) {
             sub = supplier.get(kv);
@@ -860,7 +867,7 @@ public class KeyValueTests extends JetStreamTestBase {
             Options acctA = new Options.Builder().server(ts.getURI()).userInfo("a", "a").build();
             Options acctI = new Options.Builder().server(ts.getURI()).userInfo("i", "i").inboxPrefix("ForI").build();
 
-            try (Connection connUserA = Nats.connect(acctA); Connection connUserI = Nats.connect(acctI) ) {
+            try (Connection connUserA = Nats.connect(acctA); Connection connUserI = Nats.connect(acctI)) {
 
                 // some prep
                 KeyValueOptions jsOpt_UserI_BucketA_WithPrefix =
@@ -935,7 +942,7 @@ public class KeyValueTests extends JetStreamTestBase {
                 assertKvAccountKeys(kv_connA_bucketI.keys(), key(21), key(22));
                 assertKvAccountKeys(kv_connI_bucketI.keys(), key(21), key(22));
 
-                Object[] expecteds = new Object[] {
+                Object[] expecteds = new Object[]{
                     data(0), data(1), KeyValueOperation.DELETE, KeyValueOperation.PURGE, data(2),
                     data(0), data(1), KeyValueOperation.DELETE, KeyValueOperation.PURGE, data(2)
                 };
@@ -1066,8 +1073,71 @@ public class KeyValueTests extends JetStreamTestBase {
             assertNotEquals(kve1_1, kv1.get(key(1)));
 
             // coverage
-            assertFalse(kve1_1.equals(null));
-            assertFalse(kve1_1.equals(new Object()));
+            assertNotEquals(kve1_1, null);
+            assertNotEquals(new Object(), kve1_1);
         });
+    }
+
+    @Test
+    public void testKeyValueOptionsBuilderCoverage() {
+        assertKvo(DEFAULT_JS_OPTIONS, KeyValueOptions.builder().build());
+        assertKvo(DEFAULT_JS_OPTIONS, KeyValueOptions.builder().jetStreamOptions(DEFAULT_JS_OPTIONS).build());
+        assertKvo(DEFAULT_JS_OPTIONS, KeyValueOptions.builder((KeyValueOptions) null).build());
+        assertKvo(DEFAULT_JS_OPTIONS, KeyValueOptions.builder(KeyValueOptions.builder().build()).build());
+        assertKvo(DEFAULT_JS_OPTIONS, KeyValueOptions.builder(DEFAULT_JS_OPTIONS).build());
+
+        KeyValueOptions kvo = KeyValueOptions.builder().jsPrefix("prefix").build();
+        assertEquals("prefix.", kvo.getJetStreamOptions().getPrefix());
+        assertFalse(kvo.getJetStreamOptions().isDefaultPrefix());
+
+        kvo = KeyValueOptions.builder().jsDomain("domain").build();
+        assertEquals("$JS.domain.API.", kvo.getJetStreamOptions().getPrefix());
+        assertFalse(kvo.getJetStreamOptions().isDefaultPrefix());
+
+        kvo = KeyValueOptions.builder().jsRequestTimeout(Duration.ofSeconds(10)).build();
+        assertEquals(Duration.ofSeconds(10), kvo.getJetStreamOptions().getRequestTimeout());
+    }
+
+    private void assertKvo(JetStreamOptions expected, KeyValueOptions kvo) {
+        JetStreamOptions jso = kvo.getJetStreamOptions();
+        assertEquals(expected.getRequestTimeout(), jso.getRequestTimeout());
+        assertEquals(expected.getPrefix(), jso.getPrefix());
+        assertEquals(expected.isDefaultPrefix(), jso.isDefaultPrefix());
+        assertEquals(expected.isPublishNoAck(), jso.isPublishNoAck());
+    }
+
+    @Test
+    public void testKeyValuePurgeOptionsBuilderCoverage() {
+        assertEquals(DEFAULT_THRESHOLD_MILLIS,
+            KeyValuePurgeOptions.builder().deleteMarkersThreshold(null).build()
+                .getDeleteMarkersThresholdMillis());
+
+        assertEquals(DEFAULT_THRESHOLD_MILLIS,
+            KeyValuePurgeOptions.builder().deleteMarkersThreshold(Duration.ZERO).build()
+                .getDeleteMarkersThresholdMillis());
+
+        assertEquals(1,
+            KeyValuePurgeOptions.builder().deleteMarkersThreshold(Duration.ofMillis(1)).build()
+                .getDeleteMarkersThresholdMillis());
+
+        assertEquals(-1,
+            KeyValuePurgeOptions.builder().deleteMarkersThreshold(Duration.ofMillis(-1)).build()
+                .getDeleteMarkersThresholdMillis());
+
+        assertEquals(DEFAULT_THRESHOLD_MILLIS,
+            KeyValuePurgeOptions.builder().deleteMarkersThreshold(0).build()
+                .getDeleteMarkersThresholdMillis());
+
+        assertEquals(1,
+            KeyValuePurgeOptions.builder().deleteMarkersThreshold(1).build()
+                .getDeleteMarkersThresholdMillis());
+
+        assertEquals(-1,
+            KeyValuePurgeOptions.builder().deleteMarkersThreshold(-1).build()
+                .getDeleteMarkersThresholdMillis());
+
+        assertEquals(-1,
+            KeyValuePurgeOptions.builder().deleteMarkersNoThreshold().build()
+                .getDeleteMarkersThresholdMillis());
     }
 }

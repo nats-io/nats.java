@@ -281,13 +281,32 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 assertNotNull(s);
                 assertEquals(x + 1, s.getCount());
             }
-            Subject s = map.get("foo.bar");
-            assertNotNull(s);
-            assertEquals(6, s.getCount());
+            Subject sf = map.get("foo.bar");
+            assertNotNull(sf);
+            assertEquals(6, sf.getCount());
 
             for (PublishAck pa : packs) {
                 assertTrue(si.getStreamState().getDeleted().contains(pa.getSeqno()));
             }
+
+            jsPublish(js, "foo.baz", 2);
+            sleep(100);
+
+            si = jsm.getStreamInfo(STREAM, StreamInfoOptions.builder().filterSubjects("foo.>").deletedDetails().build());
+            assertEquals(7, si.getStreamState().getSubjectCount());
+            list = si.getStreamState().getSubjects();
+            assertNotNull(list);
+            assertEquals(2, list.size());
+            map = new HashMap<>();
+            for (Subject su : list) {
+                map.put(su.getName(), su);
+            }
+            Subject s = map.get("foo.bar");
+            assertNotNull(s);
+            assertEquals(6, s.getCount());
+            s = map.get("foo.baz");
+            assertNotNull(s);
+            assertEquals(2, s.getCount());
         });
     }
 
@@ -696,4 +715,14 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertTrue(si.getConfiguration().getSealed());
         });
     }
+
+    @Test
+    public void testStorageTypeCoverage() {
+        assertEquals(StorageType.File, StorageType.get("file"));
+        assertEquals(StorageType.File, StorageType.get("FILE"));
+        assertEquals(StorageType.Memory, StorageType.get("memory"));
+        assertEquals(StorageType.Memory, StorageType.get("MEMORY"));
+        assertNull(StorageType.get("nope"));
+    }
 }
+

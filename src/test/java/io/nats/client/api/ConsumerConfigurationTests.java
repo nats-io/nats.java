@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 
+import static io.nats.client.api.ConsumerConfiguration.*;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -47,6 +48,7 @@ public class ConsumerConfigurationTests extends TestBase {
             .flowControl(66000) // duration
             .maxPullWaiting(73)
             .maxBatch(55)
+            .maxBytes(56)
             .maxExpires(77000) // duration
             .inactiveThreshold(88000) // duration
             .headersOnly(true)
@@ -88,9 +90,9 @@ public class ConsumerConfigurationTests extends TestBase {
             .idleHeartbeat(6000) // millis
             .build();
 
-        assertEquals(AckPolicy.Explicit, c.getAckPolicy());
-        assertEquals(DeliverPolicy.All, c.getDeliverPolicy());
-        assertEquals(ReplayPolicy.Instant, c.getReplayPolicy());
+        assertEquals(DEFAULT_ACK_POLICY, c.getAckPolicy());
+        assertEquals(DEFAULT_DELIVER_POLICY, c.getDeliverPolicy());
+        assertEquals(DEFAULT_REPLAY_POLICY, c.getReplayPolicy());
         assertEquals(Duration.ofSeconds(9), c.getAckWait());
         assertEquals(Duration.ofSeconds(6), c.getIdleHeartbeat());
 
@@ -105,6 +107,66 @@ public class ConsumerConfigurationTests extends TestBase {
 
         ccTest = ConsumerConfiguration.builder(original).build();
         validateDefault(ccTest);
+
+        // flow control coverage
+        c = ConsumerConfiguration.builder().build();
+        assertFalse(c.isFlowControl());
+
+        c = ConsumerConfiguration.builder().flowControl(1000).build();
+        assertTrue(c.isFlowControl());
+
+        // headers only coverage
+        c = ConsumerConfiguration.builder().build();
+        assertFalse(c.isHeadersOnly());
+
+        c = ConsumerConfiguration.builder().headersOnly(false).build();
+        assertFalse(c.isHeadersOnly());
+
+        c = ConsumerConfiguration.builder().headersOnly(true).build();
+        assertTrue(c.isHeadersOnly());
+
+        // idleHeartbeat coverage
+        c = ConsumerConfiguration.builder().idleHeartbeat(null).build();
+        assertNull(c.getIdleHeartbeat());
+
+        c = ConsumerConfiguration.builder().idleHeartbeat(Duration.ZERO).build();
+        assertEquals(DURATION_UNSET, c.getIdleHeartbeat());
+
+        c = ConsumerConfiguration.builder().idleHeartbeat(0).build();
+        assertEquals(DURATION_UNSET, c.getIdleHeartbeat());
+
+        c = ConsumerConfiguration.builder().idleHeartbeat(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS + 1)).build();
+        assertEquals(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS + 1), c.getIdleHeartbeat());
+
+        c = ConsumerConfiguration.builder().idleHeartbeat(MIN_IDLE_HEARTBEAT_MILLIS + 1).build();
+        assertEquals(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS + 1), c.getIdleHeartbeat());
+
+        assertThrows(IllegalArgumentException.class,
+            () ->ConsumerConfiguration.builder().idleHeartbeat(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS - 1)).build());
+
+        assertThrows(IllegalArgumentException.class,
+            () ->ConsumerConfiguration.builder().idleHeartbeat(MIN_IDLE_HEARTBEAT_MILLIS - 1).build());
+
+        // backoff coverage
+        c = ConsumerConfiguration.builder().backoff(Duration.ofSeconds(1), null, Duration.ofSeconds(2)).build();
+        assertEquals(2, c.getBackoff().size());
+        assertEquals(Duration.ofSeconds(1), c.getBackoff().get(0));
+        assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
+
+        assertThrows(IllegalArgumentException.class,
+            () ->ConsumerConfiguration.builder().backoff(Duration.ZERO).build());
+        assertThrows(IllegalArgumentException.class,
+            () ->ConsumerConfiguration.builder().backoff(Duration.ofNanos(DURATION_MIN_LONG - 1)).build());
+
+        c = ConsumerConfiguration.builder().backoff(1000, 2000).build();
+        assertEquals(2, c.getBackoff().size());
+        assertEquals(Duration.ofSeconds(1), c.getBackoff().get(0));
+        assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
+
+        assertThrows(IllegalArgumentException.class,
+            () ->ConsumerConfiguration.builder().backoff(0).build());
+        assertThrows(IllegalArgumentException.class,
+            () ->ConsumerConfiguration.builder().backoff(DURATION_MIN_LONG - 1).build());
     }
 
     private void validateDefault(ConsumerConfiguration cc) {
@@ -120,6 +182,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertFalse(cc.flowControlWasSet());
         assertFalse(cc.headersOnlyWasSet());
         assertFalse(cc.maxBatchWasSet());
+        assertFalse(cc.maxBytesWasSet());
     }
 
     private void assertAsBuilt(ConsumerConfiguration c, ZonedDateTime zdt) {
@@ -141,6 +204,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(66), c.getIdleHeartbeat());
         assertEquals(73, c.getMaxPullWaiting());
         assertEquals(55, c.getMaxBatch());
+        assertEquals(56, c.getMaxBytes());
         assertEquals(Duration.ofSeconds(77), c.getMaxExpires());
         assertEquals(Duration.ofSeconds(88), c.getInactiveThreshold());
         assertTrue(c.isHeadersOnly());
@@ -155,6 +219,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertTrue(c.flowControlWasSet());
         assertTrue(c.headersOnlyWasSet());
         assertTrue(c.maxBatchWasSet());
+        assertTrue(c.maxBytesWasSet());
         assertEquals(3, c.getBackoff().size());
         assertEquals(Duration.ofSeconds(1), c.getBackoff().get(0));
         assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
@@ -185,6 +250,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertTrue(c.isHeadersOnly());
         assertEquals(99, c.getStartSequence());
         assertEquals(55, c.getMaxBatch());
+        assertEquals(56, c.getMaxBytes());
         assertEquals(Duration.ofSeconds(40), c.getMaxExpires());
         assertEquals(Duration.ofSeconds(50), c.getInactiveThreshold());
         assertEquals(3, c.getBackoff().size());
@@ -223,4 +289,56 @@ public class ConsumerConfigurationTests extends TestBase {
 
         assertEquals(0, c.getBackoff().size());
     }
+
+    @Test
+    public void testUtilityMethods() {
+        assertEquals(1, ConsumerConfiguration.getOrUnset(1));
+        assertEquals(INTEGER_UNSET, ConsumerConfiguration.getOrUnset(INTEGER_UNSET));
+        assertEquals(INTEGER_UNSET, ConsumerConfiguration.getOrUnset((Integer)null));
+
+        assertEquals(1L, ConsumerConfiguration.getOrUnsetUlong(1L));
+        assertEquals(ULONG_UNSET, ConsumerConfiguration.getOrUnsetUlong(ULONG_UNSET));
+        assertEquals(ULONG_UNSET, ConsumerConfiguration.getOrUnsetUlong(null));
+        assertEquals(ULONG_UNSET, ConsumerConfiguration.getOrUnsetUlong(-1L));
+
+        assertEquals(Duration.ZERO, ConsumerConfiguration.getOrUnset(Duration.ZERO));
+        assertEquals(DURATION_UNSET, ConsumerConfiguration.getOrUnset(DURATION_UNSET));
+        assertEquals(DURATION_UNSET, ConsumerConfiguration.getOrUnset((Duration)null));
+
+        //noinspection ConstantConditions
+        assertNull(ConsumerConfiguration.normalizeToInt(null, STANDARD_MIN));
+        assertEquals(0, ConsumerConfiguration.normalizeToInt(0L, STANDARD_MIN));
+        assertEquals(1, ConsumerConfiguration.normalizeToInt(1L, STANDARD_MIN));
+        assertEquals(INTEGER_UNSET, ConsumerConfiguration.normalizeToInt((long)INTEGER_UNSET, STANDARD_MIN));
+        assertEquals(INTEGER_UNSET, ConsumerConfiguration.normalizeToInt(LONG_UNSET, STANDARD_MIN));
+        assertEquals(INTEGER_UNSET, ConsumerConfiguration.normalizeToInt(Long.MIN_VALUE, STANDARD_MIN));
+        assertEquals(Integer.MAX_VALUE, ConsumerConfiguration.normalizeToInt((long)Integer.MAX_VALUE, STANDARD_MIN));
+        assertEquals(Integer.MAX_VALUE, ConsumerConfiguration.normalizeToInt(Long.MAX_VALUE, STANDARD_MIN));
+
+        //noinspection ConstantConditions
+        assertNull(ConsumerConfiguration.normalizeUlong(null));
+        assertEquals(0, ConsumerConfiguration.normalizeUlong(0L));
+        assertEquals(1, ConsumerConfiguration.normalizeUlong(1L));
+        assertEquals(ULONG_UNSET, ConsumerConfiguration.normalizeUlong(ULONG_UNSET));
+        assertEquals(ULONG_UNSET, ConsumerConfiguration.normalizeUlong(-1L));
+
+        //noinspection ConstantConditions
+        assertNull(ConsumerConfiguration.normalize((Duration)null));
+        assertEquals(Duration.ofNanos(1), ConsumerConfiguration.normalize(Duration.ofNanos(1)));
+        assertEquals(DURATION_UNSET, ConsumerConfiguration.normalize(DURATION_UNSET));
+        assertEquals(DURATION_UNSET, ConsumerConfiguration.normalize(Duration.ZERO));
+
+        assertEquals(Duration.ofMillis(1), ConsumerConfiguration.normalizeDuration(1));
+        assertEquals(DURATION_UNSET, ConsumerConfiguration.normalizeDuration(0));
+
+        assertEquals(DEFAULT_DELIVER_POLICY, ConsumerConfiguration.GetOrDefault((DeliverPolicy)null));
+        assertEquals(DeliverPolicy.Last, ConsumerConfiguration.GetOrDefault(DeliverPolicy.Last));
+
+        assertEquals(DEFAULT_ACK_POLICY, ConsumerConfiguration.GetOrDefault((AckPolicy)null));
+        assertEquals(AckPolicy.All, ConsumerConfiguration.GetOrDefault(AckPolicy.All));
+
+        assertEquals(DEFAULT_REPLAY_POLICY, ConsumerConfiguration.GetOrDefault((ReplayPolicy)null));
+        assertEquals(ReplayPolicy.Original, ConsumerConfiguration.GetOrDefault(ReplayPolicy.Original));
+    }
 }
+

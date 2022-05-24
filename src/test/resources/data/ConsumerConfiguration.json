@@ -19,6 +19,7 @@
   "max_waiting": 128,
   "headers_only": true,
   "max_batch": 55,
+  "max_bytes": 56,
   "max_expires": 40000000000,
   "inactive_threshold": 50000000000,
   "backoff": [1000000000, 2000000000, 3000000000]

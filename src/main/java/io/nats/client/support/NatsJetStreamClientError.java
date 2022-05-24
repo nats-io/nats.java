@@ -11,7 +11,7 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError JsSubPushCantHaveMaxPullWaiting = new NatsJetStreamClientError(SUB, 90003, "Push subscriptions cannot supply max pull waiting.");
     public static final NatsJetStreamClientError JsSubQueueDeliverGroupMismatch = new NatsJetStreamClientError(SUB, 90004, "Queue / deliver group mismatch.");
     public static final NatsJetStreamClientError JsSubFcHbNotValidPull = new NatsJetStreamClientError(SUB, 90005, "Flow Control and/or heartbeat is not valid with a pull subscription.");
-    public static final NatsJetStreamClientError JsSubFcHbHbNotValidQueue = new NatsJetStreamClientError(SUB, 90006, "Flow Control and/or heartbeat is not valid in queue mode.");
+    public static final NatsJetStreamClientError JsSubFcHbNotValidQueue = new NatsJetStreamClientError(SUB, 90006, "Flow Control and/or heartbeat is not valid in queue mode.");
     public static final NatsJetStreamClientError JsSubNoMatchingStreamForSubject = new NatsJetStreamClientError(SUB, 90007, "No matching streams for subject.", KIND_ILLEGAL_STATE);
     public static final NatsJetStreamClientError JsSubConsumerAlreadyConfiguredAsPush = new NatsJetStreamClientError(SUB, 90008, "Consumer is already configured as a push consumer.");
     public static final NatsJetStreamClientError JsSubConsumerAlreadyConfiguredAsPull = new NatsJetStreamClientError(SUB, 90009, "Consumer is already configured as a pull consumer.");
@@ -24,6 +24,7 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError JsSubConsumerNotFoundRequiredInBind = new NatsJetStreamClientError(SUB, 90017, "Consumer not found, required in bind mode.");
     public static final NatsJetStreamClientError JsSubOrderedNotAllowOnQueues = new NatsJetStreamClientError(SUB, 90018, "Ordered consumer not allowed on queues.");
     public static final NatsJetStreamClientError JsSubPushCantHaveMaxBatch = new NatsJetStreamClientError(SUB, 90019, "Push subscriptions cannot supply max batch.");
+    public static final NatsJetStreamClientError JsSubPushCantHaveMaxBytes = new NatsJetStreamClientError(SUB, 90020, "Push subscriptions cannot supply max bytes.");
 
     public static final NatsJetStreamClientError JsSoDurableMismatch = new NatsJetStreamClientError(SO, 90101, "Builder durable must match the consumer configuration durable if both are provided.");
     public static final NatsJetStreamClientError JsSoDeliverGroupMismatch = new NatsJetStreamClientError(SO, 90102, "Builder deliver group must match the consumer configuration deliver group if both are provided.");
@@ -34,6 +35,9 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError JsSoOrderedNotAllowedWithDeliverSubject = new NatsJetStreamClientError(SO, 90107, "Deliver subject is not allowed with an ordered consumer.");
     public static final NatsJetStreamClientError JsSoOrderedRequiresAckPolicyNone = new NatsJetStreamClientError(SO, 90108, "Deliver subject is not allowed with an ordered consumer.");
     public static final NatsJetStreamClientError JsSoOrderedRequiresMaxDeliver = new NatsJetStreamClientError(SO, 90109, "Max deliver is limited to 1 with an ordered consumer.");
+
+    @Deprecated // Fixed spelling error
+    public static final NatsJetStreamClientError JsSubFcHbHbNotValidQueue = new NatsJetStreamClientError(SUB, 90006, "Flow Control and/or heartbeat is not valid in queue mode.");
 
     private final String id;
     private final String message;
