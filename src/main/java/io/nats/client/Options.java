@@ -39,16 +39,20 @@ import static io.nats.client.support.NatsConstants.*;
  * starting with the {@link Options.Builder Builder}, since it has a simple list of methods that configure the connection.
  */
 public class Options {
-    // NOTE TO DEVS
-    // To add an option, you have to:
-    // * add property
-    // * add field in builder
-    // * add field in options
-    // * add a chainable method in builder
-    // * add update build
-    // * update constructor that takes properties
-    // * optional default in statics
+    // NOTE TO DEVS!!! To add an option, you have to address:
+    // CONSTANTS * optionally add a default value constant
+    // ENVIRONMENT * most of the time add an environment property
+    // CLASS VARIABLES * add a class variable
+    // BUILDER VARIABLES * add field in builder
+    // BUILD CONSTRUCTOR PROPS * update build w/props constructor for new props
+    // BUILDER METHODS * add a chainable method in builder
+    // BUILD IMPL * update build() implementation if needed
+    // CONSTRUCTOR * update constructor to ensure new variables are set
+    // GETTERS * update getter tobe able to retrieve value
 
+    // ----------------------------------------------------------------------------------------------------
+    // CONSTANTS
+    // ----------------------------------------------------------------------------------------------------
     /**
      * Default server URL.
      *
@@ -216,6 +220,9 @@ public class Options {
      */
     public static final boolean DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL = false;
 
+    // ----------------------------------------------------------------------------------------------------
+    // ENVIRONMENT
+    // ----------------------------------------------------------------------------------------------------
     static final String PFX = "io.nats.client.";
 
     /**
@@ -472,7 +479,22 @@ public class Options {
      */
     static final String OPTION_NORESPONDERS = "no_responders";
 
+    /**
+     * Property used to set the whether to ignore discovered servers when connecting
+     */
+    public static final String PROP_IGNORE_DISCOVERED_SERVERS = "ignore_discovered_servers";
+
+    /**
+     * Property used to set class name for ServersToTryProvider implementation
+     * {@link Builder#serversToTryProvider(ServersToTryProvider) serversToTryProvider}.
+     */
+    public static final String PROP_SERVERS_TO_TRY_PROVIDER_CLASS = "servers_to_try_provider_class";
+
+    // ----------------------------------------------------------------------------------------------------
+    // CLASS VARIABLES
+    // ----------------------------------------------------------------------------------------------------
     private final List<URI> servers;
+    private final List<String> rawServers;
     private final boolean noRandomize;
     private final String connectionName;
     private final boolean verbose;
@@ -501,6 +523,7 @@ public class Options {
     private final boolean utf8Support;
     private final int maxMessagesInOutgoingQueue;
     private final boolean discardMessagesWhenOutgoingQueueFull;
+    private final boolean ignoreDiscoveredServers;
 
     private final AuthHandler authHandler;
     private final ReconnectDelayHandler reconnectDelayHandler;
@@ -513,6 +536,7 @@ public class Options {
     private final boolean traceConnection;
 
     private final ExecutorService executor;
+    private final ServersToTryProvider serversToTryProvider;
 
     static class DefaultThreadFactory implements ThreadFactory {
         String name;
@@ -547,7 +571,11 @@ public class Options {
      */
     public static class Builder {
 
+        // ----------------------------------------------------------------------------------------------------
+        // BUILDER VARIABLES
+        // ----------------------------------------------------------------------------------------------------
         private final ArrayList<URI> servers = new ArrayList<>();
+        private final List<String> rawServers = new ArrayList<>();
         private boolean noRandomize = false;
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
         private boolean verbose = false;
@@ -578,6 +606,8 @@ public class Options {
         private String inboxPrefix = DEFAULT_INBOX_PREFIX;
         private int maxMessagesInOutgoingQueue = DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
+        private boolean ignoreDiscoveredServers = false;
+        private ServersToTryProvider serversToTryProvider = null;
 
         private AuthHandler authHandler;
         private ReconnectDelayHandler reconnectDelayHandler;
@@ -597,6 +627,9 @@ public class Options {
         public Builder() {
         }
 
+        // ----------------------------------------------------------------------------------------------------
+        // BUILD CONSTRUCTOR PROPS
+        // ----------------------------------------------------------------------------------------------------
         /**
          * Constructs a new {@code Builder} from a {@link Properties} object.
          * 
@@ -783,6 +816,15 @@ public class Options {
                 this.discardMessagesWhenOutgoingQueueFull = Boolean.parseBoolean(props.getProperty(
                         PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, Boolean.toString(DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL)));
             }
+
+            if (props.containsKey(PROP_IGNORE_DISCOVERED_SERVERS)) {
+                this.ignoreDiscoveredServers = Boolean.parseBoolean(props.getProperty(PROP_IGNORE_DISCOVERED_SERVERS));
+            }
+
+            if (props.containsKey(PROP_SERVERS_TO_TRY_PROVIDER_CLASS)) {
+                Object instance = createInstanceOf(props.getProperty(PROP_SERVERS_TO_TRY_PROVIDER_CLASS));
+                this.serversToTryProvider = (ServersToTryProvider) instance;
+            }
         }
 
         static Object createInstanceOf(String className) {
@@ -797,6 +839,9 @@ public class Options {
             return instance;
         }
 
+        // ----------------------------------------------------------------------------------------------------
+        // BUILDER METHODS
+        // ----------------------------------------------------------------------------------------------------
         /**
          * Add a server to the list of known servers.
          * 
@@ -805,7 +850,7 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder server(String serverURL) {
-            return this.servers(serverURL.trim().split(","));
+            return servers(serverURL.trim().split(","));
         }
 
         /**
@@ -819,7 +864,9 @@ public class Options {
             for (String s : servers) {
                 if (s != null && !s.isEmpty()) {
                     try {
-                        this.servers.add(Options.parseURIForServer(s.trim()));
+                        String raw = s.trim();
+                        this.rawServers.add(raw);
+                        this.servers.add(Options.parseURIForServer(raw));
                     } catch (URISyntaxException e) {
                         throw new IllegalArgumentException("Bad server URL: " + s, e);
                     }
@@ -1337,6 +1384,24 @@ public class Options {
         }
 
         /**
+         * Turn off use of discovered servers when connecting / reconnecting
+         * @return the Builder for chaining
+         */
+        public Builder ignoreDiscoveredServers() {
+            this.ignoreDiscoveredServers = true;
+            return this;
+        }
+
+        /**
+         * Set the ServersToTryProvider implementation for connections to use
+         * @return the Builder for chaining
+         */
+        public Builder serversToTryProvider(ServersToTryProvider serversToTryProvider) {
+            this.serversToTryProvider = serversToTryProvider;
+            return this;
+        }
+
+        /**
          * Build an Options object from this Builder.
          * 
          * <p>If the Options builder was not provided with a server, a default one will be included
@@ -1355,7 +1420,9 @@ public class Options {
          * @throws IllegalStateException if there is a conflict in the options, like a token and a user/pass
          */
         public Options build() throws IllegalStateException {
-
+            // ----------------------------------------------------------------------------------------------------
+            // BUILD IMPL
+            // ----------------------------------------------------------------------------------------------------
             if (this.username != null && this.token != null) {
                 throw new IllegalStateException("Options can't have token and username");
             }
@@ -1391,8 +1458,12 @@ public class Options {
         }
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // CONSTRUCTOR
+    // ----------------------------------------------------------------------------------------------------
     private Options(Builder b) {
         this.servers = b.servers;
+        this.rawServers = b.rawServers;
         this.noRandomize = b.noRandomize;
         this.connectionName = b.connectionName;
         this.verbose = b.verbose;
@@ -1431,8 +1502,15 @@ public class Options {
         this.dataPortType = b.dataPortType;
         this.trackAdvancedStats = b.trackAdvancedStats;
         this.executor = b.executor;
+
+        this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
+
+        this.serversToTryProvider = b.serversToTryProvider;
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // GETTERS
+    // ----------------------------------------------------------------------------------------------------
     /**
      * @return the executor, see {@link Builder#executor(ExecutorService) executor()} in the builder doc
      */
@@ -1487,6 +1565,13 @@ public class Options {
      */
     public Collection<URI> getServers() {
         return servers;
+    }
+
+    /**
+     * @return the raw servers as given to the options, since the servers are normalized
+     */
+    public List<String> getRawServers() {
+        return rawServers;
     }
 
     /**
@@ -1737,6 +1822,22 @@ public class Options {
      */
     public boolean isDiscardMessagesWhenOutgoingQueueFull() {
         return discardMessagesWhenOutgoingQueueFull;
+    }
+
+    /**
+     * Get whether to ignore discovered servers
+     * @return the flag
+     */
+    public boolean isIgnoreDiscoveredServers() {
+        return ignoreDiscoveredServers;
+    }
+
+    /**
+     * Get a provided ServersToTryProvider. If null, a default implementation is used.
+     * @return the ServersToTryProvider implementation
+     */
+    public ServersToTryProvider getServersToTryProvider() {
+        return serversToTryProvider;
     }
 
     public URI createURIForServer(String serverURI) throws URISyntaxException {

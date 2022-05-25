@@ -97,8 +97,6 @@ class NatsConnection implements Connection {
     private final ExecutorService executor;
     private final ExecutorService connectExecutor;
 
-    private String currentServer = null;
-
     NatsConnection(Options options) {
         boolean trace = options.isTraceConnection();
         timeTrace(trace, "creating connection object");
@@ -161,7 +159,7 @@ class NatsConnection implements Connection {
 
         timeTrace(trace, "starting connect loop");
 
-        Collection<String> serversToTry = getReconnectServerList();
+        List<String> serversToTry = getServersToTry();
         for (String serverURI : serversToTry) {
             if (isClosed()) {
                 break; // goes to statement after end-connect-server-loop
@@ -176,7 +174,6 @@ class NatsConnection implements Connection {
             tryToConnect(serverURI, System.nanoTime());
 
             if (isConnected()) {
-                this.currentServer = serverURI;
                 break; // goes to statement after end-connect-server-loop
             }
 
@@ -237,7 +234,7 @@ class NatsConnection implements Connection {
                 waitForReconnectTimeout(tries);
             }
 
-            List<String> serversToTry = getReconnectServerList();
+            List<String> serversToTry = getServersToTry();
             for (String server : serversToTry) {
                 if (isClosed()) {
                     break; // goes to statement after end-reconnect-server-loop
@@ -260,7 +257,6 @@ class NatsConnection implements Connection {
 
                 if (isConnected()) {
                     this.statistics.incrementReconnects();
-                    this.currentServer = server;
                     break; // goes to statement after end-reconnect-server-loop
                 }
 
@@ -352,6 +348,8 @@ class NatsConnection implements Connection {
     // will wait for any previous attempt to complete, using the reader.stop and
     // writer.stop
     void tryToConnect(String serverURI, long now) {
+        this.currentServerURI = null;
+
         try {
             Duration connectTimeout = options.getConnectionTimeout();
             boolean trace = options.isTraceConnection();
@@ -1531,42 +1529,73 @@ class NatsConnection implements Connection {
         return info.getMaxPayload();
     }
 
+    /**
+     * Return the list of known server urls, including additional servers discovered
+     * after a connection has been established.
+     *
+     * @return this connection's list of known server URLs
+     */
     public Collection<String> getServers() {
-        return getServersList();
-    }
-
-    private List<String> getServersList() {
+        // this does not look for the provider because of the way it was documented which was
+        // "Return the list of known server urls, including additional servers discovered..."
         List<String> servers = new ArrayList<>();
-        addConfiguredServers(servers);
-        addDiscoveredServers(servers);
+        addOptionsServers(servers);
+        addDiscoveredServers(servers, null);
         return servers;
     }
 
-    private List<String> getReconnectServerList() {
-        return options.isNoRandomize() ? getServersList() : shuffle(getServersList());
+    // the list is used by the connect/reconnect code
+    protected List<String> getServersToTry() {
+        if (options.getServersToTryProvider() == null) {
+            // default behavior is to
+            // 1. add the configured servers
+            // 2. optionally add the discovered servers (options default is to get them)
+            // 3. optionally randomize the servers (options default is to randomize)
+            List<String> servers = new ArrayList<>();
+            addOptionsServers(servers);
+            if (!options.isIgnoreDiscoveredServers()) {
+                addDiscoveredServers(servers, null);
+            }
+            return options.isNoRandomize() ? servers : shuffle(servers);
+        }
+
+        // provider behavior
+        // 1. Get the list of configured servers
+        // 2. Get the list of discovered servers
+        // 3. Pass those, the current server and the options to the provider
+        List<String> optionsServers = new ArrayList<>();
+        addOptionsServers(optionsServers);
+        List<String> discoveredServers = new ArrayList<>();
+        List<String> discoveredRawServers = new ArrayList<>();
+        addDiscoveredServers(discoveredServers, discoveredRawServers);
+        return options.getServersToTryProvider().getServersToTry(
+                currentServerURI, optionsServers, options.getRawServers(), discoveredServers, discoveredRawServers);
     }
 
     private List<String> shuffle(List<String> servers) {
         if (servers.size() > 1) {
-            if (currentServer != null) {
-                servers.remove(currentServer);
+            if (currentServerURI != null) {
+                servers.remove(currentServerURI);
             }
             Collections.shuffle(servers, ThreadLocalRandom.current());
-            if (currentServer != null) {
-                servers.add(currentServer);
+            if (currentServerURI != null) {
+                servers.add(currentServerURI);
             }
         }
         return servers;
     }
 
-    private void addConfiguredServers(List<String> servers) {
+    protected void addOptionsServers(List<String> servers) {
         // configured servers these uri are already parsed (normalized)
         options.getServers().forEach(uri -> addNoDupes(servers, uri.toString()));
     }
 
-    private void addDiscoveredServers(List<String> servers) {
+    protected void addDiscoveredServers(List<String> servers, List<String> rawServers) {
         ServerInfo info = this.serverInfo.get();
         if (info != null && info.getConnectURLs() != null) {
+            if (rawServers != null) {
+                rawServers.addAll(info.getConnectURLs());
+            }
             for (String uri : info.getConnectURLs()) {
                 try {
                     // call to createURIForServer is to parse (normalize)
