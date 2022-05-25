@@ -42,6 +42,8 @@ public interface JetStreamSubscription extends Subscription {
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
      *
+     * IMPORTANT! PullRequestOptions ARE CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
+     *
      * @param pullRequestOptions the options object
      * @throws IllegalStateException if not a pull subscription.
      */
