@@ -39,7 +39,9 @@ import static io.nats.client.support.NatsConstants.*;
  * starting with the {@link Options.Builder Builder}, since it has a simple list of methods that configure the connection.
  */
 public class Options {
+    // ----------------------------------------------------------------------------------------------------
     // NOTE TO DEVS!!! To add an option, you have to address:
+    // ----------------------------------------------------------------------------------------------------
     // CONSTANTS * optionally add a default value constant
     // ENVIRONMENT * most of the time add an environment property
     // CLASS VARIABLES * add a class variable
@@ -49,6 +51,7 @@ public class Options {
     // BUILD IMPL * update build() implementation if needed
     // CONSTRUCTOR * update constructor to ensure new variables are set
     // GETTERS * update getter tobe able to retrieve value
+    // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
     // CONSTANTS
