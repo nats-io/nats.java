@@ -18,7 +18,6 @@ import io.nats.client.Options;
 import nats.io.NatsRunnerUtils;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,20 +35,16 @@ public class AdditionalConnectTests {
         int cport1 = NatsRunnerUtils.nextPort();
         int cport2 = NatsRunnerUtils.nextPort();
         int cport3 = NatsRunnerUtils.nextPort();
-        File storageDir1 = null;
-        File storageDir2 = null;
-        File storageDir3 = null;
-
-        String[] customArgs1 = makeClusterArgs(1, cport1, cport2, cport3, storageDir1);
-        String[] customArgs2 = makeClusterArgs(2, cport2, cport1, cport3, storageDir2);
-        String[] customArgs3 = makeClusterArgs(3, cport3, cport1, cport2, storageDir3);
+        String[] insert1 = makeClusterInsert(1, cport1, cport2, cport3);
+        String[] insert2 = makeClusterInsert(2, cport2, cport1, cport3);
+        String[] insert3 = makeClusterInsert(3, cport3, cport1, cport2);
 
         try (
-            NatsTestServer ts = new NatsTestServer(0, false, false, null, null, customArgs1);
-            NatsTestServer ts2 = new NatsTestServer(0, false, false, null, null, customArgs2);
-            NatsTestServer ts3 = new NatsTestServer(0, false, false, null, null, customArgs3)
+            NatsTestServer ts = new NatsTestServer(0, false, false, null, insert1, null);
+            NatsTestServer ts2 = new NatsTestServer(0, false, false, null, insert2, null);
+            NatsTestServer ts3 = new NatsTestServer(0, false, false, null, insert3, null)
         ) {
-            sleep(1000); // just make sure the cluster is all read
+            sleep(1000); // just make sure the cluster is all ready
 
             Options options1 = new Options.Builder().server(ts.getURI()).build();
             TestNatsConnection conn1 = new TestNatsConnection(options1);
@@ -148,21 +143,20 @@ public class AdditionalConnectTests {
         }
     }
 
-    private String[] makeClusterArgs(int id, int cport, int cportR1, int cportR2, File storageDir) {
-        String[] args = new String[storageDir == null ? 8 : 11];
-        args[0] = "--name";
-        args[1] = "tc" + id;
-        args[2] = "--cluster_name";
-        args[3] = "testcluster";
-        args[4] = "--cluster";
-        args[5] = "\"nats://localhost:" + cport + "\"";
-        args[6] = "--routes";
-        args[7] = "\"nats://localhost:" + cportR1 + ",nats://localhost:" + cportR2 + "\"";
-        if (storageDir != null) {
-            args[8] = "-js";
-            args[9] = "-sd";
-            args[10] = "\"" + storageDir + "\"";
-        }
+    private String[] makeClusterInsert(int id, int listen, int route1, int route2) {
+        String[] args = new String[12];
+        args[0] = "";
+        args[1] = "server_name=srv" + id;
+        args[2] = "";
+        args[3] = "cluster {";
+        args[4] = "  name: testcluster";
+        args[5] = "  listen: 127.0.0.1:" + listen;
+        args[6] = "  routes: [";
+        args[7] = "    nats-route://127.0.0.1:" + route1;
+        args[8] = "    nats-route://127.0.0.1:" + route2;
+        args[9] = "  ]";
+        args[10] = "}";
+        args[11] = "";
         return args;
     }
 }
