@@ -22,9 +22,9 @@ public interface ServerListProvider {
     /**
      * Get the ordered server list to try for connecting/reconnecting
      * @param currentServer the server that connection is currently connected to. May be null.
-     * @param optionsServersRefined the de-duplicated list of normalized server URIs given to the options
+     * @param optionsServersRefined the list of normalized server URIs given to the options
      * @param optionsServersUnprocessed the list of server urls exactly how they were given to the options
-     * @param discoveredServersRefined the de-duplicated list of normalized servers from the server info
+     * @param discoveredServersRefined the list of normalized servers from the server info
      * @param discoveredServersUnprocessed the entire list of servers exactly as returned in the server info
      * @return the ordered server list
      */

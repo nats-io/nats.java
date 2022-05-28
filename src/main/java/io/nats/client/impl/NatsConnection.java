@@ -1554,7 +1554,7 @@ class NatsConnection implements Connection {
             if (!options.isIgnoreDiscoveredServers()) {
                 addDiscoveredServers(servers, null);
             }
-            return options.isNoRandomize() ? servers : shuffle(servers);
+            return options.isNoRandomize() ? servers : randomize(servers);
         }
 
         // provider behavior
@@ -1568,7 +1568,7 @@ class NatsConnection implements Connection {
             currentServer, options.getRefinedServers(), options.getUnprocessedServers(), discoveredServersRefined, discoveredServersUnprocessed);
     }
 
-    private List<String> shuffle(List<String> servers) {
+    private List<String> randomize(List<String> servers) {
         if (servers.size() > 1) {
             if (currentServer != null) {
                 servers.remove(currentServer);
@@ -1595,10 +1595,7 @@ class NatsConnection implements Connection {
         for (String url : urls) {
             try {
                 // call to createURIForServer is to parse (normalize)
-                String normal = options.createURIForServer(url).toString();
-                if (!servers.contains(normal)) {
-                    servers.add(normal);
-                }
+                servers.add(options.createURIForServer(url).toString());
                 if (unprocessed != null) {
                     unprocessed.add(url);
                 }

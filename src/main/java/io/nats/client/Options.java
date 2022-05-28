@@ -578,7 +578,7 @@ public class Options {
         // ----------------------------------------------------------------------------------------------------
         // BUILDER VARIABLES
         // ----------------------------------------------------------------------------------------------------
-        private final Set<URI> servers = new HashSet<>();
+        private final List<URI> servers = new ArrayList<>();
         private final List<String> unprocessedServers = new ArrayList<>();
         private boolean noRandomize = false;
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
@@ -868,9 +868,9 @@ public class Options {
             for (String s : servers) {
                 if (s != null && !s.isEmpty()) {
                     try {
-                        String raw = s.trim();
-                        this.servers.add(Options.parseURIForServer(raw));
-                        this.unprocessedServers.add(raw);
+                        String unprocessed = s.trim();
+                        this.servers.add(Options.parseURIForServer(unprocessed));
+                        this.unprocessedServers.add(unprocessed);
                     } catch (URISyntaxException e) {
                         throw new IllegalArgumentException("Bad server URL: " + s, e);
                     }
@@ -890,9 +890,11 @@ public class Options {
         }
 
         /**
-         * Turn off server pool randomization. By default the server will pick
-         * servers from its list randomly on a reconnect. When set to noRandom the server
-         * goes in the order they were configured or provided by a server in a cluster update.
+         * For the default server list provider, turn off server pool randomization.
+         * The default provider will pick servers from its list randomly on a reconnect.
+         * When noRandomize is set to true the default provider supplies a list that
+         * first contains servers as configured and then contains the servers as sent
+         * from the connected server.
          * @return the Builder for chaining
          */
         public Builder noRandomize() {
@@ -1388,7 +1390,7 @@ public class Options {
         }
 
         /**
-         * Turn off use of discovered servers when connecting / reconnecting
+         * Turn off use of discovered servers when connecting / reconnecting. Used in the default server list provider.
          * @return the Builder for chaining
          */
         public Builder ignoreDiscoveredServers() {
@@ -1397,7 +1399,7 @@ public class Options {
         }
 
         /**
-         * Set the ServerListProvider implementation for connections to use
+         * Set the ServerListProvider implementation for connections to use instead of the default bahvior
          * @return the Builder for chaining
          */
         public Builder serverListProvider(ServerListProvider serverListProvider) {
@@ -1468,7 +1470,7 @@ public class Options {
     private Options(Builder b) {
         this.servers = new ArrayList<>(b.servers); // builder servers is a set so no dupes
         refinedServers = new ArrayList<>(this.servers.size()); // refined just turns uris into strings since that's what's really used
-        for (URI uri : this.servers) {                         // didn't turn the servers into strings b/c that would be an API change
+        for (URI uri : this.servers) {                         // We didn't turn the servers var into strings b/c that would be an API change
             refinedServers.add(uri.toString());
         }
         this.unprocessedServers = b.unprocessedServers;        // exactly how the user gave them
