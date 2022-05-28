@@ -44,13 +44,13 @@ public class Options {
     // ----------------------------------------------------------------------------------------------------
     // CONSTANTS * optionally add a default value constant
     // ENVIRONMENT * most of the time add an environment property
-    // CLASS VARIABLES * add a class variable
-    // BUILDER VARIABLES * add field in builder
-    // BUILD CONSTRUCTOR PROPS * update build w/props constructor for new props
-    // BUILDER METHODS * add a chainable method in builder
+    // CLASS VARIABLES * add a variable to the class
+    // BUILDER VARIABLES * add a variable in builder
+    // BUILD CONSTRUCTOR PROPS * update build props constructor to read new props
+    // BUILDER METHODS * add a chainable method in builder for new variable
     // BUILD IMPL * update build() implementation if needed
-    // CONSTRUCTOR * update constructor to ensure new variables are set
-    // GETTERS * update getter tobe able to retrieve value
+    // CONSTRUCTOR * update constructor to ensure new variables are set from builder
+    // GETTERS * update getter to be able to retrieve class variable value
     // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
@@ -488,16 +488,17 @@ public class Options {
     public static final String PROP_IGNORE_DISCOVERED_SERVERS = "ignore_discovered_servers";
 
     /**
-     * Property used to set class name for ServersToTryProvider implementation
-     * {@link Builder#serversToTryProvider(ServersToTryProvider) serversToTryProvider}.
+     * Property used to set class name for ServerListProvider implementation
+     * {@link Builder#serverListProvider(ServerListProvider) serverListProvider}.
      */
-    public static final String PROP_SERVERS_TO_TRY_PROVIDER_CLASS = "servers_to_try_provider_class";
+    public static final String PROP_SERVERS_LIST_PROVIDER_CLASS = "servers_list_provider_class";
 
     // ----------------------------------------------------------------------------------------------------
     // CLASS VARIABLES
     // ----------------------------------------------------------------------------------------------------
     private final List<URI> servers;
-    private final List<String> rawServers;
+    private final List<String> refinedServers;
+    private final List<String> unprocessedServers;
     private final boolean noRandomize;
     private final String connectionName;
     private final boolean verbose;
@@ -539,7 +540,7 @@ public class Options {
     private final boolean traceConnection;
 
     private final ExecutorService executor;
-    private final ServersToTryProvider serversToTryProvider;
+    private final ServerListProvider serverListProvider;
 
     static class DefaultThreadFactory implements ThreadFactory {
         String name;
@@ -577,8 +578,8 @@ public class Options {
         // ----------------------------------------------------------------------------------------------------
         // BUILDER VARIABLES
         // ----------------------------------------------------------------------------------------------------
-        private final ArrayList<URI> servers = new ArrayList<>();
-        private final List<String> rawServers = new ArrayList<>();
+        private final Set<URI> servers = new HashSet<>();
+        private final List<String> unprocessedServers = new ArrayList<>();
         private boolean noRandomize = false;
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
         private boolean verbose = false;
@@ -610,7 +611,7 @@ public class Options {
         private int maxMessagesInOutgoingQueue = DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
         private boolean ignoreDiscoveredServers = false;
-        private ServersToTryProvider serversToTryProvider = null;
+        private ServerListProvider serverListProvider = null;
 
         private AuthHandler authHandler;
         private ReconnectDelayHandler reconnectDelayHandler;
@@ -824,9 +825,9 @@ public class Options {
                 this.ignoreDiscoveredServers = Boolean.parseBoolean(props.getProperty(PROP_IGNORE_DISCOVERED_SERVERS));
             }
 
-            if (props.containsKey(PROP_SERVERS_TO_TRY_PROVIDER_CLASS)) {
-                Object instance = createInstanceOf(props.getProperty(PROP_SERVERS_TO_TRY_PROVIDER_CLASS));
-                this.serversToTryProvider = (ServersToTryProvider) instance;
+            if (props.containsKey(PROP_SERVERS_LIST_PROVIDER_CLASS)) {
+                Object instance = createInstanceOf(props.getProperty(PROP_SERVERS_LIST_PROVIDER_CLASS));
+                this.serverListProvider = (ServerListProvider) instance;
             }
         }
 
@@ -868,8 +869,8 @@ public class Options {
                 if (s != null && !s.isEmpty()) {
                     try {
                         String raw = s.trim();
-                        this.rawServers.add(raw);
                         this.servers.add(Options.parseURIForServer(raw));
+                        this.unprocessedServers.add(raw);
                     } catch (URISyntaxException e) {
                         throw new IllegalArgumentException("Bad server URL: " + s, e);
                     }
@@ -1396,11 +1397,11 @@ public class Options {
         }
 
         /**
-         * Set the ServersToTryProvider implementation for connections to use
+         * Set the ServerListProvider implementation for connections to use
          * @return the Builder for chaining
          */
-        public Builder serversToTryProvider(ServersToTryProvider serversToTryProvider) {
-            this.serversToTryProvider = serversToTryProvider;
+        public Builder serverListProvider(ServerListProvider serverListProvider) {
+            this.serverListProvider = serverListProvider;
             return this;
         }
 
@@ -1465,8 +1466,12 @@ public class Options {
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------------------------------
     private Options(Builder b) {
-        this.servers = b.servers;
-        this.rawServers = b.rawServers;
+        this.servers = new ArrayList<>(b.servers); // builder servers is a set so no dupes
+        refinedServers = new ArrayList<>(this.servers.size()); // refined just turns uris into strings since that's what's really used
+        for (URI uri : this.servers) {                         // didn't turn the servers into strings b/c that would be an API change
+            refinedServers.add(uri.toString());
+        }
+        this.unprocessedServers = b.unprocessedServers;        // exactly how the user gave them
         this.noRandomize = b.noRandomize;
         this.connectionName = b.connectionName;
         this.verbose = b.verbose;
@@ -1508,7 +1513,7 @@ public class Options {
 
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
 
-        this.serversToTryProvider = b.serversToTryProvider;
+        this.serverListProvider = b.serverListProvider;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -1571,10 +1576,17 @@ public class Options {
     }
 
     /**
-     * @return the raw servers as given to the options, since the servers are normalized
+     * @return the servers, as strings instead of URIs stored in this options
      */
-    public List<String> getRawServers() {
-        return rawServers;
+    public List<String> getRefinedServers() {
+        return refinedServers;
+    }
+
+    /**
+     * @return the servers as given to the options, since the servers are normalized
+     */
+    public List<String> getUnprocessedServers() {
+        return unprocessedServers;
     }
 
     /**
@@ -1836,11 +1848,11 @@ public class Options {
     }
 
     /**
-     * Get a provided ServersToTryProvider. If null, a default implementation is used.
-     * @return the ServersToTryProvider implementation
+     * Get a provided ServerListProvider. If null, a default implementation is used.
+     * @return the ServerListProvider implementation
      */
-    public ServersToTryProvider getServersToTryProvider() {
-        return serversToTryProvider;
+    public ServerListProvider getServerListProvider() {
+        return serverListProvider;
     }
 
     public URI createURIForServer(String serverURI) throws URISyntaxException {

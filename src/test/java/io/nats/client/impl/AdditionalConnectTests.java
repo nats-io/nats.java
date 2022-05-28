@@ -62,18 +62,14 @@ public class AdditionalConnectTests {
             standardConnectionWait(conn2);
             standardConnectionWait(conn3);
 
-            final List<String> optionsServers1 = new ArrayList<>();
-            conn1.addOptionsServers(optionsServers1);
+            final List<String> optionsServers1 = new ArrayList<>(conn1.getOptions().getRefinedServers());
             final List<String> discoveredServers1 = new ArrayList<>();
             conn1.addDiscoveredServers(discoveredServers1, null);
 
-            final List<String> optionsServers2 = new ArrayList<>();
-            conn2.addOptionsServers(optionsServers2);
             final List<String> discoveredServers2 = new ArrayList<>();
             conn2.addDiscoveredServers(discoveredServers2, null);
 
-            final List<String> optionsServers3 = new ArrayList<>();
-            conn3.addOptionsServers(optionsServers3);
+            final List<String> optionsServers3 = new ArrayList<>(conn3.getOptions().getRefinedServers());
             final List<String> discoveredServers3 = new ArrayList<>();
             conn3.addDiscoveredServers(discoveredServers3, null);
 
@@ -130,11 +126,6 @@ public class AdditionalConnectTests {
         @Override
         public List<String> getServersToTry() {
             return super.getServersToTry();
-        }
-
-        @Override
-        public void addOptionsServers(List<String> servers) {
-            super.addOptionsServers(servers);
         }
 
         @Override
