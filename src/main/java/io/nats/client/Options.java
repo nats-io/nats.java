@@ -1468,7 +1468,7 @@ public class Options {
     // ----------------------------------------------------------------------------------------------------
     private Options(Builder b) {
         this.serverURIs = new ArrayList<>(b.serverURIs); // builder servers is a set so no dupes
-        this.unprocessedServers = b.unprocessedServers;         // exactly how the user gave them
+        this.unprocessedServers = b.unprocessedServers;  // exactly how the user gave them
         this.noRandomize = b.noRandomize;
         this.connectionName = b.connectionName;
         this.verbose = b.verbose;
