@@ -17,6 +17,8 @@ import java.util.List;
 
 /**
  * Allows the developer to provide the list of servers to try for connecting/reconnecting
+ *
+ * IMPORTANT! ServerListProvider IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public interface ServerListProvider {
     /**

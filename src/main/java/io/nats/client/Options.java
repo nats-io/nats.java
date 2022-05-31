@@ -490,6 +490,8 @@ public class Options {
     /**
      * Property used to set class name for ServerListProvider implementation
      * {@link Builder#serverListProvider(ServerListProvider) serverListProvider}.
+     *
+     * IMPORTANT! ServerListProvider IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
      */
     public static final String PROP_SERVERS_LIST_PROVIDER_CLASS = "servers_list_provider_class";
 
@@ -1399,6 +1401,7 @@ public class Options {
 
         /**
          * Set the ServerListProvider implementation for connections to use instead of the default bahvior
+         * IMPORTANT! ServerListProvider IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
          * @return the Builder for chaining
          */
         public Builder serverListProvider(ServerListProvider serverListProvider) {
@@ -1839,6 +1842,7 @@ public class Options {
 
     /**
      * Get a provided ServerListProvider. If null, a default implementation is used.
+     * IMPORTANT! ServerListProvider IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @return the ServerListProvider implementation
      */
     public ServerListProvider getServerListProvider() {
