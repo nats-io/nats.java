@@ -22,6 +22,7 @@ import io.nats.client.support.NatsRequestCompletableFuture;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -1536,10 +1537,10 @@ class NatsConnection implements Connection {
      * @return this connection's list of known server URLs
      */
     public Collection<String> getServers() {
-        // this does not look for the provider because of the way it was documented which was
-        // "Return the list of known server urls, including additional servers discovered..."
-        List<String> servers = new ArrayList<>(options.getRefinedServers());
-        addDiscoveredServers(servers, null);
+        // This does not use the server list provider because it does what it's doc says
+        List<String> servers = new ArrayList<>();
+        addOptionsServers(servers);
+        addDiscoveredServers(servers);
         return servers;
     }
 
@@ -1550,9 +1551,10 @@ class NatsConnection implements Connection {
             // 1. add the configured servers
             // 2. optionally add the discovered servers (options default is to get them)
             // 3. optionally randomize the servers (options default is to randomize)
-            List<String> servers = new ArrayList<>(options.getRefinedServers());
+            List<String> servers = new ArrayList<>();
+            addOptionsServers(servers);
             if (!options.isIgnoreDiscoveredServers()) {
-                addDiscoveredServers(servers, null);
+                addDiscoveredServers(servers);
             }
             return options.isNoRandomize() ? servers : randomize(servers);
         }
@@ -1561,11 +1563,47 @@ class NatsConnection implements Connection {
         // 1. Get the list of configured servers
         // 2. Get the list of discovered servers
         // 3. Pass those, the current server and the options to the provider
-        List<String> discoveredServersRefined = new ArrayList<>();
-        List<String> discoveredServersUnprocessed = new ArrayList<>();
-        addDiscoveredServers(discoveredServersRefined, discoveredServersUnprocessed);
         return options.getServerListProvider().getServerList(
-            currentServer, options.getRefinedServers(), options.getUnprocessedServers(), discoveredServersRefined, discoveredServersUnprocessed);
+            currentServer, options.getUnprocessedServers(), getDiscoveredConnectUrls());
+    }
+
+    protected void addOptionsServers(List<String> servers) {
+        for (URI uri : options.getServers()) {
+            String srv = uri.toString();
+            if (!servers.contains(srv)) {
+                servers.add(srv);
+            }
+        }
+    }
+
+    protected List<String> getDiscoveredConnectUrls() {
+        ServerInfo info = this.serverInfo.get();
+        if (info == null) {
+            return new ArrayList<>();
+        }
+
+        List<String> urls = info.getConnectURLs();
+        if (urls == null) {
+            return new ArrayList<>();
+        }
+
+        return info.getConnectURLs();
+    }
+
+    protected void addDiscoveredServers(List<String> servers) {
+        List<String> urls = getDiscoveredConnectUrls();
+        for (String url : urls) {
+            try {
+                String srv = options.createURIForServer(url).toString();
+                if (!servers.contains(srv)) {
+                    servers.add(srv);
+                }
+            }
+            catch (URISyntaxException e) {
+                // this should never happen since this list comes from the server
+                // if it does... what to do? for now just ignore it, it's no good anyway
+            }
+        }
     }
 
     private List<String> randomize(List<String> servers) {
@@ -1579,32 +1617,6 @@ class NatsConnection implements Connection {
             }
         }
         return servers;
-    }
-
-    protected void addDiscoveredServers(List<String> servers, List<String> unprocessed) {
-        ServerInfo info = this.serverInfo.get();
-        if (info == null) {
-            return;
-        }
-
-        List<String> urls = info.getConnectURLs();
-        if (urls == null) {
-            return;
-        }
-
-        for (String url : urls) {
-            try {
-                // call to createURIForServer is to parse (normalize)
-                servers.add(options.createURIForServer(url).toString());
-                if (unprocessed != null) {
-                    unprocessed.add(url);
-                }
-            }
-            catch (URISyntaxException e) {
-                // this should never happen since this list comes from the server
-                // if it does... what to do? for now just ignore it, it's no good anyway
-            }
-        }
     }
 
     @Override

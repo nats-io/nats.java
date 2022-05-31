@@ -19,6 +19,7 @@ import nats.io.NatsRunnerUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +30,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class AdditionalConnectTests {
 
     // THESE TESTS ARE HERE BECAUSE I NEED SOMETHING PACKAGE SCOPED
+    private List<String> getOptionsServers(Options options) {
+        List<String> servers = new ArrayList<>();
+        for (URI uri : options.getServers()) {
+            String srv = uri.toString();
+            if (!servers.contains(srv)) {
+                servers.add(srv);
+            }
+        }
+        return servers;
+    }
 
     @Test
     public void testConnectionWithServerUriManagement() throws IOException, InterruptedException {
@@ -62,16 +73,16 @@ public class AdditionalConnectTests {
             standardConnectionWait(conn2);
             standardConnectionWait(conn3);
 
-            final List<String> optionsServers1 = new ArrayList<>(conn1.getOptions().getRefinedServers());
+            final List<String> optionsServers1 = getOptionsServers(conn1.getOptions());
             final List<String> discoveredServers1 = new ArrayList<>();
-            conn1.addDiscoveredServers(discoveredServers1, null);
+            conn1.addDiscoveredServers(discoveredServers1);
 
             final List<String> discoveredServers2 = new ArrayList<>();
-            conn2.addDiscoveredServers(discoveredServers2, null);
+            conn2.addDiscoveredServers(discoveredServers2);
 
-            final List<String> optionsServers3 = new ArrayList<>(conn3.getOptions().getRefinedServers());
+            final List<String> optionsServers3 = getOptionsServers(conn3.getOptions());
             final List<String> discoveredServers3 = new ArrayList<>();
-            conn3.addDiscoveredServers(discoveredServers3, null);
+            conn3.addDiscoveredServers(discoveredServers3);
 
             // option 1 is randomized so just check that both options and discovered are there
             assertEquals(ts.getURI(), conn1.getConnectedUrl());
@@ -129,8 +140,8 @@ public class AdditionalConnectTests {
         }
 
         @Override
-        public void addDiscoveredServers(List<String> servers, List<String> rawServers) {
-            super.addDiscoveredServers(servers, rawServers);
+        public void addDiscoveredServers(List<String> servers) {
+            super.addDiscoveredServers(servers);
         }
     }
 

@@ -496,8 +496,7 @@ public class Options {
     // ----------------------------------------------------------------------------------------------------
     // CLASS VARIABLES
     // ----------------------------------------------------------------------------------------------------
-    private final List<URI> servers;
-    private final List<String> refinedServers;
+    private final List<URI> serverURIs;
     private final List<String> unprocessedServers;
     private final boolean noRandomize;
     private final String connectionName;
@@ -578,7 +577,7 @@ public class Options {
         // ----------------------------------------------------------------------------------------------------
         // BUILDER VARIABLES
         // ----------------------------------------------------------------------------------------------------
-        private final List<URI> servers = new ArrayList<>();
+        private final List<URI> serverURIs = new ArrayList<>();
         private final List<String> unprocessedServers = new ArrayList<>();
         private boolean noRandomize = false;
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
@@ -869,7 +868,7 @@ public class Options {
                 if (s != null && !s.isEmpty()) {
                     try {
                         String unprocessed = s.trim();
-                        this.servers.add(Options.parseURIForServer(unprocessed));
+                        this.serverURIs.add(Options.parseURIForServer(unprocessed));
                         this.unprocessedServers.add(unprocessed);
                     } catch (URISyntaxException e) {
                         throw new IllegalArgumentException("Bad server URL: " + s, e);
@@ -1433,11 +1432,11 @@ public class Options {
                 throw new IllegalStateException("Options can't have token and username");
             }
             
-            if (servers.size() == 0) {
+            if (serverURIs.size() == 0) {
                 server(DEFAULT_URL);
             }
             else if (sslContext == null) {
-                for (URI serverURI : servers) {
+                for (URI serverURI : serverURIs) {
                     if (TLS_PROTOCOL.equals(serverURI.getScheme())) {
                         try {
                             this.sslContext = SSLContext.getDefault();
@@ -1468,12 +1467,8 @@ public class Options {
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------------------------------
     private Options(Builder b) {
-        this.servers = new ArrayList<>(b.servers); // builder servers is a set so no dupes
-        refinedServers = new ArrayList<>(this.servers.size()); // refined just turns uris into strings since that's what's really used
-        for (URI uri : this.servers) {                         // We didn't turn the servers var into strings b/c that would be an API change
-            refinedServers.add(uri.toString());
-        }
-        this.unprocessedServers = b.unprocessedServers;        // exactly how the user gave them
+        this.serverURIs = new ArrayList<>(b.serverURIs); // builder servers is a set so no dupes
+        this.unprocessedServers = b.unprocessedServers;         // exactly how the user gave them
         this.noRandomize = b.noRandomize;
         this.connectionName = b.connectionName;
         this.verbose = b.verbose;
@@ -1574,14 +1569,7 @@ public class Options {
      * @return the servers stored in this options, see {@link Builder#servers(String[]) servers()} in the builder doc
      */
     public Collection<URI> getServers() {
-        return servers;
-    }
-
-    /**
-     * @return the servers, as strings instead of URIs stored in this options
-     */
-    public List<String> getRefinedServers() {
-        return refinedServers;
+        return serverURIs;
     }
 
     /**
