@@ -42,20 +42,32 @@ class OrderedManager extends MessageManager {
             long receivedConsumerSeq = msg.metaData().consumerSequence();
             if (expectedConsumerSeq != receivedConsumerSeq) {
                 try {
-                    expectedConsumerSeq = 1; // new consumer will start at 1
+                    expectedConsumerSeq = 1; // consumer always starts with consumer sequence 1
 
-                    // new sub needs a new consumer with a new deliver subject
-                    String newDeliver = sub.connection.createInbox();
+                    // 1. shutdown the managers, for instance stops heartbeat timers
+                    for (MessageManager mm : sub.managers) {
+                        mm.shutdown();
+                    }
 
+                    // 2. re-subscribe. This means kill the sub then make a new one
+                    //    New sub needs a new deliver subject
+                    String newDeliverSubject = sub.connection.createInbox();
+                    sub.reSubscribe(newDeliverSubject);
+
+                    // 3. make a new consumer using the same deliver subject but
+                    //    with a new starting point
                     ConsumerConfiguration userCC = ConsumerConfiguration.builder(serverCC)
                         .deliverPolicy(DeliverPolicy.ByStartSequence)
-                        .deliverSubject(newDeliver)
+                        .deliverSubject(newDeliverSubject)
                         .startSequence(lastStreamSeq + 1)
                         .startTime(null) // clear start time in case it was originally set
                         .build();
+                    js._createConsumerUnsubscribeOnException(stream, userCC, sub);
 
-                    js._createConsumer(stream, userCC);
-                    sub.reSubscribe(newDeliver);
+                    // 4. re start the managers.
+                    for (MessageManager mm : sub.managers) {
+                        mm.startup(sub);
+                    }
                 }
                 catch (Exception e) {
                     IllegalStateException ise = new IllegalStateException("Ordered subscription fatal error.", e);

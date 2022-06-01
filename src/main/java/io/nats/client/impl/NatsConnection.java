@@ -26,7 +26,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -44,6 +43,7 @@ import java.util.regex.Pattern;
 
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.Validator.validateNotNull;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 class NatsConnection implements Connection {
 
@@ -823,15 +823,17 @@ class NatsConnection implements Connection {
     }
 
     void invalidate(NatsSubscription sub) {
-        CharSequence sid = sub.getSID();
+        remove(sub);
+        sub.invalidate();
+    }
 
+    void remove(NatsSubscription sub) {
+        CharSequence sid = sub.getSID();
         subscribers.remove(sid);
 
         if (sub.getNatsDispatcher() != null) {
             sub.getNatsDispatcher().remove(sub);
         }
-
-        sub.invalidate();
     }
 
     void unsubscribe(NatsSubscription sub, int after) {
@@ -857,11 +859,8 @@ class NatsConnection implements Connection {
     }
 
     void sendUnsub(NatsSubscription sub, int after) {
-        // allocate the proto length + 19 + 10 (sid is a long, 19 bytes max, after is an int 10 bytes max)
-        ByteArrayBuilder bab = new ByteArrayBuilder(OP_UNSUB_SP_LEN + 29)
-                .append(UNSUB_SP_BYTES)
-                .append(sub.getSID());
-
+        ByteArrayBuilder bab =
+            new ByteArrayBuilder().append(UNSUB_SP_BYTES).append(sub.getSID());
         if (after > 0) {
             bab.append(SP).append(after);
         }
@@ -904,20 +903,13 @@ class NatsConnection implements Connection {
 
     void sendSubscriptionMessage(String sid, String subject, String queueName, boolean treatAsInternal) {
         if (!isConnected()) {
-            return;// We will setup sub on reconnect or ignore
+            return; // We will setup sub on reconnect or ignore
         }
 
-        int subLength = (subject != null) ? subject.length() : 0;
-        int qLength = (queueName != null) ? queueName.length() : 0;
-
-        ByteArrayBuilder bab = new ByteArrayBuilder(OP_SUB_SP_LEN + subLength + qLength)
-                .append(SUB_SP_BYTES)
-                .append(subject, StandardCharsets.UTF_8); // utf-8 just in case
-
+        ByteArrayBuilder bab = new ByteArrayBuilder(UTF_8).append(SUB_SP_BYTES).append(subject);
         if (queueName != null) {
             bab.append(SP).append(queueName);
         }
-
         bab.append(SP).append(sid);
 
         NatsMessage subMsg = new ProtocolMessage(bab);
@@ -1319,7 +1311,7 @@ class NatsConnection implements Connection {
 
         protocolBuffer.flip();
 
-        String infoJson = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
+        String infoJson = UTF_8.decode(protocolBuffer).toString();
         infoJson = infoJson.trim();
         String[] msg = infoJson.split("\\s");
         String op = msg[0].toUpperCase();

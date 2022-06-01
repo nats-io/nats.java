@@ -1402,6 +1402,7 @@ public class Options {
         /**
          * Set the ServerListProvider implementation for connections to use instead of the default bahvior
          * IMPORTANT! ServerListProvider IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
+         * @param serverListProvider the implementation
          * @return the Builder for chaining
          */
         public Builder serverListProvider(ServerListProvider serverListProvider) {

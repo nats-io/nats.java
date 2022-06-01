@@ -207,12 +207,12 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
     }
 
-    interface PushStatusMessageManagerFactory {
-        PushStatusMessageManager createPushStatusMessageManager(
+    // PushMessageManagerFactory is internal and used for testing / providing a PushMessageManager mock
+    interface PushMessageManagerFactory {
+        PushMessageManager createPushMessageManager(
             NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode);
     }
-
-    static PushStatusMessageManagerFactory PUSH_STATUS_MANAGER_FACTORY = PushStatusMessageManager::new;
+    static PushMessageManagerFactory PUSH_MESSAGE_MANAGER_FACTORY = PushMessageManager::new;
 
     JetStreamSubscription createSubscription(String subject,
                                                  String queueName,
@@ -376,24 +376,24 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         // 6. create the subscription. lambda needs final or effectively final vars
         NatsJetStreamSubscription sub;
         if (isPullMode) {
-            final MessageManager[] managers = new MessageManager[] { new PullStatusMessageManager() };
+            final MessageManager[] managers = new MessageManager[] { new PullMessageManager() };
             final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
                 -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, this, fnlStream, settledConsumerName, managers);
             sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
         }
         else {
-            final MessageManager statusManager =
-                PUSH_STATUS_MANAGER_FACTORY.createPushStatusMessageManager(conn, so, settledServerCC, qgroup != null, dispatcher == null);
+            final MessageManager pushMessageManager =
+                PUSH_MESSAGE_MANAGER_FACTORY.createPushMessageManager(conn, so, settledServerCC, qgroup != null, dispatcher == null);
             final MessageManager[] managers;
             if (so.isOrdered()) {
                 managers = new MessageManager[3];
                 managers[0] = new SidCheckManager();
-                managers[1] = statusManager;
+                managers[1] = pushMessageManager;
                 managers[2] = new OrderedManager(this, dispatcher, fnlStream, settledServerCC);
             }
             else {
                 managers = new MessageManager[1];
-                managers[0] = statusManager;
+                managers[0] = pushMessageManager;
             }
 
             final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
@@ -411,20 +411,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         // 7. The consumer might need to be created, do it here
         if (settledConsumerName == null) {
-            try {
-                ConsumerInfo ci = _createConsumer(fnlStream, settledServerCC);
-                sub.setConsumerName(ci.getName());
-            }
-            catch (IOException | JetStreamApiException e) {
-                // create consumer can fail, unsubscribe and then throw the exception to the user
-                if (dispatcher == null) {
-                    sub.unsubscribe();
-                }
-                else {
-                    dispatcher.unsubscribe(sub);
-                }
-                throw e;
-            }
+            _createConsumerUnsubscribeOnException(fnlStream, settledServerCC, sub);
         }
 
         return sub;

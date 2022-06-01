@@ -43,15 +43,17 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                               NatsConnection connection, NatsDispatcher dispatcher,
                               NatsJetStream js,
                               String stream, String consumer,
-                              MessageManager[] inManagers) {
+                              MessageManager[] managers)
+    {
         super(sid, subject, queueName, connection, dispatcher);
+
         this.js = js;
         this.stream = stream;
         this.consumerName = consumer; // might be null, someone will call setConsumerName
 
-        managers = inManagers;
+        this.managers = managers;
         for (MessageManager mm : managers) {
-            mm.setSub(this);
+            mm.startup(this);
         }
     }
 

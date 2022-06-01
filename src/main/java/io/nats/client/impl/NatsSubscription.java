@@ -36,7 +36,7 @@ class NatsSubscription extends NatsConsumer implements Subscription {
     private Function<NatsMessage, NatsMessage> beforeQueueProcessor;
 
     NatsSubscription(String sid, String subject, String queueName, NatsConnection connection,
-            NatsDispatcher dispatcher) {
+                     NatsDispatcher dispatcher) {
         super(connection);
         this.subject = subject;
         this.queueName = queueName;
@@ -51,38 +51,18 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         beforeQueueProcessor = m -> m;
     }
 
-    void reSubscribe(String deliverSubject) {
-        // first unsubscribe
-        MessageHandler handler = null;
-        try {
-            if (dispatcher == null) {
-                unsubscribe();
-            }
-            else {
-                NatsDispatcher d = dispatcher; // unsubscribe eventually calls invalidate which nulls out dispatcher
-                handler = dispatcher.getSubscriptionHandlers().get(sid);
-                dispatcher.unsubscribe(this);
-                dispatcher = d;
-            }
-            connection.lenientFlushBuffer();
-        }
-        catch (RuntimeException re) {
-            IllegalStateException ise = new IllegalStateException("Subscription fatal error.", re);
-            connection.processException(ise);
-            if (dispatcher == null) {
-                throw ise;
-            }
-        }
-
-        // resubscribe to the server with a new deliver subject and a new queue
-        this.subject = deliverSubject;
-        if (this.dispatcher == null) {
-            this.incoming = new MessageQueue(false);
-            sid = connection.reSubscribe(this, deliverSubject, queueName);
+    void reSubscribe(String newDeliverSubject) {
+        connection.sendUnsub(this, 0);
+        if (dispatcher == null) {
+            connection.remove(this);
+            sid = connection.reSubscribe(this, newDeliverSubject, queueName);
         }
         else {
-            sid = dispatcher.reSubscribe(this, subject, queueName, handler);
+            MessageHandler handler = dispatcher.getSubscriptionHandlers().get(sid);
+            dispatcher.remove(this);
+            sid = dispatcher.reSubscribe(this, newDeliverSubject, queueName, handler);
         }
+        subject = newDeliverSubject;
     }
 
     public boolean isActive() {

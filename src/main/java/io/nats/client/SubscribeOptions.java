@@ -62,6 +62,7 @@ public abstract class SubscribeOptions {
             validateNotSupplied(deliverSubject, JsSoOrderedNotAllowedWithDeliverSubject);
             long hb = DEFAULT_ORDERED_HEARTBEAT;
             if (builder.cc != null) {
+                // want to make sure they didn't set it or they didn't set it to something other than none
                 if (builder.cc.ackPolicyWasSet() && builder.cc.getAckPolicy() != AckPolicy.None) {
                     throw JsSoOrderedRequiresAckPolicyNone.instance();
                 }

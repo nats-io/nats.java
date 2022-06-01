@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
-class PushStatusMessageManager extends MessageManager {
+class PushMessageManager extends MessageManager {
 
     private static final List<Integer> PUSH_KNOWN_STATUS_CODES = Arrays.asList(409);
 
@@ -51,9 +51,9 @@ class PushStatusMessageManager extends MessageManager {
     private final AtomicLong lastMsgReceived;
     private HeartbeatTimer heartbeatTimer;
 
-    PushStatusMessageManager(NatsConnection conn, SubscribeOptions so,
-                             ConsumerConfiguration cc,
-                             boolean queueMode, boolean syncMode)
+    PushMessageManager(NatsConnection conn, SubscribeOptions so,
+                       ConsumerConfiguration cc,
+                       boolean queueMode, boolean syncMode)
     {
         this.conn = conn;
         this.syncMode = syncMode;
@@ -89,8 +89,8 @@ class PushStatusMessageManager extends MessageManager {
     }
 
     @Override
-    void setSub(NatsJetStreamSubscription sub) {
-        super.setSub(sub);
+    void startup(NatsJetStreamSubscription sub) {
+        super.startup(sub);
         if (hb) {
             sub.setBeforeQueueProcessor(this::beforeQueueProcessor);
             heartbeatTimer = new HeartbeatTimer();
@@ -101,7 +101,9 @@ class PushStatusMessageManager extends MessageManager {
     void shutdown() {
         if (heartbeatTimer != null) {
             heartbeatTimer.shutdown();
+            heartbeatTimer = null;
         }
+        super.shutdown();
     }
 
     class HeartbeatTimer {
