@@ -76,29 +76,55 @@ public class Placement implements JsonSerializable {
         return endJson(sb).toString();
     }
 
+    /**
+     * Creates a builder for a placements object.
+     * @return the builder.
+     */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Placement can be created using a Builder.
+     */
     public static class Builder {
         private String cluster;
         private List<String> tags;
 
+        /**
+         * Set the cluster string.
+         * @param cluster the cluster
+         * @return the builder
+         */
         public Builder cluster(String cluster) {
             this.cluster = cluster;
             return this;
         }
 
+        /**
+         * Set the tags
+         * @param tags the list of tags
+         * @return the builder
+         */
         public Builder tags(String... tags) {
             this.tags = Arrays.asList(tags);
             return this;
         }
 
+        /**
+         * Set the tags
+         * @param tags the list of tags
+         * @return the builder
+         */
         public Builder tags(List<String> tags) {
             this.tags = tags;
             return this;
         }
 
+        /**
+         * Build a Placement object
+         * @return the Placement
+         */
         public Placement build() {
             Validator.required(cluster, "Cluster");
             return new Placement(cluster, tags);
