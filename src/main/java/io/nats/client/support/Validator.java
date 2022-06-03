@@ -99,6 +99,13 @@ public abstract class Validator {
         String check();
     }
 
+    public static String required(String s, String label) {
+        if (emptyAsNull(s) == null) {
+            throw new IllegalArgumentException(label + " cannot be null or empty.");
+        }
+        return s;
+    }
+
     public static String _validate(String s, boolean required, String label, Check check) {
         if (emptyAsNull(s) == null) {
             if (required) {

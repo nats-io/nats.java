@@ -15,7 +15,9 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.Validator;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
@@ -36,6 +38,11 @@ public class Placement implements JsonSerializable {
     Placement(String json) {
         cluster = JsonUtils.readString(json, CLUSTER_RE);
         tags = JsonUtils.getStringList(TAGS, json);
+    }
+
+    public Placement(String cluster, List<String> tags) {
+        this.cluster = cluster;
+        this.tags = tags;
     }
 
     /**
@@ -67,5 +74,34 @@ public class Placement implements JsonSerializable {
         addField(sb, CLUSTER, cluster);
         addStrings(sb, TAGS, tags);
         return endJson(sb).toString();
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+        private String cluster;
+        private List<String> tags;
+
+        public Builder cluster(String cluster) {
+            this.cluster = cluster;
+            return this;
+        }
+
+        public Builder tags(String... tags) {
+            this.tags = Arrays.asList(tags);
+            return this;
+        }
+
+        public Builder tags(List<String> tags) {
+            this.tags = tags;
+            return this;
+        }
+
+        public Placement build() {
+            Validator.required(cluster, "Cluster");
+            return new Placement(cluster, tags);
+        }
     }
 }
