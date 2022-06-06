@@ -381,4 +381,21 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         String json = ResourceUtils.dataAsString("StreamConfiguration.json");
         assertNotNull(StreamConfiguration.instance(json).toString());
     }
+
+    @Test
+    public void testPlacement() {
+        assertThrows(IllegalArgumentException.class, () -> Placement.builder().build());
+
+        Placement p = Placement.builder().cluster("cluster").build();
+        assertEquals("cluster", p.getCluster());
+        assertNull(p.getTags());
+
+        p = Placement.builder().cluster("cluster").tags("a", "b").build();
+        assertEquals("cluster", p.getCluster());
+        assertEquals(2, p.getTags().size());
+
+        p = Placement.builder().cluster("cluster").tags(Arrays.asList("a", "b")).build();
+        assertEquals("cluster", p.getCluster());
+        assertEquals(2, p.getTags().size());
+    }
 }
