@@ -551,6 +551,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // 7. allowed to update a key that is deleted, as long as you have it's revision
             kv.delete(KEY);
+            nc.flush(Duration.ofSeconds(1));
 
             sleep(200); // a little pause to make sure things get flushed
             List<KeyValueEntry> hist = kv.history(KEY);

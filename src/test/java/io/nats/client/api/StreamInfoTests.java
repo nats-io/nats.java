@@ -181,4 +181,17 @@ public class StreamInfoTests {
         assertTrue(json.contains("true"));
         assertFalse(json.contains(SUBJECTS_FILTER));
     }
+
+    @Test
+    public void testSubjectCoverage() {
+        List<Subject> list = Subject.optionalListOf("{}");
+        assertNull(list);
+
+        list = Subject.optionalListOf(null);
+        assertNull(list);
+
+        list = Subject.optionalListOf("{\"sub0\": 1, \"sub1\": 2,\"x.foo\": 3}");
+        assertNotNull(list);
+        assertEquals(3, list.size());
+    }
 }

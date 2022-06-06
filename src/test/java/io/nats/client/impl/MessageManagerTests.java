@@ -41,7 +41,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     private void _pushConstruction(Connection conn, boolean hb, boolean fc, SubscribeOptions so, NatsJetStreamSubscription sub) {
-        PushStatusMessageManager manager = getManager(conn, so, sub, true, false);
+        PushMessageManager manager = getManager(conn, so, sub, true, false);
         assertTrue(manager.isSyncMode());
         assertFalse(manager.isQueueMode());
         assertEquals(hb, manager.isHb());
@@ -65,7 +65,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     private void _status_handle_pushSync(Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
-        PushStatusMessageManager manager = getManager(conn, so, sub, true, false);
+        PushMessageManager manager = getManager(conn, so, sub, true, false);
         assertFalse(manager.manage(getTestJsMessage(1)));
         assertTrue(manager.manage(getFlowControl(1)));
         assertTrue(manager.manage(getFcHeartbeat(1)));
@@ -78,8 +78,8 @@ public class MessageManagerTests extends JetStreamTestBase {
     public void test_status_handle_pull() throws Exception {
         runInJsServer(nc -> {
             NatsJetStreamSubscription sub = mockSub(nc);
-            PullStatusMessageManager manager = new PullStatusMessageManager();
-            manager.setSub(sub);
+            PullMessageManager manager = new PullMessageManager();
+            manager.startup(sub);
             assertFalse(manager.manage(getTestJsMessage(1)));
             assertTrue(manager.manage(get404()));
             assertTrue(manager.manage(get408()));
@@ -107,7 +107,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     private void _status_handle_pushAsync(AsmEl el, Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
-        PushStatusMessageManager manager = getManager(conn, so, sub, false, false);
+        PushMessageManager manager = getManager(conn, so, sub, false, false);
         el.reset();
         assertFalse(manager.manage(getTestJsMessage(1)));
         assertTrue(manager.manage(getFlowControl(1)));
@@ -133,7 +133,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     public void test_push_fc() {
         SubscribeOptions so = push_hb_fc();
         MockPublishInternal mc = new MockPublishInternal();
-        PushStatusMessageManager asm = new PushStatusMessageManager(mc, so, so.getConsumerConfiguration(), false, true);
+        PushMessageManager asm = new PushMessageManager(mc, so, so.getConsumerConfiguration(), false, true);
         assertNull(asm.getLastFcSubject());
         asm.manage(getFlowControl(1));
         assertEquals(getFcSubject(1), asm.getLastFcSubject());
@@ -194,7 +194,7 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     private void _push_xfc(SubscribeOptions so) {
         MockPublishInternal mc = new MockPublishInternal();
-        PushStatusMessageManager asm = new PushStatusMessageManager(mc, so, so.getConsumerConfiguration(), false, true);
+        PushMessageManager asm = new PushMessageManager(mc, so, so.getConsumerConfiguration(), false, true);
         assertNull(asm.getLastFcSubject());
 
         asm.manage(getFlowControl(1));
@@ -254,10 +254,10 @@ public class MessageManagerTests extends JetStreamTestBase {
         sub.unsubscribe();
     }
 
-    PushStatusMessageManager findStatusManager(NatsJetStreamSubscription sub) {
+    PushMessageManager findStatusManager(NatsJetStreamSubscription sub) {
         for (MessageManager mm : sub.getManagers()) {
-            if (mm instanceof PushStatusMessageManager) {
-                return (PushStatusMessageManager)mm;
+            if (mm instanceof PushMessageManager) {
+                return (PushMessageManager)mm;
             }
         }
         return null;
@@ -281,7 +281,7 @@ public class MessageManagerTests extends JetStreamTestBase {
 
             // MessageAlarmTime default
             PushSubscribeOptions so = new PushSubscribeOptions.Builder().configuration(cc).build();
-            PushStatusMessageManager manager = getManager(nc, so, sub);
+            PushMessageManager manager = getManager(nc, so, sub);
             assertEquals(1000, manager.getIdleHeartbeatSetting());
             assertEquals(3000, manager.getAlarmPeriodSetting());
 
@@ -310,7 +310,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         runInJsServer(nc -> {
             NatsJetStreamSubscription sub = mockSub(nc);
             SubscribeOptions so = push_xhb_xfc();
-            PushStatusMessageManager manager = getManager(nc, so, sub);
+            PushMessageManager manager = getManager(nc, so, sub);
             assertEquals(0, manager.getIdleHeartbeatSetting());
             assertEquals(0, manager.getAlarmPeriodSetting());
         });
@@ -340,13 +340,13 @@ public class MessageManagerTests extends JetStreamTestBase {
         return new PushSubscribeOptions.Builder().configuration(cc_xfc_xhb()).build();
     }
 
-    private PushStatusMessageManager getManager(Connection conn, SubscribeOptions so, NatsJetStreamSubscription sub) {
+    private PushMessageManager getManager(Connection conn, SubscribeOptions so, NatsJetStreamSubscription sub) {
         return getManager(conn, so, sub, true, false);
     }
 
-    private PushStatusMessageManager getManager(Connection conn, SubscribeOptions so, NatsJetStreamSubscription sub, boolean syncMode, boolean queueMode) {
-        PushStatusMessageManager asm = new PushStatusMessageManager((NatsConnection)conn, so, so.getConsumerConfiguration(), queueMode, syncMode);
-        asm.setSub(sub);
+    private PushMessageManager getManager(Connection conn, SubscribeOptions so, NatsJetStreamSubscription sub, boolean syncMode, boolean queueMode) {
+        PushMessageManager asm = new PushMessageManager((NatsConnection)conn, so, so.getConsumerConfiguration(), queueMode, syncMode);
+        asm.startup(sub);
         return asm;
     }
 
@@ -457,7 +457,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         TestMessageManager tmm = new TestMessageManager();
         NatsJetStreamSubscription sub =
             new NatsJetStreamSubscription("sid", "sub", null, null, null, null, "stream", "con", new MessageManager[]{tmm});
-        tmm.setSub(sub);
+        tmm.startup(sub);
         assertFalse(tmm.manage(null));
         assertSame(sub, tmm.getSub());
         tmm.shutdown();

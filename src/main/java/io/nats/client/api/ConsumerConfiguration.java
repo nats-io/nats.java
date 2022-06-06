@@ -348,7 +348,9 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the flow control mode
      */
     public boolean isFlowControl() {
-        return flowControl != null && flowControl;
+        // The way the builder and json reading works it's never false if it's not null
+        // but this way I can make code coverage happy and not assume.
+        return Boolean.TRUE.equals(flowControl);
     }
 
     /**

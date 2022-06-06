@@ -1,4 +1,4 @@
-// Copyright 2021 The NATS Authors
+// Copyright 2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -11,21 +11,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.impl;
+package io.nats.client.utils;
 
-import io.nats.client.Message;
+import io.nats.client.ServerListProvider;
 
-abstract class MessageManager {
-    protected NatsJetStreamSubscription sub;
+import java.util.ArrayList;
+import java.util.List;
 
-    boolean manage(Message msg) {
-        return false;
-    }
-
-    void startup(NatsJetStreamSubscription sub) {
-        this.sub = sub;
-    }
-
-    void shutdown() {
+/**
+ * This class is simply to have a concrete implementation to test setting properties and calling the builder in Options
+ */
+public class CoverageServerListProvider implements ServerListProvider {
+    @Override
+    public List<String> getServerList(String currentServer, List<String> optionsServersUnprocessed, List<String> discoveredServersUnprocessed) {
+        return new ArrayList<>();
     }
 }

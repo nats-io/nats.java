@@ -19,7 +19,6 @@ import io.nats.client.api.DeliverPolicy;
 import io.nats.client.api.PublishAck;
 import io.nats.client.support.NatsJetStreamConstants;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -29,9 +28,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
-import static io.nats.client.support.NatsJetStreamClientError.JsSubOrderedNotAllowOnQueues;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPushTests extends JetStreamTestBase {
@@ -658,9 +655,9 @@ public class JetStreamPushTests extends JetStreamTestBase {
     // this allows me to intercept messages before it gets to the connection queue
     // which is before the messages is available for nextMessage or before
     // it gets dispatched to a handler.
-    static class OrderedTestPushStatusMessageManager extends PushStatusMessageManager {
+    static class OrderedTestPushMessageManager extends PushMessageManager {
 
-        public OrderedTestPushStatusMessageManager(NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode) {
+        public OrderedTestPushMessageManager(NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode) {
             super(conn, so, cc, queueMode, syncMode);
         }
 
@@ -676,77 +673,5 @@ public class JetStreamPushTests extends JetStreamTestBase {
             }
             return msg;
         }
-    }
-
-    @Test
-    @Timeout(value = 60)
-    public void testOrdered() throws Exception {
-        runInJsServer(nc -> {
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            createMemoryStream(nc, STREAM, subject(1), subject(2));
-
-            NatsJetStream.PUSH_STATUS_MANAGER_FACTORY = OrderedTestPushStatusMessageManager::new;
-
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true).build();
-            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, QUEUE, pso));
-            assertTrue(iae.getMessage().contains(JsSubOrderedNotAllowOnQueues.id()));
-
-            JetStreamSubscription sub = js.subscribe(subject(1), pso);
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
-            sleep(1000);
-
-            // publish after interceptor is set before messages come in
-            jsPublish(js, subject(1), 101, 6);
-
-            int streamSeq = 1;
-            int[] expectedCnsmSeqs = new int[] {1, 1, 2, 3, 1, 2};
-
-            while (streamSeq < 7) {
-                Message m = sub.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
-                if (m != null) {
-                    assertEquals(streamSeq, m.metaData().streamSequence());
-                    assertEquals(expectedCnsmSeqs[streamSeq-1], m.metaData().consumerSequence());
-                    ++streamSeq;
-                }
-            }
-
-            sub.unsubscribe(1);
-            ensureNotBound(sub);
-
-            // ----------------------------------------------------------------------------------------------------
-            // THIS IS ACTUALLY TESTING ASYNC SO I DON'T HAVE TO SETUP THE INTERCEPTOR IN OTHER CODE
-            // ----------------------------------------------------------------------------------------------------
-            CountDownLatch msgLatch = new CountDownLatch(6);
-            AtomicInteger received = new AtomicInteger();
-            AtomicLong[] ssFlags = new AtomicLong[6];
-            AtomicLong[] csFlags = new AtomicLong[6];
-            MessageHandler handler = hmsg -> {
-                int i = received.incrementAndGet() - 1;
-                ssFlags[i] = new AtomicLong(hmsg.metaData().streamSequence());
-                csFlags[i] = new AtomicLong(hmsg.metaData().consumerSequence());
-                msgLatch.countDown();
-            };
-
-            Dispatcher d = nc.createDispatcher();
-            sub = js.subscribe(subject(2), d, handler, false, pso);
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
-            sleep(1000);
-
-            // publish after sub to make sure interceptor is set before messages come in
-            jsPublish(js, subject(2), 201, 6);
-
-            awaitAndAssert(msgLatch);
-
-            while (streamSeq < 13) {
-                int flagIdx = streamSeq - 7;
-                assertEquals(streamSeq, ssFlags[flagIdx].get());
-                assertEquals(expectedCnsmSeqs[flagIdx], csFlags[flagIdx].get());
-                ++streamSeq;
-            }
-
-            unsubscribeEnsureNotBound(d, sub);
-        });
     }
 }

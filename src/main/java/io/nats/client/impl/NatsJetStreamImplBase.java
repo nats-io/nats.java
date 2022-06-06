@@ -58,6 +58,23 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         return new ConsumerInfo(resp).throwOnHasError();
     }
 
+    void _createConsumerUnsubscribeOnException(String stream, ConsumerConfiguration cc, NatsJetStreamSubscription sub) throws IOException, JetStreamApiException {
+        try {
+            ConsumerInfo ci = _createConsumer(stream, cc);
+            sub.setConsumerName(ci.getName());
+        }
+        catch (IOException | JetStreamApiException e) {
+            // create consumer can fail, unsubscribe and then throw the exception to the user
+            if (sub.getDispatcher() == null) {
+                sub.unsubscribe();
+            }
+            else {
+                sub.getDispatcher().unsubscribe(sub);
+            }
+            throw e;
+        }
+    }
+
     StreamInfo _getStreamInfo(String streamName, StreamInfoOptions options) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_STREAM_INFO, streamName);
         byte[] payload = options == null ? null : options.serialize();

@@ -33,7 +33,7 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError JsSoOrderedNotAllowedWithDeliverGroup = new NatsJetStreamClientError(SO, 90105, "Deliver group is not allowed with an ordered consumer.");
     public static final NatsJetStreamClientError JsSoOrderedNotAllowedWithDurable = new NatsJetStreamClientError(SO, 90106, "Durable is not allowed with an ordered consumer.");
     public static final NatsJetStreamClientError JsSoOrderedNotAllowedWithDeliverSubject = new NatsJetStreamClientError(SO, 90107, "Deliver subject is not allowed with an ordered consumer.");
-    public static final NatsJetStreamClientError JsSoOrderedRequiresAckPolicyNone = new NatsJetStreamClientError(SO, 90108, "Deliver subject is not allowed with an ordered consumer.");
+    public static final NatsJetStreamClientError JsSoOrderedRequiresAckPolicyNone = new NatsJetStreamClientError(SO, 90108, "Ordered consumer requires Ack Policy None.");
     public static final NatsJetStreamClientError JsSoOrderedRequiresMaxDeliver = new NatsJetStreamClientError(SO, 90109, "Max deliver is limited to 1 with an ordered consumer.");
 
     @Deprecated // Fixed spelling error

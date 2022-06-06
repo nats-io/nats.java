@@ -660,6 +660,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         pro = PullRequestOptions.builder(41)
             .expiresIn(Duration.ofMillis(43))
             .idleHeartbeat(Duration.ofMillis(44))
+            .noWait(false) // just coverage of this method
             .build();
         assertEquals(41, pro.getBatchSize());
         assertEquals(0, pro.getMaxBytes());
