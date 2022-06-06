@@ -17,7 +17,7 @@ plugins {
 // src/main/java/io/nats/client/Nats.java
 // src/main/java/io/nats/client/package-info.java
 // CHANGELOG.md
-def jarVersion = "2.15.2"
+def jarVersion = "2.15.3"
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 
