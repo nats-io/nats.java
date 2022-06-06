@@ -35,8 +35,7 @@ class NatsSubscription extends NatsConsumer implements Subscription {
 
     private Function<NatsMessage, NatsMessage> beforeQueueProcessor;
 
-    NatsSubscription(String sid, String subject, String queueName, NatsConnection connection,
-                     NatsDispatcher dispatcher) {
+    NatsSubscription(String sid, String subject, String queueName, NatsConnection connection, NatsDispatcher dispatcher) {
         super(connection);
         this.subject = subject;
         this.queueName = queueName;
