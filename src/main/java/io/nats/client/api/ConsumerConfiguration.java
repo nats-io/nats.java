@@ -880,7 +880,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * sets the amount of time before the ephemeral consumer is deemed inactive.
-         * @param inactiveThreshold the idle heart beat duration
+         * @param inactiveThreshold the threshold duration
          * @return Builder
          */
         public Builder inactiveThreshold(Duration inactiveThreshold) {
@@ -890,7 +890,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * sets the amount of time before the ephemeral consumer is deemed inactive.
-         * @param inactiveThreshold the idle heart beat duration in milliseconds
+         * @param inactiveThreshold the threshold duration in milliseconds
          * @return Builder
          */
         public Builder inactiveThreshold(long inactiveThreshold) {
