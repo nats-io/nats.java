@@ -64,7 +64,7 @@ public class JetStreamOrderedConsumerTests extends JetStreamTestBase {
             createMemoryStream(jsm, stream(111), subject);
 
             // Get this in place before any subscriptions are made
-            NatsJetStream.PUSH_MESSAGE_MANAGER_FACTORY = OrderedTestDropSimulator::new;
+            ((NatsJetStream)js).PUSH_MESSAGE_MANAGER_FACTORY = OrderedTestDropSimulator::new;
 
             // The options will be used in various ways
             PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true).build();
@@ -105,7 +105,7 @@ public class JetStreamOrderedConsumerTests extends JetStreamTestBase {
             createMemoryStream(jsm, stream(222), subject);
 
             // Get this in place before any subscriptions are made
-            NatsJetStream.PUSH_MESSAGE_MANAGER_FACTORY = OrderedTestDropSimulator::new;
+            ((NatsJetStream)js).PUSH_MESSAGE_MANAGER_FACTORY = OrderedTestDropSimulator::new;
 
             // The options will be used in various ways
             PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true).build();

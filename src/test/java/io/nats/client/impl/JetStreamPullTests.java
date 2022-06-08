@@ -627,7 +627,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testPullRequestOptions() {
+    public void testPullRequestOptionsBuilder() {
         assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(0).build());
         assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(-1).build());
 
@@ -667,5 +667,24 @@ public class JetStreamPullTests extends JetStreamTestBase {
         assertEquals(43, pro.getExpiresIn().toMillis());
         assertEquals(44, pro.getIdleHeartbeat().toMillis());
         assertFalse(pro.isNoWait());
+    }
+
+    @Test
+    public void testMaxPullRequests() throws Exception {
+        runInJsServer(true, nc -> {
+            createDefaultTestStream(nc);
+            JetStream js = nc.jetStream();
+            ((NatsJetStream)js).PULL_MESSAGE_MANAGER_FACTORY = NoopMessageManager::new;
+
+            PullSubscribeOptions plso = ConsumerConfiguration.builder().maxPullWaiting(1).buildPullSubscribeOptions();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, plso);
+            js.publish(SUBJECT, new byte[0]);
+            sub.pull(1);
+            sub.pull(1);
+            sub.pull(1);
+            System.out.println(sub.nextMessage(1000));
+            System.out.println(sub.nextMessage(1000));
+            System.out.println(sub.nextMessage(1000));
+        });
     }
 }
