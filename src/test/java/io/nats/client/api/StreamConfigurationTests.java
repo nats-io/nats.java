@@ -107,19 +107,23 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(sources.get(0).getExternal(), external);
         assertEquals(sources.get(0).getExternal().hashCode(), external.hashCode());
 
-        List<String> lines = ResourceUtils.dataAsLines("SourceBaseJson.txt");
+        List<String> lines = ResourceUtils.dataAsLines("MirrorsSources.json");
         for (String l1 : lines) {
-            Mirror m1 = new Mirror(l1);
-            assertEquals(m1, m1);
-            assertNotEquals(m1, null);
-            assertNotEquals(m1, new Object());
-            for (String l2 : lines) {
-                Mirror m2 = new Mirror(l2);
-                if (l1.equals(l2)) {
-                    assertEquals(m1, m2);
-                }
-                else {
-                    assertNotEquals(m1, m2);
+            if (l1.startsWith("{")) {
+                Mirror m1 = new Mirror(l1);
+                assertEquals(m1, m1);
+                assertNotEquals(m1, null);
+                assertNotEquals(m1, new Object());
+                for (String l2 : lines) {
+                    if (l2.startsWith("{")) {
+                        Mirror m2 = new Mirror(l2);
+                        if (l1.equals(l2)) {
+                            assertEquals(m1, m2);
+                        }
+                        else {
+                            assertNotEquals(m1, m2);
+                        }
+                    }
                 }
             }
         }

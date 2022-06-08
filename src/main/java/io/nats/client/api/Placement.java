@@ -40,9 +40,14 @@ public class Placement implements JsonSerializable {
         tags = JsonUtils.getStringList(TAGS, json);
     }
 
+    /**
+     * Construct a placement object
+     * @param cluster the cluster name
+     * @param tags the list of tags, may be null
+     */
     public Placement(String cluster, List<String> tags) {
         this.cluster = cluster;
-        this.tags = tags;
+        this.tags = tags == null || tags.size() == 0 ? null : tags;
     }
 
     /**

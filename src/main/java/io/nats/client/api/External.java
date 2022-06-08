@@ -37,6 +37,16 @@ public class External implements JsonSerializable {
     }
 
     /**
+     * Construct the External configuration
+     * @param api the api prefix
+     * @param deliver the delivery subject
+     */
+    public External(String api, String deliver) {
+        this.api = api;
+        this.deliver = deliver;
+    }
+
+    /**
      * Returns a JSON representation of this mirror
      *
      * @return json mirror json string
@@ -90,5 +100,49 @@ public class External implements JsonSerializable {
         int result = api != null ? api.hashCode() : 0;
         result = 31 * result + (deliver != null ? deliver.hashCode() : 0);
         return result;
+    }
+
+    /**
+     * Creates a builder for an External object.
+     * @return the builder.
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Placement can be created using a Builder.
+     */
+    public static class Builder {
+        private String api;
+        private String deliver;
+
+        /**
+         * Set the api string.
+         * @param api the api
+         * @return the builder
+         */
+        public Builder api(String api) {
+            this.api = api;
+            return this;
+        }
+
+        /**
+         * Set the deliver string.
+         * @param deliver the deliver
+         * @return the builder
+         */
+        public Builder deliver(String deliver) {
+            this.deliver = api;
+            return this;
+        }
+
+        /**
+         * Build a Placement object
+         * @return the Placement
+         */
+        public External build() {
+            return new External(api, deliver);
+        }
     }
 }
