@@ -436,7 +436,6 @@ public class KeyValueTests extends JetStreamTestBase {
 
             assertThrows(JetStreamApiException.class, () -> kvm.getBucketInfo(BUCKET));
 
-            // default maxHistoryPerKey is 1
             KeyValueStatus kvs = kvm.create(KeyValueConfiguration.builder()
                 .name(BUCKET)
                 .storageType(StorageType.Memory)

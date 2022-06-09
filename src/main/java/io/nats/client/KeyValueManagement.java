@@ -35,7 +35,7 @@ public interface KeyValueManagement {
     KeyValueStatus create(KeyValueConfiguration config) throws IOException, JetStreamApiException;
 
     /**
-     * Update a key value store. Storage type cannot
+     * Update a key value store configuration. Storage type cannot change.
      * @param config the key value configuration
      * @return bucket info
      * @throws IOException covers various communication issues with the NATS
