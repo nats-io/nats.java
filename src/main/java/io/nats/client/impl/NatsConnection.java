@@ -97,6 +97,7 @@ class NatsConnection implements Connection {
 
     private final ExecutorService executor;
     private final ExecutorService connectExecutor;
+    private final boolean advancedTracking;
 
     NatsConnection(Options options) {
         boolean trace = options.isTraceConnection();
@@ -104,7 +105,8 @@ class NatsConnection implements Connection {
 
         this.options = options;
 
-        this.statistics = new NatsStatistics(this.options.isTrackAdvancedStats());
+        advancedTracking = options.isTrackAdvancedStats();
+        this.statistics = new NatsStatistics(advancedTracking);
 
         this.statusLock = new ReentrantLock();
         this.statusChanged = this.statusLock.newCondition();
@@ -974,15 +976,17 @@ class NatsConnection implements Connection {
             responsesAwaiting.remove(token);
         }
 
-        toRemove.clear(); // just reuse this
-        responsesRespondedTo.forEach((key, future) -> {
-            if (future.hasExceededTimeout()) {
-                toRemove.add(key);
-            }
-        });
+        if (advancedTracking) {
+            toRemove.clear(); // just reuse this
+            responsesRespondedTo.forEach((key, future) -> {
+                if (future.hasExceededTimeout()) {
+                    toRemove.add(key);
+                }
+            });
 
-        for (String token : toRemove) {
-            responsesRespondedTo.remove(token);
+            for (String token : toRemove) {
+                responsesRespondedTo.remove(token);
+            }
         }
     }
 
@@ -1085,7 +1089,9 @@ class NatsConnection implements Connection {
         String key = oldStyle ? msg.getSID() : token;
         NatsRequestCompletableFuture f = responsesAwaiting.remove(key);
         if (f != null) {
-            responsesRespondedTo.put(key, f);
+            if (advancedTracking) {
+                responsesRespondedTo.put(key, f);
+            }
             statistics.decrementOutstandingRequests();
             if (msg.isStatusMessage() && msg.getStatus().getCode() == 503 && f.isCancelOn503()) {
                 f.cancel(true);
@@ -1095,11 +1101,13 @@ class NatsConnection implements Connection {
             }
             statistics.incrementRepliesReceived();
         }
-        else if (responsesRespondedTo.get(key) != null) {
-            statistics.incrementDuplicateRepliesReceived();
-        }
-        else {
-            statistics.incrementOrphanRepliesReceived();
+        else if (!oldStyle && !subject.startsWith(mainInbox)) {
+            if (advancedTracking && responsesRespondedTo.get(key) != null) {
+                statistics.incrementDuplicateRepliesReceived();
+            }
+            else {
+                statistics.incrementOrphanRepliesReceived();
+            }
         }
     }
 

@@ -26,6 +26,5 @@ abstract class MessageManager {
         this.sub = sub;
     }
 
-    void shutdown() {
-    }
+    void shutdown() {}
 }
