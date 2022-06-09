@@ -207,12 +207,18 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         }
     }
 
-    // PushMessageManagerFactory is internal and used for testing / providing a PushMessageManager mock
+    // Push/PullMessageManagerFactory are internal and used for testing / providing a MessageManager mocks
     interface PushMessageManagerFactory {
-        PushMessageManager createPushMessageManager(
+        MessageManager createPushMessageManager(
             NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode);
     }
-    static PushMessageManagerFactory PUSH_MESSAGE_MANAGER_FACTORY = PushMessageManager::new;
+
+    interface PullMessageManagerFactory {
+        MessageManager createPullMessageManager();
+    }
+
+    PushMessageManagerFactory PUSH_MESSAGE_MANAGER_FACTORY = PushMessageManager::new;
+    PullMessageManagerFactory PULL_MESSAGE_MANAGER_FACTORY = PullMessageManager::new;
 
     JetStreamSubscription createSubscription(String subject,
                                                  String queueName,
@@ -376,7 +382,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         // 6. create the subscription. lambda needs final or effectively final vars
         NatsJetStreamSubscription sub;
         if (isPullMode) {
-            final MessageManager[] managers = new MessageManager[] { new PullMessageManager() };
+            final MessageManager[] managers = new MessageManager[] { PULL_MESSAGE_MANAGER_FACTORY.createPullMessageManager() };
             final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
                 -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, this, fnlStream, settledConsumerName, managers);
             sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);

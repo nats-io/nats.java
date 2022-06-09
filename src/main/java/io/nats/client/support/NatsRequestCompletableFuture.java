@@ -8,8 +8,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
 public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
-    private static final long SAFE_TO_CONSIDER_ORPHANED = Duration.ofMinutes(10).toMillis();
-    private static final long TIMEOUT_PADDING = Options.DEFAULT_CONNECTION_TIMEOUT.toMillis(); // currently 2 seconds
+    private static final long DEFAULT_TIMEOUT = Options.DEFAULT_CONNECTION_TIMEOUT.toMillis(); // currently 2 seconds
 
     private final boolean cancelOn503;
     private final long timeOutAfter;
@@ -18,12 +17,7 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
 
     public NatsRequestCompletableFuture(boolean cancelOn503, Duration timeout) {
         this.cancelOn503 = cancelOn503;
-        if (timeout == null) {
-            timeOutAfter = System.currentTimeMillis() + SAFE_TO_CONSIDER_ORPHANED;
-        }
-        else {
-            timeOutAfter = System.currentTimeMillis() + timeout.toMillis() + TIMEOUT_PADDING;
-        }
+        timeOutAfter = System.currentTimeMillis() + (timeout == null ? DEFAULT_TIMEOUT : timeout.toMillis());
     }
 
     public void cancelClosing() {
