@@ -149,17 +149,17 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertNull(sc.getTemplateOwner());
 
             sc = StreamConfiguration.builder()
-                    .name(STREAM)
-                    .storageType(StorageType.Memory)
-                    .subjects(subject(0), subject(1), subject(2))
-                    .maxMessages(42)
-                    .maxBytes(43)
-                    .maxMsgSize(44)
-                    .maxAge(Duration.ofDays(100))
-                    .discardPolicy(DiscardPolicy.New)
-                    .noAck(true)
-                    .duplicateWindow(Duration.ofMinutes(3))
-                    .build();
+                .name(STREAM)
+                .subjects(subject(0), subject(1), subject(2))
+                .maxMessages(42)
+                .maxBytes(43)
+                .maxMsgSize(44)
+                .maxAge(Duration.ofDays(100))
+                .discardPolicy(DiscardPolicy.New)
+                .noAck(true)
+                .duplicateWindow(Duration.ofMinutes(3))
+                .maxMessagesPerSubject(45)
+                .build();
             si = jsm.updateStream(sc);
             assertNotNull(si);
 
@@ -174,6 +174,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(42, sc.getMaxMsgs());
             assertEquals(43, sc.getMaxBytes());
             assertEquals(44, sc.getMaxMsgSize());
+            assertEquals(45, sc.getMaxMsgsPerSubject());
             assertEquals(Duration.ofDays(100), sc.getMaxAge());
             assertEquals(StorageType.Memory, sc.getStorageType());
             assertEquals(DiscardPolicy.New, sc.getDiscardPolicy());
@@ -203,6 +204,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             // add the stream
             jsm.addStream(sc);
 
+            // cannot change storage type
+            StreamConfiguration scMemToFile = getTestStreamConfigurationBuilder()
+                .storageType(StorageType.File)
+                .build();
+            assertThrows(JetStreamApiException.class, () -> jsm.updateStream(scMemToFile));
+
             // cannot change MaxConsumers
             StreamConfiguration scMaxCon = getTestStreamConfigurationBuilder()
                     .maxConsumers(2)
@@ -214,6 +221,11 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .retentionPolicy(RetentionPolicy.Interest)
                     .build();
             assertThrows(JetStreamApiException.class, () -> jsm.updateStream(scReten));
+
+            jsm.deleteStream(STREAM);
+
+            jsm.addStream(getTestStreamConfigurationBuilder().storageType(StorageType.File).build());
+            assertThrows(JetStreamApiException.class, () -> jsm.updateStream(getTestStreamConfiguration()));
         });
     }
 
