@@ -150,6 +150,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             sc = StreamConfiguration.builder()
                 .name(STREAM)
+                .storageType(StorageType.Memory) // File is default, this ensures it's not a change
                 .subjects(subject(0), subject(1), subject(2))
                 .maxMessages(42)
                 .maxBytes(43)
