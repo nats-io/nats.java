@@ -49,14 +49,14 @@ public class NatsKeyValueFull {
             KeyValueManagement kvm = nc.keyValueManagement();
 
             // create the bucket
-            KeyValueConfiguration bc = KeyValueConfiguration.builder()
+            KeyValueConfiguration kvc = KeyValueConfiguration.builder()
                 .name(exArgs.bucket)
                 .description(exArgs.description)
                 .maxHistoryPerKey(5)
                 .storageType(StorageType.Memory)
                 .build();
 
-            KeyValueStatus kvs = kvm.create(bc);
+            KeyValueStatus kvs = kvm.create(kvc);
             System.out.println(kvs);
 
             // get the kv context for the specific bucket
@@ -180,12 +180,21 @@ public class NatsKeyValueFull {
             System.out.println(LONG_KEY + " from getValueAsLong: " + svalue);
 
             // let's check the bucket info
-            System.out.println("\n9.1 Bucket before delete");
+            System.out.println("\n9.1 Bucket before update/delete");
             kvs = kvm.getBucketInfo(exArgs.bucket);
             System.out.println(kvs);
 
+            // update the bucket
+            kvc = KeyValueConfiguration.builder(kvs.getConfiguration())
+                .description(exArgs.description + "-changed")
+                .maxHistoryPerKey(6)
+                .build();
+            kvs = kvm.update(kvc);
+            System.out.println("\n9.2 Bucket after update");
+            System.out.println(kvs);
+
             // delete the bucket
-            System.out.println("\n9.2 Delete");
+            System.out.println("\n9.3 Delete");
             kvm.delete(exArgs.bucket);
 
             try {

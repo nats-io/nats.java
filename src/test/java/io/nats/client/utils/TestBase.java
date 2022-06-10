@@ -20,6 +20,7 @@ import org.opentest4j.AssertionFailedError;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
@@ -85,7 +86,14 @@ public class TestBase {
         try (NatsTestServer ts = new NatsTestServer(debug, jetstream);
              Connection nc = standardConnection(ts.getURI()))
         {
-            inServerTest.test(nc);
+            try {
+                inServerTest.test(nc);
+            }
+            finally {
+                if (jetstream) {
+                    cleanupJs(nc);
+                }
+            }
         }
     }
 
@@ -93,7 +101,14 @@ public class TestBase {
         try (NatsTestServer ts = new NatsTestServer(debug, jetstream);
              Connection nc = standardConnection(builder.server(ts.getURI()).build()))
         {
-            inServerTest.test(nc);
+            try {
+                inServerTest.test(nc);
+            }
+            finally {
+                if (jetstream) {
+                    cleanupJs(nc);
+                }
+            }
         }
     }
 
@@ -105,6 +120,18 @@ public class TestBase {
         try (Connection nc = Nats.connect(url)) {
             inServerTest.test(nc);
         }
+    }
+
+    private static void cleanupJs(Connection c)
+    {
+        try {
+            JetStreamManagement jsm = c.jetStreamManagement();
+            List<String> streams = jsm.getStreamNames();
+            for (String s : streams)
+            {
+                jsm.deleteStream(s);
+            }
+        } catch (Exception ignore) {}
     }
 
     // ----------------------------------------------------------------------------------------------------
