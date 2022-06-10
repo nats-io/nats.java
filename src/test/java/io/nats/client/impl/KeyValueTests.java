@@ -430,6 +430,69 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testCreateUpdate() throws Exception {
+        runInJsServer(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            assertThrows(JetStreamApiException.class, () -> kvm.getBucketInfo(BUCKET));
+
+            KeyValueStatus kvs = kvm.create(KeyValueConfiguration.builder()
+                .name(BUCKET)
+                .storageType(StorageType.Memory)
+                .build());
+
+            assertEquals(BUCKET, kvs.getBucketName());
+            assertNull(kvs.getDescription());
+            assertEquals(1, kvs.getMaxHistoryPerKey());
+            assertEquals(-1, kvs.getMaxBucketSize());
+            assertEquals(-1, kvs.getMaxValueSize());
+            assertEquals(Duration.ZERO, kvs.getTtl());
+            assertEquals(StorageType.Memory, kvs.getStorageType());
+            assertEquals(1, kvs.getReplicas());
+            assertEquals(0, kvs.getEntryCount());
+            assertEquals("JetStream", kvs.getBackingStore());
+
+            KeyValue kv = nc.keyValue(BUCKET);
+            kv.put(KEY, 1);
+            kv.put(KEY, 2);
+
+            List<KeyValueEntry> history = kv.history(KEY);
+            assertEquals(1, history.size());
+            assertEquals(2, history.get(0).getValueAsLong());
+
+            KeyValueConfiguration kvc = KeyValueConfiguration.builder(kvs.getConfiguration())
+                .description(PLAIN)
+                .maxHistoryPerKey(3)
+                .maxBucketSize(10_000)
+                .maxValueSize(100)
+                .ttl(Duration.ofHours(1))
+                .build();
+
+            kvs = kvm.update(kvc);
+
+            assertEquals(BUCKET, kvs.getBucketName());
+            assertEquals(PLAIN, kvs.getDescription());
+            assertEquals(3, kvs.getMaxHistoryPerKey());
+            assertEquals(10_000, kvs.getMaxBucketSize());
+            assertEquals(100, kvs.getMaxValueSize());
+            assertEquals(Duration.ofHours(1), kvs.getTtl());
+            assertEquals(StorageType.Memory, kvs.getStorageType());
+            assertEquals(1, kvs.getReplicas());
+            assertEquals(1, kvs.getEntryCount());
+            assertEquals("JetStream", kvs.getBackingStore());
+
+            history = kv.history(KEY);
+            assertEquals(1, history.size());
+            assertEquals(2, history.get(0).getValueAsLong());
+
+            KeyValueConfiguration kvcStor = KeyValueConfiguration.builder(kvs.getConfiguration())
+                .storageType(StorageType.File)
+                .build();
+            assertThrows(JetStreamApiException.class, () -> kvm.update(kvcStor));
+        });
+    }
+
+    @Test
     public void testHistoryDeletePurge() throws Exception {
         runInJsServer(nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
