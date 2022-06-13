@@ -138,8 +138,8 @@ public class External implements JsonSerializable {
         }
 
         /**
-         * Build a Placement object
-         * @return the Placement
+         * Build an External object
+         * @return the External object
          */
         public External build() {
             return new External(api, deliver);
