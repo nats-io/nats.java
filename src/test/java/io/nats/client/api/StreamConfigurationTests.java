@@ -112,7 +112,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             if (l1.startsWith("{")) {
                 Mirror m1 = new Mirror(l1);
                 assertEquals(m1, m1);
-                assertNotEquals(m1, null);
+                //this provides testing coverage
+                //noinspection ConstantConditions,SimplifiableAssertion
+                assertTrue(!m1.equals(null));
                 assertNotEquals(m1, new Object());
                 for (String l2 : lines) {
                     if (l2.startsWith("{")) {
