@@ -628,7 +628,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * Sets the subject to deliver messages to.
-         * @param subject the delivery subject.
+         * @param subject the subject.
          * @return the builder
          */
         public Builder deliverSubject(String subject) {
