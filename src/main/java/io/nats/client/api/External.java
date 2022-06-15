@@ -133,7 +133,7 @@ public class External implements JsonSerializable {
          * @return the builder
          */
         public Builder deliver(String deliver) {
-            this.deliver = api;
+            this.deliver = deliver;
             return this;
         }
 

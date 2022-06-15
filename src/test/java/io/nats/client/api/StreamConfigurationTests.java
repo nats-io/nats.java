@@ -402,4 +402,15 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals("cluster", p.getCluster());
         assertEquals(2, p.getTags().size());
     }
+
+    @Test
+    public void testExternal() {
+        External e = External.builder().api("api").deliver("deliver").build();
+        assertEquals("api", e.getApi());
+        assertEquals("deliver", e.getDeliver());
+
+        e = External.builder().build();
+        assertNull(e.getApi());
+        assertNull(e.getDeliver());
+    }
 }
