@@ -416,10 +416,13 @@ public class NatsMessage implements Message {
         if (data.length == 0) {
             return "<no data>";
         }
-        if (data.length > 27) {
-            return new String(data, 0, 27, UTF_8) + "...";
+        String s = new String(data, UTF_8);
+        int at = s.indexOf("io.nats.jetstream.api");
+        if (at == -1) {
+            return s.length() > 27 ? s.substring(0, 27) + "..." : s;
         }
-        return new String(data, UTF_8);
+        int at2 = s.indexOf('"', at);
+        return s.substring(at, at2);
     }
 
     private String replyToString() {
