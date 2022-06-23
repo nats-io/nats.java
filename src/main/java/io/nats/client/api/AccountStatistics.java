@@ -35,7 +35,6 @@ public class AccountStatistics
 
     public AccountStatistics(Message msg) {
         super(msg);
-        System.out.println(json);
         rollup = new AccountTier(json);
         domain = JsonUtils.readString(json, DOMAIN_RE);
         api = new ApiStats(JsonUtils.getJsonObject(API, json));
