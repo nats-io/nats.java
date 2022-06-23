@@ -18,10 +18,7 @@ import io.nats.client.api.SequencePair;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.LongConsumer;
@@ -189,6 +186,53 @@ public abstract class JsonUtils {
             }
         }
         return null;
+    }
+
+    /**
+     * Get a map of objects
+     * @param json the json
+     * @return the map of json object strings by key
+     */
+    public static Map<String, String> getMapOfObjects(String json) {
+        Map<String, String> map = new HashMap<>();
+        int s1 = json.indexOf('"');
+        while (s1 != -1) {
+            int s2 = json.indexOf('"', s1 + 1);
+            String key = json.substring(s1 + 1, s2).trim();
+            int[] indexes = getBracketIndexes(key, json, '{', '}', s1);
+            if (indexes != null) {
+                map.put(key, json.substring(indexes[0], indexes[1]));
+                s1 = json.indexOf('"', indexes[1]);
+            }
+            else {
+                s1 = -1;
+            }
+        }
+
+        return map;
+    }
+
+    /**
+     * Get a map of longs
+     * @param json the json
+     * @return the map of longs by key
+     */
+    public static Map<String, Long> getMapOfLongs(String json) {
+        Map<String, Long> map = new HashMap<>();
+        int s1 = json.indexOf('"');
+        while (s1 != -1) {
+            int s2 = json.indexOf('"', s1 + 1);
+            int c1 = json.indexOf(':', s2);
+            int c2 = json.indexOf(',', s2);
+            if (c2 == -1) {
+                c2 = json.indexOf('}', s2);
+            }
+            String key = json.substring(s1 + 1, s2).trim();
+            long count = JsonUtils.safeParseLong(json.substring(c1 + 1, c2).trim(), 0);
+            map.put(key, count);
+            s1 = json.indexOf('"', c2);
+        }
+        return map;
     }
 
     /**

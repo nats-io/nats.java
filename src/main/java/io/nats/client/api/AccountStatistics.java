@@ -16,7 +16,11 @@ package io.nats.client.api;
 import io.nats.client.Message;
 import io.nats.client.support.JsonUtils;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonUtils.objectString;
 
 /**
  * The JetStream Account Statistics
@@ -24,17 +28,23 @@ import static io.nats.client.support.ApiConstants.*;
 public class AccountStatistics
         extends ApiResponse<AccountStatistics> {
 
-    private final long memory;
-    private final long storage;
-    private final long streams;
-    private final long consumers;
+    private final AccountTier rollup;
+    private final String domain;
+    private final ApiStats api;
+    private final Map<String, AccountTier> tiers;
 
     public AccountStatistics(Message msg) {
         super(msg);
-        memory = JsonUtils.readLong(json, MEMORY_RE, 0);
-        storage = JsonUtils.readLong(json, STORAGE_RE, 0);
-        streams = JsonUtils.readLong(json, STREAMS_RE, 0);
-        consumers = JsonUtils.readLong(json, CONSUMERS_RE, 0);
+        rollup = new AccountTier(json);
+        domain = JsonUtils.readString(json, DOMAIN_RE);
+        api = new ApiStats(JsonUtils.getJsonObject(API, json));
+
+        String tiersJson = JsonUtils.getJsonObject(TIERS, json);
+        Map<String, String> jsonByKey = JsonUtils.getMapOfObjects(tiersJson);
+        tiers = new HashMap<>();
+        for (String key : jsonByKey.keySet()) {
+            tiers.put(key, new AccountTier(jsonByKey.get(key)));
+        }
     }
 
     /**
@@ -43,7 +53,7 @@ public class AccountStatistics
      * @return bytes
      */
     public long getMemory() {
-        return memory;
+        return rollup.getMemory();
     }
 
     /**
@@ -52,7 +62,7 @@ public class AccountStatistics
      * @return bytes
      */
     public long getStorage() {
-        return storage;
+        return rollup.getStorage();
     }
 
     /**
@@ -61,7 +71,7 @@ public class AccountStatistics
      * @return stream maximum count
      */
     public long getStreams() {
-        return streams;
+        return rollup.getStreams();
     }
 
     /**
@@ -70,16 +80,52 @@ public class AccountStatistics
      * @return consumer maximum count
      */
     public long getConsumers() {
-        return consumers;
+        return rollup.getConsumers();
+    }
+
+    /**
+     * Gets the Account Limits object
+     * @return the AccountLimits object
+     */
+    public AccountLimits getLimits() {
+        return rollup.getLimits();
+    }
+
+    /**
+     * Gets the account domain
+     * @return the domain
+     */
+    public String getDomain() {
+        return domain;
+    }
+
+    /**
+     * Gets the account api stats
+     * @return the ApiStats object
+     */
+    public ApiStats getApi() {
+        return api;
+    }
+
+    /**
+     * Gets the map of the Account Tiers by tier name
+     * @return the map
+     */
+    public Map<String, AccountTier> getTiers() {
+        return tiers;
     }
 
     @Override
     public String toString() {
         return "AccountStatsImpl{" +
-                "memory=" + memory +
-                ", storage=" + storage +
-                ", streams=" + streams +
-                ", consumers=" + consumers +
-                '}';
+            "memory=" + rollup.getMemory() +
+            ", storage=" + rollup.getStorage() +
+            ", streams=" + rollup.getStreams() +
+            ", consumers=" + rollup.getConsumers() +
+            ", " + objectString("limits", rollup.getLimits()) +
+            ", domain=" + domain +
+            ", " + objectString("api", api) +
+            ", tiers=" + tiers.keySet() +
+            '}';
     }
 }

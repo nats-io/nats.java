@@ -26,12 +26,20 @@ public class AccountLimits {
     private final long maxStorage;
     private final long maxStreams;
     private final long maxConsumers;
+    private final long maxAckPending;
+    private final long memoryMaxStreamBytes;
+    private final long storageMaxStreamBytes;
+    private final boolean maxBytesRequired;
 
     AccountLimits(String json) {
-        this.maxMemory = JsonUtils.readLong(json, MAX_MEMORY_RE, -1);
-        this.maxStorage = JsonUtils.readLong(json, MAX_STORAGE_RE, -1);
-        this.maxStreams = JsonUtils.readLong(json, MAX_STREAMS_RE, -1);
-        this.maxConsumers = JsonUtils.readLong(json, MAX_CONSUMERS_RE, -1);
+        this.maxMemory = JsonUtils.readLong(json, MAX_MEMORY_RE, 0);
+        this.maxStorage = JsonUtils.readLong(json, MAX_STORAGE_RE, 0);
+        this.maxStreams = JsonUtils.readLong(json, MAX_STREAMS_RE, 0);
+        this.maxConsumers = JsonUtils.readLong(json, MAX_CONSUMERS_RE, 0);
+        this.maxAckPending = JsonUtils.readLong(json, MAX_ACK_PENDING_RE, 0);
+        this.memoryMaxStreamBytes = JsonUtils.readLong(json, MEMORY_MAX_STREAM_BYTES_RE, 0);
+        this.storageMaxStreamBytes = JsonUtils.readLong(json, STORAGE_MAX_STREAM_BYTES_RE, 0);
+        this.maxBytesRequired = JsonUtils.readBoolean(json, MAX_BYTES_REQUIRED_RE);
     }
 
     /**
@@ -70,13 +78,33 @@ public class AccountLimits {
         return maxConsumers;
     }
 
+    public long getMaxAckPending() {
+        return maxAckPending;
+    }
+
+    public long getMemoryMaxStreamBytes() {
+        return memoryMaxStreamBytes;
+    }
+
+    public long getStorageMaxStreamBytes() {
+        return storageMaxStreamBytes;
+    }
+
+    public boolean isMaxBytesRequired() {
+        return maxBytesRequired;
+    }
+
     @Override
     public String toString() {
-        return "AccountLimitImpl{" +
-                "memory=" + maxMemory +
-                ", storage=" + maxStorage +
-                ", streams=" + maxStreams +
-                ", consumers=" + maxConsumers +
-                '}';
+        return "AccountLimits{" +
+            "maxMemory=" + maxMemory +
+            ", maxStorage=" + maxStorage +
+            ", maxStreams=" + maxStreams +
+            ", maxConsumers=" + maxConsumers +
+            ", maxAckPending=" + maxAckPending +
+            ", memoryMaxStreamBytes=" + memoryMaxStreamBytes +
+            ", storageMaxStreamBytes=" + storageMaxStreamBytes +
+            ", maxBytesRequired=" + maxBytesRequired +
+            '}';
     }
 }
