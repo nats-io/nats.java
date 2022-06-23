@@ -23,19 +23,27 @@ import static io.nats.client.support.ApiConstants.TOTAL_RE;
  */
 public class ApiStats {
 
-    private final long total;
-    private final long errors;
+    private final int total;
+    private final int errors;
 
     ApiStats(String json) {
-        this.total = JsonUtils.readLong(json, TOTAL_RE, 0);
-        this.errors = JsonUtils.readLong(json, ERRORS_RE, 0);
+        this.total = JsonUtils.readInt(json, TOTAL_RE, 0);
+        this.errors = JsonUtils.readInt(json, ERRORS_RE, 0);
     }
 
-    public long getTotal() {
+    /**
+     * Total number of API requests received for this account
+     * @return the total requests
+     */
+    public int getTotal() {
         return total;
     }
 
-    public long getErrors() {
+    /**
+     * API requests that resulted in an error response
+     * @return the error count
+     */
+    public int getErrors() {
         return errors;
     }
 

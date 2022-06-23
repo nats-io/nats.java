@@ -43,8 +43,7 @@ public class AccountLimits {
     }
 
     /**
-     * Gets the maximum amount of memory in the JetStream deployment.
-     *
+     * The maximum amount of Memory storage Stream Messages may consume.
      * @return bytes
      */
     public long getMaxMemory() {
@@ -52,8 +51,7 @@ public class AccountLimits {
     }
 
     /**
-     * Gets the maximum amount of storage in the JetStream deployment.
-     *
+     * The maximum amount of File storage Stream Messages may consume.
      * @return bytes
      */
     public long getMaxStorage() {
@@ -61,8 +59,7 @@ public class AccountLimits {
     }
 
     /**
-     * Gets the maximum number of allowed streams in the JetStream deployment.
-     *
+     * The maximum number of Streams an account can create.
      * @return stream maximum count
      */
     public long getMaxStreams() {
@@ -70,26 +67,41 @@ public class AccountLimits {
     }
 
     /**
-     * Gets the maximum number of allowed consumers in the JetStream deployment.
-     *
+     * The maximum number of Consumers an account can create.
      * @return consumer maximum count
      */
     public long getMaxConsumers() {
         return maxConsumers;
     }
 
+    /**
+     * The maximum number of outstanding ACKs any consumer may configure.
+     * @return the configuration count
+     */
     public long getMaxAckPending() {
         return maxAckPending;
     }
 
+    /**
+     * The maximum size any single memory stream may be.
+     * @return bytes
+     */
     public long getMemoryMaxStreamBytes() {
         return memoryMaxStreamBytes;
     }
 
+    /**
+     * The maximum size any single storage based stream may be.
+     * @return bytes
+     */
     public long getStorageMaxStreamBytes() {
         return storageMaxStreamBytes;
     }
 
+    /**
+     * Indicates if streams created in this account requires the max_bytes property set.
+     * @return the flag
+     */
     public boolean isMaxBytesRequired() {
         return maxBytesRequired;
     }

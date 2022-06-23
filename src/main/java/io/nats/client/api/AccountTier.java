@@ -22,36 +22,56 @@ import static io.nats.client.support.ApiConstants.*;
  */
 public class AccountTier {
 
-    private final long memory;
-    private final long storage;
-    private final long streams;
-    private final long consumers;
+    private final int memory;
+    private final int storage;
+    private final int streams;
+    private final int consumers;
     private final AccountLimits limits;
 
     AccountTier(String json) {
-        memory = JsonUtils.readLong(json, MEMORY_RE, 0);
-        storage = JsonUtils.readLong(json, STORAGE_RE, 0);
-        streams = JsonUtils.readLong(json, STREAMS_RE, 0);
-        consumers = JsonUtils.readLong(json, CONSUMERS_RE, 0);
+        memory = JsonUtils.readInt(json, MEMORY_RE, 0);
+        storage = JsonUtils.readInt(json, STORAGE_RE, 0);
+        streams = JsonUtils.readInt(json, STREAMS_RE, 0);
+        consumers = JsonUtils.readInt(json, CONSUMERS_RE, 0);
         limits = new AccountLimits(JsonUtils.getJsonObject(LIMITS, json));
     }
 
-    public long getMemory() {
+    /**
+     * Memory Storage being used for Stream Message storage in this tier.
+     * @return the storage in bytes
+     */
+    public int getMemory() {
         return memory;
     }
 
-    public long getStorage() {
+    /**
+     * File Storage being used for Stream Message storage in this tier.
+     * @return the storage in bytes
+     */
+    public int getStorage() {
         return storage;
     }
 
-    public long getStreams() {
+    /**
+     * Number of active streams in this tier.
+     * @return the number of streams
+     */
+    public int getStreams() {
         return streams;
     }
 
-    public long getConsumers() {
+    /**
+     * Number of active consumers in this tier.
+     * @return the number of consumers
+     */
+    public int getConsumers() {
         return consumers;
     }
 
+    /**
+     * The limits of this tier.
+     * @return the limits object
+     */
     public AccountLimits getLimits() {
         return limits;
     }

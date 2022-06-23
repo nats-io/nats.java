@@ -35,6 +35,7 @@ public class AccountStatistics
 
     public AccountStatistics(Message msg) {
         super(msg);
+        System.out.println(json);
         rollup = new AccountTier(json);
         domain = JsonUtils.readString(json, DOMAIN_RE);
         api = new ApiStats(JsonUtils.getJsonObject(API, json));
@@ -48,8 +49,8 @@ public class AccountStatistics
     }
 
     /**
-     * Gets the amount of memory used by the JetStream deployment.
-     *
+     * Gets the amount of memory storage used by the JetStream deployment.
+     * If the account has tiers, this will represent a rollup.
      * @return bytes
      */
     public long getMemory() {
@@ -57,8 +58,8 @@ public class AccountStatistics
     }
 
     /**
-     * Gets the amount of storage used by  the JetStream deployment.
-     *
+     * Gets the amount of file storage used by  the JetStream deployment.
+     * If the account has tiers, this will represent a rollup.
      * @return bytes
      */
     public long getStorage() {
@@ -67,7 +68,7 @@ public class AccountStatistics
 
     /**
      * Gets the number of streams used by the JetStream deployment.
-     *
+     * If the account has tiers, this will represent a rollup.
      * @return stream maximum count
      */
     public long getStreams() {
@@ -76,7 +77,7 @@ public class AccountStatistics
 
     /**
      * Gets the number of consumers used by the JetStream deployment.
-     *
+     * If the account has tiers, this will represent a rollup.
      * @return consumer maximum count
      */
     public long getConsumers() {
@@ -84,7 +85,9 @@ public class AccountStatistics
     }
 
     /**
-     * Gets the Account Limits object
+     * Gets the Account Limits object. If the account has tiers,
+     * the object will be present but all values will be zero.
+     * See the Account Limits for the specific tier.
      * @return the AccountLimits object
      */
     public AccountLimits getLimits() {
