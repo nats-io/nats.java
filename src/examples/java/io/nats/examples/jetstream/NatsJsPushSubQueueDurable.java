@@ -14,6 +14,7 @@
 package io.nats.examples.jetstream;
 
 import io.nats.client.*;
+import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.PublishAck;
 import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
@@ -72,7 +73,10 @@ public class NatsJsPushSubQueueDurable {
             // - the PushSubscribeOptions can be re-used since all the subscribers are the same
             // - use a concurrent integer to track all the messages received
             // - have a list of subscribers and threads so I can track them
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(exArgs.durable).build();
+            PushSubscribeOptions pso = ConsumerConfiguration.builder()
+                .durable(exArgs.durable)
+                .deliverGroup(exArgs.queue)
+                .buildPushSubscribeOptions();
             AtomicInteger allReceived = new AtomicInteger();
             List<JsQueueSubscriber> subscribers = new ArrayList<>();
             List<Thread> subThreads = new ArrayList<>();
