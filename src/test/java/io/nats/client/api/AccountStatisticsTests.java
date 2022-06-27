@@ -16,10 +16,11 @@ package io.nats.client.api;
 import io.nats.client.impl.JetStreamTestBase;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AccountStatisticsTests extends JetStreamTestBase {
 
@@ -27,10 +28,36 @@ public class AccountStatisticsTests extends JetStreamTestBase {
     public void testAccountStatsImpl() {
         String json = dataAsString("AccountStatistics.json");
         AccountStatistics as = new AccountStatistics(getDataMessage(json));
-        assertEquals(1, as.getMemory());
-        assertEquals(2, as.getStorage());
-        assertEquals(3, as.getStreams());
-        assertEquals(4, as.getConsumers());
+        assertEquals(101, as.getMemory());
+        assertEquals(102, as.getStorage());
+        assertEquals(103, as.getStreams());
+        assertEquals(104, as.getConsumers());
+        validateAccountLimits(as.getLimits(), 200);
+
+        assertEquals("ngs", as.getDomain());
+
+        ApiStats api = as.getApi();
+        assertEquals(301, api.getTotal());
+        assertEquals(302, api.getErrors());
+
+        Map<String, AccountTier> tiers = as.getTiers();
+        AccountTier tier = tiers.get("R1");
+        assertNotNull(tier);
+        assertEquals(401, tier.getMemory());
+        assertEquals(402, tier.getStorage());
+        assertEquals(403, tier.getStreams());
+        assertEquals(404, tier.getConsumers());
+        validateAccountLimits(tier.getLimits(), 500);
+
+        tier = tiers.get("R3");
+        assertNotNull(tier);
+        assertEquals(601, tier.getMemory());
+        assertEquals(602, tier.getStorage());
+        assertEquals(603, tier.getStreams());
+        assertEquals(604, tier.getConsumers());
+        validateAccountLimits(tier.getLimits(), 700);
+
+        assertNotNull(as.toString()); // COVERAGE
 
         as = new AccountStatistics(getDataMessage(EMPTY_JSON));
         assertEquals(0, as.getMemory());
@@ -38,6 +65,31 @@ public class AccountStatisticsTests extends JetStreamTestBase {
         assertEquals(0, as.getStreams());
         assertEquals(0, as.getConsumers());
 
-        assertNotNull(as.toString()); // COVERAGE
+        AccountLimits al = as.getLimits();
+        assertNotNull(al);
+        assertEquals(0, al.getMaxMemory());
+        assertEquals(0, al.getMaxStorage());
+        assertEquals(0, al.getMaxStreams());
+        assertEquals(0, al.getMaxConsumers());
+        assertEquals(0, al.getMaxAckPending());
+        assertEquals(0, al.getMemoryMaxStreamBytes());
+        assertEquals(0, al.getStorageMaxStreamBytes());
+        assertFalse(al.isMaxBytesRequired());
+
+        api = as.getApi();
+        assertNotNull(api);
+        assertEquals(0, api.getTotal());
+        assertEquals(0, api.getErrors());
+    }
+
+    private void validateAccountLimits(AccountLimits al, int id) {
+        assertEquals(id + 1, al.getMaxMemory());
+        assertEquals(id + 2, al.getMaxStorage());
+        assertEquals(id + 3, al.getMaxStreams());
+        assertEquals(id + 4, al.getMaxConsumers());
+        assertEquals(id + 5, al.getMaxAckPending());
+        assertEquals(id + 6, al.getMemoryMaxStreamBytes());
+        assertEquals(id + 7, al.getStorageMaxStreamBytes());
+        assertTrue(al.isMaxBytesRequired());
     }
 }

@@ -57,6 +57,7 @@ public interface ApiConstants {
     String DURABLE_NAME      = "durable_name";
     String ERR_CODE          = "err_code";
     String ERROR             = "error";
+    String ERRORS            = "errors";
     String EXPIRES           = "expires";
     String EXTERNAL          = "external";
     String FILTER            = "filter";
@@ -80,10 +81,12 @@ public interface ApiConstants {
     String LAST_TS           = "last_ts";
     String LEADER            = "leader";
     String LIMIT             = "limit";
+    String LIMITS            = "limits";
     String MAX_ACK_PENDING   = "max_ack_pending";
     String MAX_AGE           = "max_age";
     String MAX_BATCH         = "max_batch";
     String MAX_BYTES         = "max_bytes";
+    String MAX_BYTES_REQUIRED= "max_bytes_required";
     String MAX_CONSUMERS     = "max_consumers";
     String MAX_DELIVER       = "max_deliver";
     String MAX_EXPIRES       = "max_expires";
@@ -96,6 +99,7 @@ public interface ApiConstants {
     String MAX_STREAMS       = "max_streams";
     String MAX_WAITING       = "max_waiting"; // this is correct! the meaning name is different than the field name
     String MEMORY            = "memory";
+    String MEMORY_MAX_STREAM_BYTES = "memory_max_stream_bytes";
     String MESSAGES          = "messages";
     String MIRROR            = "mirror";
     String NAME              = "name";
@@ -132,6 +136,7 @@ public interface ApiConstants {
     String SOURCES           = "sources";
     String STATE             = "state";
     String STORAGE           = "storage";
+    String STORAGE_MAX_STREAM_BYTES= "storage_max_stream_bytes";
     String STREAM_NAME       = "stream_name";
     String STREAM_SEQ        = "stream_seq";
     String STREAM            = "stream";
@@ -142,6 +147,7 @@ public interface ApiConstants {
     String SUCCESS           = "success";
     String TAGS              = "tags";
     String TEMPLATE_OWNER    = "template_owner";
+    String TIERS             = "tiers";
     String TIME              = "time";
     String TLS               = "tls_required";
     String TOTAL             = "total";
@@ -178,6 +184,7 @@ public interface ApiConstants {
     Pattern DUPLICATE_WINDOW_RE   = integer_pattern(DUPLICATE_WINDOW);
     Pattern DURABLE_NAME_RE       = string_pattern(DURABLE_NAME);
     Pattern ERR_CODE_RE           = integer_pattern(ERR_CODE);
+    Pattern ERRORS_RE             = integer_pattern(ERRORS);
     Pattern FILTER_SUBJECT_RE     = string_pattern(FILTER_SUBJECT);
     Pattern FIRST_SEQ_RE          = integer_pattern(FIRST_SEQ);
     Pattern FIRST_TS_RE           = string_pattern(FIRST_TS);
@@ -200,6 +207,7 @@ public interface ApiConstants {
     Pattern MAX_AGE_RE            = integer_pattern(MAX_AGE);
     Pattern MAX_BATCH_RE          = integer_pattern(MAX_BATCH);
     Pattern MAX_BYTES_RE          = integer_pattern(MAX_BYTES);
+    Pattern MAX_BYTES_REQUIRED_RE= boolean_pattern(MAX_BYTES_REQUIRED);
     Pattern MAX_CONSUMERS_RE      = integer_pattern(MAX_CONSUMERS);
     Pattern MAX_DELIVER_RE        = integer_pattern(MAX_DELIVER);
     Pattern MAX_EXPIRES_RE        = integer_pattern(MAX_EXPIRES);
@@ -212,6 +220,7 @@ public interface ApiConstants {
     Pattern MAX_STREAMS_RE        = integer_pattern(MAX_STREAMS);
     Pattern MAX_WAITING_RE        = integer_pattern(MAX_WAITING);
     Pattern MEMORY_RE             = integer_pattern(MEMORY);
+    Pattern MEMORY_MAX_STREAM_BYTES_RE= integer_pattern(MEMORY_MAX_STREAM_BYTES);
     Pattern MESSAGES_RE           = integer_pattern(MESSAGES);
     Pattern NAME_RE               = string_pattern(NAME);
     Pattern NO_ACK_RE             = boolean_pattern(NO_ACK);
@@ -240,6 +249,7 @@ public interface ApiConstants {
     Pattern SERVER_ID_RE          = string_pattern(SERVER_ID);
     Pattern SERVER_NAME_RE        = string_pattern(SERVER_NAME);
     Pattern STORAGE_RE            = integer_pattern(STORAGE);
+    Pattern STORAGE_MAX_STREAM_BYTES_RE= integer_pattern(STORAGE_MAX_STREAM_BYTES);
     Pattern STORAGE_TYPE_RE       = string_pattern(STORAGE);
     Pattern STREAM_NAME_RE        = string_pattern(STREAM_NAME);
     Pattern STREAM_SEQ_RE         = integer_pattern(STREAM_SEQ);

@@ -16,29 +16,22 @@ package io.nats.client.api;
 import io.nats.client.support.JsonUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
-public class Subject {
+public class Subject implements Comparable<Subject> {
     private final String name;
     private final long count;
 
     static List<Subject> optionalListOf(String json) {
         List<Subject> list = new ArrayList<>();
         if (json != null) {
-            // we have to manually parse this
-            int s1 = json.indexOf('"');
-            while (s1 != -1) {
-                int s2 = json.indexOf('"', s1 + 1);
-                int c1 = json.indexOf(':', s2);
-                int c2 = json.indexOf(',', s2);
-                if (c2 == -1) {
-                    c2 = json.indexOf('}', s2);
-                }
-                String subject = json.substring(s1 + 1, s2).trim();
-                long count = JsonUtils.safeParseLong(json.substring(c1 + 1, c2).trim(), 0);
-                list.add(new Subject(subject, count));
-                s1 = json.indexOf('"', c2);
+            Map<String, Long> map = JsonUtils.getMapOfLongs(json);
+            for (String subject : map.keySet()) {
+                list.add(new Subject(subject, map.get(subject)));
             }
+            Collections.sort(list);
         }
         return list.isEmpty() ? null : list;
     }
@@ -70,5 +63,10 @@ public class Subject {
             "name='" + name + '\'' +
             ", count=" + count +
             '}';
+    }
+
+    @Override
+    public int compareTo(Subject o) {
+        return name.compareTo(o.name);
     }
 }
