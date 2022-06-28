@@ -1950,15 +1950,14 @@ public class Options {
             try {
                 URI uri = this.createURIForServer(serverURI);
                 String userInfo = uri.getUserInfo();
-
                 if (userInfo != null) {
-                    String[] info = userInfo.split(":");
-
-                    if (info.length == 2) {
-                        uriUser = info[0];
-                        uriPass = info[1];
-                    } else {
+                    int at = userInfo.indexOf(":");
+                    if (at == -1) {
                         uriToken = userInfo;
+                    }
+                    else {
+                        uriUser = userInfo.substring(0, at);
+                        uriPass = userInfo.substring(at + 1);
                     }
                 }
             } catch(URISyntaxException e) {

@@ -42,6 +42,41 @@ public class AuthTests {
     }
 
     @Test
+    public void testEncodedPassword() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/encoded_pass.conf", false)) {
+            int port = ts.getPort();
+            assertEncoded("space", "space%20space", port);
+            assertThrows(AuthenticationException.class, () -> assertEncoded("space", "space+space", port));
+
+            assertEncoded("colon", "colon%3Acolon", port);
+            assertEncoded("quote", "quote%27quote", port);
+            assertEncoded("slash", "slash%2Fslash", port);
+            assertEncoded("question", "question%3Fquestion", port);
+            assertEncoded("pound", "pound%23pound", port);
+            assertEncoded("sqleft", "sqleft%5Bsqleft", port);
+            assertEncoded("sqright", "sqright%5Dsqright", port);
+            assertEncoded("at", "at%40at", port);
+            assertEncoded("bang", "bang%21bang", port);
+            assertEncoded("dollar", "dollar%24dollar", port);
+            assertEncoded("amp", "amp%26amp", port);
+            assertEncoded("comma", "comma%2Ccomma", port);
+            assertEncoded("parenleft", "parenleft%28parenleft", port);
+            assertEncoded("parentright", "parentright%29parentright", port);
+            assertEncoded("asterix", "asterix%2Aasterix", port);
+            assertEncoded("plus", "plus%2Bplus", port);
+            assertEncoded("semi", "semi%3Bsemi", port);
+            assertEncoded("eq", "eq%3Deq", port);
+            assertEncoded("pct", "pct%25pct", port);
+        }
+    }
+
+    private void assertEncoded(String user, String encoded, int port) throws IOException, InterruptedException {
+        String url = "nats://" + user + ":" + encoded + "@localhost:" + port;
+        Options options = new Options.Builder().server(url).build();
+        assertCanConnect(options);
+    }
+
+    @Test
     public void testUserPassOnReconnect() throws Exception {
         TestHandler handler = new TestHandler();
         Connection nc;
