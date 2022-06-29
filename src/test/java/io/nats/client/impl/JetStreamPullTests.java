@@ -196,7 +196,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // create the stream.
             createDefaultTestStream(nc);
 
-            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            // Build our subscription options.
             PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
 
             // Subscribe synchronously.
@@ -295,7 +295,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // create the stream.
             createDefaultTestStream(nc);
 
-            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            // Build our subscription options.
             PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
 
             // Subscribe synchronously.
@@ -355,7 +355,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // create the stream.
             createDefaultTestStream(nc);
 
-            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            // Build our subscription options.
             PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
 
             // Subscribe synchronously.

@@ -60,9 +60,9 @@ public class NatsJsPullSubExpiresIn {
             // start publishing the messages, don't wait for them to finish, simulating an outside producer
             publishInBackground(js, exArgs.subject, "expires-in-message", exArgs.msgCount);
 
-            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            // Build our subscription options.
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                    .durable(exArgs.durable) // required
+                    .durable(exArgs.durable)
                     .build();
 
             JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);

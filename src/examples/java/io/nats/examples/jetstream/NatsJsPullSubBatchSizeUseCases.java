@@ -55,9 +55,9 @@ public class NatsJsPullSubBatchSizeUseCases {
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
-            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            // Build our subscription options.
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                    .durable(exArgs.durable)      // required
+                    .durable(exArgs.durable)
                     .build();
 
             // 0.1 Initialize. subscription

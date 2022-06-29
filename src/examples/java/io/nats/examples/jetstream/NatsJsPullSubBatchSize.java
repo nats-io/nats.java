@@ -61,7 +61,7 @@ public class NatsJsPullSubBatchSize {
             // start publishing the messages, don't wait for them to finish, simulating an outside producer
             publishInBackground(js, exArgs.subject, "pull-message", exArgs.msgCount);
 
-            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            // Build our subscription options.
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                 .durable(exArgs.durable)
                 .build();
