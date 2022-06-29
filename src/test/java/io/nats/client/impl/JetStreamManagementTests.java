@@ -556,8 +556,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("A")).build());
 
-            assertThrows(JetStreamApiException.class,
+            if (nc.getServerInfo().isSameOrOlderThanVersion("2.8.4")) {
+                assertThrows(JetStreamApiException.class,
                     () -> jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("not-match")).build()));
+            }
 
             // gt subject
             jsm.deleteStream(STREAM);
@@ -565,11 +567,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("A")).build());
 
-            assertThrows(JetStreamApiException.class,
-                    () -> jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("not-match")).build()));
-
             // try to filter against durable with mismatch, pull
-            JetStream js = nc.jetStream();
 
             jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder()
                     .durable(durable(42))
