@@ -67,6 +67,7 @@ public class AuthTests {
             assertEncoded("semi", "semi%3Bsemi", port);
             assertEncoded("eq", "eq%3Deq", port);
             assertEncoded("pct", "pct%25pct", port);
+            assertEncoded("user%21%40%23%24%25user", "userencoded", port);
         }
     }
 
