@@ -468,6 +468,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             cc = prepForUpdateTest(jsm);
             cc = ConsumerConfiguration.builder(cc).maxDeliver(4).build();
             assertValidAddOrUpdate(jsm, cc);
+
+            if (nc.getServerInfo().isNewerVersionThan("2.8.4")) {
+                cc = prepForUpdateTest(jsm);
+                cc = ConsumerConfiguration.builder(cc).filterSubject(SUBJECT_STAR).build();
+                assertValidAddOrUpdate(jsm, cc);
+            }
         });
     }
 
@@ -481,9 +487,11 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             cc = ConsumerConfiguration.builder(cc).deliverPolicy(DeliverPolicy.New).build();
             assertInvalidConsumerUpdate(jsm, cc);
 
-            cc = prepForUpdateTest(jsm);
-            cc = ConsumerConfiguration.builder(cc).filterSubject(SUBJECT_STAR).build();
-            assertInvalidConsumerUpdate(jsm, cc);
+            if (nc.getServerInfo().isSameOrOlderThanVersion("2.8.4")) {
+                cc = prepForUpdateTest(jsm);
+                cc = ConsumerConfiguration.builder(cc).filterSubject(SUBJECT_STAR).build();
+                assertInvalidConsumerUpdate(jsm, cc);
+            }
 
             cc = prepForUpdateTest(jsm);
             cc = ConsumerConfiguration.builder(cc).idleHeartbeat(Duration.ofMillis(111)).build();
@@ -548,8 +556,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("A")).build());
 
-            assertThrows(JetStreamApiException.class,
+            if (nc.getServerInfo().isSameOrOlderThanVersion("2.8.4")) {
+                assertThrows(JetStreamApiException.class,
                     () -> jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("not-match")).build()));
+            }
 
             // gt subject
             jsm.deleteStream(STREAM);
@@ -557,11 +567,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("A")).build());
 
-            assertThrows(JetStreamApiException.class,
-                    () -> jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("not-match")).build()));
-
             // try to filter against durable with mismatch, pull
-            JetStream js = nc.jetStream();
 
             jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder()
                     .durable(durable(42))
