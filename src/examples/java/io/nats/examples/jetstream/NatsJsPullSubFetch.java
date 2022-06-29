@@ -64,7 +64,6 @@ public class NatsJsPullSubFetch {
 
             // Build our consumer configuration and subscription options.
             // make sure the ack wait is sufficient to handle the reading and processing of the batch.
-            // Durable is REQUIRED for pull based subscriptions
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                 .ackWait(Duration.ofMillis(2500))
                 .build();
