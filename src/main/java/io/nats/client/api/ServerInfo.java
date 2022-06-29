@@ -161,6 +161,10 @@ public class ServerInfo {
         return getComparableVersion(version).compareTo(getComparableVersion(vTarget)) < 0;
     }
 
+    public boolean isSameOrOlderThanVersion(String vTarget) {
+        return getComparableVersion(version).compareTo(getComparableVersion(vTarget)) <= 0;
+    }
+
     @Override
     public String toString() {
         return "ServerInfo{" +
