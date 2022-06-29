@@ -46,11 +46,9 @@ public class AuthTests {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/encoded_pass.conf", false)) {
             int port = ts.getPort();
             assertEncoded("space%20space", port);
-            assertThrows(AuthenticationException.class, () -> assertEncoded("space+space", port));
-
-            // TODO HANDLE THIS!!!!
-//            assertEncoded("colon%3Acolon", port);
-
+            assertEncoded("space+space", port);
+            assertEncoded("colon%3Acolon", port);
+            assertEncoded("colon%3acolon", port); // just making sure lower case hex
             assertEncoded("quote%27quote", port);
             assertEncoded("slash%2Fslash", port);
             assertEncoded("question%3Fquestion", port);
@@ -75,7 +73,7 @@ public class AuthTests {
     private void assertEncoded(String encoded, int port) throws IOException, InterruptedException {
         String url = "nats://u" + encoded + ":p" + encoded + "@localhost:" + port;
         Options options = new Options.Builder().server(url).build();
-        assertCanConnect(options);
+        Nats.connect(options);
     }
 
     @Test

@@ -19,9 +19,11 @@ import io.nats.client.impl.SocketDataPort;
 import io.nats.client.support.SSLUtils;
 
 import javax.net.ssl.SSLContext;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLDecoder;
 import java.nio.CharBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -1949,15 +1951,15 @@ public class Options {
             // Values from URI override options
             try {
                 URI uri = this.createURIForServer(serverURI);
-                String userInfo = uri.getUserInfo();
+                String userInfo = uri.getRawUserInfo();
                 if (userInfo != null) {
                     int at = userInfo.indexOf(":");
                     if (at == -1) {
-                        uriToken = userInfo;
+                        uriToken = decode(userInfo);
                     }
                     else {
-                        uriUser = userInfo.substring(0, at);
-                        uriPass = userInfo.substring(at + 1);
+                        uriUser = decode(userInfo.substring(0, at));
+                        uriPass = decode(userInfo.substring(at + 1));
                     }
                 }
             } catch(URISyntaxException e) {
@@ -1987,6 +1989,14 @@ public class Options {
         connectString.append("}");
         connectString.flip();
         return connectString;
+    }
+
+    private String decode(String s) {
+        try {
+            return URLDecoder.decode(s, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            return s;
+        }
     }
 
     private void appendOption(CharBuffer builder, String key, String value, boolean quotes, boolean comma) {
