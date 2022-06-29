@@ -46,7 +46,6 @@ public class AuthTests {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/encoded_pass.conf", false)) {
             int port = ts.getPort();
             assertEncoded("space%20space", port);
-            assertEncoded("space+space", port);
             assertEncoded("colon%3Acolon", port);
             assertEncoded("colon%3acolon", port); // just making sure lower case hex
             assertEncoded("quote%27quote", port);
@@ -67,6 +66,9 @@ public class AuthTests {
             assertEncoded("semi%3Bsemi", port);
             assertEncoded("eq%3Deq", port);
             assertEncoded("pct%25pct", port);
+
+            // a plus sign in a user or pass is a plus sign, not a space
+            assertThrows(AuthenticationException.class, () -> assertEncoded("space+space", port));
         }
     }
 

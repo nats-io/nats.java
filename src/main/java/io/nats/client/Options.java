@@ -19,11 +19,9 @@ import io.nats.client.impl.SocketDataPort;
 import io.nats.client.support.SSLUtils;
 
 import javax.net.ssl.SSLContext;
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URLDecoder;
 import java.nio.CharBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -31,6 +29,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.client.support.Encoding.uriDecode;
 import static io.nats.client.support.NatsConstants.*;
 
 /**
@@ -1955,11 +1954,11 @@ public class Options {
                 if (userInfo != null) {
                     int at = userInfo.indexOf(":");
                     if (at == -1) {
-                        uriToken = decode(userInfo);
+                        uriToken = uriDecode(userInfo);
                     }
                     else {
-                        uriUser = decode(userInfo.substring(0, at));
-                        uriPass = decode(userInfo.substring(at + 1));
+                        uriUser = uriDecode(userInfo.substring(0, at));
+                        uriPass = uriDecode(userInfo.substring(at + 1));
                     }
                 }
             } catch(URISyntaxException e) {
@@ -1989,14 +1988,6 @@ public class Options {
         connectString.append("}");
         connectString.flip();
         return connectString;
-    }
-
-    private String decode(String s) {
-        try {
-            return URLDecoder.decode(s, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            return s;
-        }
     }
 
     private void appendOption(CharBuffer builder, String key, String value, boolean quotes, boolean comma) {
