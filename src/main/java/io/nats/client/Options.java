@@ -29,6 +29,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.client.support.Encoding.uriDecode;
 import static io.nats.client.support.NatsConstants.*;
 
 /**
@@ -1949,16 +1950,15 @@ public class Options {
             // Values from URI override options
             try {
                 URI uri = this.createURIForServer(serverURI);
-                String userInfo = uri.getUserInfo();
-
+                String userInfo = uri.getRawUserInfo();
                 if (userInfo != null) {
-                    String[] info = userInfo.split(":");
-
-                    if (info.length == 2) {
-                        uriUser = info[0];
-                        uriPass = info[1];
-                    } else {
-                        uriToken = userInfo;
+                    int at = userInfo.indexOf(":");
+                    if (at == -1) {
+                        uriToken = uriDecode(userInfo);
+                    }
+                    else {
+                        uriUser = uriDecode(userInfo.substring(0, at));
+                        uriPass = uriDecode(userInfo.substring(at + 1));
                     }
                 }
             } catch(URISyntaxException e) {

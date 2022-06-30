@@ -1206,7 +1206,8 @@ class NatsConnection implements Connection {
         try {
             ServerInfo info = this.serverInfo.get();
             CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
-            ByteArrayBuilder bab = new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit())
+            ByteArrayBuilder bab =
+                new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit(), ByteArrayBuilder.DEFAULT_OTHER_ALLOCATION, UTF_8)
                     .append(CONNECT_SP_BYTES).append(connectOptions);
             queueInternalOutgoing(new ProtocolMessage(bab));
         } catch (Exception exp) {
