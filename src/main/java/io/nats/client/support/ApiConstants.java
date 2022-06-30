@@ -76,6 +76,7 @@ public interface ApiConstants {
     String KEEP              = "keep";
     String LAG               = "lag";
     String LAME_DUCK_MODE    = "ldm";
+    String LAST_ACTIVE       = "last_active";
     String LAST_BY_SUBJECT   = "last_by_subj";
     String LAST_SEQ          = "last_seq";
     String LAST_TS           = "last_ts";
@@ -199,6 +200,7 @@ public interface ApiConstants {
     Pattern JET_STREAM_RE         = boolean_pattern(JETSTREAM);
     Pattern LAG_RE                = integer_pattern(LAG);
     Pattern LAME_DUCK_MODE_RE     = boolean_pattern(LAME_DUCK_MODE);
+    Pattern LAST_ACTIVE_RE        = string_pattern(LAST_ACTIVE);
     Pattern LAST_SEQ_RE           = integer_pattern(LAST_SEQ);
     Pattern LAST_TS_RE            = string_pattern(LAST_TS);
     Pattern LEADER_RE             = string_pattern(LEADER);
