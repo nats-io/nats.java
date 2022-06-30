@@ -31,8 +31,8 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
     private final String name;
     private final ConsumerConfiguration configuration;
     private final ZonedDateTime created;
-    private final SequencePair delivered;
-    private final SequencePair ackFloor;
+    private final SequenceInfo delivered;
+    private final SequenceInfo ackFloor;
     private final long numPending;
     private final long numWaiting;
     private final long numAckPending;
@@ -54,10 +54,10 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
         this.configuration = new ConsumerConfiguration(jsonObject);
 
         jsonObject = JsonUtils.getJsonObject(DELIVERED, json);
-        this.delivered = new SequencePair(jsonObject);
+        this.delivered = new SequenceInfo(jsonObject);
 
         jsonObject = JsonUtils.getJsonObject(ACK_FLOOR, json);
-        this.ackFloor = new SequencePair(jsonObject);
+        this.ackFloor = new SequenceInfo(jsonObject);
 
         numAckPending = JsonUtils.readLong(json, NUM_ACK_PENDING_RE, 0);
         numRedelivered = JsonUtils.readLong(json, NUM_REDELIVERED_RE, 0);
@@ -84,11 +84,11 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
         return created;
     }
 
-    public SequencePair getDelivered() {
+    public SequenceInfo getDelivered() {
         return delivered;
     }
 
-    public SequencePair getAckFloor() {
+    public SequenceInfo getAckFloor() {
         return ackFloor;
     }
 
