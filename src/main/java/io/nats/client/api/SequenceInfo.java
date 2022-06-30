@@ -33,7 +33,7 @@ public class SequenceInfo extends SequencePair {
     }
 
     /**
-     * "The last time a message was delivered or acknowledged (for ack_floor)
+     * The last time a message was delivered or acknowledged (for ack_floor)
      * @return the last active time
      */
     public ZonedDateTime getLastActive() {
