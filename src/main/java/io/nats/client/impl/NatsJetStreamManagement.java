@@ -200,6 +200,14 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      * {@inheritDoc}
      */
     @Override
+    public List<String> getStreamNamesBySubjectFilter(String subjectFilter) throws IOException, JetStreamApiException {
+        return _getStreamNamesBySubject(subjectFilter);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public List<StreamInfo> getStreams() throws IOException, JetStreamApiException {
         StreamListReader slg = new StreamListReader();
         while (slg.hasMore()) {

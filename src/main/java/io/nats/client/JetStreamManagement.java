@@ -172,6 +172,16 @@ public interface JetStreamManagement {
     List<String> getStreamNames() throws IOException, JetStreamApiException;
 
     /**
+     * Return a stream name that contains the requested subject filter
+     * @param subjectFilter the subject, including wildcards
+     * @return The list of stream names matching the subject filter. May be empty, will not be null.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    List<String> getStreamNamesBySubjectFilter(String subjectFilter) throws IOException, JetStreamApiException;
+
+    /**
      * Return a list of StreamInfo objects.
      * @return The list of StreamInfo
      * @throws IOException covers various communication issues with the NATS

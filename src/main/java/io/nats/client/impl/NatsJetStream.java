@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
-import io.nats.client.support.JsonUtils;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
@@ -24,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static io.nats.client.support.ApiConstants.SUBJECT;
 import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.support.Validator.*;
 
@@ -619,10 +617,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     }
 
     protected String lookupStreamBySubject(String subject) throws IOException, JetStreamApiException {
-        byte[] body = JsonUtils.simpleMessageBody(SUBJECT, subject);
-        StreamNamesReader snr = new StreamNamesReader();
-        Message resp = makeRequestResponseRequired(JSAPI_STREAM_NAMES, body, jso.getRequestTimeout());
-        snr.process(resp);
-        return snr.getStrings().size() == 1 ? snr.getStrings().get(0) : null;
+        List<String> list = _getStreamNamesBySubject(subject);
+        return list.size() == 1 ? list.get(0) : null;
     }
 }
