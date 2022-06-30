@@ -13,6 +13,8 @@
 
 package io.nats.client.support;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
@@ -202,30 +204,10 @@ public abstract class Encoding {
     }
 
     public static String uriDecode(String source) {
-        int length = source.length();
-        if (length == 0) {
+        try {
+            return URLDecoder.decode(source.replace("+", "%2B"), "UTF-8");
+        } catch (UnsupportedEncodingException e) {
             return source;
         }
-
-        StringBuilder sb = new StringBuilder();
-        boolean changed = false;
-        for (int i = 0; i < length; i++) {
-            int ch = source.charAt(i);
-            if (ch == '%') {
-                if (i + 2 < length) {
-                    int code = Integer.parseInt("" + source.charAt(i + 1) + source.charAt(i + 2), 16);
-                    sb.append(Character.toChars(code));
-                    i += 2;
-                    changed = true;
-                }
-                else {
-                    throw new IllegalArgumentException("Invalid encoded sequence \"" + source.substring(i) + "\"");
-                }
-            }
-            else {
-                sb.append((char)ch);
-            }
-        }
-        return changed ? sb.toString() : source;
     }
 }

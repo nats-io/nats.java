@@ -66,6 +66,7 @@ public class AuthTests {
             assertEncoded("semi%3Bsemi", port);
             assertEncoded("eq%3Deq", port);
             assertEncoded("pct%25pct", port);
+            assertEncoded("%2b%3a%c2%a1%c2%a2%c2%a3%c2%a4%c2%a5%c2%a6%c2%a7%c2%a8%c2%a9%c2%aa%c2%ab%c2%ac%20%f0%9f%98%80", port);
 
             // a plus sign in a user or pass is a plus sign, not a space
             assertThrows(AuthenticationException.class, () -> assertEncoded("space+space", port));
@@ -75,7 +76,9 @@ public class AuthTests {
     private void assertEncoded(String encoded, int port) throws IOException, InterruptedException {
         String url = "nats://u" + encoded + ":p" + encoded + "@localhost:" + port;
         Options options = new Options.Builder().server(url).build();
-        Nats.connect(options);
+        Connection c = Nats.connect(options);
+        c.getServerInfo();
+        c.close();
     }
 
     @Test
