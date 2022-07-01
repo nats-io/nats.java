@@ -163,7 +163,7 @@ public interface JetStreamManagement {
     List<ConsumerInfo> getConsumers(String streamName) throws IOException, JetStreamApiException;
 
     /**
-     * Return a list of stream names
+     * Get the names of all streams.
      * @return The list of names
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -172,8 +172,8 @@ public interface JetStreamManagement {
     List<String> getStreamNames() throws IOException, JetStreamApiException;
 
     /**
-     * Return a list of stream names that contains the requested subject filter
-     * @param subjectFilter the subject, including wildcards
+     * Get a list of stream names that have subjects matching the subject filter
+     * @param subjectFilter the subject. Wildcards are allowed.
      * @return The list of stream names matching the subject filter. May be empty, will not be null.
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
