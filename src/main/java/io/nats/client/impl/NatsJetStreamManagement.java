@@ -201,7 +201,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      */
     @Override
     public List<String> getStreamNamesBySubjectFilter(String subjectFilter) throws IOException, JetStreamApiException {
-        return _getStreamNamesBySubject(subjectFilter);
+        return _getStreamNamesBySubjectFilter(subjectFilter);
     }
 
     /**

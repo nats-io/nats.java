@@ -86,7 +86,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         return new StreamInfo(resp).throwOnHasError();
     }
 
-    List<String> _getStreamNamesBySubject(String subjectFilter) throws IOException, JetStreamApiException {
+    List<String> _getStreamNamesBySubjectFilter(String subjectFilter) throws IOException, JetStreamApiException {
         byte[] body = JsonUtils.simpleMessageBody(SUBJECT, subjectFilter);
         StreamNamesReader snr = new StreamNamesReader();
         Message resp = makeRequestResponseRequired(JSAPI_STREAM_NAMES, body, jso.getRequestTimeout());

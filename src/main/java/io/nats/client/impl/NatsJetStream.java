@@ -617,7 +617,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     }
 
     protected String lookupStreamBySubject(String subject) throws IOException, JetStreamApiException {
-        List<String> list = _getStreamNamesBySubject(subject);
+        List<String> list = _getStreamNamesBySubjectFilter(subject);
         return list.size() == 1 ? list.get(0) : null;
     }
 }
