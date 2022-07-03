@@ -17,10 +17,14 @@ import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamOptions;
 import io.nats.client.Message;
 import io.nats.client.api.*;
+import io.nats.client.support.JsonUtils;
 import io.nats.client.support.NatsJetStreamConstants;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
+
+import static io.nats.client.support.ApiConstants.SUBJECT;
 
 class NatsJetStreamImplBase implements NatsJetStreamConstants {
 
@@ -80,6 +84,14 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         byte[] payload = options == null ? null : options.serialize();
         Message resp = makeRequestResponseRequired(subj, payload, jso.getRequestTimeout());
         return new StreamInfo(resp).throwOnHasError();
+    }
+
+    List<String> _getStreamNamesBySubjectFilter(String subjectFilter) throws IOException, JetStreamApiException {
+        byte[] body = JsonUtils.simpleMessageBody(SUBJECT, subjectFilter);
+        StreamNamesReader snr = new StreamNamesReader();
+        Message resp = makeRequestResponseRequired(JSAPI_STREAM_NAMES, body, jso.getRequestTimeout());
+        snr.process(resp);
+        return snr.getStrings();
     }
 
     // ----------------------------------------------------------------------------------------------------

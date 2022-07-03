@@ -743,5 +743,49 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertEquals(StorageType.Memory, StorageType.get("MEMORY"));
         assertNull(StorageType.get("nope"));
     }
+
+    @Test
+    public void testGetStreamNamesBySubjectFilter() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            createMemoryStream(jsm, stream(1), "foo");
+            createMemoryStream(jsm, stream(2), "bar");
+            createMemoryStream(jsm, stream(3), "a.a");
+            createMemoryStream(jsm, stream(4), "a.b");
+
+            List<String> list = jsm.getStreamNamesBySubjectFilter("*");
+            assertStreamNameList(list, 1, 2);
+
+            list = jsm.getStreamNamesBySubjectFilter(">");
+            assertStreamNameList(list, 1, 2, 3, 4);
+
+            list = jsm.getStreamNamesBySubjectFilter("*.*");
+            assertStreamNameList(list, 3, 4);
+
+            list = jsm.getStreamNamesBySubjectFilter("a.>");
+            assertStreamNameList(list, 3, 4);
+
+            list = jsm.getStreamNamesBySubjectFilter("a.*");
+            assertStreamNameList(list, 3, 4);
+
+            list = jsm.getStreamNamesBySubjectFilter("foo");
+            assertStreamNameList(list, 1);
+
+            list = jsm.getStreamNamesBySubjectFilter("a.a");
+            assertStreamNameList(list, 3);
+
+            list = jsm.getStreamNamesBySubjectFilter("nomatch");
+            assertStreamNameList(list);
+        });
+    }
+
+    private void assertStreamNameList(List<String> list, int... ids) {
+        assertNotNull(list);
+        assertEquals(ids.length, list.size());
+        for (int id : ids) {
+            assertTrue(list.contains(stream(id)));
+        }
+    }
 }
 
