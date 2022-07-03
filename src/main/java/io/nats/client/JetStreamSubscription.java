@@ -190,6 +190,23 @@ public interface JetStreamSubscription extends Subscription {
     Iterator<Message> iterate(final int batchSize, long maxWaitMillis);
 
     /**
+     * Prepares a reader. A reader looks like a push sync subscription,
+     * meaning it is just an endless stream of messages to ask for by nextMessage,
+     * but uses pull under the covers.
+     *
+     * ! Pull subscriptions only. Push subscription will throw IllegalStateException
+     *
+     * THIS API IS CONSIDERED EXPERIMENTAL AND SUBJECT TO CHANGE
+     *
+     * @param batchSize the size of the batch
+     * @param repullAt the point in the current batch to tell the server to start the next batch
+     *
+     * @return the message iterator
+     * @throws IllegalStateException if not a pull subscription.
+     */
+    JetStreamReader reader(final int batchSize, int repullAt);
+
+    /**
      * Gets information about the consumer behind this subscription.
      * @return consumer information
      * @throws IOException covers various communication issues with the NATS
