@@ -15,6 +15,9 @@ package io.nats.client;
 
 import java.time.Duration;
 
+/**
+ * THIS IS PART OF AN EXPERIMENTAL API AND IS CONSIDERED EXPERIMENTAL AND SUBJECT TO CHANGE
+ */
 public interface JetStreamReader {
     Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException;
     Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException;
