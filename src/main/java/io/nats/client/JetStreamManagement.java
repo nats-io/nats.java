@@ -172,7 +172,10 @@ public interface JetStreamManagement {
     List<String> getStreamNames() throws IOException, JetStreamApiException;
 
     /**
-     * Get a list of stream names that have subjects matching the subject filter
+     * Get a list of stream names that have subjects matching the subject filter.
+     * 
+     * THIS API IS CONSIDERED EXPERIMENTAL AND SUBJECT TO CHANGE
+     *
      * @param subjectFilter the subject. Wildcards are allowed.
      * @return The list of stream names matching the subject filter. May be empty, will not be null.
      * @throws IOException covers various communication issues with the NATS
