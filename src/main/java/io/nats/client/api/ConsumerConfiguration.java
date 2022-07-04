@@ -52,7 +52,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     public static final long DURATION_UNSET_LONG = 0;
     public static final long DURATION_MIN_LONG = 1;
     public static final int STANDARD_MIN = 0;
-    public static final int MAX_DELIVER_MIN = 1;
+    public static final long MAX_DELIVER_MIN = 1;
 
     public static final long MIN_IDLE_HEARTBEAT_NANOS = MIN_IDLE_HEARTBEAT.toNanos();
     public static final long MIN_IDLE_HEARTBEAT_MILLIS = MIN_IDLE_HEARTBEAT.toMillis();
@@ -72,12 +72,12 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final Duration maxExpires;
     protected final Duration inactiveThreshold;
     protected final Long startSeq; // server side this is unsigned
-    protected final Integer maxDeliver;
+    protected final Long maxDeliver;
     protected final Long rateLimit; // server side this is unsigned
-    protected final Integer maxAckPending;
-    protected final Integer maxPullWaiting;
-    protected final Integer maxBatch;
-    protected final Integer maxBytes;
+    protected final Long maxAckPending;
+    protected final Long maxPullWaiting;
+    protected final Long maxBatch;
+    protected final Long maxBytes;
     protected final Boolean flowControl;
     protected final Boolean headersOnly;
     protected final List<Duration> backoff;
@@ -134,12 +134,12 @@ public class ConsumerConfiguration implements JsonSerializable {
         inactiveThreshold = JsonUtils.readNanos(json, INACTIVE_THRESHOLD_RE);
 
         startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE);
-        maxDeliver = JsonUtils.readInteger(json, MAX_DELIVER_RE);
+        maxDeliver = JsonUtils.readLong(json, MAX_DELIVER_RE);
         rateLimit = JsonUtils.readLong(json, RATE_LIMIT_BPS_RE);
-        maxAckPending = JsonUtils.readInteger(json, MAX_ACK_PENDING_RE);
-        maxPullWaiting = JsonUtils.readInteger(json, MAX_WAITING_RE);
-        maxBatch = JsonUtils.readInteger(json, MAX_BATCH_RE);
-        maxBytes = JsonUtils.readInteger(json, MAX_BYTES_RE);
+        maxAckPending = JsonUtils.readLong(json, MAX_ACK_PENDING_RE);
+        maxPullWaiting = JsonUtils.readLong(json, MAX_WAITING_RE);
+        maxBatch = JsonUtils.readLong(json, MAX_BATCH_RE);
+        maxBytes = JsonUtils.readLong(json, MAX_BYTES_RE);
 
         flowControl = JsonUtils.readBoolean(json, FLOW_CONTROL_RE, null);
         headersOnly = JsonUtils.readBoolean(json, HEADERS_ONLY_RE, null);
@@ -290,7 +290,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the max delivery amount of this consumer configuration.
      * @return the max delivery amount.
      */
-    public int getMaxDeliver() {
+    public long getMaxDeliver() {
         return getOrUnset(maxDeliver);
     }
 
@@ -322,7 +322,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the maximum ack pending configuration.
      * @return maximum ack pending.
      */
-    public int getMaxAckPending() {
+    public long getMaxAckPending() {
         return getOrUnset(maxAckPending);
     }
 
@@ -357,7 +357,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the number of pulls that can be outstanding on a pull consumer
      * @return the max pull waiting
      */
-    public int getMaxPullWaiting() {
+    public long getMaxPullWaiting() {
         return getOrUnset(maxPullWaiting);
     }
 
@@ -373,7 +373,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the max batch size for the server to allow on pull requests.
      * @return the max batch size
      */
-    public int getMaxBatch() {
+    public long getMaxBatch() {
         return getOrUnset(maxBatch);
     }
 
@@ -381,7 +381,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the max bytes size for the server to allow on pull requests.
      * @return the max byte size
      */
-    public int getMaxBytes() {
+    public long getMaxBytes() {
         return getOrUnset(maxBytes);
     }
 
@@ -548,12 +548,12 @@ public class ConsumerConfiguration implements JsonSerializable {
         private Duration inactiveThreshold;
 
         private Long startSeq;
-        private Integer maxDeliver;
+        private Long maxDeliver;
         private Long rateLimit;
-        private Integer maxAckPending;
-        private Integer maxPullWaiting;
-        private Integer maxBatch;
-        private Integer maxBytes;
+        private Long maxAckPending;
+        private Long maxPullWaiting;
+        private Long maxBatch;
+        private Long maxBytes;
 
         private Boolean flowControl;
         private Boolean headersOnly;
@@ -712,7 +712,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxDeliver(Long maxDeliver) {
-            this.maxDeliver = normalizeToInt(maxDeliver, MAX_DELIVER_MIN);
+            this.maxDeliver = normalize(maxDeliver, MAX_DELIVER_MIN);
             return this;
         }
 
@@ -722,7 +722,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxDeliver(long maxDeliver) {
-            this.maxDeliver = normalizeToInt(maxDeliver, MAX_DELIVER_MIN);
+            this.maxDeliver = normalize(maxDeliver, MAX_DELIVER_MIN);
             return this;
         }
 
@@ -782,7 +782,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxAckPending(Long maxAckPending) {
-            this.maxAckPending = normalizeToInt(maxAckPending, STANDARD_MIN);
+            this.maxAckPending = normalize(maxAckPending, STANDARD_MIN);
             return this;
         }
 
@@ -792,7 +792,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxAckPending(long maxAckPending) {
-            this.maxAckPending = normalizeToInt(maxAckPending, STANDARD_MIN);
+            this.maxAckPending = normalize(maxAckPending, STANDARD_MIN);
             return this;
         }
 
@@ -905,7 +905,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxPullWaiting(Long maxPullWaiting) {
-            this.maxPullWaiting = normalizeToInt(maxPullWaiting, STANDARD_MIN);
+            this.maxPullWaiting = normalize(maxPullWaiting, STANDARD_MIN);
             return this;
         }
 
@@ -915,7 +915,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxPullWaiting(long maxPullWaiting) {
-            this.maxPullWaiting = normalizeToInt(maxPullWaiting, STANDARD_MIN);
+            this.maxPullWaiting = normalize(maxPullWaiting, STANDARD_MIN);
             return this;
         }
 
@@ -925,7 +925,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxBatch(Long maxBatch) {
-            this.maxBatch = normalizeToInt(maxBatch, STANDARD_MIN);
+            this.maxBatch = normalize(maxBatch, STANDARD_MIN);
             return this;
         }
 
@@ -935,7 +935,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxBatch(long maxBatch) {
-            this.maxBatch = normalizeToInt(maxBatch, STANDARD_MIN);
+            this.maxBatch = normalize(maxBatch, STANDARD_MIN);
             return this;
         }
 
@@ -945,7 +945,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxBytes(Long maxBytes) {
-            this.maxBytes = normalizeToInt(maxBytes, STANDARD_MIN);
+            this.maxBytes = normalize(maxBytes, STANDARD_MIN);
             return this;
         }
 
@@ -955,7 +955,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder maxBytes(long maxBytes) {
-            this.maxBytes = normalizeToInt(maxBytes, STANDARD_MIN);
+            this.maxBytes = normalize(maxBytes, STANDARD_MIN);
             return this;
         }
 
@@ -1067,6 +1067,11 @@ public class ConsumerConfiguration implements JsonSerializable {
         return val == null ? INTEGER_UNSET : val;
     }
 
+    protected static long getOrUnset(Long val)
+    {
+        return val == null ? LONG_UNSET : val;
+    }
+
     protected static long getOrUnsetUlong(Long val)
     {
         return val == null || val < 0 ? ULONG_UNSET : val;
@@ -1077,20 +1082,16 @@ public class ConsumerConfiguration implements JsonSerializable {
         return val == null ? DURATION_UNSET : val;
     }
 
-    protected static Integer normalizeToInt(Long l, int min) {
+    protected static Long normalize(Long l, long min) {
         if (l == null) {
             return null;
         }
 
         if (l < min) {
-            return INTEGER_UNSET;
+            return LONG_UNSET;
         }
 
-        if (l > Integer.MAX_VALUE) {
-            return Integer.MAX_VALUE;
-        }
-
-        return l.intValue();
+        return l;
     }
 
     protected static Long normalizeUlong(Long u)

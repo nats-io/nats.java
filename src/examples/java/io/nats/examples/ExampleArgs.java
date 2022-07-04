@@ -26,6 +26,7 @@ public class ExampleArgs {
     public String queue;
     public String message;
     public int msgCount = Integer.MIN_VALUE;
+    public int msgSize = Integer.MIN_VALUE;
     private boolean msgCountUnlimitedFlag;
     public int subCount = Integer.MIN_VALUE;
     public String stream;
@@ -140,6 +141,9 @@ public class ExampleArgs {
             case "-mcnt":
                 msgCount = Integer.parseInt(value);
                 break;
+            case "-msize":
+                msgSize = Integer.parseInt(value);
+                break;
             case "-scnt":
                 subCount = Integer.parseInt(value);
                 break;
@@ -188,6 +192,7 @@ public class ExampleArgs {
         _banner("durable", durable);
         _banner("deliver", deliverSubject);
         _banner("msgCount", msgCount, msgCountUnlimitedFlag);
+        _banner("msgSize", msgSize);
         _banner("subCount", subCount);
         _banner("pullSize", pullSize);
         _banner("Headers", headers == null || headers.size() == 0 ? Integer.MIN_VALUE : headers.size());
@@ -253,6 +258,11 @@ public class ExampleArgs {
         public Builder defaultMsgCount(int msgCount, boolean unlimitedFlag) {
             ea.msgCount = msgCount;
             ea.msgCountUnlimitedFlag = unlimitedFlag;
+            return this;
+        }
+
+        public Builder defaultMsgSize(int msgSize) {
+            ea.msgSize = msgSize;
             return this;
         }
 

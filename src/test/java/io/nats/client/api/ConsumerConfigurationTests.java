@@ -306,14 +306,12 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(DURATION_UNSET, ConsumerConfiguration.getOrUnset((Duration)null));
 
         //noinspection ConstantConditions
-        assertNull(ConsumerConfiguration.normalizeToInt(null, STANDARD_MIN));
-        assertEquals(0, ConsumerConfiguration.normalizeToInt(0L, STANDARD_MIN));
-        assertEquals(1, ConsumerConfiguration.normalizeToInt(1L, STANDARD_MIN));
-        assertEquals(INTEGER_UNSET, ConsumerConfiguration.normalizeToInt((long)INTEGER_UNSET, STANDARD_MIN));
-        assertEquals(INTEGER_UNSET, ConsumerConfiguration.normalizeToInt(LONG_UNSET, STANDARD_MIN));
-        assertEquals(INTEGER_UNSET, ConsumerConfiguration.normalizeToInt(Long.MIN_VALUE, STANDARD_MIN));
-        assertEquals(Integer.MAX_VALUE, ConsumerConfiguration.normalizeToInt((long)Integer.MAX_VALUE, STANDARD_MIN));
-        assertEquals(Integer.MAX_VALUE, ConsumerConfiguration.normalizeToInt(Long.MAX_VALUE, STANDARD_MIN));
+        assertNull(ConsumerConfiguration.normalize(null, STANDARD_MIN));
+        assertEquals(0, ConsumerConfiguration.normalize(0L, STANDARD_MIN));
+        assertEquals(1, ConsumerConfiguration.normalize(1L, STANDARD_MIN));
+        assertEquals(LONG_UNSET, ConsumerConfiguration.normalize(LONG_UNSET, STANDARD_MIN));
+        assertEquals(LONG_UNSET, ConsumerConfiguration.normalize(Long.MIN_VALUE, STANDARD_MIN));
+        assertEquals(Long.MAX_VALUE, ConsumerConfiguration.normalize(Long.MAX_VALUE, STANDARD_MIN));
 
         //noinspection ConstantConditions
         assertNull(ConsumerConfiguration.normalizeUlong(null));

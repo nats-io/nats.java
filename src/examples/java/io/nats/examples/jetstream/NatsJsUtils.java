@@ -150,29 +150,41 @@ public class NatsJsUtils {
     // PUBLISH
     // ----------------------------------------------------------------------------------------------------
     public static void publish(Connection nc, String subject, int count) throws IOException, JetStreamApiException {
-        publish(nc.jetStream(), subject, "data", count, false);
+        publish(nc.jetStream(), subject, "data", count, -1, false);
     }
 
     public static void publish(JetStream js, String subject, int count) throws IOException, JetStreamApiException {
-        publish(js, subject, "data", count, false);
+        publish(js, subject, "data", count, -1, false);
     }
 
     public static void publish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
-        publish(js, subject, prefix, count, true);
+        publish(js, subject, prefix, count, -1, true);
     }
 
     public static void publish(JetStream js, String subject, String prefix, int count, boolean verbose) throws IOException, JetStreamApiException {
+        publish(js, subject, prefix, count, -1, verbose);
+    }
+
+    public static void publish(JetStream js, String subject, String prefix, int count, int msgSize, boolean verbose) throws IOException, JetStreamApiException {
         if (verbose) {
             System.out.print("Publish ->");
         }
         for (int x = 1; x <= count; x++) {
-            String data = prefix + x;
+            String text = prefix + x;
             if (verbose) {
-                System.out.print(" " + data);
+                System.out.print(" " + text);
             }
-            Message msg = NatsMessage.builder()
+
+            byte[] data = text.getBytes(StandardCharsets.US_ASCII);
+            if (msgSize > data.length) {
+                byte[] larger = new byte[msgSize];
+                System.arraycopy(data, 0, larger, 0, data.length);
+                data = larger;
+            }
+            Message msg =
+                NatsMessage.builder()
                     .subject(subject)
-                    .data(data.getBytes(StandardCharsets.US_ASCII))
+                    .data(data)
                     .build();
             js.publish(msg);
         }
