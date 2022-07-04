@@ -170,7 +170,7 @@ public interface JetStreamSubscription extends Subscription {
      * @return the message iterator
      * @throws IllegalStateException if not a pull subscription.
      */
-    Iterator<Message> iterate(final int batchSize, Duration maxWait);
+    Iterator<Message> iterate(int batchSize, Duration maxWait);
 
     /**
      * Prepares an iterator. This uses <code>pullExpiresIn</code> under the covers,
@@ -187,7 +187,7 @@ public interface JetStreamSubscription extends Subscription {
      * @return the message iterator
      * @throws IllegalStateException if not a pull subscription.
      */
-    Iterator<Message> iterate(final int batchSize, long maxWaitMillis);
+    Iterator<Message> iterate(int batchSize, long maxWaitMillis);
 
     /**
      * Prepares a reader. A reader looks like a push sync subscription,
@@ -204,7 +204,7 @@ public interface JetStreamSubscription extends Subscription {
      * @return the message iterator
      * @throws IllegalStateException if not a pull subscription.
      */
-    JetStreamReader reader(final int batchSize, int repullAt);
+    JetStreamReader reader(int batchSize, int repullAt);
 
     /**
      * Gets information about the consumer behind this subscription.
