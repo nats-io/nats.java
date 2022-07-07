@@ -29,6 +29,7 @@ import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.Validator.emptyAsNull;
+import static io.nats.client.support.Validator.validateNumberOfReplicas;
 
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and
@@ -81,6 +82,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final Boolean flowControl;
     protected final Boolean headersOnly;
     protected final List<Duration> backoff;
+    protected final int numReplicas;
 
     protected ConsumerConfiguration(ConsumerConfiguration cc) {
         this.deliverPolicy = cc.deliverPolicy;
@@ -107,6 +109,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.flowControl = cc.flowControl;
         this.headersOnly = cc.headersOnly;
         this.backoff = new ArrayList<>(cc.backoff);
+        this.numReplicas = cc.numReplicas;
     }
 
     // for the response from the server
@@ -145,6 +148,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         headersOnly = JsonUtils.readBoolean(json, HEADERS_ONLY_RE, null);
 
         backoff = JsonUtils.getDurationList(BACKOFF, json);
+        numReplicas = JsonUtils.readInt(json, NUM_REPLICAS_RE, 1);
     }
 
     // For the builder
@@ -178,6 +182,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.headersOnly = b.headersOnly;
 
         this.backoff = b.backoff;
+        this.numReplicas = b.numReplicas;
     }
 
     /**
@@ -211,6 +216,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addFieldAsNanos(sb, MAX_EXPIRES, maxExpires);
         JsonUtils.addFieldAsNanos(sb, INACTIVE_THRESHOLD, inactiveThreshold);
         JsonUtils.addDurations(sb, BACKOFF, backoff);
+        JsonUtils.addField(sb, NUM_REPLICAS, numReplicas);
         return endJson(sb).toString();
     }
 
@@ -410,6 +416,12 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
+     * Get the number of consumer replicas.
+     * @return the replicas count
+     */
+    public Integer getNumReplicas() { return numReplicas; }
+
+    /**
      * Gets whether deliver policy of this consumer configuration was set or left unset
      * @return true if the policy was set, false if the policy was not set
      */
@@ -559,6 +571,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         private Boolean headersOnly;
 
         private List<Duration> backoff = new ArrayList<>();
+        private int numReplicas = 1;
 
         public Builder() {}
 
@@ -593,6 +606,7 @@ public class ConsumerConfiguration implements JsonSerializable {
                 this.headersOnly = cc.headersOnly;
 
                 this.backoff = new ArrayList<>(cc.backoff);
+                this.numReplicas = cc.numReplicas;
             }
         }
 
@@ -1009,6 +1023,16 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
+         * Set the number of replicas for the consumer.
+         * @param numReplicas number of replicas for the consumer
+         * @return Builder
+         */
+        public Builder numReplicas(Integer numReplicas) {
+            this.numReplicas = validateNumberOfReplicas(numReplicas);
+            return this;
+        }
+
+        /**
          * Builds the ConsumerConfiguration
          * @return The consumer configuration.
          */
@@ -1059,6 +1083,7 @@ public class ConsumerConfiguration implements JsonSerializable {
             ", maxExpires=" + maxExpires +
             ", inactiveThreshold=" + inactiveThreshold +
             ", backoff=" + backoff +
+            ", numReplicas=" + numReplicas +
             '}';
     }
 
