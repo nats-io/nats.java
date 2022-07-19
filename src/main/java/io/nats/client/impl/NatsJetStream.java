@@ -461,6 +461,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
             if (!backoff.equals(serverCcc.backoff)) { changes.add("backoff"); }; // backoff will never be null, but can be empty
 
+            if (numReplicas != null && !numReplicas.equals(serverCcc.numReplicas)) { changes.add("numReplicas"); };
+
             // do not need to check Durable because the original is retrieved by the durable name
 
             return changes;

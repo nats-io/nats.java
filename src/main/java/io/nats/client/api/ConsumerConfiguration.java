@@ -82,7 +82,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final Boolean flowControl;
     protected final Boolean headersOnly;
     protected final List<Duration> backoff;
-    protected final int numReplicas;
+    protected final Integer numReplicas;
 
     protected ConsumerConfiguration(ConsumerConfiguration cc) {
         this.deliverPolicy = cc.deliverPolicy;
@@ -148,7 +148,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         headersOnly = JsonUtils.readBoolean(json, HEADERS_ONLY_RE, null);
 
         backoff = JsonUtils.getDurationList(BACKOFF, json);
-        numReplicas = JsonUtils.readInt(json, NUM_REPLICAS_RE, 1);
+        numReplicas = JsonUtils.readInteger(json, NUM_REPLICAS_RE);
     }
 
     // For the builder
@@ -419,7 +419,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the number of consumer replicas.
      * @return the replicas count
      */
-    public Integer getNumReplicas() { return numReplicas; }
+    public int getNumReplicas() { return numReplicas; }
 
     /**
      * Gets whether deliver policy of this consumer configuration was set or left unset
@@ -571,7 +571,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         private Boolean headersOnly;
 
         private List<Duration> backoff = new ArrayList<>();
-        private int numReplicas = 1;
+        private Integer numReplicas = 1;
 
         public Builder() {}
 
