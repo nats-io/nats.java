@@ -170,7 +170,7 @@ public class NatsJsUtils {
             System.out.print("Publish ->");
         }
         for (int x = 1; x <= count; x++) {
-            String text = prefix + x;
+            String text = prefix + "#" + x + "#";
             if (verbose) {
                 System.out.print(" " + text);
             }
@@ -191,6 +191,42 @@ public class NatsJsUtils {
         if (verbose) {
             System.out.println(" <-");
         }
+    }
+
+    public static long extractId(String data) {
+        int at1 = data.indexOf("#");
+        if (at1 == -1) {
+            return -1;
+        }
+        int at2 = data.indexOf("#", at1 + 1);
+        if (at2 == -1) {
+            return -1;
+        }
+        return Long.parseLong(data.substring(at1 + 1, at2));
+    }
+
+    public static long extractId(byte[] data) {
+        int at1 = -1;
+        int at2 = -1;
+        for (int x = 0; x < data.length; x++) {
+            if (data[x] == (byte)'#') {
+               if (at1 == -1) {
+                   at1 = x;
+               }
+               else {
+                   at2 = x;
+                   break;
+               }
+            }
+        }
+        if (at1 == -1 || at2 == -1) {
+            return -1;
+        }
+        return Long.parseLong(new String(data, at1 + 1, at2 - at1 - 1));
+    }
+
+    public static long extractId(Message m) {
+        return extractId(m.getData());
     }
 
     public static void publishInBackground(JetStream js, String subject, String prefix, int count) {
