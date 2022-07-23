@@ -798,8 +798,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .durable(durable(0))
                     .build();
             ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc0);
-            // Default replica should be 1
-            assertEquals(1, ci.getConsumerConfiguration().getNumReplicas());
+            // server returns 0 when value is not set
+            assertEquals(0, ci.getConsumerConfiguration().getNumReplicas());
 
             final ConsumerConfiguration cc1 = ConsumerConfiguration.builder()
                     .durable(durable(0))
