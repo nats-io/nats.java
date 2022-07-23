@@ -436,6 +436,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
             if (flowControl != null && flowControl != serverCcc.isFlowControl()) { changes.add("flowControl"); };
             if (headersOnly != null && headersOnly != serverCcc.isHeadersOnly()) { changes.add("headersOnly"); };
+            if (memStorage != null && memStorage != serverCcc.isMemStorage()) { changes.add("memStorage"); };
 
             if (startSeq != null && !startSeq.equals(serverCcc.getStartSequence())) { changes.add("startSequence"); };
             if (rateLimit != null && !rateLimit.equals(serverCcc.getStartSequence())) { changes.add("rateLimit"); };

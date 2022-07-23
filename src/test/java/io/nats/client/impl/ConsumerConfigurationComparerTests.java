@@ -97,6 +97,9 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertNotChange(builder(orig).headersOnly(false).build(), orig);
         assertChange(builder(orig).headersOnly(true).build(), orig, "headersOnly");
 
+        assertNotChange(builder(orig).memStorage(false).build(), orig);
+        assertChange(builder(orig).memStorage(true).build(), orig, "memStorage");
+
         assertNotChange(builder(orig).startSequence(ULONG_UNSET).build(), orig);
         assertNotChange(builder(orig).startSequence(null).build(), orig);
         assertChange(builder(orig).startSequence(1).build(), orig, "startSequence");
@@ -124,6 +127,9 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertNotChange(builder(orig).maxBytes(LONG_UNSET).build(), orig);
         assertNotChange(builder(orig).maxBytes(null).build(), orig);
         assertChange(builder(orig).maxBytes(1).build(), orig, "maxBytes");
+
+        assertNotChange(builder(orig).numReplicas(null).build(), orig);
+        assertChange(builder(orig).numReplicas(1).build(), orig, "numReplicas");
 
         assertNotChange(builder(orig).filterSubject(EMPTY).build(), orig);
         ccTest = builder(orig).filterSubject(PLAIN).build();
