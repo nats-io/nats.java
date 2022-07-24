@@ -436,6 +436,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
             if (flowControl != null && flowControl != serverCcc.isFlowControl()) { changes.add("flowControl"); };
             if (headersOnly != null && headersOnly != serverCcc.isHeadersOnly()) { changes.add("headersOnly"); };
+            if (memStorage != null && memStorage != serverCcc.isMemStorage()) { changes.add("memStorage"); };
 
             if (startSeq != null && !startSeq.equals(serverCcc.getStartSequence())) { changes.add("startSequence"); };
             if (rateLimit != null && !rateLimit.equals(serverCcc.getStartSequence())) { changes.add("rateLimit"); };
@@ -460,6 +461,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             if (deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup)) { changes.add("deliverGroup"); };
 
             if (!backoff.equals(serverCcc.backoff)) { changes.add("backoff"); }; // backoff will never be null, but can be empty
+
+            if (numReplicas != null && !numReplicas.equals(serverCcc.numReplicas)) { changes.add("numReplicas"); };
 
             // do not need to check Durable because the original is retrieved by the durable name
 

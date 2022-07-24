@@ -787,5 +787,27 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertTrue(list.contains(stream(id)));
         }
     }
+
+    @Test
+    public void testConsumerReplica() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            createMemoryStream(jsm, STREAM, subject(0), subject(1));
+
+            final ConsumerConfiguration cc0 = ConsumerConfiguration.builder()
+                    .durable(durable(0))
+                    .build();
+            ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc0);
+            // server returns 0 when value is not set
+            assertEquals(0, ci.getConsumerConfiguration().getNumReplicas());
+
+            final ConsumerConfiguration cc1 = ConsumerConfiguration.builder()
+                    .durable(durable(0))
+                    .numReplicas(1)
+                    .build();
+            ci = jsm.addOrUpdateConsumer(STREAM, cc1);
+            assertEquals(1, ci.getConsumerConfiguration().getNumReplicas());
+        });
+    }
 }
 

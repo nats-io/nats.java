@@ -99,6 +99,7 @@ public interface ApiConstants {
     String MAX_STORAGE       = "max_storage";
     String MAX_STREAMS       = "max_streams";
     String MAX_WAITING       = "max_waiting"; // this is correct! the meaning name is different than the field name
+    String MEM_STORAGE       = "mem_storage";
     String MEMORY            = "memory";
     String MEMORY_MAX_STREAM_BYTES = "memory_max_stream_bytes";
     String MESSAGES          = "messages";
@@ -221,6 +222,7 @@ public interface ApiConstants {
     Pattern MAX_STORAGE_RE        = integer_pattern(MAX_STORAGE);
     Pattern MAX_STREAMS_RE        = integer_pattern(MAX_STREAMS);
     Pattern MAX_WAITING_RE        = integer_pattern(MAX_WAITING);
+    Pattern MEM_STORAGE_RE        = boolean_pattern(MEM_STORAGE);
     Pattern MEMORY_RE             = integer_pattern(MEMORY);
     Pattern MEMORY_MAX_STREAM_BYTES_RE= integer_pattern(MEMORY_MAX_STREAM_BYTES);
     Pattern MESSAGES_RE           = integer_pattern(MESSAGES);

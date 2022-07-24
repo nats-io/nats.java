@@ -29,6 +29,7 @@ import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.Validator.emptyAsNull;
+import static io.nats.client.support.Validator.validateNumberOfReplicas;
 
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and
@@ -78,8 +79,10 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final Long maxPullWaiting;
     protected final Long maxBatch;
     protected final Long maxBytes;
+    protected final Integer numReplicas;
     protected final Boolean flowControl;
     protected final Boolean headersOnly;
+    protected final Boolean memStorage;
     protected final List<Duration> backoff;
 
     protected ConsumerConfiguration(ConsumerConfiguration cc) {
@@ -104,8 +107,10 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.maxPullWaiting = cc.maxPullWaiting;
         this.maxBatch = cc.maxBatch;
         this.maxBytes = cc.maxBytes;
+        this.numReplicas = cc.numReplicas;
         this.flowControl = cc.flowControl;
         this.headersOnly = cc.headersOnly;
+        this.memStorage = cc.memStorage;
         this.backoff = new ArrayList<>(cc.backoff);
     }
 
@@ -140,9 +145,11 @@ public class ConsumerConfiguration implements JsonSerializable {
         maxPullWaiting = JsonUtils.readLong(json, MAX_WAITING_RE);
         maxBatch = JsonUtils.readLong(json, MAX_BATCH_RE);
         maxBytes = JsonUtils.readLong(json, MAX_BYTES_RE);
+        numReplicas = JsonUtils.readInteger(json, NUM_REPLICAS_RE);
 
         flowControl = JsonUtils.readBoolean(json, FLOW_CONTROL_RE, null);
         headersOnly = JsonUtils.readBoolean(json, HEADERS_ONLY_RE, null);
+        memStorage = JsonUtils.readBoolean(json, MEM_STORAGE_RE, null);
 
         backoff = JsonUtils.getDurationList(BACKOFF, json);
     }
@@ -173,9 +180,11 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.maxPullWaiting = b.maxPullWaiting;
         this.maxBatch = b.maxBatch;
         this.maxBytes = b.maxBytes;
+        this.numReplicas = b.numReplicas;
 
         this.flowControl = b.flowControl;
         this.headersOnly = b.headersOnly;
+        this.memStorage = b.memStorage;
 
         this.backoff = b.backoff;
     }
@@ -211,6 +220,8 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addFieldAsNanos(sb, MAX_EXPIRES, maxExpires);
         JsonUtils.addFieldAsNanos(sb, INACTIVE_THRESHOLD, inactiveThreshold);
         JsonUtils.addDurations(sb, BACKOFF, backoff);
+        JsonUtils.addField(sb, NUM_REPLICAS, numReplicas);
+        JsonUtils.addField(sb, MEM_STORAGE, memStorage);
         return endJson(sb).toString();
     }
 
@@ -370,6 +381,14 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
+     * Get the mem storage flag whether it's on or off.
+     * @return the mem storage mode
+     */
+    public boolean isMemStorage() {
+        return memStorage != null && memStorage;
+    }
+
+    /**
      * Get the max batch size for the server to allow on pull requests.
      * @return the max batch size
      */
@@ -408,6 +427,12 @@ public class ConsumerConfiguration implements JsonSerializable {
     public List<Duration> getBackoff() {
         return backoff;
     }
+
+    /**
+     * Get the number of consumer replicas.
+     * @return the replicas count
+     */
+    public int getNumReplicas() { return getOrUnset(numReplicas); }
 
     /**
      * Gets whether deliver policy of this consumer configuration was set or left unset
@@ -506,6 +531,22 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
+     * Gets whether mem storage for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean memStorageWasSet() {
+        return memStorage != null;
+    }
+
+    /**
+     * Gets whether num replicas for this consumer configuration was set or left unset
+     * @return true if num replicas was set by the user
+     */
+    public boolean numReplicasWasSet() {
+        return numReplicas != null;
+    }
+
+    /**
      * Creates a builder for the publish options.
      * @return a publish options builder
      */
@@ -554,9 +595,11 @@ public class ConsumerConfiguration implements JsonSerializable {
         private Long maxPullWaiting;
         private Long maxBatch;
         private Long maxBytes;
+        private Integer numReplicas;
 
         private Boolean flowControl;
         private Boolean headersOnly;
+        private Boolean memStorage;
 
         private List<Duration> backoff = new ArrayList<>();
 
@@ -588,9 +631,11 @@ public class ConsumerConfiguration implements JsonSerializable {
                 this.maxPullWaiting = cc.maxPullWaiting;
                 this.maxBatch = cc.maxBatch;
                 this.maxBytes = cc.maxBytes;
+                this.numReplicas = cc.numReplicas;
 
                 this.flowControl = cc.flowControl;
                 this.headersOnly = cc.headersOnly;
+                this.memStorage = cc.memStorage;
 
                 this.backoff = new ArrayList<>(cc.backoff);
             }
@@ -960,12 +1005,35 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
-         * set the headers only flag
+         * set the number of replicas for the consumer. When set do not inherit the
+         * replica count from the stream but specifically set it to this amount.
+         * @param numReplicas number of replicas for the consumer
+         * @return Builder
+         */
+        public Builder numReplicas(Integer numReplicas) {
+            this.numReplicas = numReplicas == null ? null : validateNumberOfReplicas(numReplicas);
+            return this;
+        }
+
+        /**
+         * set the headers only flag saying to deliver only the headers of
+         * messages in the stream and not the bodies
          * @param headersOnly the flag
          * @return Builder
          */
         public Builder headersOnly(Boolean headersOnly) {
             this.headersOnly = headersOnly;
+            return this;
+        }
+
+        /**
+         * set the mem storage flag to force the consumer state to be kept
+         * in memory rather than inherit the setting from the stream
+         * @param memStorage the flag
+         * @return Builder
+         */
+        public Builder memStorage(Boolean memStorage) {
+            this.memStorage = memStorage;
             return this;
         }
 
@@ -1057,6 +1125,9 @@ public class ConsumerConfiguration implements JsonSerializable {
             ", maxBatch=" + maxBatch +
             ", maxBytes=" + maxBytes +
             ", maxExpires=" + maxExpires +
+            ", numReplicas=" + numReplicas +
+            ", headersOnly=" + headersOnly +
+            ", memStorage=" + memStorage +
             ", inactiveThreshold=" + inactiveThreshold +
             ", backoff=" + backoff +
             '}';

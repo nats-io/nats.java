@@ -50,8 +50,10 @@ public class ConsumerConfigurationTests extends TestBase {
             .maxBatch(55)
             .maxBytes(56)
             .maxExpires(77000) // duration
+            .numReplicas(5)
             .inactiveThreshold(88000) // duration
             .headersOnly(true)
+            .memStorage(true)
             .backoff(1000, 2000, 3000)
             .build();
 
@@ -125,6 +127,16 @@ public class ConsumerConfigurationTests extends TestBase {
         c = ConsumerConfiguration.builder().headersOnly(true).build();
         assertTrue(c.isHeadersOnly());
 
+        // mem storage coverage
+        c = ConsumerConfiguration.builder().build();
+        assertFalse(c.isMemStorage());
+
+        c = ConsumerConfiguration.builder().memStorage(false).build();
+        assertFalse(c.isMemStorage());
+
+        c = ConsumerConfiguration.builder().memStorage(true).build();
+        assertTrue(c.isMemStorage());
+
         // idleHeartbeat coverage
         c = ConsumerConfiguration.builder().idleHeartbeat(null).build();
         assertNull(c.getIdleHeartbeat());
@@ -183,6 +195,8 @@ public class ConsumerConfigurationTests extends TestBase {
         assertFalse(cc.headersOnlyWasSet());
         assertFalse(cc.maxBatchWasSet());
         assertFalse(cc.maxBytesWasSet());
+        assertFalse(cc.numReplicasWasSet());
+        assertFalse(cc.memStorageWasSet());
     }
 
     private void assertAsBuilt(ConsumerConfiguration c, ZonedDateTime zdt) {
@@ -207,7 +221,9 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(56, c.getMaxBytes());
         assertEquals(Duration.ofSeconds(77), c.getMaxExpires());
         assertEquals(Duration.ofSeconds(88), c.getInactiveThreshold());
+        assertEquals(5, c.getNumReplicas());
         assertTrue(c.isHeadersOnly());
+        assertTrue(c.isMemStorage());
         assertTrue(c.deliverPolicyWasSet());
         assertTrue(c.ackPolicyWasSet());
         assertTrue(c.replayPolicyWasSet());
@@ -220,6 +236,8 @@ public class ConsumerConfigurationTests extends TestBase {
         assertTrue(c.headersOnlyWasSet());
         assertTrue(c.maxBatchWasSet());
         assertTrue(c.maxBytesWasSet());
+        assertTrue(c.numReplicasWasSet());
+        assertTrue(c.memStorageWasSet());
         assertEquals(3, c.getBackoff().size());
         assertEquals(Duration.ofSeconds(1), c.getBackoff().get(0));
         assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
@@ -248,9 +266,11 @@ public class ConsumerConfigurationTests extends TestBase {
         assertTrue(c.isFlowControl());
         assertEquals(128, c.getMaxPullWaiting());
         assertTrue(c.isHeadersOnly());
+        assertTrue(c.isMemStorage());
         assertEquals(99, c.getStartSequence());
         assertEquals(55, c.getMaxBatch());
         assertEquals(56, c.getMaxBytes());
+        assertEquals(5, c.getNumReplicas());
         assertEquals(Duration.ofSeconds(40), c.getMaxExpires());
         assertEquals(Duration.ofSeconds(50), c.getInactiveThreshold());
         assertEquals(3, c.getBackoff().size());
@@ -280,12 +300,14 @@ public class ConsumerConfigurationTests extends TestBase {
 
         assertFalse(c.isFlowControl());
         assertFalse(c.isHeadersOnly());
+        assertFalse(c.isMemStorage());
 
         assertEquals(0, c.getStartSequence());
         assertEquals(-1, c.getMaxDeliver());
         assertEquals(0, c.getRateLimit());
         assertEquals(-1, c.getMaxAckPending());
         assertEquals(-1, c.getMaxPullWaiting());
+        assertEquals(-1, c.getNumReplicas());
 
         assertEquals(0, c.getBackoff().size());
     }
