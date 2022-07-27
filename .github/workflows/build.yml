@@ -28,7 +28,7 @@ jobs:
         with:
           java-version: '8'
           distribution: 'adopt'
-      - name: Setup GO
+      - name: Setup GO 1.18.4
         uses: actions/setup-go@v2
         with:
           go-version: 1.18.4
