@@ -1056,7 +1056,7 @@ class NatsConnection implements Connection {
         String responseInbox = oldStyle ? createInbox() : createResponseInbox(this.mainInbox);
         String responseToken = getResponseToken(responseInbox);
         NatsRequestCompletableFuture future =
-            new NatsRequestCompletableFuture(cancelOn503, futureTimeout == null ? options.getConnectionTimeout() : futureTimeout);
+            new NatsRequestCompletableFuture(cancelOn503, futureTimeout == null ? options.getRequestCleanupInterval() : futureTimeout);
 
         if (!oldStyle) {
             responsesAwaiting.put(responseToken, future);

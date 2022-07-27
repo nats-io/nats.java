@@ -8,7 +8,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
 public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
-    private static final long DEFAULT_TIMEOUT = Options.DEFAULT_CONNECTION_TIMEOUT.toMillis(); // currently 2 seconds
+    private static final long DEFAULT_TIMEOUT = Options.DEFAULT_REQUEST_CLEANUP_INTERVAL.toMillis(); // currently 5 seconds
 
     private final boolean cancelOn503;
     private final long timeOutAfter;
