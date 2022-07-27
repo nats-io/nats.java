@@ -227,6 +227,9 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                                                  PullSubscribeOptions pullSubscribeOptions
     ) throws IOException, JetStreamApiException {
 
+        String[] split = subject.split(",");
+        subject = split[0];
+
         // 1. Prepare for all the validation
         boolean isPullMode = pullSubscribeOptions != null;
 
@@ -356,19 +359,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         final String settledConsumerName;
         final ConsumerConfiguration settledServerCC;
         if (serverCC == null) {
-            ConsumerConfiguration.Builder ccBuilder = ConsumerConfiguration.builder(userCC);
-
-            // Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
-            if (!isPullMode) {
-                ccBuilder.deliverSubject(fnlInboxDeliver);
-            }
-
-            if (userCC.getFilterSubject() == null) {
-                ccBuilder.filterSubject(subject);
-            }
-
-            ccBuilder.deliverGroup(qgroup);
-
+            ConsumerConfiguration.Builder ccBuilder = hackCcBuilder(subject, isPullMode, qgroup, userCC, fnlInboxDeliver);
             settledServerCC = ccBuilder.build();
             settledConsumerName = null;
         }
@@ -416,9 +407,33 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         // 7. The consumer might need to be created, do it here
         if (settledConsumerName == null) {
             _createConsumerUnsubscribeOnException(fnlStream, settledServerCC, sub);
+
+            for (String s : split) {
+                if (!s.equals(subject)) {
+                    ConsumerConfiguration.Builder ccBuilder = hackCcBuilder(s, isPullMode, qgroup, userCC, fnlInboxDeliver);
+                    _createConsumerUnsubscribeOnException(fnlStream, ccBuilder.build(), sub);
+                }
+            }
+
         }
 
         return sub;
+    }
+
+    private ConsumerConfiguration.Builder hackCcBuilder(String subject, boolean isPullMode, String qgroup, ConsumerConfiguration userCC, String fnlInboxDeliver) {
+        ConsumerConfiguration.Builder ccBuilder = ConsumerConfiguration.builder(userCC);
+
+        // Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
+        if (!isPullMode) {
+            ccBuilder.deliverSubject(fnlInboxDeliver);
+        }
+
+        if (userCC.getFilterSubject() == null) {
+            ccBuilder.filterSubject(subject);
+        }
+
+        ccBuilder.deliverGroup(qgroup);
+        return ccBuilder;
     }
 
     static class ConsumerConfigurationComparer extends ConsumerConfiguration {

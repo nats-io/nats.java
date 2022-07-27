@@ -17,7 +17,8 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
 
     public NatsRequestCompletableFuture(boolean cancelOn503, Duration timeout) {
         this.cancelOn503 = cancelOn503;
-        timeOutAfter = System.currentTimeMillis() + (timeout == null ? DEFAULT_TIMEOUT : timeout.toMillis());
+        timeOutAfter = System.currentTimeMillis() + 10 + (timeout == null ? DEFAULT_TIMEOUT : timeout.toMillis());
+        // 10 extra millis allows for communication time, probably more than needed but...
     }
 
     public void cancelClosing() {
