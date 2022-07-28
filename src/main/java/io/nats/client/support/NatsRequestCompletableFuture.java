@@ -8,7 +8,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
 public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
-    private static final long DEFAULT_TIMEOUT = Options.DEFAULT_CONNECTION_TIMEOUT.toMillis(); // currently 2 seconds
+    private static final long DEFAULT_TIMEOUT = Options.DEFAULT_REQUEST_CLEANUP_INTERVAL.toMillis(); // currently 5 seconds
 
     private final boolean cancelOn503;
     private final long timeOutAfter;
@@ -17,7 +17,8 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
 
     public NatsRequestCompletableFuture(boolean cancelOn503, Duration timeout) {
         this.cancelOn503 = cancelOn503;
-        timeOutAfter = System.currentTimeMillis() + (timeout == null ? DEFAULT_TIMEOUT : timeout.toMillis());
+        timeOutAfter = System.currentTimeMillis() + 10 + (timeout == null ? DEFAULT_TIMEOUT : timeout.toMillis());
+        // 10 extra millis allows for communication time, probably more than needed but...
     }
 
     public void cancelClosing() {
