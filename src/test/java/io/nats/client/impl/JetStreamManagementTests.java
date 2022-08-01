@@ -855,6 +855,24 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertStatus(404, jsm.getMessageDirect(STREAM, MessageGetRequest.seq(9)));
             assertStatus(404, jsm.getMessageDirect(STREAM, MessageGetRequest.lastBySubject("not-a-subject")));
             assertStatus(404, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(9, subject(1))));
+
+            // can't do direct on stream if if wasn't configured with allowDirect
+            sc = StreamConfiguration.builder()
+                .name(stream(2))
+                .storageType(StorageType.Memory)
+                .subjects(subject(3))
+                .build();
+
+            jsm.addStream(sc);
+
+            js.publish(NatsMessage.builder().subject(subject(3)).data("data1").build());
+            js.publish(NatsMessage.builder().subject(subject(3)).data("data2").build());
+            js.publish(NatsMessage.builder().subject(subject(3)).data("data3").build());
+
+            assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(2), MessageGetRequest.seq(-1)));
+            assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(2), MessageGetRequest.seq(1)));
+            assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(2), MessageGetRequest.lastBySubject(subject(3))));
+            assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(2), MessageGetRequest.nextBySubject(1, subject(3))));
         });
     }
 
