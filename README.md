@@ -815,4 +815,3 @@ The raw TLS test certs are in [src/test/resources/certs](src/test/resources/cert
 
 Unless otherwise noted, the NATS source files are distributed
 under the Apache Version 2.0 license found in the LICENSE file.
-
