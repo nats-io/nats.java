@@ -23,6 +23,7 @@ public interface ApiConstants {
     String ACK_WAIT          = "ack_wait";
     String ACTIVE            = "active";
     String ALLOW_ROLLUP_HDRS = "allow_rollup_hdrs";
+    String ALLOW_DIRECT      = "allow_direct";
     String API               = "api";
     String AUTH_REQUIRED     = "auth_required";
     String BACKOFF           = "backoff";
@@ -105,6 +106,7 @@ public interface ApiConstants {
     String MESSAGES          = "messages";
     String MIRROR            = "mirror";
     String NAME              = "name";
+    String NEXT_BY_SUBJECT   = "next_by_subj";
     String NO_ACK            = "no_ack";
     String NO_WAIT           = "no_wait";
     String NONCE             = "nonce";
@@ -160,6 +162,7 @@ public interface ApiConstants {
     Pattern ACK_WAIT_RE           = integer_pattern(ACK_WAIT);
     Pattern ACTIVE_RE             = integer_pattern(ACTIVE);
     Pattern ALLOW_ROLLUP_HDRS_RE  = boolean_pattern(ALLOW_ROLLUP_HDRS);
+    Pattern ALLOW_DIRECT_RE       = boolean_pattern(ALLOW_DIRECT);
     Pattern API_RE                = string_pattern(API);
     Pattern AUTH_REQUIRED_RE      = boolean_pattern(AUTH_REQUIRED);
     Pattern BYTES_RE              = integer_pattern(BYTES);

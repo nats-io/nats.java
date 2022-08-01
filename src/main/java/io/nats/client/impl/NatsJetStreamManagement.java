@@ -244,6 +244,17 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      * {@inheritDoc}
      */
     @Override
+    public Message getMessageDirect(String streamName, MessageGetRequest messageGetRequest) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
+        validateNotNull(messageGetRequest, "Message Get Request");
+        String getSubject = String.format(JSAPI_DIRECT_GET, streamName);
+        return makeRequestResponseRequired(getSubject, messageGetRequest.serialize(), jso.getRequestTimeout());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public boolean deleteMessage(String streamName, long seq) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
         String subj = String.format(JSAPI_MSG_DELETE, streamName);
