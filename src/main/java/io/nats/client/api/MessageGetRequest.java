@@ -42,20 +42,12 @@ public class MessageGetRequest implements JsonSerializable {
         return new MessageGetRequest(sequence, null, subject);
     }
 
-    public static byte[] forSequenceBytes(long sequence) {
-        return new MessageGetRequest(sequence, null, null).serialize();
+    public static byte[] seqBytes(long sequence) {
+        return forSequence(sequence).serialize();
     }
 
-    public static byte[] lastForSubjectBytes(String subject) {
-        return new MessageGetRequest(-1, subject, null).serialize();
-    }
-
-    public static byte[] firstForSubjectBytes(String subject) {
-        return new MessageGetRequest(-1, null, subject).serialize();
-    }
-
-    public static byte[] nextForSubjectBytes(long sequence, String subject) {
-        return new MessageGetRequest(sequence, null, subject).serialize();
+    public static byte[] lastBySubjectBytes(String subject) {
+        return lastForSubject(subject).serialize();
     }
 
     public MessageGetRequest(long sequence) {
@@ -79,21 +71,5 @@ public class MessageGetRequest implements JsonSerializable {
         addField(sb, LAST_BY_SUBJECT, lastBySubject);
         addField(sb, NEXT_BY_SUBJECT, nextBySubject);
         return endJson(sb).toString();
-    }
-
-    /**
-     * @deprecated prefer forSequenceBytes
-     */
-    @Deprecated
-    public static byte[] seqBytes(long sequence) {
-        return forSequenceBytes(sequence);
-    }
-
-    /**
-     * @deprecated prefer lastForSubjectBytes
-     */
-    @Deprecated
-    public static byte[] lastBySubjectBytes(String subject) {
-        return lastForSubjectBytes(subject);
     }
 }

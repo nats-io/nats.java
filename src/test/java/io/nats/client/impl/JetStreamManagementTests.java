@@ -880,7 +880,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(3), MessageGetRequest.firstForSubject(subject(3))));
             assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(3), MessageGetRequest.nextForSubject(1, subject(3))));
 
-            // coverage for Jacoco b/c deprecated
+            // coverage, these aren't really used anymore
             MessageGetRequest.seqBytes(1);
             MessageGetRequest.lastBySubjectBytes(SUBJECT);
         });
