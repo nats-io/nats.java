@@ -50,10 +50,18 @@ public class MessageGetRequest implements JsonSerializable {
         return lastForSubject(subject).serialize();
     }
 
+    /**
+     * @deprecated use static method forSequence instead
+     */
+    @Deprecated
     public MessageGetRequest(long sequence) {
         this(sequence, null, null);
     }
 
+    /**
+     * @deprecated use static method lastForSubject instead
+     */
+    @Deprecated
     public MessageGetRequest(String lastBySubject) {
         this(-1, lastBySubject, null);
     }

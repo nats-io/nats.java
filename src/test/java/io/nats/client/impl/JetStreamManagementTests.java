@@ -883,6 +883,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             // coverage, these aren't really used anymore
             MessageGetRequest.seqBytes(1);
             MessageGetRequest.lastBySubjectBytes(SUBJECT);
+
+            // coverage for deprecated methods
+            new MessageGetRequest(1);
+            new MessageGetRequest(SUBJECT);
         });
     }
 
