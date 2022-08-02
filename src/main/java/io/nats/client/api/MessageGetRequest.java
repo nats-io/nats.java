@@ -54,8 +54,8 @@ public class MessageGetRequest implements JsonSerializable {
         this(sequence, null, null);
     }
 
-    public MessageGetRequest(String subject) {
-        this(-1, subject, null);
+    public MessageGetRequest(String lastBySubject) {
+        this(-1, lastBySubject, null);
     }
 
     private MessageGetRequest(long sequence, String lastBySubject, String nextBySubject) {
