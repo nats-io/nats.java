@@ -839,6 +839,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             assertDirect(1, 1, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(-1, subject(1))));
             assertDirect(2, 2, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(-1, subject(2))));
+            assertDirect(1, 1, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(0, subject(1))));
+            assertDirect(2, 2, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(0, subject(2))));
             assertDirect(1, 1, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(subject(1))));
             assertDirect(2, 2, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(subject(2))));
 
@@ -852,6 +854,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertDirect(2, 6, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(5, subject(2))));
 
             assertStatus(408, jsm.getMessageDirect(STREAM, MessageGetRequest.seq(-1)));
+            assertStatus(408, jsm.getMessageDirect(STREAM, MessageGetRequest.seq(0)));
             assertStatus(404, jsm.getMessageDirect(STREAM, MessageGetRequest.seq(9)));
             assertStatus(404, jsm.getMessageDirect(STREAM, MessageGetRequest.lastBySubject("not-a-subject")));
             assertStatus(404, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(9, subject(1))));
