@@ -65,7 +65,7 @@ public interface NatsJetStreamConstants {
     // JSAPI_MSG_GET is the endpoint to get a message.
     String JSAPI_MSG_GET = "STREAM.MSG.GET.%s";
 
-    // JSAPI_DIRECT_GET is the endpoint to get a message.
+    // JSAPI_DIRECT_GET is the endpoint to directly get a message.
     String JSAPI_DIRECT_GET = "DIRECT.GET.%s";
 
     // JSAPI_MSG_DELETE is the endpoint to remove a message.
@@ -86,11 +86,11 @@ public interface NatsJetStreamConstants {
     String ROLLUP_HDR_SUBJECT = "sub";
     String ROLLUP_HDR_ALL = "all";
 
-    String NATS_STREAM         = "Nats-Stream";
-    String NATS_SEQUENCE       = "Nats-Sequence";
-    String NATS_TIMESTAMP      = "Nats-Time-Stamp";
-    String NATS_SUBJECT        = "Nats-Subject";
-    String NATS_LASTS_SEQUENCE = "Nats-Last-Sequence";
+    String NATS_STREAM        = "Nats-Stream";
+    String NATS_SEQUENCE      = "Nats-Sequence";
+    String NATS_TIMESTAMP     = "Nats-Time-Stamp";
+    String NATS_SUBJECT       = "Nats-Subject";
+    String NATS_LAST_SEQUENCE = "Nats-Last-Sequence";
 
     int JS_CONSUMER_NOT_FOUND_ERR = 10014;
     int JS_NO_MESSAGE_FOUND_ERR = 10037;

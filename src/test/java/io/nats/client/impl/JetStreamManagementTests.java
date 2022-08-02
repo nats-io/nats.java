@@ -833,35 +833,37 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             js.publish(NatsMessage.builder().subject(subject(1)).data("s1-q5").build());
             js.publish(NatsMessage.builder().subject(subject(2)).data("s2-q6").build());
 
-            assertDirect(1, 1, jsm.getMessageDirect(STREAM, MessageGetRequest.seq(1)));
-            assertDirect(1, 5, jsm.getMessageDirect(STREAM, MessageGetRequest.lastBySubject(subject(1))));
-            assertDirect(2, 6, jsm.getMessageDirect(STREAM, MessageGetRequest.lastBySubject(subject(2))));
+            assertDirect(1, 1, jsm.getMessageDirect(STREAM, MessageGetRequest.forSequence(1)));
+            assertDirect(1, 5, jsm.getMessageDirect(STREAM, MessageGetRequest.lastForSubject(subject(1))));
+            assertDirect(2, 6, jsm.getMessageDirect(STREAM, MessageGetRequest.lastForSubject(subject(2))));
 
-            assertDirect(1, 1, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(-1, subject(1))));
-            assertDirect(2, 2, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(-1, subject(2))));
-            assertDirect(1, 1, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(0, subject(1))));
-            assertDirect(2, 2, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(0, subject(2))));
-            assertDirect(1, 1, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(subject(1))));
-            assertDirect(2, 2, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(subject(2))));
+            assertDirect(1, 1, jsm.getMessageDirect(STREAM, MessageGetRequest.nextForSubject(-1, subject(1))));
+            assertDirect(2, 2, jsm.getMessageDirect(STREAM, MessageGetRequest.nextForSubject(-1, subject(2))));
+            assertDirect(1, 1, jsm.getMessageDirect(STREAM, MessageGetRequest.nextForSubject(0, subject(1))));
+            assertDirect(2, 2, jsm.getMessageDirect(STREAM, MessageGetRequest.nextForSubject(0, subject(2))));
+            assertDirect(1, 1, jsm.getMessageDirect(STREAM, MessageGetRequest.firstForSubject(subject(1))));
+            assertDirect(2, 2, jsm.getMessageDirect(STREAM, MessageGetRequest.firstForSubject(subject(2))));
 
-            assertDirect(1, 1, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(1, subject(1))));
-            assertDirect(2, 2, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(1, subject(2))));
+            assertDirect(1, 1, jsm.getMessageDirect(STREAM, MessageGetRequest.nextForSubject(1, subject(1))));
+            assertDirect(2, 2, jsm.getMessageDirect(STREAM, MessageGetRequest.nextForSubject(1, subject(2))));
 
-            assertDirect(1, 3, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(2, subject(1))));
-            assertDirect(2, 2, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(2, subject(2))));
+            assertDirect(1, 3, jsm.getMessageDirect(STREAM, MessageGetRequest.nextForSubject(2, subject(1))));
+            assertDirect(2, 2, jsm.getMessageDirect(STREAM, MessageGetRequest.nextForSubject(2, subject(2))));
 
-            assertDirect(1, 5, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(5, subject(1))));
-            assertDirect(2, 6, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(5, subject(2))));
+            assertDirect(1, 5, jsm.getMessageDirect(STREAM, MessageGetRequest.nextForSubject(5, subject(1))));
+            assertDirect(2, 6, jsm.getMessageDirect(STREAM, MessageGetRequest.nextForSubject(5, subject(2))));
 
-            assertStatus(408, jsm.getMessageDirect(STREAM, MessageGetRequest.seq(-1)));
-            assertStatus(408, jsm.getMessageDirect(STREAM, MessageGetRequest.seq(0)));
-            assertStatus(404, jsm.getMessageDirect(STREAM, MessageGetRequest.seq(9)));
-            assertStatus(404, jsm.getMessageDirect(STREAM, MessageGetRequest.lastBySubject("not-a-subject")));
-            assertStatus(404, jsm.getMessageDirect(STREAM, MessageGetRequest.nextBySubject(9, subject(1))));
+            assertStatus(408, jsm.getMessageDirect(STREAM, MessageGetRequest.forSequence(-1)));
+            assertStatus(408, jsm.getMessageDirect(STREAM, MessageGetRequest.forSequence(0)));
+            assertStatus(404, jsm.getMessageDirect(STREAM, MessageGetRequest.forSequence(9)));
+            assertStatus(404, jsm.getMessageDirect(STREAM, MessageGetRequest.lastForSubject("not-a-subject")));
+            assertStatus(404, jsm.getMessageDirect(STREAM, MessageGetRequest.firstForSubject("not-a-subject")));
+            assertStatus(404, jsm.getMessageDirect(STREAM, MessageGetRequest.nextForSubject(9, subject(1))));
+            assertStatus(404, jsm.getMessageDirect(STREAM, MessageGetRequest.nextForSubject(1, "not-a-subject")));
 
             // can't do direct on stream if if wasn't configured with allowDirect
             sc = StreamConfiguration.builder()
-                .name(stream(2))
+                .name(stream(3))
                 .storageType(StorageType.Memory)
                 .subjects(subject(3))
                 .build();
@@ -872,16 +874,21 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             js.publish(NatsMessage.builder().subject(subject(3)).data("data2").build());
             js.publish(NatsMessage.builder().subject(subject(3)).data("data3").build());
 
-            assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(2), MessageGetRequest.seq(-1)));
-            assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(2), MessageGetRequest.seq(1)));
-            assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(2), MessageGetRequest.lastBySubject(subject(3))));
-            assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(2), MessageGetRequest.nextBySubject(1, subject(3))));
+            assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(3), MessageGetRequest.forSequence(-1)));
+            assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(3), MessageGetRequest.forSequence(1)));
+            assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(3), MessageGetRequest.lastForSubject(subject(3))));
+            assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(3), MessageGetRequest.firstForSubject(subject(3))));
+            assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(3), MessageGetRequest.nextForSubject(1, subject(3))));
+
+            // coverage for Jacoco b/c deprecated
+            MessageGetRequest.seqBytes(1);
+            MessageGetRequest.lastBySubjectBytes(SUBJECT);
         });
     }
 
-    private void assertStatus(int status, Message messageDirect) {
-        assertTrue(messageDirect.isStatusMessage());
-        assertEquals(status, messageDirect.getStatus().getCode());
+    private void assertStatus(int status, Message statusMsg) {
+        assertTrue(statusMsg.isStatusMessage());
+        assertEquals(status, statusMsg.getStatus().getCode());
     }
 
     private void assertDirect(int subj, long seq, Message m) {
