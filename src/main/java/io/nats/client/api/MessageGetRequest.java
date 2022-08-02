@@ -19,7 +19,7 @@ import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
 
 /**
- * Object used to make a request for special message get requests. Used Internally
+ * Object used to make a request for special message get requests.
  */
 public class MessageGetRequest implements JsonSerializable {
     private final long sequence;
@@ -42,10 +42,18 @@ public class MessageGetRequest implements JsonSerializable {
         return new MessageGetRequest(sequence, null, subject);
     }
 
+    /**
+     * @deprecated use static method forSequence with .serialize instead
+     */
+    @Deprecated
     public static byte[] seqBytes(long sequence) {
         return forSequence(sequence).serialize();
     }
 
+    /**
+     * @deprecated use static method lastForSubject with .serialize instead
+     */
+    @Deprecated
     public static byte[] lastBySubjectBytes(String subject) {
         return lastForSubject(subject).serialize();
     }
