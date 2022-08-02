@@ -880,11 +880,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(3), MessageGetRequest.firstForSubject(subject(3))));
             assertThrows(IOException.class, () -> jsm.getMessageDirect(stream(3), MessageGetRequest.nextForSubject(1, subject(3))));
 
-            // coverage, these aren't really used anymore
+            // coverage for deprecated methods
             MessageGetRequest.seqBytes(1);
             MessageGetRequest.lastBySubjectBytes(SUBJECT);
-
-            // coverage for deprecated methods
             new MessageGetRequest(1);
             new MessageGetRequest(SUBJECT);
         });
