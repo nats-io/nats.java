@@ -651,6 +651,11 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testGetAndDeleteMessage() throws Exception {
+        MessageDeleteRequest mdr = new MessageDeleteRequest(1, true);
+        assertEquals("{\"seq\":1}", mdr.toJson());
+        mdr = new MessageDeleteRequest(1, false);
+        assertEquals("{\"seq\":1,\"no_erase\":true}", mdr.toJson());
+
         runInJsServer(nc -> {
             createDefaultTestStream(nc);
             JetStream js = nc.jetStream();
@@ -681,7 +686,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertTrue(mi.getTime().toEpochSecond() >= beforeCreated.toEpochSecond());
             assertNull(mi.getHeaders());
 
-            assertTrue(jsm.deleteMessage(STREAM, 1));
+            assertTrue(jsm.deleteMessage(STREAM, 1, false)); // added coverage for use of erase (no_erase) flag.
             assertThrows(JetStreamApiException.class, () -> jsm.deleteMessage(STREAM, 1));
             assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, 1));
             assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, 3));
