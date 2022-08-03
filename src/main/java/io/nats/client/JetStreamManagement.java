@@ -216,6 +216,20 @@ public interface JetStreamManagement {
     MessageInfo getLastMessage(String streamName, String subject) throws IOException, JetStreamApiException;
 
     /**
+     * Return a message based on the stream and the information configured in the messageGetRequest.
+     * If the stream is not configured to "allowDirect" the api call will timeout.
+     * If a matching message is not found, a status message with a 404 code is returned.
+     * If the message request is invalid, i.e. sequence only of zero, a status message with a 408 code is returned.
+     * @param streamName the name of the stream.
+     * @param messageGetRequest the request object
+     * @return A regular message or a status message
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    Message getMessageDirect(String streamName, MessageGetRequest messageGetRequest) throws IOException, JetStreamApiException;
+
+    /**
      * Deletes a message.
      * @param streamName name of the stream
      * @param seq the sequence number of the message

@@ -44,6 +44,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .replicas(1)
             .templateOwner(null)
             .allowRollup(false)
+            .allowDirect(false)
             .sealed(false)
             .build();
 
@@ -88,6 +89,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .sources(testSc.getSources())
             .sealed(testSc.getSealed())
             .allowRollup(testSc.getAllowRollup())
+            .allowDirect(testSc.getAllowDirect())
             .denyDelete(testSc.getDenyDelete())
             .denyPurge(testSc.getDenyPurge());
         validate(builder.build(), false);
@@ -350,6 +352,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             assertTrue(sc.getDenyDelete());
             assertTrue(sc.getDenyPurge());
             assertTrue(sc.getAllowRollup());
+            assertTrue(sc.getAllowDirect());
 
             assertEquals(5, sc.getReplicas());
             assertEquals("twnr", sc.getTemplateOwner());

@@ -19,6 +19,7 @@
   "deny_delete": true,
   "deny_purge": true,
   "allow_rollup_hdrs": true,
+  "allow_direct": true,
   "placement": {
     "cluster": "clstr",
     "tags": ["tag1", "tag2"]

@@ -55,6 +55,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final List<Source> sources;
     private final boolean sealed;
     private final boolean allowRollup;
+    private final boolean allowDirect;
     private final boolean denyDelete;
     private final boolean denyPurge;
 
@@ -95,6 +96,7 @@ public class StreamConfiguration implements JsonSerializable {
         builder.sources(Source.optionalListOf(json));
         builder.sealed(readBoolean(json, SEALED_RE));
         builder.allowRollup(readBoolean(json, ALLOW_ROLLUP_HDRS_RE));
+        builder.allowDirect(readBoolean(json, ALLOW_DIRECT_RE));
         builder.denyDelete(readBoolean(json, DENY_DELETE_RE));
         builder.denyPurge(readBoolean(json, DENY_PURGE_RE));
 
@@ -124,6 +126,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.sources = b.sources;
         this.sealed = b.sealed;
         this.allowRollup = b.allowRollup;
+        this.allowDirect = b.allowDirect;
         this.denyDelete = b.denyDelete;
         this.denyPurge = b.denyPurge;
     }
@@ -163,6 +166,7 @@ public class StreamConfiguration implements JsonSerializable {
 
         addFldWhenTrue(sb, SEALED, sealed);
         addFldWhenTrue(sb, ALLOW_ROLLUP_HDRS, allowRollup);
+        addFldWhenTrue(sb, ALLOW_DIRECT, allowDirect);
         addFldWhenTrue(sb, DENY_DELETE, denyDelete);
         addFldWhenTrue(sb, DENY_PURGE, denyPurge);
 
@@ -340,6 +344,14 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
+     * Get the flag indicating whether or not the stream allows direct message access.
+     * @return the allows direct flag
+     */
+    public boolean getAllowDirect() {
+        return allowDirect;
+    }
+
+    /**
      * Get the flag indicating whether or not deny delete is set for the stream
      * @return the deny delete flag
      */
@@ -427,6 +439,7 @@ public class StreamConfiguration implements JsonSerializable {
         private final List<Source> sources = new ArrayList<>();
         private boolean sealed = false;
         private boolean allowRollup = false;
+        private boolean allowDirect = false;
         private boolean denyDelete = false;
         private boolean denyPurge = false;
 
@@ -462,6 +475,7 @@ public class StreamConfiguration implements JsonSerializable {
                 sources(sc.sources);
                 this.sealed = sc.sealed;
                 this.allowRollup = sc.allowRollup;
+                this.allowDirect = sc.allowDirect;
                 this.denyDelete = sc.denyDelete;
                 this.denyPurge = sc.denyPurge;
             }
@@ -771,6 +785,16 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder allowRollup(boolean allowRollup) {
             this.allowRollup = allowRollup;
+            return this;
+        }
+
+        /**
+         * Set whether to allow direct message access for a stream
+         * @param allowDirect the allow direct setting
+         * @return Builder
+         */
+        public Builder allowDirect(boolean allowDirect) {
+            this.allowDirect = allowDirect;
             return this;
         }
 
