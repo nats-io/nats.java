@@ -230,7 +230,8 @@ public interface JetStreamManagement {
     Message getMessageDirect(String streamName, MessageGetRequest messageGetRequest) throws IOException, JetStreamApiException;
 
     /**
-     * Deletes a message.
+     * Deletes a message, overwriting the message data with garbage
+     * This can be considered an expensive (time consuming) operation, but is more secure.
      * @param streamName name of the stream
      * @param seq the sequence number of the message
      * @throws IOException covers various communication issues with the NATS
@@ -239,4 +240,16 @@ public interface JetStreamManagement {
      * @return true if the delete succeeded
      */
     boolean deleteMessage(String streamName, long seq) throws IOException, JetStreamApiException;
+
+    /**
+     * Deletes a message, optionally erasing the content of the message.
+     * @param streamName name of the stream
+     * @param seq the sequence number of the message
+     * @param erase whether to erase the message (overwriting with garbage) or only mark it as erased.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @return true if the delete succeeded
+     */
+    boolean deleteMessage(String streamName, long seq, boolean erase) throws IOException, JetStreamApiException;
 }

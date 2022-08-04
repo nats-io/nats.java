@@ -20,8 +20,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import static io.nats.client.support.ApiConstants.SEQ;
-import static io.nats.client.support.JsonUtils.simpleMessageBody;
 import static io.nats.client.support.Validator.*;
 
 public class NatsJetStreamManagement extends NatsJetStreamImplBase implements JetStreamManagement {
@@ -256,9 +254,18 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      */
     @Override
     public boolean deleteMessage(String streamName, long seq) throws IOException, JetStreamApiException {
+        return deleteMessage(streamName, seq, true);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean deleteMessage(String streamName, long seq, boolean erase) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
         String subj = String.format(JSAPI_MSG_DELETE, streamName);
-        Message resp = makeRequestResponseRequired(subj, simpleMessageBody(SEQ, seq), jso.getRequestTimeout());
+        MessageDeleteRequest mdr = new MessageDeleteRequest(seq, erase);
+        Message resp = makeRequestResponseRequired(subj, mdr.serialize(), jso.getRequestTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
 }

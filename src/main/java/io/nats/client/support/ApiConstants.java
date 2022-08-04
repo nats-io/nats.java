@@ -108,6 +108,7 @@ public interface ApiConstants {
     String NAME              = "name";
     String NEXT_BY_SUBJECT   = "next_by_subj";
     String NO_ACK            = "no_ack";
+    String NO_ERASE          = "no_erase";
     String NO_WAIT           = "no_wait";
     String NONCE             = "nonce";
     String NUM_ACK_PENDING   = "num_ack_pending";
