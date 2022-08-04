@@ -24,18 +24,32 @@ import static io.nats.client.support.JsonUtils.*;
  */
 public class MessageDeleteRequest implements JsonSerializable {
     private final long sequence;
-    private final boolean noErase;
+    private final boolean erase;
 
     public MessageDeleteRequest(long sequence, boolean erase) {
         this.sequence = sequence;
-        this.noErase = !erase;
+        this.erase = erase;
+    }
+
+    public long getSequence() {
+        return sequence;
+    }
+
+    public boolean isErase() {
+        return erase;
+    }
+
+    public boolean isNoErase() {
+        return !erase;
     }
 
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
         addField(sb, SEQ, sequence);
-        addFldWhenTrue(sb, NO_ERASE, noErase);
+        if (isNoErase()) {
+            addField(sb, NO_ERASE, true);
+        }
         return endJson(sb).toString();
     }
 }
