@@ -27,11 +27,11 @@ public class MessageGetRequest implements JsonSerializable {
     private final String nextBySubject;
 
     public static MessageGetRequest forSequence(long sequence) {
-        return new MessageGetRequest(sequence);
+        return new MessageGetRequest(sequence, null, null);
     }
 
     public static MessageGetRequest lastForSubject(String subject) {
-        return new MessageGetRequest(subject);
+        return new MessageGetRequest(-1, subject, null);
     }
 
     public static MessageGetRequest firstForSubject(String subject) {
@@ -78,6 +78,30 @@ public class MessageGetRequest implements JsonSerializable {
         this.sequence = sequence;
         this.lastBySubject = lastBySubject;
         this.nextBySubject = nextBySubject;
+    }
+
+    public long getSequence() {
+        return sequence;
+    }
+
+    public String getLastBySubject() {
+        return lastBySubject;
+    }
+
+    public String getNextBySubject() {
+        return nextBySubject;
+    }
+
+    public boolean isSequenceOnly() {
+        return sequence > 0 && nextBySubject == null;
+    }
+
+    public boolean isLastBySubject() {
+        return lastBySubject != null;
+    }
+
+    public boolean isNextBySubject() {
+        return nextBySubject != null;
     }
 
     @Override

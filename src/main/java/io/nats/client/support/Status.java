@@ -27,11 +27,11 @@ public class Status {
     private final int code;
     private final String message;
 
-    private static final Map<Integer, String> MESSAGE_MAP;
+    private static final Map<Integer, String> CODE_TO_TEXT;
 
     static {
-        MESSAGE_MAP = new HashMap<>();
-        MESSAGE_MAP.put(NO_RESPONDERS_CODE, NO_RESPONDERS_TEXT);
+        CODE_TO_TEXT = new HashMap<>();
+        CODE_TO_TEXT.put(NO_RESPONDERS_CODE, NO_RESPONDERS_TEXT);
     }
 
     public Status(int code, String message) {
@@ -65,7 +65,7 @@ public class Status {
     }
 
     private String makeMessage(int code) {
-        String message = MESSAGE_MAP.get(code);
+        String message = CODE_TO_TEXT.get(code);
         return message == null ? "Server Status Message: " + code : message;
     }
 

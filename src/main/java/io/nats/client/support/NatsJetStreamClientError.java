@@ -5,6 +5,7 @@ public class NatsJetStreamClientError {
     private static final int KIND_ILLEGAL_STATE = 1;
     private static final String SUB = "SUB";
     private static final String SO = "SO";
+    private static final String JSM = "JSM";
 
     public static final NatsJetStreamClientError JsSubPullCantHaveDeliverGroup = new NatsJetStreamClientError(SUB, 90001, "Pull subscriptions can't have a deliver group.");
     public static final NatsJetStreamClientError JsSubPullCantHaveDeliverSubject = new NatsJetStreamClientError(SUB, 90002, "Pull subscriptions can't have a deliver subject.");

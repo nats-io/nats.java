@@ -23,10 +23,21 @@ import io.nats.client.support.NatsJetStreamConstants;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static io.nats.client.support.ApiConstants.SUBJECT;
 
 class NatsJetStreamImplBase implements NatsJetStreamConstants {
+
+    static class CachedStreamInfo {
+        public final boolean allowDirect;
+
+        public CachedStreamInfo(StreamInfo si) {
+            allowDirect = si.getConfiguration().getAllowDirect();
+        }
+    }
+
+    private static final ConcurrentHashMap<String, CachedStreamInfo> CACHED_STREAM_INFO_MAP = new ConcurrentHashMap<>();
 
     final NatsConnection conn;
     final JetStreamOptions jso;
@@ -83,7 +94,21 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         String subj = String.format(JSAPI_STREAM_INFO, streamName);
         byte[] payload = options == null ? null : options.serialize();
         Message resp = makeRequestResponseRequired(subj, payload, jso.getRequestTimeout());
-        return new StreamInfo(resp).throwOnHasError();
+        return createAndCacheStreamInfo(streamName, resp);
+    }
+
+    StreamInfo createAndCacheStreamInfo(String streamName, Message resp) throws JetStreamApiException {
+        return cacheStreamInfo(streamName, new StreamInfo(resp).throwOnHasError());
+    }
+
+    StreamInfo cacheStreamInfo(String streamName, StreamInfo si) {
+        CACHED_STREAM_INFO_MAP.put(streamName, new CachedStreamInfo(si));
+        return si;
+    }
+
+    List<StreamInfo> cacheStreamInfo(List<StreamInfo> list) {
+        list.forEach(si -> CACHED_STREAM_INFO_MAP.put(si.getConfiguration().getName(), new CachedStreamInfo(si)));
+        return list;
     }
 
     List<String> _getStreamNamesBySubjectFilter(String subjectFilter) throws IOException, JetStreamApiException {
@@ -122,5 +147,14 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
 
     String prependPrefix(String subject) {
         return jso.getPrefix() + subject;
+    }
+
+    CachedStreamInfo getJsmStreamInfo(String streamName) throws IOException, JetStreamApiException {
+        CachedStreamInfo msi = CACHED_STREAM_INFO_MAP.get(streamName);
+        if (msi != null) {
+            return msi;
+        }
+        _getStreamInfo(streamName, null);
+        return CACHED_STREAM_INFO_MAP.get(streamName);
     }
 }

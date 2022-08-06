@@ -166,7 +166,7 @@ public class StreamConfiguration implements JsonSerializable {
 
         addFldWhenTrue(sb, SEALED, sealed);
         addFldWhenTrue(sb, ALLOW_ROLLUP_HDRS, allowRollup);
-        addFldWhenTrue(sb, ALLOW_DIRECT, allowDirect);
+        addField(sb, ALLOW_DIRECT, allowDirect);
         addFldWhenTrue(sb, DENY_DELETE, denyDelete);
         addFldWhenTrue(sb, DENY_PURGE, denyPurge);
 
@@ -386,6 +386,10 @@ public class StreamConfiguration implements JsonSerializable {
             ", template='" + templateOwner + '\'' +
             ", discardPolicy=" + discardPolicy +
             ", duplicateWindow=" + duplicateWindow +
+            ", allowRollup=" + allowRollup +
+            ", allowDirect=" + allowDirect +
+            ", denyDelete=" + denyDelete +
+            ", denyPurge=" + denyPurge +
             ", " + objectString("mirror", mirror) +
             ", " + objectString("placement", placement) +
             ", sources=" + sources +
