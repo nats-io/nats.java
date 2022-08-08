@@ -849,7 +849,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             validateGetMessage(jsm, si, true);
 
             // error case stream doesn't exist
-            assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream(999), MessageGetRequest.forSequence(1)));
+            assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream(999), 1));
 
             // coverage for deprecated methods
             MessageGetRequest.seqBytes(1);
@@ -868,33 +868,33 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertMessageInfo(2, 6, jsm.getLastMessage(STREAM, subject(2)));
 
         // MessageGetRequest api
-        assertMessageInfo(1, 1, jsm.getMessage(STREAM, MessageGetRequest.forSequence(1)));
-        assertMessageInfo(1, 5, jsm.getMessage(STREAM, MessageGetRequest.lastForSubject(subject(1))));
-        assertMessageInfo(2, 6, jsm.getMessage(STREAM, MessageGetRequest.lastForSubject(subject(2))));
+        assertMessageInfo(1, 1, jsm.getMessage(STREAM, 1));
+        assertMessageInfo(1, 5, jsm.getLastMessage(STREAM, subject(1)));
+        assertMessageInfo(2, 6, jsm.getLastMessage(STREAM, subject(2)));
 
-        assertMessageInfo(1, 1, jsm.getMessage(STREAM, MessageGetRequest.nextForSubject(-1, subject(1))));
-        assertMessageInfo(2, 2, jsm.getMessage(STREAM, MessageGetRequest.nextForSubject(-1, subject(2))));
-        assertMessageInfo(1, 1, jsm.getMessage(STREAM, MessageGetRequest.nextForSubject(0, subject(1))));
-        assertMessageInfo(2, 2, jsm.getMessage(STREAM, MessageGetRequest.nextForSubject(0, subject(2))));
-        assertMessageInfo(1, 1, jsm.getMessage(STREAM, MessageGetRequest.firstForSubject(subject(1))));
-        assertMessageInfo(2, 2, jsm.getMessage(STREAM, MessageGetRequest.firstForSubject(subject(2))));
+        assertMessageInfo(1, 1, jsm.getNextMessage(STREAM, -1, subject(1)));
+        assertMessageInfo(2, 2, jsm.getNextMessage(STREAM, -1, subject(2)));
+        assertMessageInfo(1, 1, jsm.getNextMessage(STREAM, 0, subject(1)));
+        assertMessageInfo(2, 2, jsm.getNextMessage(STREAM, 0, subject(2)));
+        assertMessageInfo(1, 1, jsm.getFirstMessage(STREAM, subject(1)));
+        assertMessageInfo(2, 2, jsm.getFirstMessage(STREAM, subject(2)));
 
-        assertMessageInfo(1, 1, jsm.getMessage(STREAM, MessageGetRequest.nextForSubject(1, subject(1))));
-        assertMessageInfo(2, 2, jsm.getMessage(STREAM, MessageGetRequest.nextForSubject(1, subject(2))));
+        assertMessageInfo(1, 1, jsm.getNextMessage(STREAM, 1, subject(1)));
+        assertMessageInfo(2, 2, jsm.getNextMessage(STREAM, 1, subject(2)));
 
-        assertMessageInfo(1, 3, jsm.getMessage(STREAM, MessageGetRequest.nextForSubject(2, subject(1))));
-        assertMessageInfo(2, 2, jsm.getMessage(STREAM, MessageGetRequest.nextForSubject(2, subject(2))));
+        assertMessageInfo(1, 3, jsm.getNextMessage(STREAM, 2, subject(1)));
+        assertMessageInfo(2, 2, jsm.getNextMessage(STREAM, 2, subject(2)));
 
-        assertMessageInfo(1, 5, jsm.getMessage(STREAM, MessageGetRequest.nextForSubject(5, subject(1))));
-        assertMessageInfo(2, 6, jsm.getMessage(STREAM, MessageGetRequest.nextForSubject(5, subject(2))));
+        assertMessageInfo(1, 5, jsm.getNextMessage(STREAM, 5, subject(1)));
+        assertMessageInfo(2, 6, jsm.getNextMessage(STREAM, 5, subject(2)));
 
-        assertStatus(allowDirect ? 10003 : 10025, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, MessageGetRequest.forSequence(-1))));
-        assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, MessageGetRequest.forSequence(0))));
-        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, MessageGetRequest.forSequence(9))));
-        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, MessageGetRequest.lastForSubject("not-a-subject"))));
-        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, MessageGetRequest.firstForSubject("not-a-subject"))));
-        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, MessageGetRequest.nextForSubject(9, subject(1)))));
-        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, MessageGetRequest.nextForSubject(1, "not-a-subject"))));
+        assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, -1)));
+        assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, 0)));
+        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, 9)));
+        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getLastMessage(STREAM, "not-a-subject")));
+        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getFirstMessage(STREAM, "not-a-subject")));
+        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getNextMessage(STREAM, 9, subject(1))));
+        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getNextMessage(STREAM, 1, "not-a-subject")));
     }
 
     private void assertStatus(int apiErrorCode, JetStreamApiException jsae) {
