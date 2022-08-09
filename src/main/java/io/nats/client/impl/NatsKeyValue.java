@@ -87,7 +87,8 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public KeyValueEntry get(String key) throws IOException, JetStreamApiException {
-        return _kvGetLastMessage(validateNonWildcardKvKeyRequired(key));
+        KeyValueEntry kve = _kvGetLastMessage(validateNonWildcardKvKeyRequired(key));
+        return kve == null || kve.getOperation() != KeyValueOperation.PUT ? null : kve;
     }
 
     /**

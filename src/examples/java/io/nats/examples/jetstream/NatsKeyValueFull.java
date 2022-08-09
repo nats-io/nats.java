@@ -132,12 +132,9 @@ public class NatsKeyValueFull {
             System.out.println("\n6. Delete a key");
             kv.delete(BYTE_KEY);
 
-            // it's value is now null but there is a delete tombstone so there is an entry
+            // get does not return an entry if the key has been deleted or purged
             KeyValueEntry kve = kv.get(BYTE_KEY);
-            bvalue = kve.getValue();
-            System.out.println("Delete tombstone entry: " + kve);
-            System.out.println("Revision number should be 4, got " + kve.getRevision());
-            System.out.println("Deleted value should be null: " + (bvalue == null));
+            System.out.println("Deleted key, result of get should be null: " + kve);
 
             // if the key does not exist there is no entry at all
             System.out.println("\n7.1 Keys does not exist");
@@ -147,14 +144,8 @@ public class NatsKeyValueFull {
             // if the key has been deleted there is an entry for it
             // but the value will be null
             System.out.println("\n7.2 Keys not found");
-            bvalue = kv.get(BYTE_KEY).getValue();
-            System.out.println("Should be null: " + bvalue);
-
-            svalue = kv.get(BYTE_KEY).getValueAsString();
-            System.out.println("Should be null: " + svalue);
-
-            lvalue = kv.get(BYTE_KEY).getValueAsLong();
-            System.out.println("Should be null: " + lvalue);
+            kve = kv.get(BYTE_KEY);
+            System.out.println("Deleted key, result of get should be null: " + kve);
 
             // Update values. You can even update a deleted key
             System.out.println("\n8.1 Update values");
