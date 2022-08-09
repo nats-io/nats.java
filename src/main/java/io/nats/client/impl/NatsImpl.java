@@ -13,12 +13,12 @@
 
 package io.nats.client.impl;
 
-import java.io.IOException;
-
 import io.nats.client.AuthHandler;
 import io.nats.client.Connection;
 import io.nats.client.Options;
 import io.nats.client.Statistics;
+
+import java.io.IOException;
 
 /**
  * Adapter to impl package to minimize access leakage.
@@ -42,8 +42,12 @@ public class NatsImpl {
         return new FileAuthHandler(jwtFile, nkeyFile);
     }
 
+    public static AuthHandler staticCredentials(byte[] credsBytes) {
+        return new MemoryAuthHandler(credsBytes);
+    }
+
     public static AuthHandler staticCredentials(char[] jwt, char[] nkey) {
         return new StringAuthHandler(jwt, nkey);
     }
-    
+
 }
