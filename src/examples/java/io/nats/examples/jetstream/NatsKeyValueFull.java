@@ -24,7 +24,6 @@ import io.nats.examples.ExampleUtils;
 /**
  * This example will demonstrate Key Value store.
  */
-@SuppressWarnings("ImplicitArrayToString")
 public class NatsKeyValueFull {
     static final String usageString =
             "\nUsage: java -cp <classpath> NatsKeyValueFull [-s server] [-buk bucket] [-d description]"
@@ -132,20 +131,15 @@ public class NatsKeyValueFull {
             System.out.println("\n6. Delete a key");
             kv.delete(BYTE_KEY);
 
-            // get does not return an entry if the key has been deleted or purged
+            // if the key has been deleted or purged, get returns null
+            // watches or history will return an entry with DELETE or PURGE for the operation
             KeyValueEntry kve = kv.get(BYTE_KEY);
             System.out.println("Deleted key, result of get should be null: " + kve);
 
             // if the key does not exist there is no entry at all
-            System.out.println("\n7.1 Keys does not exist");
+            System.out.println("\n7 Keys does not exist");
             kve = kv.get(NOT_FOUND);
             System.out.println("Entry for " + NOT_FOUND + " should be null: " + kve);
-
-            // if the key has been deleted there is an entry for it
-            // but the value will be null
-            System.out.println("\n7.2 Keys not found");
-            kve = kv.get(BYTE_KEY);
-            System.out.println("Deleted key, result of get should be null: " + kve);
 
             // Update values. You can even update a deleted key
             System.out.println("\n8.1 Update values");
@@ -168,7 +162,7 @@ public class NatsKeyValueFull {
             System.out.println(STRING_KEY + " from getValueAsString: " + svalue);
 
             lvalue = kv.get(LONG_KEY).getValueAsLong();
-            System.out.println(LONG_KEY + " from getValueAsLong: " + svalue);
+            System.out.println(LONG_KEY + " from getValueAsLong: " + lvalue);
 
             // let's check the bucket info
             System.out.println("\n9.1 Bucket before update/delete");
