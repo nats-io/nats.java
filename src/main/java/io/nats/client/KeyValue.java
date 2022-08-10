@@ -31,6 +31,7 @@ public interface KeyValue {
 
     /**
      * Get the entry for a key
+     * when the key exists and is live (not deleted and not purged)
      * @param key the key
      * @return the KvEntry object or null if not found.
      * @throws IOException covers various communication issues with the NATS
@@ -41,7 +42,8 @@ public interface KeyValue {
     KeyValueEntry get(String key) throws IOException, JetStreamApiException;
 
     /**
-     * Get the specific revision of an entry for a key.
+     * Get the specific revision of an entry for a key
+     * when the key exists and is live (not deleted and not purged)
      * @param key the key
      * @param revision the revision
      * @return the KvEntry object or null if not found.
@@ -133,7 +135,7 @@ public interface KeyValue {
     void purge(String key) throws IOException, JetStreamApiException;
 
     /**
-     * Watch updates for a specific key
+     * Watch updates for a specific key.
      * @param key the key
      * @param watcher the watcher
      * @param watchOptions the watch options to apply. If multiple conflicting options are supplied, the last options wins.
@@ -146,7 +148,7 @@ public interface KeyValue {
     NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
-     * Watch updates for all keys
+     * Watch updates for all keys.
      * @param watcher the watcher
      * @param watchOptions the watch options to apply. If multiple conflicting options are supplied, the last options wins.
      * @return The KeyValueWatchSubscription
