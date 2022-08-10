@@ -87,7 +87,7 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public KeyValueEntry get(String key) throws IOException, JetStreamApiException {
-        return _kvGetLastMessage(validateNonWildcardKvKeyRequired(key));
+        return existingOnly(_kvGetLastMessage(validateNonWildcardKvKeyRequired(key)));
     }
 
     /**
@@ -95,7 +95,11 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public KeyValueEntry get(String key, long revision) throws IOException, JetStreamApiException {
-        return _kvGetMessage(validateNonWildcardKvKeyRequired(key), revision);
+        return existingOnly(_kvGetMessage(validateNonWildcardKvKeyRequired(key), revision));
+    }
+
+    KeyValueEntry existingOnly(KeyValueEntry kve) {
+        return kve == null || kve.getOperation() != KeyValueOperation.PUT ? null : kve;
     }
 
     KeyValueEntry _kvGetLastMessage(String key) throws IOException, JetStreamApiException {
