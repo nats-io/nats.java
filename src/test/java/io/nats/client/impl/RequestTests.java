@@ -636,7 +636,7 @@ public class RequestTests extends TestBase {
     }
 
     @Test
-    public void testNatsRequestCompletableFuture() {
+    public void testNatsRequestCompletableFuture() throws InterruptedException {
         NatsRequestCompletableFuture f = new NatsRequestCompletableFuture(true, Duration.ofHours(-1));
         assertTrue(f.hasExceededTimeout());
         assertFalse(f.wasCancelledClosing());
@@ -645,6 +645,11 @@ public class RequestTests extends TestBase {
         f.cancelTimedOut(); // not real use, just testing flags
         assertTrue(f.wasCancelledClosing());
         assertTrue(f.wasCancelledTimedOut());
+
+        // coverage for null timeout
+        f = new NatsRequestCompletableFuture(true, null);
+        Thread.sleep(Options.DEFAULT_REQUEST_CLEANUP_INTERVAL.toMillis() + 100);
+        assertTrue(f.hasExceededTimeout());
     }
 
     @Test

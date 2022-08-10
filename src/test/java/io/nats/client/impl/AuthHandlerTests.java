@@ -13,24 +13,41 @@
 
 package io.nats.client.impl;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-
-import java.nio.charset.StandardCharsets;
-
-import org.junit.jupiter.api.Test;
-
 import io.nats.client.AuthHandler;
 import io.nats.client.NKey;
 import io.nats.client.Nats;
+import org.junit.jupiter.api.Test;
 
-public class FileAuthHandlerTests {
+import java.nio.charset.StandardCharsets;
+
+import static io.nats.client.utils.ResourceUtils.resourceAsString;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+public class AuthHandlerTests {
 
     private final static String JWT = "eyJ0eXAiOiJqd3QiLCJhbGciOiJlZDI1NTE5In0.eyJqdGkiOiJTNkFFM0VMWUdCQzVNV0lRUVBFU05BWE8yNzROTDU1RFZFVDVaVDVLWlRRQkRVRVJPUUtBIiwiaWF0IjoxNTQzNjA1OTgxLCJpc3MiOiJBQVlXUTVWUkRUMjJGTVpKT0Y2MlZKSFpLNVBQUldXSlJDTklVVkhGVEQ0WkRMUFBaRkRXUlFSUiIsIm5hbWUiOiJmcmVlX3VzZXIiLCJzdWIiOiJVQVdERDVIRzM1N0tNQklLUjYzSExNNzJLVFFVVVNYWUVJRk1DVUFVQUVRRFRISVg3R1lHRVVWWSIsInR5cGUiOiJ1c2VyIiwibmF0cyI6eyJwdWIiOnt9LCJzdWIiOnt9fX0.HEJI1ADBMbPHRQT5FJFUGDKxd77jMVcA7MictlswfHyepWtifGGRcAkzhsT-EF182ifCz0f3t_9Qy-PEI2PRBQ";
     private final static String SEED = "SUAGVDADILKKEQSTWF7RTC25D3F433K3VWMQOGNJRE2VJGEP3LSSO7PHUE";
-    
+
     @Test
     public void testCredsFile() throws Exception {
         AuthHandler auth = Nats.credentials("src/test/resources/jwt_nkey/test.creds");
+        assertTrue(auth instanceof FileAuthHandler);
+        NKey key = NKey.fromSeed(SEED.toCharArray());
+        byte[] test = "hello world".getBytes(StandardCharsets.UTF_8);
+
+        char[] pubKey = auth.getID();
+        assertArrayEquals(key.getPublicKey(), pubKey);
+        assertArrayEquals(key.sign(test), auth.sign(test));
+        assertArrayEquals(JWT.toCharArray(), auth.getJWT());
+    }
+
+    @Test
+    public void testMemoryAuth() throws Exception {
+        String creds = resourceAsString("jwt_nkey/test.creds");
+
+        AuthHandler auth = Nats.staticCredentials(creds.getBytes(StandardCharsets.UTF_8));
+        assertTrue(auth instanceof MemoryAuthHandler);
         NKey key = NKey.fromSeed(SEED.toCharArray());
         byte[] test = "hello world".getBytes(StandardCharsets.UTF_8);
 
