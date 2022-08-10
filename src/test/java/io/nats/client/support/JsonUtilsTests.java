@@ -202,13 +202,21 @@ public final class JsonUtilsTests {
         JsonUtils.addField(sb, "bfalse", false);
         assertEquals(87, sb.length());
 
-        JsonUtils.addFieldWhenGtZero(sb, "intnotgt0", 0);
+        JsonUtils.addFieldWhenGtZero(sb, "intnull", (Integer)null);
+        assertEquals(87, sb.length());
+
+        JsonUtils.addFieldWhenGtZero(sb, "longnull", (Long)null);
+        assertEquals(87, sb.length());
+
+        //noinspection UnnecessaryBoxing
+        JsonUtils.addFieldWhenGtZero(sb, "intnotgt0", new Integer(0));
         assertEquals(87, sb.length());
 
         JsonUtils.addFieldWhenGtZero(sb, "longnotgt0", 0L);
         assertEquals(87, sb.length());
 
-        JsonUtils.addFieldWhenGtZero(sb, "intgt0", 1L);
+        //noinspection UnnecessaryBoxing
+        JsonUtils.addFieldWhenGtZero(sb, "intgt0", new Integer(1));
         assertEquals(98, sb.length());
 
         JsonUtils.addFieldWhenGtZero(sb, "longgt0", 1L);
@@ -383,5 +391,16 @@ public final class JsonUtilsTests {
         else {
             assertEquals(targetEncode, encoded);
         }
+    }
+
+    @Test
+    public void testSimpleMessageBody() {
+        assertEquals("{\"number\":1}", new String(JsonUtils.simpleMessageBody("number", 1)));
+        assertEquals("{\"string\":\"str\"}", new String(JsonUtils.simpleMessageBody("string", "str")));
+    }
+
+    @Test
+    public void testGetMapOfObjectsCoverage() {
+        assertEquals(0, JsonUtils.getMapOfObjects("\"tiers\": ").size());
     }
 }

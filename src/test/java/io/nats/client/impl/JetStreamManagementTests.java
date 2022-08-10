@@ -653,8 +653,15 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     public void testGetAndDeleteMessage() throws Exception {
         MessageDeleteRequest mdr = new MessageDeleteRequest(1, true);
         assertEquals("{\"seq\":1}", mdr.toJson());
+        assertEquals(1, mdr.getSequence());
+        assertTrue(mdr.isErase());
+        assertFalse(mdr.isNoErase());
+
         mdr = new MessageDeleteRequest(1, false);
         assertEquals("{\"seq\":1,\"no_erase\":true}", mdr.toJson());
+        assertEquals(1, mdr.getSequence());
+        assertFalse(mdr.isErase());
+        assertTrue(mdr.isNoErase());
 
         runInJsServer(nc -> {
             createDefaultTestStream(nc);
