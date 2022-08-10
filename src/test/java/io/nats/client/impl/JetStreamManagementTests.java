@@ -689,7 +689,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertNull(mi.getData());
             assertEquals(2, mi.getSeq());
             assertTrue(mi.getTime().toEpochSecond() >= beforeCreated.toEpochSecond());
-            assertNull(mi.getHeaders());
+            assertNotNull(mi.getHeaders());
+            assertEquals(0, mi.getHeaders().size());
 
             assertTrue(jsm.deleteMessage(STREAM, 1, false)); // added coverage for use of erase (no_erase) flag.
             assertThrows(JetStreamApiException.class, () -> jsm.deleteMessage(STREAM, 1));
@@ -862,31 +863,33 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     private void validateGetMessage(JetStreamManagement jsm, StreamInfo si, boolean allowDirect) throws IOException, JetStreamApiException {
         assertEquals(allowDirect, si.getConfiguration().getAllowDirect());
 
+        ZonedDateTime beforeCreated = ZonedDateTime.now();
+
         // simple api
-        assertMessageInfo(1, 1, jsm.getMessage(STREAM, 1));
-        assertMessageInfo(1, 5, jsm.getLastMessage(STREAM, subject(1)));
-        assertMessageInfo(2, 6, jsm.getLastMessage(STREAM, subject(2)));
+        assertMessageInfo(1, 1, jsm.getMessage(STREAM, 1), beforeCreated);
+        assertMessageInfo(1, 5, jsm.getLastMessage(STREAM, subject(1)), beforeCreated);
+        assertMessageInfo(2, 6, jsm.getLastMessage(STREAM, subject(2)), beforeCreated);
 
         // MessageGetRequest api
-        assertMessageInfo(1, 1, jsm.getMessage(STREAM, 1));
-        assertMessageInfo(1, 5, jsm.getLastMessage(STREAM, subject(1)));
-        assertMessageInfo(2, 6, jsm.getLastMessage(STREAM, subject(2)));
+        assertMessageInfo(1, 1, jsm.getMessage(STREAM, 1), beforeCreated);
+        assertMessageInfo(1, 5, jsm.getLastMessage(STREAM, subject(1)), beforeCreated);
+        assertMessageInfo(2, 6, jsm.getLastMessage(STREAM, subject(2)), beforeCreated);
 
-        assertMessageInfo(1, 1, jsm.getNextMessage(STREAM, -1, subject(1)));
-        assertMessageInfo(2, 2, jsm.getNextMessage(STREAM, -1, subject(2)));
-        assertMessageInfo(1, 1, jsm.getNextMessage(STREAM, 0, subject(1)));
-        assertMessageInfo(2, 2, jsm.getNextMessage(STREAM, 0, subject(2)));
-        assertMessageInfo(1, 1, jsm.getFirstMessage(STREAM, subject(1)));
-        assertMessageInfo(2, 2, jsm.getFirstMessage(STREAM, subject(2)));
+        assertMessageInfo(1, 1, jsm.getNextMessage(STREAM, -1, subject(1)), beforeCreated);
+        assertMessageInfo(2, 2, jsm.getNextMessage(STREAM, -1, subject(2)), beforeCreated);
+        assertMessageInfo(1, 1, jsm.getNextMessage(STREAM, 0, subject(1)), beforeCreated);
+        assertMessageInfo(2, 2, jsm.getNextMessage(STREAM, 0, subject(2)), beforeCreated);
+        assertMessageInfo(1, 1, jsm.getFirstMessage(STREAM, subject(1)), beforeCreated);
+        assertMessageInfo(2, 2, jsm.getFirstMessage(STREAM, subject(2)), beforeCreated);
 
-        assertMessageInfo(1, 1, jsm.getNextMessage(STREAM, 1, subject(1)));
-        assertMessageInfo(2, 2, jsm.getNextMessage(STREAM, 1, subject(2)));
+        assertMessageInfo(1, 1, jsm.getNextMessage(STREAM, 1, subject(1)), beforeCreated);
+        assertMessageInfo(2, 2, jsm.getNextMessage(STREAM, 1, subject(2)), beforeCreated);
 
-        assertMessageInfo(1, 3, jsm.getNextMessage(STREAM, 2, subject(1)));
-        assertMessageInfo(2, 2, jsm.getNextMessage(STREAM, 2, subject(2)));
+        assertMessageInfo(1, 3, jsm.getNextMessage(STREAM, 2, subject(1)), beforeCreated);
+        assertMessageInfo(2, 2, jsm.getNextMessage(STREAM, 2, subject(2)), beforeCreated);
 
-        assertMessageInfo(1, 5, jsm.getNextMessage(STREAM, 5, subject(1)));
-        assertMessageInfo(2, 6, jsm.getNextMessage(STREAM, 5, subject(2)));
+        assertMessageInfo(1, 5, jsm.getNextMessage(STREAM, 5, subject(1)), beforeCreated);
+        assertMessageInfo(2, 6, jsm.getNextMessage(STREAM, 5, subject(2)), beforeCreated);
 
         assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, -1)));
         assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, 0)));
@@ -901,13 +904,14 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertEquals(apiErrorCode, jsae.getApiErrorCode());
     }
 
-    private void assertMessageInfo(int subj, long seq, MessageInfo mi) {
+    private void assertMessageInfo(int subj, long seq, MessageInfo mi, ZonedDateTime beforeCreated) {
         Headers h = mi.getHeaders();
         assertNotNull(h);
         assertEquals(STREAM, mi.getStream());
         assertEquals(subject(subj), mi.getSubject());
         assertEquals(seq, mi.getSeq());
         assertNotNull(mi.getTime());
+        assertTrue(mi.getTime().toEpochSecond() >= beforeCreated.toEpochSecond());
         assertEquals("s" + subj + "-q" + seq, new String(mi.getData()));
     }
 }
