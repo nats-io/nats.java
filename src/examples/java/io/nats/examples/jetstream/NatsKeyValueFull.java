@@ -137,7 +137,7 @@ public class NatsKeyValueFull {
             System.out.println("Deleted key, result of get should be null: " + kve);
 
             // if the key does not exist there is no entry at all
-            System.out.println("\n7 Keys does not exist");
+            System.out.println("\n7. Keys does not exist");
             kve = kv.get(NOT_FOUND);
             System.out.println("Entry for " + NOT_FOUND + " should be null: " + kve);
 
