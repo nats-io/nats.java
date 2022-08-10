@@ -92,9 +92,9 @@ public class KeyValueTests extends JetStreamTestBase {
             assertThrows(NumberFormatException.class, () -> kv.get(stringKey).getValueAsLong());
 
             // going to manually track history for verification later
-            List<KeyValueEntry> byteHistory = new ArrayList<>();
-            List<KeyValueEntry> stringHistory = new ArrayList<>();
-            List<KeyValueEntry> longHistory = new ArrayList<>();
+            List<Object> byteHistory = new ArrayList<>();
+            List<Object> stringHistory = new ArrayList<>();
+            List<Object> longHistory = new ArrayList<>();
 
             // entry gives detail about latest entry of the key
             byteHistory.add(
@@ -118,9 +118,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // delete a key. Its entry will still exist, but it's value is null
             kv.delete(byteKey);
-
-            byteHistory.add(
-                assertEntry(BUCKET, byteKey, KeyValueOperation.DELETE, 4, null, now, kv.get(byteKey)));
+            assertNull(kv.get(byteKey));
+            byteHistory.add(KeyValueOperation.DELETE);
             assertHistory(byteHistory, kv.history(byteKey));
 
             // hashCode coverage
@@ -132,11 +131,8 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(4, status.getEntryCount());
             assertEquals(4, status.getBackingStreamInfo().getStreamState().getLastSequence());
 
-            // if the key has been deleted
-            // all varieties of get will return null
-            assertNull(kv.get(byteKey).getValue());
-            assertNull(kv.get(byteKey).getValueAsString());
-            assertNull(kv.get(byteKey).getValueAsLong());
+            // if the key has been deleted no etnry is returned
+            assertNull(kv.get(byteKey));
 
             // if the key does not exist (no history) there is no entry
             assertNull(kv.get(notFoundKey));
@@ -203,8 +199,8 @@ public class KeyValueTests extends JetStreamTestBase {
             // purge
             kv.purge(longKey);
             longHistory.clear();
-            longHistory.add(
-                assertEntry(BUCKET, longKey, KeyValueOperation.PURGE, 10, null, now, kv.get(longKey)));
+            assertNull(kv.get(longKey));
+            longHistory.add(KeyValueOperation.PURGE);
             assertHistory(longHistory, kv.history(longKey));
 
             status = kvm.getBucketInfo(BUCKET);
@@ -216,8 +212,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
             kv.purge(byteKey);
             byteHistory.clear();
-            byteHistory.add(
-                assertEntry(BUCKET, byteKey, KeyValueOperation.PURGE, 11, null, now, kv.get(byteKey)));
+            assertNull(kv.get(byteKey));
+            byteHistory.add(KeyValueOperation.PURGE);
             assertHistory(byteHistory, kv.history(byteKey));
 
             status = kvm.getBucketInfo(BUCKET);
@@ -229,8 +225,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
             kv.purge(stringKey);
             stringHistory.clear();
-            stringHistory.add(
-                assertEntry(BUCKET, stringKey, KeyValueOperation.PURGE, 12, null, now, kv.get(stringKey)));
+            assertNull(kv.get(stringKey));
+            stringHistory.add(KeyValueOperation.PURGE);
             assertHistory(stringHistory, kv.history(stringKey));
 
             status = kvm.getBucketInfo(BUCKET);
@@ -667,10 +663,16 @@ public class KeyValueTests extends JetStreamTestBase {
         }
     }
 
-    private void assertHistory(List<KeyValueEntry> manualHistory, List<KeyValueEntry> apiHistory) {
+    private void assertHistory(List<Object> manualHistory, List<KeyValueEntry> apiHistory) {
         assertEquals(apiHistory.size(), manualHistory.size());
         for (int x = 0; x < apiHistory.size(); x++) {
-            assertKvEquals(apiHistory.get(x), manualHistory.get(x));
+            Object o = manualHistory.get(x);
+            if (o instanceof KeyValueOperation) {
+                assertEquals((KeyValueOperation)o, apiHistory.get(x).getOperation());
+            }
+            else {
+                assertKvEquals((KeyValueEntry)o, apiHistory.get(x));
+            }
         }
     }
 
@@ -1041,10 +1043,8 @@ public class KeyValueTests extends JetStreamTestBase {
         kvWorker.delete(key);
         KeyValueEntry kveUserA = kvUserA.get(key);
         KeyValueEntry kveUserI = kvUserI.get(key);
-        assertNotNull(kveUserA);
-        assertNotNull(kveUserI);
-        assertEquals(kveUserA, kveUserI);
-        assertEquals(KeyValueOperation.DELETE, kveUserA.getOperation());
+        assertNull(kveUserA);
+        assertNull(kveUserI);
 
         assertKveAccountHistory(kvUserA.history(key), data(0), data(1), KeyValueOperation.DELETE);
         assertKveAccountHistory(kvUserI.history(key), data(0), data(1), KeyValueOperation.DELETE);
