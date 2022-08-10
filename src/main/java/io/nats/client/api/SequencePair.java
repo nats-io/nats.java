@@ -48,12 +48,4 @@ public class SequencePair {
     public long getStreamSequence() {
         return streamSeq;
     }
-
-    @Override
-    public String toString() {
-        return "SequencePair{" +
-                "consumerSeq=" + consumerSeq +
-                ", streamSeq=" + streamSeq +
-                '}';
-    }
 }
