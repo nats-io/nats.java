@@ -35,6 +35,7 @@ public class ConsumerInfoTests {
         SequencePair sp = ci.getDelivered();
         assertEquals(1, sp.getConsumerSequence());
         assertEquals(2, sp.getStreamSequence());
+        assertTrue(sp.toString().contains("SequencePair")); // coverage
 
         //noinspection CastCanBeRemovedNarrowingVariableType
         SequenceInfo sinfo = (SequenceInfo)sp;
