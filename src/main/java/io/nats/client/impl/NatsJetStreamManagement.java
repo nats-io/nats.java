@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.api.Error;
 import io.nats.client.api.*;
 
 import java.io.IOException;
@@ -62,7 +63,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
 
         String subj = String.format(template, streamName);
         Message resp = makeRequestResponseRequired(subj, config.toJson().getBytes(StandardCharsets.UTF_8), jso.getRequestTimeout());
-        return new StreamInfo(resp).throwOnHasError();
+        return createAndCacheStreamInfoThrowOnError(streamName, resp);
     }
 
     /**
@@ -212,7 +213,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
             Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, slg.nextJson(), jso.getRequestTimeout());
             slg.process(resp);
         }
-        return slg.getStreams();
+        return cacheStreamInfo(slg.getStreams());
     }
 
     /**
@@ -220,10 +221,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      */
     @Override
     public MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException {
-        validateNotNull(streamName, "Stream Name");
-        String subj = String.format(JSAPI_MSG_GET, streamName);
-        Message resp = makeRequestResponseRequired(subj, MessageGetRequest.seqBytes(seq), jso.getRequestTimeout());
-        return new MessageInfo(resp).throwOnHasError();
+        return _getMessage(streamName, MessageGetRequest.forSequence(seq));
     }
 
     /**
@@ -231,22 +229,50 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      */
     @Override
     public MessageInfo getLastMessage(String streamName, String subject) throws IOException, JetStreamApiException {
-        validateNotNull(streamName, "Stream Name");
-        validateSubject(subject, true);
-        String getSubject = String.format(JSAPI_MSG_GET, streamName);
-        Message resp = makeRequestResponseRequired(getSubject, MessageGetRequest.lastBySubjectBytes(subject), jso.getRequestTimeout());
-        return new MessageInfo(resp).throwOnHasError();
+        return _getMessage(streamName, MessageGetRequest.lastForSubject(subject));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Message getMessageDirect(String streamName, MessageGetRequest messageGetRequest) throws IOException, JetStreamApiException {
-        validateNotNull(streamName, "Stream Name");
+    public MessageInfo getFirstMessage(String streamName, String subject) throws IOException, JetStreamApiException {
+        return _getMessage(streamName, MessageGetRequest.firstForSubject(subject));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageInfo getNextMessage(String streamName, long seq, String subject) throws IOException, JetStreamApiException {
+        return _getMessage(streamName, MessageGetRequest.nextForSubject(seq, subject));
+    }
+
+    private MessageInfo _getMessage(String streamName, MessageGetRequest messageGetRequest) throws IOException, JetStreamApiException {
         validateNotNull(messageGetRequest, "Message Get Request");
-        String getSubject = String.format(JSAPI_DIRECT_GET, streamName);
-        return makeRequestResponseRequired(getSubject, messageGetRequest.serialize(), jso.getRequestTimeout());
+        CachedStreamInfo msi = getJsmStreamInfo(streamName);
+        if (msi.allowDirect) {
+            String subject;
+            byte[] payload;
+            if (messageGetRequest.isLastBySubject()) {
+                subject = String.format(JSAPI_DIRECT_GET_LAST, streamName, messageGetRequest.getLastBySubject());
+                payload = null;
+            }
+            else{
+                subject = String.format(JSAPI_DIRECT_GET, streamName);
+                payload = messageGetRequest.serialize();
+            }
+            Message resp = makeRequestResponseRequired(subject, payload, jso.getRequestTimeout());
+            if (resp.isStatusMessage()) {
+                throw new JetStreamApiException(Error.convert(resp.getStatus()));
+            }
+            return new MessageInfo(resp, streamName, true);
+        }
+        else {
+            String getSubject = String.format(JSAPI_MSG_GET, streamName);
+            Message resp = makeRequestResponseRequired(getSubject, messageGetRequest.serialize(), jso.getRequestTimeout());
+            return new MessageInfo(resp, streamName, false).throwOnHasError();
+        }
     }
 
     /**

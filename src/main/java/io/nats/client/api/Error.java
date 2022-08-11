@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.Status;
 
 import static io.nats.client.support.ApiConstants.*;
 
@@ -39,6 +40,13 @@ public class Error {
         code = JsonUtils.readInt(json, CODE_RE, NOT_SET);
         apiErrorCode = JsonUtils.readInt(json, ERR_CODE_RE, NOT_SET);
         desc = JsonUtils.readString(json, DESCRIPTION_RE, "Unknown JetStream Error");
+    }
+
+    Error(int code, int apiErrorCode, String desc) {
+        this.json = null;
+        this.code = code;
+        this.apiErrorCode = apiErrorCode;
+        this.desc = desc;
     }
 
     public int getCode() {
@@ -68,4 +76,17 @@ public class Error {
 
         return desc + " [" + apiErrorCode + "]";
     }
+
+    public static Error convert(Status status) {
+        switch (status.getCode()) {
+            case 404:
+                return JSNoMessageFoundErr;
+            case 408:
+                return JSBadRequestErr;
+        }
+        return new Error(status.getCode(), NOT_SET, status.getMessage());
+    }
+
+    public static final Error JSBadRequestErr = new Error(400, 10003, "bad request");
+    public static final Error JSNoMessageFoundErr = new Error(404, 10037, "no message found");
 }

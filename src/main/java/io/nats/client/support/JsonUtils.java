@@ -315,8 +315,10 @@ public abstract class JsonUtils {
     }
 
     public static StringBuilder endJson(StringBuilder sb) {
-        // remove the trailing ','
-        sb.setLength(sb.length()-1);
+        if (sb.charAt(sb.length() - 1) == ',') {
+            // remove the trailing ','
+            sb.setLength(sb.length() - 1);
+        }
         sb.append("}");
         return sb;
     }

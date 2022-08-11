@@ -170,17 +170,7 @@ public class NatsJsUtils {
             System.out.print("Publish ->");
         }
         for (int x = 1; x <= count; x++) {
-            String text = prefix + "#" + x + "#";
-            if (verbose) {
-                System.out.print(" " + text);
-            }
-
-            byte[] data = text.getBytes(StandardCharsets.US_ASCII);
-            if (msgSize > data.length) {
-                byte[] larger = new byte[msgSize];
-                System.arraycopy(data, 0, larger, 0, data.length);
-                data = larger;
-            }
+            byte[] data = makeData(prefix, msgSize, verbose, x);
             Message msg =
                 NatsMessage.builder()
                     .subject(subject)
@@ -191,6 +181,21 @@ public class NatsJsUtils {
         if (verbose) {
             System.out.println(" <-");
         }
+    }
+
+    public static byte[] makeData(String prefix, int msgSize, boolean verbose, int x) {
+        String text = prefix + "#" + x + "#";
+        if (verbose) {
+            System.out.print(" " + text);
+        }
+
+        byte[] data = text.getBytes(StandardCharsets.US_ASCII);
+        if (msgSize > data.length) {
+            byte[] larger = new byte[msgSize];
+            System.arraycopy(data, 0, larger, 0, data.length);
+            data = larger;
+        }
+        return data;
     }
 
     public static long extractId(String data) {

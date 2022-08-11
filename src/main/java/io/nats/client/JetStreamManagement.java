@@ -194,7 +194,7 @@ public interface JetStreamManagement {
     List<StreamInfo> getStreams() throws IOException, JetStreamApiException;
 
     /**
-     * Return an info object about a message
+     * Return an info object for the message with the exact sequence.
      * @param streamName the name of the stream.
      * @param seq the sequence number of the message
      * @return The MessageInfo
@@ -205,7 +205,7 @@ public interface JetStreamManagement {
     MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException;
 
     /**
-     * Return an info object about the last message for a subject
+     * Return an info object about the last message for a subject.
      * @param streamName the name of the stream.
      * @param subject the subject to get the last message for
      * @return The MessageInfo
@@ -216,18 +216,28 @@ public interface JetStreamManagement {
     MessageInfo getLastMessage(String streamName, String subject) throws IOException, JetStreamApiException;
 
     /**
-     * Return a message based on the stream and the information configured in the messageGetRequest.
-     * If the stream is not configured to "allowDirect" the api call will timeout.
-     * If a matching message is not found, a status message with a 404 code is returned.
-     * If the message request is invalid, i.e. sequence only of zero, a status message with a 408 code is returned.
+     * Return an info object about the first message for a subject.
      * @param streamName the name of the stream.
-     * @param messageGetRequest the request object
-     * @return A regular message or a status message
+     * @param subject the subject to get the last message for
+     * @return The MessageInfo
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    Message getMessageDirect(String streamName, MessageGetRequest messageGetRequest) throws IOException, JetStreamApiException;
+    MessageInfo getFirstMessage(String streamName, String subject) throws IOException, JetStreamApiException;
+
+    /**
+     * Return an info object about a message for a subject where the message sequence
+     * is equal to the requested sequence or the first sequence greater than the requested sequence.
+     * @param streamName the name of the stream.
+     * @param seq the first possible sequence number of the message
+     * @param subject the subject to get the last message for
+     * @return The MessageInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    MessageInfo getNextMessage(String streamName, long seq, String subject) throws IOException, JetStreamApiException;
 
     /**
      * Deletes a message, overwriting the message data with garbage
