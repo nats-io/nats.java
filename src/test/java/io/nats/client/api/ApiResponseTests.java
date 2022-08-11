@@ -88,13 +88,11 @@ public class ApiResponseTests {
         assertEquals(-1, jsApiEx.getErrorCode());
         assertEquals(-1, jsApiEx.getApiErrorCode());
 
-        jsApiResp = new TestApiResponse(jsons[5]);
-        assertFalse(jsApiResp.hasError());
-        assertEquals("not_error_response", jsApiResp.getType());
-        jsApiEx = new JetStreamApiException(jsApiResp);
-        assertEquals(-1, jsApiEx.getErrorCode());
-        assertEquals(-1, jsApiEx.getApiErrorCode());
-        assertNull(jsApiEx.getErrorDescription());
+        TestApiResponse notErrorResponse = new TestApiResponse(jsons[5]);
+        assertFalse(notErrorResponse.hasError());
+        assertEquals("not_error_response", notErrorResponse.getType());
+        //noinspection ThrowableNotThrown
+        assertThrows(NullPointerException.class, () -> new JetStreamApiException(notErrorResponse));
 
         jsApiResp = new TestApiResponse(jsons[6]);
         assertTrue(jsApiResp.hasError());
