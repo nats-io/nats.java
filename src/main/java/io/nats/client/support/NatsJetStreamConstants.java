@@ -68,7 +68,7 @@ public interface NatsJetStreamConstants {
     // JSAPI_DIRECT_GET is the endpoint to directly get a message.
     String JSAPI_DIRECT_GET = "DIRECT.GET.%s";
 
-    // JSAPI_DIRECT_GET is the shortcut endpoint to directly get a last by subject message
+    // JSAPI_DIRECT_GET_LAST is the preferred endpoint to direct get a last by subject message
     String JSAPI_DIRECT_GET_LAST = "DIRECT.GET.%s.%s";
 
     // JSAPI_MSG_DELETE is the endpoint to remove a message.

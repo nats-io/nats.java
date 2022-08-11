@@ -138,11 +138,13 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
     @Override
     public String toString() {
         return "MessageInfo{" +
-                "subject='" + subject + '\'' +
-                ", seq=" + seq +
-                ", data='" + (data == null ? "null" : new String(data, UTF_8)) + '\'' +
-                ", time=" + time +
-                ", headers=" + headers +
-                '}';
+            "subject='" + subject + '\'' +
+            ", seq=" + seq +
+            ", data=" + (data == null ? "null" :  '\'' + new String(data, UTF_8) + '\'') +
+            ", time=" + time +
+            (stream == null ? "" : ", stream=" + stream) +
+            (lastSeq > 0 ? "" : ", lastSeq=" + lastSeq) +
+            ", headers=" + headers +
+            '}';
     }
 }

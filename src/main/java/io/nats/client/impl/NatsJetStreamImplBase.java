@@ -29,6 +29,7 @@ import static io.nats.client.support.ApiConstants.SUBJECT;
 
 class NatsJetStreamImplBase implements NatsJetStreamConstants {
 
+    // currently the only thing we care about caching is the allowDirect setting
     static class CachedStreamInfo {
         public final boolean allowDirect;
 
@@ -94,10 +95,10 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         String subj = String.format(JSAPI_STREAM_INFO, streamName);
         byte[] payload = options == null ? null : options.serialize();
         Message resp = makeRequestResponseRequired(subj, payload, jso.getRequestTimeout());
-        return createAndCacheStreamInfo(streamName, resp);
+        return createAndCacheStreamInfoThrowOnError(streamName, resp);
     }
 
-    StreamInfo createAndCacheStreamInfo(String streamName, Message resp) throws JetStreamApiException {
+    StreamInfo createAndCacheStreamInfoThrowOnError(String streamName, Message resp) throws JetStreamApiException {
         return cacheStreamInfo(streamName, new StreamInfo(resp).throwOnHasError());
     }
 

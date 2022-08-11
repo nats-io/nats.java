@@ -63,7 +63,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
 
         String subj = String.format(template, streamName);
         Message resp = makeRequestResponseRequired(subj, config.toJson().getBytes(StandardCharsets.UTF_8), jso.getRequestTimeout());
-        return createAndCacheStreamInfo(streamName, resp);
+        return createAndCacheStreamInfoThrowOnError(streamName, resp);
     }
 
     /**
