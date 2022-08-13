@@ -696,8 +696,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertNull(mi.getData());
             assertEquals(2, mi.getSeq());
             assertTrue(mi.getTime().toEpochSecond() >= beforeCreated.toEpochSecond());
-            assertNotNull(mi.getHeaders());
-            assertEquals(0, mi.getHeaders().size());
+            assertTrue(mi.getHeaders() == null || mi.getHeaders().size() == 0);
 
             assertTrue(jsm.deleteMessage(STREAM, 1, false)); // added coverage for use of erase (no_erase) flag.
             assertThrows(JetStreamApiException.class, () -> jsm.deleteMessage(STREAM, 1));
