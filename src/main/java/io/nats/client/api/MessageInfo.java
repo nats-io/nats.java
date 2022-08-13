@@ -81,7 +81,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
             seq = JsonUtils.readLong(json, SEQ_RE, 0);
             time = JsonUtils.readDate(json, TIME_RE);
             byte[] hdrBytes = JsonUtils.readBase64(json, HDRS_RE);
-            headers = hdrBytes == null ? new Headers() : new IncomingHeadersProcessor(hdrBytes).getHeaders();
+            headers = hdrBytes == null ? null : new IncomingHeadersProcessor(hdrBytes).getHeaders();
             stream = streamName;
             lastSeq = -1;
         }

@@ -194,7 +194,7 @@ public interface JetStreamManagement {
     List<StreamInfo> getStreams() throws IOException, JetStreamApiException;
 
     /**
-     * Return an info object for the message with the exact sequence.
+     * Get MessageInfo for the message with the exact sequence in the stream.
      * @param streamName the name of the stream.
      * @param seq the sequence number of the message
      * @return The MessageInfo
@@ -205,9 +205,9 @@ public interface JetStreamManagement {
     MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException;
 
     /**
-     * Return an info object about the last message for a subject.
+     * Get MessageInfo for the last message of the subject.
      * @param streamName the name of the stream.
-     * @param subject the subject to get the last message for
+     * @param subject the subject to get the last message for.
      * @return The MessageInfo
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -216,9 +216,9 @@ public interface JetStreamManagement {
     MessageInfo getLastMessage(String streamName, String subject) throws IOException, JetStreamApiException;
 
     /**
-     * Return an info object about the first message for a subject.
+     * Get MessageInfo for the first message of the subject.
      * @param streamName the name of the stream.
-     * @param subject the subject to get the last message for
+     * @param subject the subject to get the first message for.
      * @return The MessageInfo
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -227,11 +227,11 @@ public interface JetStreamManagement {
     MessageInfo getFirstMessage(String streamName, String subject) throws IOException, JetStreamApiException;
 
     /**
-     * Return an info object about a message for a subject where the message sequence
-     * is equal to the requested sequence or the first sequence greater than the requested sequence.
+     * Get MessageInfo for the message of the message sequence
+     * is equal to or greater the requested sequence for the subject.
      * @param streamName the name of the stream.
      * @param seq the first possible sequence number of the message
-     * @param subject the subject to get the last message for
+     * @param subject the subject to get the next message for.
      * @return The MessageInfo
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption

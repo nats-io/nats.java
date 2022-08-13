@@ -833,16 +833,16 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     public void testGetMessage() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = nc.jetStream();
 
             StreamConfiguration sc = StreamConfiguration.builder()
                 .name(STREAM)
                 .storageType(StorageType.Memory)
                 .subjects(subject(1), subject(2))
                 .build();
-
             StreamInfo si = jsm.addStream(sc);
 
-            JetStream js = nc.jetStream();
+            ZonedDateTime beforeCreated = ZonedDateTime.now();
             js.publish(NatsMessage.builder().subject(subject(1)).data("s1-q1").build());
             js.publish(NatsMessage.builder().subject(subject(2)).data("s2-q2").build());
             js.publish(NatsMessage.builder().subject(subject(1)).data("s1-q3").build());
@@ -850,51 +850,20 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             js.publish(NatsMessage.builder().subject(subject(1)).data("s1-q5").build());
             js.publish(NatsMessage.builder().subject(subject(2)).data("s2-q6").build());
 
-            validateGetMessage(jsm, si, false);
+            validateGetMessage(jsm, si, false, beforeCreated);
 
             sc = StreamConfiguration.builder(si.getConfiguration()).allowDirect(true).build();
             si = jsm.updateStream(sc);
-            validateGetMessage(jsm, si, true);
+            validateGetMessage(jsm, si, true, beforeCreated);
 
             // error case stream doesn't exist
             assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream(999), 1));
         });
     }
 
-    @Test
-    public void testMessageGetRequest() {
-        validateMgr(1, null, null, MessageGetRequest.forSequence(1));
-        validateMgr(-1, "last", null, MessageGetRequest.lastForSubject("last"));
-        validateMgr(-1, null, "first", MessageGetRequest.firstForSubject("first"));
-        validateMgr(1, null, "first", MessageGetRequest.nextForSubject(1, "first"));
-
-        // coverage for deprecated methods
-        MessageGetRequest.seqBytes(1);
-        MessageGetRequest.lastBySubjectBytes(SUBJECT);
-        new MessageGetRequest(1);
-        new MessageGetRequest(SUBJECT);
-    }
-
-    private void validateMgr(long seq, String lastBySubject, String nextBySubject, MessageGetRequest mgr) {
-        assertEquals(seq, mgr.getSequence());
-        assertEquals(lastBySubject, mgr.getLastBySubject());
-        assertEquals(nextBySubject, mgr.getNextBySubject());
-        assertEquals(seq > 0 && nextBySubject == null, mgr.isSequenceOnly());
-        assertEquals(lastBySubject != null, mgr.isLastBySubject());
-        assertEquals(nextBySubject != null, mgr.isNextBySubject());
-    }
-
-    private void validateGetMessage(JetStreamManagement jsm, StreamInfo si, boolean allowDirect) throws IOException, JetStreamApiException {
+    private void validateGetMessage(JetStreamManagement jsm, StreamInfo si, boolean allowDirect, ZonedDateTime beforeCreated) throws IOException, JetStreamApiException {
         assertEquals(allowDirect, si.getConfiguration().getAllowDirect());
 
-        ZonedDateTime beforeCreated = ZonedDateTime.now();
-
-        // simple api
-        assertMessageInfo(1, 1, jsm.getMessage(STREAM, 1), beforeCreated);
-        assertMessageInfo(1, 5, jsm.getLastMessage(STREAM, subject(1)), beforeCreated);
-        assertMessageInfo(2, 6, jsm.getLastMessage(STREAM, subject(2)), beforeCreated);
-
-        // MessageGetRequest api
         assertMessageInfo(1, 1, jsm.getMessage(STREAM, 1), beforeCreated);
         assertMessageInfo(1, 5, jsm.getLastMessage(STREAM, subject(1)), beforeCreated);
         assertMessageInfo(2, 6, jsm.getLastMessage(STREAM, subject(2)), beforeCreated);
@@ -929,15 +898,34 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     private void assertMessageInfo(int subj, long seq, MessageInfo mi, ZonedDateTime beforeCreated) {
-        Headers h = mi.getHeaders();
-        assertNotNull(h);
         assertEquals(STREAM, mi.getStream());
         assertEquals(subject(subj), mi.getSubject());
         assertEquals(seq, mi.getSeq());
         assertNotNull(mi.getTime());
         assertTrue(mi.getTime().toEpochSecond() >= beforeCreated.toEpochSecond());
         assertEquals("s" + subj + "-q" + seq, new String(mi.getData()));
+    }
 
+    @Test
+    public void testMessageGetRequest() {
+        validateMgr(1, null, null, MessageGetRequest.forSequence(1));
+        validateMgr(-1, "last", null, MessageGetRequest.lastForSubject("last"));
+        validateMgr(-1, null, "first", MessageGetRequest.firstForSubject("first"));
+        validateMgr(1, null, "first", MessageGetRequest.nextForSubject(1, "first"));
 
+        // coverage for deprecated methods
+        MessageGetRequest.seqBytes(1);
+        MessageGetRequest.lastBySubjectBytes(SUBJECT);
+        new MessageGetRequest(1);
+        new MessageGetRequest(SUBJECT);
+    }
+
+    private void validateMgr(long seq, String lastBySubject, String nextBySubject, MessageGetRequest mgr) {
+        assertEquals(seq, mgr.getSequence());
+        assertEquals(lastBySubject, mgr.getLastBySubject());
+        assertEquals(nextBySubject, mgr.getNextBySubject());
+        assertEquals(seq > 0 && nextBySubject == null, mgr.isSequenceOnly());
+        assertEquals(lastBySubject != null, mgr.isLastBySubject());
+        assertEquals(nextBySubject != null, mgr.isNextBySubject());
     }
 }

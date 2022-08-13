@@ -166,7 +166,7 @@ public class StreamConfiguration implements JsonSerializable {
 
         addFldWhenTrue(sb, SEALED, sealed);
         addFldWhenTrue(sb, ALLOW_ROLLUP_HDRS, allowRollup);
-        addField(sb, ALLOW_DIRECT, allowDirect);
+        addFldWhenTrue(sb, ALLOW_DIRECT, allowDirect);
         addFldWhenTrue(sb, DENY_DELETE, denyDelete);
         addFldWhenTrue(sb, DENY_PURGE, denyPurge);
 

@@ -80,13 +80,13 @@ public class Error {
     public static Error convert(Status status) {
         switch (status.getCode()) {
             case 404:
-                return JSNoMessageFoundErr;
+                return JsNoMessageFoundErr;
             case 408:
-                return JSBadRequestErr;
+                return JsBadRequestErr;
         }
         return new Error(status.getCode(), NOT_SET, status.getMessage());
     }
 
-    public static final Error JSBadRequestErr = new Error(400, 10003, "bad request");
-    public static final Error JSNoMessageFoundErr = new Error(404, 10037, "no message found");
+    public static final Error JsBadRequestErr = new Error(400, 10003, "bad request");
+    public static final Error JsNoMessageFoundErr = new Error(404, 10037, "no message found");
 }
