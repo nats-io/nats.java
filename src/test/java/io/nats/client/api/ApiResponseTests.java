@@ -135,8 +135,8 @@ public class ApiResponseTests {
     @SuppressWarnings("SimplifiableAssertion")
     @Test
     public void testConvert() {
-        assertTrue(JSNoMessageFoundErr == Error.convert(new Status(404, "four-oh-four")));
-        assertTrue(JSBadRequestErr == Error.convert(new Status(408, "four-oh-eight")));
+        assertTrue(JsNoMessageFoundErr == Error.convert(new Status(404, "four-oh-four")));
+        assertTrue(JsBadRequestErr == Error.convert(new Status(408, "four-oh-eight")));
         Error e = Error.convert(new Status(499, "four-nine-nine"));
         assertEquals(499, e.getCode());
         assertEquals(NOT_SET, e.getApiErrorCode());

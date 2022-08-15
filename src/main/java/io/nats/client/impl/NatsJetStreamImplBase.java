@@ -150,10 +150,10 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         return jso.getPrefix() + subject;
     }
 
-    CachedStreamInfo getJsmStreamInfo(String streamName) throws IOException, JetStreamApiException {
-        CachedStreamInfo msi = CACHED_STREAM_INFO_MAP.get(streamName);
-        if (msi != null) {
-            return msi;
+    CachedStreamInfo getCachedStreamInfo(String streamName) throws IOException, JetStreamApiException {
+        CachedStreamInfo csi = CACHED_STREAM_INFO_MAP.get(streamName);
+        if (csi != null) {
+            return csi;
         }
         _getStreamInfo(streamName, null);
         return CACHED_STREAM_INFO_MAP.get(streamName);

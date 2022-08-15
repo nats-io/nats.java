@@ -250,8 +250,8 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
 
     private MessageInfo _getMessage(String streamName, MessageGetRequest messageGetRequest) throws IOException, JetStreamApiException {
         validateNotNull(messageGetRequest, "Message Get Request");
-        CachedStreamInfo msi = getJsmStreamInfo(streamName);
-        if (msi.allowDirect) {
+        CachedStreamInfo csi = getCachedStreamInfo(streamName);
+        if (csi.allowDirect) {
             String subject;
             byte[] payload;
             if (messageGetRequest.isLastBySubject()) {
