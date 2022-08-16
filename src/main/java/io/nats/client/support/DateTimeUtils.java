@@ -34,6 +34,16 @@ public abstract class DateTimeUtils {
         return ZonedDateTime.ofInstant(Instant.from(zonedDateTime), ZONE_ID_GMT);
     }
 
+    public static ZonedDateTime toGmtAlt(ZonedDateTime zonedDateTime) {
+        // TODO Test which one is faster
+        return zonedDateTime.withZoneSameInstant(ZONE_ID_GMT);
+    }
+
+    public static boolean equals(ZonedDateTime zdt1, ZonedDateTime zdt2) {
+        if (zdt1 == zdt2) return true;
+        if (zdt1 == null || zdt2 == null) return false;
+        return zdt1.withZoneSameInstant(ZONE_ID_GMT).equals(zdt1.withZoneSameInstant(ZONE_ID_GMT));
+    }
     public static String toRfc3339(ZonedDateTime zonedDateTime) {
         return RFC3339_FORMATTER.format(toGmt(zonedDateTime));
     }

@@ -121,6 +121,16 @@ public abstract class JsonUtils {
         return indexes == null ? dflt : json.substring(indexes[0], indexes[1] + 1);
     }
 
+    public static String removeObject(String json, String objectName) {
+        int[] indexes = getBracketIndexes(objectName, json, '{', '}', 0);
+        if (indexes != null) {
+            // remove the entire object replacing it with a dummy field b/c getBracketIndexes doesn't consider
+            // if there is or isn't another object after it, so I don't have to worry about it being/not being the last object
+            json = json.substring(0, indexes[0]) + "\"rmvd" + objectName.hashCode() + "\":\"\"" + json.substring(indexes[1] + 1);
+        }
+        return json;
+    }
+
     /**
      * Extract a list JSON object strings for list object name. Returns empty list '{}' if not found.
      * Assumes that there are no brackets '{' or '}' in the actual data.

@@ -67,6 +67,10 @@ public abstract class Validator {
         return validateNonWildcardKvKey(s, "Key", true);
     }
 
+    public static String validateOsBucketNameRequired(String s) {
+        return validateOsBucketName(s, "Object Store name", true);
+    }
+
     public static void validateNotSupplied(String s, NatsJetStreamClientError err) {
         if (!nullOrEmpty(s)) {
             throw err.instance();
@@ -154,6 +158,15 @@ public abstract class Validator {
     }
 
     public static String validateKvBucketName(String s, String label, boolean required) {
+        return _validate(s, required, label, () -> {
+            if (notRestrictedTerm(s)) {
+                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `-` or `_` [" + s + "]");
+            }
+            return s;
+        });
+    }
+
+    public static String validateOsBucketName(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
             if (notRestrictedTerm(s)) {
                 throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `-` or `_` [" + s + "]");
