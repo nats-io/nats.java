@@ -511,7 +511,7 @@ public interface Connection extends AutoCloseable {
      * Gets a context for working with an Object Store
      * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
      * @param bucketName the bucket name
-     * @return a KeyValue instance.
+     * @return an ObjectStore instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
     ObjectStore objectStore(String bucketName) throws IOException;
@@ -521,7 +521,7 @@ public interface Connection extends AutoCloseable {
      * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
      * @param bucketName the bucket name
      * @param options ObjectStore options.
-     * @return a KeyValue instance.
+     * @return an ObjectStore instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
     ObjectStore objectStore(String bucketName, ObjectStoreOptions options) throws IOException;
@@ -529,7 +529,7 @@ public interface Connection extends AutoCloseable {
     /**
      * Gets a context for managing Object Stores
      * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
-     * @return a ObjectStoreManagement instance.
+     * @return an ObjectStoreManagement instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
     ObjectStoreManagement objectStoreManagement() throws IOException;
