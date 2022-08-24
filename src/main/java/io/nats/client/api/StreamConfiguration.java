@@ -51,6 +51,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final DiscardPolicy discardPolicy;
     private final Duration duplicateWindow;
     private final Placement placement;
+    private final Republish republish;
     private final Mirror mirror;
     private final List<Source> sources;
     private final boolean sealed;
@@ -92,6 +93,7 @@ public class StreamConfiguration implements JsonSerializable {
         readNanos(json, DUPLICATE_WINDOW_RE, builder::duplicateWindow);
         builder.subjects(getStringList(SUBJECTS, json));
         builder.placement(Placement.optionalInstance(json));
+        builder.republish(Republish.optionalInstance(json));
         builder.mirror(Mirror.optionalInstance(json));
         builder.sources(Source.optionalListOf(json));
         builder.sealed(readBoolean(json, SEALED_RE));
@@ -122,6 +124,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.discardPolicy = b.discardPolicy;
         this.duplicateWindow = b.duplicateWindow;
         this.placement = b.placement;
+        this.republish = b.republish;
         this.mirror = b.mirror;
         this.sources = b.sources;
         this.sealed = b.sealed;
@@ -158,6 +161,9 @@ public class StreamConfiguration implements JsonSerializable {
         addFieldAsNanos(sb, DUPLICATE_WINDOW, duplicateWindow);
         if (placement != null) {
             addField(sb, PLACEMENT, placement);
+        }
+        if (republish != null) {
+            addField(sb, REPUBLISH, republish);
         }
         if (mirror != null) {
             addField(sb, MIRROR, mirror);
@@ -312,6 +318,14 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
+     * Republish directive
+     * @return the republish object
+     */
+    public Republish getRepublish() {
+        return republish;
+    }
+
+    /**
      * The mirror definition for this stream
      * @return the mirror
      */
@@ -439,6 +453,7 @@ public class StreamConfiguration implements JsonSerializable {
         private DiscardPolicy discardPolicy = DiscardPolicy.Old;
         private Duration duplicateWindow = Duration.ZERO;
         private Placement placement = null;
+        private Republish republish = null;
         private Mirror mirror = null;
         private final List<Source> sources = new ArrayList<>();
         private boolean sealed = false;
@@ -475,6 +490,7 @@ public class StreamConfiguration implements JsonSerializable {
                 this.discardPolicy = sc.discardPolicy;
                 this.duplicateWindow = sc.duplicateWindow;
                 this.placement = sc.placement;
+                this.republish = sc.republish;
                 this.mirror = sc.mirror;
                 sources(sc.sources);
                 this.sealed = sc.sealed;
@@ -713,6 +729,16 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder placement(Placement placement) {
             this.placement = placement;
+            return this;
+        }
+
+        /**
+         * Sets the republish directive object
+         * @param republish the republish directive object
+         * @return Builder
+         */
+        public Builder republish(Republish republish) {
+            this.republish = republish;
             return this;
         }
 

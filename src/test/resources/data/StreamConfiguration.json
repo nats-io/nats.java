@@ -1,7 +1,7 @@
 {
   "name": "sname",
   "description": "blah blah",
-  "subjects": ["foo", "bar"],
+  "subjects": ["foo", "bar", "repub.>"],
   "retention": "interest",
   "max_consumers": 730,
   "max_msgs": 731,
@@ -23,6 +23,11 @@
   "placement": {
     "cluster": "clstr",
     "tags": ["tag1", "tag2"]
+  },
+  "republish": {
+    "src": "repub.>",
+    "dest": "dest.>",
+    "headers_only": true
   },
   "mirror": {
     "name": "eman",
