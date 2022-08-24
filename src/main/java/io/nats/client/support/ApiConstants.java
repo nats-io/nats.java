@@ -140,8 +140,8 @@ public interface ApiConstants {
     String SERVER_ID         = "server_id";
     String SERVER_NAME       = "server_name";
     String SOURCE            = "source";
-    String SRC               = "src";
     String SOURCES           = "sources";
+    String SRC               = "src";
     String STATE             = "state";
     String STORAGE           = "storage";
     String STORAGE_MAX_STREAM_BYTES= "storage_max_stream_bytes";
