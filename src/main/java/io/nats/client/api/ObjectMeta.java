@@ -12,8 +12,11 @@
 // limitations under the License.
 package io.nats.client.api;
 
+import io.nats.client.impl.Headers;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+
+import java.util.Map;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
@@ -22,45 +25,51 @@ import static io.nats.client.support.JsonUtils.endJson;
 /**
  * The ObjectMeta is Object Meta is high level information about an object
  *
- * THIS IS A PLACEHOLDER FOR THE EXPERIMENTAL OBJECT STORE IMPLEMENTATION.
+ * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
  */
-class ObjectMeta implements JsonSerializable {
+public class ObjectMeta implements JsonSerializable {
 
     private final String name;
     private final String description;
+    private final Headers headers;
     private final ObjectMetaOptions objectMetaOptions;
 
     private ObjectMeta(Builder b) {
         name = b.name;
         description = b.description;
-        objectMetaOptions = b.optionsBuilder.build();
+        headers = b.headers;
+        objectMetaOptions = b.metaOptionsBuilder.build();
     }
 
     ObjectMeta(String json) {
         name = JsonUtils.readString(json, NAME_RE);
         description = JsonUtils.readString(json, DESCRIPTION_RE);
+        String headersJson = JsonUtils.getJsonObject(HEADERS, json);
+        headers = new Headers();
+        if (headersJson != null) {
+            Map<String, String>  map = JsonUtils.getMapOfObjects(headersJson);
+            // TODO
+        }
         objectMetaOptions = ObjectMetaOptions.instance(json);
     }
 
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, DESCRIPTION, description);
-
-        // avoid adding an empty child to the json because JsonUtils.addField
-        // only checks versus the object being null, which it is never
-        if (objectMetaOptions.hasData()) {
-            JsonUtils.addField(sb, OPTIONS, objectMetaOptions);
-        }
-
+        embedJson(sb);
         return endJson(sb).toString();
     }
 
     void embedJson(StringBuilder sb) {
         JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, DESCRIPTION, description);
-        JsonUtils.addField(sb, OPTIONS, objectMetaOptions);
+        JsonUtils.addField(sb, HEADERS, headers);
+
+        // avoid adding an empty child to the json because JsonUtils.addField
+        // only checks versus the object being null, which it is never
+        if (objectMetaOptions.hasData()) {
+            JsonUtils.addField(sb, OPTIONS, objectMetaOptions);
+        }
     }
 
     public String getName() {
@@ -69,6 +78,10 @@ class ObjectMeta implements JsonSerializable {
 
     public String getDescription() {
         return description;
+    }
+
+    public Headers getHeaders() {
+        return headers;
     }
 
     public ObjectMetaOptions getObjectMetaOptions() {
@@ -90,7 +103,8 @@ class ObjectMeta implements JsonSerializable {
     public static class Builder {
         String name;
         String description;
-        ObjectMetaOptions.Builder optionsBuilder;
+        Headers headers;
+        ObjectMetaOptions.Builder metaOptionsBuilder;
 
         public Builder() {
             this(null);
@@ -100,10 +114,11 @@ class ObjectMeta implements JsonSerializable {
             if (om != null) {
                 name = om.name;
                 description = om.description;
-                optionsBuilder = ObjectMetaOptions.builder(om.objectMetaOptions);
+                headers = om.headers;
+                metaOptionsBuilder = ObjectMetaOptions.builder(om.objectMetaOptions);
             }
             else {
-                optionsBuilder = ObjectMetaOptions.builder();
+                metaOptionsBuilder = ObjectMetaOptions.builder();
             }
         }
 
@@ -117,18 +132,23 @@ class ObjectMeta implements JsonSerializable {
             return this;
         }
 
+        public Builder headers(Headers headers) {
+            this.headers = headers;
+            return this;
+        }
+
         public Builder options(ObjectMetaOptions objectMetaOptions) {
-            optionsBuilder = ObjectMetaOptions.builder(objectMetaOptions);
+            metaOptionsBuilder = ObjectMetaOptions.builder(objectMetaOptions);
             return this;
         }
 
         public Builder chunkSize(int chunkSize) {
-            optionsBuilder.chunkSize(chunkSize);
+            metaOptionsBuilder.chunkSize(chunkSize);
             return this;
         }
 
         public Builder link(ObjectLink link) {
-            optionsBuilder.link(link);
+            metaOptionsBuilder.link(link);
             return this;
         }
 
@@ -146,6 +166,7 @@ class ObjectMeta implements JsonSerializable {
 
         if (name != null ? !name.equals(that.name) : that.name != null) return false;
         if (description != null ? !description.equals(that.description) : that.description != null) return false;
+        if (headers != null ? !headers.equals(that.headers) : that.headers != null) return false;
         return objectMetaOptions != null ? objectMetaOptions.equals(that.objectMetaOptions) : that.objectMetaOptions == null;
     }
 
@@ -153,7 +174,17 @@ class ObjectMeta implements JsonSerializable {
     public int hashCode() {
         int result = name != null ? name.hashCode() : 0;
         result = 31 * result + (description != null ? description.hashCode() : 0);
+        result = 31 * result + (headers != null ? headers.hashCode() : 0);
         result = 31 * result + (objectMetaOptions != null ? objectMetaOptions.hashCode() : 0);
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return "ObjectMeta{" +
+            "name='" + name + '\'' +
+            ", description='" + description + '\'' +
+            ", objectMetaOptions=" + objectMetaOptions +
+            '}';
     }
 }

@@ -17,7 +17,7 @@ package io.nats.client;
  * The ObjectStoreOptions class specifies the general options for ObjectStore.
  * Options are created using the {@link ObjectStoreOptions.Builder Builder}.
  *
- * THIS IS A PLACEHOLDER FOR THE EXPERIMENTAL OBJECT STORE IMPLEMENTATION.
+ * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
  */
 public class ObjectStoreOptions extends FeatureOptions {
 
@@ -43,6 +43,15 @@ public class ObjectStoreOptions extends FeatureOptions {
     }
 
     /**
+     * Creates a builder to copy the options.
+     * @param jso an existing JetStreamOptions
+     * @return a stream configuration builder
+     */
+    public static Builder builder(JetStreamOptions jso) {
+        return new Builder().jetStreamOptions(jso);
+    }
+
+    /**
      * ObjectStoreOptions can be created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      */
@@ -62,8 +71,8 @@ public class ObjectStoreOptions extends FeatureOptions {
         }
 
         /**
-         * Builds the JetStream options.
-         * @return JetStream options
+         * Builds the ObjectStore options.
+         * @return ObjectStore options
          */
         public ObjectStoreOptions build() {
             return new ObjectStoreOptions(this);

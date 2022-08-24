@@ -14,10 +14,10 @@
 package io.nats.client.impl;
 
 import io.nats.client.JetStreamApiException;
-import io.nats.client.KeyValueManagement;
-import io.nats.client.KeyValueOptions;
-import io.nats.client.api.KeyValueConfiguration;
-import io.nats.client.api.KeyValueStatus;
+import io.nats.client.ObjectStoreManagement;
+import io.nats.client.ObjectStoreOptions;
+import io.nats.client.api.ObjectStoreConfiguration;
+import io.nats.client.api.ObjectStoreStatus;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.support.Validator;
 
@@ -25,30 +25,22 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.nats.client.support.NatsKeyValueUtil.*;
+import static io.nats.client.support.NatsObjectStoreUtil.*;
 
-public class NatsKeyValueManagement implements KeyValueManagement {
+public class NatsObjectStoreManagement implements ObjectStoreManagement {
     private final NatsJetStreamManagement jsm;
 
-    NatsKeyValueManagement(NatsConnection connection, KeyValueOptions kvo) throws IOException {
-        jsm = new NatsJetStreamManagement(connection, kvo == null ? null : kvo.getJetStreamOptions());
+    NatsObjectStoreManagement(NatsConnection connection, ObjectStoreOptions oso) throws IOException {
+        jsm = new NatsJetStreamManagement(connection, oso == null ? null : oso.getJetStreamOptions());
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public KeyValueStatus create(KeyValueConfiguration config) throws IOException, JetStreamApiException {
+    public ObjectStoreStatus create(ObjectStoreConfiguration config) throws IOException, JetStreamApiException {
         StreamConfiguration sc = config.getBackingConfig();
-        if ( jsm.conn.getServerInfo().isOlderThanVersion("2.7.2") ) {
-            sc = StreamConfiguration.builder(sc).discardPolicy(null).build(); // null discard policy will use default
-        }
-        return new KeyValueStatus(jsm.addStream(sc));
-    }
-
-    @Override
-    public KeyValueStatus update(KeyValueConfiguration config) throws IOException, JetStreamApiException {
-        return new KeyValueStatus(jsm.updateStream(config.getBackingConfig()));
+        return new ObjectStoreStatus(jsm.addStream(sc));
     }
 
     /**
@@ -59,7 +51,7 @@ public class NatsKeyValueManagement implements KeyValueManagement {
         List<String> buckets = new ArrayList<>();
         List<String> names = jsm.getStreamNames();
         for (String name : names) {
-            if (name.startsWith(KV_STREAM_PREFIX)) {
+            if (name.startsWith(OBJ_STREAM_PREFIX)) {
                 buckets.add(extractBucketName(name));
             }
         }
@@ -70,9 +62,9 @@ public class NatsKeyValueManagement implements KeyValueManagement {
      * {@inheritDoc}
      */
     @Override
-    public KeyValueStatus getBucketInfo(String bucketName) throws IOException, JetStreamApiException {
+    public ObjectStoreStatus getBucketInfo(String bucketName) throws IOException, JetStreamApiException {
         Validator.validateBucketName(bucketName, true);
-        return new KeyValueStatus(jsm.getStreamInfo(toStreamName(bucketName)));
+        return new ObjectStoreStatus(jsm.getStreamInfo(toStreamName(bucketName)));
     }
 
     /**

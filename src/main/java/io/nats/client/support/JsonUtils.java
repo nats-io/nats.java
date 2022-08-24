@@ -15,6 +15,7 @@ package io.nats.client.support;
 
 import io.nats.client.api.SequenceInfo;
 import io.nats.client.api.SequencePair;
+import io.nats.client.impl.Headers;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -575,6 +576,19 @@ public abstract class JsonUtils {
             jsonEncode(sb, fname);
             sb.append(QCOLONQ)
                     .append(DateTimeUtils.toRfc3339(zonedDateTime)).append(QCOMMA);
+        }
+    }
+
+    public static void addField(StringBuilder sb, String fname, Headers headers) {
+        if (headers != null && headers.size() > 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append("\":{");
+            for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+                addStrings(sb, entry.getKey(), entry.getValue());
+            }
+            endJson(sb);
+            sb.append(",");
         }
     }
 

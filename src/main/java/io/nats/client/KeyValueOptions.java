@@ -69,8 +69,8 @@ public class KeyValueOptions extends FeatureOptions {
         }
 
         /**
-         * Builds the JetStream options.
-         * @return JetStream options
+         * Builds the KeyValue Options.
+         * @return KeyValue Options
          */
         public KeyValueOptions build() {
             return new KeyValueOptions(this);

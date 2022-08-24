@@ -47,7 +47,7 @@ public class NatsKeyValueWatchSubscription implements AutoCloseable {
             handler.sendEndOfData();
         }
         else {
-            KeyValueEntry kveCheckPending = kv._kvGetLastMessage(keyPattern);
+            KeyValueEntry kveCheckPending = kv._get(keyPattern);
             if (kveCheckPending == null) {
                 handler.sendEndOfData();
             }

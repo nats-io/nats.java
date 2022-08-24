@@ -812,7 +812,6 @@ public class StreamConfiguration implements JsonSerializable {
             return this;
         }
 
-
         /**
          * Set whether to deny purging messages from the stream
          * @param denyPurge the deny purge setting
@@ -820,6 +819,15 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder denyPurge(boolean denyPurge) {
             this.denyPurge = denyPurge;
+            return this;
+        }
+
+        /**
+         * Set this stream to be sealed. This is irreversible.
+         * @return Builder
+         */
+        public Builder seal() {
+            this.sealed = true;
             return this;
         }
 

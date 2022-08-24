@@ -12,13 +12,16 @@
 // limitations under the License.
 package io.nats.client;
 
+import io.nats.client.api.ObjectStoreConfiguration;
+import io.nats.client.api.ObjectStoreStatus;
+
 import java.io.IOException;
 import java.util.List;
 
 /**
  * Object Store Management context for creation and access to object stores.
  *
- * THIS IS A PLACEHOLDER FOR THE EXPERIMENTAL OBJECT STORE IMPLEMENTATION.
+ * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
  */
 public interface ObjectStoreManagement {
 
@@ -43,18 +46,18 @@ public interface ObjectStoreManagement {
      * @throws JetStreamApiException the request had an error related to the data
      * @throws InterruptedException if the thread is interrupted
      */
-    List<String> getObjectStoreNames() throws IOException, JetStreamApiException, InterruptedException;
+    List<String> getBucketNames() throws IOException, JetStreamApiException, InterruptedException;
 
     /**
      * Gets the info for an existing object store.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param objectStoreName the object store bucket name to get info for
+     * @param bucketName the object store bucket name to get info for
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      * @return the bucket status object
      */
-    ObjectStoreStatus getObjectStoreInfo(String objectStoreName) throws IOException, JetStreamApiException;
+    ObjectStoreStatus getBucketInfo(String bucketName) throws IOException, JetStreamApiException;
 
     /**
      * Deletes an existing object store. Will throw a JetStreamApiException if the delete fails.

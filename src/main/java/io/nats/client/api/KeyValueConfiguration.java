@@ -22,41 +22,13 @@ import static io.nats.client.support.Validator.*;
 /**
  * The KeyValueConfiguration class contains the configuration for of a Key Value bucket.
  */
-public class KeyValueConfiguration {
-    private final StreamConfiguration sc;
-    private final String bucketName;
-
+public class KeyValueConfiguration extends FeatureConfiguration {
     static KeyValueConfiguration instance(String json) {
         return new KeyValueConfiguration(StreamConfiguration.instance(json));
     }
 
     KeyValueConfiguration(StreamConfiguration sc) {
-        this.sc = sc;
-        bucketName = extractBucketName(sc.getName());
-    }
-
-    /**
-     * Gets the stream configuration for the stream which backs the bucket
-     * @return the stream configuration
-     */
-    public StreamConfiguration getBackingConfig() {
-        return sc;
-    }
-
-    /**
-     * Gets the name of this bucket.
-     * @return the name of the bucket.
-     */
-    public String getBucketName() {
-        return bucketName;
-    }
-
-    /**
-     * Gets the description of this bucket.
-     * @return the description of the bucket.
-     */
-    public String getDescription() {
-        return sc.getDescription();
+        super(sc, extractBucketName(sc.getName()));
     }
 
     /**
@@ -83,30 +55,6 @@ public class KeyValueConfiguration {
         return sc.getMaxMsgSize();
     }
 
-    /**
-     * Gets the maximum age for a value in this bucket.
-     * @return the maximum age.
-     */
-    public Duration getTtl() {
-        return sc.getMaxAge();
-    }
-
-    /**
-     * Gets the storage type for this bucket.
-     * @return the storage type for this stream.
-     */
-    public StorageType getStorageType() {
-        return sc.getStorageType();
-    }
-
-    /**
-     * Gets the number of replicas for this bucket.
-     * @return the number of replicas
-     */    
-    public int getReplicas() {
-        return sc.getReplicas();
-    }
-
     @Override
     public String toString() {
         return "KeyValueConfiguration{" +
@@ -118,6 +66,7 @@ public class KeyValueConfiguration {
             ", ttl=" + getTtl() +
             ", storageType=" + getStorageType() +
             ", replicas=" + getReplicas() +
+            ", placement=" + getPlacement() +
             '}';
     }
 
@@ -254,11 +203,21 @@ public class KeyValueConfiguration {
         }
 
         /**
+         * Sets the placement directive object
+         * @param placement the placement directive object
+         * @return Builder
+         */
+        public KeyValueConfiguration.Builder placement(Placement placement) {
+            scBuilder.placement(placement);
+            return this;
+        }
+
+        /**
          * Builds the KeyValueConfiguration
          * @return the KeyValueConfiguration.
          */
         public KeyValueConfiguration build() {
-            name = validateKvBucketNameRequired(name);
+            name = validateBucketName(name, true);
             scBuilder.name(toStreamName(name))
                 .subjects(toStreamSubject(name))
                 .allowRollup(true)

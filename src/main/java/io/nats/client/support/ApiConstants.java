@@ -229,6 +229,7 @@ public interface ApiConstants {
     Pattern MAX_BATCH_RE          = integer_pattern(MAX_BATCH);
     Pattern MAX_BYTES_RE          = integer_pattern(MAX_BYTES);
     Pattern MAX_BYTES_REQUIRED_RE= boolean_pattern(MAX_BYTES_REQUIRED);
+    Pattern MAX_CHUNK_SIZE_RE     = integer_pattern(MAX_CHUNK_SIZE);
     Pattern MAX_CONSUMERS_RE      = integer_pattern(MAX_CONSUMERS);
     Pattern MAX_DELIVER_RE        = integer_pattern(MAX_DELIVER);
     Pattern MAX_EXPIRES_RE        = integer_pattern(MAX_EXPIRES);

@@ -13,10 +13,20 @@
 package io.nats.client;
 
 
+import io.nats.client.api.ObjectInfo;
+import io.nats.client.api.ObjectMeta;
+import io.nats.client.api.ObjectStoreStatus;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.security.NoSuchAlgorithmException;
+
 /**
  * Object Store Management context for creation and access to key value buckets.
  *
- * THIS IS A PLACEHOLDER FOR THE EXPERIMENTAL OBJECT STORE IMPLEMENTATION.
+ * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
  */
 public interface ObjectStore {
 
@@ -25,32 +35,32 @@ public interface ObjectStore {
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @return the name
      */
-//    String getBucketName();
-//
-//    ObjectInfo put(ObjectMeta meta, InputStream inputStream) throws IOException, JetStreamApiException;
-//    ObjectInfo put(ObjectMeta meta, byte[] input) throws IOException, JetStreamApiException;
-//    ObjectInfo put(ObjectMeta meta, String input) throws IOException, JetStreamApiException;
-//
-//    void get(String objectName, OutputStream outputStream) throws IOException, JetStreamApiException, InterruptedException;
-//    byte[] getBytes(String objectName) throws IOException, JetStreamApiException, InterruptedException;
-//
-//    ObjectInfo getInfo(String objectName) throws IOException, JetStreamApiException;
-//    ObjectInfo updateMeta(String objectName, ObjectMeta meta) throws IOException, JetStreamApiException;
-//    ObjectInfo delete(String objectName) throws IOException, JetStreamApiException;
-//
-//    ObjectInfo addLink(String objectName, ObjectInfo toInfo) throws IOException, JetStreamApiException;
-//    ObjectInfo addBucketLink(String objectName, ObjectStore toStore) throws IOException, JetStreamApiException;
-//
-//    void seal() throws IOException, JetStreamApiException;
+    String getBucketName();
 
-//    /**
-//     * Get the ObjectStoreStatus object
-//     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-//     * @return the status object
-//     * @throws IOException covers various communication issues with the NATS
-//     *         server such as timeout or interruption
-//     * @throws JetStreamApiException the request had an error related to the data
-//     * @throws InterruptedException if the thread is interrupted
-//     */
-//    ObjectStoreStatus getStatus() throws IOException, JetStreamApiException, InterruptedException;
+    ObjectInfo put(ObjectMeta meta, InputStream inputStream) throws IOException, JetStreamApiException, NoSuchAlgorithmException;
+    ObjectInfo put(ObjectMeta meta, byte[] input) throws IOException, JetStreamApiException, NoSuchAlgorithmException;
+    ObjectInfo put(ObjectMeta meta, String input) throws IOException, JetStreamApiException, NoSuchAlgorithmException;
+    ObjectInfo put(ObjectMeta meta, File file) throws IOException, JetStreamApiException, NoSuchAlgorithmException;
+
+    void get(String objectName, OutputStream outputStream) throws IOException, JetStreamApiException, InterruptedException;
+
+    ObjectInfo getInfo(String objectName) throws IOException, JetStreamApiException;
+    ObjectInfo updateMeta(String objectName, ObjectMeta meta) throws IOException, JetStreamApiException;
+    ObjectInfo delete(String objectName) throws IOException, JetStreamApiException;
+
+    ObjectInfo addLink(String objectName, ObjectInfo toInfo) throws IOException, JetStreamApiException;
+    ObjectInfo addBucketLink(String objectName, ObjectStore toStore) throws IOException, JetStreamApiException;
+
+    void seal() throws IOException, JetStreamApiException;
+
+    /**
+     * Get the ObjectStoreStatus object
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @return the status object
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
+     */
+    ObjectStoreStatus getStatus() throws IOException, JetStreamApiException, InterruptedException;
 }

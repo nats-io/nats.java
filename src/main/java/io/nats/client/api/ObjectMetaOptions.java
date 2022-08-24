@@ -22,25 +22,23 @@ import static io.nats.client.support.JsonUtils.endJson;
 /**
  * The ObjectMeta is Object Meta is high level information about an object
  *
- * THIS IS A PLACEHOLDER FOR THE EXPERIMENTAL OBJECT STORE IMPLEMENTATION.
+ * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
  */
-class ObjectMetaOptions implements JsonSerializable {
+public class ObjectMetaOptions implements JsonSerializable {
 
-    private final String name;
-    private final String description;
-    private final ObjectMetaOptions objectMetaOptions;
+    private final ObjectLink link;
+    private final int chunkSize;
 
     private ObjectMetaOptions(Builder b) {
-        name = b.name;
-        description = b.description;
-        objectMetaOptions = b.optionsBuilder.build();
+        link = b.link;
+        chunkSize = b.chunkSize;
     }
 
     ObjectMetaOptions(String json) {
-        name = JsonUtils.readString(json, NAME_RE);
-        description = JsonUtils.readString(json, DESCRIPTION_RE);
-        objectMetaOptions = ObjectMetaOptions.instance(json);
+        link = ObjectLink.optionalInstance(json);
+        chunkSize = JsonUtils.readInt(json, MAX_CHUNK_SIZE_RE, -1);
     }
+
     static ObjectMetaOptions instance(String json) {
         return new ObjectMetaOptions(json);
     }
@@ -48,39 +46,21 @@ class ObjectMetaOptions implements JsonSerializable {
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, DESCRIPTION, description);
-
-        // avoid adding an empty child to the json because JsonUtils.addField
-        // only checks versus the object being null, which it is never
-        if (objectMetaOptions.hasData()) {
-            JsonUtils.addField(sb, OPTIONS, objectMetaOptions);
-        }
-
+        JsonUtils.addField(sb, LINK, link);
+        JsonUtils.addField(sb, MAX_CHUNK_SIZE, chunkSize);
         return endJson(sb).toString();
     }
 
     boolean hasData() {
-        // TODO
-        throw new RuntimeException("Not Implemented");
+        return link != null || chunkSize > 0;
     }
 
-    void embedJson(StringBuilder sb) {
-        JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, DESCRIPTION, description);
-        JsonUtils.addField(sb, OPTIONS, objectMetaOptions);
+    public ObjectLink getLink() {
+        return link;
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public ObjectMetaOptions getObjectMetaOptions() {
-        return objectMetaOptions;
+    public int getChunkSize() {
+        return chunkSize;
     }
 
     public static Builder builder() {
@@ -91,19 +71,9 @@ class ObjectMetaOptions implements JsonSerializable {
         return new Builder(om);
     }
 
-    public static ObjectMetaOptions name(String name) {
-        return new Builder().name(name).build();
-    }
-
-    public ObjectLink getLink() {
-        // TODO
-        throw new RuntimeException("Not Implemented");
-    }
-
     public static class Builder {
-        String name;
-        String description;
-        Builder optionsBuilder;
+        ObjectLink link;
+        int chunkSize;
 
         public Builder() {
             this(null);
@@ -111,37 +81,18 @@ class ObjectMetaOptions implements JsonSerializable {
 
         public Builder(ObjectMetaOptions om) {
             if (om != null) {
-                name = om.name;
-                description = om.description;
-                optionsBuilder = ObjectMetaOptions.builder(om.objectMetaOptions);
-            }
-            else {
-                optionsBuilder = ObjectMetaOptions.builder();
+                link = om.link;
+                chunkSize = om.chunkSize;
             }
         }
 
-        public Builder name(String name) {
-            this.name = name;
-            return this;
-        }
-
-        public Builder description(String description) {
-            this.description = description;
-            return this;
-        }
-
-        public Builder options(ObjectMetaOptions objectMetaOptions) {
-            optionsBuilder = ObjectMetaOptions.builder(objectMetaOptions);
+        public Builder link(ObjectLink link) {
+            this.link = link;
             return this;
         }
 
         public Builder chunkSize(int chunkSize) {
-            optionsBuilder.chunkSize(chunkSize);
-            return this;
-        }
-
-        public Builder link(ObjectLink link) {
-            optionsBuilder.link(link);
+            this.chunkSize = chunkSize;
             return this;
         }
 
@@ -155,18 +106,24 @@ class ObjectMetaOptions implements JsonSerializable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        ObjectMetaOptions that = (ObjectMetaOptions) o;
+        ObjectMetaOptions options = (ObjectMetaOptions) o;
 
-        if (name != null ? !name.equals(that.name) : that.name != null) return false;
-        if (description != null ? !description.equals(that.description) : that.description != null) return false;
-        return objectMetaOptions != null ? objectMetaOptions.equals(that.objectMetaOptions) : that.objectMetaOptions == null;
+        if (chunkSize != options.chunkSize) return false;
+        return link != null ? link.equals(options.link) : options.link == null;
     }
 
     @Override
     public int hashCode() {
-        int result = name != null ? name.hashCode() : 0;
-        result = 31 * result + (description != null ? description.hashCode() : 0);
-        result = 31 * result + (objectMetaOptions != null ? objectMetaOptions.hashCode() : 0);
+        int result = link != null ? link.hashCode() : 0;
+        result = 31 * result + chunkSize;
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return "ObjectMetaOptions{" +
+            "link=" + link +
+            ", chunkSize=" + chunkSize +
+            '}';
     }
 }

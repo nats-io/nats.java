@@ -41,7 +41,7 @@ public class NatsKeyValue implements KeyValue {
     private final String pubSubKeyPrefix;
 
     NatsKeyValue(NatsConnection connection, String bucketName, KeyValueOptions kvo) throws IOException {
-        this.bucketName = Validator.validateKvBucketNameRequired(bucketName);
+        this.bucketName = Validator.validateBucketName(bucketName, true);
         streamName = toStreamName(bucketName);
         streamSubject = toStreamSubject(bucketName);
         rawKeyPrefix = toKeyPrefix(bucketName);
@@ -87,7 +87,7 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public KeyValueEntry get(String key) throws IOException, JetStreamApiException {
-        return existingOnly(_kvGetLastMessage(validateNonWildcardKvKeyRequired(key)));
+        return existingOnly(_get(validateNonWildcardKvKeyRequired(key)));
     }
 
     /**
@@ -95,14 +95,14 @@ public class NatsKeyValue implements KeyValue {
      */
     @Override
     public KeyValueEntry get(String key, long revision) throws IOException, JetStreamApiException {
-        return existingOnly(_kvGetMessage(validateNonWildcardKvKeyRequired(key), revision));
+        return existingOnly(_get(validateNonWildcardKvKeyRequired(key), revision));
     }
 
     KeyValueEntry existingOnly(KeyValueEntry kve) {
         return kve == null || kve.getOperation() != KeyValueOperation.PUT ? null : kve;
     }
 
-    KeyValueEntry _kvGetLastMessage(String key) throws IOException, JetStreamApiException {
+    KeyValueEntry _get(String key) throws IOException, JetStreamApiException {
         try {
             return new KeyValueEntry(jsm.getLastMessage(streamName, rawKeySubject(key)));
         }
@@ -114,7 +114,7 @@ public class NatsKeyValue implements KeyValue {
         }
     }
 
-    KeyValueEntry _kvGetMessage(String key, long revision) throws IOException, JetStreamApiException {
+    KeyValueEntry _get(String key, long revision) throws IOException, JetStreamApiException {
         try {
             KeyValueEntry kve = new KeyValueEntry(jsm.getMessage(streamName, revision));
             return key.equals(kve.getKey()) ? kve : null;
@@ -163,7 +163,7 @@ public class NatsKeyValue implements KeyValue {
         catch (JetStreamApiException e) {
             if (e.getApiErrorCode() == JS_WRONG_LAST_SEQUENCE) {
                 // must check if the last message for this subject is a delete or purge
-                KeyValueEntry kve = _kvGetLastMessage(key);
+                KeyValueEntry kve = _get(key);
                 if (kve != null && kve.getOperation() != KeyValueOperation.PUT) {
                     return update(key, value, kve.getRevision());
                 }

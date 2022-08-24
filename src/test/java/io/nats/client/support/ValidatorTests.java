@@ -196,23 +196,40 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateBucketNameRequired() {
-        validateKvBucketNameRequired(PLAIN);
-        validateKvBucketNameRequired(PLAIN.toUpperCase());
-        validateKvBucketNameRequired(HAS_DASH);
-        validateKvBucketNameRequired(HAS_UNDER);
-        validateKvBucketNameRequired("numbers9ok");
-        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(null));
-        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_SPACE));
-        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_DOT));
-        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_STAR));
-        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_GT));
-        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_DOLLAR));
-        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_LOW));
-        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_127));
-        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_FWD_SLASH));
-        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_EQUALS));
-        assertThrows(IllegalArgumentException.class, () -> validateKvBucketNameRequired(HAS_TIC));
+    public void testValidateBucketName() {
+        validateBucketName(PLAIN, true);
+        validateBucketName(PLAIN.toUpperCase(), true);
+        validateBucketName(HAS_DASH, true);
+        validateBucketName(HAS_UNDER, true);
+        validateBucketName("numbers9ok", true);
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(null, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_SPACE, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_DOT, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_STAR, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_GT, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_DOLLAR, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_LOW, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_127, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_FWD_SLASH, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_EQUALS, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_TIC, true));
+
+        validateBucketName(PLAIN, false);
+        validateBucketName(PLAIN.toUpperCase(), false);
+        validateBucketName(HAS_DASH, false);
+        validateBucketName(HAS_UNDER, false);
+        validateBucketName("numbers9ok", false);
+        validateBucketName(null, false);
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_SPACE, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_DOT, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_STAR, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_GT, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_DOLLAR, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_LOW, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_127, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_FWD_SLASH, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_EQUALS, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_TIC, false));
     }
 
     @Test

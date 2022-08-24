@@ -12,8 +12,7 @@
 // limitations under the License.
 package io.nats.client.api;
 
-import io.nats.client.Message;
-import io.nats.client.support.DateTimeUtils;
+import io.nats.client.impl.Headers;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 
@@ -25,9 +24,9 @@ import static io.nats.client.support.JsonUtils.*;
 /**
  * The ObjectInfo is Object Meta Information plus instance information
  *
- * THIS IS A PLACEHOLDER FOR THE EXPERIMENTAL OBJECT STORE IMPLEMENTATION.
+ * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
  */
-class ObjectInfo implements JsonSerializable {
+public class ObjectInfo implements JsonSerializable {
     private final String bucket;
     private final String nuid;
     private final long size;
@@ -52,21 +51,20 @@ class ObjectInfo implements JsonSerializable {
         this(mi.getData() == null ? EMPTY_JSON : new String(mi.getData()), mi.getTime());
     }
 
-    public ObjectInfo(Message m) {
-        this(m.getData() == null ? EMPTY_JSON : new String(m.getData()), m.metaData().timestamp());
-    }
-
-    ObjectInfo(String json, ZonedDateTime modified) {
+    ObjectInfo(String json, ZonedDateTime altTime) {
         objectMeta = new ObjectMeta(json);
 
-        // we do this (remove the options field) b/c options has a field called bucket
-        // and it will mess up the reading of the Object info's bucket field
+        // options has already been read by ObjectMeta
+        // We do this (remove the options field) b/c
+        //  options has a field called link, link has a field called bucket
+        // and it will mess up the regex reading of the Object info's bucket field
         json = removeObject(json, OPTIONS);
 
         bucket = JsonUtils.readString(json, BUCKET_RE);
         nuid = JsonUtils.readString(json, NUID_RE);
         size = JsonUtils.readLong(json, SIZE_RE, 0);
-        this.modified = modified;
+        ZonedDateTime zdt = JsonUtils.readDate(json, MTIME_RE);
+        modified = zdt == null ? altTime : zdt;
         chunks = JsonUtils.readLong(json, CHUNKS_RE, 0);
         digest = JsonUtils.readString(json, DIGEST_RE);
         deleted = JsonUtils.readBoolean(json, DELETED_RE);
@@ -82,7 +80,7 @@ class ObjectInfo implements JsonSerializable {
         JsonUtils.addField(sb, BUCKET, bucket);
         JsonUtils.addField(sb, NUID, nuid);
         JsonUtils.addField(sb, SIZE, size);
-        // modified is never stored
+        JsonUtils.addField(sb, MTIME, modified);
         JsonUtils.addField(sb, CHUNKS, chunks);
         JsonUtils.addField(sb, DIGEST, digest);
         JsonUtils.addField(sb, DELETED, deleted);
@@ -218,6 +216,36 @@ class ObjectInfo implements JsonSerializable {
             return this;
         }
 
+        public Builder name(String name) {
+            metaBuilder.name(name);
+            return this;
+        }
+
+        public Builder description(String description) {
+            metaBuilder.description(description);
+            return this;
+        }
+
+        public Builder headers(Headers headers) {
+            metaBuilder.headers(headers);
+            return this;
+        }
+
+        public Builder options(ObjectMetaOptions objectMetaOptions) {
+            metaBuilder.options(objectMetaOptions);
+            return this;
+        }
+
+        public Builder chunkSize(int chunkSize) {
+            metaBuilder.chunkSize(chunkSize);
+            return this;
+        }
+
+        public Builder link(ObjectLink link) {
+            metaBuilder.link(link);
+            return this;
+        }
+
         public ObjectInfo build() {
             return new ObjectInfo(this);
         }
@@ -228,15 +256,16 @@ class ObjectInfo implements JsonSerializable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        ObjectInfo that = (ObjectInfo) o;
-        if (size != that.size) return false;
-        if (chunks != that.chunks) return false;
-        if (deleted != that.deleted) return false;
-        if (bucket != null ? !bucket.equals(that.bucket) : that.bucket != null) return false;
-        if (nuid != null ? !nuid.equals(that.nuid) : that.nuid != null) return false;
-        if (!DateTimeUtils.equals(modified, that.modified)) return false;
-        if (digest != null ? !digest.equals(that.digest) : that.digest != null) return false;
-        return objectMeta != null ? objectMeta.equals(that.objectMeta) : that.objectMeta == null;
+        ObjectInfo info = (ObjectInfo) o;
+
+        if (size != info.size) return false;
+        if (chunks != info.chunks) return false;
+        if (deleted != info.deleted) return false;
+        if (bucket != null ? !bucket.equals(info.bucket) : info.bucket != null) return false;
+        if (nuid != null ? !nuid.equals(info.nuid) : info.nuid != null) return false;
+        if (modified != null ? !modified.equals(info.modified) : info.modified != null) return false;
+        if (digest != null ? !digest.equals(info.digest) : info.digest != null) return false;
+        return objectMeta != null ? objectMeta.equals(info.objectMeta) : info.objectMeta == null;
     }
 
     @Override

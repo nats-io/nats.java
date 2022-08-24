@@ -629,33 +629,6 @@ public class KeyValueTests extends JetStreamTestBase {
         });
     }
 
-    @Test
-    public void testManageGetBucketNames() throws Exception {
-        runInJsServer(nc -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
-
-            // create bucket 1
-            kvm.create(KeyValueConfiguration.builder()
-                .name(bucket(1))
-                .storageType(StorageType.Memory)
-                .build());
-
-            // create bucket 2
-            kvm.create(KeyValueConfiguration.builder()
-                .name(bucket(2))
-                .storageType(StorageType.Memory)
-                .build());
-
-            createMemoryStream(nc, stream(1));
-            createMemoryStream(nc, stream(2));
-
-            List<String> buckets = kvm.getBucketNames();
-            assertEquals(2, buckets.size());
-            assertTrue(buckets.contains(bucket(1)));
-            assertTrue(buckets.contains(bucket(2)));
-        });
-    }
-
     private void assertKeys(List<String> apiKeys, String... manualKeys) {
         assertEquals(manualKeys.length, apiKeys.size());
         for (String k : manualKeys) {
@@ -705,6 +678,33 @@ public class KeyValueTests extends JetStreamTestBase {
         long es1 = kv1.getCreated().toEpochSecond();
         long es2 = kv2.getCreated().toEpochSecond();
         assertEquals(es1, es2);
+    }
+
+    @Test
+    public void testManageGetBucketNames() throws Exception {
+        runInJsServer(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            // create bucket 1
+            kvm.create(KeyValueConfiguration.builder()
+                .name(bucket(1))
+                .storageType(StorageType.Memory)
+                .build());
+
+            // create bucket 2
+            kvm.create(KeyValueConfiguration.builder()
+                .name(bucket(2))
+                .storageType(StorageType.Memory)
+                .build());
+
+            createMemoryStream(nc, stream(1));
+            createMemoryStream(nc, stream(2));
+
+            List<String> buckets = kvm.getBucketNames();
+            assertEquals(2, buckets.size());
+            assertTrue(buckets.contains(bucket(1)));
+            assertTrue(buckets.contains(bucket(2)));
+        });
     }
 
     static class TestKeyValueWatcher implements KeyValueWatcher {

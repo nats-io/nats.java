@@ -5,6 +5,7 @@ public class NatsJetStreamClientError {
     private static final int KIND_ILLEGAL_STATE = 1;
     private static final String SUB = "SUB";
     private static final String SO = "SO";
+    private static final String OS = "OS";
 
     public static final NatsJetStreamClientError JsSubPullCantHaveDeliverGroup = new NatsJetStreamClientError(SUB, 90001, "Pull subscriptions can't have a deliver group.");
     public static final NatsJetStreamClientError JsSubPullCantHaveDeliverSubject = new NatsJetStreamClientError(SUB, 90002, "Pull subscriptions can't have a deliver subject.");
@@ -35,6 +36,12 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError JsSoOrderedNotAllowedWithDeliverSubject = new NatsJetStreamClientError(SO, 90107, "Deliver subject is not allowed with an ordered consumer.");
     public static final NatsJetStreamClientError JsSoOrderedRequiresAckPolicyNone = new NatsJetStreamClientError(SO, 90108, "Ordered consumer requires Ack Policy None.");
     public static final NatsJetStreamClientError JsSoOrderedRequiresMaxDeliver = new NatsJetStreamClientError(SO, 90109, "Max deliver is limited to 1 with an ordered consumer.");
+
+    public static final NatsJetStreamClientError OsObjectNotFound = new NatsJetStreamClientError(OS, 90201, "The object was not found.");
+    public static final NatsJetStreamClientError OsObjectIsDeleted = new NatsJetStreamClientError(OS, 90202, "The object is deleted.");
+    public static final NatsJetStreamClientError OsObjectNotFoundOrIsDeleted = new NatsJetStreamClientError(OS, 90203, "The object was not found or is deleted.");
+    public static final NatsJetStreamClientError OsObjectAlreadyExists = new NatsJetStreamClientError(OS, 90204, "An object with that name already exists.");
+    public static final NatsJetStreamClientError OsCantLinkToLink = new NatsJetStreamClientError(OS, 90205, "A link cannot link to another link.");
 
     @Deprecated // Fixed spelling error
     public static final NatsJetStreamClientError JsSubFcHbHbNotValidQueue = new NatsJetStreamClientError(SUB, 90006, "Flow Control and/or heartbeat is not valid in queue mode.");

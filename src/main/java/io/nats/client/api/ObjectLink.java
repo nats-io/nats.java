@@ -22,9 +22,9 @@ import static io.nats.client.support.JsonUtils.endJson;
 /**
  * The ObjectLink is used to embed links to other objects.
  *
- * THIS IS A PLACEHOLDER FOR THE EXPERIMENTAL OBJECT STORE IMPLEMENTATION.
+ * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
  */
-class ObjectLink implements JsonSerializable {
+public class ObjectLink implements JsonSerializable {
 
     private final String bucket;
     private final String name;
@@ -35,7 +35,7 @@ class ObjectLink implements JsonSerializable {
     }
 
     ObjectLink(String json) {
-        this.bucket = JsonUtils.readString(json, BUCKET_RE);
+        bucket = JsonUtils.readString(json, BUCKET_RE);
         name = JsonUtils.readString(json, NAME_RE);
     }
 
@@ -120,5 +120,13 @@ class ObjectLink implements JsonSerializable {
         int result = bucket != null ? bucket.hashCode() : 0;
         result = 31 * result + (name != null ? name.hashCode() : 0);
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return "ObjectLink{" +
+            "bucket='" + bucket + '\'' +
+            ", name='" + name + '\'' +
+            '}';
     }
 }
