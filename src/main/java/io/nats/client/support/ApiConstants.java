@@ -51,6 +51,7 @@ public interface ApiConstants {
     String DENY_DELETE       = "deny_delete";
     String DENY_PURGE        = "deny_purge";
     String DESCRIPTION       = "description";
+    String DEST              = "dest";
     String DISCARD           = "discard";
     String DOMAIN            = "domain";
     String DUPLICATE         = "duplicate";
@@ -131,6 +132,7 @@ public interface ApiConstants {
     String REPLAY_POLICY     = "replay_policy";
     String REPLICA           = "replica";
     String REPLICAS          = "replicas";
+    String REPUBLISH         = "republish";
     String RETENTION         = "retention";
     String SAMPLE_FREQ       = "sample_freq";
     String SEALED            = "sealed";
@@ -138,6 +140,7 @@ public interface ApiConstants {
     String SERVER_ID         = "server_id";
     String SERVER_NAME       = "server_name";
     String SOURCE            = "source";
+    String SRC               = "src";
     String SOURCES           = "sources";
     String STATE             = "state";
     String STORAGE           = "storage";
@@ -184,6 +187,7 @@ public interface ApiConstants {
     Pattern DENY_DELETE_RE        = boolean_pattern(DENY_DELETE);
     Pattern DENY_PURGE_RE         = boolean_pattern(DENY_PURGE);
     Pattern DESCRIPTION_RE        = string_pattern(DESCRIPTION);
+    Pattern DEST_RE               = string_pattern(DEST);
     Pattern DISCARD_RE            = string_pattern(DISCARD);
     Pattern DOMAIN_RE             = string_pattern(DOMAIN);
     Pattern DUPLICATE_RE          = boolean_pattern(DUPLICATE);
@@ -256,6 +260,7 @@ public interface ApiConstants {
     Pattern SEQ_RE                = integer_pattern(SEQ);
     Pattern SERVER_ID_RE          = string_pattern(SERVER_ID);
     Pattern SERVER_NAME_RE        = string_pattern(SERVER_NAME);
+    Pattern SRC_RE                = string_pattern(SRC);
     Pattern STORAGE_RE            = integer_pattern(STORAGE);
     Pattern STORAGE_MAX_STREAM_BYTES_RE= integer_pattern(STORAGE_MAX_STREAM_BYTES);
     Pattern STORAGE_TYPE_RE       = string_pattern(STORAGE);

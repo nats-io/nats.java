@@ -40,12 +40,20 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
 
     /**
      * @deprecated This signature was public for unit testing but is no longer used.
+     *
+     * @param msg the message
      */
     @Deprecated
     public MessageInfo(Message msg) {
         this(msg, null, false);
     }
 
+    /**
+     * Public constructor for unit testing, not used by user.
+     * @param msg the message
+     * @param streamName the stream name
+     * @param fromDirect flag from direct
+     */
     public MessageInfo(Message msg, String streamName, boolean fromDirect) {
         super(fromDirect ? null : new String(msg.getData(), UTF_8));
 
