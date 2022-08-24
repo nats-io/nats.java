@@ -85,6 +85,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .discardPolicy(testSc.getDiscardPolicy())
             .duplicateWindow(testSc.getDuplicateWindow())
             .placement(testSc.getPlacement())
+            .republish(testSc.getRepublish())
             .mirror(testSc.getMirror())
             .sources(testSc.getSources())
             .sealed(testSc.getSealed())
@@ -318,9 +319,10 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     private void validate(StreamConfiguration sc, boolean serverTest) {
         assertEquals("sname", sc.getName());
         assertEquals("blah blah", sc.getDescription());
-        assertEquals(2, sc.getSubjects().size());
+        assertEquals(3, sc.getSubjects().size());
         assertEquals("foo", sc.getSubjects().get(0));
         assertEquals("bar", sc.getSubjects().get(1));
+        assertEquals("repub.>", sc.getSubjects().get(2));
 
         assertSame(RetentionPolicy.Interest, sc.getRetentionPolicy());
         assertEquals(730, sc.getMaxConsumers());
@@ -340,6 +342,11 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(2, sc.getPlacement().getTags().size());
         assertEquals("tag1", sc.getPlacement().getTags().get(0));
         assertEquals("tag2", sc.getPlacement().getTags().get(1));
+
+        assertNotNull(sc.getRepublish());
+        assertEquals("repub.>", sc.getRepublish().getSource());
+        assertEquals("dest.>", sc.getRepublish().getDestination());
+        assertTrue(sc.getRepublish().isHeadersOnly());
 
         ZonedDateTime zdt = DateTimeUtils.parseDateTime("2020-11-05T19:33:21.163377Z");
 
@@ -406,6 +413,23 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         p = Placement.builder().cluster("cluster").tags(Arrays.asList("a", "b")).build();
         assertEquals("cluster", p.getCluster());
         assertEquals(2, p.getTags().size());
+    }
+
+    @Test
+    public void testRepublish() {
+        assertThrows(IllegalArgumentException.class, () -> Republish.builder().build());
+        assertThrows(IllegalArgumentException.class, () -> Republish.builder().source("src.>").build());
+        assertThrows(IllegalArgumentException.class, () -> Republish.builder().destination("dest.>").build());
+
+        Republish p = Republish.builder().source("src.>").destination("dest.>").build();
+        assertEquals("src.>", p.getSource());
+        assertEquals("dest.>", p.getDestination());
+        assertFalse(p.isHeadersOnly());
+
+        p = Republish.builder().source("src.>").destination("dest.>").headersOnly(true).build();
+        assertEquals("src.>", p.getSource());
+        assertEquals("dest.>", p.getDestination());
+        assertTrue(p.isHeadersOnly());
     }
 
     @Test
