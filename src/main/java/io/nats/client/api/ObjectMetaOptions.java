@@ -26,7 +26,7 @@ import static io.nats.client.support.JsonUtils.endJson;
  */
 public class ObjectMetaOptions implements JsonSerializable {
 
-    private final ObjectLink link;
+    private final ObjectStoreLink link;
     private final int chunkSize;
 
     private ObjectMetaOptions(Builder b) {
@@ -35,7 +35,7 @@ public class ObjectMetaOptions implements JsonSerializable {
     }
 
     ObjectMetaOptions(String json) {
-        link = ObjectLink.optionalInstance(json);
+        link = ObjectStoreLink.optionalInstance(json);
         chunkSize = JsonUtils.readInt(json, MAX_CHUNK_SIZE_RE, -1);
     }
 
@@ -55,7 +55,7 @@ public class ObjectMetaOptions implements JsonSerializable {
         return link != null || chunkSize > 0;
     }
 
-    public ObjectLink getLink() {
+    public ObjectStoreLink getLink() {
         return link;
     }
 
@@ -72,7 +72,7 @@ public class ObjectMetaOptions implements JsonSerializable {
     }
 
     public static class Builder {
-        ObjectLink link;
+        ObjectStoreLink link;
         int chunkSize;
 
         public Builder() {
@@ -86,7 +86,7 @@ public class ObjectMetaOptions implements JsonSerializable {
             }
         }
 
-        public Builder link(ObjectLink link) {
+        public Builder link(ObjectStoreLink link) {
             this.link = link;
             return this;
         }

@@ -35,7 +35,6 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
 
         public CachedStreamInfo(StreamInfo si) {
             allowDirect = si.getConfiguration().getAllowDirect();
-            System.out.println("CACHING " + si.getConfiguration().getName() + " " + allowDirect);
         }
     }
 

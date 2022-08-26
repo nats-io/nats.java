@@ -309,16 +309,16 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Placement directives to consider when placing replicas of this stream,
-     * random placement when unset
-     * @return the placement [directive object]
+     * Get the placement directives to consider when placing replicas of this stream,
+     * random placement when unset. May be null.
+     * @return the placement object
      */
     public Placement getPlacement() {
         return placement;
     }
 
     /**
-     * Republish directive
+     * Get the republish configuration. May be null.
      * @return the republish object
      */
     public Republish getRepublish() {

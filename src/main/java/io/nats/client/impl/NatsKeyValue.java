@@ -13,46 +13,42 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.*;
+import io.nats.client.JetStreamApiException;
+import io.nats.client.KeyValue;
+import io.nats.client.KeyValueOptions;
+import io.nats.client.PurgeOptions;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.nats.client.support.NatsJetStreamConstants.*;
+import static io.nats.client.support.NatsJetStreamConstants.EXPECTED_LAST_SUB_SEQ_HDR;
+import static io.nats.client.support.NatsJetStreamConstants.JS_WRONG_LAST_SEQUENCE;
 import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
 
-public class NatsKeyValue implements KeyValue {
-
-    final NatsJetStream js;
-    final JetStreamManagement jsm;
+public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
 
     private final String bucketName;
-    private final String streamName;
     private final String streamSubject;
     private final String rawKeyPrefix;
     private final String pubSubKeyPrefix;
 
     NatsKeyValue(NatsConnection connection, String bucketName, KeyValueOptions kvo) throws IOException {
+        super(connection, kvo);
         this.bucketName = Validator.validateBucketName(bucketName, true);
         streamName = toStreamName(bucketName);
         streamSubject = toStreamSubject(bucketName);
         rawKeyPrefix = toKeyPrefix(bucketName);
         if (kvo == null) {
-            js = new NatsJetStream(connection, null);
-            jsm = new NatsJetStreamManagement(connection, null);
             pubSubKeyPrefix = rawKeyPrefix;
         }
         else {
-            js = new NatsJetStream(connection, kvo.getJetStreamOptions());
-            jsm = new NatsJetStreamManagement(connection, kvo.getJetStreamOptions());
             if (kvo.getJetStreamOptions().isDefaultPrefix()) {
                 pubSubKeyPrefix = rawKeyPrefix;
             }
@@ -78,10 +74,6 @@ public class NatsKeyValue implements KeyValue {
         return bucketName;
     }
 
-    String getStreamName() {
-        return streamName;
-    }
-
     /**
      * {@inheritDoc}
      */
@@ -103,28 +95,19 @@ public class NatsKeyValue implements KeyValue {
     }
 
     KeyValueEntry _get(String key) throws IOException, JetStreamApiException {
-        try {
-            return new KeyValueEntry(jsm.getLastMessage(streamName, rawKeySubject(key)));
-        }
-        catch (JetStreamApiException jsae) {
-            if (jsae.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {
-                return null;
-            }
-            throw jsae;
-        }
+        MessageInfo mi = _getLast(streamName, rawKeySubject(key));
+        return mi == null ? null : new KeyValueEntry(mi);
     }
 
     KeyValueEntry _get(String key, long revision) throws IOException, JetStreamApiException {
-        try {
-            KeyValueEntry kve = new KeyValueEntry(jsm.getMessage(streamName, revision));
-            return key.equals(kve.getKey()) ? kve : null;
-        }
-        catch (JetStreamApiException jsae) {
-            if (jsae.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {
-                return null;
+        MessageInfo mi = _getBySeq(streamName, revision);
+        if (mi != null) {
+            KeyValueEntry kve = new KeyValueEntry(mi);
+            if (key.equals(kve.getKey())) {
+                return kve;
             }
-            throw jsae;
         }
+        return null;
     }
 
     /**
@@ -247,7 +230,7 @@ public class NatsKeyValue implements KeyValue {
      * {@inheritDoc}
      */
     @Override
-    public void purgeDeletes()  throws IOException, JetStreamApiException, InterruptedException {
+    public void purgeDeletes() throws IOException, JetStreamApiException, InterruptedException {
         purgeDeletes(null);
     }
 
@@ -304,43 +287,5 @@ public class NatsKeyValue implements KeyValue {
     @Override
     public KeyValueStatus getStatus() throws IOException, JetStreamApiException, InterruptedException {
         return new KeyValueStatus(jsm.getStreamInfo(streamName));
-    }
-
-    private void visitSubject(String subject, DeliverPolicy deliverPolicy, boolean headersOnly, boolean ordered, MessageHandler handler) throws IOException, JetStreamApiException, InterruptedException {
-        PushSubscribeOptions pso = PushSubscribeOptions.builder()
-            .ordered(ordered)
-            .configuration(
-                ConsumerConfiguration.builder()
-                    .ackPolicy(AckPolicy.None)
-                    .deliverPolicy(deliverPolicy)
-                    .headersOnly(headersOnly)
-                    .build())
-            .build();
-
-        Duration timeout = js.jso.getRequestTimeout();
-        JetStreamSubscription sub = js.subscribe(subject, pso);
-        try {
-            boolean lastWasNull = false;
-            long pending = sub.getConsumerInfo().getCalculatedPending();
-            while (pending > 0) { // no need to loop if nothing pending
-                Message m = sub.nextMessage(timeout);
-                if (m == null) {
-                    if (lastWasNull) {
-                        return; // two timeouts in a row is enough
-                    }
-                    lastWasNull = true;
-                }
-                else {
-                    handler.onMessage(m);
-                    if (--pending == 0) {
-                        return;
-                    }
-                    lastWasNull = false;
-                }
-            }
-        }
-        finally {
-            sub.unsubscribe();
-        }
     }
 }

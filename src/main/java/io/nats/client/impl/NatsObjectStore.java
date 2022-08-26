@@ -1,4 +1,4 @@
-// Copyright 2021 The NATS Authors
+// Copyright 2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -22,16 +22,14 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
 import static io.nats.client.support.NatsJetStreamClientError.*;
-import static io.nats.client.support.NatsJetStreamConstants.JS_NO_MESSAGE_FOUND_ERR;
 import static io.nats.client.support.NatsObjectStoreUtil.*;
 
-public class NatsObjectStore implements ObjectStore {
-
-    final NatsJetStream js;
-    final JetStreamManagement jsm;
+public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
 
     private final ObjectStoreOptions oso;
     private final String bucketName;
@@ -44,6 +42,7 @@ public class NatsObjectStore implements ObjectStore {
     private final String pubSubMetaPrefix;
 
     NatsObjectStore(NatsConnection connection, String bucketName, ObjectStoreOptions oso) throws IOException {
+        super(connection, oso);
         this.oso = oso;
         this.bucketName = Validator.validateBucketName(bucketName, true);
         streamName = toStreamName(bucketName);
@@ -52,14 +51,10 @@ public class NatsObjectStore implements ObjectStore {
         rawChunkPrefix = toChunkPrefix(bucketName);
         rawMetaPrefix = toMetaPrefix(bucketName);
         if (oso == null) {
-            js = new NatsJetStream(connection, null);
-            jsm = new NatsJetStreamManagement(connection, null);
             pubSubChunkPrefix = rawChunkPrefix;
             pubSubMetaPrefix = rawMetaPrefix;
         }
         else {
-            js = new NatsJetStream(connection, oso.getJetStreamOptions());
-            jsm = new NatsJetStreamManagement(connection, oso.getJetStreamOptions());
             if (oso.getJetStreamOptions().isDefaultPrefix()) {
                 pubSubChunkPrefix = rawChunkPrefix;
                 pubSubMetaPrefix = rawMetaPrefix;
@@ -81,6 +76,10 @@ public class NatsObjectStore implements ObjectStore {
 
     String rawMetaSubject(String name) {
         return rawMetaPrefix + encodeForSubject(name);
+    }
+
+    String rawAllMetaSubject() {
+        return rawMetaPrefix + ">";
     }
 
     String pubSubMetaSubject(String name) {
@@ -130,9 +129,10 @@ public class NatsObjectStore implements ObjectStore {
         return chunkSize > 0 ? chunkSize : DEFAULT_CHUNK_SIZE;
     }
 
-    private ObjectInfo publishMeta(ObjectInfo info) {
+    private ObjectInfo publishInfo(ObjectInfo.Builder infoBuilder) {
+        ObjectInfo info = infoBuilder.modified(ZonedDateTime.now(ZONE_ID_GMT)).build();
         js.publishAsync(NatsMessage.builder()
-            .subject(pubSubMetaSubject(info.getName()))
+            .subject(pubSubMetaSubject(info.getObjectName()))
             .headers(META_HEADERS)
             .data(info.serialize())
             .build()
@@ -141,17 +141,11 @@ public class NatsObjectStore implements ObjectStore {
     }
 
     private ObjectInfo publishMeta(ObjectMeta meta, int size, int chunks, Digester digester) {
-        ObjectInfo info = ObjectInfo.builder()
-            .bucket(bucketName)
+        return publishInfo(ObjectInfo.builder(bucketName, meta)
             .nuid(NUID.nextGlobal())
             .size(size)
             .chunks(chunks)
-            .digest(digester.getDigestEntry())
-            .meta(meta)
-            .modified(ZonedDateTime.now(ZONE_ID_GMT))
-            .build();
-
-        return publishMeta(info);
+            .digest(digester.getDigestEntry()));
     }
 
     /**
@@ -167,14 +161,8 @@ public class NatsObjectStore implements ObjectStore {
      */
     @Override
     public ObjectInfo getInfo(String objectName) throws IOException, JetStreamApiException {
-        try {
-            return new ObjectInfo(jsm.getLastMessage(streamName, rawMetaSubject(objectName)));
-        } catch (JetStreamApiException jsae) {
-            if (jsae.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {
-                return null;
-            }
-            throw jsae;
-        }
+        MessageInfo mi = _getLast(streamName, rawMetaSubject(objectName));
+        return mi == null ? null : new ObjectInfo(mi);
     }
 
     /**
@@ -184,30 +172,29 @@ public class NatsObjectStore implements ObjectStore {
     public ObjectInfo updateMeta(String objectName, ObjectMeta meta) throws IOException, JetStreamApiException {
         Validator.validateNotNull(objectName, "object name");
         Validator.validateNotNull(meta, "ObjectMeta");
-        Validator.validateNotNull(meta.getName(), "ObjectMeta name");
+        Validator.validateNotNull(meta.getObjectName(), "ObjectMeta name");
 
         ObjectInfo info = getInfo(objectName);
         if (info == null || info.isDeleted()) {
             throw OsObjectNotFoundOrIsDeleted.instance();
         }
 
-        boolean nameChange = !objectName.equals(meta.getName());
+        boolean nameChange = !objectName.equals(meta.getObjectName());
         if (nameChange) {
-            ObjectInfo newOi = getInfo(meta.getName());
+            ObjectInfo newOi = getInfo(meta.getObjectName());
             if (newOi != null && !newOi.isDeleted()) {
                 throw OsObjectAlreadyExists.instance();
             }
         }
 
-        info = publishMeta(ObjectInfo.builder(info)
-            .name(meta.getName())
-            .description(meta.getDescription())
-            .headers(meta.getHeaders())
-            .build());
+        info = publishInfo(ObjectInfo.builder(info)
+            .objectName(meta.getObjectName())   // replace the name
+            .description(meta.getDescription()) // replace the description
+            .headers(meta.getHeaders()));       // replace the headers
 
         if (nameChange) {
             // delete the meta from the old name via purge stream for subject
-            jsm.purgeStream(streamName, PurgeOptions.subject(rawMetaSubject(info.getName())));
+            jsm.purgeStream(streamName, PurgeOptions.subject(rawMetaSubject(info.getObjectName())));
         }
 
         return info;
@@ -227,16 +214,11 @@ public class NatsObjectStore implements ObjectStore {
             return info;
         }
 
-        ObjectInfo deleted = publishMeta(ObjectInfo.builder(info)
+        ObjectInfo deleted = publishInfo(ObjectInfo.builder(info)
             .deleted(true)
             .size(0)
             .chunks(0)
-            .digest(null)
-            // .modified(null)
-            // .description(null)
-            // .chunkSize(-1)
-            // .link(null)
-            .build());
+            .digest(null));
 
         jsm.purgeStream(streamName, PurgeOptions.subject(rawChunkSubject(info.getNuid())));
         return deleted;
@@ -249,7 +231,7 @@ public class NatsObjectStore implements ObjectStore {
     public ObjectInfo addLink(String objectName, ObjectInfo toInfo) throws IOException, JetStreamApiException {
         Validator.validateNotNull(objectName, "object name");
         Validator.validateNotNull(toInfo, "Link-To ObjectInfo");
-        Validator.validateNotNull(toInfo.getName(), "Link-To ObjectMeta");
+        Validator.validateNotNull(toInfo.getObjectName(), "Link-To ObjectMeta");
 
         if (toInfo.isDeleted()) {
             throw OsObjectIsDeleted.instance();
@@ -264,14 +246,8 @@ public class NatsObjectStore implements ObjectStore {
             throw OsObjectAlreadyExists.instance();
         }
 
-        return publishMeta(ObjectInfo.builder()
-            .name(objectName)
-            .link(ObjectLink.builder()
-                .bucket(toInfo.getBucket())
-                .name(toInfo.getName())
-                .build())
-            .modified(ZonedDateTime.now(ZONE_ID_GMT))
-            .build());
+        return publishInfo(ObjectInfo.builder(bucketName, objectName)
+            .objectLink(toInfo.getBucket(), toInfo.getObjectName()));
     }
 
     /**
@@ -287,13 +263,8 @@ public class NatsObjectStore implements ObjectStore {
             throw OsObjectAlreadyExists.instance();
         }
 
-        return publishMeta(ObjectInfo.builder()
-            .name(objectName)
-            .link(ObjectLink.builder()
-                .bucket(toStore.getBucketName())
-                .build())
-            .modified(ZonedDateTime.now(ZONE_ID_GMT))
-            .build());
+        return publishInfo(ObjectInfo.builder(bucketName, objectName)
+            .bucketLink(toStore.getBucketName()));
     }
 
     /**
@@ -309,7 +280,27 @@ public class NatsObjectStore implements ObjectStore {
      * {@inheritDoc}
      */
     @Override
-    public ObjectStoreStatus getStatus() throws IOException, JetStreamApiException, InterruptedException {
+    public List<ObjectInfo> getList() throws IOException, JetStreamApiException, InterruptedException {
+        List<ObjectInfo> list = new ArrayList<>();
+        visitSubject(rawAllMetaSubject(), DeliverPolicy.LastPerSubject, false, true, m -> {
+            ObjectInfo oi = new ObjectInfo(m);
+            if (!oi.isDeleted()) {
+                list.add(oi);
+            }
+        });
+        return list;
+    }
+
+    @Override
+    public NatsObjectStoreWatchSubscription watch(ObjectStoreWatcher watcher, ObjectStoreWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
+        return new NatsObjectStoreWatchSubscription(this, watcher, watchOptions);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectStoreStatus getStatus() throws IOException, JetStreamApiException {
         return new ObjectStoreStatus(jsm.getStreamInfo(streamName));
     }
 }

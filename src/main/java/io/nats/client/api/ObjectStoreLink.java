@@ -24,22 +24,22 @@ import static io.nats.client.support.JsonUtils.endJson;
  *
  * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
  */
-public class ObjectLink implements JsonSerializable {
+public class ObjectStoreLink implements JsonSerializable {
 
     private final String bucket;
     private final String name;
 
-    static ObjectLink optionalInstance(String fullJson) {
+    static ObjectStoreLink optionalInstance(String fullJson) {
         String objJson = JsonUtils.getJsonObject(LINK, fullJson, null);
-        return objJson == null ? null : new ObjectLink(objJson);
+        return objJson == null ? null : new ObjectStoreLink(objJson);
     }
 
-    ObjectLink(String json) {
+    ObjectStoreLink(String json) {
         bucket = JsonUtils.readString(json, BUCKET_RE);
         name = JsonUtils.readString(json, NAME_RE);
     }
 
-    private ObjectLink(Builder b) {
+    private ObjectStoreLink(Builder b) {
         this.bucket = b.bucket;
         this.name = b.name;
     }
@@ -72,8 +72,15 @@ public class ObjectLink implements JsonSerializable {
         return new Builder();
     }
 
-    public static Builder builder(ObjectLink link) {
+    public static Builder builder(ObjectStoreLink link) {
         return new Builder(link);
+    }
+
+    public static ObjectStoreLink object(String bucket, String name) {
+        return new Builder().bucket(bucket).objectName(name).build();
+    }
+    public static ObjectStoreLink bucket(String bucket) {
+        return new Builder().bucket(bucket).build();
     }
 
     public static class Builder {
@@ -82,7 +89,7 @@ public class ObjectLink implements JsonSerializable {
 
         public Builder() {}
 
-        public Builder(ObjectLink link) {
+        public Builder(ObjectStoreLink link) {
             if (link != null) {
                 bucket = link.bucket;
                 name = link.name;
@@ -94,13 +101,13 @@ public class ObjectLink implements JsonSerializable {
             return this;
         }
 
-        public Builder name(String name) {
+        public Builder objectName(String name) {
             this.name = name;
             return this;
         }
 
-        public ObjectLink build() {
-            return new ObjectLink(this);
+        public ObjectStoreLink build() {
+            return new ObjectStoreLink(this);
         }
     }
 
@@ -109,7 +116,7 @@ public class ObjectLink implements JsonSerializable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        ObjectLink that = (ObjectLink) o;
+        ObjectStoreLink that = (ObjectStoreLink) o;
 
         if (bucket != null ? !bucket.equals(that.bucket) : that.bucket != null) return false;
         return name != null ? name.equals(that.name) : that.name == null;

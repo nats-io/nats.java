@@ -213,7 +213,31 @@ public abstract class JsonUtils {
             String key = json.substring(s1 + 1, s2).trim();
             int[] indexes = getBracketIndexes(key, json, '{', '}', s1);
             if (indexes != null) {
-                map.put(key, json.substring(indexes[0], indexes[1]));
+                map.put(key, json.substring(indexes[0], indexes[1] + 1));
+                s1 = json.indexOf('"', indexes[1]);
+            }
+            else {
+                s1 = -1;
+            }
+        }
+
+        return map;
+    }
+
+    /**
+     * Get a map of objects
+     * @param json the json
+     * @return the map of json object strings by key
+     */
+    public static Map<String, List<String>> getMapOfLists(String json) {
+        Map<String, List<String>> map = new HashMap<>();
+        int s1 = json.indexOf('"');
+        while (s1 != -1) {
+            int s2 = json.indexOf('"', s1 + 1);
+            String key = json.substring(s1 + 1, s2).trim();
+            int[] indexes = getBracketIndexes(key, json, '[', ']', s1);
+            if (indexes != null) {
+                map.put(key, toList(json.substring(indexes[0] + 1, indexes[1])));
                 s1 = json.indexOf('"', indexes[1]);
             }
             else {
@@ -256,17 +280,21 @@ public abstract class JsonUtils {
      */
     public static List<String> getStringList(String objectName, String json) {
         String flat = json.replaceAll("\r", "").replaceAll("\n", "");
-        List<String> list = new ArrayList<>();
         Matcher m = string_array_pattern(objectName).matcher(flat);
         if (m.find()) {
             String arrayString = m.group(1);
-            String[] raw = arrayString.split(",");
+            return toList(arrayString);
+        }
+        return new ArrayList<>();
+    }
 
-            for (String s : raw) {
-                String cleaned = s.trim().replace("\"", "");
-                if (cleaned.length() > 0) {
-                    list.add(jsonDecode(cleaned));
-                }
+    private static List<String> toList(String arrayString) {
+        List<String> list = new ArrayList<>();
+        String[] raw = arrayString.split(",");
+        for (String s : raw) {
+            String cleaned = s.trim().replace("\"", "");
+            if (cleaned.length() > 0) {
+                list.add(jsonDecode(cleaned));
             }
         }
         return list;

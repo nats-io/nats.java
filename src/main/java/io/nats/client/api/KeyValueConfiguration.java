@@ -67,15 +67,24 @@ public class KeyValueConfiguration extends FeatureConfiguration {
             ", storageType=" + getStorageType() +
             ", replicas=" + getReplicas() +
             ", placement=" + getPlacement() +
+            ", republish=" + getRepublish() +
             '}';
+    }
+
+    /**
+     * Get the republish configuration. Might be null.
+     * @return the republish object
+     */
+    public Republish getRepublish() {
+        return sc.getRepublish();
     }
 
     /**
      * Creates a builder for the Key Value Configuration.
      * @return a key value configuration builder
      */
-    public static KeyValueConfiguration.Builder builder() {
-        return new KeyValueConfiguration.Builder();
+    public static Builder builder() {
+        return new Builder();
     }
 
     /**
@@ -83,15 +92,15 @@ public class KeyValueConfiguration extends FeatureConfiguration {
      * @param kvc an existing KeyValueConfiguration
      * @return a stream configuration builder
      */
-    public static KeyValueConfiguration.Builder builder(KeyValueConfiguration kvc) {
-        return new KeyValueConfiguration.Builder(kvc);
+    public static Builder builder(KeyValueConfiguration kvc) {
+        return new Builder(kvc);
     }
 
     /**
      * KeyValueConfiguration is created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      *
-     * <p>{@code new KeyValueConfiguration.Builder().build()} will create a new KeyValueConfiguration.
+     * <p>{@code new Builder().build()} will create a new KeyValueConfiguration.
      *
      */
     public static class Builder {
@@ -127,7 +136,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param name name of the store.
          * @return the builder
          */
-        public KeyValueConfiguration.Builder name(String name) {
+        public Builder name(String name) {
             this.name = name;
             return this;
         }
@@ -137,7 +146,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param description description of the store.
          * @return the builder
          */
-        public KeyValueConfiguration.Builder description(String description) {
+        public Builder description(String description) {
             scBuilder.description(description);
             return this;
         }
@@ -147,7 +156,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param maxHistoryPerKey the maximum history
          * @return Builder
          */
-        public KeyValueConfiguration.Builder maxHistoryPerKey(int maxHistoryPerKey) {
+        public Builder maxHistoryPerKey(int maxHistoryPerKey) {
             scBuilder.maxMessagesPerSubject(validateMaxHistory(maxHistoryPerKey));
             return this;
         }
@@ -157,7 +166,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param maxBucketSize the maximum number of bytes
          * @return Builder
          */
-        public KeyValueConfiguration.Builder maxBucketSize(long maxBucketSize) {
+        public Builder maxBucketSize(long maxBucketSize) {
             scBuilder.maxBytes(validateMaxBucketBytes(maxBucketSize));
             return this;
         }
@@ -167,7 +176,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param maxValueSize the maximum size for a value
          * @return Builder
          */
-        public KeyValueConfiguration.Builder maxValueSize(long maxValueSize) {
+        public Builder maxValueSize(long maxValueSize) {
             scBuilder.maxMsgSize(validateMaxValueSize(maxValueSize));
             return this;
         }
@@ -177,7 +186,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param ttl the maximum age
          * @return Builder
          */
-        public KeyValueConfiguration.Builder ttl(Duration ttl) {
+        public Builder ttl(Duration ttl) {
             scBuilder.maxAge(ttl);
             return this;
         }
@@ -187,7 +196,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param storageType the storage type
          * @return Builder
          */
-        public KeyValueConfiguration.Builder storageType(StorageType storageType) {
+        public Builder storageType(StorageType storageType) {
             scBuilder.storageType(storageType);
             return this;
         }
@@ -197,7 +206,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param replicas the number of replicas
          * @return Builder
          */
-        public KeyValueConfiguration.Builder replicas(int replicas) {
+        public Builder replicas(int replicas) {
             scBuilder.replicas(Math.max(replicas, 1));
             return this;
         }
@@ -207,7 +216,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param placement the placement directive object
          * @return Builder
          */
-        public KeyValueConfiguration.Builder placement(Placement placement) {
+        public Builder placement(Placement placement) {
             scBuilder.placement(placement);
             return this;
         }

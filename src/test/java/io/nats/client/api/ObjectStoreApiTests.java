@@ -13,12 +13,14 @@
 package io.nats.client.api;
 
 import io.nats.client.NUID;
+import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
 
+import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ObjectStoreApiTests extends JetStreamTestBase {
@@ -42,10 +44,6 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         validate(ObjectStoreConfiguration.builder(bc).build());
 
         validate(ObjectStoreConfiguration.instance(bc.getBackingConfig().toJson()));
-
-        bc = ObjectStoreConfiguration.builder()
-            .name("bucketName")
-            .build();
     }
 
     private void validate(ObjectStoreConfiguration osc) {
@@ -64,12 +62,13 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
 
     @Test
     public void testObjectInfoConstruction() throws Exception {
-        ZonedDateTime modified = ZonedDateTime.now();
+        ZonedDateTime modified = ZonedDateTime.now(ZONE_ID_GMT);
         String nuid = NUID.nextGlobal();
+        Headers h = new Headers().put("foo", "bar").put("bada", "bing");
 
-        ObjectLink link = ObjectLink.builder()
+        ObjectStoreLink link = ObjectStoreLink.builder()
             .bucket("link-to-bucket")
-            .name("link-to-name")
+            .objectName("link-to-name")
             .build();
 
         ObjectMetaOptions metaOptions = ObjectMetaOptions.builder()
@@ -77,39 +76,35 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
             .chunkSize(1024)
             .build();
 
-        ObjectMeta meta1 = ObjectMeta.builder()
-            .name("object-name")
+        ObjectMeta meta1 = ObjectMeta.builder("object-name")
             .description("object-desc")
+            .headers(h)
             .options(metaOptions)
             .build();
 
-        ObjectMeta meta2 = ObjectMeta.builder()
-            .name("object-name")
+        ObjectMeta meta2 = ObjectMeta.builder("object-name")
             .description("object-desc")
+            .headers(h)
             .chunkSize(1024)
             .link(link)
             .build();
 
-        ObjectInfo info1 = ObjectInfo.builder()
-            .bucket("object-bucket")
+        ObjectInfo info1 = ObjectInfo.builder("object-bucket", meta1)
             .nuid(nuid)
             .size(9999)
             .modified(modified)
             .chunks(42)
             .digest("SHA-256=abcdefghijklmnopqrstuvwxyz=")
             .deleted(true)
-            .meta(meta1)
             .build();
 
-        ObjectInfo info2 = ObjectInfo.builder()
-            .bucket("object-bucket")
+        ObjectInfo info2 = ObjectInfo.builder("object-bucket", meta2)
             .nuid(nuid)
             .size(9999)
             .modified(modified)
             .chunks(42)
             .digest("SHA-256=abcdefghijklmnopqrstuvwxyz=")
             .deleted(true)
-            .meta(meta2)
             .build();
 
         ObjectInfo info3 = new ObjectInfo(info1.toJson(), modified);

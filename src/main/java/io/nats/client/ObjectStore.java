@@ -13,15 +13,15 @@
 package io.nats.client;
 
 
-import io.nats.client.api.ObjectInfo;
-import io.nats.client.api.ObjectMeta;
-import io.nats.client.api.ObjectStoreStatus;
+import io.nats.client.api.*;
+import io.nats.client.impl.NatsObjectStoreWatchSubscription;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
 
 /**
  * Object Store Management context for creation and access to key value buckets.
@@ -54,13 +54,20 @@ public interface ObjectStore {
     void seal() throws IOException, JetStreamApiException;
 
     /**
+     * Get a list of all object [infos] in the store.
+     * @return the list of objects
+     */
+    List<ObjectInfo> getList() throws IOException, JetStreamApiException, InterruptedException;
+
+    NatsObjectStoreWatchSubscription watch(ObjectStoreWatcher watcher, ObjectStoreWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException;
+
+    /**
      * Get the ObjectStoreStatus object
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @return the status object
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @throws InterruptedException if the thread is interrupted
      */
-    ObjectStoreStatus getStatus() throws IOException, JetStreamApiException, InterruptedException;
+    ObjectStoreStatus getStatus() throws IOException, JetStreamApiException;
 }

@@ -15,23 +15,25 @@ package io.nats.client.impl;
 
 import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
-import io.nats.client.api.*;
+import io.nats.client.api.DeliverPolicy;
+import io.nats.client.api.ObjectInfo;
+import io.nats.client.api.ObjectStoreWatchOption;
+import io.nats.client.api.ObjectStoreWatcher;
 
 import java.io.IOException;
 
-public class NatsKeyValueWatchSubscription extends NatsWatchSubscription<KeyValueEntry> {
+public class NatsObjectStoreWatchSubscription extends NatsWatchSubscription<ObjectInfo> {
 
-    public NatsKeyValueWatchSubscription(NatsKeyValue kv, String keyPattern, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException {
-        super(kv.js);
+    public NatsObjectStoreWatchSubscription(NatsObjectStore os, ObjectStoreWatcher watcher, ObjectStoreWatchOption... watchOptions) throws IOException, JetStreamApiException {
+        super(os.js);
 
         // figure out the result options
         boolean headersOnly = false;
         boolean ignoreDeletes = false;
         DeliverPolicy deliverPolicy = DeliverPolicy.LastPerSubject;
-        for (KeyValueWatchOption wo : watchOptions) {
+        for (ObjectStoreWatchOption wo : watchOptions) {
             if (wo != null) {
                 switch (wo) {
-                    case META_ONLY: headersOnly = true; break;
                     case IGNORE_DELETE: ignoreDeletes = true; break;
                     case UPDATES_ONLY: deliverPolicy = DeliverPolicy.New; break;
                     case INCLUDE_HISTORY: deliverPolicy = DeliverPolicy.All; break;
@@ -40,20 +42,20 @@ public class NatsKeyValueWatchSubscription extends NatsWatchSubscription<KeyValu
         }
 
         final boolean includeDeletes = !ignoreDeletes;
-        WatchMessageHandler<KeyValueEntry> handler =
-            new WatchMessageHandler<KeyValueEntry>(watcher) {
+        WatchMessageHandler<ObjectInfo> handler =
+            new WatchMessageHandler<ObjectInfo>(watcher) {
                 @Override
                 public void onMessage(Message m) throws InterruptedException {
-                    KeyValueEntry kve = new KeyValueEntry(m);
-                    if (includeDeletes || kve.getOperation() == KeyValueOperation.PUT) {
-                        watcher.watch(kve);
+                    ObjectInfo os = new ObjectInfo(m);
+                    if (includeDeletes || !os.isDeleted()) {
+                        watcher.watch(os);
                     }
-                    if (!endOfDataSent && kve.getDelta() == 0) {
+                    if (!endOfDataSent && m.metaData().pendingCount() == 0) {
                         sendEndOfData();
                     }
                 }
             };
 
-        finishInit(kv, kv.rawKeySubject(keyPattern), deliverPolicy, headersOnly, handler);
+        finishInit(os, os.rawAllMetaSubject(), deliverPolicy, headersOnly, handler);
     }
 }

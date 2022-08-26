@@ -60,6 +60,7 @@ public class Headers {
 	 *
 	 * @param key the key
 	 * @param values the values
+	 * @return the Headers object
 	 * @throws IllegalArgumentException if the key is null or empty or contains invalid characters
 	 *         -or- if any value contains invalid characters
 	 */
@@ -76,6 +77,7 @@ public class Headers {
 	 * null values are ignored. If all values are null, the key is not added or updated.
 	 *
 	 * @param key the key
+	 * @return the Headers object
 	 * @throws IllegalArgumentException if the key is null or empty or contains invalid characters
 	 *         -or- if any value contains invalid characters
 	 */
@@ -109,6 +111,7 @@ public class Headers {
 	 *
 	 * @param key the key
 	 * @param values the values
+	 * @return the Headers object
 	 * @throws IllegalArgumentException if the key is null or empty or contains invalid characters
 	 *         -or- if any value contains invalid characters
 	 */
@@ -126,11 +129,26 @@ public class Headers {
 	 *
 	 * @param key the key
 	 * @param values the values
+	 * @return the Headers object
 	 * @throws IllegalArgumentException if the key is null or empty or contains invalid characters
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers put(String key, Collection<String> values) {
 		_put(key, values);
+		return this;
+	}
+
+	/**
+	 * Associates all specified values with their key. If the key was already present
+	 * any existing values are removed and replaced with the new list.
+	 * null values are ignored. If all values are null, the put is ignored
+	 * @param map the map
+	 * @return the Headers object
+	 */
+	public Headers put(Map<String, List<String>> map) {
+		for (String key : map.keySet() ) {
+			put(key, map.get(key));
+		}
 		return this;
 	}
 

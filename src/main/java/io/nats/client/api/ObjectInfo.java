@@ -12,9 +12,11 @@
 // limitations under the License.
 package io.nats.client.api;
 
+import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.Validator;
 
 import java.time.ZonedDateTime;
 
@@ -49,6 +51,10 @@ public class ObjectInfo implements JsonSerializable {
 
     public ObjectInfo(MessageInfo mi) {
         this(mi.getData() == null ? EMPTY_JSON : new String(mi.getData()), mi.getTime());
+    }
+
+    public ObjectInfo(Message m) {
+        this(new String(m.getData()), m.metaData().timestamp());
     }
 
     ObjectInfo(String json, ZonedDateTime altTime) {
@@ -119,8 +125,8 @@ public class ObjectInfo implements JsonSerializable {
         return objectMeta;
     }
 
-    public String getName() {
-        return objectMeta.getName();
+    public String getObjectName() {
+        return objectMeta.getObjectName();
     }
 
     public String getDescription() {
@@ -135,12 +141,16 @@ public class ObjectInfo implements JsonSerializable {
         return objectMeta.getObjectMetaOptions().getLink() != null;
     }
 
-    public ObjectLink getLink() {
+    public ObjectStoreLink getLink() {
         return objectMeta.getObjectMetaOptions().getLink();
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public static Builder builder(String bucket, String objectName) {
+        return new Builder(bucket, objectName);
+    }
+
+    public static Builder builder(String bucket, ObjectMeta meta) {
+        return new Builder(bucket, meta);
     }
 
     public static Builder builder(ObjectInfo info) {
@@ -157,26 +167,33 @@ public class ObjectInfo implements JsonSerializable {
         boolean deleted;
         ObjectMeta.Builder metaBuilder;
 
-        public Builder() {
-            this(null);
+        public Builder(String bucket, String objectName) {
+            bucket(bucket);
+            objectName(objectName);
+        }
+
+        public Builder(String bucket, ObjectMeta meta) {
+            bucket(bucket);
+            meta(meta);
+        }
+
+        public Builder objectName(String name) {
+            metaBuilder.objectName(name);
+            return this;
         }
 
         public Builder(ObjectInfo info) {
-            if (info != null) {
-                bucket = info.bucket;
-                nuid = info.nuid;
-                size = info.size;
-                modified = info.modified;
-                chunks = info.chunks;
-                digest = info.digest;
-                metaBuilder = ObjectMeta.builder(info.objectMeta);
-            }
-            else {
-                metaBuilder = ObjectMeta.builder();
-            }
+            bucket = info.bucket;
+            nuid = info.nuid;
+            size = info.size;
+            modified = info.modified;
+            chunks = info.chunks;
+            digest = info.digest;
+            metaBuilder = ObjectMeta.builder(info.objectMeta);
         }
 
         public Builder bucket(String bucket) {
+            Validator.validateBucketName(bucket, true);
             this.bucket = bucket;
             return this;
         }
@@ -216,11 +233,6 @@ public class ObjectInfo implements JsonSerializable {
             return this;
         }
 
-        public Builder name(String name) {
-            metaBuilder.name(name);
-            return this;
-        }
-
         public Builder description(String description) {
             metaBuilder.description(description);
             return this;
@@ -241,8 +253,18 @@ public class ObjectInfo implements JsonSerializable {
             return this;
         }
 
-        public Builder link(ObjectLink link) {
+        public Builder link(ObjectStoreLink link) {
             metaBuilder.link(link);
+            return this;
+        }
+
+        public Builder bucketLink(String bucket) {
+            metaBuilder.link(ObjectStoreLink.bucket(bucket));
+            return this;
+        }
+
+        public Builder objectLink(String bucket, String objectName) {
+            metaBuilder.link(ObjectStoreLink.object(bucket, objectName));
             return this;
         }
 

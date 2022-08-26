@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
@@ -56,8 +57,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
                 .chunkSize(4096)
                 .build();
 
-            ObjectMeta meta = ObjectMeta.builder()
-                .name("object-name")
+            ObjectMeta meta = ObjectMeta.builder("object-name")
                 .description("object-desc")
                 .headers(new Headers().put("key1", "foo").put("key2", "bar").add("key2", "baz"))
                 .options(metaOptions)
@@ -132,5 +132,41 @@ public class ObjectStoreTests extends JetStreamTestBase {
         assertEquals(expected.getPrefix(), jso.getPrefix());
         assertEquals(expected.isDefaultPrefix(), jso.isDefaultPrefix());
         assertEquals(expected.isPublishNoAck(), jso.isPublishNoAck());
+    }
+
+    @Test
+    public void testObjectList() throws Exception {
+        runInJsServer(nc -> {
+            ObjectStoreManagement osm = nc.objectStoreManagement();
+
+            osm.create(ObjectStoreConfiguration.builder()
+                .name(BUCKET)
+                .storageType(StorageType.Memory)
+                .build());
+
+            ObjectStore os = nc.objectStore(BUCKET);
+
+            os.put(ObjectMeta.objectName(key(1)), "11");
+            os.put(ObjectMeta.objectName(key(2)), "21");
+            os.put(ObjectMeta.objectName(key(3)), "31");
+            ObjectInfo info = os.put(ObjectMeta.objectName(key(2)), "22");
+
+            os.addLink(key(4), info);
+
+            os.put(ObjectMeta.objectName(key(9)), "91");
+            os.delete(key(9));
+
+            List<ObjectInfo> list = os.getList();
+            assertEquals(4, list.size());
+
+            List<String> names = new ArrayList<>();
+            for (int x = 1; x <= 4; x++) {
+                names.add(list.get(x-1).getObjectName());
+            }
+
+            for (int x = 1; x <= 4; x++) {
+                assertTrue(names.contains(key(x)));
+            }
+        });
     }
 }
