@@ -24,31 +24,31 @@ import static io.nats.client.support.JsonUtils.endJson;
  *
  * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
  */
-public class ObjectStoreLink implements JsonSerializable {
+public class ObjectLink implements JsonSerializable {
 
     private final String bucket;
-    private final String name;
+    private final String objectName;
 
-    static ObjectStoreLink optionalInstance(String fullJson) {
+    static ObjectLink optionalInstance(String fullJson) {
         String objJson = JsonUtils.getJsonObject(LINK, fullJson, null);
-        return objJson == null ? null : new ObjectStoreLink(objJson);
+        return objJson == null ? null : new ObjectLink(objJson);
     }
 
-    ObjectStoreLink(String json) {
+    ObjectLink(String json) {
         bucket = JsonUtils.readString(json, BUCKET_RE);
-        name = JsonUtils.readString(json, NAME_RE);
+        objectName = JsonUtils.readString(json, NAME_RE);
     }
 
-    private ObjectStoreLink(Builder b) {
+    private ObjectLink(Builder b) {
         this.bucket = b.bucket;
-        this.name = b.name;
+        this.objectName = b.name;
     }
 
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, BUCKET, bucket);
-        JsonUtils.addField(sb, NAME, name);
+        JsonUtils.addField(sb, NAME, objectName);
         return endJson(sb).toString();
     }
 
@@ -56,30 +56,30 @@ public class ObjectStoreLink implements JsonSerializable {
         return bucket;
     }
 
-    public String getName() {
-        return name;
+    public String getObjectName() {
+        return objectName;
     }
 
     public boolean isObjectLink() {
-        return name != null;
+        return objectName != null;
     }
 
     public boolean isBucketLink() {
-        return name == null;
+        return objectName == null;
     }
 
     public static Builder builder() {
         return new Builder();
     }
 
-    public static Builder builder(ObjectStoreLink link) {
+    public static Builder builder(ObjectLink link) {
         return new Builder(link);
     }
 
-    public static ObjectStoreLink object(String bucket, String name) {
+    public static ObjectLink object(String bucket, String name) {
         return new Builder().bucket(bucket).objectName(name).build();
     }
-    public static ObjectStoreLink bucket(String bucket) {
+    public static ObjectLink bucket(String bucket) {
         return new Builder().bucket(bucket).build();
     }
 
@@ -89,10 +89,10 @@ public class ObjectStoreLink implements JsonSerializable {
 
         public Builder() {}
 
-        public Builder(ObjectStoreLink link) {
+        public Builder(ObjectLink link) {
             if (link != null) {
                 bucket = link.bucket;
-                name = link.name;
+                name = link.objectName;
             }
         }
 
@@ -106,8 +106,8 @@ public class ObjectStoreLink implements JsonSerializable {
             return this;
         }
 
-        public ObjectStoreLink build() {
-            return new ObjectStoreLink(this);
+        public ObjectLink build() {
+            return new ObjectLink(this);
         }
     }
 
@@ -116,16 +116,16 @@ public class ObjectStoreLink implements JsonSerializable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        ObjectStoreLink that = (ObjectStoreLink) o;
+        ObjectLink that = (ObjectLink) o;
 
         if (bucket != null ? !bucket.equals(that.bucket) : that.bucket != null) return false;
-        return name != null ? name.equals(that.name) : that.name == null;
+        return objectName != null ? objectName.equals(that.objectName) : that.objectName == null;
     }
 
     @Override
     public int hashCode() {
         int result = bucket != null ? bucket.hashCode() : 0;
-        result = 31 * result + (name != null ? name.hashCode() : 0);
+        result = 31 * result + (objectName != null ? objectName.hashCode() : 0);
         return result;
     }
 
@@ -133,7 +133,7 @@ public class ObjectStoreLink implements JsonSerializable {
     public String toString() {
         return "ObjectLink{" +
             "bucket='" + bucket + '\'' +
-            ", name='" + name + '\'' +
+            ", name='" + objectName + '\'' +
             '}';
     }
 }

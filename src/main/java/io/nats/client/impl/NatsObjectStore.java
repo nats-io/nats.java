@@ -19,10 +19,10 @@ import io.nats.client.support.Digester;
 import io.nats.client.support.Validator;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
@@ -33,7 +33,6 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
 
     private final ObjectStoreOptions oso;
     private final String bucketName;
-    private final String streamName;
     private final String chunkStreamSubject;
     private final String metaStreamSubject;
     private final String rawChunkPrefix;
@@ -94,41 +93,6 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         return bucketName;
     }
 
-    @Override
-    public ObjectInfo put(ObjectMeta meta, InputStream inputStream) throws IOException, JetStreamApiException, NoSuchAlgorithmException {
-        // TODO
-        return publishMeta(meta, 1025, 2, new Digester().update("blah"));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public ObjectInfo put(ObjectMeta meta, byte[] input) throws IOException, JetStreamApiException, NoSuchAlgorithmException {
-        return put(meta, new ByteArrayInputStream(input));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public ObjectInfo put(ObjectMeta meta, String input) throws IOException, JetStreamApiException, NoSuchAlgorithmException {
-        return put(meta, new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public ObjectInfo put(ObjectMeta meta, File file) throws IOException, JetStreamApiException, NoSuchAlgorithmException {
-        return put(meta, new FileInputStream(file));
-    }
-
-    private int chunkSize(ObjectMeta meta) {
-        int chunkSize = meta.getObjectMetaOptions().getChunkSize();
-        return chunkSize > 0 ? chunkSize : DEFAULT_CHUNK_SIZE;
-    }
-
     private ObjectInfo publishInfo(ObjectInfo.Builder infoBuilder) {
         ObjectInfo info = infoBuilder.modified(ZonedDateTime.now(ZONE_ID_GMT)).build();
         js.publishAsync(NatsMessage.builder()
@@ -140,12 +104,95 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         return info;
     }
 
-    private ObjectInfo publishMeta(ObjectMeta meta, int size, int chunks, Digester digester) {
-        return publishInfo(ObjectInfo.builder(bucketName, meta)
-            .nuid(NUID.nextGlobal())
-            .size(size)
-            .chunks(chunks)
-            .digest(digester.getDigestEntry()));
+    private ObjectInfo publishNewInfo(ObjectInfo.Builder infoBuilder) {
+        return publishInfo(infoBuilder.nuid(NUID.nextGlobal()));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectInfo put(ObjectMeta meta, InputStream inputStream) throws IOException, JetStreamApiException, NoSuchAlgorithmException {
+        Validator.validateNotNull(meta, "ObjectMeta");
+        Validator.validateNotNull(meta.getObjectName(), "ObjectMeta name");
+        Validator.validateNotNull(inputStream, "InputStream");
+
+        String nuid = NUID.nextGlobal();
+        String chunkSubject = pubSubChunkSubject(nuid);
+
+        int chunkSize = meta.getObjectMetaOptions().getChunkSize();
+        if (chunkSize <= 0) {
+            chunkSize = DEFAULT_CHUNK_SIZE;
+        }
+
+        try {
+            Digester digester = new Digester();
+            long totalSize = 0; // track total bytes read to make sure
+            int chunks = 0;
+
+            // working with chunkSize number of bytes each time.
+            byte[] buffer = new byte[chunkSize];
+            // read the first chunk
+            int red = inputStream.read(buffer);
+            while (red > 0) {
+
+                // the payload is all bytes or red bytes depending
+                byte[] payload = Arrays.copyOfRange(buffer, 0, red);
+
+                // digest the actual bytes
+                digester.update(payload);
+
+                // publish the payload
+                js.publish(chunkSubject, payload);
+
+                // track total chunks and bytes
+                chunks++;
+                totalSize += red;
+
+                // read more if we got a full read last time, otherwise, that's the last of the bytes
+                red = red == chunkSize ? inputStream.read(buffer) : -1;
+            }
+
+            return publishInfo(ObjectInfo.builder(bucketName, meta)
+                .size(totalSize)
+                .chunks(chunks)
+                .nuid(nuid)
+                .chunkSize(chunkSize)
+                .digest(digester.getDigestEntry()));
+
+        }
+        catch (IOException | JetStreamApiException | NoSuchAlgorithmException e) {
+            try {
+                jsm.purgeStream(streamName, PurgeOptions.subject(rawChunkSubject(nuid)));
+            }
+            catch (Exception ignore) {}
+
+            throw e;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectInfo put(String name, InputStream inputStream) throws IOException, JetStreamApiException, NoSuchAlgorithmException {
+        return put(ObjectMeta.objectName(name), inputStream);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectInfo put(String name, byte[] input) throws IOException, JetStreamApiException, NoSuchAlgorithmException {
+        return put(ObjectMeta.objectName(name), new ByteArrayInputStream(input));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectInfo put(File file) throws IOException, JetStreamApiException, NoSuchAlgorithmException {
+        return put(ObjectMeta.objectName(file.getName()), new FileInputStream(file));
     }
 
     /**
@@ -246,7 +293,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             throw OsObjectAlreadyExists.instance();
         }
 
-        return publishInfo(ObjectInfo.builder(bucketName, objectName)
+        return publishNewInfo(ObjectInfo.builder(bucketName, objectName)
             .objectLink(toInfo.getBucket(), toInfo.getObjectName()));
     }
 
@@ -263,7 +310,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             throw OsObjectAlreadyExists.instance();
         }
 
-        return publishInfo(ObjectInfo.builder(bucketName, objectName)
+        return publishNewInfo(ObjectInfo.builder(bucketName, objectName)
             .bucketLink(toStore.getBucketName()));
     }
 

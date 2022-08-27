@@ -788,7 +788,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
         TestKeyValueWatcher key1FullWatcher = new TestKeyValueWatcher("key1FullWatcher", true);
         TestKeyValueWatcher key1MetaWatcher = new TestKeyValueWatcher("key1MetaWatcher", true, META_ONLY);
-        TestKeyValueWatcher key1StartNewWatcher = new TestKeyValueWatcher("key1StartNewWatcher", true, META_ONLY);
+        TestKeyValueWatcher key1StartNewWatcher = new TestKeyValueWatcher("key1StartNewWatcher", true, META_ONLY, UPDATES_ONLY);
         TestKeyValueWatcher key1StartAllWatcher = new TestKeyValueWatcher("key1StartAllWatcher", true, META_ONLY);
         TestKeyValueWatcher key2FullWatcher = new TestKeyValueWatcher("key2FullWatcher", true);
         TestKeyValueWatcher key2MetaWatcher = new TestKeyValueWatcher("key2MetaWatcher", true, META_ONLY);
@@ -845,7 +845,6 @@ public class KeyValueTests extends JetStreamTestBase {
 
         KeyValue kv = nc.keyValue(bucket);
 
-        // subs created before data
         NatsKeyValueWatchSubscription sub = null;
 
         if (watcher.beforeWatcher) {

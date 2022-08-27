@@ -142,7 +142,7 @@ public class ObjectMeta implements JsonSerializable {
             return this;
         }
 
-        public Builder link(ObjectStoreLink link) {
+        public Builder link(ObjectLink link) {
             metaOptionsBuilder.link(link);
             return this;
         }

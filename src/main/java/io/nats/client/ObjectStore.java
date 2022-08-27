@@ -38,9 +38,9 @@ public interface ObjectStore {
     String getBucketName();
 
     ObjectInfo put(ObjectMeta meta, InputStream inputStream) throws IOException, JetStreamApiException, NoSuchAlgorithmException;
-    ObjectInfo put(ObjectMeta meta, byte[] input) throws IOException, JetStreamApiException, NoSuchAlgorithmException;
-    ObjectInfo put(ObjectMeta meta, String input) throws IOException, JetStreamApiException, NoSuchAlgorithmException;
-    ObjectInfo put(ObjectMeta meta, File file) throws IOException, JetStreamApiException, NoSuchAlgorithmException;
+    ObjectInfo put(String name, InputStream inputStream) throws IOException, JetStreamApiException, NoSuchAlgorithmException;
+    ObjectInfo put(String name, byte[] input) throws IOException, JetStreamApiException, NoSuchAlgorithmException;
+    ObjectInfo put(File file) throws IOException, JetStreamApiException, NoSuchAlgorithmException;
 
     void get(String objectName, OutputStream outputStream) throws IOException, JetStreamApiException, InterruptedException;
 

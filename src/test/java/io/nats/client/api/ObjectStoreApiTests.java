@@ -66,7 +66,7 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         String nuid = NUID.nextGlobal();
         Headers h = new Headers().put("foo", "bar").put("bada", "bing");
 
-        ObjectStoreLink link = ObjectStoreLink.builder()
+        ObjectLink link = ObjectLink.builder()
             .bucket("link-to-bucket")
             .objectName("link-to-name")
             .build();

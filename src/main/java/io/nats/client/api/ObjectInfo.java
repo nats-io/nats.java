@@ -141,7 +141,7 @@ public class ObjectInfo implements JsonSerializable {
         return objectMeta.getObjectMetaOptions().getLink() != null;
     }
 
-    public ObjectStoreLink getLink() {
+    public ObjectLink getLink() {
         return objectMeta.getObjectMetaOptions().getLink();
     }
 
@@ -168,13 +168,13 @@ public class ObjectInfo implements JsonSerializable {
         ObjectMeta.Builder metaBuilder;
 
         public Builder(String bucket, String objectName) {
+            metaBuilder = ObjectMeta.builder(objectName);
             bucket(bucket);
-            objectName(objectName);
         }
 
         public Builder(String bucket, ObjectMeta meta) {
+            metaBuilder = ObjectMeta.builder(meta);
             bucket(bucket);
-            meta(meta);
         }
 
         public Builder objectName(String name) {
@@ -253,18 +253,18 @@ public class ObjectInfo implements JsonSerializable {
             return this;
         }
 
-        public Builder link(ObjectStoreLink link) {
+        public Builder link(ObjectLink link) {
             metaBuilder.link(link);
             return this;
         }
 
         public Builder bucketLink(String bucket) {
-            metaBuilder.link(ObjectStoreLink.bucket(bucket));
+            metaBuilder.link(ObjectLink.bucket(bucket));
             return this;
         }
 
         public Builder objectLink(String bucket, String objectName) {
-            metaBuilder.link(ObjectStoreLink.object(bucket, objectName));
+            metaBuilder.link(ObjectLink.object(bucket, objectName));
             return this;
         }
 
