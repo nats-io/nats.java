@@ -20,6 +20,7 @@ import io.nats.client.support.Validator;
 
 import java.io.*;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -199,8 +200,73 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
      * {@inheritDoc}
      */
     @Override
-    public void get(String objectName, OutputStream outputStream) throws IOException, JetStreamApiException, InterruptedException {
-        // TODO
+    public ObjectInfo get(String objectName, OutputStream out) throws IOException, JetStreamApiException, InterruptedException, NoSuchAlgorithmException {
+        ObjectInfo oi = getInfo(objectName);
+        if (oi == null || oi.isDeleted()) {
+            throw OsObjectNotFound.instance();
+        }
+
+        if (oi.isLink()) {
+            ObjectLink link = oi.getLink();
+            if (link.isBucketLink()) {
+                throw OsGetLinkToBucket.instance();
+            }
+
+            // is the link in the same bucket
+            if (link.getBucket().equals(bucketName)) {
+                return get(link.getObjectName(), out);
+            }
+
+            // different bucket
+            // get the store for the linked bucket, then get the linked object
+            return js.conn.objectStore(link.getBucket(), oso).get(link.getObjectName(), out);
+        }
+
+        Digester digester = new Digester();
+        long totalBytes = 0;
+        long totalChunks = 0;
+
+        // if there is one chunk, just go get the message directly and we're done.
+        if (oi.getChunks() == 1) {
+            MessageInfo mi = jsm.getLastMessage(streamName, rawChunkSubject(oi.getNuid()));
+            byte[] data = mi.getData();
+
+            // track the byte count and chunks
+            // update the digest
+            // write the bytes to the output file
+            totalBytes = data.length;
+            totalChunks = 1;
+            digester.update(data);
+            out.write(data);
+        }
+        else {
+
+            JetStreamSubscription sub = js.subscribe(pubSubChunkSubject(oi.getNuid()),
+                PushSubscribeOptions.builder().stream(streamName).ordered(true).build());
+
+            Message m = sub.nextMessage(Duration.ofSeconds(1));
+            while (m != null) {
+                byte[] data = m.getData();
+
+                // track the byte count and chunks
+                // update the digest
+                // write the bytes to the output file
+                totalBytes += data.length;
+                totalChunks++;
+                digester.update(data);
+                out.write(data);
+
+                // read until the subject is complete
+                m = sub.nextMessage(Duration.ofSeconds(1));
+            }
+        }
+        out.flush();
+
+        if (totalBytes != oi.getSize()) { throw OsGetSizeMismatch.instance(); }
+        if (totalChunks != oi.getChunks()) { throw OsGetChunksMismatch.instance(); }
+        if (!digester.matches(oi.getDigest())) { throw OsGetDigestMismatch.instance(); }
+
+        return oi;
     }
 
     /**
@@ -222,8 +288,11 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         Validator.validateNotNull(meta.getObjectName(), "ObjectMeta name");
 
         ObjectInfo info = getInfo(objectName);
-        if (info == null || info.isDeleted()) {
-            throw OsObjectNotFoundOrIsDeleted.instance();
+        if (info == null) {
+            throw OsObjectNotFound.instance();
+        }
+        if (info.isDeleted()) {
+            throw OsObjectIsDeleted.instance();
         }
 
         boolean nameChange = !objectName.equals(meta.getObjectName());
@@ -241,7 +310,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
 
         if (nameChange) {
             // delete the meta from the old name via purge stream for subject
-            jsm.purgeStream(streamName, PurgeOptions.subject(rawMetaSubject(info.getObjectName())));
+            jsm.purgeStream(streamName, PurgeOptions.subject(rawMetaSubject(objectName)));
         }
 
         return info;

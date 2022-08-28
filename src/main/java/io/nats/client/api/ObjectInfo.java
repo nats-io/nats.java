@@ -133,6 +133,10 @@ public class ObjectInfo implements JsonSerializable {
         return objectMeta.getDescription();
     }
 
+    public Headers getHeaders() {
+        return objectMeta.getHeaders();
+    }
+
     public ObjectMetaOptions getObjectMetaOptions() {
         return objectMeta.getObjectMetaOptions();
     }

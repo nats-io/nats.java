@@ -87,4 +87,12 @@ public class Digester {
     public String getDigestEntry() {
         return digest.getAlgorithm() + "=" + encoder.encodeToString(digest.digest());
     }
+
+    public boolean matches(String digestEntry) {
+        String algo = digest.getAlgorithm().toUpperCase();
+        if (!digestEntry.toUpperCase().startsWith(algo)) {
+            return false;
+        }
+        return getDigestValue().equals(digestEntry.substring(algo.length() + 1)); // + 1 for equals
+    }
 }

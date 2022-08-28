@@ -42,7 +42,7 @@ public interface ObjectStore {
     ObjectInfo put(String name, byte[] input) throws IOException, JetStreamApiException, NoSuchAlgorithmException;
     ObjectInfo put(File file) throws IOException, JetStreamApiException, NoSuchAlgorithmException;
 
-    void get(String objectName, OutputStream outputStream) throws IOException, JetStreamApiException, InterruptedException;
+    ObjectInfo get(String objectName, OutputStream outputStream) throws IOException, JetStreamApiException, InterruptedException, NoSuchAlgorithmException;
 
     ObjectInfo getInfo(String objectName) throws IOException, JetStreamApiException;
     ObjectInfo updateMeta(String objectName, ObjectMeta meta) throws IOException, JetStreamApiException;

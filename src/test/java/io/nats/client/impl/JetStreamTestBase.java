@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.NatsJetStreamClientError;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.function.Executable;
 
@@ -28,6 +29,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_ARGUMENT;
+import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_STATE;
 import static io.nats.examples.jetstream.NatsJsUtils.printConsumerInfo;
 import static io.nats.examples.jetstream.NatsJsUtils.printStreamInfo;
 import static org.junit.jupiter.api.Assertions.*;
@@ -368,5 +371,16 @@ public class JetStreamTestBase extends TestBase {
 
     public static Options.Builder optsWithEl(ErrorListener el) {
         return new Options.Builder().errorListener(el);
+    }
+
+    public void assertClientError(NatsJetStreamClientError error, Executable executable) {
+        Exception e = assertThrows(Exception.class, executable);
+        assertTrue(e.getMessage().contains(error.id()));
+        if (error.getKind() == KIND_ILLEGAL_ARGUMENT) {
+            assertTrue(e instanceof IllegalArgumentException);
+        }
+        else if (error.getKind() == KIND_ILLEGAL_STATE) {
+            assertTrue(e instanceof IllegalStateException);
+        }
     }
 }

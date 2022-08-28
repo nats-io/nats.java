@@ -16,8 +16,9 @@ import io.nats.client.*;
 import io.nats.client.api.*;
 import org.junit.jupiter.api.Test;
 
-import java.io.ByteArrayInputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -27,7 +28,7 @@ import java.util.List;
 
 import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
 import static io.nats.client.api.ObjectStoreWatchOption.IGNORE_DELETE;
-import static io.nats.client.support.NatsJetStreamClientError.OsCantLinkToLink;
+import static io.nats.client.support.NatsJetStreamClientError.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ObjectStoreTests extends JetStreamTestBase {
@@ -42,40 +43,127 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
             // create the bucket
             ObjectStoreConfiguration osc = ObjectStoreConfiguration.builder()
-                .name(bucket(1))
-                .description("desc1")
+                .name(BUCKET)
+                .description("bucket-desc")
                 .storageType(StorageType.Memory)
                 .build();
 
             ObjectStoreStatus oss = osm.create(osc);
-            validateStore(oss, bucket(1), "desc1");
+            validateStore(oss, BUCKET, "bucket-desc");
 
             JetStreamManagement jsm = nc.jetStreamManagement();
-            assertNotNull(jsm.getStreamInfo("OBJ_" + bucket(1)));
+            assertNotNull(jsm.getStreamInfo("OBJ_" + BUCKET));
 
             List<String> names = osm.getBucketNames();
             assertEquals(1, names.size());
-            assertTrue(names.contains(bucket(1)));
+            assertTrue(names.contains(BUCKET));
 
-            ObjectStore os = nc.objectStore(bucket(1));
-            ObjectMetaOptions metaOptions = ObjectMetaOptions.builder()
+            // put some objects into the stores
+            ObjectStore os = nc.objectStore(BUCKET);
+
+            // object not found errors
+            assertClientError(OsObjectNotFound, () -> os.get("notFound", new ByteArrayOutputStream()));
+            assertClientError(OsObjectNotFound, () -> os.updateMeta("notFound", ObjectMeta.objectName("notFound")));
+            assertClientError(OsObjectNotFound, () -> os.delete("notFound"));
+
+            ObjectMeta meta = ObjectMeta.builder("object name")
+                .description("object description")
+                .headers(new Headers().put("key1", "foo").put("key2", "bar").add("key2", "baz"))
                 .chunkSize(4096)
                 .build();
 
-            ObjectMeta meta = ObjectMeta.builder("object-name")
-                .description("object-desc")
-                .headers(new Headers().put("key1", "foo").put("key2", "bar").add("key2", "baz"))
-                .options(metaOptions)
-                .build();
-//            ObjectInfo oi = os.put(meta, "aaa".getBytes());
-//            printFormatted(oi);
-//
-//            oi = os.getInfo("object-name");
-//            printFormatted(oi);
-//
-//            oi = os.getInfo("not-found");
-//            assertNull(oi);
+            Object[] input = getInput(4096 * 10);
+            long len = (long)input[0];
+            long expectedChunks = len / 4096;
+            if (expectedChunks * 4096 < len) {
+                expectedChunks++;
+            }
+            ObjectInfo oi1 = validateObjectInfo(len, expectedChunks, os.put(meta, (InputStream)input[1]));
+
+            ByteArrayOutputStream baos = validateGet(os, len, expectedChunks);
+            byte[] bytes = baos.toByteArray();
+            byte[] bytes4k = Arrays.copyOf(bytes, 4096);
+
+            ObjectInfo oi2 = validateObjectInfo(4096, 1, os.put(meta, new ByteArrayInputStream(bytes4k)));
+            validateGet(os, 4096, 1);
+
+            assertNotEquals(oi1.getNuid(), oi2.getNuid());
+
+            // update meta
+            ObjectInfo oi3 = os.updateMeta(oi2.getObjectName(),
+                ObjectMeta.builder("new object name")
+                    .description("new object description")
+                    .headers(new Headers().put("newkey", "newval")).build());
+            assertEquals("new object name", oi3.getObjectName());
+            assertEquals("new object description", oi3.getDescription());
+            assertNotNull(oi3.getHeaders());
+            assertEquals(1, oi3.getHeaders().size());
+            assertEquals("newval", oi3.getHeaders().getFirst("newkey"));
+
+            // check the old object is not found at all
+            assertClientError(OsObjectNotFound, () -> os.get("object name", new ByteArrayOutputStream()));
+            assertClientError(OsObjectNotFound, () -> os.updateMeta("object name", ObjectMeta.objectName("notFound")));
+
+            // delete object, then try to update meta
+            os.delete(oi3.getObjectName());
+            assertClientError(OsObjectIsDeleted, () -> os.updateMeta(oi3.getObjectName(), ObjectMeta.objectName("notFound")));
+
+            // can't update meta to an existing object
+            os.put("another1", "another1".getBytes());
+            os.put("another2", "another2".getBytes());
+            assertClientError(OsObjectAlreadyExists, () -> os.updateMeta("another1", ObjectMeta.objectName("another2")));
+
         });
+    }
+
+    private ByteArrayOutputStream validateGet(ObjectStore os, long len, long expectedChunks) throws IOException, JetStreamApiException, InterruptedException, NoSuchAlgorithmException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectInfo oi = os.get("object name", baos);
+        assertEquals(len, baos.size());
+        validateObjectInfo(len, expectedChunks, oi);
+        return baos;
+    }
+
+    private ObjectInfo validateObjectInfo(long len, long expectedChunks, ObjectInfo oi) {
+        assertEquals(BUCKET, oi.getBucket());
+        assertEquals("object name", oi.getObjectName());
+        assertEquals("object description", oi.getDescription());
+        assertEquals(len, oi.getSize());
+        assertEquals(expectedChunks, oi.getChunks());
+        assertNotNull(oi.getHeaders());
+        assertEquals(2, oi.getHeaders().size());
+        List<String> list = oi.getHeaders().get("key1");
+        assertEquals(1, list.size());
+        assertEquals("foo", oi.getHeaders().getFirst("key1"));
+        list = oi.getHeaders().get("key2");
+        assertEquals(2, list.size());
+        assertTrue(list.contains("bar"));
+        assertTrue(list.contains("baz"));
+        return oi;
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static Object[] getInput(int size) throws FileNotFoundException {
+        File found = null;
+        long foundLen = Long.MAX_VALUE;
+        final String classPath = System.getProperty("java.class.path", ".");
+        final String[] classPathElements = classPath.split(System.getProperty("path.separator"));
+        for(final String element : classPathElements){
+            File f = new File(element);
+            if (f.isFile()) {
+                long flen = f.length();
+                if (flen == size) {
+                    found = f;
+                    break;
+                }
+                if (flen >= size && flen < foundLen){
+                    foundLen = flen;
+                    found = f;
+                }
+            }
+        }
+        //noinspection ConstantConditions
+        return new Object[] {foundLen, new FileInputStream(found)};
     }
 
     private void validateStore(ObjectStoreStatus oss, String bucket, String desc) {
@@ -161,34 +249,42 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
             ObjectInfo info11 = os1.getInfo(key(11));
 
+            // can't overwrite object with a link
+            assertClientError(OsObjectAlreadyExists, () -> os1.addLink(info11.getObjectName(), info11)); // can't overwrite object with a link
+
+            // can't overwrite object with a bucket link
+            assertClientError(OsObjectAlreadyExists, () -> os1.addBucketLink(info11.getObjectName(), os1));
+
             // Link to individual object.
             ObjectInfo linkTo11 = os1.addLink("linkTo11", info11);
             validateLink(linkTo11, "linkTo11", info11, null);
 
             // link to a link
-            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> os1.addLink("linkToLinkIsErr", linkTo11));
-            assertTrue(iae.getMessage().contains(OsCantLinkToLink.id()));
+            assertClientError(OsCantLinkToLink, () -> os1.addLink("linkToLinkIsErr", linkTo11));
 
             os2.put(key(21), "21".getBytes());
-            ObjectInfo info21 = os1.getInfo(key(21));
+            ObjectInfo info21 = os2.getInfo(key(21));
 
             ObjectInfo crossLink = os2.addLink("crossLink", info11);
             validateLink(crossLink, "crossLink", info11, null);
 
             ObjectInfo bucketLink = os2.addBucketLink("bucketLink", os1);
-            validateLink(bucketLink, "bucketLink", null, os2);
+            validateLink(bucketLink, "bucketLink", null, os1);
 
-            ObjectInfo willBeDeleted = os2.addLink("willBeDeleted", info21);
-            validateLink(willBeDeleted, "willBeDeleted", info21, null);
-            os2.delete("willBeDeleted");
+            // getInfo targetWillBeDeleted still gets info b/c the link is there
+            ObjectInfo targetWillBeDeleted = os2.addLink("targetWillBeDeleted", info21);
+            validateLink(targetWillBeDeleted, "targetWillBeDeleted", info21, null);
+            os2.delete(info21.getObjectName());
+            ObjectInfo oiDeleted = os2.getInfo(info21.getObjectName());
+            assertTrue(oiDeleted.isDeleted()); // object is deleted
+            assertClientError(OsObjectIsDeleted, () -> os2.addLink("willException", oiDeleted));
+            ObjectInfo oiLink = os2.getInfo("targetWillBeDeleted");
+            assertNotNull(oiLink); // link is still there but link target is deleted
+            assertClientError(OsObjectNotFound, () -> os2.get("targetWillBeDeleted", new ByteArrayOutputStream()));
+            assertClientError(OsCantLinkToLink, () -> os2.addLink("willException", oiLink)); // can't link to link
 
-            willBeDeleted = os2.addLink("willBeDeleted", info21);
-            validateLink(willBeDeleted, "willBeDeleted", info21, null);
-            os2.delete(key(21));
-
-            // TODO get crossLink ensure resolves to correct object
-            // TODO getInfo willBeDeleted ensure resolves to deleted link
-            // TODO get willBeDeleted ensure resolves to not found
+                // TODO get targetWillBeDeleted ensure resolves to not found
+                // TODO get crossLink ensure resolves to correct object
         });
     }
 
