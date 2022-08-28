@@ -112,7 +112,6 @@ public class ObjectStoreTests extends JetStreamTestBase {
             os.put("another1", "another1".getBytes());
             os.put("another2", "another2".getBytes());
             assertClientError(OsObjectAlreadyExists, () -> os.updateMeta("another1", ObjectMeta.objectName("another2")));
-
         });
     }
 
@@ -248,6 +247,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
             os1.put(key(12), "12".getBytes());
 
             ObjectInfo info11 = os1.getInfo(key(11));
+            ObjectInfo info12 = os1.getInfo(key(12));
 
             // can't overwrite object with a link
             assertClientError(OsObjectAlreadyExists, () -> os1.addLink(info11.getObjectName(), info11)); // can't overwrite object with a link
@@ -283,8 +283,12 @@ public class ObjectStoreTests extends JetStreamTestBase {
             assertClientError(OsObjectNotFound, () -> os2.get("targetWillBeDeleted", new ByteArrayOutputStream()));
             assertClientError(OsCantLinkToLink, () -> os2.addLink("willException", oiLink)); // can't link to link
 
-                // TODO get targetWillBeDeleted ensure resolves to not found
-                // TODO get crossLink ensure resolves to correct object
+            os2.addLink("cross", info12);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ObjectInfo crossInfo12 = os2.get("cross", baos);
+            assertEquals(info12, crossInfo12);
+            assertEquals(2, baos.size());
+            assertEquals("12", baos.toString());
         });
     }
 
