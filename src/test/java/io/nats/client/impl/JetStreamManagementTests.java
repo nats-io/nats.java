@@ -15,9 +15,11 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.DateTimeUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -25,6 +27,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static io.nats.client.support.NatsConstants.EMPTY_BODY;
+import static io.nats.client.support.NatsJetStreamConstants.*;
+import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamManagementTests extends JetStreamTestBase {
@@ -917,6 +922,29 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         MessageGetRequest.lastBySubjectBytes(SUBJECT);
         new MessageGetRequest(1);
         new MessageGetRequest(SUBJECT);
+
+        new NatsMessage("deprecated", null, EMPTY_BODY);
+
+        // coverage for MessageInfo
+        String json = dataAsString("GenericErrorResponse.json");
+        NatsMessage m = new NatsMessage("sub", null, json.getBytes(StandardCharsets.US_ASCII));
+        MessageInfo mi = new MessageInfo(m);
+        assertTrue(mi.hasError());
+        assertEquals(-1, mi.getLastSeq());
+        assertFalse(mi.toString().contains("lastSeq"));
+        System.out.println(mi.toString());
+
+        // coverage for MessageInfo
+        m = new NatsMessage("sub", null, new Headers()
+            .put(NATS_SUBJECT, "sub")
+            .put(NATS_SEQUENCE, "1")
+            .put(NATS_LAST_SEQUENCE, "1")
+            .put(NATS_TIMESTAMP, DateTimeUtils.toRfc3339(ZonedDateTime.now())),
+            null);
+        mi = new MessageInfo(m, "stream", true);
+        assertEquals(1, mi.getLastSeq());
+        assertTrue(mi.toString().contains("lastSeq"));
+        System.out.println(mi.toString());
     }
 
     private void validateMgr(long seq, String lastBySubject, String nextBySubject, MessageGetRequest mgr) {

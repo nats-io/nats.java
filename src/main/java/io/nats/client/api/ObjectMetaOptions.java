@@ -75,15 +75,11 @@ public class ObjectMetaOptions implements JsonSerializable {
         ObjectLink link;
         int chunkSize;
 
-        public Builder() {
-            this(null);
-        }
+        public Builder() {}
 
         public Builder(ObjectMetaOptions om) {
-            if (om != null) {
-                link = om.link;
-                chunkSize = om.chunkSize;
-            }
+            link = om.link;
+            chunkSize = om.chunkSize;
         }
 
         public Builder link(ObjectLink link) {

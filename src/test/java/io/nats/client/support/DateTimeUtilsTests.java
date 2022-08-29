@@ -72,7 +72,10 @@ public final class DateTimeUtilsTests {
         Instant i = Instant.ofEpochSecond(System.currentTimeMillis());
         ZonedDateTime zdt1 = ZonedDateTime.ofInstant(i, ZoneId.of("America/New_York"));
         ZonedDateTime zdt2 = ZonedDateTime.ofInstant(i, DateTimeUtils.ZONE_ID_GMT);
+        assertTrue(DateTimeUtils.equals(zdt1, zdt1));
         assertTrue(DateTimeUtils.equals(zdt1, zdt2));
+        assertFalse(DateTimeUtils.equals(zdt1, null));
+        assertFalse(DateTimeUtils.equals(null, zdt2));
 
         i = Instant.ofEpochSecond(System.currentTimeMillis() - (1000 * 60 * 60 * 24));
         ZonedDateTime zdt3 = ZonedDateTime.ofInstant(i, ZoneId.of("America/New_York"));

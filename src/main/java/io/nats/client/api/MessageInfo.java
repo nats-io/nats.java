@@ -157,10 +157,10 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         return "MessageInfo{" +
             "subject='" + subject + '\'' +
             ", seq=" + seq +
-            ", data=" + (data == null ? "null" :  '\'' + new String(data, UTF_8) + '\'') +
+            ", " + (data == null ? "data=null" : ("data bytes " + data.length)) +
             ", time=" + time +
-            (stream == null ? "" : ", stream=" + stream) +
-            (lastSeq > 0 ? "" : ", lastSeq=" + lastSeq) +
+            ", stream=" + stream +
+            (lastSeq < 1 ? "" : ", lastSeq=" + lastSeq) +
             ", headers=" + headers +
             '}';
     }

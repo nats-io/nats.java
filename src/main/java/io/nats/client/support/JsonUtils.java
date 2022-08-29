@@ -14,7 +14,6 @@
 package io.nats.client.support;
 
 import io.nats.client.api.SequenceInfo;
-import io.nats.client.api.SequencePair;
 import io.nats.client.impl.Headers;
 
 import java.nio.charset.StandardCharsets;
@@ -741,9 +740,6 @@ public abstract class JsonUtils {
         }
         if (o instanceof SequenceInfo) {
             return o.toString().replace("SequenceInfo", name);
-        }
-        if (o instanceof SequencePair) {
-            return o.toString().replace("SequencePair", name);
         }
         return o.toString();
     }

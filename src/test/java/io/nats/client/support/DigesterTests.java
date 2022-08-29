@@ -21,7 +21,7 @@ import java.util.Base64;
 
 import static io.nats.client.support.Digester.DEFAULT_DIGEST_ALGORITHM;
 import static io.nats.client.support.Digester.DEFAULT_STRING_ENCODING;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 public final class DigesterTests {
 
@@ -51,10 +51,23 @@ public final class DigesterTests {
         String dv2 = digester2.getDigestValue();
         String dv3 = digester3.getDigestValue();
         String dv4 = digester4.getDigestValue();
+        String de1 = digester1.getDigestEntry();
+        String de2 = digester2.getDigestEntry();
+        String de3 = digester3.getDigestEntry();
+        String de4 = digester4.getDigestEntry();
 
         assertEquals(dv1, dv2);
         assertEquals(dv1, dv3);
         assertEquals(dv1, dv4);
+
+        assertEquals(de1, de2);
+        assertEquals(de1, de3);
+        assertEquals(de1, de4);
+
+        assertTrue(digester1.matches(de1));
+        assertTrue(digester1.matches(de2));
+        assertTrue(digester1.matches(de3));
+        assertTrue(digester1.matches(de4));
 
         digester1.reset();
         digester1.update(s);
@@ -67,8 +80,24 @@ public final class DigesterTests {
         dv3 = digester3.getDigestValue();
         dv4 = digester4.getDigestValue();
 
+        de1 = digester1.getDigestEntry();
+        de2 = digester2.getDigestEntry();
+        de3 = digester3.getDigestEntry();
+        de4 = digester4.getDigestEntry();
+
         assertEquals(dv1, dv2);
         assertEquals(dv1, dv3);
         assertEquals(dv1, dv4);
+
+        assertEquals(de1, de2);
+        assertEquals(de1, de3);
+        assertEquals(de1, de4);
+
+        assertTrue(digester1.matches(de1));
+        assertTrue(digester1.matches(de2));
+        assertTrue(digester1.matches(de3));
+        assertTrue(digester1.matches(de4));
+
+        assertFalse(digester1.matches("SHA-999="));
     }
 }

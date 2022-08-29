@@ -44,12 +44,23 @@ public class ObjectStoreTests extends JetStreamTestBase {
             // create the bucket
             ObjectStoreConfiguration osc = ObjectStoreConfiguration.builder()
                 .name(BUCKET)
-                .description("bucket-desc")
+                .description(PLAIN)
+                .ttl(Duration.ofHours(24))
                 .storageType(StorageType.Memory)
                 .build();
 
-            ObjectStoreStatus oss = osm.create(osc);
-            validateStore(oss, BUCKET, "bucket-desc");
+            ObjectStoreStatus status = osm.create(osc);
+            assertEquals(BUCKET, status.getBucketName());
+            assertEquals(PLAIN, status.getDescription());
+            assertFalse(status.isSealed());
+            assertEquals(0, status.getSize());
+            assertEquals(Duration.ofHours(24), status.getTtl());
+            assertEquals(StorageType.Memory, status.getStorageType());
+            assertEquals(1, status.getReplicas());
+            assertNotNull(status.getConfiguration()); // coverage
+            assertNotNull(status.getBackingStreamInfo()); // coverage
+            assertEquals("JetStream", status.getBackingStore());
+            assertNotNull(status.toString()); // coverage
 
             JetStreamManagement jsm = nc.jetStreamManagement();
             assertNotNull(jsm.getStreamInfo("OBJ_" + BUCKET));
@@ -163,12 +174,6 @@ public class ObjectStoreTests extends JetStreamTestBase {
         }
         //noinspection ConstantConditions
         return new Object[] {foundLen, new FileInputStream(found)};
-    }
-
-    private void validateStore(ObjectStoreStatus oss, String bucket, String desc) {
-        assertEquals(bucket, oss.getBucketName());
-        assertEquals(desc, oss.getDescription());
-        assertFalse(oss.isSealed());
     }
 
     @Test

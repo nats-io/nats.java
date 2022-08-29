@@ -18,8 +18,7 @@ import io.nats.client.support.JsonUtils;
 import io.nats.client.support.Validator;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonUtils.*;
 
 /**
  * The ObjectMeta is Object Meta is high level information about an object
@@ -45,7 +44,7 @@ public class ObjectMeta implements JsonSerializable {
         description = JsonUtils.readString(json, DESCRIPTION_RE);
         String headersJson = JsonUtils.getJsonObject(HEADERS, json);
         headers = new Headers();
-        if (headersJson != null) {
+        if (!headersJson.equals(EMPTY_JSON)) {
             headers.put(JsonUtils.getMapOfLists(headersJson));
         }
         objectMetaOptions = ObjectMetaOptions.instance(json);
@@ -105,6 +104,7 @@ public class ObjectMeta implements JsonSerializable {
         ObjectMetaOptions.Builder metaOptionsBuilder;
 
         public Builder(String objectName) {
+            headers = new Headers();
             metaOptionsBuilder = ObjectMetaOptions.builder();
             objectName(objectName);
         }
@@ -128,7 +128,12 @@ public class ObjectMeta implements JsonSerializable {
         }
 
         public Builder headers(Headers headers) {
-            this.headers = headers;
+            if (headers == null) {
+                this.headers.clear();
+            }
+            else {
+                this.headers = headers;
+            }
             return this;
         }
 
@@ -159,26 +164,27 @@ public class ObjectMeta implements JsonSerializable {
 
         ObjectMeta that = (ObjectMeta) o;
 
-        if (objectName != null ? !objectName.equals(that.objectName) : that.objectName != null) return false;
+        if (!objectName.equals(that.objectName)) return false;
         if (description != null ? !description.equals(that.description) : that.description != null) return false;
-        if (headers != null ? !headers.equals(that.headers) : that.headers != null) return false;
-        return objectMetaOptions != null ? objectMetaOptions.equals(that.objectMetaOptions) : that.objectMetaOptions == null;
+        if (!headers.equals(that.headers)) return false;
+        return objectMetaOptions.equals(that.objectMetaOptions);
     }
 
     @Override
     public int hashCode() {
-        int result = objectName != null ? objectName.hashCode() : 0;
+        int result = objectName.hashCode();
         result = 31 * result + (description != null ? description.hashCode() : 0);
-        result = 31 * result + (headers != null ? headers.hashCode() : 0);
-        result = 31 * result + (objectMetaOptions != null ? objectMetaOptions.hashCode() : 0);
+        result = 31 * result + headers.hashCode();
+        result = 31 * result + objectMetaOptions.hashCode();
         return result;
     }
 
     @Override
     public String toString() {
         return "ObjectMeta{" +
-            "name='" + objectName + '\'' +
+            "objectName='" + objectName + '\'' +
             ", description='" + description + '\'' +
+            ", headers?" + headers.size() +
             ", objectMetaOptions=" + objectMetaOptions +
             '}';
     }

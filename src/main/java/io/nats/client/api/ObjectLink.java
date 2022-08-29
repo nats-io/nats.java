@@ -90,10 +90,8 @@ public class ObjectLink implements JsonSerializable {
         public Builder() {}
 
         public Builder(ObjectLink link) {
-            if (link != null) {
-                bucket = link.bucket;
-                name = link.objectName;
-            }
+            bucket = link.bucket;
+            name = link.objectName;
         }
 
         public Builder bucket(String bucket) {
@@ -118,22 +116,21 @@ public class ObjectLink implements JsonSerializable {
 
         ObjectLink that = (ObjectLink) o;
 
-        if (bucket != null ? !bucket.equals(that.bucket) : that.bucket != null) return false;
+        if (!bucket.equals(that.bucket)) return false; // bucket never null
         return objectName != null ? objectName.equals(that.objectName) : that.objectName == null;
     }
 
     @Override
     public int hashCode() {
-        int result = bucket != null ? bucket.hashCode() : 0;
-        result = 31 * result + (objectName != null ? objectName.hashCode() : 0);
-        return result;
+        return bucket.hashCode() * 31
+            + (objectName == null ? 0 : objectName.hashCode());
     }
 
     @Override
     public String toString() {
         return "ObjectLink{" +
             "bucket='" + bucket + '\'' +
-            ", name='" + objectName + '\'' +
+            ", objectName='" + objectName + '\'' +
             '}';
     }
 }

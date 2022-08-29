@@ -50,7 +50,7 @@ public class ObjectInfo implements JsonSerializable {
     }
 
     public ObjectInfo(MessageInfo mi) {
-        this(mi.getData() == null ? EMPTY_JSON : new String(mi.getData()), mi.getTime());
+        this(new String(mi.getData()), mi.getTime());
     }
 
     public ObjectInfo(Message m) {
@@ -135,10 +135,6 @@ public class ObjectInfo implements JsonSerializable {
 
     public Headers getHeaders() {
         return objectMeta.getHeaders();
-    }
-
-    public ObjectMetaOptions getObjectMetaOptions() {
-        return objectMeta.getObjectMetaOptions();
     }
 
     public boolean isLink() {
@@ -232,11 +228,6 @@ public class ObjectInfo implements JsonSerializable {
             return this;
         }
 
-        public Builder meta(ObjectMeta meta) {
-            metaBuilder = ObjectMeta.builder(meta);
-            return this;
-        }
-
         public Builder description(String description) {
             metaBuilder.description(description);
             return this;
@@ -287,23 +278,23 @@ public class ObjectInfo implements JsonSerializable {
         if (size != info.size) return false;
         if (chunks != info.chunks) return false;
         if (deleted != info.deleted) return false;
-        if (bucket != null ? !bucket.equals(info.bucket) : info.bucket != null) return false;
+        if (!bucket.equals(info.bucket)) return false; // bucket never null
         if (nuid != null ? !nuid.equals(info.nuid) : info.nuid != null) return false;
         if (modified != null ? !modified.equals(info.modified) : info.modified != null) return false;
         if (digest != null ? !digest.equals(info.digest) : info.digest != null) return false;
-        return objectMeta != null ? objectMeta.equals(info.objectMeta) : info.objectMeta == null;
+        return objectMeta.equals(info.objectMeta);
     }
 
     @Override
     public int hashCode() {
-        int result = bucket != null ? bucket.hashCode() : 0;
+        int result = bucket.hashCode(); // bucket never null
         result = 31 * result + (nuid != null ? nuid.hashCode() : 0);
         result = 31 * result + (int) (size ^ (size >>> 32));
         result = 31 * result + (modified != null ? modified.hashCode() : 0);
         result = 31 * result + (int) (chunks ^ (chunks >>> 32));
         result = 31 * result + (digest != null ? digest.hashCode() : 0);
         result = 31 * result + (deleted ? 1 : 0);
-        result = 31 * result + (objectMeta != null ? objectMeta.hashCode() : 0);
+        result = 31 * result + objectMeta.hashCode();
         return result;
     }
 
