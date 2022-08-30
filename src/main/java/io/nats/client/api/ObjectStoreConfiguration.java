@@ -54,21 +54,22 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
             '}';
     }
 
+
     /**
-     * Creates a builder for the Key Value Configuration.
-     * @return a key value configuration builder
+     * Creates a builder for the Object Store Configuration.
+     * @return an Object Store configuration builder
      */
-    public static ObjectStoreConfiguration.Builder builder() {
-        return new ObjectStoreConfiguration.Builder();
+    public static ObjectStoreConfiguration.Builder builder(String name) {
+        return new ObjectStoreConfiguration.Builder().name(name);
     }
 
     /**
-     * Creates a builder to copy the key value configuration.
-     * @param kvc an existing ObjectStoreConfiguration
+     * Creates a builder to copy the Object Store configuration.
+     * @param osc an existing ObjectStoreConfiguration
      * @return a stream configuration builder
      */
-    public static ObjectStoreConfiguration.Builder builder(ObjectStoreConfiguration kvc) {
-        return new ObjectStoreConfiguration.Builder(kvc);
+    public static ObjectStoreConfiguration.Builder builder(ObjectStoreConfiguration osc) {
+        return new ObjectStoreConfiguration.Builder(osc);
     }
 
     /**

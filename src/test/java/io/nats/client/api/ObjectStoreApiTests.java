@@ -30,8 +30,7 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         Placement p = Placement.builder().cluster("cluster").tags("a", "b").build();
 
         // builder
-        ObjectStoreConfiguration bc = ObjectStoreConfiguration.builder()
-            .name("bucketName")
+        ObjectStoreConfiguration bc = ObjectStoreConfiguration.builder("bucketName")
             .description("bucketDesc")
             .maxBucketSize(555)
             .ttl(Duration.ofMillis(777))

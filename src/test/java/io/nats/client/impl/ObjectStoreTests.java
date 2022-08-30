@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.ZoneId;
@@ -35,15 +36,11 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
     @Test
     public void testWorkflow() throws Exception {
-        long now = ZonedDateTime.now().toEpochSecond();
-
         runInJsServer(nc -> {
-            // get the kv management context
             ObjectStoreManagement osm = nc.objectStoreManagement();
 
             // create the bucket
-            ObjectStoreConfiguration osc = ObjectStoreConfiguration.builder()
-                .name(BUCKET)
+            ObjectStoreConfiguration osc = ObjectStoreConfiguration.builder(BUCKET)
                 .description(PLAIN)
                 .ttl(Duration.ofHours(24))
                 .storageType(StorageType.Memory)
@@ -153,7 +150,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
     }
 
     @SuppressWarnings("SameParameterValue")
-    private static Object[] getInput(int size) throws FileNotFoundException {
+    private static Object[] getInput(int size) throws IOException {
         File found = null;
         long foundLen = Long.MAX_VALUE;
         final String classPath = System.getProperty("java.class.path", ".");
@@ -172,8 +169,8 @@ public class ObjectStoreTests extends JetStreamTestBase {
                 }
             }
         }
-        //noinspection ConstantConditions
-        return new Object[] {foundLen, new FileInputStream(found)};
+        //noinspection ConstantConditions,resource
+        return new Object[] {foundLen, Files.newInputStream(found.toPath())};
     }
 
     @Test
@@ -182,14 +179,12 @@ public class ObjectStoreTests extends JetStreamTestBase {
             ObjectStoreManagement osm = nc.objectStoreManagement();
 
             // create bucket 1
-            osm.create(ObjectStoreConfiguration.builder()
-                .name(bucket(1))
+            osm.create(ObjectStoreConfiguration.builder(bucket(1))
                 .storageType(StorageType.Memory)
                 .build());
 
             // create bucket 2
-            osm.create(ObjectStoreConfiguration.builder()
-                .name(bucket(2))
+            osm.create(ObjectStoreConfiguration.builder(bucket(2))
                 .storageType(StorageType.Memory)
                 .build());
 
@@ -236,16 +231,10 @@ public class ObjectStoreTests extends JetStreamTestBase {
         runInJsServer(nc -> {
             ObjectStoreManagement osm = nc.objectStoreManagement();
 
-            osm.create(ObjectStoreConfiguration.builder()
-                .name(bucket(1))
-                .storageType(StorageType.Memory)
-                .build());
+            osm.create(ObjectStoreConfiguration.builder(bucket(1)).storageType(StorageType.Memory).build());
             ObjectStore os1 = nc.objectStore(bucket(1));
 
-            osm.create(ObjectStoreConfiguration.builder()
-                .name(bucket(2))
-                .storageType(StorageType.Memory)
-                .build());
+            osm.create(ObjectStoreConfiguration.builder(bucket(2)).storageType(StorageType.Memory).build());
             ObjectStore os2 = nc.objectStore(bucket(2));
 
             os1.put(key(11), "11".getBytes());
@@ -318,11 +307,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
     public void testObjectList() throws Exception {
         runInJsServer(nc -> {
             ObjectStoreManagement osm = nc.objectStoreManagement();
-
-            osm.create(ObjectStoreConfiguration.builder()
-                .name(BUCKET)
-                .storageType(StorageType.Memory)
-                .build());
+            osm.create(ObjectStoreConfiguration.builder(BUCKET).storageType(StorageType.Memory).build());
 
             ObjectStore os = nc.objectStore(BUCKET);
 
@@ -417,10 +402,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
         ObjectStoreManagement osm = nc.objectStoreManagement();
 
         String bucket = watcher.name + "Bucket";
-        osm.create(ObjectStoreConfiguration.builder()
-            .name(bucket)
-            .storageType(StorageType.Memory)
-            .build());
+        osm.create(ObjectStoreConfiguration.builder(bucket).storageType(StorageType.Memory).build());
 
         ObjectStore os = nc.objectStore(bucket);
 
@@ -477,5 +459,25 @@ public class ObjectStoreTests extends JetStreamTestBase {
                 assertEquals(SIZE, oi.getSize());
             }
         }
+    }
+
+    @Test
+    public void testSeal() throws Exception {
+        runInJsServer(nc -> {
+            ObjectStoreManagement osm = nc.objectStoreManagement();
+            osm.create(ObjectStoreConfiguration.builder(BUCKET)
+                .storageType(StorageType.Memory)
+                .build());
+
+            ObjectStore os = nc.objectStore(BUCKET);
+            ObjectInfo info = os.put("name", "data".getBytes());
+
+            os.seal();
+
+            assertThrows(JetStreamApiException.class, () -> os.put("another", "data".getBytes()));
+
+            ObjectMeta meta = ObjectInfo.builder(info).description("changed").build().getObjectMeta();
+            assertThrows(JetStreamApiException.class, () -> os.updateMeta("name", meta));
+        });
     }
 }

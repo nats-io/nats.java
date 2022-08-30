@@ -746,15 +746,15 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             StreamInfo si = createMemoryStream(jsm, STREAM, SUBJECT);
             assertFalse(si.getConfiguration().getSealed());
 
-            StreamConfiguration sc = new StreamConfiguration.Builder(si.getConfiguration()) {
-                @Override
-                public StreamConfiguration build() {
-                    sealed(true);
-                    return super.build();
-                }
-            }.build();
+            JetStream js = nc.jetStream();
+            js.publish(SUBJECT, "data1".getBytes());
+
+            StreamConfiguration sc = new StreamConfiguration.Builder(si.getConfiguration())
+                .seal().build();
             si = jsm.updateStream(sc);
             assertTrue(si.getConfiguration().getSealed());
+
+            assertThrows(JetStreamApiException.class, () -> js.publish(SUBJECT, "data2".getBytes()));
         });
     }
 

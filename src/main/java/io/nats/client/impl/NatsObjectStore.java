@@ -19,6 +19,7 @@ import io.nats.client.support.Digester;
 import io.nats.client.support.Validator;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -34,8 +35,6 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
 
     private final ObjectStoreOptions oso;
     private final String bucketName;
-    private final String chunkStreamSubject;
-    private final String metaStreamSubject;
     private final String rawChunkPrefix;
     private final String pubSubChunkPrefix;
     private final String rawMetaPrefix;
@@ -46,8 +45,6 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         this.oso = oso;
         this.bucketName = Validator.validateBucketName(bucketName, true);
         streamName = toStreamName(bucketName);
-        chunkStreamSubject = toChunkStreamSubject(bucketName);
-        metaStreamSubject = toMetaStreamSubject(bucketName);
         rawChunkPrefix = toChunkPrefix(bucketName);
         rawMetaPrefix = toMetaPrefix(bucketName);
         if (oso == null) {
@@ -94,9 +91,9 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         return bucketName;
     }
 
-    private ObjectInfo publishInfo(ObjectInfo.Builder infoBuilder) {
+    private ObjectInfo publishInfo(ObjectInfo.Builder infoBuilder) throws JetStreamApiException, IOException {
         ObjectInfo info = infoBuilder.modified(ZonedDateTime.now(ZONE_ID_GMT)).build();
-        js.publishAsync(NatsMessage.builder()
+        js.publish(NatsMessage.builder()
             .subject(pubSubMetaSubject(info.getObjectName()))
             .headers(META_HEADERS)
             .data(info.serialize())
@@ -105,7 +102,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         return info;
     }
 
-    private ObjectInfo publishNewInfo(ObjectInfo.Builder infoBuilder) {
+    private ObjectInfo publishNewInfo(ObjectInfo.Builder infoBuilder) throws JetStreamApiException, IOException {
         return publishInfo(infoBuilder.nuid(NUID.nextGlobal()));
     }
 
@@ -193,7 +190,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
      */
     @Override
     public ObjectInfo put(File file) throws IOException, JetStreamApiException, NoSuchAlgorithmException {
-        return put(ObjectMeta.objectName(file.getName()), new FileInputStream(file));
+        return put(ObjectMeta.objectName(file.getName()), Files.newInputStream(file.toPath()));
     }
 
     /**
