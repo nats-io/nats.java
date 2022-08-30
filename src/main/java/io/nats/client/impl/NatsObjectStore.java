@@ -176,16 +176,16 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
      * {@inheritDoc}
      */
     @Override
-    public ObjectInfo put(String name, InputStream inputStream) throws IOException, JetStreamApiException, NoSuchAlgorithmException {
-        return put(ObjectMeta.objectName(name), inputStream);
+    public ObjectInfo put(String objectName, InputStream inputStream) throws IOException, JetStreamApiException, NoSuchAlgorithmException {
+        return put(ObjectMeta.objectName(objectName), inputStream);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public ObjectInfo put(String name, byte[] input) throws IOException, JetStreamApiException, NoSuchAlgorithmException {
-        return put(ObjectMeta.objectName(name), new ByteArrayInputStream(input));
+    public ObjectInfo put(String objectName, byte[] input) throws IOException, JetStreamApiException, NoSuchAlgorithmException {
+        return put(ObjectMeta.objectName(objectName), new ByteArrayInputStream(input));
     }
 
     /**

@@ -25,8 +25,7 @@ import static io.nats.client.support.JsonUtils.*;
 
 /**
  * The ObjectInfo is Object Meta Information plus instance information
- *
- * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
+ * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public class ObjectInfo implements JsonSerializable {
     private final String bucket;

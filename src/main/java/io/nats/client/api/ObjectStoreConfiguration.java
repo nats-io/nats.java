@@ -22,8 +22,7 @@ import static io.nats.client.support.Validator.validateMaxBucketBytes;
 
 /**
  * The ObjectStoreStatus class contains information about an object store.
- *
- * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
+ * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public class ObjectStoreConfiguration extends FeatureConfiguration {
     static ObjectStoreConfiguration instance(String json) {

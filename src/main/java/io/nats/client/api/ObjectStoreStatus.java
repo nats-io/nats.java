@@ -16,8 +16,7 @@ import java.time.Duration;
 
 /**
  * The ObjectStoreStatus class contains information about an object store.
- *
- * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
+ * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public class ObjectStoreStatus {
 

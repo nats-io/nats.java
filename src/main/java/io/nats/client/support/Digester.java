@@ -19,7 +19,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
 /**
- * This class is a utility class that makes making a digest easy.
+ * This is a utility class for making digesting data.
  */
 public class Digester {
     public static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";

@@ -19,7 +19,7 @@ import java.time.Duration;
  * The FeatureOptions class specifies the general options for features.
  * Options are created using the {@link FeatureOptions.Builder Builder}.
  */
-public class FeatureOptions {
+public abstract class FeatureOptions {
 
     private final JetStreamOptions jso;
 

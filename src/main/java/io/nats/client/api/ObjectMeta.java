@@ -22,8 +22,7 @@ import static io.nats.client.support.JsonUtils.*;
 
 /**
  * The ObjectMeta is Object Meta is high level information about an object
- *
- * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
+ * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public class ObjectMeta implements JsonSerializable {
 

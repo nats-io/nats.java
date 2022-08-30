@@ -46,7 +46,7 @@ public class NatsAutoBench {
 
         // TO RUN WITH ARGS FROM IDE, ADD A LINE LIKE THESE
         // args = "myhost:4222 med".split(" ");
-        // args = "small PubOnly".split(" ");
+         args = "small PubOnly".split(" ");
         // args = "med JsPubAsync".split(" ");
         // args = "help".split(" ");
         // args = "latency large".split(" ");

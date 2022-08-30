@@ -21,8 +21,7 @@ import java.util.List;
 
 /**
  * Object Store Management context for creation and access to object stores.
- *
- * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL.
+ * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public interface ObjectStoreManagement {
 
