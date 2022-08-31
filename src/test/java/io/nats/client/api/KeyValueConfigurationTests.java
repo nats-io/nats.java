@@ -24,6 +24,7 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
     @Test
     public void testConstruction() {
         Placement p = Placement.builder().cluster("cluster").tags("a", "b").build();
+        Republish r = Republish.builder().source("src").destination("dest").headersOnly(true).build();
 
         // builder
         KeyValueConfiguration bc = KeyValueConfiguration.builder()
@@ -36,6 +37,7 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
             .storageType(StorageType.Memory)
             .replicas(2)
             .placement(p)
+            .republish(r)
             .build();
         validate(bc);
 
@@ -62,6 +64,10 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
         assertNotNull(kvc.getPlacement());
         assertEquals("cluster", kvc.getPlacement().getCluster());
         assertEquals(2, kvc.getPlacement().getTags().size());
+        assertNotNull(kvc.getRepublish());
+        assertEquals("src", kvc.getRepublish().getSource());
+        assertEquals("dest", kvc.getRepublish().getDestination());
+        assertTrue(kvc.getRepublish().isHeadersOnly());
 
         assertTrue(kvc.toString().contains("bucketName"));
     }

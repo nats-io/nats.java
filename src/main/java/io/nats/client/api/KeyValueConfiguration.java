@@ -222,6 +222,16 @@ public class KeyValueConfiguration extends FeatureConfiguration {
         }
 
         /**
+         * Sets the Republish options
+         * @param republish the Republish object
+         * @return Builder
+         */
+        public Builder republish(Republish republish) {
+            scBuilder.republish(republish);
+            return this;
+        }
+
+        /**
          * Builds the KeyValueConfiguration
          * @return the KeyValueConfiguration.
          */
