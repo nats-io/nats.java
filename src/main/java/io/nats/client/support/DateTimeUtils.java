@@ -34,6 +34,10 @@ public abstract class DateTimeUtils {
         return zonedDateTime.withZoneSameInstant(ZONE_ID_GMT);
     }
 
+    public static ZonedDateTime gmtNow() {
+        return ZonedDateTime.now().withZoneSameInstant(ZONE_ID_GMT);
+    }
+
     public static boolean equals(ZonedDateTime zdt1, ZonedDateTime zdt2) {
         if (zdt1 == zdt2) return true;
         if (zdt1 == null || zdt2 == null) return false;

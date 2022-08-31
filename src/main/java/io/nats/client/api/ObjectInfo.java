@@ -14,6 +14,7 @@ package io.nats.client.api;
 
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
+import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.Validator;
@@ -31,11 +32,12 @@ public class ObjectInfo implements JsonSerializable {
     private final String bucket;
     private final String nuid;
     private final long size;
-    private final ZonedDateTime modified;
     private final long chunks;
     private final String digest;
     private final boolean deleted;
     private final ObjectMeta objectMeta;
+
+    private ZonedDateTime modified;
 
     private ObjectInfo(Builder b) {
         bucket = b.bucket;
@@ -56,20 +58,19 @@ public class ObjectInfo implements JsonSerializable {
         this(new String(m.getData()), m.metaData().timestamp());
     }
 
-    ObjectInfo(String json, ZonedDateTime altTime) {
+    ObjectInfo(String json, ZonedDateTime messageTime) {
         objectMeta = new ObjectMeta(json);
 
         // options has already been read by ObjectMeta
         // We do this (remove the options field) b/c
-        //  options has a field called link, link has a field called bucket
+        // options has a field called link, link has a field called bucket,
         // and it will mess up the regex reading of the Object info's bucket field
         json = removeObject(json, OPTIONS);
 
         bucket = JsonUtils.readString(json, BUCKET_RE);
         nuid = JsonUtils.readString(json, NUID_RE);
         size = JsonUtils.readLong(json, SIZE_RE, 0);
-        ZonedDateTime zdt = JsonUtils.readDate(json, MTIME_RE);
-        modified = zdt == null ? altTime : zdt;
+        modified = DateTimeUtils.toGmt(messageTime);
         chunks = JsonUtils.readLong(json, CHUNKS_RE, 0);
         digest = JsonUtils.readString(json, DIGEST_RE);
         deleted = JsonUtils.readBoolean(json, DELETED_RE);
@@ -77,15 +78,15 @@ public class ObjectInfo implements JsonSerializable {
 
     @Override
     public String toJson() {
+        // never write MTIME
+
         StringBuilder sb = beginJson();
 
-        // the go code embeds the meta object's fields instead of a child object.
+        // the go code embeds the objectMeta's fields instead of as a child object.
         objectMeta.embedJson(sb);
-
         JsonUtils.addField(sb, BUCKET, bucket);
         JsonUtils.addField(sb, NUID, nuid);
         JsonUtils.addField(sb, SIZE, size);
-        JsonUtils.addField(sb, MTIME, modified);
         JsonUtils.addField(sb, CHUNKS, chunks);
         JsonUtils.addField(sb, DIGEST, digest);
         JsonUtils.addField(sb, DELETED, deleted);

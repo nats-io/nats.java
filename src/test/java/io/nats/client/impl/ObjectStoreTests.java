@@ -137,6 +137,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
         assertEquals("object description", oi.getDescription());
         assertEquals(len, oi.getSize());
         assertEquals(expectedChunks, oi.getChunks());
+        assertNotNull(oi.getModified());
         assertNotNull(oi.getHeaders());
         assertEquals(2, oi.getHeaders().size());
         List<String> list = oi.getHeaders().get("key1");
@@ -311,6 +312,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
             ObjectStore os = nc.objectStore(BUCKET);
 
+            System.out.println("put");
             os.put(key(1), "11".getBytes());
             os.put(key(2), "21".getBytes());
             os.put(key(3), "31".getBytes());

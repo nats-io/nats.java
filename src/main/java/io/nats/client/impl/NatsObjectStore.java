@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.Digester;
 import io.nats.client.support.Validator;
 
@@ -22,12 +23,10 @@ import java.io.*;
 import java.nio.file.Files;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
 import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.support.NatsObjectStoreUtil.*;
 
@@ -91,19 +90,15 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         return bucketName;
     }
 
-    private ObjectInfo publishInfo(ObjectInfo.Builder infoBuilder) throws JetStreamApiException, IOException {
-        ObjectInfo info = infoBuilder.modified(ZonedDateTime.now(ZONE_ID_GMT)).build();
+    private ObjectInfo publishMeta(ObjectInfo.Builder infoBuilder) throws JetStreamApiException, IOException {
+        ObjectInfo info = infoBuilder.modified(null).build();
         js.publish(NatsMessage.builder()
             .subject(pubSubMetaSubject(info.getObjectName()))
             .headers(META_HEADERS)
             .data(info.serialize())
             .build()
         );
-        return info;
-    }
-
-    private ObjectInfo publishNewInfo(ObjectInfo.Builder infoBuilder) throws JetStreamApiException, IOException {
-        return publishInfo(infoBuilder.nuid(NUID.nextGlobal()));
+        return ObjectInfo.builder(info).modified(DateTimeUtils.gmtNow()).build();
     }
 
     /**
@@ -151,7 +146,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
                 red = red == chunkSize ? inputStream.read(buffer) : -1;
             }
 
-            return publishInfo(ObjectInfo.builder(bucketName, meta)
+            return publishMeta(ObjectInfo.builder(bucketName, meta)
                 .size(totalSize)
                 .chunks(chunks)
                 .nuid(nuid)
@@ -300,7 +295,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             }
         }
 
-        info = publishInfo(ObjectInfo.builder(info)
+        info = publishMeta(ObjectInfo.builder(info)
             .objectName(meta.getObjectName())   // replace the name
             .description(meta.getDescription()) // replace the description
             .headers(meta.getHeaders()));       // replace the headers
@@ -327,7 +322,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             return info;
         }
 
-        ObjectInfo deleted = publishInfo(ObjectInfo.builder(info)
+        ObjectInfo deleted = publishMeta(ObjectInfo.builder(info)
             .deleted(true)
             .size(0)
             .chunks(0)
@@ -359,7 +354,8 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             throw OsObjectAlreadyExists.instance();
         }
 
-        return publishNewInfo(ObjectInfo.builder(bucketName, objectName)
+        return publishMeta(ObjectInfo.builder(bucketName, objectName)
+            .nuid(NUID.nextGlobal())
             .objectLink(toInfo.getBucket(), toInfo.getObjectName()));
     }
 
@@ -376,7 +372,8 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             throw OsObjectAlreadyExists.instance();
         }
 
-        return publishNewInfo(ObjectInfo.builder(bucketName, objectName)
+        return publishMeta(ObjectInfo.builder(bucketName, objectName)
+            .nuid(NUID.nextGlobal())
             .bucketLink(toStore.getBucketName()));
     }
 
