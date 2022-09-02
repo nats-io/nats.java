@@ -245,10 +245,18 @@ public abstract class Validator {
         return Duration.ofMillis(millis);
     }
 
-    public static void validateNotNull(Object o, String fieldName) {
+    public static String validateNotNull(String s, String fieldName) {
+        if (s == null) {
+            throw new IllegalArgumentException(fieldName + " cannot be null");
+        }
+        return s;
+    }
+
+    public static Object validateNotNull(Object o, String fieldName) {
         if (o == null) {
             throw new IllegalArgumentException(fieldName + " cannot be null");
         }
+        return o;
     }
 
     public static int validateGtZero(int i, String label) {

@@ -90,7 +90,7 @@ public class JetStreamOptions {
     /**
      * Creates a builder to copy the options.
      * @param jso an existing JetStreamOptions
-     * @return a stream configuration builder
+     * @return a JetStreamOptions builder
      */
     public static Builder builder(JetStreamOptions jso) {
         return new Builder(jso);

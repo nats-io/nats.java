@@ -14,6 +14,7 @@ package io.nats.client.api;
 
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
+import io.nats.client.support.DateTimeUtils;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -21,6 +22,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ObjectStoreApiTests extends JetStreamTestBase {
@@ -61,12 +63,45 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
 
     @Test
     public void testObjectInfoConstruction() throws Exception {
-        ObjectLink link1a = ObjectLink.builder().bucket("bucket").objectName("name").build();
-        ObjectLink link1b = ObjectLink.builder().bucket("bucket").objectName("name").build();
-        ObjectLink link2 = ObjectLink.builder().bucket("bucket").objectName("name2").build();
-        ObjectLink blink1a = ObjectLink.builder().bucket("bucket").build();
-        ObjectLink blink1b = ObjectLink.builder().bucket("bucket").build();
-        ObjectLink blink2 = ObjectLink.builder().bucket("bucket2").build();
+        String json = dataAsString("ObjectInfo.json");
+        ZonedDateTime now = ZonedDateTime.now();
+        ObjectInfo oi = new ObjectInfo(json, now);
+        validateObjectInfo(oi, DateTimeUtils.toGmt(now));
+        now = ZonedDateTime.now();
+        oi = new ObjectInfo(oi.toJson(), now);
+        validateObjectInfo(oi, DateTimeUtils.toGmt(now));
+    }
+
+    private void validateObjectInfo(ObjectInfo oi, ZonedDateTime modified) {
+        assertEquals(BUCKET, oi.getBucket());
+        assertEquals("object-name", oi.getObjectName());
+        assertEquals("object-desc", oi.getDescription());
+        assertEquals(344000, oi.getSize());
+        assertEquals(42, oi.getChunks());
+        assertEquals("nuidnuidnuid", oi.getNuid());
+        assertEquals("SHA-256=abcdefghijklmnopqrstuvwxyz=", oi.getDigest());
+        assertTrue(oi.isDeleted());
+        assertEquals(modified, oi.getModified());
+        assertEquals(8196, oi.getObjectMeta().getObjectMetaOptions().getChunkSize());
+        assertNotNull(oi.getHeaders());
+        assertEquals(2, oi.getHeaders().size());
+        List<String> list = oi.getHeaders().get(key(1));
+        assertEquals(1, list.size());
+        assertEquals(data(1), oi.getHeaders().getFirst(key(1)));
+        list = oi.getHeaders().get(key(2));
+        assertEquals(2, list.size());
+        assertTrue(list.contains(data(21)));
+        assertTrue(list.contains(data(22)));
+    }
+
+    @Test
+    public void testObjectInfoCoverage() throws Exception {
+        ObjectLink link1a = ObjectLink.object(BUCKET, "name");
+        ObjectLink link1b = ObjectLink.object(BUCKET, "name");
+        ObjectLink link2 = ObjectLink.object(BUCKET, "name2");
+        ObjectLink blink1a = ObjectLink.bucket(BUCKET);
+        ObjectLink blink1b = ObjectLink.bucket(BUCKET);
+        ObjectLink blink2 = ObjectLink.bucket("bucket2");
 
         ObjectMetaOptions metaOptions = ObjectMetaOptions.builder().link(link1a).chunkSize(1024).build();
         ObjectMetaOptions metaOptions2 = ObjectMetaOptions.builder().link(link1a).chunkSize(2048).build();
@@ -89,7 +124,7 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
 
         assertEquals(link1a, link1a);
         assertEquals(link1a, link1b);
-        assertEquals(link1a, ObjectLink.builder(link1a).build());
+        assertEquals(link1a, ObjectLink.object(link1a.getBucket(), link1a.getObjectName()));
         assertEquals(blink1a, blink1a);
         assertEquals(blink1a, blink1b);
         assertFalse(link1a.equals(new Object()));
@@ -145,14 +180,14 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         ObjectMeta meta2a = ObjectMeta.builder("meta").description("desc").build(); list.add(meta2a);
         ObjectMeta meta2b = ObjectMeta.builder("meta").description("desc").build(); list.add(meta2b);
         ObjectMeta meta2c = ObjectMeta.builder("meta").description("diff").build(); list.add(meta2c);
-        ObjectMeta meta3a = ObjectMeta.builder("meta").headers(new Headers().put("foo", "bar")).build(); list.add(meta3a);
-        ObjectMeta meta3b = ObjectMeta.builder("meta").headers(new Headers().put("foo", "bar")).build(); list.add(meta3b);
-        ObjectMeta meta3c = ObjectMeta.builder("meta").headers(new Headers().put("foo", "diff")).build(); list.add(meta3c);
+        ObjectMeta meta3a = ObjectMeta.builder("meta").headers(new Headers().put("key", "data")).build(); list.add(meta3a);
+        ObjectMeta meta3b = ObjectMeta.builder("meta").headers(new Headers().put("key", "data")).build(); list.add(meta3b);
+        ObjectMeta meta3c = ObjectMeta.builder("meta").headers(new Headers().put("key", "diff")).build(); list.add(meta3c);
         ObjectMeta meta4a = ObjectMeta.builder("meta").link(link).build(); list.add(meta4a);
         ObjectMeta meta4b = ObjectMeta.builder("meta").link(link).build(); list.add(meta4b);
         ObjectMeta meta4c = ObjectMeta.builder("meta").link(link2).build(); list.add(meta4c);
 
-        ObjectMeta metaH = ObjectMeta.builder("meta").headers(new Headers().put("foo", "diff")).headers(null).build();
+        ObjectMeta metaH = ObjectMeta.builder("meta").headers(new Headers().put("key", "data")).headers(null).build();
         assertEquals(0, metaH.getHeaders().size());
 
         assertEquals(meta1a, meta1a);

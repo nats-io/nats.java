@@ -32,7 +32,7 @@ public class ObjectMeta implements JsonSerializable {
     private final ObjectMetaOptions objectMetaOptions;
 
     private ObjectMeta(Builder b) {
-        objectName = b.name;
+        objectName = b.objectName;
         description = b.description;
         headers = b.headers;
         objectMetaOptions = b.metaOptionsBuilder.build();
@@ -46,7 +46,7 @@ public class ObjectMeta implements JsonSerializable {
         if (!headersJson.equals(EMPTY_JSON)) {
             headers.put(JsonUtils.getMapOfLists(headersJson));
         }
-        objectMetaOptions = ObjectMetaOptions.instance(json);
+        objectMetaOptions = new ObjectMetaOptions(json);
     }
 
     @Override
@@ -97,7 +97,7 @@ public class ObjectMeta implements JsonSerializable {
     }
 
     public static class Builder {
-        String name;
+        String objectName;
         String description;
         Headers headers;
         ObjectMetaOptions.Builder metaOptionsBuilder;
@@ -109,15 +109,14 @@ public class ObjectMeta implements JsonSerializable {
         }
 
         public Builder(ObjectMeta om) {
-            name = om.objectName;
+            objectName = om.objectName;
             description = om.description;
             headers = om.headers;
             metaOptionsBuilder = ObjectMetaOptions.builder(om.objectMetaOptions);
         }
 
         public Builder objectName(String name) {
-            Validator.validateNotNull(name, "Object Name");
-            this.name = name;
+            this.objectName = Validator.validateNotNull(name, "Object Name");
             return this;
         }
 

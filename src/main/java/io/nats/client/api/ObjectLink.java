@@ -14,6 +14,7 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.Validator;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
@@ -38,9 +39,9 @@ public class ObjectLink implements JsonSerializable {
         objectName = JsonUtils.readString(json, NAME_RE);
     }
 
-    private ObjectLink(Builder b) {
-        this.bucket = b.bucket;
-        this.objectName = b.name;
+    private ObjectLink(String bucket, String objectName) {
+        this.bucket = Validator.validateBucketName(bucket, true);
+        this.objectName = objectName;
     }
 
     @Override
@@ -67,45 +68,12 @@ public class ObjectLink implements JsonSerializable {
         return objectName == null;
     }
 
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    public static Builder builder(ObjectLink link) {
-        return new Builder(link);
-    }
-
-    public static ObjectLink object(String bucket, String name) {
-        return new Builder().bucket(bucket).objectName(name).build();
-    }
     public static ObjectLink bucket(String bucket) {
-        return new Builder().bucket(bucket).build();
+        return new ObjectLink(bucket, null);
     }
 
-    public static class Builder {
-        private String bucket;
-        private String name;
-
-        public Builder() {}
-
-        public Builder(ObjectLink link) {
-            bucket = link.bucket;
-            name = link.objectName;
-        }
-
-        public Builder bucket(String bucket) {
-            this.bucket = bucket;
-            return this;
-        }
-
-        public Builder objectName(String name) {
-            this.name = name;
-            return this;
-        }
-
-        public ObjectLink build() {
-            return new ObjectLink(this);
-        }
+    public static ObjectLink object(String bucket, String objectName) {
+        return new ObjectLink(bucket, objectName);
     }
 
     @Override

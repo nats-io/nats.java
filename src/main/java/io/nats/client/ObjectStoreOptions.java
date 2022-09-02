@@ -35,7 +35,7 @@ public class ObjectStoreOptions extends FeatureOptions {
     /**
      * Creates a builder to copy the options.
      * @param oso an existing ObjectStoreOptions
-     * @return a stream configuration builder
+     * @return an ObjectStoreOptions builder
      */
     public static Builder builder(ObjectStoreOptions oso) {
         return new ObjectStoreOptions.Builder(oso);
@@ -44,7 +44,7 @@ public class ObjectStoreOptions extends FeatureOptions {
     /**
      * Creates a builder to copy the options.
      * @param jso an existing JetStreamOptions
-     * @return a stream configuration builder
+     * @return an ObjectStoreOptions builder
      */
     public static Builder builder(JetStreamOptions jso) {
         return new Builder().jetStreamOptions(jso);

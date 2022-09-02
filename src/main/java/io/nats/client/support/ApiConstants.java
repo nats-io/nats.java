@@ -29,8 +29,8 @@ public interface ApiConstants {
     String AUTH_REQUIRED     = "auth_required";
     String BACKOFF           = "backoff";
     String BATCH             = "batch";
-    String BYTES             = "bytes";
     String BUCKET            = "bucket";
+    String BYTES             = "bytes";
     String CHUNKS            = "chunks";
     String CLIENT_ID         = "client_id";
     String CLIENT_IP         = "client_ip";
@@ -54,8 +54,8 @@ public interface ApiConstants {
     String DENY_DELETE       = "deny_delete";
     String DENY_PURGE        = "deny_purge";
     String DESCRIPTION       = "description";
-    String DIGEST            = "digest";
     String DEST              = "dest";
+    String DIGEST            = "digest";
     String DISCARD           = "discard";
     String DOMAIN            = "domain";
     String DUPLICATE         = "duplicate";

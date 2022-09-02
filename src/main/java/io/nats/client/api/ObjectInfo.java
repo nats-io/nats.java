@@ -78,12 +78,9 @@ public class ObjectInfo implements JsonSerializable {
 
     @Override
     public String toJson() {
-        // never write MTIME
-
+        // never write MTIME (modified)
         StringBuilder sb = beginJson();
-
-        // the go code embeds the objectMeta's fields instead of as a child object.
-        objectMeta.embedJson(sb);
+        objectMeta.embedJson(sb); // the go code embeds the objectMeta's fields instead of as a child object.
         JsonUtils.addField(sb, BUCKET, bucket);
         JsonUtils.addField(sb, NUID, nuid);
         JsonUtils.addField(sb, SIZE, size);
@@ -177,11 +174,6 @@ public class ObjectInfo implements JsonSerializable {
             bucket(bucket);
         }
 
-        public Builder objectName(String name) {
-            metaBuilder.objectName(name);
-            return this;
-        }
-
         public Builder(ObjectInfo info) {
             bucket = info.bucket;
             nuid = info.nuid;
@@ -192,9 +184,13 @@ public class ObjectInfo implements JsonSerializable {
             metaBuilder = ObjectMeta.builder(info.objectMeta);
         }
 
+        public Builder objectName(String name) {
+            metaBuilder.objectName(name);
+            return this;
+        }
+
         public Builder bucket(String bucket) {
-            Validator.validateBucketName(bucket, true);
-            this.bucket = bucket;
+            this.bucket = Validator.validateBucketName(bucket, true);
             return this;
         }
 

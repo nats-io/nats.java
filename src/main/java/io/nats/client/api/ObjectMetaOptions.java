@@ -38,10 +38,6 @@ public class ObjectMetaOptions implements JsonSerializable {
         chunkSize = JsonUtils.readInt(json, MAX_CHUNK_SIZE_RE, -1);
     }
 
-    static ObjectMetaOptions instance(String json) {
-        return new ObjectMetaOptions(json);
-    }
-
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
@@ -62,11 +58,11 @@ public class ObjectMetaOptions implements JsonSerializable {
         return chunkSize;
     }
 
-    public static Builder builder() {
+    static Builder builder() {
         return new Builder();
     }
 
-    public static Builder builder(ObjectMetaOptions om) {
+    static Builder builder(ObjectMetaOptions om) {
         return new Builder(om);
     }
 

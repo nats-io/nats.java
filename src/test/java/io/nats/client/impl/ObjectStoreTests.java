@@ -74,9 +74,9 @@ public class ObjectStoreTests extends JetStreamTestBase {
             assertClientError(OsObjectNotFound, () -> os.updateMeta("notFound", ObjectMeta.objectName("notFound")));
             assertClientError(OsObjectNotFound, () -> os.delete("notFound"));
 
-            ObjectMeta meta = ObjectMeta.builder("object name")
-                .description("object description")
-                .headers(new Headers().put("key1", "foo").put("key2", "bar").add("key2", "baz"))
+            ObjectMeta meta = ObjectMeta.builder("object-name")
+                .description("object-desc")
+                .headers(new Headers().put(key(1), data(1)).put(key(2), data(21)).add(key(2), data(22)))
                 .chunkSize(4096)
                 .build();
 
@@ -86,14 +86,14 @@ public class ObjectStoreTests extends JetStreamTestBase {
             if (expectedChunks * 4096 < len) {
                 expectedChunks++;
             }
-            ObjectInfo oi1 = validateObjectInfo(len, expectedChunks, os.put(meta, (InputStream)input[1]));
+            ObjectInfo oi1 = validateObjectInfo(os.put(meta, (InputStream)input[1]), len, expectedChunks, 4096, false);
 
-            ByteArrayOutputStream baos = validateGet(os, len, expectedChunks);
+            ByteArrayOutputStream baos = validateGet(os, len, expectedChunks, 4096);
             byte[] bytes = baos.toByteArray();
             byte[] bytes4k = Arrays.copyOf(bytes, 4096);
 
-            ObjectInfo oi2 = validateObjectInfo(4096, 1, os.put(meta, new ByteArrayInputStream(bytes4k)));
-            validateGet(os, 4096, 1);
+            ObjectInfo oi2 = validateObjectInfo(os.put(meta, new ByteArrayInputStream(bytes4k)), 4096, 1, 4096, false);
+            validateGet(os, 4096, 1, 4096);
 
             assertNotEquals(oi1.getNuid(), oi2.getNuid());
 
@@ -109,8 +109,8 @@ public class ObjectStoreTests extends JetStreamTestBase {
             assertEquals("newval", oi3.getHeaders().getFirst("newkey"));
 
             // check the old object is not found at all
-            assertClientError(OsObjectNotFound, () -> os.get("object name", new ByteArrayOutputStream()));
-            assertClientError(OsObjectNotFound, () -> os.updateMeta("object name", ObjectMeta.objectName("notFound")));
+            assertClientError(OsObjectNotFound, () -> os.get("object-name", new ByteArrayOutputStream()));
+            assertClientError(OsObjectNotFound, () -> os.updateMeta("object-name", ObjectMeta.objectName("notFound")));
 
             // delete object, then try to update meta
             os.delete(oi3.getObjectName());
@@ -123,30 +123,36 @@ public class ObjectStoreTests extends JetStreamTestBase {
         });
     }
 
-    private ByteArrayOutputStream validateGet(ObjectStore os, long len, long expectedChunks) throws IOException, JetStreamApiException, InterruptedException, NoSuchAlgorithmException {
+    @SuppressWarnings("SameParameterValue")
+    private ByteArrayOutputStream validateGet(ObjectStore os, long len, long chunks, int chunkSize) throws IOException, JetStreamApiException, InterruptedException, NoSuchAlgorithmException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectInfo oi = os.get("object name", baos);
+        ObjectInfo oi = os.get("object-name", baos);
         assertEquals(len, baos.size());
-        validateObjectInfo(len, expectedChunks, oi);
+        validateObjectInfo(oi, len, chunks, chunkSize, false);
         return baos;
     }
 
-    private ObjectInfo validateObjectInfo(long len, long expectedChunks, ObjectInfo oi) {
+    public static ObjectInfo validateObjectInfo(ObjectInfo oi, long size, long chunks, int chunkSize, boolean deleted) {
         assertEquals(BUCKET, oi.getBucket());
-        assertEquals("object name", oi.getObjectName());
-        assertEquals("object description", oi.getDescription());
-        assertEquals(len, oi.getSize());
-        assertEquals(expectedChunks, oi.getChunks());
+        assertEquals("object-name", oi.getObjectName());
+        assertEquals("object-desc", oi.getDescription());
+        assertEquals(size, oi.getSize());
+        assertEquals(chunks, oi.getChunks());
+        assertNotNull(oi.getNuid());
+        assertEquals(deleted, oi.isDeleted());
         assertNotNull(oi.getModified());
+        if (chunkSize > 0) {
+            assertEquals(chunkSize, oi.getObjectMeta().getObjectMetaOptions().getChunkSize());
+        }
         assertNotNull(oi.getHeaders());
         assertEquals(2, oi.getHeaders().size());
-        List<String> list = oi.getHeaders().get("key1");
+        List<String> list = oi.getHeaders().get(key(1));
         assertEquals(1, list.size());
-        assertEquals("foo", oi.getHeaders().getFirst("key1"));
-        list = oi.getHeaders().get("key2");
+        assertEquals(data(1), oi.getHeaders().getFirst(key(1)));
+        list = oi.getHeaders().get(key(2));
         assertEquals(2, list.size());
-        assertTrue(list.contains("bar"));
-        assertTrue(list.contains("baz"));
+        assertTrue(list.contains(data(21)));
+        assertTrue(list.contains(data(22)));
         return oi;
     }
 
@@ -373,9 +379,6 @@ public class ObjectStoreTests extends JetStreamTestBase {
         }
     }
 
-    static String TEST_WATCH_KEY_NULL = "key.nl";
-    static String TEST_WATCH_KEY_1 = "key.1";
-    static String TEST_WATCH_KEY_2 = "key.2";
     static int SIZE = 15;
     static int CHUNKS = 2;
     static int CHUNK_SIZE = 10;

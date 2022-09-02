@@ -66,7 +66,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
     /**
      * Creates a builder to copy the Object Store configuration.
      * @param osc an existing ObjectStoreConfiguration
-     * @return a stream configuration builder
+     * @return an ObjectStoreConfiguration builder
      */
     public static ObjectStoreConfiguration.Builder builder(ObjectStoreConfiguration osc) {
         return new ObjectStoreConfiguration.Builder(osc);
@@ -112,7 +112,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @return the builder
          */
         public ObjectStoreConfiguration.Builder name(String name) {
-            this.name = name;
+            this.name = validateBucketName(name, true);
             return this;
         }
 

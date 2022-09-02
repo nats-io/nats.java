@@ -90,7 +90,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
     /**
      * Creates a builder to copy the key value configuration.
      * @param kvc an existing KeyValueConfiguration
-     * @return a stream configuration builder
+     * @return a KeyValueConfiguration builder
      */
     public static Builder builder(KeyValueConfiguration kvc) {
         return new Builder(kvc);
