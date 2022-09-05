@@ -16,14 +16,13 @@ package io.nats.client;
 import java.time.Duration;
 
 /**
- * The FeatureOptions class specifies the general options for features.
- * Options are created using the {@link FeatureOptions.Builder Builder}.
+ * The FeatureOptions is a base class of general options for features.
  */
 public abstract class FeatureOptions {
 
     private final JetStreamOptions jso;
 
-    @SuppressWarnings("rawtypes") // Don't need the type of the builder to get it's vars
+    @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
     protected FeatureOptions(Builder b) {
         jso = b.jsoBuilder.build();
     }

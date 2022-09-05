@@ -342,7 +342,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Get the flag indicating whether or not the stream is sealed.
+     * Get the flag indicating if the stream is sealed.
      * @return the sealed flag
      */
     public boolean getSealed() {
@@ -350,7 +350,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Get the flag indicating whether or not the stream allows rollup.
+     * Get the flag indicating if the stream allows rollup.
      * @return the allows rollup flag
      */
     public boolean getAllowRollup() {
@@ -358,7 +358,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Get the flag indicating whether or not the stream allows direct message access.
+     * Get the flag indicating if the stream allows direct message access.
      * @return the allows direct flag
      */
     public boolean getAllowDirect() {
@@ -366,7 +366,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Get the flag indicating whether or not deny delete is set for the stream
+     * Get the flag indicating if deny delete is set for the stream
      * @return the deny delete flag
      */
     public boolean getDenyDelete() {
@@ -374,7 +374,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Get the flag indicating whether or not deny purge is set for the stream
+     * Get the flag indicating if deny purge is set for the stream
      * @return the deny purge flag
      */
     public boolean getDenyPurge() {

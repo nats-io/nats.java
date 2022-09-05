@@ -95,12 +95,12 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
     }
 
     KeyValueEntry _get(String key) throws IOException, JetStreamApiException {
-        MessageInfo mi = _getLast(streamName, rawKeySubject(key));
+        MessageInfo mi = _getLast(rawKeySubject(key));
         return mi == null ? null : new KeyValueEntry(mi);
     }
 
     KeyValueEntry _get(String key, long revision) throws IOException, JetStreamApiException {
-        MessageInfo mi = _getBySeq(streamName, revision);
+        MessageInfo mi = _getBySeq(revision);
         if (mi != null) {
             KeyValueEntry kve = new KeyValueEntry(mi);
             if (key.equals(kve.getKey())) {

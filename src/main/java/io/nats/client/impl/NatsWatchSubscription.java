@@ -35,8 +35,8 @@ public class NatsWatchSubscription<T> implements AutoCloseable {
     protected void finishInit(NatsFeatureBase fb, String subscribeSubject, DeliverPolicy deliverPolicy, boolean headersOnly, WatchMessageHandler<T> handler)
         throws IOException, JetStreamApiException
     {
-        if (deliverPolicy == DeliverPolicy.New ||
-            fb._getLast(fb.getStreamName(), subscribeSubject) == null)
+        if (deliverPolicy == DeliverPolicy.New
+            || fb._getLast(subscribeSubject) == null)
         {
             handler.sendEndOfData();
         }

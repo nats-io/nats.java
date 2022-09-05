@@ -304,6 +304,8 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(Duration.ZERO, kvc.getTtl());
         assertEquals(StorageType.Memory, status.getStorageType());
         assertEquals(StorageType.Memory, kvc.getStorageType());
+        assertNull(status.getPlacement());
+        assertNull(status.getRepublish());
         assertEquals(1, status.getReplicas());
         assertEquals(1, kvc.getReplicas());
         assertEquals(0, status.getEntryCount());

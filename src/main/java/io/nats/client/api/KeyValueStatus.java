@@ -116,6 +116,22 @@ public class KeyValueStatus {
     }
 
     /**
+     * Gets the placement directive for the store.
+     * @return the placement
+     */
+    public Placement getPlacement() {
+        return config.getPlacement();
+    }
+
+    /**
+     * Gets the republish configuration
+     * @return the republish object
+     */
+    public Republish getRepublish() {
+        return config.getRepublish();
+    }
+
+    /**
      * Gets the name of the type of backing store, currently only "JetStream"
      * @return the name of the store, currently only "JetStream"
      */

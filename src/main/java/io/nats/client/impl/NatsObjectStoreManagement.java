@@ -62,7 +62,7 @@ public class NatsObjectStoreManagement implements ObjectStoreManagement {
      * {@inheritDoc}
      */
     @Override
-    public ObjectStoreStatus getBucketInfo(String bucketName) throws IOException, JetStreamApiException {
+    public ObjectStoreStatus getStatus(String bucketName) throws IOException, JetStreamApiException {
         Validator.validateBucketName(bucketName, true);
         return new ObjectStoreStatus(jsm.getStreamInfo(toStreamName(bucketName)));
     }

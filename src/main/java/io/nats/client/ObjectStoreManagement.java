@@ -57,7 +57,7 @@ public interface ObjectStoreManagement {
      * @throws JetStreamApiException the request had an error related to the data
      * @return the bucket status object
      */
-    ObjectStoreStatus getBucketInfo(String bucketName) throws IOException, JetStreamApiException;
+    ObjectStoreStatus getStatus(String bucketName) throws IOException, JetStreamApiException;
 
     /**
      * Deletes an existing object store. Will throw a JetStreamApiException if the delete fails.

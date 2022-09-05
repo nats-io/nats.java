@@ -93,11 +93,19 @@ public class ObjectStoreStatus {
     }
 
     /**
-     * Gets the number of replicas for this bucket.
+     * Gets the number of replicas for this store.
      * @return the number of replicas
      */
     public int getReplicas() {
         return config.getReplicas();
+    }
+
+    /**
+     * Gets the placement directive for the store.
+     * @return the placement
+     */
+    public Placement getPlacement() {
+        return config.getPlacement();
     }
 
     /**

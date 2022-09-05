@@ -508,7 +508,7 @@ public interface Connection extends AutoCloseable {
     KeyValueManagement keyValueManagement(KeyValueOptions options) throws IOException;
 
     /**
-     * Gets a context for working with an Object Store
+     * Gets a context for working with an Object Store.
      * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @param bucketName the bucket name
      * @return an ObjectStore instance.

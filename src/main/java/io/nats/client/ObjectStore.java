@@ -152,10 +152,12 @@ public interface ObjectStore {
     /**
      * Close (seal) the bucket to changes. The store (bucket) will be read only.
      * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
-     * @throws IOException covers various communication issues with the NATS server such as timeout or interruption
+     *
+     * @return
+     * @throws IOException           covers various communication issues with the NATS server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    void seal() throws IOException, JetStreamApiException;
+    ObjectStoreStatus seal() throws IOException, JetStreamApiException;
 
     /**
      * Get a list of all object [infos] in the store.

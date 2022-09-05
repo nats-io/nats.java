@@ -45,9 +45,9 @@ public class NatsFeatureBase {
         return streamName;
     }
 
-    protected MessageInfo _getLast(String stream, String subject) throws IOException, JetStreamApiException {
+    protected MessageInfo _getLast(String subject) throws IOException, JetStreamApiException {
         try {
-            return jsm.getLastMessage(stream, subject);
+            return jsm.getLastMessage(streamName, subject);
         }
         catch (JetStreamApiException jsae) {
             if (jsae.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {
@@ -57,9 +57,9 @@ public class NatsFeatureBase {
         }
     }
 
-    protected MessageInfo _getBySeq(String stream, long seq) throws IOException, JetStreamApiException {
+    protected MessageInfo _getBySeq(long seq) throws IOException, JetStreamApiException {
         try {
-            return jsm.getMessage(stream, seq);
+            return jsm.getMessage(streamName, seq);
         }
         catch (JetStreamApiException jsae) {
             if (jsae.getApiErrorCode() == JS_NO_MESSAGE_FOUND_ERR) {

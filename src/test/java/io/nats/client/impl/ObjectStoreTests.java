@@ -54,6 +54,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
             assertEquals(Duration.ofHours(24), status.getTtl());
             assertEquals(StorageType.Memory, status.getStorageType());
             assertEquals(1, status.getReplicas());
+            assertNull(status.getPlacement());
             assertNotNull(status.getConfiguration()); // coverage
             assertNotNull(status.getBackingStreamInfo()); // coverage
             assertEquals("JetStream", status.getBackingStore());
@@ -86,13 +87,13 @@ public class ObjectStoreTests extends JetStreamTestBase {
             if (expectedChunks * 4096 < len) {
                 expectedChunks++;
             }
-            ObjectInfo oi1 = validateObjectInfo(os.put(meta, (InputStream)input[1]), len, expectedChunks, 4096, false);
+            ObjectInfo oi1 = validateObjectInfo(os.put(meta, (InputStream)input[1]), len, expectedChunks, 4096);
 
             ByteArrayOutputStream baos = validateGet(os, len, expectedChunks, 4096);
             byte[] bytes = baos.toByteArray();
             byte[] bytes4k = Arrays.copyOf(bytes, 4096);
 
-            ObjectInfo oi2 = validateObjectInfo(os.put(meta, new ByteArrayInputStream(bytes4k)), 4096, 1, 4096, false);
+            ObjectInfo oi2 = validateObjectInfo(os.put(meta, new ByteArrayInputStream(bytes4k)), 4096, 1, 4096);
             validateGet(os, 4096, 1, 4096);
 
             assertNotEquals(oi1.getNuid(), oi2.getNuid());
@@ -128,18 +129,18 @@ public class ObjectStoreTests extends JetStreamTestBase {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ObjectInfo oi = os.get("object-name", baos);
         assertEquals(len, baos.size());
-        validateObjectInfo(oi, len, chunks, chunkSize, false);
+        validateObjectInfo(oi, len, chunks, chunkSize);
         return baos;
     }
 
-    public static ObjectInfo validateObjectInfo(ObjectInfo oi, long size, long chunks, int chunkSize, boolean deleted) {
+    private ObjectInfo validateObjectInfo(ObjectInfo oi, long size, long chunks, int chunkSize) {
         assertEquals(BUCKET, oi.getBucket());
         assertEquals("object-name", oi.getObjectName());
         assertEquals("object-desc", oi.getDescription());
         assertEquals(size, oi.getSize());
         assertEquals(chunks, oi.getChunks());
         assertNotNull(oi.getNuid());
-        assertEquals(deleted, oi.isDeleted());
+        assertFalse(oi.isDeleted());
         assertNotNull(oi.getModified());
         if (chunkSize > 0) {
             assertEquals(chunkSize, oi.getObjectMeta().getObjectMetaOptions().getChunkSize());
@@ -318,7 +319,6 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
             ObjectStore os = nc.objectStore(BUCKET);
 
-            System.out.println("put");
             os.put(key(1), "11".getBytes());
             os.put(key(2), "21".getBytes());
             os.put(key(3), "31".getBytes());
@@ -340,6 +340,26 @@ public class ObjectStoreTests extends JetStreamTestBase {
             for (int x = 1; x <= 4; x++) {
                 assertTrue(names.contains(key(x)));
             }
+        });
+    }
+
+    @Test
+    public void testSeal() throws Exception {
+        runInJsServer(nc -> {
+            ObjectStoreManagement osm = nc.objectStoreManagement();
+            osm.create(ObjectStoreConfiguration.builder(BUCKET)
+                .storageType(StorageType.Memory)
+                .build());
+
+            ObjectStore os = nc.objectStore(BUCKET);
+            os.put("name", "data".getBytes());
+
+            os.seal();
+
+            assertThrows(JetStreamApiException.class, () -> os.put("another", "data".getBytes()));
+
+            ObjectMeta meta = ObjectMeta.builder("change").build();
+            assertThrows(JetStreamApiException.class, () -> os.updateMeta("name", meta));
         });
     }
 
@@ -431,8 +451,10 @@ public class ObjectStoreTests extends JetStreamTestBase {
         sleep(1500); // give time for the watches to get messages
 
         validateWatcher(expecteds, watcher);
+
         //noinspection ConstantConditions
         sub.unsubscribe();
+
         osm.delete(bucket);
     }
 
@@ -440,9 +462,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
         assertEquals(expecteds.length, watcher.entries.size());
         assertEquals(1, watcher.endOfDataReceived);
 
-        if (expecteds.length > 0) {
-            assertEquals(watcher.beforeWatcher, watcher.endBeforeEntries);
-        }
+        assertEquals(watcher.beforeWatcher, watcher.endBeforeEntries);
 
         int aix = 0;
         ZonedDateTime lastMod = ZonedDateTime.of(2000, 4, 1, 0, 0, 0, 0, ZoneId.systemDefault());
@@ -464,25 +484,5 @@ public class ObjectStoreTests extends JetStreamTestBase {
                 assertEquals(SIZE, oi.getSize());
             }
         }
-    }
-
-    @Test
-    public void testSeal() throws Exception {
-        runInJsServer(nc -> {
-            ObjectStoreManagement osm = nc.objectStoreManagement();
-            osm.create(ObjectStoreConfiguration.builder(BUCKET)
-                .storageType(StorageType.Memory)
-                .build());
-
-            ObjectStore os = nc.objectStore(BUCKET);
-            ObjectInfo info = os.put("name", "data".getBytes());
-
-            os.seal();
-
-            assertThrows(JetStreamApiException.class, () -> os.put("another", "data".getBytes()));
-
-            ObjectMeta meta = ObjectInfo.builder(info).description("changed").build().getObjectMeta();
-            assertThrows(JetStreamApiException.class, () -> os.updateMeta("name", meta));
-        });
     }
 }

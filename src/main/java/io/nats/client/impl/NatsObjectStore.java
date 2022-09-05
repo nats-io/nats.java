@@ -90,8 +90,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         return bucketName;
     }
 
-    private ObjectInfo publishMeta(ObjectInfo.Builder infoBuilder) throws JetStreamApiException, IOException {
-        ObjectInfo info = infoBuilder.modified(null).build();
+    private ObjectInfo publishMeta(ObjectInfo info) throws JetStreamApiException, IOException {
         js.publish(NatsMessage.builder()
             .subject(pubSubMetaSubject(info.getObjectName()))
             .headers(META_HEADERS)
@@ -125,25 +124,23 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
 
             // working with chunkSize number of bytes each time.
             byte[] buffer = new byte[chunkSize];
-            // read the first chunk
-            int red = inputStream.read(buffer);
-            while (red > 0) {
+            int red = chunkSize;
+            while (red == chunkSize) { // keep reading while last chunk was full size
+                red = inputStream.read(buffer);
+                if (red > 0) {
+                    // copy if red is less than chunk size
+                    byte[] payload = red == chunkSize ? buffer : Arrays.copyOfRange(buffer, 0, red);
 
-                // the payload is all bytes or red bytes depending
-                byte[] payload = Arrays.copyOfRange(buffer, 0, red);
+                    // digest the actual bytes
+                    digester.update(payload);
 
-                // digest the actual bytes
-                digester.update(payload);
+                    // publish the payload
+                    js.publish(chunkSubject, payload);
 
-                // publish the payload
-                js.publish(chunkSubject, payload);
-
-                // track total chunks and bytes
-                chunks++;
-                totalSize += red;
-
-                // read more if we got a full read last time, otherwise, that's the last of the bytes
-                red = red == chunkSize ? inputStream.read(buffer) : -1;
+                    // track total chunks and bytes
+                    chunks++;
+                    totalSize += red;
+                }
             }
 
             return publishMeta(ObjectInfo.builder(bucketName, meta)
@@ -151,8 +148,8 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
                 .chunks(chunks)
                 .nuid(nuid)
                 .chunkSize(chunkSize)
-                .digest(digester.getDigestEntry()));
-
+                .digest(digester.getDigestEntry())
+                .build());
         }
         catch (IOException | JetStreamApiException | NoSuchAlgorithmException e) {
             try {
@@ -251,6 +248,8 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
                 // read until the subject is complete
                 m = sub.nextMessage(Duration.ofSeconds(1));
             }
+
+            sub.unsubscribe();
         }
         out.flush();
 
@@ -266,7 +265,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
      */
     @Override
     public ObjectInfo getInfo(String objectName) throws IOException, JetStreamApiException {
-        MessageInfo mi = _getLast(streamName, rawMetaSubject(objectName));
+        MessageInfo mi = _getLast(rawMetaSubject(objectName));
         return mi == null ? null : new ObjectInfo(mi);
     }
 
@@ -279,33 +278,34 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         Validator.validateNotNull(meta, "ObjectMeta");
         Validator.validateNotNull(meta.getObjectName(), "ObjectMeta name");
 
-        ObjectInfo info = getInfo(objectName);
-        if (info == null) {
+        ObjectInfo currentInfo = getInfo(objectName);
+        if (currentInfo == null) {
             throw OsObjectNotFound.instance();
         }
-        if (info.isDeleted()) {
+        if (currentInfo.isDeleted()) {
             throw OsObjectIsDeleted.instance();
         }
 
         boolean nameChange = !objectName.equals(meta.getObjectName());
         if (nameChange) {
-            ObjectInfo newOi = getInfo(meta.getObjectName());
-            if (newOi != null && !newOi.isDeleted()) {
+            ObjectInfo infoForNewName = getInfo(meta.getObjectName());
+            if (infoForNewName != null && !infoForNewName.isDeleted()) {
                 throw OsObjectAlreadyExists.instance();
             }
         }
 
-        info = publishMeta(ObjectInfo.builder(info)
+        currentInfo = publishMeta(ObjectInfo.builder(currentInfo)
             .objectName(meta.getObjectName())   // replace the name
             .description(meta.getDescription()) // replace the description
-            .headers(meta.getHeaders()));       // replace the headers
+            .headers(meta.getHeaders())         // replace the headers
+            .build());
 
         if (nameChange) {
             // delete the meta from the old name via purge stream for subject
             jsm.purgeStream(streamName, PurgeOptions.subject(rawMetaSubject(objectName)));
         }
 
-        return info;
+        return currentInfo;
     }
 
     /**
@@ -326,7 +326,8 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             .deleted(true)
             .size(0)
             .chunks(0)
-            .digest(null));
+            .digest(null)
+            .build());
 
         jsm.purgeStream(streamName, PurgeOptions.subject(rawChunkSubject(info.getNuid())));
         return deleted;
@@ -356,7 +357,8 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
 
         return publishMeta(ObjectInfo.builder(bucketName, objectName)
             .nuid(NUID.nextGlobal())
-            .objectLink(toInfo.getBucket(), toInfo.getObjectName()));
+            .objectLink(toInfo.getBucket(), toInfo.getObjectName())
+            .build());
     }
 
     /**
@@ -374,16 +376,20 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
 
         return publishMeta(ObjectInfo.builder(bucketName, objectName)
             .nuid(NUID.nextGlobal())
-            .bucketLink(toStore.getBucketName()));
+            .bucketLink(toStore.getBucketName())
+            .build());
     }
 
     /**
      * {@inheritDoc}
+     *
+     * @return
      */
     @Override
-    public void seal() throws IOException, JetStreamApiException {
+    public ObjectStoreStatus seal() throws IOException, JetStreamApiException {
         StreamInfo si = jsm.getStreamInfo(streamName);
-        jsm.updateStream(StreamConfiguration.builder(si.getConfiguration()).seal().build());
+        si = jsm.updateStream(StreamConfiguration.builder(si.getConfiguration()).seal().build());
+        return new ObjectStoreStatus(si);
     }
 
     /**
