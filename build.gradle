@@ -22,6 +22,8 @@ version = isRelease ? jarVersion : jarVersion + "-SNAPSHOT"
 
 archivesBaseName = 'jnats'
 group = 'io.nats'
+def vertxVersion = "4.3.3"
+def junitJupiterVersion = "5.7.0"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -33,10 +35,17 @@ repositories {
     maven { url "https://oss.sonatype.org/content/repositories/releases/" }
 }
 
+
 dependencies {
+
     implementation 'net.i2p.crypto:eddsa:0.3.0'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
     testImplementation 'io.nats:jnats-server-runner:1.0.9'
+    implementation platform ("io.vertx:vertx-stack-depchain:$vertxVersion")
+    implementation "io.vertx:vertx-core"
+    testImplementation "io.vertx:vertx-junit5"
+    testImplementation "org.junit.jupiter:junit-jupiter:$junitJupiterVersion"
+    implementation("io.netty:netty-resolver-dns-native-macos:4.1.80.Final:osx-x86_64")
 }
 
 sourceSets {
