@@ -1,4 +1,4 @@
-// Copyright 2021 The NATS Authors
+// Copyright 2021-2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -13,21 +13,23 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.JetStreamReader;
 import io.nats.client.Message;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.PullRequestOptions;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import static io.nats.client.support.Validator.validatePullBatchSize;
-
 public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
-    NatsJetStreamPullSubscription(String sid, String subject, NatsConnection connection, AutoStatusManager asm, NatsJetStream js, String stream, String consumer) {
-        super(sid, subject, null, connection, null, asm, js, stream, consumer, null);
+    NatsJetStreamPullSubscription(String sid, String subject,
+                                  NatsConnection connection,
+                                  NatsJetStream js,
+                                  String stream, String consumer,
+                                  MessageManager[] managers) {
+        super(sid, subject, null, connection, null, js, stream, consumer, managers);
     }
 
     @Override
@@ -40,7 +42,17 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pull(int batchSize) {
-        _pull(batchSize, false, null);
+        pull(PullRequestOptions.builder(batchSize).build());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pull(PullRequestOptions pullRequestOptions) {
+        String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
+        connection.publish(publishSubject, getSubject(), pullRequestOptions.serialize());
+        connection.lenientFlushBuffer();
     }
 
     /**
@@ -48,7 +60,25 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pullNoWait(int batchSize) {
-        _pull(batchSize, true, null);
+        pull(PullRequestOptions.noWait(batchSize).build());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pullNoWait(int batchSize, Duration expiresIn) {
+        durationGtZeroRequired(expiresIn, "NoWait Expires In");
+        pull(PullRequestOptions.noWait(batchSize).expiresIn(expiresIn).build());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pullNoWait(int batchSize, long expiresInMillis) {
+        durationGtZeroRequired(expiresInMillis, "NoWait Expires In");
+        pull(PullRequestOptions.noWait(batchSize).expiresIn(expiresInMillis).build());
     }
 
     /**
@@ -57,7 +87,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     @Override
     public void pullExpiresIn(int batchSize, Duration expiresIn) {
         durationGtZeroRequired(expiresIn, "Expires In");
-        _pull(batchSize, false, expiresIn);
+        pull(PullRequestOptions.builder(batchSize).expiresIn(expiresIn).build());
     }
 
     /**
@@ -65,7 +95,8 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pullExpiresIn(int batchSize, long expiresInMillis) {
-        pullExpiresIn(batchSize, Duration.ofMillis(expiresInMillis));
+        durationGtZeroRequired(expiresInMillis, "Expires In");
+        pull(PullRequestOptions.builder(batchSize).expiresIn(expiresInMillis).build());
     }
 
     /**
@@ -73,7 +104,8 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public List<Message> fetch(int batchSize, long maxWaitMillis) {
-        return fetch(batchSize, Duration.ofMillis(maxWaitMillis));
+        durationGtZeroRequired(maxWaitMillis, "Fetch");
+        return _fetch(batchSize, maxWaitMillis);
     }
 
     /**
@@ -81,58 +113,80 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public List<Message> fetch(int batchSize, Duration maxWait) {
-        durationGtZeroRequired(maxWait, "Fetch max");
+        durationGtZeroRequired(maxWait, "Fetch");
+        return _fetch(batchSize, maxWait.toMillis());
+    }
 
-        List<Message> messages = new ArrayList<>(batchSize);
+    private List<Message> _fetch(int batchSize, long maxWaitMillis) {
+        List<Message> messages = drainAlreadyBuffered(batchSize);
 
-        try {
-            pullNoWait(batchSize);
-            long endTime = System.currentTimeMillis() + maxWait.toMillis();
-            read(messages, batchSize, endTime);
-            if (messages.size() == 0) {
-                long expiresIn = endTime - System.currentTimeMillis() - 10;
-                if (expiresIn > 0) {
-                    pullExpiresIn(batchSize, expiresIn);
-                    read(messages, batchSize, endTime);
-                }
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        int batchLeft = batchSize - messages.size();
+        if (batchLeft == 0) {
+            return messages;
         }
 
+        try {
+            long start = System.currentTimeMillis();
+
+            Duration expires = Duration.ofMillis(
+                maxWaitMillis > MIN_MILLIS
+                    ? maxWaitMillis - EXPIRE_LESS_MILLIS
+                    : maxWaitMillis);
+            pull(PullRequestOptions.builder(batchLeft).expiresIn(expires).build());
+
+            // timeout > 0 process as many messages we can in that time period
+            // If we get a message that either manager handles, we try again, but
+            // with a shorter timeout based on what we already used up
+            long timeLeft = maxWaitMillis;
+            while (batchLeft > 0 && timeLeft > 0) {
+                Message msg = nextMessageInternal( Duration.ofMillis(timeLeft) );
+                if (msg == null) {
+                    return messages; // normal timeout
+                }
+                if (!anyManaged(msg)) { // not null and not managed means JS Message
+                    messages.add(msg);
+                    batchLeft--;
+                }
+                // try again while we have time
+                timeLeft = maxWaitMillis - (System.currentTimeMillis() - start);
+            }
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         return messages;
     }
 
-    private void read(List<Message> messages, int batchSize, long endTime) throws InterruptedException {
-        Message msg = nextMessageWithEndTime(endTime);
-        while (msg != null) {
-            messages.add(msg);
-            msg = null;
-            if (messages.size() < batchSize) {
-                msg = nextMessageWithEndTime(endTime);
+    private List<Message> drainAlreadyBuffered(int batchSize) {
+        List<Message> messages = new ArrayList<>(batchSize);
+        try {
+            Message msg = nextMessageInternal(null); // null means do not wait, it's either already here or not
+            while (msg != null) {
+                if (!anyManaged(msg)) { // not null and not managed means JS Message
+                    messages.add(msg);
+                    if (messages.size() == batchSize) {
+                        return messages;
+                    }
+                }
+                msg = nextMessageInternal(null);
             }
         }
+        catch (InterruptedException ignore) {
+            // shouldn't ever happen in reality
+        }
+        return messages;
     }
 
     private void durationGtZeroRequired(Duration duration, String label) {
         if (duration == null || duration.toMillis() <= 0) {
-            throw new IllegalArgumentException(label + " must be supplied and greater than 0.");
+            throw new IllegalArgumentException(label + " wait duration must be supplied and greater than 0.");
         }
     }
 
-    private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
-        int batch = validatePullBatchSize(batchSize);
-        String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
-        connection.publish(publishSubject, getSubject(), getPullJson(batch, noWait, expiresIn));
-        connection.lenientFlushBuffer();
-    }
-
-    byte[] getPullJson(int batch, boolean noWait, Duration expiresIn) {
-        StringBuilder sb = JsonUtils.beginJson();
-        JsonUtils.addField(sb, "batch", batch);
-        JsonUtils.addFldWhenTrue(sb, "no_wait", noWait);
-        JsonUtils.addFieldAsNanos(sb, "expires", expiresIn);
-        return JsonUtils.endJson(sb).toString().getBytes(StandardCharsets.US_ASCII);
+    private void durationGtZeroRequired(long millis, String label) {
+        if (millis <= 0) {
+            throw new IllegalArgumentException(label + " wait duration must be supplied and greater than 0.");
+        }
     }
 
     /**
@@ -140,7 +194,8 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public Iterator<Message> iterate(int batchSize, Duration maxWait) {
-        return iterate(batchSize, maxWait.toMillis());
+        durationGtZeroRequired(maxWait, "Iterate");
+        return _iterate(batchSize, maxWait.toMillis());
     }
 
     /**
@@ -148,49 +203,68 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public Iterator<Message> iterate(final int batchSize, long maxWaitMillis) {
-        pullNoWait(batchSize);
+        durationGtZeroRequired(maxWaitMillis, "Iterate");
+        return _iterate(batchSize, maxWaitMillis);
+    }
 
+    private Iterator<Message> _iterate(final int batchSize, long maxWaitMillis) {
+        final List<Message> buffered = drainAlreadyBuffered(batchSize);
+
+        // if there was a full batch buffered, no need to pull, just iterate over the list you already have
+        int batchLeft = batchSize - buffered.size();
+        if (batchLeft == 0) {
+            return new Iterator<Message>() {
+                @Override
+                public boolean hasNext() {
+                    return buffered.size() > 0;
+                }
+
+                @Override
+                public Message next() {
+                    return buffered.remove(0);
+                }
+            };
+        }
+
+        // if there were some messages buffered, reduce the raw pull batch size
+        pull(PullRequestOptions.builder(batchLeft).expiresIn(maxWaitMillis).build());
+
+        final long timeout = maxWaitMillis;
+
+        // the iterator is also more complicated
         return new Iterator<Message>() {
             int received = 0;
-            long timeLeft = Long.MAX_VALUE;
+            boolean done = false;
             Message msg = null;
 
             @Override
             public boolean hasNext() {
                 try {
-                    if (msg == null) {
-                        if (timeLeft < 1) { // msg is null and no more time
-                            return false;
-                        }
+                    if (msg != null) {
+                        return true;
+                    }
 
-                        // first time check. Did not want to do it on construction
-                        // of iterator, waited until first hasNext call
-                        // this does 2 things. Gives the internal queue time to fill
-                        // as saves the full wait time until the user actually calls hasNext
-                        if (timeLeft == Long.MAX_VALUE) {
-                            timeLeft = maxWaitMillis;
-                        }
+                    if (done) {
+                        return false;
+                    }
 
-                        long endTime = System.currentTimeMillis() + timeLeft;
-                        msg = nextMessageWithEndTime(endTime);
+                    if (buffered.size() == 0) {
+                        msg = _nextUnmanaged(timeout);
                         if (msg == null) {
-                            timeLeft = 0;
+                            done = true;
                             return false;
-                        }
-
-                        // msg is not null
-                        if (++received == batchSize) {
-                            timeLeft = 0; // don't need any more time, got entire batch
-                        }
-                        else {
-                            timeLeft = endTime - System.currentTimeMillis();
                         }
                     }
-                    // else message was not null, I guess they called hasNext multiple times w/o next
+                    else {
+                        msg = buffered.remove(0);
+                    }
+
+                    done = ++received == batchSize;
                     return true;
-                } catch (InterruptedException e) {
+                }
+                catch (InterruptedException e) {
                     msg = null;
-                    timeLeft = 0;
+                    done = true;
                     Thread.currentThread().interrupt();
                     return false;
                 }
@@ -203,5 +277,58 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                 return next;
             }
         };
+    }
+
+    static class JetStreamReaderImpl implements JetStreamReader {
+        private final NatsJetStreamPullSubscription sub;
+        private final int batchSize;
+        private final int repullAt;
+        private int currentBatchRed;
+        private boolean keepGoing = true;
+
+        public JetStreamReaderImpl(final NatsJetStreamPullSubscription sub, final int batchSize, final int repullAt) {
+            this.sub = sub;
+            this.batchSize = batchSize;
+            this.repullAt = Math.max(1, Math.min(batchSize, repullAt));
+            currentBatchRed = 0;
+            sub.pull(batchSize);
+        }
+
+        @Override
+        public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
+            return track(sub.nextMessage(timeout));
+        }
+
+        @Override
+        public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
+            return track(sub.nextMessage(timeoutMillis));
+        }
+
+        private Message track(Message msg) {
+            if (msg != null) {
+                if (++currentBatchRed == repullAt) {
+                    if (keepGoing) {
+                        sub.pull(batchSize);
+                    }
+                }
+                if (currentBatchRed == batchSize) {
+                    currentBatchRed = 0;
+                }
+            }
+            return msg;
+        }
+
+        @Override
+        public void stop() {
+            keepGoing = false;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public JetStreamReader reader(final int batchSize, final int repullAt) {
+        return new JetStreamReaderImpl(this, batchSize, repullAt);
     }
 }

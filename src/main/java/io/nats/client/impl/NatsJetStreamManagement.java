@@ -14,15 +14,13 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.api.Error;
 import io.nats.client.api.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import static io.nats.client.api.MessageGetRequest.seqBytes;
-import static io.nats.client.support.ApiConstants.SEQ;
-import static io.nats.client.support.JsonUtils.simpleMessageBody;
 import static io.nats.client.support.Validator.*;
 
 public class NatsJetStreamManagement extends NatsJetStreamImplBase implements JetStreamManagement {
@@ -65,9 +63,12 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
 
         String subj = String.format(template, streamName);
         Message resp = makeRequestResponseRequired(subj, config.toJson().getBytes(StandardCharsets.UTF_8), jso.getRequestTimeout());
-        return new StreamInfo(resp).throwOnHasError();
+        return createAndCacheStreamInfoThrowOnError(streamName, resp);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean deleteStream(String streamName) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
@@ -82,9 +83,17 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
     @Override
     public StreamInfo getStreamInfo(String streamName) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
-        String subj = String.format(JSAPI_STREAM_INFO, streamName);
-        Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
-        return new StreamInfo(resp).throwOnHasError();
+        return _getStreamInfo(streamName, null);
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public StreamInfo getStreamInfo(String streamName, StreamInfoOptions options) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
+        return _getStreamInfo(streamName, options);
     }
 
     /**
@@ -116,7 +125,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         validateStreamName(streamName, true);
         validateNotNull(config, "Config");
         validateNotNull(config.getDurable(), "Durable"); // durable name is required when creating consumers
-        return createConsumerInternal(streamName, config);
+        return _createConsumer(streamName, config);
     }
 
     /**
@@ -131,9 +140,12 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ConsumerInfo getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException {
-        return super.getConsumerInfo(streamName, consumer);
+        return super._getConsumerInfo(streamName, consumer);
     }
 
     /**
@@ -170,6 +182,9 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         return clg.getConsumers();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<String> getStreamNames() throws IOException, JetStreamApiException {
         StreamNamesReader snr = new StreamNamesReader();
@@ -180,6 +195,17 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         return snr.getStrings();
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<String> getStreamNamesBySubjectFilter(String subjectFilter) throws IOException, JetStreamApiException {
+        return _getStreamNamesBySubjectFilter(subjectFilter);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<StreamInfo> getStreams() throws IOException, JetStreamApiException {
         StreamListReader slg = new StreamListReader();
@@ -187,22 +213,85 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
             Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, slg.nextJson(), jso.getRequestTimeout());
             slg.process(resp);
         }
-        return slg.getStreams();
+        return cacheStreamInfo(slg.getStreams());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException {
-        validateNotNull(streamName, "Stream Name");
-        String subj = String.format(JSAPI_MSG_GET, streamName);
-        Message resp = makeRequestResponseRequired(subj, seqBytes(seq), jso.getRequestTimeout());
-        return new MessageInfo(resp).throwOnHasError();
+        return _getMessage(streamName, MessageGetRequest.forSequence(seq));
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageInfo getLastMessage(String streamName, String subject) throws IOException, JetStreamApiException {
+        return _getMessage(streamName, MessageGetRequest.lastForSubject(subject));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageInfo getFirstMessage(String streamName, String subject) throws IOException, JetStreamApiException {
+        return _getMessage(streamName, MessageGetRequest.firstForSubject(subject));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageInfo getNextMessage(String streamName, long seq, String subject) throws IOException, JetStreamApiException {
+        return _getMessage(streamName, MessageGetRequest.nextForSubject(seq, subject));
+    }
+
+    private MessageInfo _getMessage(String streamName, MessageGetRequest messageGetRequest) throws IOException, JetStreamApiException {
+        validateNotNull(messageGetRequest, "Message Get Request");
+        CachedStreamInfo csi = getCachedStreamInfo(streamName);
+        if (csi.allowDirect) {
+            String subject;
+            byte[] payload;
+            if (messageGetRequest.isLastBySubject()) {
+                subject = String.format(JSAPI_DIRECT_GET_LAST, streamName, messageGetRequest.getLastBySubject());
+                payload = null;
+            }
+            else{
+                subject = String.format(JSAPI_DIRECT_GET, streamName);
+                payload = messageGetRequest.serialize();
+            }
+            Message resp = makeRequestResponseRequired(subject, payload, jso.getRequestTimeout());
+            if (resp.isStatusMessage()) {
+                throw new JetStreamApiException(Error.convert(resp.getStatus()));
+            }
+            return new MessageInfo(resp, streamName, true);
+        }
+        else {
+            String getSubject = String.format(JSAPI_MSG_GET, streamName);
+            Message resp = makeRequestResponseRequired(getSubject, messageGetRequest.serialize(), jso.getRequestTimeout());
+            return new MessageInfo(resp, streamName, false).throwOnHasError();
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean deleteMessage(String streamName, long seq) throws IOException, JetStreamApiException {
+        return deleteMessage(streamName, seq, true);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean deleteMessage(String streamName, long seq, boolean erase) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
         String subj = String.format(JSAPI_MSG_DELETE, streamName);
-        Message resp = makeRequestResponseRequired(subj, simpleMessageBody(SEQ, seq), jso.getRequestTimeout());
+        MessageDeleteRequest mdr = new MessageDeleteRequest(seq, erase);
+        Message resp = makeRequestResponseRequired(subj, mdr.serialize(), jso.getRequestTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
 }

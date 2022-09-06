@@ -22,13 +22,13 @@ import java.util.Base64;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ServerInfoTests {
+    static byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
+    static String encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(nonce);
+    static String json = ResourceUtils.dataAsString("ServerInfoJson.txt").replace("<encoded>", encoded);
+
     @Test
     public void testValidInfoString() {
-        byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
-        String encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(nonce);
         byte[] ascii = encoded.getBytes(StandardCharsets.US_ASCII);
-
-        String json = ResourceUtils.dataAsString("ServerInfoJson.txt").replace("<encoded>", encoded);
 
         ServerInfo info = new ServerInfo(json);
         assertEquals("serverId", info.getServerId());
@@ -53,13 +53,18 @@ public class ServerInfoTests {
         assertArrayEquals(ascii, info.getNonce());
 
         assertNotNull(info.toString()); // COVERAGE
+    }
+
+    @Test
+    public void testServerVersionComparisonsWork() {
+        ServerInfo info = new ServerInfo(json);
 
         ServerInfo info234 = new ServerInfo(json.replace("1.2.3", "2.3.4"));
         ServerInfo info235 = new ServerInfo(json.replace("1.2.3", "2.3.5"));
         ServerInfo info235Beta2 = new ServerInfo(json.replace("1.2.3", "2.3.5-beta.2"));
         assertTrue(info.isOlderThanVersion("2.3.4"));
         assertTrue(info234.isOlderThanVersion("2.3.5"));
-        assertTrue(info235.isOlderThanVersion("2.3.5-beta.2"));
+        assertTrue(info235.isNewerVersionThan("2.3.5-beta.2"));
         assertTrue(info.isSameVersion("1.2.3"));
         assertTrue(info234.isSameVersion("2.3.4"));
         assertTrue(info235.isSameVersion("2.3.5"));
@@ -68,11 +73,16 @@ public class ServerInfoTests {
         assertFalse(info235Beta2.isSameVersion("2.3.5"));
         assertTrue(info234.isNewerVersionThan("1.2.3"));
         assertTrue(info235.isNewerVersionThan("2.3.4"));
-        assertTrue(info235Beta2.isNewerVersionThan("2.3.5"));
+        assertTrue(info235Beta2.isOlderThanVersion("2.3.5"));
 
         assertTrue(info234.isNewerVersionThan("not-a-number"));
         assertFalse(info234.isNewerVersionThan("2.3.5"));
         assertFalse(info235.isOlderThanVersion("2.3.4"));
+
+        assertFalse(info235.isSameOrOlderThanVersion("2.3.4"));
+        assertFalse(info235Beta2.isSameOrOlderThanVersion("2.3.4"));
+        assertTrue(info234.isSameOrOlderThanVersion("2.3.4"));
+        assertTrue(info.isSameOrOlderThanVersion("2.3.4"));
     }
 
     @Test

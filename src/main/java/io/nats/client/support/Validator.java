@@ -17,7 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 import static io.nats.client.support.NatsConstants.DOT;
-import static io.nats.client.support.NatsJetStreamConstants.MAX_PULL_SIZE;
+import static io.nats.client.support.NatsJetStreamConstants.MAX_HISTORY_PER_KEY;
 
 public abstract class Validator {
     private Validator() {
@@ -55,22 +55,16 @@ public abstract class Validator {
         });
     }
 
-    public static String validateBucketNameRequired(String s) {
-        return validateKvBucketName(s, "Bucket name", true);
+    public static String validateKvKeyWildcardAllowedRequired(String s) {
+        return validateWildcardKvKey(s, "Key", true);
     }
 
-    public static String validateKeyRequired(String s) {
-        return validateKvKey(s, "Key", true);
+    public static String validateNonWildcardKvKeyRequired(String s) {
+        return validateNonWildcardKvKey(s, "Key", true);
     }
 
     public static void validateNotSupplied(String s, NatsJetStreamClientError err) {
         if (!nullOrEmpty(s)) {
-            throw err.instance();
-        }
-    }
-
-    public static void validateNotSupplied(long l, long dflt, NatsJetStreamClientError err) {
-        if (l > dflt) {
             throw err.instance();
         }
     }
@@ -99,6 +93,13 @@ public abstract class Validator {
 
     interface Check {
         String check();
+    }
+
+    public static String required(String s, String label) {
+        if (emptyAsNull(s) == null) {
+            throw new IllegalArgumentException(label + " cannot be null or empty.");
+        }
+        return s;
     }
 
     public static String _validate(String s, boolean required, String label, Check check) {
@@ -139,24 +140,6 @@ public abstract class Validator {
         });
     }
 
-    public static String validateKvBucketName(String s, String label, boolean required) {
-        return _validate(s, required, label, () -> {
-            if (notRestrictedTerm(s)) {
-                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `-` or `_` [" + s + "]");
-            }
-            return s;
-        });
-    }
-
-    public static String validateKvKey(String s, String label, boolean required) {
-        return _validate(s, required, label, () -> {
-            if (notKvKey(s)) {
-                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `-`, `_`, `/`, `=` or `.` and cannot start with `.` [" + s + "]");
-            }
-            return s;
-        });
-    }
-
     public static String validatePrintableExceptWildGt(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
             if (notPrintableOrHasWildGt(s)) {
@@ -166,11 +149,31 @@ public abstract class Validator {
         });
     }
 
-    public static int validatePullBatchSize(int pullBatchSize) {
-        if (pullBatchSize < 1 || pullBatchSize > MAX_PULL_SIZE) {
-            throw new IllegalArgumentException("Pull Batch Size must be between 1 and " + MAX_PULL_SIZE + " inclusive [" + pullBatchSize + "]");
-        }
-        return pullBatchSize;
+    public static String validateBucketName(String s, boolean required) {
+        return _validate(s, required, "Bucket Name", () -> {
+            if (notRestrictedTerm(s)) {
+                throw new IllegalArgumentException("Bucket Name must only contain A-Z, a-z, 0-9, `-` or `_` [" + s + "]");
+            }
+            return s;
+        });
+    }
+
+    public static String validateWildcardKvKey(String s, String label, boolean required) {
+        return _validate(s, required, label, () -> {
+            if (notWildcardKvKey(s)) {
+                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `*`, `-`, `_`, `/`, `=`, `>` or `.` and cannot start with `.` [" + s + "]");
+            }
+            return s;
+        });
+    }
+
+    public static String validateNonWildcardKvKey(String s, String label, boolean required) {
+        return _validate(s, required, label, () -> {
+            if (notNonWildcardKvKey(s)) {
+                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `-`, `_`, `/`, `=` or `.` and cannot start with `.` [" + s + "]");
+            }
+            return s;
+        });
     }
 
     public static long validateMaxConsumers(long max) {
@@ -181,16 +184,18 @@ public abstract class Validator {
         return validateGtZeroOrMinus1(max, "Max Messages");
     }
 
-    public static long validateMaxBucketValues(long max) {
-        return validateGtZeroOrMinus1(max, "Max Bucket Values"); // max bucket values is a kv alias to max messages
-    }
-
     public static long validateMaxMessagesPerSubject(long max) {
         return validateGtZeroOrMinus1(max, "Max Messages Per Subject");
     }
 
-    public static long validateMaxHistory(long max) {
-        return validateGtZeroOrMinus1(max, "Max History Per Key"); // max history is a kv alias to max per subject
+    public static int validateMaxHistory(int max) {
+        if (max < 2) {
+            return 1;
+        }
+        if (max > MAX_HISTORY_PER_KEY) {
+            throw new IllegalArgumentException("Max History Per Key cannot be more than " + MAX_HISTORY_PER_KEY);
+        }
+        return max;
     }
 
     public static long validateMaxBytes(long max) {
@@ -205,8 +210,8 @@ public abstract class Validator {
         return validateGtZeroOrMinus1(max, "Max Message Size");
     }
 
-    public static long validateMaxValueBytes(long max) {
-        return validateGtZeroOrMinus1(max, "Max Value Bytes"); // max value bytes is a kv alias to max message size
+    public static long validateMaxValueSize(long max) {
+        return validateGtZeroOrMinus1(max, "Max Value Size"); // max value size is a kv alias to max message size
     }
 
     public static int validateNumberOfReplicas(int replicas) {
@@ -240,25 +245,25 @@ public abstract class Validator {
         return Duration.ofMillis(millis);
     }
 
-
-    public static Duration validateDurationNotRequiredNotLessThanMin(Duration provided, Duration minimum) {
-        if (provided != null && provided.toNanos() < minimum.toNanos())
-        {
-            throw new IllegalArgumentException("Duration must be greater than or equal to " + minimum.toNanos() + " nanos.");
+    public static String validateNotNull(String s, String fieldName) {
+        if (s == null) {
+            throw new IllegalArgumentException(fieldName + " cannot be null");
         }
-
-        return provided;
+        return s;
     }
 
-    public static Duration validateDurationNotRequiredNotLessThanMin(long millis, Duration minimum)
-    {
-        return validateDurationNotRequiredNotLessThanMin(Duration.ofMillis(millis), minimum);
-    }
-
-    public static void validateNotNull(Object o, String fieldName) {
+    public static Object validateNotNull(Object o, String fieldName) {
         if (o == null) {
             throw new IllegalArgumentException(fieldName + " cannot be null");
         }
+        return o;
+    }
+
+    public static int validateGtZero(int i, String label) {
+        if (i < 1) {
+            throw new IllegalArgumentException(label + " must be greater than zero");
+        }
+        return i;
     }
 
     public static long validateGtZeroOrMinus1(long l, String label) {
@@ -353,16 +358,16 @@ public abstract class Validator {
         return false;
     }
 
-    // limited-term = (A-Z, a-z, 0-9, dash 45, underscore 95, fwd-slash 47, equals 61)+
+    // limited-term = (A-Z, a-z, 0-9, dash 45, dot 46, fwd-slash 47, equals 61, underscore 95)+
     // kv-key-name = limited-term (dot limited-term)*
-    public static boolean notKvKey(String s) {
+    public static boolean notNonWildcardKvKey(String s) {
         if (s.charAt(0) == '.') {
             return true; // can't start with dot
         }
         for (int x = 0; x < s.length(); x++) {
             char c = s.charAt(x);
             if (c < '0') { // before 0
-                if (c == '-' || c == '.' || c == '/') { // only dash dot and and fwd slash are accepted
+                if (c == '-' || c == '.' || c == '/') { // only dash dot and fwd slash are accepted
                     continue;
                 }
                 return true; // "not"
@@ -372,6 +377,44 @@ public abstract class Validator {
             }
             if (c < 'A') {
                 if (c == '=') { // equals is accepted
+                    continue;
+                }
+                return true; // between 9 and A is "not limited"
+            }
+            if (c < '[') {
+                continue; // means it's A - Z
+            }
+            if (c < 'a') { // before a
+                if (c == '_') { // only underscore is accepted
+                    continue;
+                }
+                return true; // "not"
+            }
+            if (c > 'z') { // 122 is z, characters after of them are "not limited"
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // (A-Z, a-z, 0-9, star 42, dash 45, dot 46, fwd-slash 47, equals 61, gt 62, underscore 95)+
+    public static boolean notWildcardKvKey(String s) {
+        if (s.charAt(0) == '.') {
+            return true; // can't start with dot
+        }
+        for (int x = 0; x < s.length(); x++) {
+            char c = s.charAt(x);
+            if (c < '0') { // before 0
+                if (c == '*' || c == '-' || c == '.' || c == '/') { // only star dash dot and fwd slash are accepted
+                    continue;
+                }
+                return true; // "not"
+            }
+            if (c < ':') {
+                continue; // means it's 0 - 9
+            }
+            if (c < 'A') {
+                if (c == '=' || c == '>') { // equals, gt is accepted
                     continue;
                 }
                 return true; // between 9 and A is "not limited"
@@ -423,5 +466,9 @@ public abstract class Validator {
     public static Duration ensureDurationNotLessThanMin(long providedMillis, Duration minimum, Duration dflt)
     {
         return ensureNotNullAndNotLessThanMin(Duration.ofMillis(providedMillis), minimum, dflt);
+    }
+
+    public static String ensureEndsWithDot(String s) {
+        return s == null || s.endsWith(DOT) ? s : s + DOT;
     }
 }

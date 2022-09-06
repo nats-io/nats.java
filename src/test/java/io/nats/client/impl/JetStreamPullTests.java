@@ -13,13 +13,11 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStream;
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.Message;
-import io.nats.client.PullSubscribeOptions;
+import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
@@ -38,58 +36,64 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // create the stream.
             createDefaultTestStream(nc);
 
+            long fetchMs = 3000;
+            Duration fetchDur = Duration.ofMillis(fetchMs);
+            Duration ackWaitDur = Duration.ofMillis(fetchMs * 2);
+
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .ackWait(Duration.ofMillis(2500))
-                    .build();
+                .ackWait(ackWaitDur)
+                .build();
 
             PullSubscribeOptions options = PullSubscribeOptions.builder()
-                    .durable(DURABLE) // required
-                    .configuration(cc)
-                    .build();
+                .durable(DURABLE) // required
+                .configuration(cc)
+                .build();
 
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
             assertSubscription(sub, STREAM, DURABLE, null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
-            List<Message> messages = sub.fetch(10, Duration.ofSeconds(3));
+            List<Message> messages = sub.fetch(10, fetchDur);
             validateRead(0, messages.size());
             messages.forEach(Message::ack);
+            sleep(ackWaitDur.toMillis()); // let the pull expire
 
             jsPublish(js, SUBJECT, "A", 10);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10, fetchDur);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "B", 20);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10, fetchDur);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10, fetchDur);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "C", 5);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10, fetchDur);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
+            sleep(fetchMs); // let the pull expire
 
             jsPublish(js, SUBJECT, "D", 15);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10, fetchDur);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10, fetchDur);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "E", 10);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10, fetchDur);
             validateRead(10, messages.size());
-            sleep(3000);
+            sleep(ackWaitDur.toMillis()); // let the acks wait expire, pull will also expire it's shorter
 
             // message were not ack'ed
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10, fetchDur);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
@@ -107,8 +111,12 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // create the stream.
             createDefaultTestStream(nc);
 
+            long fetchMs = 5000;
+            Duration fetchDur = Duration.ofMillis(fetchMs);
+            Duration ackWaitDur = Duration.ofMillis(fetchMs * 2);
+
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .ackWait(Duration.ofMillis(2500))
+                    .ackWait(ackWaitDur)
                     .build();
 
             PullSubscribeOptions options = PullSubscribeOptions.builder()
@@ -120,56 +128,62 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertSubscription(sub, STREAM, DURABLE, null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
-            Iterator<Message> iterator = sub.iterate(10, Duration.ofSeconds(3));
+            Iterator<Message> iterator = sub.iterate(10, fetchDur);
             List<Message> messages = readMessages(iterator);
             validateRead(0, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "A", 10);
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "B", 20);
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             jsPublish(js, SUBJECT, "C", 5);
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
+            sleep(fetchMs); // give time for the pull to expire
 
             jsPublish(js, SUBJECT, "D", 15);
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
+            sleep(fetchMs); // give time for the pull to expire
 
             jsPublish(js, SUBJECT, "E", 10);
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(10, messages.size());
-            sleep(3000);
+            sleep(ackWaitDur.toMillis()); // give time for the pull and the ack wait to expire
 
-            iterator = sub.iterate(10, Duration.ofSeconds(3));
-            iterator.hasNext(); // calling hasNext twice in a row is for coverage
+            iterator = sub.iterate(10, fetchDur);
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
+
+            jsPublish(js, SUBJECT, "F", 1);
+            iterator = sub.iterate(1, fetchDur);
+            iterator.hasNext(); // calling hasNext twice in a row is for coverage
+            iterator.hasNext(); // calling hasNext twice in a row is for coverage
         });
     }
 
@@ -182,7 +196,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // create the stream.
             createDefaultTestStream(nc);
 
-            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            // Build our subscription options.
             PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
 
             // Subscribe synchronously.
@@ -215,7 +229,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             validateRedAndTotal(0, messages.size(), 10, total);
 
             // re-issue the pull
-            sub.pull(10);
+            sub.pull(PullRequestOptions.builder(10).build()); // coverage of the build api
 
             // read what is available, should be 4 left over
             messages = readMessagesAck(sub);
@@ -281,7 +295,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // create the stream.
             createDefaultTestStream(nc);
 
-            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            // Build our subscription options.
             PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
 
             // Subscribe synchronously.
@@ -341,7 +355,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // create the stream.
             createDefaultTestStream(nc);
 
-            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            // Build our subscription options.
             PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
 
             // Subscribe synchronously.
@@ -533,23 +547,144 @@ public class JetStreamPullTests extends JetStreamTestBase {
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // Ack Wait timeout
-            jsPublish(js, SUBJECT, "WAIT", 1);
+            jsPublish(js, SUBJECT, "WAIT", 2);
 
-            sub.pull(1);
+            sub.pull(2);
             Message m = sub.nextMessage(1000);
             assertNotNull(m);
-
             assertEquals("WAIT1", new String(m.getData()));
+            System.out.println(m);
+
+            m = sub.nextMessage(1000);
+            assertNotNull(m);
+            assertEquals("WAIT2", new String(m.getData()));
+            System.out.println(m);
+
             sleep(2000);
 
-            sub.pull(1);
+            sub.pull(2);
             m = sub.nextMessage(1000);
             assertNotNull(m);
             assertEquals("WAIT1", new String(m.getData()));
+            m.ack();
+            System.out.println(m);
 
-            sub.pull(1);
+            m = sub.nextMessage(1000);
+            assertNotNull(m);
+            assertEquals("WAIT2", new String(m.getData()));
+            m.ack();
+            System.out.println(m);
+
+            sub.pull(2);
             m = sub.nextMessage(1000);
             assertNull(m);
+        });
+    }
+
+    @Test
+    public void testDurable() throws Exception {
+        runInJsServer(nc -> {
+            // create the stream.
+            createDefaultTestStream(nc);
+
+            // Create our JetStream context.
+            JetStream js = nc.jetStream();
+
+            // Build our subscription options normally
+            PullSubscribeOptions options1 = PullSubscribeOptions.builder().durable(DURABLE).build();
+            _testDurable(js, () -> js.subscribe(SUBJECT, options1));
+
+            // bind long form
+            PullSubscribeOptions options2 = PullSubscribeOptions.builder()
+                .stream(STREAM)
+                .durable(DURABLE)
+                .bind(true)
+                .build();
+            _testDurable(js, () -> js.subscribe(null, options2));
+
+            // bind short form
+            PullSubscribeOptions options3 = PullSubscribeOptions.bind(STREAM, DURABLE);
+            _testDurable(js, () -> js.subscribe(null, options3));
+        });
+    }
+
+    private void _testDurable(JetStream js, SubscriptionSupplier supplier) throws IOException, JetStreamApiException, InterruptedException {
+        jsPublish(js, SUBJECT, 2);
+
+        JetStreamSubscription sub = supplier.get();
+
+        // start the pull
+        sub.pullNoWait(4);
+
+        List<Message> messages = readMessagesAck(sub);
+        validateRedAndTotal(2, messages.size(), 2, 2);
+
+        sub.unsubscribe();
+    }
+
+    private interface SubscriptionSupplier {
+        JetStreamSubscription get() throws IOException, JetStreamApiException;
+    }
+
+    @Test
+    public void testPullRequestOptionsBuilder() {
+        assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(0).build());
+        assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(-1).build());
+
+        PullRequestOptions pro = PullRequestOptions.builder(11).build();
+        assertEquals(11, pro.getBatchSize());
+        assertEquals(0, pro.getMaxBytes());
+        assertNull(pro.getExpiresIn());
+        assertNull(pro.getIdleHeartbeat());
+        assertFalse(pro.isNoWait());
+
+        pro = PullRequestOptions.noWait(21).build();
+        assertEquals(21, pro.getBatchSize());
+        assertEquals(0, pro.getMaxBytes());
+        assertNull(pro.getExpiresIn());
+        assertNull(pro.getIdleHeartbeat());
+        assertTrue(pro.isNoWait());
+
+        pro = PullRequestOptions.builder(31)
+            .maxBytes(32)
+            .expiresIn(33)
+            .idleHeartbeat(34)
+            .noWait()
+            .build();
+        assertEquals(31, pro.getBatchSize());
+        assertEquals(32, pro.getMaxBytes());
+        assertEquals(33, pro.getExpiresIn().toMillis());
+        assertEquals(34, pro.getIdleHeartbeat().toMillis());
+        assertTrue(pro.isNoWait());
+
+        pro = PullRequestOptions.builder(41)
+            .expiresIn(Duration.ofMillis(43))
+            .idleHeartbeat(Duration.ofMillis(44))
+            .noWait(false) // just coverage of this method
+            .build();
+        assertEquals(41, pro.getBatchSize());
+        assertEquals(0, pro.getMaxBytes());
+        assertEquals(43, pro.getExpiresIn().toMillis());
+        assertEquals(44, pro.getIdleHeartbeat().toMillis());
+        assertFalse(pro.isNoWait());
+    }
+
+    @Test
+    public void testMaxPullRequests() throws Exception {
+        runInJsServer(true, nc -> {
+            createDefaultTestStream(nc);
+            JetStream js = nc.jetStream();
+            ((NatsJetStream)js).PULL_MESSAGE_MANAGER_FACTORY = NoopMessageManager::new;
+
+            PullSubscribeOptions plso = ConsumerConfiguration.builder().maxPullWaiting(1).buildPullSubscribeOptions();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, plso);
+            js.publish(SUBJECT, new byte[0]);
+            sub.pull(1);
+            sub.pull(1);
+            sub.pull(1);
+            System.out.println(sub.nextMessage(1000));
+            System.out.println(sub.nextMessage(1000));
+            System.out.println(sub.nextMessage(1000));
         });
     }
 }

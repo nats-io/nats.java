@@ -39,11 +39,14 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     @Test
     public void testRoundTrip() throws Exception {
         StreamConfiguration sc = StreamConfiguration.builder(getTestConfiguration())
-                .mirror(null)
-                .sources()
-                .replicas(1)
-                .templateOwner(null)
-                .build();
+            .mirror(null)
+            .sources()
+            .replicas(1)
+            .templateOwner(null)
+            .allowRollup(false)
+            .allowDirect(false)
+            .sealed(false)
+            .build();
 
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -65,25 +68,31 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         // builder
         StreamConfiguration.Builder builder = StreamConfiguration.builder()
-                .name(testSc.getName())
-                .description(testSc.getDescription())
-                .subjects(testSc.getSubjects())
-                .retentionPolicy(testSc.getRetentionPolicy())
-                .maxConsumers(testSc.getMaxConsumers())
-                .maxMessages(testSc.getMaxMsgs())
-                .maxMessagesPerSubject(testSc.getMaxMsgsPerSubject())
-                .maxBytes(testSc.getMaxBytes())
-                .maxAge(testSc.getMaxAge())
-                .maxMsgSize(testSc.getMaxMsgSize())
-                .storageType(testSc.getStorageType())
-                .replicas(testSc.getReplicas())
-                .noAck(testSc.getNoAck())
-                .templateOwner(testSc.getTemplateOwner())
-                .discardPolicy(testSc.getDiscardPolicy())
-                .duplicateWindow(testSc.getDuplicateWindow())
-                .placement(testSc.getPlacement())
-                .mirror(testSc.getMirror())
-                .sources(testSc.getSources());
+            .name(testSc.getName())
+            .description(testSc.getDescription())
+            .subjects(testSc.getSubjects())
+            .retentionPolicy(testSc.getRetentionPolicy())
+            .maxConsumers(testSc.getMaxConsumers())
+            .maxMessages(testSc.getMaxMsgs())
+            .maxMessagesPerSubject(testSc.getMaxMsgsPerSubject())
+            .maxBytes(testSc.getMaxBytes())
+            .maxAge(testSc.getMaxAge())
+            .maxMsgSize(testSc.getMaxMsgSize())
+            .storageType(testSc.getStorageType())
+            .replicas(testSc.getReplicas())
+            .noAck(testSc.getNoAck())
+            .templateOwner(testSc.getTemplateOwner())
+            .discardPolicy(testSc.getDiscardPolicy())
+            .duplicateWindow(testSc.getDuplicateWindow())
+            .placement(testSc.getPlacement())
+            .republish(testSc.getRepublish())
+            .mirror(testSc.getMirror())
+            .sources(testSc.getSources())
+            .sealed(testSc.getSealed())
+            .allowRollup(testSc.getAllowRollup())
+            .allowDirect(testSc.getAllowDirect())
+            .denyDelete(testSc.getDenyDelete())
+            .denyPurge(testSc.getDenyPurge());
         validate(builder.build(), false);
         validate(builder.addSources((Source)null).build(), false);
 
@@ -101,19 +110,25 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(sources.get(0).getExternal(), external);
         assertEquals(sources.get(0).getExternal().hashCode(), external.hashCode());
 
-        List<String> lines = ResourceUtils.dataAsLines("SourceBaseJson.txt");
+        List<String> lines = ResourceUtils.dataAsLines("MirrorsSources.json");
         for (String l1 : lines) {
-            Mirror m1 = new Mirror(l1);
-            assertEquals(m1, m1);
-            assertNotEquals(m1, null);
-            assertNotEquals(m1, new Object());
-            for (String l2 : lines) {
-                Mirror m2 = new Mirror(l2);
-                if (l1.equals(l2)) {
-                    assertEquals(m1, m2);
-                }
-                else {
-                    assertNotEquals(m1, m2);
+            if (l1.startsWith("{")) {
+                Mirror m1 = new Mirror(l1);
+                assertEquals(m1, m1);
+                //this provides testing coverage
+                //noinspection ConstantConditions,SimplifiableAssertion
+                assertTrue(!m1.equals(null));
+                assertNotEquals(m1, new Object());
+                for (String l2 : lines) {
+                    if (l2.startsWith("{")) {
+                        Mirror m2 = new Mirror(l2);
+                        if (l1.equals(l2)) {
+                            assertEquals(m1, m2);
+                        }
+                        else {
+                            assertNotEquals(m1, m2);
+                        }
+                    }
                 }
             }
         }
@@ -304,9 +319,10 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     private void validate(StreamConfiguration sc, boolean serverTest) {
         assertEquals("sname", sc.getName());
         assertEquals("blah blah", sc.getDescription());
-        assertEquals(2, sc.getSubjects().size());
+        assertEquals(3, sc.getSubjects().size());
         assertEquals("foo", sc.getSubjects().get(0));
         assertEquals("bar", sc.getSubjects().get(1));
+        assertEquals("repub.>", sc.getSubjects().get(2));
 
         assertSame(RetentionPolicy.Interest, sc.getRetentionPolicy());
         assertEquals(730, sc.getMaxConsumers());
@@ -319,7 +335,6 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(Duration.ofNanos(42000000000L), sc.getDuplicateWindow());
         assertEquals(734, sc.getMaxMsgSize());
         assertEquals(StorageType.Memory, sc.getStorageType());
-        assertFalse(sc.getNoAck());
         assertSame(DiscardPolicy.New, sc.getDiscardPolicy());
 
         assertNotNull(sc.getPlacement());
@@ -328,12 +343,24 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals("tag1", sc.getPlacement().getTags().get(0));
         assertEquals("tag2", sc.getPlacement().getTags().get(1));
 
+        assertNotNull(sc.getRepublish());
+        assertEquals("repub.>", sc.getRepublish().getSource());
+        assertEquals("dest.>", sc.getRepublish().getDestination());
+        assertTrue(sc.getRepublish().isHeadersOnly());
+
         ZonedDateTime zdt = DateTimeUtils.parseDateTime("2020-11-05T19:33:21.163377Z");
 
         if (serverTest) {
             assertEquals(1, sc.getReplicas());
         }
         else {
+            assertTrue(sc.getNoAck());
+            assertTrue(sc.getSealed());
+            assertTrue(sc.getDenyDelete());
+            assertTrue(sc.getDenyPurge());
+            assertTrue(sc.getAllowRollup());
+            assertTrue(sc.getAllowDirect());
+
             assertEquals(5, sc.getReplicas());
             assertEquals("twnr", sc.getTemplateOwner());
             assertNotNull(sc.getMirror());
@@ -369,5 +396,50 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         // COVERAGE
         String json = ResourceUtils.dataAsString("StreamConfiguration.json");
         assertNotNull(StreamConfiguration.instance(json).toString());
+    }
+
+    @Test
+    public void testPlacement() {
+        assertThrows(IllegalArgumentException.class, () -> Placement.builder().build());
+
+        Placement p = Placement.builder().cluster("cluster").build();
+        assertEquals("cluster", p.getCluster());
+        assertNull(p.getTags());
+
+        p = Placement.builder().cluster("cluster").tags("a", "b").build();
+        assertEquals("cluster", p.getCluster());
+        assertEquals(2, p.getTags().size());
+
+        p = Placement.builder().cluster("cluster").tags(Arrays.asList("a", "b")).build();
+        assertEquals("cluster", p.getCluster());
+        assertEquals(2, p.getTags().size());
+    }
+
+    @Test
+    public void testRepublish() {
+        assertThrows(IllegalArgumentException.class, () -> Republish.builder().build());
+        assertThrows(IllegalArgumentException.class, () -> Republish.builder().source("src.>").build());
+        assertThrows(IllegalArgumentException.class, () -> Republish.builder().destination("dest.>").build());
+
+        Republish p = Republish.builder().source("src.>").destination("dest.>").build();
+        assertEquals("src.>", p.getSource());
+        assertEquals("dest.>", p.getDestination());
+        assertFalse(p.isHeadersOnly());
+
+        p = Republish.builder().source("src.>").destination("dest.>").headersOnly(true).build();
+        assertEquals("src.>", p.getSource());
+        assertEquals("dest.>", p.getDestination());
+        assertTrue(p.isHeadersOnly());
+    }
+
+    @Test
+    public void testExternal() {
+        External e = External.builder().api("api").deliver("deliver").build();
+        assertEquals("api", e.getApi());
+        assertEquals("deliver", e.getDeliver());
+
+        e = External.builder().build();
+        assertNull(e.getApi());
+        assertNull(e.getDeliver());
     }
 }

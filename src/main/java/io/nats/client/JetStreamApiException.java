@@ -14,13 +14,14 @@
 package io.nats.client;
 
 import io.nats.client.api.ApiResponse;
+import io.nats.client.api.Error;
 
 /**
  * JetStreamApiException is used to indicate that the server returned an error while make a request
  * related to JetStream.
  */
 public class JetStreamApiException extends Exception {
-    private final ApiResponse<?> apiResponse;
+    private final Error error;
 
     /**
      * Construct an exception with the response from the server.
@@ -28,8 +29,12 @@ public class JetStreamApiException extends Exception {
      * @param apiResponse the response from the server.
      */
     public JetStreamApiException(ApiResponse<?> apiResponse) {
-        super(apiResponse.getError());
-        this.apiResponse = apiResponse;
+        this(apiResponse.getErrorObject());
+    }
+
+    public JetStreamApiException(Error error) {
+        super(error.toString());
+        this.error = error;
     }
 
     /**
@@ -38,7 +43,7 @@ public class JetStreamApiException extends Exception {
      * @return the code
      */
     public int getErrorCode() {
-        return apiResponse.getErrorCode();
+        return error.getCode();
     }
 
     /**
@@ -47,7 +52,7 @@ public class JetStreamApiException extends Exception {
      * @return the code
      */
     public int getApiErrorCode() {
-        return apiResponse.getApiErrorCode();
+        return error.getApiErrorCode();
     }
 
     /**
@@ -56,6 +61,6 @@ public class JetStreamApiException extends Exception {
      * @return the description
      */
     public String getErrorDescription() {
-        return apiResponse.getDescription();
+        return error.getDescription();
     }
 }

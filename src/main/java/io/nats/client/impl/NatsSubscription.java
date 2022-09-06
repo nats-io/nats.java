@@ -15,24 +15,27 @@ package io.nats.client.impl;
 
 import io.nats.client.Dispatcher;
 import io.nats.client.Message;
+import io.nats.client.MessageHandler;
 import io.nats.client.Subscription;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 
 class NatsSubscription extends NatsConsumer implements Subscription {
 
     private String subject;
-    private String queueName;
+    private final String queueName;
     private String sid;
 
     private NatsDispatcher dispatcher;
     private MessageQueue incoming;
 
-    private AtomicLong unSubMessageLimit;
+    private final AtomicLong unSubMessageLimit;
 
-    NatsSubscription(String sid, String subject, String queueName, NatsConnection connection,
-            NatsDispatcher dispatcher) {
+    private Function<NatsMessage, NatsMessage> beforeQueueProcessor;
+
+    NatsSubscription(String sid, String subject, String queueName, NatsConnection connection, NatsDispatcher dispatcher) {
         super(connection);
         this.subject = subject;
         this.queueName = queueName;
@@ -43,10 +46,34 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         if (this.dispatcher == null) {
             this.incoming = new MessageQueue(false);
         }
+
+        beforeQueueProcessor = m -> m;
+    }
+
+    void reSubscribe(String newDeliverSubject) {
+        connection.sendUnsub(this, 0);
+        if (dispatcher == null) {
+            connection.remove(this);
+            sid = connection.reSubscribe(this, newDeliverSubject, queueName);
+        }
+        else {
+            MessageHandler handler = dispatcher.getSubscriptionHandlers().get(sid);
+            dispatcher.remove(this);
+            sid = dispatcher.reSubscribe(this, newDeliverSubject, queueName, handler);
+        }
+        subject = newDeliverSubject;
     }
 
     public boolean isActive() {
         return (this.dispatcher != null || this.incoming != null);
+    }
+
+    void setBeforeQueueProcessor(Function<NatsMessage, NatsMessage> beforeQueueProcessor) {
+        this.beforeQueueProcessor = beforeQueueProcessor; // better not be null if it's being set
+    }
+
+    public Function<NatsMessage, NatsMessage> getBeforeQueueProcessor() {
+        return beforeQueueProcessor;
     }
 
     void invalidate() {
@@ -67,15 +94,13 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         return (max > 0) && (max <= recv);
     }
 
-    @Override
-    public String getSID() {
+    String getSID() {
         return this.sid;
     }
 
     NatsDispatcher getNatsDispatcher() {
         return this.dispatcher;
     }
-
     /**
      * {@inheritDoc}
      */
@@ -135,7 +160,9 @@ class NatsSubscription extends NatsConsumer implements Subscription {
             throw new IllegalStateException("This subscription became inactive.");
         }
 
-        this.incrementDeliveredCount();
+        if (msg != null) {
+            this.incrementDeliveredCount();
+        }
 
         if (this.reachedUnsubLimit()) {
             this.connection.invalidate(this);

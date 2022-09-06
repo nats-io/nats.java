@@ -51,8 +51,14 @@ public class StreamConfiguration implements JsonSerializable {
     private final DiscardPolicy discardPolicy;
     private final Duration duplicateWindow;
     private final Placement placement;
+    private final Republish republish;
     private final Mirror mirror;
     private final List<Source> sources;
+    private final boolean sealed;
+    private final boolean allowRollup;
+    private final boolean allowDirect;
+    private final boolean denyDelete;
+    private final boolean denyPurge;
 
     // for the response from the server
     static StreamConfiguration instance(String json) {
@@ -87,40 +93,45 @@ public class StreamConfiguration implements JsonSerializable {
         readNanos(json, DUPLICATE_WINDOW_RE, builder::duplicateWindow);
         builder.subjects(getStringList(SUBJECTS, json));
         builder.placement(Placement.optionalInstance(json));
+        builder.republish(Republish.optionalInstance(json));
         builder.mirror(Mirror.optionalInstance(json));
         builder.sources(Source.optionalListOf(json));
+        builder.sealed(readBoolean(json, SEALED_RE));
+        builder.allowRollup(readBoolean(json, ALLOW_ROLLUP_HDRS_RE));
+        builder.allowDirect(readBoolean(json, ALLOW_DIRECT_RE));
+        builder.denyDelete(readBoolean(json, DENY_DELETE_RE));
+        builder.denyPurge(readBoolean(json, DENY_PURGE_RE));
 
         return builder.build();
     }
 
     // For the builder, assumes all validations are already done in builder
-    StreamConfiguration(
-            String name, String description, List<String> subjects, RetentionPolicy retentionPolicy,
-            long maxConsumers, long maxMsgs, long maxMsgsPerSubject, long maxBytes,
-            Duration maxAge, long maxMsgSize, StorageType storageType,
-            int replicas, boolean noAck, String templateOwner,
-            DiscardPolicy discardPolicy, Duration duplicateWindow,
-            Placement placement, Mirror mirror, List<Source> sources)
-    {
-        this.name = name;
-        this.description = description;
-        this.subjects = subjects;
-        this.retentionPolicy = retentionPolicy;
-        this.maxConsumers = maxConsumers;
-        this.maxMsgs = maxMsgs;
-        this.maxMsgsPerSubject = maxMsgsPerSubject;
-        this.maxBytes = maxBytes;
-        this.maxAge = maxAge;
-        this.maxMsgSize = maxMsgSize;
-        this.storageType = storageType;
-        this.replicas = replicas;
-        this.noAck = noAck;
-        this.templateOwner = templateOwner;
-        this.discardPolicy = discardPolicy;
-        this.duplicateWindow = duplicateWindow;
-        this.placement = placement;
-        this.mirror = mirror;
-        this.sources = sources;
+    StreamConfiguration(Builder b) {
+        this.name = b.name;
+        this.description = b.description;
+        this.subjects = b.subjects;
+        this.retentionPolicy = b.retentionPolicy;
+        this.maxConsumers = b.maxConsumers;
+        this.maxMsgs = b.maxMsgs;
+        this.maxMsgsPerSubject = b.maxMsgsPerSubject;
+        this.maxBytes = b.maxBytes;
+        this.maxAge = b.maxAge;
+        this.maxMsgSize = b.maxMsgSize;
+        this.storageType = b.storageType;
+        this.replicas = b.replicas;
+        this.noAck = b.noAck;
+        this.templateOwner = b.templateOwner;
+        this.discardPolicy = b.discardPolicy;
+        this.duplicateWindow = b.duplicateWindow;
+        this.placement = b.placement;
+        this.republish = b.republish;
+        this.mirror = b.mirror;
+        this.sources = b.sources;
+        this.sealed = b.sealed;
+        this.allowRollup = b.allowRollup;
+        this.allowDirect = b.allowDirect;
+        this.denyDelete = b.denyDelete;
+        this.denyPurge = b.denyPurge;
     }
 
     /**
@@ -144,17 +155,26 @@ public class StreamConfiguration implements JsonSerializable {
         addField(sb, MAX_MSG_SIZE, maxMsgSize);
         addField(sb, STORAGE, storageType.toString());
         addField(sb, NUM_REPLICAS, replicas);
-        addField(sb, NO_ACK, noAck);
+        addFldWhenTrue(sb, NO_ACK, noAck);
         addField(sb, TEMPLATE_OWNER, templateOwner);
         addField(sb, DISCARD, discardPolicy.toString());
         addFieldAsNanos(sb, DUPLICATE_WINDOW, duplicateWindow);
         if (placement != null) {
             addField(sb, PLACEMENT, placement);
         }
+        if (republish != null) {
+            addField(sb, REPUBLISH, republish);
+        }
         if (mirror != null) {
             addField(sb, MIRROR, mirror);
         }
         addJsons(sb, SOURCES, sources);
+
+        addFldWhenTrue(sb, SEALED, sealed);
+        addFldWhenTrue(sb, ALLOW_ROLLUP_HDRS, allowRollup);
+        addFldWhenTrue(sb, ALLOW_DIRECT, allowDirect);
+        addFldWhenTrue(sb, DENY_DELETE, denyDelete);
+        addFldWhenTrue(sb, DENY_PURGE, denyPurge);
 
         return endJson(sb).toString();
     }
@@ -289,12 +309,20 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Placement directives to consider when placing replicas of this stream,
-     * random placement when unset
-     * @return the placement [directive object]
+     * Get the placement directives to consider when placing replicas of this stream,
+     * random placement when unset. May be null.
+     * @return the placement object
      */
     public Placement getPlacement() {
         return placement;
+    }
+
+    /**
+     * Get the republish configuration. May be null.
+     * @return the republish object
+     */
+    public Republish getRepublish() {
+        return republish;
     }
 
     /**
@@ -313,28 +341,73 @@ public class StreamConfiguration implements JsonSerializable {
         return sources;
     }
 
+    /**
+     * Get the flag indicating if the stream is sealed.
+     * @return the sealed flag
+     */
+    public boolean getSealed() {
+        return sealed;
+    }
+
+    /**
+     * Get the flag indicating if the stream allows rollup.
+     * @return the allows rollup flag
+     */
+    public boolean getAllowRollup() {
+        return allowRollup;
+    }
+
+    /**
+     * Get the flag indicating if the stream allows direct message access.
+     * @return the allows direct flag
+     */
+    public boolean getAllowDirect() {
+        return allowDirect;
+    }
+
+    /**
+     * Get the flag indicating if deny delete is set for the stream
+     * @return the deny delete flag
+     */
+    public boolean getDenyDelete() {
+        return denyDelete;
+    }
+
+    /**
+     * Get the flag indicating if deny purge is set for the stream
+     * @return the deny purge flag
+     */
+    public boolean getDenyPurge() {
+        return denyPurge;
+    }
+
     @Override
     public String toString() {
         return "StreamConfiguration{" +
-                "name='" + name + '\'' +
-                ", description='" + description + '\'' +
-                ", subjects=" + subjects +
-                ", retentionPolicy=" + retentionPolicy +
-                ", maxConsumers=" + maxConsumers +
-                ", maxMsgs=" + maxMsgs +
-                ", maxBytes=" + maxBytes +
-                ", maxAge=" + maxAge +
-                ", maxMsgSize=" + maxMsgSize +
-                ", storageType=" + storageType +
-                ", replicas=" + replicas +
-                ", noAck=" + noAck +
-                ", template='" + templateOwner + '\'' +
-                ", discardPolicy=" + discardPolicy +
-                ", duplicateWindow=" + duplicateWindow +
-                ", " + objectString("mirror", mirror) +
-                ", " + objectString("placement", placement) +
-                ", sources=" + sources +
-                '}';
+            "name='" + name + '\'' +
+            ", description='" + description + '\'' +
+            ", subjects=" + subjects +
+            ", retentionPolicy=" + retentionPolicy +
+            ", maxConsumers=" + maxConsumers +
+            ", maxMsgs=" + maxMsgs +
+            ", maxMsgsPerSubject=" + maxMsgsPerSubject +
+            ", maxBytes=" + maxBytes +
+            ", maxAge=" + maxAge +
+            ", maxMsgSize=" + maxMsgSize +
+            ", storageType=" + storageType +
+            ", replicas=" + replicas +
+            ", noAck=" + noAck +
+            ", template='" + templateOwner + '\'' +
+            ", discardPolicy=" + discardPolicy +
+            ", duplicateWindow=" + duplicateWindow +
+            ", allowRollup=" + allowRollup +
+            ", allowDirect=" + allowDirect +
+            ", denyDelete=" + denyDelete +
+            ", denyPurge=" + denyPurge +
+            ", " + objectString("mirror", mirror) +
+            ", " + objectString("placement", placement) +
+            ", sources=" + sources +
+            '}';
     }
 
     /**
@@ -380,8 +453,14 @@ public class StreamConfiguration implements JsonSerializable {
         private DiscardPolicy discardPolicy = DiscardPolicy.Old;
         private Duration duplicateWindow = Duration.ZERO;
         private Placement placement = null;
+        private Republish republish = null;
         private Mirror mirror = null;
         private final List<Source> sources = new ArrayList<>();
+        private boolean sealed = false;
+        private boolean allowRollup = false;
+        private boolean allowDirect = false;
+        private boolean denyDelete = false;
+        private boolean denyPurge = false;
 
         /**
          * Default Builder
@@ -411,8 +490,14 @@ public class StreamConfiguration implements JsonSerializable {
                 this.discardPolicy = sc.discardPolicy;
                 this.duplicateWindow = sc.duplicateWindow;
                 this.placement = sc.placement;
+                this.republish = sc.republish;
                 this.mirror = sc.mirror;
                 sources(sc.sources);
+                this.sealed = sc.sealed;
+                this.allowRollup = sc.allowRollup;
+                this.allowDirect = sc.allowDirect;
+                this.denyDelete = sc.denyDelete;
+                this.denyPurge = sc.denyPurge;
             }
         }
 
@@ -648,6 +733,16 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
+         * Sets the republish directive object
+         * @param republish the republish directive object
+         * @return Builder
+         */
+        public Builder republish(Republish republish) {
+            this.republish = republish;
+            return this;
+        }
+
+        /**
          * Sets the mirror  object
          * @param mirror the mirror object
          * @return Builder
@@ -703,32 +798,71 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
+         * Set whether to seal the stream.
+         * INTERNAL USE ONLY. Scoped protected for test purposes.
+         * @param sealed the sealed setting
+         * @return Builder
+         */
+        protected Builder sealed(boolean sealed) {
+            this.sealed = sealed;
+            return this;
+        }
+
+        /**
+         * Set whether to allow the rollup feature for a stream
+         * @param allowRollup the allow rollup setting
+         * @return Builder
+         */
+        public Builder allowRollup(boolean allowRollup) {
+            this.allowRollup = allowRollup;
+            return this;
+        }
+
+        /**
+         * Set whether to allow direct message access for a stream
+         * @param allowDirect the allow direct setting
+         * @return Builder
+         */
+        public Builder allowDirect(boolean allowDirect) {
+            this.allowDirect = allowDirect;
+            return this;
+        }
+
+        /**
+         * Set whether to deny deleting messages from the stream
+         * @param denyDelete the deny delete setting
+         * @return Builder
+         */
+        public Builder denyDelete(boolean denyDelete) {
+            this.denyDelete = denyDelete;
+            return this;
+        }
+
+        /**
+         * Set whether to deny purging messages from the stream
+         * @param denyPurge the deny purge setting
+         * @return Builder
+         */
+        public Builder denyPurge(boolean denyPurge) {
+            this.denyPurge = denyPurge;
+            return this;
+        }
+
+        /**
+         * Set this stream to be sealed. This is irreversible.
+         * @return Builder
+         */
+        public Builder seal() {
+            this.sealed = true;
+            return this;
+        }
+
+        /**
          * Builds the StreamConfiguration
          * @return a stream configuration.
          */
         public StreamConfiguration build() {
-            return new StreamConfiguration(
-                    name,
-                    description,
-                    subjects,
-                    retentionPolicy,
-                    maxConsumers,
-                    maxMsgs,
-                    maxMsgsPerSubject,
-                    maxBytes,
-                    maxAge,
-                    maxMsgSize,
-                    storageType,
-                    replicas,
-                    noAck,
-                    templateOwner,
-                    discardPolicy,
-                    duplicateWindow,
-                    placement,
-                    mirror,
-                    sources
-            );
+            return new StreamConfiguration(this);
         }
-
     }
 }

@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.support.Status;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.nats.client.utils.TestBase.standardCloseConnection;
 import static io.nats.client.utils.TestBase.standardConnection;
@@ -277,17 +279,65 @@ public class ErrorListenerTests {
     @Test
     public void testCoverage() {
         // this exercises default interface implementation
-        _cover(new ErrorListener() {
-            @Override
-            public void errorOccurred(Connection conn, String error) {}
-            @Override
-            public void exceptionOccurred(Connection conn, Exception exp) {}
-            @Override
-            public void slowConsumerDetected(Connection conn, Consumer consumer) {}
-        });
+        _cover(new ErrorListener() {});
 
         // exercises the default implementation
         _cover(new ErrorListenerLoggerImpl());
+
+        // exercises a little more than the defaults
+        AtomicBoolean errorOccurredFlag = new AtomicBoolean();
+        AtomicBoolean exceptionOccurredFlag = new AtomicBoolean();
+        AtomicBoolean slowConsumerDetectedFlag = new AtomicBoolean();
+        AtomicBoolean messageDiscardedFlag = new AtomicBoolean();
+        AtomicBoolean heartbeatAlarmFlag = new AtomicBoolean();
+        AtomicBoolean unhandledStatusFlag = new AtomicBoolean();
+        AtomicBoolean flowControlProcessedFlag = new AtomicBoolean();
+
+        _cover(new ErrorListener() {
+            @Override
+            public void errorOccurred(Connection conn, String error) {
+                errorOccurredFlag.set(true);
+            }
+
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {
+                exceptionOccurredFlag.set(true);
+            }
+
+            @Override
+            public void slowConsumerDetected(Connection conn, Consumer consumer) {
+                slowConsumerDetectedFlag.set(true);
+            }
+
+            @Override
+            public void messageDiscarded(Connection conn, Message msg) {
+                messageDiscardedFlag.set(true);
+            }
+
+            @Override
+            public void heartbeatAlarm(Connection conn, JetStreamSubscription sub, long lastStreamSequence, long lastConsumerSequence) {
+                heartbeatAlarmFlag.set(true);
+            }
+
+            @Override
+            public void unhandledStatus(Connection conn, JetStreamSubscription sub, Status status) {
+                unhandledStatusFlag.set(true);
+            }
+
+            @Override
+            public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String subject, FlowControlSource source) {
+                flowControlProcessedFlag.set(true);
+            }
+        });
+
+        assertTrue(errorOccurredFlag.get());
+        assertTrue(exceptionOccurredFlag.get());
+        assertTrue(slowConsumerDetectedFlag.get());
+        assertTrue(messageDiscardedFlag.get());
+        assertTrue(heartbeatAlarmFlag.get());
+        assertTrue(unhandledStatusFlag.get());
+        assertTrue(flowControlProcessedFlag.get());
+
     }
 
     private void _cover(ErrorListener el) {
@@ -297,5 +347,6 @@ public class ErrorListenerTests {
         el.messageDiscarded(null, null);
         el.heartbeatAlarm(null, null, -1, -1);
         el.unhandledStatus(null, null, null);
+        el.flowControlProcessed(null, null, null, null);
     }
 }

@@ -20,6 +20,7 @@ import org.opentest4j.AssertionFailedError;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
@@ -85,7 +86,14 @@ public class TestBase {
         try (NatsTestServer ts = new NatsTestServer(debug, jetstream);
              Connection nc = standardConnection(ts.getURI()))
         {
-            inServerTest.test(nc);
+            try {
+                inServerTest.test(nc);
+            }
+            finally {
+                if (jetstream) {
+                    cleanupJs(nc);
+                }
+            }
         }
     }
 
@@ -93,7 +101,14 @@ public class TestBase {
         try (NatsTestServer ts = new NatsTestServer(debug, jetstream);
              Connection nc = standardConnection(builder.server(ts.getURI()).build()))
         {
-            inServerTest.test(nc);
+            try {
+                inServerTest.test(nc);
+            }
+            finally {
+                if (jetstream) {
+                    cleanupJs(nc);
+                }
+            }
         }
     }
 
@@ -107,6 +122,18 @@ public class TestBase {
         }
     }
 
+    private static void cleanupJs(Connection c)
+    {
+        try {
+            JetStreamManagement jsm = c.jetStreamManagement();
+            List<String> streams = jsm.getStreamNames();
+            for (String s : streams)
+            {
+                jsm.deleteStream(s);
+            }
+        } catch (Exception ignore) {}
+    }
+
     // ----------------------------------------------------------------------------------------------------
     // data makers
     // ----------------------------------------------------------------------------------------------------
@@ -118,9 +145,12 @@ public class TestBase {
     public static final String SUBJECT_GT = SUBJECT + ".>";
     public static final String QUEUE = "queue";
     public static final String DURABLE = "durable";
+    public static final String PUSH_DURABLE = "push-" + DURABLE;
+    public static final String PULL_DURABLE = "pull-" + DURABLE;
     public static final String DELIVER = "deliver";
     public static final String MESSAGE_ID = "mid";
     public static final String BUCKET = "bucket";
+    public static final String KEY = "key";
     public static final String DATA = "data";
 
     public static String stream(int seq) {
@@ -161,6 +191,10 @@ public class TestBase {
 
     public static String bucket(int seq) {
         return BUCKET + "-" + seq;
+    }
+
+    public static String key(int seq) {
+        return KEY + "-" + seq;
     }
 
     public static String messageId(int seq) {
@@ -258,6 +292,27 @@ public class TestBase {
 
     public static void park(Duration d) {
         try { LockSupport.parkNanos(d.toNanos()); } catch (Exception ignored) { /* ignored */ }
+    }
+
+    public static void debugPrintln(Object... debug) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(System.currentTimeMillis());
+        sb.append(" [");
+        sb.append(Thread.currentThread().getName());
+        sb.append(",");
+        sb.append(Thread.currentThread().getPriority());
+        sb.append("] ");
+        boolean flag = true;
+        for (Object o : debug) {
+            if (flag) {
+                flag = false;
+            }
+            else {
+                sb.append(" | ");
+            }
+            sb.append(o);
+        }
+        System.out.println(sb.toString());
     }
 
     // ----------------------------------------------------------------------------------------------------

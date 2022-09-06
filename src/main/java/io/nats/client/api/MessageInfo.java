@@ -15,12 +15,15 @@ package io.nats.client.api;
 
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
+import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.JsonUtils;
 
 import java.time.ZonedDateTime;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.NatsJetStreamConstants.*;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * The MessageInfo class contains information about a JetStream message.
@@ -32,15 +35,65 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
     private final byte[] data;
     private final ZonedDateTime time;
     private final Headers headers;
+    private final String stream;
+    private final long lastSeq;
 
+    /**
+     * Create a Message Info
+     * @deprecated This signature was public for unit testing but is no longer used.
+     * @param msg the message
+     */
+    @Deprecated
     public MessageInfo(Message msg) {
-        super(msg);
-        subject = JsonUtils.readString(json, SUBJECT_RE);
-        data = JsonUtils.readBase64(json, DATA_RE);
-        seq = JsonUtils.readLong(json, SEQ_RE, 0);
-        time = JsonUtils.readDate(json, TIME_RE);
-        byte[] hdrBytes = JsonUtils.readBase64(json, HDRS_RE);
-        headers = hdrBytes == null ? null : new IncomingHeadersProcessor(hdrBytes).getHeaders();
+        this(msg, null, false);
+    }
+
+    /**
+     * Create a Message Info
+     * This signature is public for testing purposes and is not intended to be used externally.
+     * @param msg the message
+     * @param streamName the stream name if known
+     * @param fromDirect true if the object is being created from a get direct api call instead of the standard get message
+     */
+    public MessageInfo(Message msg, String streamName, boolean fromDirect) {
+        super(fromDirect ? null : new String(msg.getData(), UTF_8));
+
+        if (fromDirect) {
+            this.headers = msg.getHeaders();
+            this.subject = headers.getFirst(NATS_SUBJECT);
+            this.data = msg.getData();
+            seq = Long.parseLong(headers.getFirst(NATS_SEQUENCE));
+            time = DateTimeUtils.parseDateTime(headers.getFirst(NATS_TIMESTAMP));
+            stream = headers.getFirst(NATS_STREAM);
+            String temp = headers.getFirst(NATS_LAST_SEQUENCE);
+            if (temp == null) {
+                lastSeq = -1;
+            }
+            else {
+                lastSeq = JsonUtils.safeParseLong(temp, -1);
+            }
+            // these are control headers, not real headers so don't give them to the user.
+            headers.remove(NATS_SUBJECT, NATS_SEQUENCE, NATS_TIMESTAMP, NATS_STREAM, NATS_LAST_SEQUENCE);
+        }
+        else if (hasError()) {
+            subject = null;
+            data = null;
+            seq = -1;
+            time = null;
+            headers = null;
+            stream = null;
+            lastSeq = -1;
+        }
+        else {
+            subject = JsonUtils.readString(json, SUBJECT_RE);
+            data = JsonUtils.readBase64(json, DATA_RE);
+            seq = JsonUtils.readLong(json, SEQ_RE, 0);
+            time = JsonUtils.readDate(json, TIME_RE);
+            byte[] hdrBytes = JsonUtils.readBase64(json, HDRS_RE);
+            headers = hdrBytes == null ? null : new IncomingHeadersProcessor(hdrBytes).getHeaders();
+            stream = streamName;
+            lastSeq = -1;
+        }
     }
 
     /**
@@ -83,14 +136,32 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         return headers;
     }
 
+    /**
+     * Get the name of the stream. Not always set.
+     * @return the stream name or null if the name is not known.
+     */
+    public String getStream() {
+        return stream;
+    }
+
+    /**
+     * Get the sequence number of the last message in the stream. Not always set.
+     * @return the last sequence or -1 if the value is not known.
+     */
+    public long getLastSeq() {
+        return lastSeq;
+    }
+
     @Override
     public String toString() {
         return "MessageInfo{" +
-                "subject='" + subject + '\'' +
-                ", seq=" + seq +
-                ", data='" + data + '\'' +
-                ", time=" + time +
-                ", headers=" + headers +
-                '}';
+            "subject='" + subject + '\'' +
+            ", seq=" + seq +
+            ", " + (data == null ? "data=null" : ("data bytes " + data.length)) +
+            ", time=" + time +
+            ", stream=" + stream +
+            (lastSeq < 1 ? "" : ", lastSeq=" + lastSeq) +
+            ", headers=" + headers +
+            '}';
     }
 }

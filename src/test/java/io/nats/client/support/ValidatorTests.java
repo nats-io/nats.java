@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import static io.nats.client.support.NatsConstants.EMPTY;
-import static io.nats.client.support.NatsJetStreamConstants.MAX_PULL_SIZE;
 import static io.nats.client.support.Validator.*;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.TestBase.*;
@@ -80,15 +79,6 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidatePullBatchSize() {
-        assertEquals(1, validatePullBatchSize(1));
-        assertEquals(MAX_PULL_SIZE, validatePullBatchSize(MAX_PULL_SIZE));
-        assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(0));
-        assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(-1));
-        assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(MAX_PULL_SIZE + 1));
-    }
-
-    @Test
     public void testValidateMaxConsumers() {
         assertEquals(1, validateMaxConsumers(1));
         assertEquals(-1, validateMaxConsumers(-1));
@@ -105,14 +95,6 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateMaxBucketValues() {
-        assertEquals(1, validateMaxBucketValues(1));
-        assertEquals(-1, validateMaxBucketValues(-1));
-        assertThrows(IllegalArgumentException.class, () -> validateMaxBucketValues(0));
-        assertThrows(IllegalArgumentException.class, () -> validateMaxBucketValues(-2));
-    }
-
-    @Test
     public void testValidateMaxMessagesPerSubject() {
         assertEquals(1, validateMaxMessagesPerSubject(1));
         assertEquals(-1, validateMaxMessagesPerSubject(-1));
@@ -123,9 +105,12 @@ public class ValidatorTests {
     @Test
     public void testValidateMaxHistory() {
         assertEquals(1, validateMaxHistory(1));
-        assertEquals(-1, validateMaxHistory(-1));
-        assertThrows(IllegalArgumentException.class, () -> validateMaxHistory(0));
-        assertThrows(IllegalArgumentException.class, () -> validateMaxHistory(-2));
+        assertEquals(1, validateMaxHistory(0));
+        assertEquals(1, validateMaxHistory(-1));
+        assertEquals(1, validateMaxHistory(-2));
+        assertEquals(64, validateMaxHistory(64));
+        //noinspection ResultOfMethodCallIgnored
+        assertThrows(IllegalArgumentException.class, () -> validateMaxHistory(65));
     }
 
     @Test
@@ -154,9 +139,9 @@ public class ValidatorTests {
 
     @Test
     public void testValidateMaxValueBytes() {
-        assertEquals(1, validateMaxValueBytes(1));
-        assertEquals(-1, validateMaxValueBytes(-1));
-        assertThrows(IllegalArgumentException.class, () -> validateMaxValueBytes(0));
+        assertEquals(1, validateMaxValueSize(1));
+        assertEquals(-1, validateMaxValueSize(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxValueSize(0));
         assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(-2));
     }
 
@@ -211,44 +196,84 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateBucketNameRequired() {
-        validateBucketNameRequired(PLAIN);
-        validateBucketNameRequired(PLAIN.toUpperCase());
-        validateBucketNameRequired(HAS_DASH);
-        validateBucketNameRequired(HAS_UNDER);
-        validateBucketNameRequired("numbers9ok");
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(null));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_SPACE));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_DOT));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_STAR));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_GT));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_DOLLAR));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_LOW));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_127));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_FWD_SLASH));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_EQUALS));
-        assertThrows(IllegalArgumentException.class, () -> validateBucketNameRequired(HAS_TIC));
+    public void testValidateBucketName() {
+        validateBucketName(PLAIN, true);
+        validateBucketName(PLAIN.toUpperCase(), true);
+        validateBucketName(HAS_DASH, true);
+        validateBucketName(HAS_UNDER, true);
+        validateBucketName("numbers9ok", true);
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(null, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_SPACE, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_DOT, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_STAR, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_GT, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_DOLLAR, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_LOW, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_127, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_FWD_SLASH, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_EQUALS, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_TIC, true));
+
+        validateBucketName(PLAIN, false);
+        validateBucketName(PLAIN.toUpperCase(), false);
+        validateBucketName(HAS_DASH, false);
+        validateBucketName(HAS_UNDER, false);
+        validateBucketName("numbers9ok", false);
+        validateBucketName(null, false);
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_SPACE, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_DOT, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_STAR, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_GT, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_DOLLAR, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_LOW, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_127, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_FWD_SLASH, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_EQUALS, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_TIC, false));
     }
 
     @Test
-    public void testValidateKeyRequired() {
-        validateKeyRequired(PLAIN);
-        validateKeyRequired(PLAIN.toUpperCase());
-        validateKeyRequired(HAS_DASH);
-        validateKeyRequired(HAS_UNDER);
-        validateKeyRequired(HAS_FWD_SLASH);
-        validateKeyRequired(HAS_EQUALS);
-        validateKeyRequired(HAS_DOT);
-        validateKeyRequired("numbers9ok");
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(null));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_SPACE));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_STAR));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_GT));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_DOLLAR));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_LOW));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_127));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(HAS_TIC));
-        assertThrows(IllegalArgumentException.class, () -> validateKeyRequired(".starts.with.dot.not.allowed"));
+    public void testValidateWildcardKeyRequired() {
+        validateKvKeyWildcardAllowedRequired(PLAIN);
+        validateKvKeyWildcardAllowedRequired(PLAIN.toUpperCase());
+        validateKvKeyWildcardAllowedRequired(HAS_DASH);
+        validateKvKeyWildcardAllowedRequired(HAS_UNDER);
+        validateKvKeyWildcardAllowedRequired(HAS_FWD_SLASH);
+        validateKvKeyWildcardAllowedRequired(HAS_EQUALS);
+        validateKvKeyWildcardAllowedRequired(HAS_DOT);
+        validateKvKeyWildcardAllowedRequired(HAS_STAR);
+        validateKvKeyWildcardAllowedRequired(HAS_GT);
+        validateKvKeyWildcardAllowedRequired("numbers9ok");
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(null));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_TIC));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired("colon:isbetween9andA"));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(".starts.with.dot.not.allowed"));
+    }
+
+    @Test
+    public void testValidateNonWildcardKeyRequired() {
+        validateNonWildcardKvKeyRequired(PLAIN);
+        validateNonWildcardKvKeyRequired(PLAIN.toUpperCase());
+        validateNonWildcardKvKeyRequired(HAS_DASH);
+        validateNonWildcardKvKeyRequired(HAS_UNDER);
+        validateNonWildcardKvKeyRequired(HAS_FWD_SLASH);
+        validateNonWildcardKvKeyRequired(HAS_EQUALS);
+        validateNonWildcardKvKeyRequired(HAS_DOT);
+        validateNonWildcardKvKeyRequired("numbers9ok");
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(null));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_STAR));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_GT));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_TIC));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired("colon:isbetween9andA"));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(".starts.with.dot.not.allowed"));
     }
 
     @Test
@@ -284,6 +309,13 @@ public class ValidatorTests {
         assertTrue(zeroOrLtMinus1(-2));
         assertFalse(zeroOrLtMinus1(1));
         assertFalse(zeroOrLtMinus1(-1));
+    }
+
+    @Test
+    public void testValidateGtZero() {
+        assertEquals(1, validateGtZero(1, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateGtZero(0, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateGtZero(-1, "test"));
     }
 
     @Test
@@ -358,5 +390,12 @@ public class ValidatorTests {
 
     private String notAllowedMessage(String s) {
         return "Testing [" + s + "] as not allowed.";
+    }
+
+    @Test
+    public void testNatsJetStreamClientError() {
+        // coverage
+        NatsJetStreamClientError err = new NatsJetStreamClientError("TEST", 999999, "desc");
+        assertEquals("[TEST-999999] desc", err.message());
     }
 }

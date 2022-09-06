@@ -50,13 +50,13 @@ public class NatsJsPushSubFlowControl {
         ErrorListener el = new ErrorListener() {
             @Override
             public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String subject, FlowControlSource source) {
-                System.out.printf("Flow Control Processed (%d), Connection: %d, Subscription: %s, Subject: %s, Source: %s\n",
+                System.out.printf("Flow Control Processed (%d), Connection: %d, Subject: %s, Source: %s\n",
                     flowControlMessagesProcessed.incrementAndGet(),
-                    conn.getServerInfo().getClientId(), sub.getSID(), subject, source);
+                    conn.getServerInfo().getClientId(), subject, source);
             }
         };
 
-        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false, el))) {
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false, el, null))) {
 
             JetStreamManagement jsm = nc.jetStreamManagement();
 

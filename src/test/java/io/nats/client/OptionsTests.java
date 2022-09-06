@@ -17,6 +17,7 @@ import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.DataPort;
 import io.nats.client.impl.ErrorListenerLoggerImpl;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
+import io.nats.client.utils.CoverageServerListProvider;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -28,6 +29,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,11 +39,22 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class OptionsTests {
+
+    public static final String URL_PROTO_HOST_PORT_8080 = "nats://localhost:8080";
+    public static final String URL_PROTO_HOST_PORT_8081 = "nats://localhost:8081";
+    public static final String URL_HOST_PORT_8081 = "localhost:8081";
+
+    @Test
+    public void testClientVersion() {
+        assertEquals("development", Nats.CLIENT_VERSION);
+    }
+
     @Test
     public void testDefaultOptions() {
         Options o = new Options.Builder().build();
 
         assertEquals(1, o.getServers().size(), "default one server");
+        assertEquals(1, o.getUnprocessedServers().size(), "default one server");
         assertEquals(Options.DEFAULT_URL, o.getServers().toArray()[0].toString(), "default url");
 
         assertEquals(Collections.emptyList(), o.getHttpRequestInterceptors(), "default http request interceptors");
@@ -254,6 +267,23 @@ public class OptionsTests {
     }
 
     @Test
+    public void testBuilderCoverageOptions() {
+        Options o = new Options.Builder().build();
+        assertTrue(o.clientSideLimitChecks());
+        assertNull(o.getServerListProvider());
+
+        o = new Options.Builder().clientSideLimitChecks(true).build();
+        assertTrue(o.clientSideLimitChecks());
+
+        o = new Options.Builder()
+            .clientSideLimitChecks(false)
+            .serverListProvider(new CoverageServerListProvider())
+            .build();
+        assertFalse(o.clientSideLimitChecks());
+        assertNotNull(o.getServerListProvider());
+    }
+
+    @Test
     public void testPropertiesCoverageOptions() throws Exception {
         // don't use default for tests, issues with forcing algorithm exception in other tests break it
         SSLContext.setDefault(TestSSLUtils.createTestSSLContext());
@@ -264,11 +294,17 @@ public class OptionsTests {
         props.setProperty(Options.PROP_NO_NORESPONDERS, "true");
         props.setProperty(Options.PROP_RECONNECT_JITTER, "1000");
         props.setProperty(Options.PROP_RECONNECT_JITTER_TLS, "2000");
+        props.setProperty(Options.PROP_CLIENT_SIDE_LIMIT_CHECKS, "true");
+        props.setProperty(Options.PROP_IGNORE_DISCOVERED_SERVERS, "true");
+        props.setProperty(Options.PROP_SERVERS_LIST_PROVIDER_CLASS, "io.nats.client.utils.CoverageServerListProvider");
 
         Options o = new Options.Builder(props).build();
         assertNull(o.getSslContext(), "property context");
         assertTrue(o.isNoHeaders());
         assertTrue(o.isNoNoResponders());
+        assertTrue(o.clientSideLimitChecks());
+        assertTrue(o.isIgnoreDiscoveredServers());
+        assertNotNull(o.getServerListProvider());
     }
 
     @Test
@@ -493,70 +529,52 @@ public class OptionsTests {
     @Test
     public void testServerInProperties() {
         Properties props = new Properties();
-        String url = "nats://localhost:8080";
-        props.setProperty(Options.PROP_URL, url);
-
-        Options o = new Options.Builder(props).build();
-        Collection<URI> servers = o.getServers();
-        URI[] serverArray = servers.toArray(new URI[0]);
-        assertEquals(1, serverArray.length);
-        assertEquals(url, serverArray[0].toString(), "property server");
+        props.setProperty(Options.PROP_URL, URL_PROTO_HOST_PORT_8080);
+        assertServersAndUnprocessed(false, new Options.Builder(props).build());
     }
 
     @Test
     public void testServersInProperties() {
         Properties props = new Properties();
-        String url1 = "nats://localhost:8080";
-        String url2 = "nats://localhost:8081";
-        String urls = url1 + ", " + url2;
+        String urls = URL_PROTO_HOST_PORT_8080 + ", " + URL_HOST_PORT_8081;
         props.setProperty(Options.PROP_SERVERS, urls);
-
-        Options o = new Options.Builder(props).build();
-        Collection<URI> servers = o.getServers();
-        URI[] serverArray = servers.toArray(new URI[0]);
-        assertEquals(2, serverArray.length);
-        assertEquals(url1, serverArray[0].toString(), "property server");
-        assertEquals(url2, serverArray[1].toString(), "property server");
+        assertServersAndUnprocessed(true, new Options.Builder(props).build());
     }
 
     @Test
     public void testServers() {
-        String url1 = "nats://localhost:8080";
-        String url2 = "nats://localhost:8081";
-        String[] serverUrls = {url1, url2};
-        Options o = new Options.Builder().servers(serverUrls).build();
-
-        Collection<URI> servers = o.getServers();
-        URI[] serverArray = servers.toArray(new URI[0]);
-        assertEquals(2, serverArray.length);
-        assertEquals(url1, serverArray[0].toString(), "property server");
-        assertEquals(url2, serverArray[1].toString(), "property server");
+        String[] serverUrls = {URL_PROTO_HOST_PORT_8080, URL_HOST_PORT_8081};
+        assertServersAndUnprocessed(true, new Options.Builder().servers(serverUrls).build());
     }
 
     @Test
     public void testServersWithCommas() {
-        String url1 = "nats://localhost:8080";
-        String url2 = "nats://localhost:8081";
-        String serverURLs = url1 + "," + url2;
-        Options o = new Options.Builder().server(serverURLs).build();
-
-        Collection<URI> servers = o.getServers();
-        URI[] serverArray = servers.toArray(new URI[0]);
-        assertEquals(2, serverArray.length);
-        assertEquals(url1, serverArray[0].toString(), "property server");
-        assertEquals(url2, serverArray[1].toString(), "property server");
+        String serverURLs = URL_PROTO_HOST_PORT_8080 + "," + URL_HOST_PORT_8081;
+        assertServersAndUnprocessed(true, new Options.Builder().server(serverURLs).build());
     }
 
     @Test
     public void testEmptyAndNullStringsInServers() {
-        String url = "nats://localhost:8080";
-        String[] serverUrls = {"", null, url};
-        Options o = new Options.Builder().servers(serverUrls).build();
+        String[] serverUrls = {"", null, URL_PROTO_HOST_PORT_8080, URL_HOST_PORT_8081};
+        assertServersAndUnprocessed(true, new Options.Builder().servers(serverUrls).build());
+    }
 
+    private void assertServersAndUnprocessed(boolean two, Options o) {
         Collection<URI> servers = o.getServers();
         URI[] serverArray = servers.toArray(new URI[0]);
-        assertEquals(1, serverArray.length);
-        assertEquals(url, serverArray[0].toString(), "property server");
+        List<String> un = o.getUnprocessedServers();
+
+        int size = two ? 2 : 1;
+        assertEquals(size, serverArray.length);
+        assertEquals(size, un.size());
+
+        assertEquals(URL_PROTO_HOST_PORT_8080, serverArray[0].toString(), "property server");
+        assertEquals(URL_PROTO_HOST_PORT_8080, un.get(0), "unprocessed server");
+
+        if (two) {
+            assertEquals(URL_PROTO_HOST_PORT_8081, serverArray[1].toString(), "property server");
+            assertEquals(URL_HOST_PORT_8081, un.get(1), "unprocessed server");
+        }
     }
 
     @Test
@@ -592,7 +610,7 @@ public class OptionsTests {
     @Test
     public void testThrowOnBadServersURI() {
         assertThrows(IllegalArgumentException.class, () -> {
-            String url1 = "nats://localhost:8080";
+            String url1 = URL_PROTO_HOST_PORT_8080;
             String url2 = "foo:/bar\\:blammer";
             String[] serverUrls = {url1, url2};
             new Options.Builder().servers(serverUrls).build();

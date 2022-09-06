@@ -1,5 +1,165 @@
-
 # Change Log
+
+## 2.15.6 new Consumer configuration fields
+
+#### Core
+* better request timeout management #693 @scottf
+
+#### JetStream
+* support num_replicas and mem_storage in consumer configuration #689 @goku321 @scottf
+
+#### Misc
+* Change example to have more flexibility on message size #690  @scottf
+
+## 2.15.5 re-release 2.15.4 fixes, enhancements and experimental
+
+#### Core
+* Accept encoded connection urls #674  @scottf
+* Only track duplicate responses when advanced tracking is on #659 @scottf
+
+#### JetStream
+* revert ConsumerConfiguration changes where some fields were downgraded #685 @scottf
+* consumer info change to sequence_info from sequence_pair #679 @scottf
+* consumer filter subject is now modifiable #676 @scottf
+* handle updated account stats #668 @scottf
+* Ability to create an External object #661 @scottf
+
+#### KV
+* ability to update bucket config #662 @scottf
+
+#### Experimental
+* expose management getStreamNamesBySubjectFilter #681 @scottf
+* experimental pull reader #683 @scottf
+
+#### Tests
+* Add test for NKey.clear #663 @lacinoire
+
+#### Misc
+* remove comments that say durable is required during pull #675 @scottf
+* better push queue example #670 @scottf
+* fix inactive threshold doc #660 @scottf
+
+## 2.15.3 Writeable Placement
+
+#### JetStream
+
+* Ability for user to create a Placement object [PR #655](https://github.com/nats-io/nats.java/pull/655) @scottf
+
+## 2.15.2 JetStream Improvements
+
+#### JetStream
+
+* Pull config changes, ephemeral pull, unit tests [PR #645](https://github.com/nats-io/nats.java/pull/645) @scottf
+* Server urls connection management [PR #648](https://github.com/nats-io/nats.java/pull/648) @scottf
+  - Architecture issue 113 Add option to ignore discovered urls
+  - ServersToTryProvider provide a way that a user can provide a complete custom implementation to provide the server urls to try on connect / reconnect. Tiered servers could be implemented this way. EXPERIMENTAL feature.
+* EXPERIMENTAL PullRequestOptions [PR #649](https://github.com/nats-io/nats.java/pull/649) @scottf
+
+## 2.15.1 Remove batch size limitations and add 409 support
+
+#### JetStream
+
+* Remove pull batch size limitation [PR #642](https://github.com/nats-io/nats.java/pull/642) @scottf
+* Statuses with code 409 are known statuses [PR #643](https://github.com/nats-io/nats.java/pull/643) @scottf
+
+
+## 2.15.0  Subscription must be made before consumer is created
+
+The order of creating a subscription on the server and creating a consumer on the server matters. Once the consumer is created, there is interest and the server tries to deliver. But if the subscription is not created, the messages are delivered to...nowhere, but are considered delivered.
+
+This was not strictly a problem but it was a race - if the subscription was ready before the consumer was sent messages, then things went fine. Unit test didn't fail. But when we were testing against NGS and in clusters with mixes of JetStream and non-Jetstream servers, the consumer was always ready because of simple latency.
+
+So now the server subscription is always made first avoiding the problem altogether.
+
+See PR #639
+
+## 2.14.2 Consumer Configuration Change Validation
+
+#### Improvements
+
+PR #637
+* Added additional validation (unit testing) in relation to PR #635 Improve subscription creation with existing durable to be smarter when comparing provided configuration with server configuration.
+* Added more information to the exception message text  by including a list of fields that caused the issue.
+
+## 2.14.1 Improvements, client parity, docs, etc.
+
+#### Client Parity
+PR #630 Support for server Consumer feature Backoff Lists.
+
+#### Improvements
+Issue #616 / PR #617 Support for timeout propagation in async requests
+PR #630 Surfaced delay for nak requests
+PR #631 Tune kv subscribe supported functions keys / history / purge
+PR #634 Added client side limit checks option to allow turning off client side checks which forces check to server. Default behavior is the same.
+PR #635 Improve subscription creation with existing durable to be smarter when comparing provided configuration with server configuration.
+
+#### Bug Fixes
+Issue #621 / PR #622 Fixed kv key with dot as part of the key
+
+#### Documentation etc.
+
+PR #612 Version change and miscellaneous documentation.
+PR #629 Rate Limit is bytes per second (bps) not messages per second.
+
+## 2.14.0 KV Release
+
+#### Key Value
+
+* KV API Release
+
+#### JetStream
+
+* Allow null or empty subject when appropriate while subscribing / binding
+* new JetStreamManagement api `StreamInfo getStreamInfo(String streamName, StreamInfoOptions options)`
+* support Stream Configuration and Stream State to reflect server changes up to server V2.7.3
+* support Consumer Configuration reflect server changes up to server V2.7.3
+* Fixed bug with pull subscribe fetch and iterate where it could wait twice the expiration time and improved implementation to reflect server changes in pull behavior.
+* Added combo pull nowait + expires primitive api to match server pull changes.
+
+#### Miscellaneous
+
+* Addressed Info level Cure53 audit item regarding version string.
+* Moved JsMultiTool out of example to the [example repo](https://github.com/nats-io/java-nats-examples/tree/main/js-multi-tool).
+* Added NatsJsPushSubAsyncQueueDurable example program.
+* Unit test improvements to prevent flappers
+
+
+## 2.13.2 KV Experimental
+
+#### JetStream
+
+KV Experimental
+
+## 2.13.1 Subscription Consumer Configuration Fix
+
+#### JetStream
+
+- This release fixes a bug found in the new subscription enhancements where the comparison of default configuration failed to validate properly against an existing (durable) consumer configuration.
+
+- There are also minor enhancements to the JsMulti tool
+
+## 2.13.0 Subscription Enhancements
+
+#### JetStream
+
+- Subscription validation. See [Subscription Creation](https://github.com/nats-io/nats.java#subscription-creation)
+- Flow Control and Heartbeat handling
+- Domain Support
+- Stream/Subject Binding
+
+
+## 2.12.0 Server Queue Improvements
+
+This release is the first release to support v2.4.0 of the NATS server. The change covers how queueing is supported in JetStream using the Deliver Group subscribe option.
+
+## 2.11.6 KV beta last release compatible with Server v2.3.4 and older 
+
+1. Key Value (KV) Beta: This release includes a beta version of the Key Value functionality. There were multiple PR's involved in KV including new interfaces and new api / protocol enhancements designed to support KV
+2. Support for API error code allowing server generated errors to be identified by number instead of text.
+3. Stream and Consumer descriptions
+4. Publish expectation last subject sequence
+5. Advanced stream purge functionality
+6. Primitive pull functionality marked as "advanced"
 
 ## Version 2.11.5
 

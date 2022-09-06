@@ -39,11 +39,6 @@ import java.time.Duration;
 public interface Subscription extends Consumer {
 
     /**
-     * @return the internal subscription id
-     */
-    String getSID();
-
-    /**
      * @return the subject associated with this subscription, will be non-null
      */
     String getSubject();

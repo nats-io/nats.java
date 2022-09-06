@@ -77,9 +77,9 @@ The java-nats client is provided in a single jar file, with a single external de
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.13.1/jnats-2.13.1.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.13.1/jnats-2.13.1.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.15.7/jnats-2.15.7.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.15.7/jnats-2.15.7.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.13.1/jnats-2.13.1-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.13.1/jnats-2.13.1-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.15.7/jnats-2.15.7-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.15.7/jnats-2.15.7-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
@@ -89,7 +89,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.13.1'
+    implementation 'io.nats:jnats:2.15.7'
 }
 ```
 
@@ -115,7 +115,7 @@ repositories {
 }
 
 dependencies {
-   implementation 'io.nats:jnats:2.13.1-SNAPSHOT'
+   implementation 'io.nats:jnats:2.15.7-SNAPSHOT'
 }
 ```
 
@@ -127,7 +127,7 @@ The NATS client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.13.1</version>
+    <version>2.15.7</version>
 </dependency>
 ```
 
@@ -161,7 +161,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.13.1-SNAPSHOT</version>
+    <version>2.15.7-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -536,29 +536,59 @@ messages, one for each message the previous batch was short. You can just ignore
 See `NatsJsPullSubExpire.java` and `NatsJsPullSubExpireUseCases.java`
 in the JetStream examples for detailed and runnable examples.
 
-### Subscription Creation
+### Ordered Push Subscription Option
+
+You can now set a Push Subscription option called "Ordered". 
+When you set this flag, library will take over creation of the consumer and create a subscription that guarantees the order of messages.
+This consumer will use flow control with a default heartbeat of 5 seconds. Messages will not require acks as the Ack Policy will be set to No Ack.
+When creating the subscription, there are some restrictions for the consumer configuration settings.
+
+- Ack policy must be AckPolicy.None (or left un-set). maxAckPending will be ignored.
+- Deliver Group (aka Queue) cannot be used
+- You cannot set a durable consumer name
+- You cannot set the deliver subject
+- max deliver can only be set to 1 (or left un-set)  
+- The idle heartbeat cannot be less than 5 seconds. Flow control will automatically be used.
+
+You can however set the deliver policy which will be used to start the subscription. 
+
+### Subscription Creation Checks
 
 Subscription creation has many checks to make sure that a valid, operable subscription can be made.
+`SO` group are validations that can occur when building push or pull subscribe options. 
+`SUB` group are validations that occur when creating a subscription. 
 
 | Name | Group | Code | Description |
 | --- | --- | --- | --- |
-| JsPullSubCantHaveDeliverGroup | SUB | 90001 | Pull subscriptions can't have a deliver group. |
-| JsPullSubCantHaveDeliverSubject | SUB | 90002 | Pull subscriptions can't have a deliver subject. |
-| JsPushSubCantHaveMaxPullWaiting | SUB | 90003 | Push subscriptions cannot supply max pull waiting. |
-| JsQueueDeliverGroupMismatch | SUB | 90004 | Queue / deliver group mismatch. |
-| JsFcHbNotValidPull | SUB | 90005 | Flow Control and/or heartbeat is not valid with a pull subscription. |
-| JsFcHbHbNotValidQueue | SUB | 90006 | Flow Control and/or heartbeat is not valid in queue mode. |
-| JsNoMatchingStreamForSubject | SUB | 90007 | No matching streams for subject. |
-| JsConsumerAlreadyConfiguredAsPush | SUB | 90008 | Consumer is already configured as a push consumer. |
-| JsConsumerAlreadyConfiguredAsPull | SUB | 90009 | Consumer is already configured as a pull consumer. |
-| JsExistingDeliverSubjectMismatch | SUB | 90010 | Existing consumer deliver subject does not match requested deliver subject. |
-| JsSubjectDoesNotMatchFilter | SUB | 90011 | Subject does not match consumer configuration filter. |
-| JsConsumerAlreadyBound | SUB | 90012 | Consumer is already bound to a subscription. |
-| JsExistingConsumerNotQueue | SUB | 90013 | Existing consumer is not configured as a queue / deliver group. |
-| JsExistingConsumerIsQueue | SUB | 90014 | Existing consumer  is configured as a queue / deliver group. |
-| JsExistingQueueDoesNotMatchRequestedQueue | SUB | 90015 | Existing consumer deliver group does not match requested queue / deliver group. |
-| JsExistingConsumerCannotBeModified | SUB | 90016 | Existing consumer cannot be modified. |
-| JsConsumerNotFoundRequiredInBind | SUB | 90017 | Consumer not found, required in bind mode. |
+| JsSoDurableMismatch | SO | 90101 | Builder durable must match the consumer configuration durable if both are provided. |
+| JsSoDeliverGroupMismatch | SO | 90102 | Builder deliver group must match the consumer configuration deliver group if both are provided. |
+| JsSoDeliverSubjectMismatch | SO | 90103 | Builder deliver subject must match the consumer configuration deliver subject if both are provided. |
+| JsSoOrderedNotAllowedWithBind | SO | 90104 | Bind is not allowed with an ordered consumer. |
+| JsSoOrderedNotAllowedWithDeliverGroup | SO | 90105 | Deliver group is not allowed with an ordered consumer. |
+| JsSoOrderedNotAllowedWithDurable | SO | 90106 | Durable is not allowed with an ordered consumer. |
+| JsSoOrderedNotAllowedWithDeliverSubject | SO | 90107 | Deliver subject is not allowed with an ordered consumer. |
+| JsSoOrderedRequiresAckPolicyNone | SO | 90108 | Ordered consumer requires Ack Policy None. |
+| JsSoOrderedRequiresMaxDeliver | SO | 90109 | Max deliver is limited to 1 with an ordered consumer. |
+| JsSubPullCantHaveDeliverGroup | SUB | 90001 | Pull subscriptions can't have a deliver group. |
+| JsSubPullCantHaveDeliverSubject | SUB | 90002 | Pull subscriptions can't have a deliver subject. |
+| JsSubPushCantHaveMaxPullWaiting | SUB | 90003 | Push subscriptions cannot supply max pull waiting. |
+| JsSubQueueDeliverGroupMismatch | SUB | 90004 | Queue / deliver group mismatch. |
+| JsSubFcHbNotValidPull | SUB | 90005 | Flow Control and/or heartbeat is not valid with a pull subscription. |
+| JsSubFcHbNotValidQueue | SUB | 90006 | Flow Control and/or heartbeat is not valid in queue mode. |
+| JsSubNoMatchingStreamForSubject | SUB | 90007 | No matching streams for subject. |
+| JsSubConsumerAlreadyConfiguredAsPush | SUB | 90008 | Consumer is already configured as a push consumer. |
+| JsSubConsumerAlreadyConfiguredAsPull | SUB | 90009 | Consumer is already configured as a pull consumer. |
+| _removed_ | SUB | 90010 | |
+| JsSubSubjectDoesNotMatchFilter | SUB | 90011 | Subject does not match consumer configuration filter. |
+| JsSubConsumerAlreadyBound | SUB | 90012 | Consumer is already bound to a subscription. |
+| JsSubExistingConsumerNotQueue | SUB | 90013 | Existing consumer is not configured as a queue / deliver group. |
+| JsSubExistingConsumerIsQueue | SUB | 90014 | Existing consumer  is configured as a queue / deliver group. |
+| JsSubExistingQueueDoesNotMatchRequestedQueue | SUB | 90015 | Existing consumer deliver group does not match requested queue / deliver group. |
+| JsSubExistingConsumerCannotBeModified | SUB | 90016 | Existing consumer cannot be modified. |
+| JsSubConsumerNotFoundRequiredInBind | SUB | 90017 | Consumer not found, required in bind mode. |
+| JsSubOrderedNotAllowOnQueues | SUB | 90018 | Ordered consumer not allowed on queues. |
+| JsSubPushCantHaveMaxBatch | SUB | 90019 | Push subscriptions cannot supply max batch. |
+| JsSubPushCantHaveMaxBytes | SUB | 90020 | Push subscriptions cannot supply max bytes. |
 
 ### Message Acknowledgements
 

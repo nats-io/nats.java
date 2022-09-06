@@ -13,123 +13,74 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.*;
-import io.nats.client.api.*;
+import io.nats.client.JetStreamApiException;
+import io.nats.client.KeyValueManagement;
+import io.nats.client.KeyValueOptions;
+import io.nats.client.api.KeyValueConfiguration;
+import io.nats.client.api.KeyValueStatus;
+import io.nats.client.api.StreamConfiguration;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import static io.nats.client.support.NatsKeyValueUtil.*;
 
-public class NatsKeyValueManagement extends NatsJetStreamImplBase implements KeyValueManagement {
-    private final JetStreamManagement jsm;
-    private final JetStream js;
+public class NatsKeyValueManagement implements KeyValueManagement {
+    private final NatsJetStreamManagement jsm;
 
-    public NatsKeyValueManagement(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
-        super(connection, jsOptions);
-        jsm = new NatsJetStreamManagement(connection, jsOptions);
-        js = new NatsJetStream(connection, jsOptions);
+    NatsKeyValueManagement(NatsConnection connection, KeyValueOptions kvo) throws IOException {
+        jsm = new NatsJetStreamManagement(connection, kvo == null ? null : kvo.getJetStreamOptions());
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public BucketInfo createBucket(BucketConfiguration config) throws IOException, JetStreamApiException {
-        return new BucketInfo(jsm.addStream(config.getBackingConfig()));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean deleteBucket(String bucketName) throws IOException, JetStreamApiException {
-        Validator.validateBucketNameRequired(bucketName);
-        return jsm.deleteStream(streamName(bucketName));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public BucketInfo getBucketInfo(String bucketName) throws IOException, JetStreamApiException {
-        Validator.validateBucketNameRequired(bucketName);
-        return new BucketInfo(jsm.getStreamInfo(streamName(bucketName)));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public PurgeResponse purgeBucket(String bucketName) throws IOException, JetStreamApiException {
-        Validator.validateBucketNameRequired(bucketName);
-        return jsm.purgeStream(streamName(bucketName));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public PurgeResponse purgeKey(String bucketName, String key) throws IOException, JetStreamApiException {
-        Validator.validateBucketNameRequired(bucketName);
-        Validator.validateKeyRequired(key);
-        PurgeOptions options = PurgeOptions.builder().subject(keySubject(bucketName, key)).build();
-        return jsm.purgeStream(streamName(bucketName), options);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public List<KvEntry> getHistory(String bucketName, String key) throws IOException, JetStreamApiException, InterruptedException {
-        Validator.validateBucketNameRequired(bucketName);
-        Validator.validateKeyRequired(key);
-        List<KvEntry> list = new ArrayList<>();
-        visit(keySubject(bucketName, key), list::add);
-        return list;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Set<String> keys(String bucketName) throws IOException, JetStreamApiException, InterruptedException {
-        Validator.validateBucketNameRequired(bucketName);
-        Set<String> set = new HashSet<>();
-        visit(streamSubject(bucketName), kve -> set.add(kve.getKey()));
-        return set;
-    }
-
-    private void visit(String subject, KvEntryHandler handler) throws IOException, JetStreamApiException, InterruptedException {
-        PushSubscribeOptions pso = PushSubscribeOptions.builder()
-                .configuration(ConsumerConfiguration.builder().ackPolicy(AckPolicy.None).build())
-                .build();
-        JetStreamSubscription sub = js.subscribe(subject, pso);
-        Message m = sub.nextMessage(Duration.ofMillis(1000)); // give a little time for the first
-        while (m != null) {
-            handler.handle(new KvEntry(m));
-            m = sub.nextMessage(Duration.ofMillis(100)); // the rest should come pretty quick
+    public KeyValueStatus create(KeyValueConfiguration config) throws IOException, JetStreamApiException {
+        StreamConfiguration sc = config.getBackingConfig();
+        if ( jsm.conn.getServerInfo().isOlderThanVersion("2.7.2") ) {
+            sc = StreamConfiguration.builder(sc).discardPolicy(null).build(); // null discard policy will use default
         }
-        sub.unsubscribe();
+        return new KeyValueStatus(jsm.addStream(sc));
+    }
+
+    @Override
+    public KeyValueStatus update(KeyValueConfiguration config) throws IOException, JetStreamApiException {
+        return new KeyValueStatus(jsm.updateStream(config.getBackingConfig()));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public List<String> bucketsNames() throws IOException, JetStreamApiException, InterruptedException {
+    public List<String> getBucketNames() throws IOException, JetStreamApiException, InterruptedException {
         List<String> buckets = new ArrayList<>();
-        List<String> all = jsm.getStreamNames();
-        for (String a : all) {
-            if (a.startsWith(KV_STREAM_PREFIX)) {
-                buckets.add(a.substring(KV_STREAM_PREFIX_LEN));
+        List<String> names = jsm.getStreamNames();
+        for (String name : names) {
+            if (name.startsWith(KV_STREAM_PREFIX)) {
+                buckets.add(extractBucketName(name));
             }
         }
         return buckets;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public KeyValueStatus getBucketInfo(String bucketName) throws IOException, JetStreamApiException {
+        Validator.validateBucketName(bucketName, true);
+        return new KeyValueStatus(jsm.getStreamInfo(toStreamName(bucketName)));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void delete(String bucketName) throws IOException, JetStreamApiException {
+        Validator.validateBucketName(bucketName, true);
+        jsm.deleteStream(toStreamName(bucketName));
     }
 }

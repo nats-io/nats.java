@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.NatsJetStreamClientError;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.function.Executable;
 
@@ -24,8 +25,12 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_ARGUMENT;
+import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_STATE;
 import static io.nats.examples.jetstream.NatsJsUtils.printConsumerInfo;
 import static io.nats.examples.jetstream.NatsJsUtils.printStreamInfo;
 import static org.junit.jupiter.api.Assertions.*;
@@ -40,7 +45,7 @@ public class JetStreamTestBase extends TestBase {
     public static final String InvalidMeta10Tokens = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000";
     public static final String InvalidMetaData = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.not-a-number";
 
-    public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(500);
+    public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(1000);
 
     public NatsMessage getTestNatsMessage() {
         return getTestMessage("replyTo");
@@ -58,10 +63,12 @@ public class JetStreamTestBase extends TestBase {
         return new NatsMessage.InternalMessageFactory("sid", "subj", replyTo, 0, false).getMessage();
     }
 
+    static class NoopMessageManager extends MessageManager {}
+
     // ----------------------------------------------------------------------------------------------------
     // Management
     // ----------------------------------------------------------------------------------------------------
-    public static void createMemoryStream(JetStreamManagement jsm, String streamName, String... subjects)
+    public static StreamInfo createMemoryStream(JetStreamManagement jsm, String streamName, String... subjects)
             throws IOException, JetStreamApiException {
 
         StreamConfiguration sc = StreamConfiguration.builder()
@@ -69,20 +76,20 @@ public class JetStreamTestBase extends TestBase {
                 .storageType(StorageType.Memory)
                 .subjects(subjects).build();
 
-        jsm.addStream(sc);
+        return jsm.addStream(sc);
     }
 
-    public static void createMemoryStream(Connection nc, String streamName, String... subjects)
+    public static StreamInfo createMemoryStream(Connection nc, String streamName, String... subjects)
             throws IOException, JetStreamApiException {
-        createMemoryStream(nc.jetStreamManagement(), streamName, subjects);
+        return createMemoryStream(nc.jetStreamManagement(), streamName, subjects);
     }
 
-    public static void createDefaultTestStream(Connection nc) throws IOException, JetStreamApiException {
-        createMemoryStream(nc, STREAM, SUBJECT);
+    public static StreamInfo createDefaultTestStream(Connection nc) throws IOException, JetStreamApiException {
+        return createMemoryStream(nc, STREAM, SUBJECT);
     }
 
-    public static void createDefaultTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
-        createMemoryStream(jsm, STREAM, SUBJECT);
+    public static StreamInfo createDefaultTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
+        return createMemoryStream(jsm, STREAM, SUBJECT);
     }
 
     public static void debug(JetStreamManagement jsm, int n) throws IOException, JetStreamApiException {
@@ -101,7 +108,12 @@ public class JetStreamTestBase extends TestBase {
     // Publish / Read
     // ----------------------------------------------------------------------------------------------------
     public static void jsPublish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
-        for (int x = 1; x <= count; x++) {
+        jsPublish(js, subject, prefix, 1, count);
+    }
+
+    public static void jsPublish(JetStream js, String subject, String prefix, int startId, int count) throws IOException, JetStreamApiException {
+        int end = startId + count - 1;
+        for (int x = startId; x <= end; x++) {
             String data = prefix + x;
             js.publish(NatsMessage.builder()
                     .subject(subject)
@@ -129,12 +141,16 @@ public class JetStreamTestBase extends TestBase {
         jsPublish(nc.jetStream(), subject, startId, count);
     }
 
-    public static PublishAck jsPublish(JetStream js) throws IOException, JetStreamApiException {
+    public static PublishAck jsPublish(JetStream js, String subject, String data) throws IOException, JetStreamApiException {
         Message msg = NatsMessage.builder()
-                .subject(SUBJECT)
-                .data(DATA.getBytes(StandardCharsets.US_ASCII))
-                .build();
+            .subject(subject)
+            .data(data.getBytes(StandardCharsets.US_ASCII))
+            .build();
         return js.publish(msg);
+    }
+
+    public static PublishAck jsPublish(JetStream js) throws IOException, JetStreamApiException {
+        return jsPublish(js, SUBJECT, DATA);
     }
 
     public static List<Message> readMessagesAck(JetStreamSubscription sub) throws InterruptedException {
@@ -214,7 +230,7 @@ public class JetStreamTestBase extends TestBase {
             assertEquals(consumer, njssub.getConsumerName());
         }
         if (deliver != null) {
-            assertEquals(deliver, njssub.getDeliverSubject());
+            assertEquals(deliver, njssub.getSubject());
         }
 
         boolean pm = njssub.isPullMode();
@@ -319,20 +335,52 @@ public class JetStreamTestBase extends TestBase {
 
     }
 
-    public static Options.Builder optsWithEl() {
-        return new Options.Builder().errorListener(new ErrorListener() {
-            @Override
-            public void errorOccurred(Connection conn, String error) {}
+    // ----------------------------------------------------------------------------------------------------
+    // Subscription or test macros
+    // ----------------------------------------------------------------------------------------------------
+    public static void unsubscribeEnsureNotBound(JetStreamSubscription sub) throws IOException, JetStreamApiException {
+        sub.unsubscribe();
+        ensureNotBound(sub);
+    }
 
-            @Override
-            public void exceptionOccurred(Connection conn, Exception exp) {}
+    public static void unsubscribeEnsureNotBound(Dispatcher dispatcher, JetStreamSubscription sub) {
+        dispatcher.unsubscribe(sub);
+    }
 
-            @Override
-            public void slowConsumerDetected(Connection conn, Consumer consumer) {}
-        });
+    public static void ensureNotBound(JetStreamSubscription sub) throws IOException, JetStreamApiException {
+        ConsumerInfo ci = sub.getConsumerInfo();
+        long start = System.currentTimeMillis();
+        while (ci.isPushBound()) {
+            if (System.currentTimeMillis() - start > 5000) {
+                return; // don't wait forever
+            }
+            sleep(5);
+            ci = sub.getConsumerInfo();
+        }
+    }
+
+    // Flapper fix: For whatever reason 10 seconds isn't enough on slow machines
+    // I've put this in a function so all latch awaits give plenty of time
+    public static void awaitAndAssert(CountDownLatch latch) throws InterruptedException {
+        long start = System.currentTimeMillis();
+        while (latch.getCount() > 0 && System.currentTimeMillis() - start < 30000) {
+            latch.await(1, TimeUnit.SECONDS);
+        }
+        assertEquals(0, latch.getCount());
     }
 
     public static Options.Builder optsWithEl(ErrorListener el) {
         return new Options.Builder().errorListener(el);
+    }
+
+    public void assertClientError(NatsJetStreamClientError error, Executable executable) {
+        Exception e = assertThrows(Exception.class, executable);
+        assertTrue(e.getMessage().contains(error.id()));
+        if (error.getKind() == KIND_ILLEGAL_ARGUMENT) {
+            assertTrue(e instanceof IllegalArgumentException);
+        }
+        else if (error.getKind() == KIND_ILLEGAL_STATE) {
+            assertTrue(e instanceof IllegalStateException);
+        }
     }
 }

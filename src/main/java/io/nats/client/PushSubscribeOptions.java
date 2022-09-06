@@ -17,12 +17,12 @@ import static io.nats.client.support.Validator.emptyAsNull;
 
 /**
  * The PushSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
- * Options are set using the {@link PullSubscribeOptions.Builder} or static helper methods.
+ * Options are set using the {@link PushSubscribeOptions.Builder} or static helper methods.
  */
 public class PushSubscribeOptions extends SubscribeOptions {
 
-    private PushSubscribeOptions(Builder builder, String deliverSubject, String deliverGroup) {
-        super(builder, false, deliverSubject, deliverGroup);
+    private PushSubscribeOptions(Builder builder, boolean ordered, String deliverSubject, String deliverGroup) {
+        super(builder, false, ordered, deliverSubject, deliverGroup);
     }
 
     /**
@@ -92,11 +92,22 @@ public class PushSubscribeOptions extends SubscribeOptions {
      */
     public static class Builder
             extends SubscribeOptions.Builder<Builder, PushSubscribeOptions> {
+        private boolean ordered;
         private String deliverSubject;
         private String deliverGroup;
 
         @Override
         protected Builder getThis() {
+            return this;
+        }
+
+        /**
+         * Set the ordered consumer flag
+         * @param ordered flag indicating whether this subscription should be ordered
+         * @return the builder.
+         */
+        public Builder ordered(boolean ordered) {
+            this.ordered = ordered;
             return this;
         }
 
@@ -128,7 +139,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
          */
         @Override
         public PushSubscribeOptions build() {
-            return new PushSubscribeOptions(this, deliverSubject, deliverGroup);
+            return new PushSubscribeOptions(this, ordered, deliverSubject, deliverGroup);
         }
     }
 }

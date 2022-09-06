@@ -16,18 +16,32 @@ package io.nats.client.impl;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamOptions;
 import io.nats.client.Message;
-import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.ConsumerCreateRequest;
-import io.nats.client.api.ConsumerInfo;
+import io.nats.client.api.*;
+import io.nats.client.support.JsonUtils;
 import io.nats.client.support.NatsJetStreamConstants;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+
+import static io.nats.client.support.ApiConstants.SUBJECT;
 
 class NatsJetStreamImplBase implements NatsJetStreamConstants {
 
-    protected final NatsConnection conn;
-    protected final JetStreamOptions jso;
+    // currently the only thing we care about caching is the allowDirect setting
+    static class CachedStreamInfo {
+        public final boolean allowDirect;
+
+        public CachedStreamInfo(StreamInfo si) {
+            allowDirect = si.getConfiguration().getAllowDirect();
+        }
+    }
+
+    private static final ConcurrentHashMap<String, CachedStreamInfo> CACHED_STREAM_INFO_MAP = new ConcurrentHashMap<>();
+
+    final NatsConnection conn;
+    final JetStreamOptions jso;
 
     // ----------------------------------------------------------------------------------------------------
     // Create / Init
@@ -40,13 +54,13 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
     // ----------------------------------------------------------------------------------------------------
     // Management that is also needed by regular context
     // ----------------------------------------------------------------------------------------------------
-    protected ConsumerInfo getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException {
+    ConsumerInfo _getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_CONSUMER_INFO, streamName, consumer);
         Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
     }
 
-    protected ConsumerInfo createConsumerInternal(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
+    ConsumerInfo _createConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
         String durable = config.getDurable();
         String requestJSON = new ConsumerCreateRequest(streamName, config).toJson();
 
@@ -60,10 +74,56 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         return new ConsumerInfo(resp).throwOnHasError();
     }
 
+    void _createConsumerUnsubscribeOnException(String stream, ConsumerConfiguration cc, NatsJetStreamSubscription sub) throws IOException, JetStreamApiException {
+        try {
+            ConsumerInfo ci = _createConsumer(stream, cc);
+            sub.setConsumerName(ci.getName());
+        }
+        catch (IOException | JetStreamApiException e) {
+            // create consumer can fail, unsubscribe and then throw the exception to the user
+            if (sub.getDispatcher() == null) {
+                sub.unsubscribe();
+            }
+            else {
+                sub.getDispatcher().unsubscribe(sub);
+            }
+            throw e;
+        }
+    }
+
+    StreamInfo _getStreamInfo(String streamName, StreamInfoOptions options) throws IOException, JetStreamApiException {
+        String subj = String.format(JSAPI_STREAM_INFO, streamName);
+        byte[] payload = options == null ? null : options.serialize();
+        Message resp = makeRequestResponseRequired(subj, payload, jso.getRequestTimeout());
+        return createAndCacheStreamInfoThrowOnError(streamName, resp);
+    }
+
+    StreamInfo createAndCacheStreamInfoThrowOnError(String streamName, Message resp) throws JetStreamApiException {
+        return cacheStreamInfo(streamName, new StreamInfo(resp).throwOnHasError());
+    }
+
+    StreamInfo cacheStreamInfo(String streamName, StreamInfo si) {
+        CACHED_STREAM_INFO_MAP.put(streamName, new CachedStreamInfo(si));
+        return si;
+    }
+
+    List<StreamInfo> cacheStreamInfo(List<StreamInfo> list) {
+        list.forEach(si -> CACHED_STREAM_INFO_MAP.put(si.getConfiguration().getName(), new CachedStreamInfo(si)));
+        return list;
+    }
+
+    List<String> _getStreamNamesBySubjectFilter(String subjectFilter) throws IOException, JetStreamApiException {
+        byte[] body = JsonUtils.simpleMessageBody(SUBJECT, subjectFilter);
+        StreamNamesReader snr = new StreamNamesReader();
+        Message resp = makeRequestResponseRequired(JSAPI_STREAM_NAMES, body, jso.getRequestTimeout());
+        snr.process(resp);
+        return snr.getStrings();
+    }
+
     // ----------------------------------------------------------------------------------------------------
     // Request Utils
     // ----------------------------------------------------------------------------------------------------
-    protected Message makeRequestResponseRequired(String subject, byte[] bytes, Duration timeout) throws IOException {
+    Message makeRequestResponseRequired(String subject, byte[] bytes, Duration timeout) throws IOException {
         try {
             return responseRequired(conn.request(prependPrefix(subject), bytes, timeout));
         } catch (InterruptedException e) {
@@ -71,7 +131,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         }
     }
 
-    protected Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timeout, boolean cancelOn503) throws IOException {
+    Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timeout, boolean cancelOn503) throws IOException {
         try {
             return responseRequired(conn.requestInternal(subject, headers, data, utf8mode, timeout, cancelOn503));
         } catch (InterruptedException e) {
@@ -79,14 +139,23 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         }
     }
 
-    protected Message responseRequired(Message respMessage) throws IOException {
+    Message responseRequired(Message respMessage) throws IOException {
         if (respMessage == null) {
             throw new IOException("Timeout or no response waiting for NATS JetStream server");
         }
         return respMessage;
     }
 
-    protected String prependPrefix(String subject) {
+    String prependPrefix(String subject) {
         return jso.getPrefix() + subject;
+    }
+
+    CachedStreamInfo getCachedStreamInfo(String streamName) throws IOException, JetStreamApiException {
+        CachedStreamInfo csi = CACHED_STREAM_INFO_MAP.get(streamName);
+        if (csi != null) {
+            return csi;
+        }
+        _getStreamInfo(streamName, null);
+        return CACHED_STREAM_INFO_MAP.get(streamName);
     }
 }

@@ -13,11 +13,14 @@
 
 package io.nats.client;
 
+import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
+import static io.nats.client.SubscribeOptions.DEFAULT_ORDERED_HEARTBEAT;
 import static io.nats.client.support.NatsConstants.EMPTY;
+import static io.nats.client.support.NatsJetStreamClientError.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SubscribeOptionsTests extends TestBase {
@@ -44,6 +47,7 @@ public class SubscribeOptionsTests extends TestBase {
         assertNull(so.getStream());
         assertNull(so.getDurable());
         assertNull(so.getDeliverSubject());
+        assertFalse(so.isPull());
 
         assertNotNull(so.toString()); // COVERAGE
     }
@@ -83,12 +87,6 @@ public class SubscribeOptionsTests extends TestBase {
         assertNull(PushSubscribeOptions.builder().build().getDurable());
 
         // pull
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder()
-                .durable(null)
-                .configuration(ConsumerConfiguration.builder().durable(null).build())
-                .build()
-                .getDurable());
-
         assertEquals("y", PullSubscribeOptions.builder()
                 .durable(null)
                 .configuration(ConsumerConfiguration.builder().durable("y").build())
@@ -111,8 +109,6 @@ public class SubscribeOptionsTests extends TestBase {
                 .durable("x")
                 .configuration(ConsumerConfiguration.builder().durable("y").build())
                 .build());
-
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().build());
     }
 
     @Test
@@ -173,10 +169,12 @@ public class SubscribeOptionsTests extends TestBase {
                 .build()
                 .getDeliverSubject());
 
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder()
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder()
                 .deliverSubject("x")
                 .configuration(ConsumerConfiguration.builder().deliverSubject("y").build())
                 .build());
+
+        assertTrue(iae.getMessage().contains(JsSoDeliverSubjectMismatch.id()));
     }
 
     @Test
@@ -188,6 +186,7 @@ public class SubscribeOptionsTests extends TestBase {
         PullSubscribeOptions so = builder.build();
         assertEquals(STREAM, so.getStream());
         assertEquals(DURABLE, so.getDurable());
+        assertTrue(so.isPull());
 
         assertNotNull(so.toString()); // COVERAGE
     }
@@ -221,13 +220,6 @@ public class SubscribeOptionsTests extends TestBase {
         ConsumerConfiguration ccBadDur = ConsumerConfiguration.builder().durable(HAS_DOT).build();
         assertThrows(IllegalArgumentException.class, () -> builder1.configuration(ccBadDur).build());
 
-        // durable required direct or in configuration
-        PullSubscribeOptions.Builder builder2 = PullSubscribeOptions.builder();
-        assertThrows(IllegalArgumentException.class, builder2::build);
-
-        ConsumerConfiguration ccNoDur = ConsumerConfiguration.builder().build();
-        assertThrows(IllegalArgumentException.class, () -> builder2.configuration(ccNoDur).build());
-
         // durable directly
         PullSubscribeOptions.builder().durable(DURABLE).build();
 
@@ -237,6 +229,19 @@ public class SubscribeOptionsTests extends TestBase {
 
         // new helper
         ConsumerConfiguration.builder().durable(DURABLE).buildPullSubscribeOptions();
+    }
+
+    @Test
+    public void testCreationErrors() {
+        ConsumerConfiguration cc1 = ConsumerConfiguration.builder().durable(durable((1))).build();
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+            () -> PushSubscribeOptions.builder().configuration(cc1).durable(durable(2)).build());
+        assertTrue(iae.getMessage().contains(JsSoDurableMismatch.id()));
+
+        ConsumerConfiguration cc2 = ConsumerConfiguration.builder().deliverGroup(deliver((1))).build();
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> PushSubscribeOptions.builder().configuration(cc2).deliverGroup(deliver(2)).build());
+        assertTrue(iae.getMessage().contains(JsSoDeliverGroupMismatch.id()));
     }
 
     @Test
@@ -258,5 +263,54 @@ public class SubscribeOptionsTests extends TestBase {
         assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(EMPTY).durable(DURABLE).bind(true).build());
         assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().durable(DURABLE).bind(true).build());
         assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).durable(EMPTY).bind(true).build());
+    }
+
+    @Test
+    public void testOrderedCreation() {
+
+        ConsumerConfiguration ccEmpty = ConsumerConfiguration.builder().build();
+        PushSubscribeOptions.builder().configuration(ccEmpty).ordered(true).build();
+
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+            () -> PushSubscribeOptions.builder().stream(STREAM).bind(true).ordered(true).build());
+        assertTrue(iae.getMessage().contains(JsSoOrderedNotAllowedWithBind.id()));
+
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> PushSubscribeOptions.builder().deliverGroup(DELIVER).ordered(true).build());
+        assertTrue(iae.getMessage().contains(JsSoOrderedNotAllowedWithDeliverGroup.id()));
+
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> PushSubscribeOptions.builder().durable(DURABLE).ordered(true).build());
+        assertTrue(iae.getMessage().contains(JsSoOrderedNotAllowedWithDurable.id()));
+
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> PushSubscribeOptions.builder().deliverSubject(DELIVER).ordered(true).build());
+        assertTrue(iae.getMessage().contains(JsSoOrderedNotAllowedWithDeliverSubject.id()));
+
+        ConsumerConfiguration ccAckNotNone1 = ConsumerConfiguration.builder().ackPolicy(AckPolicy.All).build();
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> PushSubscribeOptions.builder().configuration(ccAckNotNone1).ordered(true).build());
+        assertTrue(iae.getMessage().contains(JsSoOrderedRequiresAckPolicyNone.id()));
+
+        ConsumerConfiguration ccAckNotNone2 = ConsumerConfiguration.builder().ackPolicy(AckPolicy.Explicit).build();
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> PushSubscribeOptions.builder().configuration(ccAckNotNone2).ordered(true).build());
+        assertTrue(iae.getMessage().contains(JsSoOrderedRequiresAckPolicyNone.id()));
+
+        ConsumerConfiguration ccAckNoneOk = ConsumerConfiguration.builder().ackPolicy(AckPolicy.None).build();
+        PushSubscribeOptions.builder().configuration(ccAckNoneOk).ordered(true).build();
+
+        ConsumerConfiguration ccMax = ConsumerConfiguration.builder().maxDeliver(2).build();
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> PushSubscribeOptions.builder().configuration(ccMax).ordered(true).build());
+        assertTrue(iae.getMessage().contains(JsSoOrderedRequiresMaxDeliver.id()));
+
+        ConsumerConfiguration ccHb = ConsumerConfiguration.builder().idleHeartbeat(100).build();
+        PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(ccHb).ordered(true).build();
+        assertEquals(DEFAULT_ORDERED_HEARTBEAT, pso.getConsumerConfiguration().getIdleHeartbeat().toMillis());
+
+        ccHb = ConsumerConfiguration.builder().idleHeartbeat(DEFAULT_ORDERED_HEARTBEAT + 1).build();
+        pso = PushSubscribeOptions.builder().configuration(ccHb).ordered(true).build();
+        assertEquals(DEFAULT_ORDERED_HEARTBEAT + 1, pso.getConsumerConfiguration().getIdleHeartbeat().toMillis());
     }
 }

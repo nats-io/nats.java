@@ -13,9 +13,7 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamApiException;
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.Message;
+import io.nats.client.*;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.support.NatsJetStreamConstants;
 
@@ -30,38 +28,34 @@ import java.util.List;
 public class NatsJetStreamSubscription extends NatsSubscription implements JetStreamSubscription, NatsJetStreamConstants {
 
     public static final String SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL = "Subscription type does not support pull.";
+
     protected final NatsJetStream js;
 
-    protected final String stream;
-    protected final String consumerName;
-    protected final String deliver;
+    protected String stream;
+    protected String consumerName;
 
-    protected final AutoStatusManager asm;
+    protected MessageManager[] managers;
 
-    static NatsJetStreamSubscription getInstance(String sid, String subject, String queueName,
-                                                 NatsConnection connection, NatsDispatcher dispatcher,
-                                                 AutoStatusManager asm,
-                                                 NatsJetStream js, boolean pullMode,
-                                                 String stream, String consumer, String deliver) {
-        // pull gets a full implementation
-        if (pullMode) {
-            return new NatsJetStreamPullSubscription(sid, subject, connection, asm, js, stream, consumer);
-        }
-
-        return new NatsJetStreamSubscription(sid, subject, queueName, connection, dispatcher, asm, js, stream, consumer, deliver);
-    }
-
-    protected NatsJetStreamSubscription(String sid, String subject, String queueName,
-                                      NatsConnection connection, NatsDispatcher dispatcher,
-                                      AutoStatusManager asm,
-                                      NatsJetStream js,
-                                      String stream, String consumer, String deliver) {
+    NatsJetStreamSubscription(String sid, String subject, String queueName,
+                              NatsConnection connection, NatsDispatcher dispatcher,
+                              NatsJetStream js,
+                              String stream, String consumer,
+                              MessageManager[] managers)
+    {
         super(sid, subject, queueName, connection, dispatcher);
-        this.asm = asm;
+
         this.js = js;
         this.stream = stream;
-        this.consumerName = consumer;
-        this.deliver = deliver;
+        this.consumerName = consumer; // might be null, someone will call setConsumerName
+
+        this.managers = managers;
+        for (MessageManager mm : managers) {
+            mm.startup(this);
+        }
+    }
+
+    void setConsumerName(String consumerName) {
+        this.consumerName = consumerName;
     }
 
     String getConsumerName() {
@@ -72,64 +66,80 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return stream;
     }
 
-    String getDeliverSubject() {
-        return deliver;
-    }
-
     boolean isPullMode() {
         return false;
     }
 
-    AutoStatusManager getAsm() { return asm; } // internal, for testing
+    MessageManager[] getManagers() { return managers; } // internal, for testing
 
     @Override
     void invalidate() {
-        asm.shutdown();
+        for (MessageManager mm : managers) {
+            mm.shutdown();
+        }
         super.invalidate();
     }
 
     @Override
     public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
         if (timeout == null || timeout.toMillis() <= 0) {
-            return nextMsgNullOrLteZero(timeout);
+            return _nextUnmanagedNullOrLteZero(timeout);
         }
 
-        return nextMessageWithEndTime(System.currentTimeMillis() + timeout.toMillis());
+        return _nextUnmanaged(timeout.toMillis());
     }
 
     @Override
     public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
         if (timeoutMillis <= 0) {
-            return nextMsgNullOrLteZero(Duration.ZERO);
+            return _nextUnmanagedNullOrLteZero(Duration.ZERO);
         }
 
-        return nextMessageWithEndTime(System.currentTimeMillis() + timeoutMillis);
+        return _nextUnmanaged(timeoutMillis);
     }
 
-    protected Message nextMsgNullOrLteZero(Duration timeout) throws InterruptedException {
+    protected Message _nextUnmanagedNullOrLteZero(Duration timeout) throws InterruptedException {
         // timeout null means don't wait at all, timeout <= 0 means wait forever
         // until we get an actual no (null) message or we get a message
-        // that the manager (asm) does not handle (asm.preProcess would be false)
+        // that the managers do not handle
         Message msg = nextMessageInternal(timeout);
-        while (msg != null && asm.manage(msg)) {
+        while (msg != null && anyManaged(msg)) {
             msg = nextMessageInternal(timeout);
         }
         return msg;
     }
 
-    protected Message nextMessageWithEndTime(long endTime) throws InterruptedException {
-        // timeout >= 0 process as many messages we can in that time period
-        // if we get a message that the asm handles, we try again, but
+    protected static final long MIN_MILLIS = 20;
+    protected static final long EXPIRE_LESS_MILLIS = 10;
+
+    protected Message _nextUnmanaged(long timeout) throws InterruptedException {
+
+        // timeout > 0 process as many messages we can in that time period
+        // If we get a message that either manager handles, we try again, but
         // with a shorter timeout based on what we already used up
-        long millis = endTime - System.currentTimeMillis();
-        while (millis > 0) {
-            Message msg = nextMessageInternal(Duration.ofMillis(millis));
-            if (msg != null && !asm.manage(msg)) { // not null and not managed means JS Message
+        long elapsed = 0;
+        long start = System.currentTimeMillis();
+        while (elapsed < timeout) {
+            Message msg = nextMessageInternal( Duration.ofMillis(Math.max(MIN_MILLIS, timeout - elapsed)) );
+            if (msg == null) {
+                return null; // normal timeout
+            }
+            if (!anyManaged(msg)) { // not managed means JS Message
                 return msg;
             }
-            millis = endTime - System.currentTimeMillis();
+            // managed so try again while we have time
+            elapsed = System.currentTimeMillis() - start;
         }
         return null;
+    }
+
+    boolean anyManaged(Message msg) {
+        for (MessageManager mm : managers) {
+            if (mm.manage(msg)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -144,7 +154,31 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      * {@inheritDoc}
      */
     @Override
+    public void pull(PullRequestOptions pullRequestOptions) {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void pullNoWait(int batchSize) {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pullNoWait(int batchSize, Duration expiresIn) {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pullNoWait(int batchSize, long expiresInMillis) {
         throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
@@ -200,6 +234,14 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      * {@inheritDoc}
      */
     @Override
+    public JetStreamReader reader(int batchSize, int repullAt) {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
         return js.lookupConsumerInfo(stream, consumerName);
     }
@@ -209,7 +251,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return "NatsJetStreamSubscription{" +
                 "consumer='" + consumerName + '\'' +
                 ", stream='" + stream + '\'' +
-                ", deliver='" + deliver + '\'' +
+                ", deliver='" + getSubject() + '\'' +
                 ", isPullMode=" + isPullMode() +
                 '}';
     }

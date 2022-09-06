@@ -42,6 +42,46 @@ public class AuthTests {
     }
 
     @Test
+    public void testEncodedPassword() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/encoded_pass.conf", false)) {
+            int port = ts.getPort();
+            assertEncoded("space%20space", port);
+            assertEncoded("colon%3Acolon", port);
+            assertEncoded("colon%3acolon", port); // just making sure lower case hex
+            assertEncoded("quote%27quote", port);
+            assertEncoded("slash%2Fslash", port);
+            assertEncoded("question%3Fquestion", port);
+            assertEncoded("pound%23pound", port);
+            assertEncoded("sqleft%5Bsqleft", port);
+            assertEncoded("sqright%5Dsqright", port);
+            assertEncoded("at%40at", port);
+            assertEncoded("bang%21bang", port);
+            assertEncoded("dollar%24dollar", port);
+            assertEncoded("amp%26amp", port);
+            assertEncoded("comma%2Ccomma", port);
+            assertEncoded("parenleft%28parenleft", port);
+            assertEncoded("parentright%29parentright", port);
+            assertEncoded("asterix%2Aasterix", port);
+            assertEncoded("plus%2Bplus", port);
+            assertEncoded("semi%3Bsemi", port);
+            assertEncoded("eq%3Deq", port);
+            assertEncoded("pct%25pct", port);
+            assertEncoded("%2b%3a%c2%a1%c2%a2%c2%a3%c2%a4%c2%a5%c2%a6%c2%a7%c2%a8%c2%a9%c2%aa%c2%ab%c2%ac%20%f0%9f%98%80", port);
+
+            // a plus sign in a user or pass is a plus sign, not a space
+            assertThrows(AuthenticationException.class, () -> assertEncoded("space+space", port));
+        }
+    }
+
+    private void assertEncoded(String encoded, int port) throws IOException, InterruptedException {
+        String url = "nats://u" + encoded + ":p" + encoded + "@localhost:" + port;
+        Options options = new Options.Builder().server(url).build();
+        Connection c = Nats.connect(options);
+        c.getServerInfo();
+        c.close();
+    }
+
+    @Test
     public void testUserPassOnReconnect() throws Exception {
         TestHandler handler = new TestHandler();
         Connection nc;

@@ -70,14 +70,21 @@ import java.io.IOException;
 public abstract class Nats {
 
     /**
-     * Current version of the library - {@value}
+     * Current version of the library
      */
-    public static final String CLIENT_VERSION = "2.13.1";
+    public static final String CLIENT_VERSION;
 
     /**
      * Current language of the library - {@value}
      */
     public static final String CLIENT_LANGUAGE = "java";
+
+    static {
+        String cv;
+        try { cv = Nats.class.getPackage().getImplementationVersion(); }
+        catch (Exception ignore) { cv = null; }
+        CLIENT_VERSION = cv == null ? "development" : cv;
+    }
 
     /**
      * Connect to the default URL, {@link Options#DEFAULT_URL Options.DEFAULT_URL}, with all of the
@@ -226,39 +233,50 @@ public abstract class Nats {
     }
 
     /**
-     * Create an authhandler from a creds file. The handler will read the file each time it needs to respond to a request
+     * Create an auth handler from a creds file. The handler will read the file each time it needs to respond to a request
      * and clear the memory after. This has a small price, but will only be encountered during connect or reconnect.
      * 
      * The creds file has a JWT - generally commented with a separator - followed by an nkey - also with a separator.
      * 
      * @param credsFile a file containing a user JWT and an nkey
-     * @return an authhandler that will use the creds file to load/clear the nkey and jwt as needed
+     * @return an AuthHandler that will use the creds file to load/clear the nkey and jwt as needed
      */
     public static AuthHandler credentials(String credsFile) {
         return NatsImpl.credentials(credsFile);
     }
 
     /**
-     * Create an authhandler from a jwt file and an nkey file. The handler will read the files each time it needs to respond to a request
+     * Create an AuthHandler from a jwt file and an nkey file. The handler will read the files each time it needs to respond to a request
      * and clear the memory after. This has a small price, but will only be encountered during connect or reconnect.
      *
      * <p>The {@code jwtFile} parameter can be set to {@code null} for challenge only authentication.
      * 
      * @param jwtFile a file containing a user JWT, may or may not contain separators
      * @param nkeyFile a file containing a user nkey that matches the JWT, may or may not contain separators
-     * @return an authhandler that will use the creds file to load/clear the nkey and jwt as needed
+     * @return an AuthHandler that will use the creds file to load/clear the nkey and jwt as needed
      */
     public static AuthHandler credentials(String jwtFile, String nkeyFile) {
         return NatsImpl.credentials(jwtFile, nkeyFile);
     }
 
     /**
+     * Create an auth handler from the data found in a credsFile. This credentials object is static, and will not change
+     * over the course of its lifetime. Create a custom AuthHandler or use the file-based handler for dynamic credentials.
+     *
+     * @param credsBytes the contents of a user JWT file (optional if nkey authentication is being used)
+     * @return an AuthHandler that will return the JWT, public key or sign a nonce appropriately
+     */
+    public static AuthHandler staticCredentials(byte[] credsBytes) {
+        return NatsImpl.staticCredentials(credsBytes);
+    }
+
+    /**
      * Create an auth handler from an nkey and an option JWT. This credentials object is static, and will not change
      * over the course of its lifetime. Create a custom AuthHandler or use the file-based handler for dynamic credentials.
-     * 
+     *
      * @param jwt the contents of a user JWT file (optional if nkey authentication is being used)
      * @param nkey an nkey seed
-     * @return an authhandler that will return the JWT, public key or sign a nonce appropriately
+     * @return an AuthHandler that will return the JWT, public key or sign a nonce appropriately
      */
     public static AuthHandler staticCredentials(char[] jwt, char[] nkey) {
         return NatsImpl.staticCredentials(jwt, nkey);
