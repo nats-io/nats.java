@@ -1984,7 +1984,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public KeyValue keyValue(String bucketName) throws IOException {
-        Validator.validateKvBucketNameRequired(bucketName);
+        Validator.validateBucketName(bucketName, true);
         ensureNotClosing();
         return new NatsKeyValue(this, bucketName, null);
     }
@@ -1994,7 +1994,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public KeyValue keyValue(String bucketName, KeyValueOptions options) throws IOException {
-        Validator.validateKvBucketNameRequired(bucketName);
+        Validator.validateBucketName(bucketName, true);
         ensureNotClosing();
         return new NatsKeyValue(this, bucketName, options);
     }
@@ -2015,6 +2015,44 @@ class NatsConnection implements Connection {
     public KeyValueManagement keyValueManagement(KeyValueOptions options) throws IOException {
         ensureNotClosing();
         return new NatsKeyValueManagement(this, options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectStore objectStore(String bucketName) throws IOException {
+        Validator.validateBucketName(bucketName, true);
+        ensureNotClosing();
+        return new NatsObjectStore(this, bucketName, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectStore objectStore(String bucketName, ObjectStoreOptions options) throws IOException {
+        Validator.validateBucketName(bucketName, true);
+        ensureNotClosing();
+        return new NatsObjectStore(this, bucketName, options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectStoreManagement objectStoreManagement() throws IOException {
+        ensureNotClosing();
+        return new NatsObjectStoreManagement(this, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectStoreManagement objectStoreManagement(ObjectStoreOptions options) throws IOException {
+        ensureNotClosing();
+        return new NatsObjectStoreManagement(this, options);
     }
 
     private void ensureNotClosing() throws IOException {

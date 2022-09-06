@@ -1,4 +1,4 @@
-// Copyright 2021 The NATS Authors
+// Copyright 2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -13,7 +13,22 @@
 
 package io.nats.client.api;
 
-/**
- * Use the KeyValueWatcher interface to watch for updates
- */
-public interface KeyValueWatcher extends Watcher<KeyValueEntry> {}
+public enum ObjectStoreWatchOption {
+    /**
+     * Do not include deletes or purges in results.
+     * Default is to include deletes.
+     */
+    IGNORE_DELETE,
+
+    /**
+     * Watch starting at the first entry for all keys.
+     * Default is to start at the last per key.
+     */
+    INCLUDE_HISTORY,
+
+    /**
+     * Watch starting when there are new entries for keys.
+     * Default is to start at the last per key.
+     */
+    UPDATES_ONLY
+}

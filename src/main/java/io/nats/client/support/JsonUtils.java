@@ -14,7 +14,7 @@
 package io.nats.client.support;
 
 import io.nats.client.api.SequenceInfo;
-import io.nats.client.api.SequencePair;
+import io.nats.client.impl.Headers;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -121,6 +121,16 @@ public abstract class JsonUtils {
         return indexes == null ? dflt : json.substring(indexes[0], indexes[1] + 1);
     }
 
+    public static String removeObject(String json, String objectName) {
+        int[] indexes = getBracketIndexes(objectName, json, '{', '}', 0);
+        if (indexes != null) {
+            // remove the entire object replacing it with a dummy field b/c getBracketIndexes doesn't consider
+            // if there is or isn't another object after it, so I don't have to worry about it being/not being the last object
+            json = json.substring(0, indexes[0]) + "\"rmvd" + objectName.hashCode() + "\":\"\"" + json.substring(indexes[1] + 1);
+        }
+        return json;
+    }
+
     /**
      * Extract a list JSON object strings for list object name. Returns empty list '{}' if not found.
      * Assumes that there are no brackets '{' or '}' in the actual data.
@@ -202,7 +212,31 @@ public abstract class JsonUtils {
             String key = json.substring(s1 + 1, s2).trim();
             int[] indexes = getBracketIndexes(key, json, '{', '}', s1);
             if (indexes != null) {
-                map.put(key, json.substring(indexes[0], indexes[1]));
+                map.put(key, json.substring(indexes[0], indexes[1] + 1));
+                s1 = json.indexOf('"', indexes[1]);
+            }
+            else {
+                s1 = -1;
+            }
+        }
+
+        return map;
+    }
+
+    /**
+     * Get a map of objects
+     * @param json the json
+     * @return the map of json object strings by key
+     */
+    public static Map<String, List<String>> getMapOfLists(String json) {
+        Map<String, List<String>> map = new HashMap<>();
+        int s1 = json.indexOf('"');
+        while (s1 != -1) {
+            int s2 = json.indexOf('"', s1 + 1);
+            String key = json.substring(s1 + 1, s2).trim();
+            int[] indexes = getBracketIndexes(key, json, '[', ']', s1);
+            if (indexes != null) {
+                map.put(key, toList(json.substring(indexes[0] + 1, indexes[1])));
                 s1 = json.indexOf('"', indexes[1]);
             }
             else {
@@ -245,17 +279,21 @@ public abstract class JsonUtils {
      */
     public static List<String> getStringList(String objectName, String json) {
         String flat = json.replaceAll("\r", "").replaceAll("\n", "");
-        List<String> list = new ArrayList<>();
         Matcher m = string_array_pattern(objectName).matcher(flat);
         if (m.find()) {
             String arrayString = m.group(1);
-            String[] raw = arrayString.split(",");
+            return toList(arrayString);
+        }
+        return new ArrayList<>();
+    }
 
-            for (String s : raw) {
-                String cleaned = s.trim().replace("\"", "");
-                if (cleaned.length() > 0) {
-                    list.add(jsonDecode(cleaned));
-                }
+    private static List<String> toList(String arrayString) {
+        List<String> list = new ArrayList<>();
+        String[] raw = arrayString.split(",");
+        for (String s : raw) {
+            String cleaned = s.trim().replace("\"", "");
+            if (cleaned.length() > 0) {
+                list.add(jsonDecode(cleaned));
             }
         }
         return list;
@@ -568,6 +606,19 @@ public abstract class JsonUtils {
         }
     }
 
+    public static void addField(StringBuilder sb, String fname, Headers headers) {
+        if (headers != null && headers.size() > 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append("\":{");
+            for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+                addStrings(sb, entry.getKey(), entry.getValue());
+            }
+            endJson(sb);
+            sb.append(",");
+        }
+    }
+
     public static String readString(String json, Pattern pattern) {
         return readString(json, pattern, null);
     }
@@ -689,9 +740,6 @@ public abstract class JsonUtils {
         }
         if (o instanceof SequenceInfo) {
             return o.toString().replace("SequenceInfo", name);
-        }
-        if (o instanceof SequencePair) {
-            return o.toString().replace("SequencePair", name);
         }
         return o.toString();
     }

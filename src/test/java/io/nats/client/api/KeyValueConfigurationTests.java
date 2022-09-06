@@ -17,13 +17,14 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class KeyValueConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testConstruction() {
+        Placement p = Placement.builder().cluster("cluster").tags("a", "b").build();
+        Republish r = Republish.builder().source("src").destination("dest").headersOnly(true).build();
 
         // builder
         KeyValueConfiguration bc = KeyValueConfiguration.builder()
@@ -35,6 +36,8 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
             .ttl(Duration.ofMillis(777))
             .storageType(StorageType.Memory)
             .replicas(2)
+            .placement(p)
+            .republish(r)
             .build();
         validate(bc);
 
@@ -49,16 +52,23 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
         assertEquals(1, bc.getMaxHistoryPerKey());
     }
 
-    private void validate(KeyValueConfiguration bc) {
-        assertEquals("bucketName", bc.getBucketName());
-        assertEquals("bucketDesc", bc.getDescription());
-        assertEquals(44, bc.getMaxHistoryPerKey());
-        assertEquals(555, bc.getMaxBucketSize());
-        assertEquals(666, bc.getMaxValueSize());
-        assertEquals(Duration.ofMillis(777), bc.getTtl());
-        assertEquals(StorageType.Memory, bc.getStorageType());
-        assertEquals(2, bc.getReplicas());
+    private void validate(KeyValueConfiguration kvc) {
+        assertEquals("bucketName", kvc.getBucketName());
+        assertEquals("bucketDesc", kvc.getDescription());
+        assertEquals(44, kvc.getMaxHistoryPerKey());
+        assertEquals(555, kvc.getMaxBucketSize());
+        assertEquals(666, kvc.getMaxValueSize());
+        assertEquals(Duration.ofMillis(777), kvc.getTtl());
+        assertEquals(StorageType.Memory, kvc.getStorageType());
+        assertEquals(2, kvc.getReplicas());
+        assertNotNull(kvc.getPlacement());
+        assertEquals("cluster", kvc.getPlacement().getCluster());
+        assertEquals(2, kvc.getPlacement().getTags().size());
+        assertNotNull(kvc.getRepublish());
+        assertEquals("src", kvc.getRepublish().getSource());
+        assertEquals("dest", kvc.getRepublish().getDestination());
+        assertTrue(kvc.getRepublish().isHeadersOnly());
 
-        assertTrue(bc.toString().contains("bucketName"));
+        assertTrue(kvc.toString().contains("bucketName"));
     }
 }

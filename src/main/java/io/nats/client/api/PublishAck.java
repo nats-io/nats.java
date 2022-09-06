@@ -30,6 +30,13 @@ public class PublishAck extends ApiResponse<PublishAck> {
     private final String domain;
     private final boolean duplicate;
 
+    /**
+     *
+     * This signature is public for testing purposes and is not intended to be used externally
+     * @param msg the message containing the Pub Ack Json https://github.com/nats-io/jsm.go/blob/main/schemas/jetstream/api/v1/pub_ack_response.json
+     * @throws IOException various IO exception such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the request
+     */
     public PublishAck(Message msg) throws IOException, JetStreamApiException {
         super(msg);
         throwOnHasError();

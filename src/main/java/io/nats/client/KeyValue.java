@@ -137,7 +137,7 @@ public interface KeyValue {
     /**
      * Watch updates for a specific key.
      * @param key the key
-     * @param watcher the watcher
+     * @param watcher the watcher the implementation to receive changes
      * @param watchOptions the watch options to apply. If multiple conflicting options are supplied, the last options wins.
      * @return The KeyValueWatchSubscription
      * @throws IOException covers various communication issues with the NATS
@@ -149,7 +149,7 @@ public interface KeyValue {
 
     /**
      * Watch updates for all keys.
-     * @param watcher the watcher
+     * @param watcher the watcher the implementation to receive changes
      * @param watchOptions the watch options to apply. If multiple conflicting options are supplied, the last options wins.
      * @return The KeyValueWatchSubscription
      * @throws IOException covers various communication issues with the NATS

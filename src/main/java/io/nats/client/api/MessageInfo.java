@@ -39,8 +39,8 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
     private final long lastSeq;
 
     /**
+     * Create a Message Info
      * @deprecated This signature was public for unit testing but is no longer used.
-     *
      * @param msg the message
      */
     @Deprecated
@@ -49,10 +49,11 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
     }
 
     /**
-     * Public constructor for unit testing, not used by user.
+     * Create a Message Info
+     * This signature is public for testing purposes and is not intended to be used externally.
      * @param msg the message
-     * @param streamName the stream name
-     * @param fromDirect flag from direct
+     * @param streamName the stream name if known
+     * @param fromDirect true if the object is being created from a get direct api call instead of the standard get message
      */
     public MessageInfo(Message msg, String streamName, boolean fromDirect) {
         super(fromDirect ? null : new String(msg.getData(), UTF_8));
@@ -135,10 +136,18 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         return headers;
     }
 
+    /**
+     * Get the name of the stream. Not always set.
+     * @return the stream name or null if the name is not known.
+     */
     public String getStream() {
         return stream;
     }
 
+    /**
+     * Get the sequence number of the last message in the stream. Not always set.
+     * @return the last sequence or -1 if the value is not known.
+     */
     public long getLastSeq() {
         return lastSeq;
     }
@@ -148,10 +157,10 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         return "MessageInfo{" +
             "subject='" + subject + '\'' +
             ", seq=" + seq +
-            ", data=" + (data == null ? "null" :  '\'' + new String(data, UTF_8) + '\'') +
+            ", " + (data == null ? "data=null" : ("data bytes " + data.length)) +
             ", time=" + time +
-            (stream == null ? "" : ", stream=" + stream) +
-            (lastSeq > 0 ? "" : ", lastSeq=" + lastSeq) +
+            ", stream=" + stream +
+            (lastSeq < 1 ? "" : ", lastSeq=" + lastSeq) +
             ", headers=" + headers +
             '}';
     }

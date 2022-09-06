@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -14,12 +14,13 @@
 package io.nats.client;
 
 /**
- * The KeyValueOptions class specifies the general options for KeyValueO.
- * Options are created using the {@link KeyValueOptions.Builder Builder}.
+ * The ObjectStoreOptions class specifies the general options for ObjectStore.
+ * Options are created using the {@link ObjectStoreOptions.Builder Builder}.
+ * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
-public class KeyValueOptions extends FeatureOptions {
+public class ObjectStoreOptions extends FeatureOptions {
 
-    private KeyValueOptions(Builder b) {
+    private ObjectStoreOptions(Builder b) {
         super(b);
     }
 
@@ -33,27 +34,27 @@ public class KeyValueOptions extends FeatureOptions {
 
     /**
      * Creates a builder to copy the options.
-     * @param kvo an existing KeyValueOptions
-     * @return a KeyValueOptions builder
+     * @param oso an existing ObjectStoreOptions
+     * @return an ObjectStoreOptions builder
      */
-    public static Builder builder(KeyValueOptions kvo) {
-        return new Builder(kvo);
+    public static Builder builder(ObjectStoreOptions oso) {
+        return new ObjectStoreOptions.Builder(oso);
     }
 
     /**
      * Creates a builder to copy the options.
      * @param jso an existing JetStreamOptions
-     * @return a KeyValueOptions builder
+     * @return an ObjectStoreOptions builder
      */
     public static Builder builder(JetStreamOptions jso) {
         return new Builder().jetStreamOptions(jso);
     }
 
     /**
-     * KeyValueOptions can be created using a Builder. The builder supports chaining and will
+     * ObjectStoreOptions can be created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      */
-    public static class Builder extends FeatureOptions.Builder<Builder, KeyValueOptions> {
+    public static class Builder extends FeatureOptions.Builder<Builder, ObjectStoreOptions> {
 
         @Override
         protected Builder getThis() {
@@ -64,16 +65,16 @@ public class KeyValueOptions extends FeatureOptions {
             super();
         }
 
-        public Builder(KeyValueOptions kvo) {
-            super(kvo);
+        public Builder(ObjectStoreOptions oso) {
+            super(oso);
         }
 
         /**
-         * Builds the KeyValue Options.
-         * @return KeyValue Options
+         * Builds the ObjectStore options.
+         * @return ObjectStore options
          */
-        public KeyValueOptions build() {
-            return new KeyValueOptions(this);
+        public ObjectStoreOptions build() {
+            return new ObjectStoreOptions(this);
         }
     }
 }

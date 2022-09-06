@@ -477,7 +477,6 @@ public interface Connection extends AutoCloseable {
 
     /**
      * Gets a context for working with an Key Value bucket
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param bucketName the bucket name
      * @return a KeyValue instance.
      * @throws IOException various IO exception such as timeout or interruption
@@ -486,9 +485,8 @@ public interface Connection extends AutoCloseable {
 
     /**
      * Gets a context for working with an Key Value bucket
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param bucketName the bucket name
-     * @param options JetStream options.
+     * @param options KeyValue options.
      * @return a KeyValue instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
@@ -496,7 +494,6 @@ public interface Connection extends AutoCloseable {
 
     /**
      * Gets a context for managing Key Value buckets
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @return a KeyValueManagement instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
@@ -504,10 +501,45 @@ public interface Connection extends AutoCloseable {
 
     /**
      * Gets a context for managing Key Value buckets
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param options JetStream options.
+     * @param options KeyValue options.
      * @return a KeyValueManagement instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
     KeyValueManagement keyValueManagement(KeyValueOptions options) throws IOException;
+
+    /**
+     * Gets a context for working with an Object Store.
+     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
+     * @param bucketName the bucket name
+     * @return an ObjectStore instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    ObjectStore objectStore(String bucketName) throws IOException;
+
+    /**
+     * Gets a context for working with an Object Store.
+     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
+     * @param bucketName the bucket name
+     * @param options ObjectStore options.
+     * @return an ObjectStore instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    ObjectStore objectStore(String bucketName, ObjectStoreOptions options) throws IOException;
+
+    /**
+     * Gets a context for managing Object Stores
+     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
+     * @return an ObjectStoreManagement instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    ObjectStoreManagement objectStoreManagement() throws IOException;
+
+    /**
+     * Gets a context for managing Object Stores
+     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
+     * @param options ObjectStore options.
+     * @return a ObjectStoreManagement instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    ObjectStoreManagement objectStoreManagement(ObjectStoreOptions options) throws IOException;
 }

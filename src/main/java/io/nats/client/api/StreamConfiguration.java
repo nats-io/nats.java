@@ -309,16 +309,16 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Placement directives to consider when placing replicas of this stream,
-     * random placement when unset
-     * @return the placement [directive object]
+     * Get the placement directives to consider when placing replicas of this stream,
+     * random placement when unset. May be null.
+     * @return the placement object
      */
     public Placement getPlacement() {
         return placement;
     }
 
     /**
-     * Republish directive
+     * Get the republish configuration. May be null.
      * @return the republish object
      */
     public Republish getRepublish() {
@@ -342,7 +342,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Get the flag indicating whether or not the stream is sealed.
+     * Get the flag indicating if the stream is sealed.
      * @return the sealed flag
      */
     public boolean getSealed() {
@@ -350,7 +350,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Get the flag indicating whether or not the stream allows rollup.
+     * Get the flag indicating if the stream allows rollup.
      * @return the allows rollup flag
      */
     public boolean getAllowRollup() {
@@ -358,7 +358,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Get the flag indicating whether or not the stream allows direct message access.
+     * Get the flag indicating if the stream allows direct message access.
      * @return the allows direct flag
      */
     public boolean getAllowDirect() {
@@ -366,7 +366,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Get the flag indicating whether or not deny delete is set for the stream
+     * Get the flag indicating if deny delete is set for the stream
      * @return the deny delete flag
      */
     public boolean getDenyDelete() {
@@ -374,7 +374,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Get the flag indicating whether or not deny purge is set for the stream
+     * Get the flag indicating if deny purge is set for the stream
      * @return the deny purge flag
      */
     public boolean getDenyPurge() {
@@ -838,7 +838,6 @@ public class StreamConfiguration implements JsonSerializable {
             return this;
         }
 
-
         /**
          * Set whether to deny purging messages from the stream
          * @param denyPurge the deny purge setting
@@ -846,6 +845,15 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder denyPurge(boolean denyPurge) {
             this.denyPurge = denyPurge;
+            return this;
+        }
+
+        /**
+         * Set this stream to be sealed. This is irreversible.
+         * @return Builder
+         */
+        public Builder seal() {
+            this.sealed = true;
             return this;
         }
 

@@ -14,15 +14,15 @@ This file lists the dependencies used in this repository.
 |-------------------------------------------------|-----------------------------------------|
 | io.nats:jnats-server-runner:1.0.9               | Apache 2.0 License                      |
 | org.apiguardian:apiguardian-api:1.1.0           | Apache 2.0 License                      |
-| org.junit.jupiter:junit-jupiter:5.7.0           | Eclipse Public License 1.0              |
-| org.junit:junit-bom:5.7.0                       | Eclipse Public License 1.0              |
-| org.junit.jupiter:junit-jupiter:5.7.0           | Eclipse Public License 1.0              |
-| org.junit.jupiter:junit-jupiter-api:5.7.0       | Eclipse Public License 1.0              |
-| org.junit.jupiter:junit-jupiter-api:5.7.0       | Eclipse Public License 1.0              |
-| org.junit.jupiter:junit-jupiter-engine:5.7.0    | Eclipse Public License 1.0              |
-| org.junit.jupiter:junit-jupiter-params:5.7.0    | Eclipse Public License 1.0              |
-| org.junit.platform:junit-platform-commons:1.7.0 | Eclipse Public License 1.0              |
-| org.junit.platform:junit-platform-engine:1.7.0  | Eclipse Public License 1.0              |
+| org.junit.jupiter:junit-jupiter:5.9.0           | Eclipse Public License v2.0             |
+| org.junit:junit-bom:5.9.0                       | Eclipse Public License v2.0             |
+| org.junit.jupiter:junit-jupiter:5.9.0           | Eclipse Public License v2.0             |
+| org.junit.jupiter:junit-jupiter-api:5.9.0       | Eclipse Public License v2.0             |
+| org.junit.jupiter:junit-jupiter-api:5.9.0       | Eclipse Public License v2.0             |
+| org.junit.jupiter:junit-jupiter-engine:5.9.0    | Eclipse Public License v2.0             |
+| org.junit.jupiter:junit-jupiter-params:5.9.0    | Eclipse Public License v2.0             |
+| org.junit.platform:junit-platform-commons:1.9.0 | Eclipse Public License v2.0             |
+| org.junit.platform:junit-platform-engine:1.9.0  | Eclipse Public License v2.0             |
 | org.opentest4j:opentest4j:1.2.0                 | Apache 2.0 License                      |
 
 #### Build / Coverage Dependencies
@@ -50,3 +50,4 @@ This file lists the dependencies used in this repository.
 
 [BSD Licenses](https://en.wikipedia.org/wiki/BSD_licenses)
 
+[MIT License](https://en.wikipedia.org/wiki/MIT_License)

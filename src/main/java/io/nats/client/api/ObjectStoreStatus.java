@@ -1,4 +1,4 @@
-// Copyright 2021 The NATS Authors
+// Copyright 2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -15,20 +15,21 @@ package io.nats.client.api;
 import java.time.Duration;
 
 /**
- * The KeyValueStatus class contains information about a Key Value Bucket.
+ * The ObjectStoreStatus class contains information about an object store.
+ * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
-public class KeyValueStatus {
+public class ObjectStoreStatus {
 
     private final StreamInfo streamInfo;
-    private final KeyValueConfiguration config;
+    private final ObjectStoreConfiguration config;
 
-    public KeyValueStatus(StreamInfo si) {
+    public ObjectStoreStatus(StreamInfo si) {
         streamInfo = si;
-        config = new KeyValueConfiguration(streamInfo.getConfiguration());
+        config = new ObjectStoreConfiguration(streamInfo.getConfiguration());
     }
 
     /**
-     * Get the name of the bucket
+     * Get the name of the object store
      * @return the name
      */
     public String getBucketName() {
@@ -55,44 +56,28 @@ public class KeyValueStatus {
      * Gets the configuration object directly
      * @return the configuration.
      */
-    public KeyValueConfiguration getConfiguration() {
+    public ObjectStoreConfiguration getConfiguration() {
         return config;
     }
 
     /**
-     * Get the number of total entries in the bucket, including historical entries
-     * @return the count of entries
+     * Get the combined size of all data in the bucket including metadata, in bytes
+     * @return the size
      */
-    public long getEntryCount() {
-        return streamInfo.getStreamState().getMsgCount();
+    public long getSize() {
+        return streamInfo.getStreamState().getByteCount();
     }
 
     /**
-     * Gets the maximum number of history for any one key. Includes the current value.
-     * @return the maximum number of values for any one key.
+     * If true, indicates the stream is sealed and cannot be modified in any way
+     * @return the sealed setting
      */
-    public long getMaxHistoryPerKey() {
-        return config.getMaxHistoryPerKey();
+    public boolean isSealed() {
+        return config.getBackingConfig().getSealed();
     }
 
     /**
-     * Gets the maximum number of bytes for this bucket.
-     * @return the maximum number of bytes for this bucket.
-     */
-    public long getMaxBucketSize() {
-        return config.getMaxBucketSize();
-    }
-
-    /**
-     * Gets the maximum size for an individual value in the bucket.
-     * @return the maximum size a value.
-     */
-    public long getMaxValueSize() {
-        return config.getMaxValueSize();
-    }
-
-    /**
-     * Gets the maximum age for a value in this bucket.
+     * Gets the maximum age for a value in this store.
      * @return the maximum age.
      */
     public Duration getTtl() {
@@ -108,7 +93,7 @@ public class KeyValueStatus {
     }
 
     /**
-     * Gets the number of replicas for this bucket.
+     * Gets the number of replicas for this store.
      * @return the number of replicas
      */
     public int getReplicas() {
@@ -124,14 +109,6 @@ public class KeyValueStatus {
     }
 
     /**
-     * Gets the republish configuration
-     * @return the republish object
-     */
-    public Republish getRepublish() {
-        return config.getRepublish();
-    }
-
-    /**
      * Gets the name of the type of backing store, currently only "JetStream"
      * @return the name of the store, currently only "JetStream"
      */
@@ -141,16 +118,13 @@ public class KeyValueStatus {
 
     @Override
     public String toString() {
-        return "KeyValueStatus{" +
+        return "ObjectStoreStatus{" +
             "name='" + getBucketName() + '\'' +
             ", description='" + getDescription() + '\'' +
-            ", entryCount=" + getEntryCount() +
-            ", maxHistoryPerKey=" + getMaxHistoryPerKey() +
-            ", maxBucketSize=" + getMaxBucketSize() +
-            ", maxValueSize=" + getMaxValueSize() +
             ", ttl=" + getTtl() +
             ", storageType=" + getStorageType() +
             ", replicas=" + getReplicas() +
+            ", isSealed=" + isSealed() +
             '}';
     }
 }

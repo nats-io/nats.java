@@ -304,6 +304,8 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(Duration.ZERO, kvc.getTtl());
         assertEquals(StorageType.Memory, status.getStorageType());
         assertEquals(StorageType.Memory, kvc.getStorageType());
+        assertNull(status.getPlacement());
+        assertNull(status.getRepublish());
         assertEquals(1, status.getReplicas());
         assertEquals(1, kvc.getReplicas());
         assertEquals(0, status.getEntryCount());
@@ -629,33 +631,6 @@ public class KeyValueTests extends JetStreamTestBase {
         });
     }
 
-    @Test
-    public void testManageGetBucketNames() throws Exception {
-        runInJsServer(nc -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
-
-            // create bucket 1
-            kvm.create(KeyValueConfiguration.builder()
-                .name(bucket(1))
-                .storageType(StorageType.Memory)
-                .build());
-
-            // create bucket 2
-            kvm.create(KeyValueConfiguration.builder()
-                .name(bucket(2))
-                .storageType(StorageType.Memory)
-                .build());
-
-            createMemoryStream(nc, stream(1));
-            createMemoryStream(nc, stream(2));
-
-            List<String> buckets = kvm.getBucketNames();
-            assertEquals(2, buckets.size());
-            assertTrue(buckets.contains(bucket(1)));
-            assertTrue(buckets.contains(bucket(2)));
-        });
-    }
-
     private void assertKeys(List<String> apiKeys, String... manualKeys) {
         assertEquals(manualKeys.length, apiKeys.size());
         for (String k : manualKeys) {
@@ -705,6 +680,33 @@ public class KeyValueTests extends JetStreamTestBase {
         long es1 = kv1.getCreated().toEpochSecond();
         long es2 = kv2.getCreated().toEpochSecond();
         assertEquals(es1, es2);
+    }
+
+    @Test
+    public void testManageGetBucketNames() throws Exception {
+        runInJsServer(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            // create bucket 1
+            kvm.create(KeyValueConfiguration.builder()
+                .name(bucket(1))
+                .storageType(StorageType.Memory)
+                .build());
+
+            // create bucket 2
+            kvm.create(KeyValueConfiguration.builder()
+                .name(bucket(2))
+                .storageType(StorageType.Memory)
+                .build());
+
+            createMemoryStream(nc, stream(1));
+            createMemoryStream(nc, stream(2));
+
+            List<String> buckets = kvm.getBucketNames();
+            assertEquals(2, buckets.size());
+            assertTrue(buckets.contains(bucket(1)));
+            assertTrue(buckets.contains(bucket(2)));
+        });
     }
 
     static class TestKeyValueWatcher implements KeyValueWatcher {
@@ -788,7 +790,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
         TestKeyValueWatcher key1FullWatcher = new TestKeyValueWatcher("key1FullWatcher", true);
         TestKeyValueWatcher key1MetaWatcher = new TestKeyValueWatcher("key1MetaWatcher", true, META_ONLY);
-        TestKeyValueWatcher key1StartNewWatcher = new TestKeyValueWatcher("key1StartNewWatcher", true, META_ONLY);
+        TestKeyValueWatcher key1StartNewWatcher = new TestKeyValueWatcher("key1StartNewWatcher", true, META_ONLY, UPDATES_ONLY);
         TestKeyValueWatcher key1StartAllWatcher = new TestKeyValueWatcher("key1StartAllWatcher", true, META_ONLY);
         TestKeyValueWatcher key2FullWatcher = new TestKeyValueWatcher("key2FullWatcher", true);
         TestKeyValueWatcher key2MetaWatcher = new TestKeyValueWatcher("key2MetaWatcher", true, META_ONLY);
@@ -836,7 +838,7 @@ public class KeyValueTests extends JetStreamTestBase {
     private void _testWatch(Connection nc, TestKeyValueWatcher watcher, Object[] expectedKves, TestWatchSubSupplier supplier) throws Exception {
         KeyValueManagement kvm = nc.keyValueManagement();
 
-        String bucket = BUCKET + watcher.name;
+        String bucket = watcher.name + "Bucket";
         kvm.create(KeyValueConfiguration.builder()
             .name(bucket)
             .maxHistoryPerKey(10)
@@ -845,7 +847,6 @@ public class KeyValueTests extends JetStreamTestBase {
 
         KeyValue kv = nc.keyValue(bucket);
 
-        // subs created before data
         NatsKeyValueWatchSubscription sub = null;
 
         if (watcher.beforeWatcher) {

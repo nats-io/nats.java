@@ -31,7 +31,17 @@ public abstract class DateTimeUtils {
     public static final DateTimeFormatter RFC3339_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.nnnnnnnnn'Z'");
 
     public static ZonedDateTime toGmt(ZonedDateTime zonedDateTime) {
-        return ZonedDateTime.ofInstant(Instant.from(zonedDateTime), ZONE_ID_GMT);
+        return zonedDateTime.withZoneSameInstant(ZONE_ID_GMT);
+    }
+
+    public static ZonedDateTime gmtNow() {
+        return ZonedDateTime.now().withZoneSameInstant(ZONE_ID_GMT);
+    }
+
+    public static boolean equals(ZonedDateTime zdt1, ZonedDateTime zdt2) {
+        if (zdt1 == zdt2) return true;
+        if (zdt1 == null || zdt2 == null) return false;
+        return zdt1.withZoneSameInstant(ZONE_ID_GMT).equals(zdt2.withZoneSameInstant(ZONE_ID_GMT));
     }
 
     public static String toRfc3339(ZonedDateTime zonedDateTime) {

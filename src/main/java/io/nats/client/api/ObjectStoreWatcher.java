@@ -1,4 +1,4 @@
-// Copyright 2021 The NATS Authors
+// Copyright 2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -14,6 +14,6 @@
 package io.nats.client.api;
 
 /**
- * Use the KeyValueWatcher interface to watch for updates
+ * Use the ObjectStoreWatcher interface to watch for updates
  */
-public interface KeyValueWatcher extends Watcher<KeyValueEntry> {}
+public interface ObjectStoreWatcher extends Watcher<ObjectInfo> {}
