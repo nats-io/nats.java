@@ -50,15 +50,13 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             pubSubChunkPrefix = rawChunkPrefix;
             pubSubMetaPrefix = rawMetaPrefix;
         }
+        else if (oso.getJetStreamOptions().isDefaultPrefix()) {
+            pubSubChunkPrefix = rawChunkPrefix;
+            pubSubMetaPrefix = rawMetaPrefix;
+        }
         else {
-            if (oso.getJetStreamOptions().isDefaultPrefix()) {
-                pubSubChunkPrefix = rawChunkPrefix;
-                pubSubMetaPrefix = rawMetaPrefix;
-            }
-            else {
-                pubSubChunkPrefix = oso.getJetStreamOptions().getPrefix() + rawChunkPrefix;
-                pubSubMetaPrefix = oso.getJetStreamOptions().getPrefix() + rawMetaPrefix;
-            }
+            pubSubChunkPrefix = oso.getJetStreamOptions().getPrefix() + rawChunkPrefix;
+            pubSubMetaPrefix = oso.getJetStreamOptions().getPrefix() + rawMetaPrefix;
         }
     }
 
@@ -158,6 +156,9 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             catch (Exception ignore) {}
 
             throw e;
+        }
+        finally {
+            try { inputStream.close(); } catch (IOException ignore) {}
         }
     }
 

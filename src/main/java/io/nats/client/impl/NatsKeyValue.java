@@ -48,13 +48,11 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
         if (kvo == null) {
             pubSubKeyPrefix = rawKeyPrefix;
         }
+        else if (kvo.getJetStreamOptions().isDefaultPrefix()) {
+            pubSubKeyPrefix = rawKeyPrefix;
+        }
         else {
-            if (kvo.getJetStreamOptions().isDefaultPrefix()) {
-                pubSubKeyPrefix = rawKeyPrefix;
-            }
-            else {
-                pubSubKeyPrefix = kvo.getJetStreamOptions().getPrefix() + rawKeyPrefix;
-            }
+            pubSubKeyPrefix = kvo.getJetStreamOptions().getPrefix() + rawKeyPrefix;
         }
     }
 
