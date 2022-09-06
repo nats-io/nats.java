@@ -31,17 +31,6 @@ public abstract class NatsKeyValueUtil {
     public static final String KV_SUBJECT_SUFFIX = ".>";
     public static final String KV_OPERATION_HEADER_KEY = "KV-Operation";
 
-    public final static Headers DELETE_HEADERS;
-    public final static Headers PURGE_HEADERS;
-
-    static {
-        DELETE_HEADERS = new Headers()
-            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.DELETE.getHeaderValue());
-        PURGE_HEADERS = new Headers()
-            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.PURGE.getHeaderValue())
-            .put(ROLLUP_HDR, ROLLUP_HDR_SUBJECT);
-    }
-
     public static String extractBucketName(String streamName) {
         return streamName.substring(KV_STREAM_PREFIX_LEN);
     }
@@ -64,6 +53,17 @@ public abstract class NatsKeyValueUtil {
 
     public static KeyValueOperation getOperation(Headers h) {
         return KeyValueOperation.getOrDefault(getOperationHeader(h), KeyValueOperation.PUT);
+    }
+
+    public static Headers getDeleteHeaders() {
+        return new Headers()
+            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.DELETE.getHeaderValue());
+    }
+
+    public static Headers getPurgeHeaders() {
+        return new Headers()
+            .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.PURGE.getHeaderValue())
+            .put(ROLLUP_HDR, ROLLUP_HDR_SUBJECT);
     }
 
     public static class BucketAndKey {

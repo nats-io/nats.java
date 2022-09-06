@@ -34,13 +34,6 @@ public abstract class NatsObjectStoreUtil {
     public static final String OBJ_META_PART = ".M";
     public static final String OBJ_CHUNK_PART = ".C";
 
-    public final static Headers META_HEADERS;
-
-    static {
-        META_HEADERS = new Headers()
-            .put(ROLLUP_HDR, ROLLUP_HDR_SUBJECT);
-    }
-
     public static String extractBucketName(String streamName) {
         return streamName.substring(OBJ_STREAM_PREFIX_LEN);
     }
@@ -67,5 +60,10 @@ public abstract class NatsObjectStoreUtil {
 
     public static String encodeForSubject(String name) {
         return Base64.getEncoder().encodeToString(name.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public static Headers getMetaHeaders() {
+        return new Headers()
+            .put(ROLLUP_HDR, ROLLUP_HDR_SUBJECT);
     }
 }
