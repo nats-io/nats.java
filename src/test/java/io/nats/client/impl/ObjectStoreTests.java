@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.ZoneId;
@@ -34,7 +35,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class ObjectStoreTests extends JetStreamTestBase {
 
-    @SuppressWarnings("IOStreamConstructor")
     @Test
     public void testWorkflow() throws Exception {
         runInJsServer(nc -> {
@@ -83,7 +83,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
                 expectedChunks++;
             }
             File file = (File)input[1];
-            InputStream in = new FileInputStream(file);
+            InputStream in = Files.newInputStream(file.toPath());
             ObjectInfo oi1 = validateObjectInfo(os.put(meta, in), len, expectedChunks, 4096);
 
             ByteArrayOutputStream baos = validateGet(os, len, expectedChunks, 4096);
@@ -145,7 +145,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
             if (expectedChunks * DEFAULT_CHUNK_SIZE < len) {
                 expectedChunks++;
             }
-            in = new FileInputStream(file);
+            in = Files.newInputStream(file.toPath());
             validateObjectInfo(os.put(name, in), name, null, false, len, expectedChunks, DEFAULT_CHUNK_SIZE);
 
             name = file.getName();
