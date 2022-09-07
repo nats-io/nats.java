@@ -1,8 +1,6 @@
 package io.nats.client.impl;
 
 import io.nats.client.Options;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -12,8 +10,6 @@ import io.vertx.core.net.NetSocket;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -46,14 +42,9 @@ public class VertxDataPort implements DataPort{
                         final long timeoutNanos) throws IOException {
 
         try {
-
             this.connection = conn;
-
             final Options options = this.connection.getOptions();
-            long timeout = timeoutNanos / 1_000_000; // convert to millis
-            URI uri = null;
-            uri = options.createURIForServer(serverURI);
-
+            final URI uri = options.createURIForServer(serverURI);
             this.host = uri.getHost();
             this.port = uri.getPort();
         } catch (URISyntaxException e) {
@@ -80,7 +71,6 @@ public class VertxDataPort implements DataPort{
                     }
                 }
         );
-
     }
 
     @Override
@@ -95,7 +85,6 @@ public class VertxDataPort implements DataPort{
             if (buffer == null) {
                 return  -1;
             }
-
             final int length = Math.min(buffer.length(), len);
             buffer.getBytes(0, length, dst, off);
             return length;
@@ -106,7 +95,6 @@ public class VertxDataPort implements DataPort{
 
     @Override
     public void write(byte[] src, int length) throws IOException {
-
         if (src.length == length) {
             this.socket.get().write(Buffer.buffer(src));
         } else {
