@@ -181,6 +181,7 @@ public class ObjectInfo implements JsonSerializable {
             modified = info.modified;
             chunks = info.chunks;
             digest = info.digest;
+            deleted = info.deleted;
             metaBuilder = ObjectMeta.builder(info.objectMeta);
         }
 

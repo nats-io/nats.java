@@ -49,6 +49,7 @@ public class KeyValueTests extends JetStreamTestBase {
         runInJsServer(nc -> {
             // get the kv management context
             KeyValueManagement kvm = nc.keyValueManagement();
+            nc.keyValueManagement(KeyValueOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage
 
             // create the bucket
             KeyValueConfiguration kvc = KeyValueConfiguration.builder()
@@ -66,6 +67,10 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(BUCKET, kv.getBucketName());
             status = kv.getStatus();
             assertStatus(status);
+
+            KeyValue kv2 = nc.keyValue(BUCKET, KeyValueOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage
+            assertEquals(BUCKET, kv2.getBucketName());
+            assertStatus(kv2.getStatus());
 
             // Put some keys. Each key is put in a subject in the bucket (stream)
             // The put returns the sequence number in the bucket (stream)

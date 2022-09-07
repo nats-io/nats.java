@@ -30,6 +30,7 @@ import java.util.List;
 import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
 import static io.nats.client.api.ObjectStoreWatchOption.IGNORE_DELETE;
 import static io.nats.client.support.NatsJetStreamClientError.*;
+import static io.nats.client.support.NatsObjectStoreUtil.DEFAULT_CHUNK_SIZE;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ObjectStoreTests extends JetStreamTestBase {
@@ -38,6 +39,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
     public void testWorkflow() throws Exception {
         runInJsServer(nc -> {
             ObjectStoreManagement osm = nc.objectStoreManagement();
+            nc.objectStoreManagement(ObjectStoreOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage
 
             // create the bucket
             ObjectStoreConfiguration osc = ObjectStoreConfiguration.builder(BUCKET)
@@ -47,18 +49,8 @@ public class ObjectStoreTests extends JetStreamTestBase {
                 .build();
 
             ObjectStoreStatus status = osm.create(osc);
-            assertEquals(BUCKET, status.getBucketName());
-            assertEquals(PLAIN, status.getDescription());
-            assertFalse(status.isSealed());
-            assertEquals(0, status.getSize());
-            assertEquals(Duration.ofHours(24), status.getTtl());
-            assertEquals(StorageType.Memory, status.getStorageType());
-            assertEquals(1, status.getReplicas());
-            assertNull(status.getPlacement());
-            assertNotNull(status.getConfiguration()); // coverage
-            assertNotNull(status.getBackingStreamInfo()); // coverage
-            assertEquals("JetStream", status.getBackingStore());
-            assertNotNull(status.toString()); // coverage
+            validateStatus(status);
+            validateStatus(osm.getStatus(BUCKET));
 
             JetStreamManagement jsm = nc.jetStreamManagement();
             assertNotNull(jsm.getStreamInfo("OBJ_" + BUCKET));
@@ -69,6 +61,9 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
             // put some objects into the stores
             ObjectStore os = nc.objectStore(BUCKET);
+            nc.objectStore(BUCKET, ObjectStoreOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage;
+
+            validateStatus(os.getStatus());
 
             // object not found errors
             assertClientError(OsObjectNotFound, () -> os.get("notFound", new ByteArrayOutputStream()));
@@ -87,7 +82,9 @@ public class ObjectStoreTests extends JetStreamTestBase {
             if (expectedChunks * 4096 < len) {
                 expectedChunks++;
             }
-            ObjectInfo oi1 = validateObjectInfo(os.put(meta, (InputStream)input[1]), len, expectedChunks, 4096);
+            File file = (File)input[1];
+            InputStream in = Files.newInputStream(file.toPath());
+            ObjectInfo oi1 = validateObjectInfo(os.put(meta, in), len, expectedChunks, 4096);
 
             ByteArrayOutputStream baos = validateGet(os, len, expectedChunks, 4096);
             byte[] bytes = baos.toByteArray();
@@ -98,30 +95,77 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
             assertNotEquals(oi1.getNuid(), oi2.getNuid());
 
-            // update meta
+            // update meta changing name, desc, headers
             ObjectInfo oi3 = os.updateMeta(oi2.getObjectName(),
-                ObjectMeta.builder("new object name")
-                    .description("new object description")
+                ObjectMeta.builder("object name B")
+                    .description("description B")
                     .headers(new Headers().put("newkey", "newval")).build());
-            assertEquals("new object name", oi3.getObjectName());
-            assertEquals("new object description", oi3.getDescription());
+            assertEquals("object name B", oi3.getObjectName());
+            assertEquals("description B", oi3.getDescription());
             assertNotNull(oi3.getHeaders());
             assertEquals(1, oi3.getHeaders().size());
             assertEquals("newval", oi3.getHeaders().getFirst("newkey"));
+
+            // update meta changing desc only for coverage
+            oi3 = os.updateMeta(oi3.getObjectName(),
+                ObjectMeta.builder(oi3.getObjectMeta()).description("description C").build());
+            assertEquals("object name B", oi3.getObjectName());
+            assertEquals("description C", oi3.getDescription());
+            assertEquals(1, oi3.getHeaders().size());
 
             // check the old object is not found at all
             assertClientError(OsObjectNotFound, () -> os.get("object-name", new ByteArrayOutputStream()));
             assertClientError(OsObjectNotFound, () -> os.updateMeta("object-name", ObjectMeta.objectName("notFound")));
 
             // delete object, then try to update meta
-            os.delete(oi3.getObjectName());
-            assertClientError(OsObjectIsDeleted, () -> os.updateMeta(oi3.getObjectName(), ObjectMeta.objectName("notFound")));
+            ObjectInfo delInfo = os.delete(oi3.getObjectName());
+            assertEquals(oi3.getObjectName(), delInfo.getObjectName());
+            assertTrue(delInfo.isDeleted());
+
+            // delete an object a second time is fine
+            delInfo = os.delete(oi3.getObjectName());
+            assertEquals(oi3.getObjectName(), delInfo.getObjectName());
+            assertTrue(delInfo.isDeleted());
+
+            // try to update meta for deleted
+            ObjectInfo oiWillError = oi3;
+            assertClientError(OsObjectIsDeleted, () -> os.updateMeta(oiWillError.getObjectName(), ObjectMeta.objectName("notFound")));
 
             // can't update meta to an existing object
-            os.put("another1", "another1".getBytes());
+            ObjectInfo oi = os.put("another1", "another1".getBytes());
             os.put("another2", "another2".getBytes());
             assertClientError(OsObjectAlreadyExists, () -> os.updateMeta("another1", ObjectMeta.objectName("another2")));
+
+            // but you can update a name to a deleted object's name
+            os.updateMeta(oi.getObjectName(), ObjectMeta.objectName(oi3.getObjectName()));
+
+            // alternate puts
+            String name = "put-name-input-coverage";
+            expectedChunks = len / DEFAULT_CHUNK_SIZE;
+            if (expectedChunks * DEFAULT_CHUNK_SIZE < len) {
+                expectedChunks++;
+            }
+            in = Files.newInputStream(file.toPath());
+            validateObjectInfo(os.put(name, in), name, null, false, len, expectedChunks, DEFAULT_CHUNK_SIZE);
+
+            name = file.getName();
+            validateObjectInfo(os.put(file), name, null, false, len, expectedChunks, DEFAULT_CHUNK_SIZE);
         });
+    }
+
+    private static void validateStatus(ObjectStoreStatus status) {
+        assertEquals(BUCKET, status.getBucketName());
+        assertEquals(PLAIN, status.getDescription());
+        assertFalse(status.isSealed());
+        assertEquals(0, status.getSize());
+        assertEquals(Duration.ofHours(24), status.getTtl());
+        assertEquals(StorageType.Memory, status.getStorageType());
+        assertEquals(1, status.getReplicas());
+        assertNull(status.getPlacement());
+        assertNotNull(status.getConfiguration()); // coverage
+        assertNotNull(status.getBackingStreamInfo()); // coverage
+        assertEquals("JetStream", status.getBackingStore());
+        assertNotNull(status.toString()); // coverage
     }
 
     @SuppressWarnings("SameParameterValue")
@@ -134,9 +178,18 @@ public class ObjectStoreTests extends JetStreamTestBase {
     }
 
     private ObjectInfo validateObjectInfo(ObjectInfo oi, long size, long chunks, int chunkSize) {
+        return validateObjectInfo(oi, "object-name", "object-desc", true, size, chunks, chunkSize);
+    }
+
+    private ObjectInfo validateObjectInfo(ObjectInfo oi, String objectName, String objectDesc, boolean headers, long size, long chunks, int chunkSize) {
         assertEquals(BUCKET, oi.getBucket());
-        assertEquals("object-name", oi.getObjectName());
-        assertEquals("object-desc", oi.getDescription());
+        assertEquals(objectName, oi.getObjectName());
+        if (objectDesc == null) {
+            assertNull(oi.getDescription());
+        }
+        else {
+            assertEquals(objectDesc, oi.getDescription());
+        }
         assertEquals(size, oi.getSize());
         assertEquals(chunks, oi.getChunks());
         assertNotNull(oi.getNuid());
@@ -145,15 +198,17 @@ public class ObjectStoreTests extends JetStreamTestBase {
         if (chunkSize > 0) {
             assertEquals(chunkSize, oi.getObjectMeta().getObjectMetaOptions().getChunkSize());
         }
-        assertNotNull(oi.getHeaders());
-        assertEquals(2, oi.getHeaders().size());
-        List<String> list = oi.getHeaders().get(key(1));
-        assertEquals(1, list.size());
-        assertEquals(data(1), oi.getHeaders().getFirst(key(1)));
-        list = oi.getHeaders().get(key(2));
-        assertEquals(2, list.size());
-        assertTrue(list.contains(data(21)));
-        assertTrue(list.contains(data(22)));
+        if (headers) {
+            assertNotNull(oi.getHeaders());
+            assertEquals(2, oi.getHeaders().size());
+            List<String> list = oi.getHeaders().get(key(1));
+            assertEquals(1, list.size());
+            assertEquals(data(1), oi.getHeaders().getFirst(key(1)));
+            list = oi.getHeaders().get(key(2));
+            assertEquals(2, list.size());
+            assertTrue(list.contains(data(21)));
+            assertTrue(list.contains(data(22)));
+        }
         return oi;
     }
 
@@ -177,8 +232,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
                 }
             }
         }
-        //noinspection ConstantConditions,resource
-        return new Object[] {foundLen, Files.newInputStream(found.toPath())};
+        return new Object[] {foundLen, found};
     }
 
     @Test
@@ -252,10 +306,21 @@ public class ObjectStoreTests extends JetStreamTestBase {
             ObjectInfo info12 = os1.getInfo(key(12));
 
             // can't overwrite object with a link
-            assertClientError(OsObjectAlreadyExists, () -> os1.addLink(info11.getObjectName(), info11)); // can't overwrite object with a link
+            assertClientError(OsObjectAlreadyExists, () -> os1.addLink(info11.getObjectName(), info11));
+
+            // can overwrite a deleted link or another link
+            os1.put("overwrite", "over".getBytes());
+            os1.delete("overwrite");
+            os1.addLink("overwrite", info11);
+            os1.addLink("overwrite", info11);
 
             // can't overwrite object with a bucket link
             assertClientError(OsObjectAlreadyExists, () -> os1.addBucketLink(info11.getObjectName(), os1));
+
+            // can overwrite a deleted link or another link
+            os1.delete("overwrite");
+            os1.addBucketLink("overwrite", os1);
+            os1.addBucketLink("overwrite", os1);
 
             // Link to individual object.
             ObjectInfo linkTo11 = os1.addLink("linkTo11", info11);
@@ -269,9 +334,17 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
             ObjectInfo crossLink = os2.addLink("crossLink", info11);
             validateLink(crossLink, "crossLink", info11, null);
+            ByteArrayOutputStream baosCross = new ByteArrayOutputStream();
+            ObjectInfo crossGet = os2.get(crossLink.getObjectName(), baosCross);
+            assertEquals(info11, crossGet);
+            byte[] bytes = baosCross.toByteArray();
+            assertEquals(2, bytes.length);
 
             ObjectInfo bucketLink = os2.addBucketLink("bucketLink", os1);
             validateLink(bucketLink, "bucketLink", null, os1);
+
+            // can't get a bucket
+            assertClientError(OsGetLinkToBucket, () -> os2.get(bucketLink.getObjectName(), new ByteArrayOutputStream()));
 
             // getInfo targetWillBeDeleted still gets info b/c the link is there
             ObjectInfo targetWillBeDeleted = os2.addLink("targetWillBeDeleted", info21);
@@ -294,20 +367,24 @@ public class ObjectStoreTests extends JetStreamTestBase {
         });
     }
 
-    private void validateLink(ObjectInfo oiLink, String linkName, ObjectInfo targetStore, ObjectStore targetBucket) {
+    private void validateLink(ObjectInfo oiLink, String linkName, ObjectInfo targetInfo, ObjectStore targetBucket) {
         assertEquals(linkName, oiLink.getObjectName());
         assertNotNull(oiLink.getNuid());
         assertNotNull(oiLink.getModified());
 
         ObjectLink link = oiLink.getLink();
         assertNotNull(link);
-        if (targetStore == null) { // link to bucket
+        if (targetInfo == null) { // link to bucket
+            assertTrue(link.isBucketLink());
+            assertFalse(link.isObjectLink());
             assertNull(link.getObjectName());
             assertEquals(link.getBucket(), targetBucket.getBucketName());
         }
         else {
-            assertEquals(link.getObjectName(), targetStore.getObjectName());
-            assertEquals(link.getBucket(), targetStore.getBucket());
+            assertFalse(link.isBucketLink());
+            assertTrue(link.isObjectLink());
+            assertEquals(link.getObjectName(), targetInfo.getObjectName());
+            assertEquals(link.getBucket(), targetInfo.getBucket());
         }
     }
 
@@ -354,7 +431,9 @@ public class ObjectStoreTests extends JetStreamTestBase {
             ObjectStore os = nc.objectStore(BUCKET);
             os.put("name", "data".getBytes());
 
-            os.seal();
+            ObjectStoreStatus status = os.seal();
+
+            assertTrue(status.isSealed());
 
             assertThrows(JetStreamApiException.class, () -> os.put("another", "data".getBytes()));
 
