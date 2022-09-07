@@ -13,8 +13,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -91,21 +91,28 @@ public class VertxDataPort implements DataPort{
     @Override
     public int read(byte[] dst, int off, int len) throws IOException {
         try {
-            final Buffer buffer = inputQueue.poll(50, TimeUnit.MILLISECONDS);
-            buffer.getBytes(0, len, dst, off);
-            return len;
+            final Buffer buffer = inputQueue.poll(30, TimeUnit.SECONDS);
+            if (buffer == null) {
+                return  -1;
+            }
+
+            final int length = Math.min(buffer.length(), len);
+            buffer.getBytes(0, length, dst, off);
+            return length;
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public void write(byte[] src, int toWrite) throws IOException {
+    public void write(byte[] src, int length) throws IOException {
 
-        if (src.length == toWrite) {
+        if (src.length == length) {
             this.socket.get().write(Buffer.buffer(src));
         } else {
-            this.socket.get().write(Buffer.buffer( Unpooled.wrappedBuffer(ByteBuffer.wrap(src, 0, toWrite))));
+            Buffer buffer = Buffer.buffer();
+            buffer.appendBytes(src, 0, length);
+            this.socket.get().write(buffer);
         }
     }
 

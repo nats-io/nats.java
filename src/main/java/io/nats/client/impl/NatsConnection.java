@@ -394,17 +394,22 @@ class NatsConnection implements Connection {
             // Wait for the INFO message manually
             // all other traffic will use the reader and writer
             Callable<Object> connectTask = () -> {
-                readInitialInfo();
-                checkVersionRequirements();
-                long start = System.nanoTime();
-                upgradeToSecureIfNeeded();
-                if (trace && options.isTLSRequired()) {
-                    // If the time appears too long it might be related to
-                    // https://github.com/nats-io/nats.java#linux-platform-note
-                    timeTrace(true, "TLS upgrade took: %.3f (s)",
-                            ((double) (System.nanoTime() - start)) / 1_000_000_000.0);
+                try {
+                    readInitialInfo();
+                    checkVersionRequirements();
+                    long start = System.nanoTime();
+                    upgradeToSecureIfNeeded();
+                    if (trace && options.isTLSRequired()) {
+                        // If the time appears too long it might be related to
+                        // https://github.com/nats-io/nats.java#linux-platform-note
+                        timeTrace(true, "TLS upgrade took: %.3f (s)",
+                                ((double) (System.nanoTime() - start)) / 1_000_000_000.0);
+                    }
+                    return null;
+                }catch (Exception ex) {
+                    ex.printStackTrace();
+                    throw ex;
                 }
-                return null;
             };
 
             timeoutNanos = timeCheck(trace, end, "reading info, version and upgrading to secure if necessary");
