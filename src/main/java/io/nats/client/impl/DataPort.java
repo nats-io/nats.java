@@ -40,4 +40,10 @@ public interface DataPort {
     void close() throws IOException;
 
     void flush() throws IOException;
+
+    default boolean supportsPush() {
+        return false;
+    }
+
+    default void setReader(NatsConnectionReader reader){}
 }

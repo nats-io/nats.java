@@ -67,7 +67,7 @@ class NatsConnection implements Connection {
     private CompletableFuture<Boolean> reconnectWaiter;
     private final HashMap<String, String> serverAuthErrors;
 
-    private final NatsConnectionReader reader;
+    private final NatsConnectionReaderImpl reader;
     private final NatsConnectionWriter writer;
 
     private final AtomicReference<ServerInfo> serverInfo;
@@ -141,7 +141,7 @@ class NatsConnection implements Connection {
         this.connectExecutor = Executors.newSingleThreadExecutor();
 
         timeTrace(trace, "creating reader and writer");
-        this.reader = new NatsConnectionReader(this);
+        this.reader = new NatsConnectionReaderImpl(this);
         this.writer = new NatsConnectionWriter(this);
 
         this.needPing = new AtomicBoolean(true);
@@ -386,6 +386,10 @@ class NatsConnection implements Connection {
             timeoutNanos = timeCheck(trace, end, "connecting data port");
             DataPort newDataPort = this.options.buildDataPort();
             newDataPort.connect(serverURI, this, timeoutNanos);
+
+            if (newDataPort.supportsPush()) {
+                newDataPort.setReader(reader);
+            }
 
             // Notify the any threads waiting on the sockets
             this.dataPort = newDataPort;
@@ -1789,7 +1793,7 @@ class NatsConnection implements Connection {
     }
 
     // For testing
-    NatsConnectionReader getReader() {
+    NatsConnectionReaderImpl getReader() {
         return this.reader;
     }
 

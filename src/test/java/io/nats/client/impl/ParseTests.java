@@ -32,24 +32,24 @@ public class ParseTests {
         int i=1;
 
         while (i < 2_000_000_000 && i > 0) {
-            assertEquals(i, NatsConnectionReader.parseLength(String.valueOf(i)));
+            assertEquals(i, NatsConnectionReaderImpl.parseLength(String.valueOf(i)));
             i *= 11;
         }
 
-        assertEquals(0, NatsConnectionReader.parseLength("0"));
+        assertEquals(0, NatsConnectionReaderImpl.parseLength("0"));
 
     }
 
     @Test
     public void testBadChars() {
         assertThrows(NumberFormatException.class,
-                () -> NatsConnectionReader.parseLength("2221a"));
+                () -> NatsConnectionReaderImpl.parseLength("2221a"));
     }
 
     @Test
     public void testTooBig() {
         assertThrows(NumberFormatException.class,
-                () -> NatsConnectionReader.parseLength(String.valueOf(100_000_000_000L)));
+                () -> NatsConnectionReaderImpl.parseLength(String.valueOf(100_000_000_000L)));
     }
 
     @Test
@@ -57,7 +57,7 @@ public class ParseTests {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                     NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-                NatsConnectionReader reader = nc.getReader();
+                NatsConnectionReaderImpl reader = nc.getReader();
                 byte[] bytes = ("thisistoolong\r\n").getBytes(StandardCharsets.US_ASCII);
                 reader.fakeReadForTest(bytes);
                 reader.gatherOp(bytes.length);
@@ -70,7 +70,7 @@ public class ParseTests {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                     NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-                NatsConnectionReader reader = nc.getReader();
+                NatsConnectionReaderImpl reader = nc.getReader();
                 byte[] bytes = ("PING\rPONG").getBytes(StandardCharsets.US_ASCII);
                 reader.fakeReadForTest(bytes);
                 reader.gatherOp(bytes.length);
@@ -83,7 +83,7 @@ public class ParseTests {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                     NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-                NatsConnectionReader reader = nc.getReader();
+                NatsConnectionReaderImpl reader = nc.getReader();
                 byte[] bytes = ("MSG  1 1\r\n").getBytes(StandardCharsets.US_ASCII);
                 reader.fakeReadForTest(bytes);
                 reader.gatherOp(bytes.length);
@@ -98,7 +98,7 @@ public class ParseTests {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                     NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-                NatsConnectionReader reader = nc.getReader();
+                NatsConnectionReaderImpl reader = nc.getReader();
                 byte[] bytes = ("MSG subject  1\r\n").getBytes(StandardCharsets.US_ASCII);
                 reader.fakeReadForTest(bytes);
                 reader.gatherOp(bytes.length);
@@ -113,7 +113,7 @@ public class ParseTests {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                     NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-                NatsConnectionReader reader = nc.getReader();
+                NatsConnectionReaderImpl reader = nc.getReader();
                 byte[] bytes = ("MSG subject 2 \r\n").getBytes(StandardCharsets.US_ASCII);
                 reader.fakeReadForTest(bytes);
                 reader.gatherOp(bytes.length);
@@ -128,7 +128,7 @@ public class ParseTests {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                     NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-                NatsConnectionReader reader = nc.getReader();
+                NatsConnectionReaderImpl reader = nc.getReader();
                 byte[] bytes = ("MSG subject 2 x\r\n").getBytes(StandardCharsets.US_ASCII);
                 reader.fakeReadForTest(bytes);
                 reader.gatherOp(bytes.length);
@@ -146,7 +146,7 @@ public class ParseTests {
                                                                         server(ts.getURI()).
                                                                         maxControlLine(16).
                                                                         build())) {
-                NatsConnectionReader reader = nc.getReader();
+                NatsConnectionReaderImpl reader = nc.getReader();
                 byte[] bytes = ("MSG reallylongsubjectobreakthelength 1 1\r\n").getBytes(StandardCharsets.US_ASCII);
                 reader.fakeReadForTest(bytes);
                 reader.gatherOp(bytes.length);
@@ -164,7 +164,7 @@ public class ParseTests {
                                                                         server(ts.getURI()).
                                                                         maxControlLine(1024).
                                                                         build())) {
-                NatsConnectionReader reader = nc.getReader();
+                NatsConnectionReaderImpl reader = nc.getReader();
                 StringBuilder longString = new StringBuilder();
 
                 longString.append("INFO ");
@@ -205,7 +205,7 @@ public class ParseTests {
 
         try (NatsTestServer ts = new NatsTestServer(false);
                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-            NatsConnectionReader reader = nc.getReader();
+            NatsConnectionReaderImpl reader = nc.getReader();
 
             for (int i=0; i<serverStrings.length; i++) {
                 byte[] bytes = (serverStrings[i]+"\r\n").getBytes(StandardCharsets.US_ASCII);
@@ -245,7 +245,7 @@ public class ParseTests {
 
     private void _coverOpFor(String op, String s) {
         int len = s.length();
-        assertEquals(op, NatsConnectionReader.opFor(s.toCharArray(), len));
+        assertEquals(op, NatsConnectionReaderImpl.opFor(s.toCharArray(), len));
         for (int x = 0; x < len; x++) {
             char[] chars = s.toCharArray();
             chars[x] = 'X';
@@ -254,6 +254,6 @@ public class ParseTests {
     }
 
     private void assertUnknownOpFor(int len, char[] chars) {
-        assertEquals(UNKNOWN_OP, NatsConnectionReader.opFor(chars, len));
+        assertEquals(UNKNOWN_OP, NatsConnectionReaderImpl.opFor(chars, len));
     }
 }

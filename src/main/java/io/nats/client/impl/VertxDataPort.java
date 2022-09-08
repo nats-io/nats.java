@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class VertxDataPort implements DataPort{
+    private final boolean ownVertx;
     private NatsConnection connection;
     private String host;
     private int port;
@@ -27,13 +28,16 @@ public class VertxDataPort implements DataPort{
     private BlockingQueue<Buffer> inputQueue = new ArrayBlockingQueue<>(10);
 
     private final AtomicReference<NetSocket> socket = new AtomicReference<>();
+    private NatsConnectionReader reader;
 
 
     public VertxDataPort() {
         vertx = Vertx.vertx();
+        ownVertx=false;
     }
 
     public VertxDataPort(final  Vertx vertx) {
+        this.ownVertx = true;
         this.vertx = vertx;
     }
 
@@ -64,7 +68,11 @@ public class VertxDataPort implements DataPort{
                         netSocket.handler(buffer -> {
                             try {
                                 inputQueue.put(buffer);
+                                reader.readNow();
                             } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
+                            catch (IOException e) {
                                 throw new RuntimeException(e);
                             }
                         });
@@ -108,15 +116,30 @@ public class VertxDataPort implements DataPort{
     public void shutdownInput() throws IOException {
         Future<Void> close = this.client.close();
         close.result();
+        if (ownVertx) {
+            vertx.close();
+        }
     }
 
     @Override
     public void close() throws IOException {
         Future<Void> close = this.client.close();
         close.result();
+        if (ownVertx) {
+            vertx.close();
+        }
     }
 
     @Override
     public void flush() throws IOException {
     }
+    @Override
+    public boolean supportsPush() {
+        return true;
+    }
+
+    public void setReader(final NatsConnectionReader reader){
+        this.reader = reader;
+    }
+
 }

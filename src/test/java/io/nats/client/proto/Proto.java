@@ -63,7 +63,10 @@ public class Proto {
             Message message = subscription.nextMessage(Duration.ofSeconds(30));
 
             System.out.println("MESSAGE from " + message.getSubject());
+            System.out.println("Message " + new String(message.getData(), StandardCharsets.UTF_8));
 
+            connect2.close();
+            connect1.close();
         } catch (Exception ex) {
             ex.printStackTrace();
         }
