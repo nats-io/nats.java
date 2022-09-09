@@ -266,7 +266,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             String[] subjects = new String[6];
             for (int x = 0; x < 5; x++) {
-                subjects[x] = subject(x);
+                subjects[x] = subject(x + 1);
             }
             subjects[5] = "foo.>";
             createMemoryStream(jsm, STREAM, subjects);
@@ -274,8 +274,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             List<PublishAck> packs = new ArrayList<>();
             JetStream js = nc.jetStream();
             for (int x = 0; x < 5; x++) {
-                jsPublish(js, subject(x), x + 1);
-                PublishAck pa = jsPublish(js, subject(x), data(x + 2));
+                jsPublish(js, subject(x + 1), x + 1);
+                PublishAck pa = jsPublish(js, subject(x + 1), data(x + 2));
                 packs.add(pa);
                 jsm.deleteMessage(STREAM, pa.getSeqno());
             }
@@ -301,7 +301,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 map.put(su.getName(), su);
             }
             for (int x = 0; x < 5; x++) {
-                Subject s = map.get(subject(x));
+                Subject s = map.get(subject(x + 1));
                 assertNotNull(s);
                 assertEquals(x + 1, s.getCount());
             }
@@ -331,6 +331,14 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             s = map.get("foo.baz");
             assertNotNull(s);
             assertEquals(2, s.getCount());
+
+            si = jsm.getStreamInfo(STREAM, StreamInfoOptions.builder().filterSubjects(subject(5)).build());
+            list = si.getStreamState().getSubjects();
+            assertNotNull(list);
+            assertEquals(1, list.size());
+            s = list.get(0);
+            assertEquals(subject(5), s.getName());
+            assertEquals(5, s.getCount());
         });
     }
 
