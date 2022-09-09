@@ -65,6 +65,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
             ", maxValueSize=" + getMaxValueSize() +
             ", ttl=" + getTtl() +
             ", storageType=" + getStorageType() +
+            ", allowDirect=" + getAllowDirect() +
             ", replicas=" + getReplicas() +
             ", placement=" + getPlacement() +
             ", republish=" + getRepublish() +
@@ -77,6 +78,14 @@ public class KeyValueConfiguration extends FeatureConfiguration {
      */
     public Republish getRepublish() {
         return sc.getRepublish();
+    }
+
+    /**
+     * Get the flag indicating if the stream allows direct message access.
+     * @return the allows direct flag
+     */
+    public boolean getAllowDirect() {
+        return sc.getAllowDirect();
     }
 
     /**
@@ -228,6 +237,18 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          */
         public Builder republish(Republish republish) {
             scBuilder.republish(republish);
+            return this;
+        }
+
+        /**
+         * Set whether to allow direct message access.
+         * This is an optimization for Key Value since
+         * but is not available on all account / jwt configuration.
+         * @param allowDirect the allowDirect setting
+         * @return Builder
+         */
+        public Builder allowDirect(boolean allowDirect) {
+            scBuilder.allowDirect(allowDirect);
             return this;
         }
 
