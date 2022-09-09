@@ -46,4 +46,8 @@ public interface DataPort {
     }
 
     default void setReader(NatsConnectionReader reader){}
+
+    default void setWriter(NatsConnectionWriter writer){}
+
+    default void setNatsConnection(NatsConnection connection){}
 }

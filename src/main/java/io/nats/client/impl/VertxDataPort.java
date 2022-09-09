@@ -1,7 +1,9 @@
 package io.nats.client.impl;
 
+import io.nats.client.Dispatcher;
 import io.nats.client.Options;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.NetClient;
@@ -10,6 +12,8 @@ import io.vertx.core.net.NetSocket;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +33,7 @@ public class VertxDataPort implements DataPort{
 
     private final AtomicReference<NetSocket> socket = new AtomicReference<>();
     private NatsConnectionReader reader;
+    private NatsConnectionWriter writer;
 
 
     public VertxDataPort() {
@@ -68,7 +73,7 @@ public class VertxDataPort implements DataPort{
                         netSocket.handler(buffer -> {
                             try {
                                 inputQueue.put(buffer);
-                                reader.readNow();
+                                if (reader!=null) reader.readNow();
                             } catch (InterruptedException e) {
                                 throw new RuntimeException(e);
                             }
@@ -79,6 +84,34 @@ public class VertxDataPort implements DataPort{
                     }
                 }
         );
+        vertx.setTimer(100, event -> doWrite());
+
+        vertx.setTimer(100, event -> handleDispatchers());
+    }
+
+    private void handleDispatchers() {
+        if (this.connection.dispatchers.size() == 0) {
+            vertx.setTimer(100, event -> handleDispatchers());
+            return;
+        }
+        connection.dispatchers.values().stream().map(m -> (Dispatcher) m).forEach( d -> {
+                        if (!d.processNextMessage()) {
+                            connection.dispatchers.remove(d.getId());
+                        }
+                }
+        );
+        vertx.runOnContext(event -> handleDispatchers());
+    }
+
+    private void doWrite() {
+        if (writer!=null) {
+            int sent = writer.writeMessages();
+            if (sent <= 0) {
+                vertx.setTimer(50, event -> doWrite());
+            } else {
+                vertx.runOnContext(event -> doWrite());
+            }
+        }
     }
 
     @Override
@@ -142,4 +175,13 @@ public class VertxDataPort implements DataPort{
         this.reader = reader;
     }
 
+    @Override
+    public void setWriter(NatsConnectionWriter writer){
+        this.writer = writer;
+    }
+
+    @Override
+    public void setNatsConnection(final NatsConnection connection){
+        this.connection = connection;
+    }
 }

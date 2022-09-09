@@ -13,60 +13,37 @@ public class Proto {
         try {
 
             final Options.Builder builder = new Options.Builder();
+
             builder.dataPortType(VertxDataPort.class.getCanonicalName());
-            builder.errorListener(new ErrorListener() {
-                @Override
-                public void errorOccurred(Connection conn, String error) {
-                    System.out.println("ERROR OCCURRED: " + error);
-                }
-
-                @Override
-                public void exceptionOccurred(Connection conn, Exception exp) {
-                    exp.printStackTrace();
-                }
-
-                @Override
-                public void slowConsumerDetected(Connection conn, Consumer consumer) {
-                    System.out.println("Slow consumer");
-                }
-
-                @Override
-                public void messageDiscarded(Connection conn, Message msg) {
-                    System.out.println("messageDiscarded " + msg);
-                }
-
-                @Override
-                public void heartbeatAlarm(Connection conn, JetStreamSubscription sub, long lastStreamSequence, long lastConsumerSequence) {
-                    ErrorListener.super.heartbeatAlarm(conn, sub, lastStreamSequence, lastConsumerSequence);
-                }
-
-                @Override
-                public void unhandledStatus(Connection conn, JetStreamSubscription sub, Status status) {
-                    ErrorListener.super.unhandledStatus(conn, sub, status);
-                }
-
-                @Override
-                public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String subject, FlowControlSource source) {
-                    ErrorListener.super.flowControlProcessed(conn, sub, subject, source);
-                }
-            });
-
             builder.connectionTimeout(Duration.ofSeconds(30));
             final Connection connect1 = Nats.connect(builder.build());
+            final Connection connect3 = Nats.connect(builder.build());
+            final Connection connect2 = Nats.connect(builder.build());
+
+
 
             final Subscription subscription = connect1.subscribe("foo");
 
-            final Connection connect2 = Nats.connect(builder.build());
+            final Dispatcher dispatcher = connect3.createDispatcher(message -> {
+                System.out.println("D MESSAGE from " + message.getSubject());
+                System.out.println("D Message " + new String(message.getData(), StandardCharsets.UTF_8));
+            });
+            dispatcher.subscribe("foo");
 
-            connect2.publish("foo", "bar".getBytes(StandardCharsets.UTF_8));
+            for (int i = 0; i < 10; i++) {
+                connect2.publish("foo", ("bar " + i).getBytes(StandardCharsets.UTF_8));
+            }
 
             Message message = subscription.nextMessage(Duration.ofSeconds(30));
 
-            System.out.println("MESSAGE from " + message.getSubject());
-            System.out.println("Message " + new String(message.getData(), StandardCharsets.UTF_8));
-
+            while (message!=null) {
+                System.out.println("MESSAGE from " + message.getSubject());
+                System.out.println("Message " + new String(message.getData(), StandardCharsets.UTF_8));
+                message = subscription.nextMessage(Duration.ofMillis(100));
+            }
             connect2.close();
             connect1.close();
+            connect3.close();
         } catch (Exception ex) {
             ex.printStackTrace();
         }

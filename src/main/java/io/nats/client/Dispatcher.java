@@ -33,6 +33,8 @@ package io.nats.client;
  */
 public interface Dispatcher extends Consumer {
 
+    String getId();
+
     /**
      * Create a subscription to the specified subject under the control of this
      * dispatcher.
@@ -169,4 +171,6 @@ public interface Dispatcher extends Consumer {
      * @throws IllegalStateException if the Subscription is not managed by this dispatcher
      */
     public Dispatcher unsubscribe(Subscription subscription, int after);
+
+    public boolean processNextMessage();
 }

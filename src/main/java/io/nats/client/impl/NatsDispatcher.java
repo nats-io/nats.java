@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
+    private final boolean supportsPush;
     private MessageQueue incoming;
     private MessageHandler defaultHandler;
 
@@ -46,7 +47,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     private Duration waitForMessage;
 
 
-    NatsDispatcher(NatsConnection conn, MessageHandler handler) {
+    NatsDispatcher(NatsConnection conn, MessageHandler handler, boolean supportsPush) {
         super(conn);
         this.defaultHandler = handler;
         this.incoming = new MessageQueue(true);
@@ -55,12 +56,16 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         this.subscriptionHandlers = new ConcurrentHashMap<>();
         this.running = new AtomicBoolean(false);
         this.waitForMessage = Duration.ofMinutes(5); // This can be long since we aren't doing anything
+        this.supportsPush = supportsPush;
     }
+
 
     void start(String id) {
         this.id = id;
+        if (!supportsPush) {
+            thread = connection.getExecutor().submit(this, Boolean.TRUE);
+        }
         this.running.set(true);
-        thread = connection.getExecutor().submit(this, Boolean.TRUE);
     }
 
     boolean breakRunLoop() {
@@ -71,7 +76,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         try {
             while (this.running.get()) {
 
-                NatsMessage msg = this.incoming.pop(this.waitForMessage);
+                NatsMessage msg = getNatsMessage(waitForMessage);
 
                 if (msg == null) {
                     if (breakRunLoop()) {
@@ -81,28 +86,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
                     }
                 }
 
-                NatsSubscription sub = msg.getNatsSubscription();
-
-                if (sub != null && sub.isActive()) {
-
-                    sub.incrementDeliveredCount();
-                    this.incrementDeliveredCount();
-
-                    MessageHandler handler = this.subscriptionHandlers.get(sub.getSID());
-                    if (handler == null) {
-                        handler = defaultHandler;
-                    }
-
-                    try {
-                        handler.onMessage(msg);
-                    } catch (Exception exp) {
-                        this.connection.processException(exp);
-                    }
-
-                    if (sub.reachedUnsubLimit()) {
-                        this.connection.invalidate(sub);
-                    }
-                }
+                processMessage(msg);
 
                 if (breakRunLoop()) {
                     // will set the dispatcher to not active
@@ -117,6 +101,50 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             this.running.set(false);
             this.thread = null;
         }
+    }
+
+    public boolean processNextMessage() {
+        try {
+            final NatsMessage natsMessage = getNatsMessage(Duration.ofMillis(1));
+            if (natsMessage == null) {
+                return breakRunLoop();
+            }
+            processMessage(natsMessage);
+            return true;
+        }  catch (InterruptedException exp) {
+                this.connection.processException(exp);
+                return true;
+        }
+    }
+
+    private void processMessage(NatsMessage msg) {
+        NatsSubscription sub = msg.getNatsSubscription();
+
+        if (sub != null && sub.isActive()) {
+
+            sub.incrementDeliveredCount();
+            this.incrementDeliveredCount();
+
+            MessageHandler handler = this.subscriptionHandlers.get(sub.getSID());
+            if (handler == null) {
+                handler = defaultHandler;
+            }
+
+            try {
+                handler.onMessage(msg);
+            } catch (Exception exp) {
+                this.connection.processException(exp);
+            }
+
+            if (sub.reachedUnsubLimit()) {
+                this.connection.invalidate(sub);
+            }
+        }
+    }
+
+    private NatsMessage getNatsMessage(final Duration waitForMessage) throws InterruptedException {
+        NatsMessage msg = this.incoming.pop(waitForMessage);
+        return msg;
     }
 
     void stop(boolean unsubscribeAll) {
@@ -151,7 +179,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         return this.running.get();
     }
 
-    String getId() {
+    public String getId() {
         return id;
     }
 

@@ -68,12 +68,12 @@ class NatsConnection implements Connection {
     private final HashMap<String, String> serverAuthErrors;
 
     private final NatsConnectionReaderImpl reader;
-    private final NatsConnectionWriter writer;
+    private final NatsConnectionWriterImpl writer;
 
     private final AtomicReference<ServerInfo> serverInfo;
 
     private final Map<String, NatsSubscription> subscribers;
-    private final Map<String, NatsDispatcher> dispatchers; // use a concurrent map so we get more consistent iteration
+    final Map<String, NatsDispatcher> dispatchers; // use a concurrent map so we get more consistent iteration
                                                      // behavior
     private final Map<String, NatsRequestCompletableFuture> responsesAwaiting;
     private final Map<String, NatsRequestCompletableFuture> responsesRespondedTo;
@@ -142,7 +142,7 @@ class NatsConnection implements Connection {
 
         timeTrace(trace, "creating reader and writer");
         this.reader = new NatsConnectionReaderImpl(this);
-        this.writer = new NatsConnectionWriter(this);
+        this.writer = new NatsConnectionWriterImpl(this);
 
         this.needPing = new AtomicBoolean(true);
 
@@ -389,6 +389,8 @@ class NatsConnection implements Connection {
 
             if (newDataPort.supportsPush()) {
                 newDataPort.setReader(reader);
+                newDataPort.setWriter(writer);
+                newDataPort.setNatsConnection(this);
             }
 
             // Notify the any threads waiting on the sockets
@@ -1051,7 +1053,7 @@ class NatsConnection implements Connection {
         }
 
         if (inboxDispatcher.get() == null) {
-            NatsDispatcher d = new NatsDispatcher(this, this::deliverReply);
+            NatsDispatcher d = new NatsDispatcher(this, this::deliverReply, dataPort.supportsPush());
 
             if (inboxDispatcher.compareAndSet(null, d)) {
                 String id = this.nuid.next();
@@ -1132,7 +1134,7 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Connection is Draining");
         }
 
-        NatsDispatcher dispatcher = new NatsDispatcher(this, handler);
+        NatsDispatcher dispatcher = new NatsDispatcher(this, handler, dataPort.supportsPush());
         String id = this.nuid.next();
         this.dispatchers.put(id, dispatcher);
         dispatcher.start(id);
@@ -1798,7 +1800,7 @@ class NatsConnection implements Connection {
     }
 
     // For testing
-    NatsConnectionWriter getWriter() {
+    NatsConnectionWriterImpl getWriter() {
         return this.writer;
     }
 
