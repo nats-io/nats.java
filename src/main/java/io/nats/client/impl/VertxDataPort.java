@@ -2,20 +2,19 @@ package io.nats.client.impl;
 
 import io.nats.client.Dispatcher;
 import io.nats.client.Options;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.net.NetClient;
-import io.vertx.core.net.NetSocket;
+import io.vertx.core.net.*;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Duration;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -61,32 +60,34 @@ public class VertxDataPort implements DataPort{
         }
 
         client = vertx.createNetClient();
-
         client.connect(port, host, event -> {
-                    if (event.failed()) {
-                        System.out.println("FAILED TO CONNECT");
-                        event.cause().printStackTrace();
-                    } else {
-                        final NetSocket netSocket = event.result();
-                        this.socket.set(netSocket);
-
-                        netSocket.handler(buffer -> {
-                            try {
-                                inputQueue.put(buffer);
-                                if (reader!=null) reader.readNow();
-                            } catch (InterruptedException e) {
-                                throw new RuntimeException(e);
-                            }
-                            catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        });
-                    }
+                    connect(event);
                 }
         );
         vertx.setTimer(100, event -> doWrite());
-
         vertx.setTimer(100, event -> handleDispatchers());
+    }
+
+    private void connect(AsyncResult<NetSocket> event) {
+        if (event.failed()) {
+
+            if (event.cause() instanceof Exception) {
+                this.connection.handleCommunicationIssue((Exception) event.cause());
+            } else {
+                event.cause().printStackTrace();
+            }
+        } else {
+            final NetSocket netSocket = event.result();
+            this.socket.set(netSocket);
+            netSocket.handler(buffer -> {
+                try {
+                    inputQueue.put(buffer);
+                    if (reader!=null) reader.readNow();
+                } catch (IOException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        }
     }
 
     private void handleDispatchers() {
@@ -116,6 +117,53 @@ public class VertxDataPort implements DataPort{
 
     @Override
     public void upgradeToSecure() throws IOException {
+        final Options options = this.connection.getOptions();
+        final Duration timeout = options.getConnectionTimeout();
+
+        //https://vertx.io/docs/vertx-core/java/#_upgrading_connections_to_ssltls
+
+        if (options.isTLSRequired()) {
+            final NetClientOptions clientOptions = new NetClientOptions().setSsl(options.isTLSRequired());
+            if (options.getTlsKeystorePath() != null) {
+                final String path = options.getTlsKeystorePath();
+                if (path.endsWith("jks")) {
+                    final JksOptions keyStoreOptions = new JksOptions().setPath(path);
+                    if (options.getTlsTruststorePassword() !=null) {
+                        keyStoreOptions.setPassword(new String(options.getTlsKeystorePassword()));
+                    }
+                    clientOptions.setKeyStoreOptions(keyStoreOptions);
+                } else if (path.endsWith("pfx")) {
+                    final PfxOptions keyStoreOptions = new PfxOptions().setPath(path);
+                    if (options.getTlsKeystorePassword() !=null) {
+                        keyStoreOptions.setPassword(new String(options.getTlsKeystorePassword()));
+                    }
+                    clientOptions.setPfxKeyCertOptions(keyStoreOptions);
+                }
+            }
+
+
+            if (options.getTlsTruststorePath() != null) {
+                final String path = options.getTlsTruststorePath();
+                if (path.endsWith("jks")) {
+                    final JksOptions jksOptions = new JksOptions().setPath(path);
+                    if (options.getTlsKeystorePassword() !=null) {
+                        jksOptions.setPassword(new String(options.getTlsTruststorePassword()));
+                    }
+                    clientOptions.setTrustStoreOptions(jksOptions);
+                } else if (path.endsWith("pfx")) {
+                    final PfxOptions pfxOptions = new PfxOptions().setPath(path);
+                    if (options.getTlsKeystorePassword() !=null) {
+                        pfxOptions.setPassword(new String(options.getTlsTruststorePassword()));
+                    }
+                    clientOptions.setPfxTrustOptions(pfxOptions);
+                }
+            }
+
+            client = vertx.createNetClient(clientOptions);
+
+            client.connect(port, host, this::connect);
+        }
+
 
     }
 

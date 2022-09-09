@@ -229,6 +229,16 @@ public class Options {
     // ----------------------------------------------------------------------------------------------------
     static final String PFX = "io.nats.client.";
 
+    static final String PFX_TLS = PFX + "tls.";
+
+    public static final String KEYSTORE_PATH_CONFIG =  PFX_TLS + "keystore";
+    public static final String TRUSTSTORE_PATH_CONFIG = PFX_TLS + "truststore";
+    public static final String TRUSTSTORE_PASSWORD_CONFIG = PFX_TLS + "keystorePassword";
+    public static final String KEYSTORE_PASSWORD_CONFIG = PFX_TLS + "truststorePassword";
+    public static final String TLS_TRUSTSTORE_ALGORITHM_CONFIG = PFX_TLS + "keystore.tlsAlgo";
+    public static final String TLS_KEYSTORE_ALGORITHM_CONFIG = PFX_TLS + "truststore.tlsAlgo";
+    public static final String TLS_ALGORITHM_CONFIG = PFX_TLS + "default.tlsAlgo";
+
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#connectionListener(ConnectionListener) connectionListener}.
@@ -520,6 +530,12 @@ public class Options {
     private final char[] password;
     private final char[] token;
     private final String inboxPrefix;
+    private final String tlsTruststoreAlgorithm;
+    private final char[] tlsKeystorePassword;
+    private final String tlsKeystoreAlgorithm;
+    private final char[] tlsTruststorePassword;
+    private final String tlsTruststorePath;
+    private final String tlsKeystorePath;
     private boolean useOldRequestStyle;
     private final int bufferSize;
     private final boolean noEcho;
@@ -582,6 +598,13 @@ public class Options {
         // ----------------------------------------------------------------------------------------------------
         private final List<URI> serverURIs = new ArrayList<>();
         private final List<String> unprocessedServers = new ArrayList<>();
+        private char[] tlsKeystorePassword;
+        private char[] tlsTruststorePassword;
+        private String tlsTruststoreAlgorithm;
+        private String tlsKeystoreAlgorithm;
+        private String tlsKeystorePath;
+        private String tlsTruststorePath;
+        private String tlsAlgorithm;
         private boolean noRandomize = false;
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
         private boolean verbose = false;
@@ -667,6 +690,49 @@ public class Options {
 
             if (props.containsKey(PROP_TOKEN)) {
                 this.token = props.getProperty(PROP_TOKEN, null).toCharArray();
+            }
+
+            if (props.containsKey(KEYSTORE_PATH_CONFIG)) {
+                this.tlsKeystorePath = props.getProperty(KEYSTORE_PATH_CONFIG, null);
+            } else {
+                this.tlsKeystorePath = null;
+            }
+
+            if (props.containsKey(TRUSTSTORE_PATH_CONFIG)) {
+                this.tlsTruststorePath = props.getProperty(TRUSTSTORE_PATH_CONFIG, null);
+            } else {
+                this.tlsTruststorePath = null;
+            }
+
+
+            if (props.containsKey(TLS_ALGORITHM_CONFIG)) {
+                this.tlsAlgorithm = props.getProperty(TLS_ALGORITHM_CONFIG, null);
+            } else {
+                this.tlsAlgorithm = null;
+            }
+
+            if (props.containsKey(TLS_KEYSTORE_ALGORITHM_CONFIG)) {
+                this.tlsKeystoreAlgorithm = props.getProperty(TLS_KEYSTORE_ALGORITHM_CONFIG, null);
+            } else {
+                this.tlsKeystoreAlgorithm = null;
+            }
+
+            if (props.containsKey(TLS_TRUSTSTORE_ALGORITHM_CONFIG)) {
+                this.tlsTruststoreAlgorithm = props.getProperty(TLS_TRUSTSTORE_ALGORITHM_CONFIG, null);
+            } else {
+                this.tlsTruststoreAlgorithm = null;
+            }
+
+            if (props.containsKey(TRUSTSTORE_PASSWORD_CONFIG)) {
+                this.tlsTruststorePassword = props.getProperty(TRUSTSTORE_PASSWORD_CONFIG, null).toCharArray();
+            } else {
+                this.tlsTruststorePassword = null;
+            }
+
+            if (props.containsKey(KEYSTORE_PASSWORD_CONFIG)) {
+                this.tlsKeystorePassword = props.getProperty(TRUSTSTORE_PASSWORD_CONFIG, null).toCharArray();
+            } else {
+                this.tlsKeystorePassword = null;
             }
 
             if (props.containsKey(PROP_SERVERS)) {
@@ -844,6 +910,39 @@ public class Options {
             }
             return instance;
         }
+        public Builder tlsKeystorePassword(char[] tlsKeystorePassword) {
+            this.tlsKeystorePassword = tlsKeystorePassword;
+            return this;
+        }
+        public Builder tlsTruststorePassword(char[] tlsTruststorePassword) {
+            this.tlsTruststorePassword = tlsTruststorePassword;
+            return this;
+        }
+
+        public Builder tlsTruststoreAlgorithm(String tlsTruststoreAlgorithm) {
+            this.tlsTruststoreAlgorithm = tlsTruststoreAlgorithm;
+            return this;
+        }
+
+        public Builder tlsKeystoreAlgorithm(String tlsKeystoreAlgorithm) {
+            this.tlsKeystoreAlgorithm = tlsKeystoreAlgorithm;
+            return this;
+        }
+
+        public Builder tlsKeystorePath(String tlsKeystorePath) {
+            this.tlsKeystorePath = tlsKeystorePath;
+            return this;
+        }
+
+        public Builder tlsTruststorePath(String tlsTruststorePath) {
+            this.tlsTruststorePath = tlsTruststorePath;
+            return this;
+        }
+
+        public Builder tlsAlgorithm(String tlsAlgorithm) {
+            this.tlsAlgorithm = tlsAlgorithm;
+            return this;
+        }
 
         // ----------------------------------------------------------------------------------------------------
         // BUILDER METHODS
@@ -858,6 +957,7 @@ public class Options {
         public Builder server(String serverURL) {
             return servers(serverURL.trim().split(","));
         }
+
 
         /**
          * Add an array of servers to the list of known servers.
@@ -1514,8 +1614,13 @@ public class Options {
         this.executor = b.executor;
 
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
-
         this.serverListProvider = b.serverListProvider;
+        this.tlsKeystoreAlgorithm = b.tlsKeystoreAlgorithm == null ? b.tlsAlgorithm : b.tlsKeystoreAlgorithm;
+        this.tlsTruststoreAlgorithm = b.tlsTruststoreAlgorithm == null ? b.tlsAlgorithm : b.tlsTruststoreAlgorithm;
+        this.tlsKeystorePassword =  b.tlsKeystorePassword;
+        this.tlsTruststorePassword =  b.tlsTruststorePassword;
+        this.tlsTruststorePath =  b.tlsTruststorePath;
+        this.tlsKeystorePath =  b.tlsKeystorePath;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -2025,5 +2130,30 @@ public class Options {
      */
     public void setOldRequestStyle(boolean value) {
         useOldRequestStyle = value;
+    }
+
+
+    public String getTlsTruststoreAlgorithm() {
+        return tlsTruststoreAlgorithm;
+    }
+
+    public char[] getTlsKeystorePassword() {
+        return tlsKeystorePassword;
+    }
+
+    public String getTlsKeystoreAlgorithm() {
+        return tlsKeystoreAlgorithm;
+    }
+
+    public char[] getTlsTruststorePassword() {
+        return tlsTruststorePassword;
+    }
+
+    public String getTlsTruststorePath() {
+        return tlsTruststorePath;
+    }
+
+    public String getTlsKeystorePath() {
+        return tlsKeystorePath;
     }
 }
