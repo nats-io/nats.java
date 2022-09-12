@@ -43,6 +43,10 @@ public abstract class Validator {
         return validatePrintableExceptWildDotGt(s, "Durable", required);
     }
 
+    public static String validateConsumerName(String s, boolean required) {
+        return validatePrintableExceptWildDotGt(s, "Name", required);
+    }
+
     public static String validatePrefixOrDomain(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
             if (s.startsWith(DOT)) {

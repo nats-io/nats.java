@@ -26,6 +26,9 @@ public interface NatsJetStreamConstants {
     // JSAPI_DURABLE_CREATE is used to create durable consumers.
     String JSAPI_DURABLE_CREATE = "CONSUMER.DURABLE.CREATE.%s.%s";
 
+    String JSAPI_CONSUMER_CREATE_V290 = "CONSUMER.CREATE.%s.%s";
+    String JSAPI_CONSUMER_CREATE_V290_W_FILTER = "CONSUMER.CREATE.%s.%s.%s";
+
     // JSAPI_CONSUMER_INFO is used to create consumers.
     String JSAPI_CONSUMER_INFO = "CONSUMER.INFO.%s.%s";
 

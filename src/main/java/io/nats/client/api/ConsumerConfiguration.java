@@ -28,8 +28,8 @@ import java.util.regex.Matcher;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
-import static io.nats.client.support.Validator.emptyAsNull;
-import static io.nats.client.support.Validator.validateNumberOfReplicas;
+import static io.nats.client.support.NatsJetStreamClientError.JsConsumerNameDurableMatch;
+import static io.nats.client.support.Validator.*;
 
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and
@@ -63,6 +63,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final ReplayPolicy replayPolicy;
     protected final String description;
     protected final String durable;
+    protected final String name; // ephemeral name at this point
     protected final String deliverSubject;
     protected final String deliverGroup;
     protected final String filterSubject;
@@ -91,6 +92,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.replayPolicy = cc.replayPolicy;
         this.description = cc.description;
         this.durable = cc.durable;
+        this.name = cc.name;
         this.deliverSubject = cc.deliverSubject;
         this.deliverGroup = cc.deliverGroup;
         this.filterSubject = cc.filterSubject;
@@ -127,6 +129,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         description = JsonUtils.readString(json, DESCRIPTION_RE);
         durable = JsonUtils.readString(json, DURABLE_NAME_RE);
+        name = JsonUtils.readString(json, NAME_RE);
         deliverSubject = JsonUtils.readString(json, DELIVER_SUBJECT_RE);
         deliverGroup = JsonUtils.readString(json, DELIVER_GROUP_RE);
         filterSubject = JsonUtils.readString(json, FILTER_SUBJECT_RE);
@@ -163,6 +166,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         this.description = b.description;
         this.durable = b.durable;
+        this.name = b.name;
         this.startTime = b.startTime;
         this.ackWait = b.ackWait;
         this.filterSubject = b.filterSubject;
@@ -198,6 +202,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, DESCRIPTION, description);
         JsonUtils.addField(sb, DURABLE_NAME, durable);
+        JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, DELIVER_SUBJECT, deliverSubject);
         JsonUtils.addField(sb, DELIVER_GROUP, deliverGroup);
         JsonUtils.addField(sb, DELIVER_POLICY, GetOrDefault(deliverPolicy).toString());
@@ -234,11 +239,19 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
-     * Gets the name of the durable subscription for this consumer configuration.
+     * Gets the name of the durable name for this consumer configuration.
      * @return name of the durable.
      */
     public String getDurable() {
         return durable;
+    }
+
+    /**
+     * Gets the name of the consumer name for this consumer configuration.
+     * @return name of the consumer.
+     */
+    public String getName() {
+        return name;
     }
 
     /**
@@ -577,6 +590,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         private String description;
         private String durable;
+        private String name;
         private String deliverSubject;
         private String deliverGroup;
         private String filterSubject;
@@ -613,6 +627,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
                 this.description = cc.description;
                 this.durable = cc.durable;
+                this.name = cc.name;
                 this.deliverSubject = cc.deliverSubject;
                 this.deliverGroup = cc.deliverGroup;
                 this.filterSubject = cc.filterSubject;
@@ -652,12 +667,22 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
-         * Sets the name of the durable subscription.
-         * @param durable name of the durable subscription.
+         * Sets the name of the durable consumer.
+         * @param durable name of the durable consumer.
          * @return the builder
          */
         public Builder durable(String durable) {
             this.durable = emptyAsNull(durable);
+            return this;
+        }
+
+        /**
+         * Sets the name of the ephemeral consumer.
+         * @param name name of the ephemeral consumer.
+         * @return the builder
+         */
+        public Builder name(String name) {
+            this.name = emptyAsNull(name);
             return this;
         }
 
@@ -1081,6 +1106,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return The consumer configuration.
          */
         public ConsumerConfiguration build() {
+            validateMustMatchIfBothSupplied(name, durable, JsConsumerNameDurableMatch);
             return new ConsumerConfiguration(this);
         }
 
@@ -1106,6 +1132,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         return "ConsumerConfiguration{" +
             "description='" + description + '\'' +
             ", durable='" + durable + '\'' +
+            ", name='" + name + '\'' +
             ", deliverPolicy=" + deliverPolicy +
             ", deliverSubject='" + deliverSubject + '\'' +
             ", deliverGroup='" + deliverGroup + '\'' +

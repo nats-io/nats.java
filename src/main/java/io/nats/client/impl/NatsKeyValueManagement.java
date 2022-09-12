@@ -29,9 +29,11 @@ import static io.nats.client.support.NatsKeyValueUtil.*;
 
 public class NatsKeyValueManagement implements KeyValueManagement {
     private final NatsJetStreamManagement jsm;
+    private final boolean serverOlderThan272;
 
     NatsKeyValueManagement(NatsConnection connection, KeyValueOptions kvo) throws IOException {
         jsm = new NatsJetStreamManagement(connection, kvo == null ? null : kvo.getJetStreamOptions());
+        serverOlderThan272 = jsm.conn.getServerInfo().isOlderThanVersion("2.7.2");
     }
 
     /**
@@ -40,7 +42,7 @@ public class NatsKeyValueManagement implements KeyValueManagement {
     @Override
     public KeyValueStatus create(KeyValueConfiguration config) throws IOException, JetStreamApiException {
         StreamConfiguration sc = config.getBackingConfig();
-        if ( jsm.conn.getServerInfo().isOlderThanVersion("2.7.2") ) {
+        if ( serverOlderThan272 ) {
             sc = StreamConfiguration.builder(sc).discardPolicy(null).build(); // null discard policy will use default
         }
         return new KeyValueStatus(jsm.addStream(sc));

@@ -15,6 +15,8 @@ package io.nats.client.utils;
 
 import io.nats.client.*;
 import io.nats.client.impl.NatsMessage;
+import io.nats.client.support.NatsJetStreamClientError;
+import org.junit.jupiter.api.function.Executable;
 import org.opentest4j.AssertionFailedError;
 
 import java.io.IOException;
@@ -25,6 +27,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 import static io.nats.client.support.NatsConstants.DOT;
+import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_ARGUMENT;
+import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_STATE;
 import static io.nats.examples.ExampleUtils.uniqueEnough;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -145,6 +149,7 @@ public class TestBase {
     public static final String SUBJECT_GT = SUBJECT + ".>";
     public static final String QUEUE = "queue";
     public static final String DURABLE = "durable";
+    public static final String NAME = "name";
     public static final String PUSH_DURABLE = "push-" + DURABLE;
     public static final String PULL_DURABLE = "pull-" + DURABLE;
     public static final String DELIVER = "deliver";
@@ -183,6 +188,10 @@ public class TestBase {
 
     public static String durable(String vary, int seq) {
         return DURABLE + "-" + vary + "-" + seq;
+    }
+
+    public static String name(int seq) {
+        return NAME + "-" + seq;
     }
 
     public static String deliver(int seq) {
@@ -413,5 +422,19 @@ public class TestBase {
 
     private static String expectingMessage(Connection conn, Connection.Status expecting) {
         return "Failed expecting Connection Status " + expecting.name() + " but was " + conn.getStatus();
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // Subscription or test macros
+    // ----------------------------------------------------------------------------------------------------
+    public void assertClientError(NatsJetStreamClientError error, Executable executable) {
+        Exception e = assertThrows(Exception.class, executable);
+        assertTrue(e.getMessage().contains(error.id()));
+        if (error.getKind() == KIND_ILLEGAL_ARGUMENT) {
+            assertTrue(e instanceof IllegalArgumentException);
+        }
+        else if (error.getKind() == KIND_ILLEGAL_STATE) {
+            assertTrue(e instanceof IllegalStateException);
+        }
     }
 }

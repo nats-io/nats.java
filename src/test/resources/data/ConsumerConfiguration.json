@@ -1,6 +1,7 @@
 {
   "description": "foo-desc",
   "durable_name": "foo-durable",
+  "name": "foo-durable",
   "deliver_subject": "bar",
   "deliver_policy": "all",
   "deliver_group": "grp",
