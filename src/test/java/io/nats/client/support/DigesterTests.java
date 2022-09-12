@@ -13,6 +13,7 @@
 
 package io.nats.client.support;
 
+import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -99,5 +100,25 @@ public final class DigesterTests {
         assertTrue(digester1.matches(de4));
 
         assertFalse(digester1.matches("SHA-999="));
+    }
+
+    @Test
+    public void testDigesterData() throws NoSuchAlgorithmException {
+        String s = ResourceUtils.dataAsString("digester_test_bytes_000100.txt");
+        Digester d = new Digester();
+        d.update(s);
+        assertEquals("IdgP4UYMGt47rgecOqFoLrd24AXukHf5-SVzqQ5Psg8=", d.getDigestValue());
+
+        s = ResourceUtils.dataAsString("digester_test_bytes_001000.txt");
+        d.reset(s);
+        assertEquals("DZj4RnBpuEukzFIY0ueZ-xjnHY4Rt9XWn4Dh8nkNfnI=", d.getDigestValue());
+
+        s = ResourceUtils.dataAsString("digester_test_bytes_010000.txt");
+        d.reset(s);
+        assertEquals("RgaJ-VSJtjNvgXcujCKIvaheiX_6GRCcfdRYnAcVy38=", d.getDigestValue());
+
+        s = ResourceUtils.dataAsString("digester_test_bytes_100000.txt");
+        d.reset(s);
+        assertEquals("yan7pwBVnC1yORqqgBfd64_qAw6q9fNA60_KRiMMooE=", d.getDigestValue());
     }
 }
