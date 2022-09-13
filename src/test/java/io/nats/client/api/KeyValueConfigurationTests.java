@@ -38,7 +38,6 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
             .replicas(2)
             .placement(p)
             .republish(r)
-            .allowDirect(true)
             .build();
         validate(bc);
 
@@ -62,7 +61,6 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
         assertEquals(Duration.ofMillis(777), kvc.getTtl());
         assertEquals(StorageType.Memory, kvc.getStorageType());
         assertEquals(2, kvc.getReplicas());
-        assertTrue(kvc.getAllowDirect());
         assertNotNull(kvc.getPlacement());
         assertEquals("cluster", kvc.getPlacement().getCluster());
         assertEquals(2, kvc.getPlacement().getTags().size());
