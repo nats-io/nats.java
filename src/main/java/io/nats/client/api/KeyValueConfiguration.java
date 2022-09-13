@@ -240,7 +240,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
             scBuilder.name(toStreamName(name))
                 .subjects(toStreamSubject(name))
                 .allowRollup(true)
-                .allowDirect(true)
+                .allowDirect(true) // by design
                 .discardPolicy(DiscardPolicy.New)
                 .denyDelete(true);
             return new KeyValueConfiguration(scBuilder.build());
