@@ -52,6 +52,10 @@ public abstract class SubscribeOptions {
         String durable = validateMustMatchIfBothSupplied(builder.durable, builder.cc == null ? null : builder.cc.getDurable(), JsSoDurableMismatch);
         durable = validateDurable(durable, bind); // required when bind
 
+        String name = validateMustMatchIfBothSupplied(builder.name, builder.cc == null ? null : builder.cc.getName(), JsSoNameMismatch);
+
+        validateMustMatchIfBothSupplied(name, durable, JsConsumerNameDurableMatch);
+
         deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, builder.cc == null ? null : builder.cc.getDeliverGroup(), JsSoDeliverGroupMismatch);
 
         deliverSubject = validateMustMatchIfBothSupplied(deliverSubject, builder.cc == null ? null : builder.cc.getDeliverSubject(), JsSoDeliverSubjectMismatch);
@@ -62,7 +66,7 @@ public abstract class SubscribeOptions {
             validateNotSupplied(deliverSubject, JsSoOrderedNotAllowedWithDeliverSubject);
             long hb = DEFAULT_ORDERED_HEARTBEAT;
             if (builder.cc != null) {
-                // want to make sure they didn't set it or they didn't set it to something other than none
+                // want to make sure they didn't set it, or they didn't set it to something other than none
                 if (builder.cc.ackPolicyWasSet() && builder.cc.getAckPolicy() != AckPolicy.None) {
                     throw JsSoOrderedRequiresAckPolicyNone.instance();
                 }
@@ -164,6 +168,7 @@ public abstract class SubscribeOptions {
         String stream;
         boolean bind;
         String durable;
+        String name;
         ConsumerConfiguration cc;
         long messageAlarmTime = -1;
 
@@ -176,7 +181,7 @@ public abstract class SubscribeOptions {
          * @return the builder
          */
         public B stream(String stream) {
-            this.stream = emptyAsNull(stream);
+            this.stream = validateStreamName(stream, false);
             return getThis();
         }
 
@@ -197,7 +202,18 @@ public abstract class SubscribeOptions {
          * @return the builder
          */
         public B durable(String durable) {
-            this.durable = emptyAsNull(durable);
+            this.durable = validateDurable(durable, false);
+            return getThis();
+        }
+
+        /**
+         * Sets the name of the consumer.
+         * Null or empty clears the field.
+         * @param name name of the consumer.
+         * @return the builder
+         */
+        public B name(String name) {
+            this.name = validateConsumerName(name, false);
             return getThis();
         }
 

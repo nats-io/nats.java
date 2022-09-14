@@ -24,6 +24,7 @@ import static io.nats.client.support.NatsJetStreamClientError.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SubscribeOptionsTests extends TestBase {
+    private static final String[] badNames = {HAS_DOT, HAS_GT, HAS_STAR, HAS_FWD_SLASH, HAS_BACK_SLASH};
 
     @Test
     public void testPushAffirmative() {
@@ -79,7 +80,7 @@ public class SubscribeOptionsTests extends TestBase {
                 .build()
                 .getDurable());
 
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder()
+        assertClientError(JsSoDurableMismatch, () -> PushSubscribeOptions.builder()
                 .durable("x")
                 .configuration(ConsumerConfiguration.builder().durable("y").build())
                 .build());
@@ -105,7 +106,7 @@ public class SubscribeOptionsTests extends TestBase {
                 .build()
                 .getDurable());
 
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder()
+        assertClientError(JsSoDurableMismatch, () -> PullSubscribeOptions.builder()
                 .durable("x")
                 .configuration(ConsumerConfiguration.builder().durable("y").build())
                 .build());
@@ -137,7 +138,7 @@ public class SubscribeOptionsTests extends TestBase {
                 .build()
                 .getDeliverGroup());
 
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder()
+        assertClientError(JsSoDeliverGroupMismatch, () -> PushSubscribeOptions.builder()
                 .deliverGroup("x")
                 .configuration(ConsumerConfiguration.builder().deliverGroup("y").build())
                 .build());
@@ -169,12 +170,10 @@ public class SubscribeOptionsTests extends TestBase {
                 .build()
                 .getDeliverSubject());
 
-        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder()
+        assertClientError(JsSoDeliverSubjectMismatch, () -> PushSubscribeOptions.builder()
                 .deliverSubject("x")
                 .configuration(ConsumerConfiguration.builder().deliverSubject("y").build())
                 .build());
-
-        assertTrue(iae.getMessage().contains(JsSoDeliverSubjectMismatch.id()));
     }
 
     @Test
@@ -193,32 +192,44 @@ public class SubscribeOptionsTests extends TestBase {
 
     @Test
     public void testPushFieldValidation() {
-        PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder();
-        assertThrows(IllegalArgumentException.class, () -> builder.stream(HAS_DOT).build());
-        assertThrows(IllegalArgumentException.class, () -> builder.durable(HAS_DOT).build());
+        for (String bad : badNames) {
+            PushSubscribeOptions.Builder pushBuilder = PushSubscribeOptions.builder();
+            assertThrows(IllegalArgumentException.class, () -> pushBuilder.stream(bad).build());
+            assertThrows(IllegalArgumentException.class, () -> pushBuilder.durable(bad).build());
+            assertThrows(IllegalArgumentException.class, () -> pushBuilder.name(bad).build());
+            assertThrows(IllegalArgumentException.class, () -> ConsumerConfiguration.builder().durable(bad).build());
+            assertThrows(IllegalArgumentException.class, () -> ConsumerConfiguration.builder().name(bad).build());
+        }
 
-        ConsumerConfiguration ccBadDur = ConsumerConfiguration.builder().durable(HAS_DOT).build();
-        assertThrows(IllegalArgumentException.class, () -> builder.configuration(ccBadDur).build());
+        assertClientError(JsConsumerNameDurableMatch, () -> PushSubscribeOptions.builder().name(NAME).durable(DURABLE).build());
 
         // durable directly
         PushSubscribeOptions.builder().durable(DURABLE).build();
+        PushSubscribeOptions.builder().name(NAME).build();
 
         // in configuration
         ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
         PushSubscribeOptions.builder().configuration(cc).build();
+        cc = ConsumerConfiguration.builder().name(NAME).build();
+        PushSubscribeOptions.builder().configuration(cc).build();
 
         // new helper
         ConsumerConfiguration.builder().durable(DURABLE).buildPushSubscribeOptions();
+        ConsumerConfiguration.builder().name(NAME).buildPushSubscribeOptions();
     }
 
     @Test
     public void testPullValidation() {
-        PullSubscribeOptions.Builder builder1 = PullSubscribeOptions.builder();
-        assertThrows(IllegalArgumentException.class, () -> builder1.stream(HAS_DOT).build());
-        assertThrows(IllegalArgumentException.class, () -> builder1.durable(HAS_DOT).build());
+        for (String bad : badNames) {
+            PullSubscribeOptions.Builder pullBuilder = PullSubscribeOptions.builder();
+            assertThrows(IllegalArgumentException.class, () -> pullBuilder.stream(bad).build());
+            assertThrows(IllegalArgumentException.class, () -> pullBuilder.durable(bad).build());
+            assertThrows(IllegalArgumentException.class, () -> pullBuilder.name(bad).build());
+            assertThrows(IllegalArgumentException.class, () -> ConsumerConfiguration.builder().durable(bad).build());
+            assertThrows(IllegalArgumentException.class, () -> ConsumerConfiguration.builder().name(bad).build());
+        }
 
-        ConsumerConfiguration ccBadDur = ConsumerConfiguration.builder().durable(HAS_DOT).build();
-        assertThrows(IllegalArgumentException.class, () -> builder1.configuration(ccBadDur).build());
+        assertClientError(JsConsumerNameDurableMatch, () -> PullSubscribeOptions.builder().name(NAME).durable(DURABLE).build());
 
         // durable directly
         PullSubscribeOptions.builder().durable(DURABLE).build();
@@ -234,14 +245,16 @@ public class SubscribeOptionsTests extends TestBase {
     @Test
     public void testCreationErrors() {
         ConsumerConfiguration cc1 = ConsumerConfiguration.builder().durable(durable((1))).build();
-        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+        assertClientError(JsSoDurableMismatch,
             () -> PushSubscribeOptions.builder().configuration(cc1).durable(durable(2)).build());
-        assertTrue(iae.getMessage().contains(JsSoDurableMismatch.id()));
 
         ConsumerConfiguration cc2 = ConsumerConfiguration.builder().deliverGroup(deliver((1))).build();
-        iae = assertThrows(IllegalArgumentException.class,
+        assertClientError(JsSoDeliverGroupMismatch,
             () -> PushSubscribeOptions.builder().configuration(cc2).deliverGroup(deliver(2)).build());
-        assertTrue(iae.getMessage().contains(JsSoDeliverGroupMismatch.id()));
+
+        ConsumerConfiguration cc3 = ConsumerConfiguration.builder().name(name((1))).build();
+        assertClientError(JsSoNameMismatch,
+            () -> PushSubscribeOptions.builder().configuration(cc3).name(name(2)).build());
     }
 
     @Test
@@ -267,43 +280,35 @@ public class SubscribeOptionsTests extends TestBase {
 
     @Test
     public void testOrderedCreation() {
-
         ConsumerConfiguration ccEmpty = ConsumerConfiguration.builder().build();
         PushSubscribeOptions.builder().configuration(ccEmpty).ordered(true).build();
 
-        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+        assertClientError(JsSoOrderedNotAllowedWithBind,
             () -> PushSubscribeOptions.builder().stream(STREAM).bind(true).ordered(true).build());
-        assertTrue(iae.getMessage().contains(JsSoOrderedNotAllowedWithBind.id()));
 
-        iae = assertThrows(IllegalArgumentException.class,
+        assertClientError(JsSoOrderedNotAllowedWithDeliverGroup,
             () -> PushSubscribeOptions.builder().deliverGroup(DELIVER).ordered(true).build());
-        assertTrue(iae.getMessage().contains(JsSoOrderedNotAllowedWithDeliverGroup.id()));
 
-        iae = assertThrows(IllegalArgumentException.class,
+        assertClientError(JsSoOrderedNotAllowedWithDurable,
             () -> PushSubscribeOptions.builder().durable(DURABLE).ordered(true).build());
-        assertTrue(iae.getMessage().contains(JsSoOrderedNotAllowedWithDurable.id()));
 
-        iae = assertThrows(IllegalArgumentException.class,
+        assertClientError(JsSoOrderedNotAllowedWithDeliverSubject,
             () -> PushSubscribeOptions.builder().deliverSubject(DELIVER).ordered(true).build());
-        assertTrue(iae.getMessage().contains(JsSoOrderedNotAllowedWithDeliverSubject.id()));
 
         ConsumerConfiguration ccAckNotNone1 = ConsumerConfiguration.builder().ackPolicy(AckPolicy.All).build();
-        iae = assertThrows(IllegalArgumentException.class,
+        assertClientError(JsSoOrderedRequiresAckPolicyNone,
             () -> PushSubscribeOptions.builder().configuration(ccAckNotNone1).ordered(true).build());
-        assertTrue(iae.getMessage().contains(JsSoOrderedRequiresAckPolicyNone.id()));
 
         ConsumerConfiguration ccAckNotNone2 = ConsumerConfiguration.builder().ackPolicy(AckPolicy.Explicit).build();
-        iae = assertThrows(IllegalArgumentException.class,
+        assertClientError(JsSoOrderedRequiresAckPolicyNone,
             () -> PushSubscribeOptions.builder().configuration(ccAckNotNone2).ordered(true).build());
-        assertTrue(iae.getMessage().contains(JsSoOrderedRequiresAckPolicyNone.id()));
 
         ConsumerConfiguration ccAckNoneOk = ConsumerConfiguration.builder().ackPolicy(AckPolicy.None).build();
         PushSubscribeOptions.builder().configuration(ccAckNoneOk).ordered(true).build();
 
         ConsumerConfiguration ccMax = ConsumerConfiguration.builder().maxDeliver(2).build();
-        iae = assertThrows(IllegalArgumentException.class,
+        assertClientError(JsSoOrderedRequiresMaxDeliver,
             () -> PushSubscribeOptions.builder().configuration(ccMax).ordered(true).build());
-        assertTrue(iae.getMessage().contains(JsSoOrderedRequiresMaxDeliver.id()));
 
         ConsumerConfiguration ccHb = ConsumerConfiguration.builder().idleHeartbeat(100).build();
         PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(ccHb).ordered(true).build();

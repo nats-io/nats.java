@@ -182,7 +182,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertThrows(IllegalArgumentException.class,
             () ->ConsumerConfiguration.builder().backoff(DURATION_MIN_LONG - 1).build());
 
-        assertClientError(JsConsumerNameDurableMatch, () -> ConsumerConfiguration.builder().name("name").durable(DURABLE).build());
+        assertClientError(JsConsumerNameDurableMatch, () -> ConsumerConfiguration.builder().name(NAME).durable(DURABLE).build());
     }
 
     private void validateDefault(ConsumerConfiguration cc) {

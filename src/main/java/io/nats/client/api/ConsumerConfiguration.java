@@ -668,21 +668,23 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * Sets the name of the durable consumer.
+         * Null or empty clears the field.
          * @param durable name of the durable consumer.
          * @return the builder
          */
         public Builder durable(String durable) {
-            this.durable = emptyAsNull(durable);
+            this.durable = validateDurable(durable, false);
             return this;
         }
 
         /**
-         * Sets the name of the ephemeral consumer.
-         * @param name name of the ephemeral consumer.
+         * Sets the name of the consumer.
+         * Null or empty clears the field.
+         * @param name name of the consumer.
          * @return the builder
          */
         public Builder name(String name) {
-            this.name = emptyAsNull(name);
+            this.name = validateConsumerName(name, false);
             return this;
         }
 
