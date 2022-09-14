@@ -16,9 +16,12 @@ package io.nats.client;
 import io.nats.client.impl.DataPort;
 import io.nats.client.impl.ErrorListenerLoggerImpl;
 import io.nats.client.impl.SocketDataPort;
+import io.nats.client.impl.TlsUtils;
 import io.nats.client.support.SSLUtils;
 
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -598,6 +601,7 @@ public class Options {
         // ----------------------------------------------------------------------------------------------------
         private final List<URI> serverURIs = new ArrayList<>();
         private final List<String> unprocessedServers = new ArrayList<>();
+        private  boolean openTls;
         private char[] tlsKeystorePassword;
         private char[] tlsTruststorePassword;
         private String tlsTruststoreAlgorithm;
@@ -609,7 +613,9 @@ public class Options {
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
         private boolean verbose = false;
         private boolean pedantic = false;
-        private SSLContext sslContext = null;
+        //private SSLContext sslContext = null;
+
+        private boolean tls = false;
         private int maxControlLine = DEFAULT_MAX_CONTROL_LINE;
         private int maxReconnect = DEFAULT_MAX_RECONNECT;
         private Duration reconnectWait = DEFAULT_RECONNECT_WAIT;
@@ -645,6 +651,7 @@ public class Options {
         private ConnectionListener connectionListener = null;
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
         private ExecutorService executor;
+        private SSLContext sslContext;
 
         /**
          * Constructs a new Builder with the default values.
@@ -707,9 +714,13 @@ public class Options {
 
             if (props.containsKey(TLS_ALGORITHM_CONFIG)) {
                 this.tlsAlgorithm = props.getProperty(TLS_ALGORITHM_CONFIG, null);
+                if (tlsKeystoreAlgorithm == null ) this.tlsKeystoreAlgorithm = this.tlsAlgorithm;
+                if (tlsTruststoreAlgorithm == null ) this.tlsTruststoreAlgorithm = this.tlsAlgorithm;
             } else {
                 this.tlsAlgorithm = null;
             }
+
+
 
             if (props.containsKey(TLS_KEYSTORE_ALGORITHM_CONFIG)) {
                 this.tlsKeystoreAlgorithm = props.getProperty(TLS_KEYSTORE_ALGORITHM_CONFIG, null);
@@ -752,27 +763,30 @@ public class Options {
             if (props.containsKey(PROP_SECURE)) {
                 boolean secure = Boolean.parseBoolean(props.getProperty(PROP_SECURE));
 
-                if (secure) {
-                    try {
-                        this.sslContext = SSLContext.getDefault();
-                    } catch (NoSuchAlgorithmException e) {
-                        this.sslContext = null;
-                        throw new IllegalArgumentException("Unable to retrieve default SSL context");
-                    }
-                }
+                this.tls = true;
+
+//                if (secure) {
+//                    try {
+//                        this.sslContext = SSLContext.getDefault();
+//                    } catch (NoSuchAlgorithmException e) {
+//                        this.sslContext = null;
+//                        throw new IllegalArgumentException("Unable to retrieve default SSL context");
+//                    }
+//                }
             }
 
             if (props.containsKey(PROP_OPENTLS)) {
-                boolean tls = Boolean.parseBoolean(props.getProperty(PROP_OPENTLS));
-
-                if (tls) {
-                    try {
-                        this.sslContext = SSLUtils.createOpenTLSContext();
-                    } catch (Exception e) {
-                        this.sslContext = null;
-                        throw new IllegalArgumentException("Unable to create open SSL context");
-                    }
-                }
+                this.tls = Boolean.parseBoolean(props.getProperty(PROP_OPENTLS));
+                this.openTls = tls;
+//
+//                if (tls) {
+//                    try {
+//                        this.sslContext = SSLUtils.createOpenTLSContext();
+//                    } catch (Exception e) {
+//                        this.sslContext = null;
+//                        throw new IllegalArgumentException("Unable to create open SSL context");
+//                    }
+//                }
             }
 
             if (props.containsKey(PROP_CONNECTION_NAME)) {
@@ -941,6 +955,9 @@ public class Options {
 
         public Builder tlsAlgorithm(String tlsAlgorithm) {
             this.tlsAlgorithm = tlsAlgorithm;
+
+            if (this.tlsTruststoreAlgorithm == null) this.tlsTruststoreAlgorithm = tlsAlgorithm;
+            if (this.tlsKeystoreAlgorithm == null) this.tlsKeystoreAlgorithm = tlsAlgorithm;
             return this;
         }
 
@@ -1130,11 +1147,12 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder secure() throws NoSuchAlgorithmException, IllegalArgumentException {
-            this.sslContext = SSLContext.getDefault();
-
-            if(this.sslContext == null) {
-                throw new IllegalArgumentException("No Default SSL Context");
-            }
+//            this.sslContext = SSLContext.getDefault();
+//
+//            if(this.sslContext == null) {
+//                throw new IllegalArgumentException("No Default SSL Context");
+//            }
+            this.tls = true;
             return this;
         }
 
@@ -1156,7 +1174,7 @@ public class Options {
          * @param ctx the SSL Context to use for TLS connections
          * @return the Builder for chaining
          */
-        public Builder sslContext(SSLContext ctx) {
+        public Builder sslContext(final SSLContext ctx) {
             this.sslContext = ctx;
             return this;
         }
@@ -1541,18 +1559,24 @@ public class Options {
                 server(DEFAULT_URL);
             }
             else if (sslContext == null) {
-                for (URI serverURI : serverURIs) {
-                    if (TLS_PROTOCOL.equals(serverURI.getScheme())) {
-                        try {
-                            this.sslContext = SSLContext.getDefault();
-                        } catch (NoSuchAlgorithmException e) {
-                            throw new IllegalStateException("Unable to create default SSL context", e);
+
+                if (tls && tlsTruststorePath!= null || tlsKeystorePath != null) {
+                    final TrustManager[] trustManagers = TlsUtils.createTrustManagers(tlsTruststorePath, tlsTruststorePassword, null, tlsTruststoreAlgorithm);
+                    final KeyManager[] keyManagers = TlsUtils.createKeyManagers(tlsKeystorePath, tlsKeystorePassword, null, tlsKeystoreAlgorithm);
+                    this.sslContext = TlsUtils.createSSLContext(TlsUtils.DEFAULT_SSL_PROTOCOL, trustManagers, keyManagers);
+                } else {
+                    for (URI serverURI : serverURIs) {
+                        if (TLS_PROTOCOL.equals(serverURI.getScheme())) {
+                            try {
+                                this.sslContext = SSLContext.getDefault();
+                            } catch (NoSuchAlgorithmException e) {
+                                throw new IllegalStateException("Unable to create default SSL context", e);
+                            }
+                            break;
+                        } else if (OPENTLS_PROTOCOL.equals(serverURI.getScheme())) {
+                            this.sslContext = SSLUtils.createOpenTLSContext();
+                            break;
                         }
-                        break;
-                    }
-                    else if (OPENTLS_PROTOCOL.equals(serverURI.getScheme())) {
-                        this.sslContext = SSLUtils.createOpenTLSContext();
-                        break;
                     }
                 }
             }
@@ -2133,27 +2157,27 @@ public class Options {
     }
 
 
-    public String getTlsTruststoreAlgorithm() {
+    public String tlsTruststoreAlgorithm() {
         return tlsTruststoreAlgorithm;
     }
 
-    public char[] getTlsKeystorePassword() {
+    public char[] tlsKeystorePassword() {
         return tlsKeystorePassword;
     }
 
-    public String getTlsKeystoreAlgorithm() {
+    public String tlsKeystoreAlgorithm() {
         return tlsKeystoreAlgorithm;
     }
 
-    public char[] getTlsTruststorePassword() {
+    public char[] tlsTruststorePassword() {
         return tlsTruststorePassword;
     }
 
-    public String getTlsTruststorePath() {
+    public String tlsTruststorePath() {
         return tlsTruststorePath;
     }
 
-    public String getTlsKeystorePath() {
+    public String tlsKeystorePath() {
         return tlsKeystorePath;
     }
 }

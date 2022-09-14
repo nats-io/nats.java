@@ -14,7 +14,6 @@ import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -59,7 +58,7 @@ public class VertxDataPort implements DataPort{
             throw new RuntimeException(e);
         }
 
-        client = vertx.createNetClient();
+        client = vertx.createNetClient();//new NetClientOptions().setSsl(true));
         client.connect(port, host, event -> {
                     connect(event);
                 }
@@ -70,6 +69,8 @@ public class VertxDataPort implements DataPort{
 
     private void connect(AsyncResult<NetSocket> event) {
         if (event.failed()) {
+
+            event.cause().printStackTrace();
 
             if (event.cause() instanceof Exception) {
                 this.connection.handleCommunicationIssue((Exception) event.cause());
@@ -115,56 +116,74 @@ public class VertxDataPort implements DataPort{
         }
     }
 
-    @Override
-    public void upgradeToSecure() throws IOException {
-        final Options options = this.connection.getOptions();
-        final Duration timeout = options.getConnectionTimeout();
 
-        //https://vertx.io/docs/vertx-core/java/#_upgrading_connections_to_ssltls
+
+    @Override
+    public void upgradeToSecure() {
+
+
+            client = vertx.createNetClient(netClientOptions());
+            //client = vertx.createNetClient(new NetClientOptions().setSsl(true));
+            client.connect(port, host, this::connect);
+
+
+
+    }
+
+
+    private NetClientOptions netClientOptions() {
+
+        final Options options = this.connection.getOptions();
+        //final Duration timeout = options.getConnectionTimeout();
 
         if (options.isTLSRequired()) {
             final NetClientOptions clientOptions = new NetClientOptions().setSsl(options.isTLSRequired());
-            if (options.getTlsKeystorePath() != null) {
-                final String path = options.getTlsKeystorePath();
-                if (path.endsWith("jks")) {
-                    final JksOptions keyStoreOptions = new JksOptions().setPath(path);
-                    if (options.getTlsTruststorePassword() !=null) {
-                        keyStoreOptions.setPassword(new String(options.getTlsKeystorePassword()));
-                    }
-                    clientOptions.setKeyStoreOptions(keyStoreOptions);
-                } else if (path.endsWith("pfx")) {
-                    final PfxOptions keyStoreOptions = new PfxOptions().setPath(path);
-                    if (options.getTlsKeystorePassword() !=null) {
-                        keyStoreOptions.setPassword(new String(options.getTlsKeystorePassword()));
-                    }
-                    clientOptions.setPfxKeyCertOptions(keyStoreOptions);
-                }
+            if (options.tlsKeystorePath() != null) {
+                final String path = options.tlsKeystorePath();
+                final char[] password = options.tlsKeystorePassword();
+                final boolean isKey = true;
+                setUpKey(clientOptions, path, password, isKey);
+            }
+            if (options.tlsTruststorePath() != null) {
+                final String path = options.tlsTruststorePath();
+                final char[] password = options.tlsTruststorePassword();
+                final boolean isKey = false;
+                setUpKey(clientOptions, path, password, isKey);
             }
 
-
-            if (options.getTlsTruststorePath() != null) {
-                final String path = options.getTlsTruststorePath();
-                if (path.endsWith("jks")) {
-                    final JksOptions jksOptions = new JksOptions().setPath(path);
-                    if (options.getTlsKeystorePassword() !=null) {
-                        jksOptions.setPassword(new String(options.getTlsTruststorePassword()));
-                    }
-                    clientOptions.setTrustStoreOptions(jksOptions);
-                } else if (path.endsWith("pfx")) {
-                    final PfxOptions pfxOptions = new PfxOptions().setPath(path);
-                    if (options.getTlsKeystorePassword() !=null) {
-                        pfxOptions.setPassword(new String(options.getTlsTruststorePassword()));
-                    }
-                    clientOptions.setPfxTrustOptions(pfxOptions);
-                }
-            }
-
-            client = vertx.createNetClient(clientOptions);
-
-            client.connect(port, host, this::connect);
+            clientOptions.setSslHandshakeTimeoutUnit(TimeUnit.SECONDS).setSslHandshakeTimeout(10);
+            return clientOptions;
+        } else {
+            return new NetClientOptions();
         }
 
 
+    }
+
+    private void setUpKey(NetClientOptions clientOptions, String path, char[] password, boolean isKey) {
+        if (path.endsWith("jks")) {
+            final JksOptions jksOptions = new JksOptions().setPath(path);
+            if (password != null) {
+                jksOptions.setPassword(new String(password));
+            }
+            if (isKey) {
+                clientOptions.setKeyStoreOptions(jksOptions);
+            } else {
+                clientOptions.setTrustStoreOptions(jksOptions);
+            }
+        } else if (path.endsWith("pfx")) {
+            final PfxOptions pfxOptions = new PfxOptions().setPath(path);
+            if (password != null) {
+                pfxOptions.setPassword(new String(password));
+            }
+            clientOptions.setPfxKeyCertOptions(pfxOptions);
+
+            if (isKey) {
+                clientOptions.setPfxKeyCertOptions(pfxOptions);
+            } else {
+                clientOptions.setPfxTrustOptions(pfxOptions);
+            }
+        }
     }
 
     @Override
