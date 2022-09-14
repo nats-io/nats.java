@@ -1,3 +1,16 @@
+// Copyright 2021-2022 The NATS Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package io.nats.client.support;
 
 public class NatsJetStreamClientError {
@@ -6,6 +19,7 @@ public class NatsJetStreamClientError {
     private static final String SUB = "SUB";
     private static final String SO = "SO";
     private static final String OS = "OS";
+    private static final String CON = "CON";
 
     public static final NatsJetStreamClientError JsSubPullCantHaveDeliverGroup = new NatsJetStreamClientError(SUB, 90001, "Pull subscriptions can't have a deliver group.");
     public static final NatsJetStreamClientError JsSubPullCantHaveDeliverSubject = new NatsJetStreamClientError(SUB, 90002, "Pull subscriptions can't have a deliver subject.");
@@ -36,6 +50,7 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError JsSoOrderedNotAllowedWithDeliverSubject = new NatsJetStreamClientError(SO, 90107, "Deliver subject is not allowed with an ordered consumer.");
     public static final NatsJetStreamClientError JsSoOrderedRequiresAckPolicyNone = new NatsJetStreamClientError(SO, 90108, "Ordered consumer requires Ack Policy None.");
     public static final NatsJetStreamClientError JsSoOrderedRequiresMaxDeliver = new NatsJetStreamClientError(SO, 90109, "Max deliver is limited to 1 with an ordered consumer.");
+    public static final NatsJetStreamClientError JsSoNameMismatch = new NatsJetStreamClientError(SO, 90110, "Builder name must match the consumer configuration name if both are provided.");
 
     public static final NatsJetStreamClientError OsObjectNotFound = new NatsJetStreamClientError(OS, 90201, "The object was not found.");
     public static final NatsJetStreamClientError OsObjectIsDeleted = new NatsJetStreamClientError(OS, 90202, "The object is deleted.");
@@ -45,6 +60,10 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError OsGetChunksMismatch = new NatsJetStreamClientError(OS, 90206, "Number of chunks ddoes not match meta data.");
     public static final NatsJetStreamClientError OsGetSizeMismatch = new NatsJetStreamClientError(OS, 90207, "Total size does not match meta data.");
     public static final NatsJetStreamClientError OsGetLinkToBucket = new NatsJetStreamClientError(OS, 90208, "Cannot get object, it is a link to a bucket.");
+
+    public static final NatsJetStreamClientError JsConsumerCantUseNameBefore290 = new NatsJetStreamClientError(CON, 90301, "Consumer Configuration name field not valid against pre v2.9.0 servers.");
+    public static final NatsJetStreamClientError JsConsumerNameDurableMatch = new NatsJetStreamClientError(CON, 90302, "Name must match durable if both are supplied.");
+
 
     @Deprecated // Fixed spelling error
     public static final NatsJetStreamClientError JsSubFcHbHbNotValidQueue = new NatsJetStreamClientError(SUB, 90006, "Flow Control and/or heartbeat is not valid in queue mode.");

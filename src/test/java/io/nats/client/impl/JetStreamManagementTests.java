@@ -421,8 +421,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testAddDeleteConsumer() throws Exception {
         runInJsServer(nc -> {
+            boolean atLeast290 = ((NatsConnection)nc).getInfo().isSameOrNewerThanVersion("2.9.0");
+
             JetStreamManagement jsm = nc.jetStreamManagement();
-            createMemoryStream(jsm, STREAM, subject(0), subject(1));
+
+
+            createMemoryStream(jsm, STREAM, subjectDot(">"));
 
             List<ConsumerInfo> list = jsm.getConsumers(STREAM);
             assertEquals(0, list.size());
@@ -436,30 +440,68 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             iae = assertThrows(IllegalArgumentException.class, () -> jsm.addOrUpdateConsumer(STREAM, cc));
             assertTrue(iae.getMessage().contains("Durable cannot be null"));
 
-            final ConsumerConfiguration cc0 = ConsumerConfiguration.builder()
-                    .durable(durable(0))
-                    .build();
-            ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc0);
-            assertEquals(durable(0), ci.getName());
-            assertEquals(durable(0), ci.getConsumerConfiguration().getDurable());
-            assertNull(ci.getConsumerConfiguration().getDeliverSubject());
+            // with and w/o deliver subject for push/pull
+            addConsumer(jsm, atLeast290, 1, false, null, ConsumerConfiguration.builder()
+                .durable(durable(1))
+                .build());
 
-            final ConsumerConfiguration cc1 = ConsumerConfiguration.builder()
-                    .durable(durable(1))
-                    .deliverSubject(deliver(1))
-                    .build();
-            ci = jsm.addOrUpdateConsumer(STREAM, cc1);
-            assertEquals(durable(1), ci.getName());
-            assertEquals(durable(1), ci.getConsumerConfiguration().getDurable());
-            assertEquals(deliver(1), ci.getConsumerConfiguration().getDeliverSubject());
+            addConsumer(jsm, atLeast290, 2, true, null, ConsumerConfiguration.builder()
+                .durable(durable(2))
+                .deliverSubject(deliver(2))
+                .build());
 
+            // test delete here
             List<String> consumers = jsm.getConsumerNames(STREAM);
             assertEquals(2, consumers.size());
-            assertTrue(jsm.deleteConsumer(STREAM, cc1.getDurable()));
+            assertTrue(jsm.deleteConsumer(STREAM, durable(1)));
             consumers = jsm.getConsumerNames(STREAM);
             assertEquals(1, consumers.size());
-            assertThrows(JetStreamApiException.class, () -> jsm.deleteConsumer(STREAM, cc1.getDurable()));
+            assertThrows(JetStreamApiException.class, () -> jsm.deleteConsumer(STREAM, durable(1)));
+
+            // some testing of new name
+            if (atLeast290) {
+                addConsumer(jsm, atLeast290, 3, false, null, ConsumerConfiguration.builder()
+                    .durable(durable(3))
+                    .name(durable(3))
+                    .build());
+
+                addConsumer(jsm, atLeast290, 4, true, null, ConsumerConfiguration.builder()
+                    .durable(durable(4))
+                    .name(durable(4))
+                    .deliverSubject(deliver(4))
+                    .build());
+
+                addConsumer(jsm, atLeast290, 5, false, ">", ConsumerConfiguration.builder()
+                    .durable(durable(5))
+                    .filterSubject(">")
+                    .build());
+
+                addConsumer(jsm, atLeast290, 6, false, subjectDot(">"), ConsumerConfiguration.builder()
+                    .durable(durable(6))
+                    .filterSubject(subjectDot(">"))
+                    .build());
+
+                addConsumer(jsm, atLeast290, 7, false, subjectDot("foo"), ConsumerConfiguration.builder()
+                    .durable(durable(7))
+                    .filterSubject(subjectDot("foo"))
+                    .build());
+            }
         });
+    }
+
+    private static void addConsumer(JetStreamManagement jsm, boolean atLeast290, int id, boolean deliver, String fs, ConsumerConfiguration cc) throws IOException, JetStreamApiException {
+        ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
+        assertEquals(durable(id), ci.getName());
+        if (atLeast290) {
+            assertEquals(durable(id), ci.getConsumerConfiguration().getName());
+        }
+        assertEquals(durable(id), ci.getConsumerConfiguration().getDurable());
+        if (fs == null) {
+            assertNull(ci.getConsumerConfiguration().getFilterSubject());
+        }
+        if (deliver) {
+            assertEquals(deliver(id), ci.getConsumerConfiguration().getDeliverSubject());
+        }
     }
 
     @Test

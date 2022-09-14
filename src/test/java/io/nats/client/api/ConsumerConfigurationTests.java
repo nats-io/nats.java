@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 
 import static io.nats.client.api.ConsumerConfiguration.*;
+import static io.nats.client.support.NatsJetStreamClientError.JsConsumerNameDurableMatch;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -35,7 +36,8 @@ public class ConsumerConfigurationTests extends TestBase {
             .ackWait(Duration.ofSeconds(99)) // duration
             .deliverPolicy(DeliverPolicy.ByStartSequence)
             .description("blah")
-            .durable(DURABLE)
+            .name(NAME)
+            .durable(NAME)
             .filterSubject("fs")
             .maxDeliver(5555)
             .maxAckPending(6666)
@@ -179,6 +181,8 @@ public class ConsumerConfigurationTests extends TestBase {
             () ->ConsumerConfiguration.builder().backoff(0).build());
         assertThrows(IllegalArgumentException.class,
             () ->ConsumerConfiguration.builder().backoff(DURATION_MIN_LONG - 1).build());
+
+        assertClientError(JsConsumerNameDurableMatch, () -> ConsumerConfiguration.builder().name(NAME).durable(DURABLE).build());
     }
 
     private void validateDefault(ConsumerConfiguration cc) {
@@ -204,7 +208,8 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(99), c.getAckWait());
         assertEquals(DeliverPolicy.ByStartSequence, c.getDeliverPolicy());
         assertEquals("blah", c.getDescription());
-        assertEquals(DURABLE, c.getDurable());
+        assertEquals(NAME, c.getDurable());
+        assertEquals(NAME, c.getName());
         assertEquals("fs", c.getFilterSubject());
         assertEquals(5555, c.getMaxDeliver());
         assertEquals(6666, c.getMaxAckPending());
@@ -258,7 +263,8 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
         assertEquals(2020, c.getStartTime().getYear(), 2020);
         assertEquals(21, c.getStartTime().getSecond(), 21);
-        assertEquals("foo-durable", c.getDurable());
+        assertEquals("foo-name", c.getName());
+        assertEquals("foo-name", c.getDurable());
         assertEquals("bar", c.getDeliverSubject());
         assertEquals("foo-filter", c.getFilterSubject());
         assertEquals(42, c.getMaxAckPending());

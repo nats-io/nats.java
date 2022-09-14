@@ -36,11 +36,15 @@ public abstract class Validator {
     }
 
     public static String validateStreamName(String s, boolean required) {
-        return validatePrintableExceptWildDotGt(s, "Stream", required);
+        return validatePrintableExceptWildDotGtSlashes(s, "Stream", required);
     }
 
     public static String validateDurable(String s, boolean required) {
-        return validatePrintableExceptWildDotGt(s, "Durable", required);
+        return validatePrintableExceptWildDotGtSlashes(s, "Durable", required);
+    }
+
+    public static String validateConsumerName(String s, boolean required) {
+        return validatePrintableExceptWildDotGtSlashes(s, "Name", required);
     }
 
     public static String validatePrefixOrDomain(String s, String label, boolean required) {
@@ -135,6 +139,15 @@ public abstract class Validator {
         return _validate(s, required, label, () -> {
             if (notPrintableOrHasWildGtDot(s)) {
                 throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `.` or `>` [" + s + "]");
+            }
+            return s;
+        });
+    }
+
+    public static String validatePrintableExceptWildDotGtSlashes(String s, String label, boolean required) {
+        return _validate(s, required, label, () -> {
+            if (notPrintableOrHasWildGtDotSlashes(s)) {
+                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `.`, `>`, `\\` or  `/` [" + s + "]");
             }
             return s;
         });
@@ -437,6 +450,7 @@ public abstract class Validator {
 
     static final char[] WILD_GT = {'*', '>'};
     static final char[] WILD_GT_DOT = {'*', '>', '.'};
+    static final char[] WILD_GT_DOT_SLASHES = {'*', '>', '.', '\\', '/'};
 
     private static boolean notPrintableOrHasWildGt(String s) {
         return notPrintableOrHasChars(s, WILD_GT);
@@ -444,6 +458,10 @@ public abstract class Validator {
 
     private static boolean notPrintableOrHasWildGtDot(String s) {
         return notPrintableOrHasChars(s, WILD_GT_DOT);
+    }
+
+    private static boolean notPrintableOrHasWildGtDotSlashes(String s) {
+        return notPrintableOrHasChars(s, WILD_GT_DOT_SLASHES);
     }
 
     public static String emptyAsNull(String s) {

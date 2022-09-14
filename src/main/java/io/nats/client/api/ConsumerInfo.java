@@ -46,12 +46,16 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
 
     public ConsumerInfo(String json) {
         super(json);
-        stream = JsonUtils.readString(json, STREAM_NAME_RE);
-        name = JsonUtils.readString(json, NAME_RE);
-        created = JsonUtils.readDate(json, CREATED_RE);
 
         String jsonObject = JsonUtils.getJsonObject(CONFIG, json);
         this.configuration = new ConsumerConfiguration(jsonObject);
+
+        // both config and the base have a name field
+        JsonUtils.removeObject(json, CONFIG);
+
+        stream = JsonUtils.readString(json, STREAM_NAME_RE);
+        name = JsonUtils.readString(json, NAME_RE);
+        created = JsonUtils.readDate(json, CREATED_RE);
 
         jsonObject = JsonUtils.getJsonObject(DELIVERED, json);
         this.delivered = new SequenceInfo(jsonObject);

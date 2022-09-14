@@ -105,6 +105,8 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testJetStreamSubscribe() throws Exception {
         runInJsServer(nc -> {
+            boolean atLeast290 = ((NatsConnection)nc).getInfo().isSameOrNewerThanVersion("2.9.0");
+
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
@@ -172,6 +174,20 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             sub = js.subscribe(null, queue(102), dispatcher, mh -> {}, false, psoBind);
             unsubscribeEnsureNotBound(dispatcher, sub);
             js.subscribe("", queue(102), dispatcher, mh -> {}, false, psoBind);
+
+            // test 2.9.0
+            if (atLeast290) {
+                ConsumerConfiguration cc = builder().name(name(1)).build();
+                pso = PushSubscribeOptions.builder().configuration(cc).build();
+                sub = js.subscribe(SUBJECT, pso);
+                m = sub.nextMessage(DEFAULT_TIMEOUT);
+                assertNotNull(m);
+                assertEquals(DATA, new String(m.getData()));
+                ConsumerInfo ci = sub.getConsumerInfo();
+                assertEquals(name(1), ci.getName());
+                assertEquals(name(1), ci.getConsumerConfiguration().getName());
+                assertNull(ci.getConsumerConfiguration().getDurable());
+            }
         });
     }
 

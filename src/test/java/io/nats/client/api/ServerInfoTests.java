@@ -83,6 +83,12 @@ public class ServerInfoTests {
         assertFalse(info235Beta2.isSameOrOlderThanVersion("2.3.4"));
         assertTrue(info234.isSameOrOlderThanVersion("2.3.4"));
         assertTrue(info.isSameOrOlderThanVersion("2.3.4"));
+
+        assertTrue(info235.isSameOrNewerThanVersion("2.3.4"));
+        assertTrue(info235Beta2.isSameOrNewerThanVersion("2.3.4"));
+        assertTrue(info234.isSameOrNewerThanVersion("2.3.4"));
+        assertFalse(info.isSameOrNewerThanVersion("2.3.4"));
+        assertFalse(info234.isSameOrNewerThanVersion("2.3.5-beta.2"));
     }
 
     @Test
