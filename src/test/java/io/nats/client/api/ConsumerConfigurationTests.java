@@ -36,8 +36,8 @@ public class ConsumerConfigurationTests extends TestBase {
             .ackWait(Duration.ofSeconds(99)) // duration
             .deliverPolicy(DeliverPolicy.ByStartSequence)
             .description("blah")
-            .name(DURABLE)
-            .durable(DURABLE)
+            .name(NAME)
+            .durable(NAME)
             .filterSubject("fs")
             .maxDeliver(5555)
             .maxAckPending(6666)
@@ -208,8 +208,8 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(99), c.getAckWait());
         assertEquals(DeliverPolicy.ByStartSequence, c.getDeliverPolicy());
         assertEquals("blah", c.getDescription());
-        assertEquals(DURABLE, c.getDurable());
-        assertEquals(DURABLE, c.getName());
+        assertEquals(NAME, c.getDurable());
+        assertEquals(NAME, c.getName());
         assertEquals("fs", c.getFilterSubject());
         assertEquals(5555, c.getMaxDeliver());
         assertEquals(6666, c.getMaxAckPending());
@@ -263,8 +263,8 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
         assertEquals(2020, c.getStartTime().getYear(), 2020);
         assertEquals(21, c.getStartTime().getSecond(), 21);
-        assertEquals("foo-durable", c.getName());
-        assertEquals("foo-durable", c.getDurable());
+        assertEquals("foo-name", c.getName());
+        assertEquals("foo-name", c.getDurable());
         assertEquals("bar", c.getDeliverSubject());
         assertEquals("foo-filter", c.getFilterSubject());
         assertEquals(42, c.getMaxAckPending());

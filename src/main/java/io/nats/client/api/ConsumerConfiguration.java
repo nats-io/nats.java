@@ -63,7 +63,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final ReplayPolicy replayPolicy;
     protected final String description;
     protected final String durable;
-    protected final String name; // ephemeral name at this point
+    protected final String name;
     protected final String deliverSubject;
     protected final String deliverGroup;
     protected final String filterSubject;

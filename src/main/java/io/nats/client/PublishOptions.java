@@ -177,9 +177,9 @@ public class PublishOptions {
         }
 
         /**
-         * Sets the timeout to wait for a publish-acknowledgement from a JetStream
+         * Sets the timeout to wait for a publish acknowledgement from a JetStream
          * enabled NATS server.
-         * @param timeout the publish-timeout.
+         * @param timeout the publish timeout.
          * @return Builder
          */
         public Builder streamTimeout(Duration timeout) {
