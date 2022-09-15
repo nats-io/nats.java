@@ -187,6 +187,28 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 assertEquals(name(1), ci.getName());
                 assertEquals(name(1), ci.getConsumerConfiguration().getName());
                 assertNull(ci.getConsumerConfiguration().getDurable());
+
+                cc = builder().durable(durable(1)).build();
+                pso = PushSubscribeOptions.builder().configuration(cc).build();
+                sub = js.subscribe(SUBJECT, pso);
+                m = sub.nextMessage(DEFAULT_TIMEOUT);
+                assertNotNull(m);
+                assertEquals(DATA, new String(m.getData()));
+                ci = sub.getConsumerInfo();
+                assertEquals(durable(1), ci.getName());
+                assertEquals(durable(1), ci.getConsumerConfiguration().getName());
+                assertEquals(durable(1), ci.getConsumerConfiguration().getDurable());
+
+                cc = builder().durable(name(2)).name(name(2)).build();
+                pso = PushSubscribeOptions.builder().configuration(cc).build();
+                sub = js.subscribe(SUBJECT, pso);
+                m = sub.nextMessage(DEFAULT_TIMEOUT);
+                assertNotNull(m);
+                assertEquals(DATA, new String(m.getData()));
+                ci = sub.getConsumerInfo();
+                assertEquals(name(2), ci.getName());
+                assertEquals(name(2), ci.getConsumerConfiguration().getName());
+                assertEquals(name(2), ci.getConsumerConfiguration().getDurable());
             }
         });
     }

@@ -90,8 +90,8 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
             subj = String.format(JSAPI_DURABLE_CREATE, streamName, durable);
         }
 
-        String ccrJson = new ConsumerCreateRequest(streamName, config).toJson();
-        Message resp = makeRequestResponseRequired(subj, ccrJson.getBytes(), conn.getOptions().getConnectionTimeout());
+        ConsumerCreateRequest ccr = new ConsumerCreateRequest(streamName, config);
+        Message resp = makeRequestResponseRequired(subj, ccr.serialize(), conn.getOptions().getConnectionTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
     }
 

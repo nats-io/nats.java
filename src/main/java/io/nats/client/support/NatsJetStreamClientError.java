@@ -61,8 +61,8 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError OsGetSizeMismatch = new NatsJetStreamClientError(OS, 90207, "Total size does not match meta data.");
     public static final NatsJetStreamClientError OsGetLinkToBucket = new NatsJetStreamClientError(OS, 90208, "Cannot get object, it is a link to a bucket.");
 
-    public static final NatsJetStreamClientError JsConsumerCantUseNameBefore290 = new NatsJetStreamClientError(CON, 90301, "Consumer Configuration name field not valid against pre v2.9.0 servers.");
-    public static final NatsJetStreamClientError JsConsumerNameDurableMatch = new NatsJetStreamClientError(CON, 90302, "Name must match durable if both are supplied.");
+    public static final NatsJetStreamClientError JsConsumerCantUseNameBefore290 = new NatsJetStreamClientError(CON, 90301, "Name field not valid against pre v2.9.0 servers.");
+    public static final NatsJetStreamClientError JsConsumerNameDurableMismatch = new NatsJetStreamClientError(CON, 90302, "Name must match durable if both are supplied.");
 
 
     @Deprecated // Fixed spelling error

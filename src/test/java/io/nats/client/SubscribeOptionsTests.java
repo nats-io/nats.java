@@ -201,7 +201,7 @@ public class SubscribeOptionsTests extends TestBase {
             assertThrows(IllegalArgumentException.class, () -> ConsumerConfiguration.builder().name(bad).build());
         }
 
-        assertClientError(JsConsumerNameDurableMatch, () -> PushSubscribeOptions.builder().name(NAME).durable(DURABLE).build());
+        assertClientError(JsConsumerNameDurableMismatch, () -> PushSubscribeOptions.builder().name(NAME).durable(DURABLE).build());
 
         // durable directly
         PushSubscribeOptions.builder().durable(DURABLE).build();
@@ -219,7 +219,7 @@ public class SubscribeOptionsTests extends TestBase {
     }
 
     @Test
-    public void testPullValidation() {
+    public void testPullFieldValidation() {
         for (String bad : badNames) {
             PullSubscribeOptions.Builder pullBuilder = PullSubscribeOptions.builder();
             assertThrows(IllegalArgumentException.class, () -> pullBuilder.stream(bad).build());
@@ -229,7 +229,7 @@ public class SubscribeOptionsTests extends TestBase {
             assertThrows(IllegalArgumentException.class, () -> ConsumerConfiguration.builder().name(bad).build());
         }
 
-        assertClientError(JsConsumerNameDurableMatch, () -> PullSubscribeOptions.builder().name(NAME).durable(DURABLE).build());
+        assertClientError(JsConsumerNameDurableMismatch, () -> PullSubscribeOptions.builder().name(NAME).durable(DURABLE).build());
 
         // durable directly
         PullSubscribeOptions.builder().durable(DURABLE).build();

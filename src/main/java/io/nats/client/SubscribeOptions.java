@@ -54,7 +54,7 @@ public abstract class SubscribeOptions {
 
         String name = validateMustMatchIfBothSupplied(builder.name, builder.cc == null ? null : builder.cc.getName(), JsSoNameMismatch);
 
-        validateMustMatchIfBothSupplied(name, durable, JsConsumerNameDurableMatch);
+        validateMustMatchIfBothSupplied(name, durable, JsConsumerNameDurableMismatch);
 
         deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, builder.cc == null ? null : builder.cc.getDeliverGroup(), JsSoDeliverGroupMismatch);
 
@@ -83,6 +83,7 @@ public abstract class SubscribeOptions {
                 .maxDeliver(1)
                 .flowControl(hb)
                 .ackWait(Duration.ofHours(22))
+                .name(name)
                 .build();
         }
         else {
@@ -90,6 +91,7 @@ public abstract class SubscribeOptions {
                 .durable(durable)
                 .deliverSubject(deliverSubject)
                 .deliverGroup(deliverGroup)
+                .name(name)
                 .build();
         }
     }
@@ -196,7 +198,7 @@ public abstract class SubscribeOptions {
         }
 
         /**
-         * Sets the durable consumer name for the subscriber.
+         * Sets the durable name for the consumer.
          * Null or empty clears the field.
          * @param durable the durable name
          * @return the builder

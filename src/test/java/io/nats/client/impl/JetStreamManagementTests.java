@@ -425,7 +425,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-
             createMemoryStream(jsm, STREAM, subjectDot(">"));
 
             List<ConsumerInfo> list = jsm.getConsumers(STREAM);
