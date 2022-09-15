@@ -2,30 +2,28 @@ package io.nats.client.impl;
 
 import io.nats.client.Dispatcher;
 import io.nats.client.Options;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.net.NetClient;
-import io.vertx.core.net.NetSocket;
+import io.vertx.core.net.*;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Duration;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class VertxDataPort implements DataPort{
+public class VertxDataPort implements DataPort {
     private final boolean ownVertx;
     private NatsConnection connection;
     private String host;
     private int port;
 
-    private final  Vertx vertx;
+    private final Vertx vertx;
 
     private NetClient client;
 
@@ -38,10 +36,10 @@ public class VertxDataPort implements DataPort{
 
     public VertxDataPort() {
         vertx = Vertx.vertx();
-        ownVertx=false;
+        ownVertx = false;
     }
 
-    public VertxDataPort(final  Vertx vertx) {
+    public VertxDataPort(final Vertx vertx) {
         this.ownVertx = true;
         this.vertx = vertx;
     }
@@ -60,33 +58,38 @@ public class VertxDataPort implements DataPort{
             throw new RuntimeException(e);
         }
 
-        client = vertx.createNetClient();
-
+        client = vertx.createNetClient(netClientOptions());//new NetClientOptions().setSsl(true));
         client.connect(port, host, event -> {
-                    if (event.failed()) {
-                        System.out.println("FAILED TO CONNECT");
-                        event.cause().printStackTrace();
-                    } else {
-                        final NetSocket netSocket = event.result();
-                        this.socket.set(netSocket);
-
-                        netSocket.handler(buffer -> {
-                            try {
-                                inputQueue.put(buffer);
-                                if (reader!=null) reader.readNow();
-                            } catch (InterruptedException e) {
-                                throw new RuntimeException(e);
-                            }
-                            catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        });
-                    }
+                    connect(event);
                 }
         );
         vertx.setTimer(100, event -> doWrite());
-
         vertx.setTimer(100, event -> handleDispatchers());
+    }
+
+    private void connect(AsyncResult<NetSocket> event) {
+        if (event.failed()) {
+
+            event.cause().printStackTrace();
+
+            if (event.cause() instanceof Exception) {
+                this.connection.handleCommunicationIssue((Exception) event.cause());
+            } else {
+                event.cause().printStackTrace();
+            }
+        } else {
+            final NetSocket netSocket = event.result();
+            this.socket.set(netSocket);
+
+            netSocket.handler(buffer -> {
+                try {
+                    inputQueue.put(buffer);
+                    if (reader != null) reader.readNow();
+                } catch (IOException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        }
     }
 
     private void handleDispatchers() {
@@ -94,17 +97,17 @@ public class VertxDataPort implements DataPort{
             vertx.setTimer(100, event -> handleDispatchers());
             return;
         }
-        connection.dispatchers.values().stream().map(m -> (Dispatcher) m).forEach( d -> {
-                        if (!d.processNextMessage()) {
-                            connection.dispatchers.remove(d.getId());
-                        }
+        connection.dispatchers.values().stream().map(m -> (Dispatcher) m).forEach(d -> {
+                    if (!d.processNextMessage()) {
+                        connection.dispatchers.remove(d.getId());
+                    }
                 }
         );
         vertx.runOnContext(event -> handleDispatchers());
     }
 
     private void doWrite() {
-        if (writer!=null) {
+        if (writer != null) {
             int sent = writer.writeMessages();
             if (sent <= 0) {
                 vertx.setTimer(50, event -> doWrite());
@@ -114,9 +117,66 @@ public class VertxDataPort implements DataPort{
         }
     }
 
-    @Override
-    public void upgradeToSecure() throws IOException {
 
+    @Override
+    public void upgradeToSecure() {
+
+
+        this.socket.get().upgradeToSsl();
+
+
+    }
+
+
+    private NetClientOptions netClientOptions() {
+
+        final Options options = this.connection.getOptions();
+
+
+        final NetClientOptions clientOptions = new NetClientOptions();
+        if (options.tlsKeystorePath() != null) {
+            final String path = options.tlsKeystorePath();
+            final char[] password = options.tlsKeystorePassword();
+            final boolean isKey = true;
+            setUpKey(clientOptions, path, password, isKey);
+        }
+        if (options.tlsTruststorePath() != null) {
+            final String path = options.tlsTruststorePath();
+            final char[] password = options.tlsTruststorePassword();
+            final boolean isKey = false;
+            setUpKey(clientOptions, path, password, isKey);
+        }
+
+        clientOptions.setSslHandshakeTimeoutUnit(TimeUnit.SECONDS).setSslHandshakeTimeout(10);
+        return clientOptions;
+
+
+    }
+
+    private void setUpKey(NetClientOptions clientOptions, String path, char[] password, boolean isKey) {
+        if (path.endsWith("jks")) {
+            final JksOptions jksOptions = new JksOptions().setPath(path);
+            if (password != null) {
+                jksOptions.setPassword(new String(password));
+            }
+            if (isKey) {
+                clientOptions.setKeyStoreOptions(jksOptions);
+            } else {
+                clientOptions.setTrustStoreOptions(jksOptions);
+            }
+        } else if (path.endsWith("pfx")) {
+            final PfxOptions pfxOptions = new PfxOptions().setPath(path);
+            if (password != null) {
+                pfxOptions.setPassword(new String(password));
+            }
+            clientOptions.setPfxKeyCertOptions(pfxOptions);
+
+            if (isKey) {
+                clientOptions.setPfxKeyCertOptions(pfxOptions);
+            } else {
+                clientOptions.setPfxTrustOptions(pfxOptions);
+            }
+        }
     }
 
     @Override
@@ -124,7 +184,7 @@ public class VertxDataPort implements DataPort{
         try {
             final Buffer buffer = inputQueue.poll(30, TimeUnit.SECONDS);
             if (buffer == null) {
-                return  -1;
+                return -1;
             }
             final int length = Math.min(buffer.length(), len);
             buffer.getBytes(0, length, dst, off);
@@ -166,22 +226,23 @@ public class VertxDataPort implements DataPort{
     @Override
     public void flush() throws IOException {
     }
+
     @Override
     public boolean supportsPush() {
         return true;
     }
 
-    public void setReader(final NatsConnectionReader reader){
+    public void setReader(final NatsConnectionReader reader) {
         this.reader = reader;
     }
 
     @Override
-    public void setWriter(NatsConnectionWriter writer){
+    public void setWriter(NatsConnectionWriter writer) {
         this.writer = writer;
     }
 
     @Override
-    public void setNatsConnection(final NatsConnection connection){
+    public void setNatsConnection(final NatsConnection connection) {
         this.connection = connection;
     }
 }

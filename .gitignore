@@ -24,6 +24,13 @@ gnatsd.log
 *.tar
 *.zip
 
+tls
+
+environments/conf/*.conf
+environments/server_bin/
+environments/vault/
+
+
 # Logs and databases #
 ######################
 *.log

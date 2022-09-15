@@ -16,9 +16,12 @@ package io.nats.client;
 import io.nats.client.impl.DataPort;
 import io.nats.client.impl.ErrorListenerLoggerImpl;
 import io.nats.client.impl.SocketDataPort;
+import io.nats.client.impl.TlsUtils;
 import io.nats.client.support.SSLUtils;
 
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -228,6 +231,16 @@ public class Options {
     // ENVIRONMENT
     // ----------------------------------------------------------------------------------------------------
     static final String PFX = "io.nats.client.";
+
+    static final String PFX_TLS = PFX + "tls.";
+
+    public static final String KEYSTORE_PATH_CONFIG =  PFX_TLS + "keystore";
+    public static final String TRUSTSTORE_PATH_CONFIG = PFX_TLS + "truststore";
+    public static final String TRUSTSTORE_PASSWORD_CONFIG = PFX_TLS + "keystorePassword";
+    public static final String KEYSTORE_PASSWORD_CONFIG = PFX_TLS + "truststorePassword";
+    public static final String TLS_TRUSTSTORE_ALGORITHM_CONFIG = PFX_TLS + "keystore.tlsAlgo";
+    public static final String TLS_KEYSTORE_ALGORITHM_CONFIG = PFX_TLS + "truststore.tlsAlgo";
+    public static final String TLS_ALGORITHM_CONFIG = PFX_TLS + "default.tlsAlgo";
 
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
@@ -520,6 +533,12 @@ public class Options {
     private final char[] password;
     private final char[] token;
     private final String inboxPrefix;
+    private final String tlsTruststoreAlgorithm;
+    private final char[] tlsKeystorePassword;
+    private final String tlsKeystoreAlgorithm;
+    private final char[] tlsTruststorePassword;
+    private final String tlsTruststorePath;
+    private final String tlsKeystorePath;
     private boolean useOldRequestStyle;
     private final int bufferSize;
     private final boolean noEcho;
@@ -582,11 +601,21 @@ public class Options {
         // ----------------------------------------------------------------------------------------------------
         private final List<URI> serverURIs = new ArrayList<>();
         private final List<String> unprocessedServers = new ArrayList<>();
+        private  boolean openTls;
+        private char[] tlsKeystorePassword;
+        private char[] tlsTruststorePassword;
+        private String tlsTruststoreAlgorithm;
+        private String tlsKeystoreAlgorithm;
+        private String tlsKeystorePath;
+        private String tlsTruststorePath;
+        private String tlsAlgorithm;
         private boolean noRandomize = false;
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
         private boolean verbose = false;
         private boolean pedantic = false;
-        private SSLContext sslContext = null;
+        //private SSLContext sslContext = null;
+
+        private boolean tls = false;
         private int maxControlLine = DEFAULT_MAX_CONTROL_LINE;
         private int maxReconnect = DEFAULT_MAX_RECONNECT;
         private Duration reconnectWait = DEFAULT_RECONNECT_WAIT;
@@ -622,6 +651,7 @@ public class Options {
         private ConnectionListener connectionListener = null;
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
         private ExecutorService executor;
+        private SSLContext sslContext;
 
         /**
          * Constructs a new Builder with the default values.
@@ -669,6 +699,53 @@ public class Options {
                 this.token = props.getProperty(PROP_TOKEN, null).toCharArray();
             }
 
+            if (props.containsKey(KEYSTORE_PATH_CONFIG)) {
+                this.tlsKeystorePath = props.getProperty(KEYSTORE_PATH_CONFIG, null);
+            } else {
+                this.tlsKeystorePath = null;
+            }
+
+            if (props.containsKey(TRUSTSTORE_PATH_CONFIG)) {
+                this.tlsTruststorePath = props.getProperty(TRUSTSTORE_PATH_CONFIG, null);
+            } else {
+                this.tlsTruststorePath = null;
+            }
+
+
+            if (props.containsKey(TLS_ALGORITHM_CONFIG)) {
+                this.tlsAlgorithm = props.getProperty(TLS_ALGORITHM_CONFIG, null);
+                if (tlsKeystoreAlgorithm == null ) this.tlsKeystoreAlgorithm = this.tlsAlgorithm;
+                if (tlsTruststoreAlgorithm == null ) this.tlsTruststoreAlgorithm = this.tlsAlgorithm;
+            } else {
+                this.tlsAlgorithm = null;
+            }
+
+
+
+            if (props.containsKey(TLS_KEYSTORE_ALGORITHM_CONFIG)) {
+                this.tlsKeystoreAlgorithm = props.getProperty(TLS_KEYSTORE_ALGORITHM_CONFIG, null);
+            } else {
+                this.tlsKeystoreAlgorithm = null;
+            }
+
+            if (props.containsKey(TLS_TRUSTSTORE_ALGORITHM_CONFIG)) {
+                this.tlsTruststoreAlgorithm = props.getProperty(TLS_TRUSTSTORE_ALGORITHM_CONFIG, null);
+            } else {
+                this.tlsTruststoreAlgorithm = null;
+            }
+
+            if (props.containsKey(TRUSTSTORE_PASSWORD_CONFIG)) {
+                this.tlsTruststorePassword = props.getProperty(TRUSTSTORE_PASSWORD_CONFIG, null).toCharArray();
+            } else {
+                this.tlsTruststorePassword = null;
+            }
+
+            if (props.containsKey(KEYSTORE_PASSWORD_CONFIG)) {
+                this.tlsKeystorePassword = props.getProperty(TRUSTSTORE_PASSWORD_CONFIG, null).toCharArray();
+            } else {
+                this.tlsKeystorePassword = null;
+            }
+
             if (props.containsKey(PROP_SERVERS)) {
                 String str = props.getProperty(PROP_SERVERS);
                 if (str.isEmpty()) {
@@ -686,27 +763,30 @@ public class Options {
             if (props.containsKey(PROP_SECURE)) {
                 boolean secure = Boolean.parseBoolean(props.getProperty(PROP_SECURE));
 
-                if (secure) {
-                    try {
-                        this.sslContext = SSLContext.getDefault();
-                    } catch (NoSuchAlgorithmException e) {
-                        this.sslContext = null;
-                        throw new IllegalArgumentException("Unable to retrieve default SSL context");
-                    }
-                }
+                this.tls = true;
+
+//                if (secure) {
+//                    try {
+//                        this.sslContext = SSLContext.getDefault();
+//                    } catch (NoSuchAlgorithmException e) {
+//                        this.sslContext = null;
+//                        throw new IllegalArgumentException("Unable to retrieve default SSL context");
+//                    }
+//                }
             }
 
             if (props.containsKey(PROP_OPENTLS)) {
-                boolean tls = Boolean.parseBoolean(props.getProperty(PROP_OPENTLS));
-
-                if (tls) {
-                    try {
-                        this.sslContext = SSLUtils.createOpenTLSContext();
-                    } catch (Exception e) {
-                        this.sslContext = null;
-                        throw new IllegalArgumentException("Unable to create open SSL context");
-                    }
-                }
+                this.tls = Boolean.parseBoolean(props.getProperty(PROP_OPENTLS));
+                this.openTls = tls;
+//
+//                if (tls) {
+//                    try {
+//                        this.sslContext = SSLUtils.createOpenTLSContext();
+//                    } catch (Exception e) {
+//                        this.sslContext = null;
+//                        throw new IllegalArgumentException("Unable to create open SSL context");
+//                    }
+//                }
             }
 
             if (props.containsKey(PROP_CONNECTION_NAME)) {
@@ -844,6 +924,42 @@ public class Options {
             }
             return instance;
         }
+        public Builder tlsKeystorePassword(char[] tlsKeystorePassword) {
+            this.tlsKeystorePassword = tlsKeystorePassword;
+            return this;
+        }
+        public Builder tlsTruststorePassword(char[] tlsTruststorePassword) {
+            this.tlsTruststorePassword = tlsTruststorePassword;
+            return this;
+        }
+
+        public Builder tlsTruststoreAlgorithm(String tlsTruststoreAlgorithm) {
+            this.tlsTruststoreAlgorithm = tlsTruststoreAlgorithm;
+            return this;
+        }
+
+        public Builder tlsKeystoreAlgorithm(String tlsKeystoreAlgorithm) {
+            this.tlsKeystoreAlgorithm = tlsKeystoreAlgorithm;
+            return this;
+        }
+
+        public Builder tlsKeystorePath(String tlsKeystorePath) {
+            this.tlsKeystorePath = tlsKeystorePath;
+            return this;
+        }
+
+        public Builder tlsTruststorePath(String tlsTruststorePath) {
+            this.tlsTruststorePath = tlsTruststorePath;
+            return this;
+        }
+
+        public Builder tlsAlgorithm(String tlsAlgorithm) {
+            this.tlsAlgorithm = tlsAlgorithm;
+
+            if (this.tlsTruststoreAlgorithm == null) this.tlsTruststoreAlgorithm = tlsAlgorithm;
+            if (this.tlsKeystoreAlgorithm == null) this.tlsKeystoreAlgorithm = tlsAlgorithm;
+            return this;
+        }
 
         // ----------------------------------------------------------------------------------------------------
         // BUILDER METHODS
@@ -858,6 +974,7 @@ public class Options {
         public Builder server(String serverURL) {
             return servers(serverURL.trim().split(","));
         }
+
 
         /**
          * Add an array of servers to the list of known servers.
@@ -1030,11 +1147,12 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder secure() throws NoSuchAlgorithmException, IllegalArgumentException {
-            this.sslContext = SSLContext.getDefault();
-
-            if(this.sslContext == null) {
-                throw new IllegalArgumentException("No Default SSL Context");
-            }
+//            this.sslContext = SSLContext.getDefault();
+//
+//            if(this.sslContext == null) {
+//                throw new IllegalArgumentException("No Default SSL Context");
+//            }
+            this.tls = true;
             return this;
         }
 
@@ -1056,7 +1174,7 @@ public class Options {
          * @param ctx the SSL Context to use for TLS connections
          * @return the Builder for chaining
          */
-        public Builder sslContext(SSLContext ctx) {
+        public Builder sslContext(final SSLContext ctx) {
             this.sslContext = ctx;
             return this;
         }
@@ -1441,18 +1559,24 @@ public class Options {
                 server(DEFAULT_URL);
             }
             else if (sslContext == null) {
-                for (URI serverURI : serverURIs) {
-                    if (TLS_PROTOCOL.equals(serverURI.getScheme())) {
-                        try {
-                            this.sslContext = SSLContext.getDefault();
-                        } catch (NoSuchAlgorithmException e) {
-                            throw new IllegalStateException("Unable to create default SSL context", e);
+
+                if (tls && tlsTruststorePath!= null || tlsKeystorePath != null) {
+                    final TrustManager[] trustManagers = TlsUtils.createTrustManagers(tlsTruststorePath, tlsTruststorePassword, null, tlsTruststoreAlgorithm);
+                    final KeyManager[] keyManagers = TlsUtils.createKeyManagers(tlsKeystorePath, tlsKeystorePassword, null, tlsKeystoreAlgorithm);
+                    this.sslContext = TlsUtils.createSSLContext(TlsUtils.DEFAULT_SSL_PROTOCOL, trustManagers, keyManagers);
+                } else {
+                    for (URI serverURI : serverURIs) {
+                        if (TLS_PROTOCOL.equals(serverURI.getScheme())) {
+                            try {
+                                this.sslContext = SSLContext.getDefault();
+                            } catch (NoSuchAlgorithmException e) {
+                                throw new IllegalStateException("Unable to create default SSL context", e);
+                            }
+                            break;
+                        } else if (OPENTLS_PROTOCOL.equals(serverURI.getScheme())) {
+                            this.sslContext = SSLUtils.createOpenTLSContext();
+                            break;
                         }
-                        break;
-                    }
-                    else if (OPENTLS_PROTOCOL.equals(serverURI.getScheme())) {
-                        this.sslContext = SSLUtils.createOpenTLSContext();
-                        break;
                     }
                 }
             }
@@ -1514,8 +1638,13 @@ public class Options {
         this.executor = b.executor;
 
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
-
         this.serverListProvider = b.serverListProvider;
+        this.tlsKeystoreAlgorithm = b.tlsKeystoreAlgorithm == null ? b.tlsAlgorithm : b.tlsKeystoreAlgorithm;
+        this.tlsTruststoreAlgorithm = b.tlsTruststoreAlgorithm == null ? b.tlsAlgorithm : b.tlsTruststoreAlgorithm;
+        this.tlsKeystorePassword =  b.tlsKeystorePassword;
+        this.tlsTruststorePassword =  b.tlsTruststorePassword;
+        this.tlsTruststorePath =  b.tlsTruststorePath;
+        this.tlsKeystorePath =  b.tlsKeystorePath;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -2025,5 +2154,30 @@ public class Options {
      */
     public void setOldRequestStyle(boolean value) {
         useOldRequestStyle = value;
+    }
+
+
+    public String tlsTruststoreAlgorithm() {
+        return tlsTruststoreAlgorithm;
+    }
+
+    public char[] tlsKeystorePassword() {
+        return tlsKeystorePassword;
+    }
+
+    public String tlsKeystoreAlgorithm() {
+        return tlsKeystoreAlgorithm;
+    }
+
+    public char[] tlsTruststorePassword() {
+        return tlsTruststorePassword;
+    }
+
+    public String tlsTruststorePath() {
+        return tlsTruststorePath;
+    }
+
+    public String tlsKeystorePath() {
+        return tlsKeystorePath;
     }
 }
