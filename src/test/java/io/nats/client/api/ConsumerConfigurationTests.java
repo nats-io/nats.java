@@ -21,7 +21,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 
 import static io.nats.client.api.ConsumerConfiguration.*;
-import static io.nats.client.support.NatsJetStreamClientError.JsConsumerNameDurableMatch;
+import static io.nats.client.support.NatsJetStreamClientError.JsConsumerNameDurableMismatch;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -182,7 +182,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertThrows(IllegalArgumentException.class,
             () ->ConsumerConfiguration.builder().backoff(DURATION_MIN_LONG - 1).build());
 
-        assertClientError(JsConsumerNameDurableMatch, () -> ConsumerConfiguration.builder().name(NAME).durable(DURABLE).build());
+        assertClientError(JsConsumerNameDurableMismatch, () -> ConsumerConfiguration.builder().name(NAME).durable(DURABLE).build());
     }
 
     private void validateDefault(ConsumerConfiguration cc) {

@@ -28,7 +28,7 @@ import java.util.regex.Matcher;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
-import static io.nats.client.support.NatsJetStreamClientError.JsConsumerNameDurableMatch;
+import static io.nats.client.support.NatsJetStreamClientError.JsConsumerNameDurableMismatch;
 import static io.nats.client.support.Validator.*;
 
 /**
@@ -1108,7 +1108,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return The consumer configuration.
          */
         public ConsumerConfiguration build() {
-            validateMustMatchIfBothSupplied(name, durable, JsConsumerNameDurableMatch);
+            validateMustMatchIfBothSupplied(name, durable, JsConsumerNameDurableMismatch);
             return new ConsumerConfiguration(this);
         }
 
