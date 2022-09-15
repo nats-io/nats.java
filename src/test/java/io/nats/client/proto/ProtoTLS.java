@@ -16,7 +16,7 @@ public class ProtoTLS {
 
             final Options.Builder builder = new Options.Builder();
             builder.server(DEFAULT_URL);
-            //builder.dataPortType(VertxDataPort.class.getCanonicalName());
+            builder.dataPortType(VertxDataPort.class.getCanonicalName());
             builder.connectionTimeout(Duration.ofSeconds(30));
             builder.tlsAlgorithm("SunX509");
             builder.tlsKeystorePassword("password".toCharArray());
