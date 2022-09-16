@@ -25,10 +25,12 @@ import static org.junit.jupiter.api.Assertions.*;
 public class JetStreamOptionsTests extends TestBase {
 
     @Test
-    public void testAffirmative() {
+    public void testBuilder() {
         JetStreamOptions jso = JetStreamOptions.defaultOptions();
         assertEquals(DEFAULT_API_PREFIX, jso.getPrefix());
         assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
+        assertFalse(jso.isPublishNoAck());
+        assertFalse(jso.optOut290ConsumerCreate());
 
         jso = JetStreamOptions.builder()
                 .prefix("pre")
@@ -37,6 +39,7 @@ public class JetStreamOptionsTests extends TestBase {
         assertEquals("pre.", jso.getPrefix());
         assertEquals(Duration.ofSeconds(42), jso.getRequestTimeout());
         assertFalse(jso.isPublishNoAck());
+        assertFalse(jso.optOut290ConsumerCreate());
 
         jso = JetStreamOptions.builder()
                 .prefix("pre.")
@@ -44,6 +47,13 @@ public class JetStreamOptionsTests extends TestBase {
                 .build();
         assertEquals("pre.", jso.getPrefix());
         assertTrue(jso.isPublishNoAck());
+        assertFalse(jso.optOut290ConsumerCreate());
+
+        jso = JetStreamOptions.builder().build();
+        assertFalse(jso.optOut290ConsumerCreate());
+
+        jso = JetStreamOptions.builder().optOut290ConsumerCreate().build();
+        assertTrue(jso.optOut290ConsumerCreate());
     }
 
     @Test

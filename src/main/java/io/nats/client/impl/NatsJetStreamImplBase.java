@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static io.nats.client.support.ApiConstants.SUBJECT;
-import static io.nats.client.support.NatsJetStreamClientError.JsConsumerCantUseNameBefore290;
+import static io.nats.client.support.NatsJetStreamClientError.JsConsumerCreate290NotAvailable;
 
 class NatsJetStreamImplBase implements NatsJetStreamConstants {
 
@@ -43,7 +43,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
 
     final NatsConnection conn;
     final JetStreamOptions jso;
-    final boolean server290orLater;
+    final boolean consumerCreate290Available;
 
     // ----------------------------------------------------------------------------------------------------
     // Create / Init
@@ -51,7 +51,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
     NatsJetStreamImplBase(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
         conn = connection;
         jso = JetStreamOptions.builder(jsOptions).build(); // builder handles null
-        server290orLater = conn.getInfo().isSameOrNewerThanVersion("2.9.0");
+        consumerCreate290Available = conn.getInfo().isSameOrNewerThanVersion("2.9.0") && !jso.optOut290ConsumerCreate();
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -65,8 +65,8 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
 
     ConsumerInfo _createConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
         String name = config.getName();
-        if (name != null && !server290orLater) {
-            throw JsConsumerCantUseNameBefore290.instance();
+        if (name != null && !consumerCreate290Available) {
+            throw JsConsumerCreate290NotAvailable.instance();
         }
 
         String durable = config.getDurable();
@@ -77,7 +77,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         if (consumerName == null) { // just use old template
             subj = String.format(JSAPI_CONSUMER_CREATE, streamName);
         }
-        else if (server290orLater) {
+        else if (consumerCreate290Available) {
             String fs = config.getFilterSubject();
             if (fs == null || fs.equals(">")) {
                 subj = String.format(JSAPI_CONSUMER_CREATE_V290, streamName, consumerName);
@@ -86,7 +86,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
                 subj = String.format(JSAPI_CONSUMER_CREATE_V290_W_FILTER, streamName, consumerName, fs);
             }
         }
-        else { // server is old and consumerName must be durable since name was checked for JsConsumerCantUseNameBefore290
+        else { // server is old and consumerName must be durable since name was checked for JsConsumerCreate290NotAvailable
             subj = String.format(JSAPI_DURABLE_CREATE, streamName, durable);
         }
 

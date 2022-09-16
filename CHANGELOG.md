@@ -1,5 +1,30 @@
 # Change Log
 
+## 2.16.0 Support Server v2.9.0 and Object Store Experimental
+
+This release is a re-release of 2.15.7 realizing that the v2.9.0 server support 
+should have bumped the minor version.
+
+#### JetStream Options
+* Ability to opt-out of using Server v2.9.0 consumer create api #728 @scottf
+
+#### JetStream / Management
+* Get Message Enhancement #696 @scottf
+* No Erase option on message delete #698 @scottf
+* Support v2.9.0 Get Direct Message feature #701 #703 @scottf
+* Support v2.9.0 Consumer Create feature #723 #725 @scottf
+
+#### Key Value
+* Fix bug to return null instead of entry on get of deleted or purged key #700 @scottf
+* Allow direct configuration for KV #718 #724 @scottf
+
+#### Object Store
+* Initial implementation, experimental. #705 #714 #720 @scottf
+
+#### Core
+* Static Memory Auth Handler #702 @scottf
+* Support v2.9.0 stream configuration republish #709 @scottf
+
 ## 2.15.7 Support Server v2.9.0 and Object Store Experimental
 
 #### JetStream / Management

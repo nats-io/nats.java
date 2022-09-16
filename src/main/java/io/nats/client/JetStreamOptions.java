@@ -32,18 +32,20 @@ public class JetStreamOptions {
     private final Duration requestTimeout;
     private final boolean publishNoAck;
     private final boolean defaultPrefix;
+    private final boolean optOut290ConsumerCreate;
 
-    private JetStreamOptions(String inJsPrefix, Duration requestTimeout, boolean publishNoAck) {
-        if (inJsPrefix == null) {
+    private JetStreamOptions(Builder b) {
+        if (b.jsPrefix == null) {
             defaultPrefix = true;
             this.jsPrefix = DEFAULT_API_PREFIX;
         }
         else {
             defaultPrefix = false;
-            this.jsPrefix = inJsPrefix;
+            this.jsPrefix = b.jsPrefix;
         }
-        this.requestTimeout = requestTimeout;
-        this.publishNoAck = publishNoAck;
+        this.requestTimeout = b.requestTimeout;
+        this.publishNoAck = b.publishNoAck;
+        this.optOut290ConsumerCreate = b.optOut290ConsumerCreate;
     }
 
     /**
@@ -80,6 +82,14 @@ public class JetStreamOptions {
     }
 
     /**
+     * Gets whether the opt-out of the server v2.9.0 consumer create api is set
+     * @return the flag
+     */
+    public boolean optOut290ConsumerCreate() {
+        return optOut290ConsumerCreate;
+    }
+
+    /**
      * Creates a builder for the publish options.
      * @return the builder.
      */
@@ -111,9 +121,9 @@ public class JetStreamOptions {
     public static class Builder {
 
         private String jsPrefix;
-        private String featurePrefix;
         private Duration requestTimeout;
         private boolean publishNoAck;
+        private boolean optOut290ConsumerCreate;
 
         public Builder() {}
 
@@ -177,12 +187,21 @@ public class JetStreamOptions {
         }
 
         /**
+         * Set opt-out of the server v2.9.0 consumer create api
+         * @return the builder
+         */
+        public Builder optOut290ConsumerCreate() {
+            this.optOut290ConsumerCreate = true;
+            return this;
+        }
+
+        /**
          * Builds the JetStream options.
          * @return JetStream options
          */
         public JetStreamOptions build() {
             this.requestTimeout = requestTimeout == null ? DEFAULT_TIMEOUT : requestTimeout;
-            return new JetStreamOptions(jsPrefix, requestTimeout, publishNoAck);
+            return new JetStreamOptions(this);
         }
     }
 }
