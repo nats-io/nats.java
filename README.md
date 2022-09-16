@@ -37,9 +37,9 @@ JetStreamOptions jso = JetStreamOptions.builder().optOut290ConsumerCreate().buil
 JetStream js = connection.jetStream(jso);
 JetStreamManagement jsm = connection.jetStreamManagement(jso);
 KeyValue kv = connection.keyValue("bucket", KeyValueOptions.builder(jso).build());
-KeyValueManagement kv = connection.keyValueManagement(KeyValueOptions.builder(jso).build());
-ObjectStore kv = connection.objectStore("bucket", ObjectStoreOptions.builder(jso).build());
-ObjectStoreManagement kv = connection.objectStoreManagement(ObjectStoreOptions.builder(jso).build());
+KeyValueManagement kvm = connection.keyValueManagement(KeyValueOptions.builder(jso).build());
+ObjectStore os = connection.objectStore("bucket", ObjectStoreOptions.builder(jso).build());
+ObjectStoreManagement osm = connection.objectStoreManagement(ObjectStoreOptions.builder(jso).build());
 ```
 
 ### SSL/TLS Performance
