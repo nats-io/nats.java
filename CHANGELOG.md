@@ -2,10 +2,9 @@
 
 ## 2.16.0 Support Server v2.9.0 and Object Store Experimental
 
-This release is a re-release of 2.15.7 realizing that the v2.9.0 server support 
-should have bumped the minor version.
+This release is a re-release of 2.15.7 with an additional opt-out and the minor version bump.
 
-#### JetStream Options
+#### JetStream Options Opt-Out
 * Ability to opt-out of using Server v2.9.0 consumer create api #728 @scottf
 
 #### JetStream / Management
