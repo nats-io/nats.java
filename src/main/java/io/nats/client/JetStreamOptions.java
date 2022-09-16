@@ -137,6 +137,7 @@ public class JetStreamOptions {
                 }
                 this.requestTimeout = jso.requestTimeout;
                 this.publishNoAck = jso.publishNoAck;
+                this.optOut290ConsumerCreate = jso.optOut290ConsumerCreate;
             }
         }
 
