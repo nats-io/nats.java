@@ -34,6 +34,14 @@ public class JetStreamOptionsTests extends TestBase {
         assertFalse(jso.isPublishNoAck());
         assertFalse(jso.isOptOut290ConsumerCreate());
 
+        // default copy
+        jso = JetStreamOptions.builder(jso).build();
+        assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
+        assertEquals(DEFAULT_API_PREFIX, jso.getPrefix());
+        assertTrue(jso.isDefaultPrefix());
+        assertFalse(jso.isPublishNoAck());
+        assertFalse(jso.isOptOut290ConsumerCreate());
+
         // affirmative
         jso = JetStreamOptions.builder()
             .prefix("pre")
@@ -47,12 +55,28 @@ public class JetStreamOptionsTests extends TestBase {
         assertTrue(jso.isPublishNoAck());
         assertTrue(jso.isOptOut290ConsumerCreate());
 
+        // affirmative copy
+        jso = JetStreamOptions.builder(jso).build();
+        assertEquals(Duration.ofSeconds(42), jso.getRequestTimeout());
+        assertEquals("pre.", jso.getPrefix());
+        assertFalse(jso.isDefaultPrefix());
+        assertTrue(jso.isPublishNoAck());
+        assertTrue(jso.isOptOut290ConsumerCreate());
+
         // variations / coverage
         jso = JetStreamOptions.builder()
             .prefix("pre.")
             .publishNoAck(false)
             .optOut290ConsumerCreate(false)
             .build();
+        assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
+        assertEquals("pre.", jso.getPrefix());
+        assertFalse(jso.isDefaultPrefix());
+        assertFalse(jso.isPublishNoAck());
+        assertFalse(jso.isOptOut290ConsumerCreate());
+
+        // variations / coverage copy
+        jso = JetStreamOptions.builder(jso).build();
         assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
         assertEquals("pre.", jso.getPrefix());
         assertFalse(jso.isDefaultPrefix());
