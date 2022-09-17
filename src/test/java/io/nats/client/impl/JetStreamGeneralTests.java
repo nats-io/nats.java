@@ -211,7 +211,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 assertEquals(name(2), ci.getConsumerConfiguration().getDurable());
 
                 // test opt out
-                JetStreamOptions jso = JetStreamOptions.builder().optOut290ConsumerCreate().build();
+                JetStreamOptions jso = JetStreamOptions.builder().optOut290ConsumerCreate(true).build();
                 JetStream jsOptOut = nc.jetStream(jso);
                 ConsumerConfiguration ccOptOut = builder().name(name(99)).build();
                 PushSubscribeOptions psoOptOut = PushSubscribeOptions.builder().configuration(ccOptOut).build();

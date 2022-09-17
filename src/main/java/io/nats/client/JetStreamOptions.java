@@ -85,7 +85,7 @@ public class JetStreamOptions {
      * Gets whether the opt-out of the server v2.9.0 consumer create api is set
      * @return the flag
      */
-    public boolean optOut290ConsumerCreate() {
+    public boolean isOptOut290ConsumerCreate() {
         return optOut290ConsumerCreate;
     }
 
@@ -188,11 +188,11 @@ public class JetStreamOptions {
         }
 
         /**
-         * Set opt-out of the server v2.9.0 consumer create api
+         * Set whether to opt-out of the server v2.9.0 consumer create api
          * @return the builder
          */
-        public Builder optOut290ConsumerCreate() {
-            this.optOut290ConsumerCreate = true;
+        public Builder optOut290ConsumerCreate(boolean optOut) {
+            this.optOut290ConsumerCreate = optOut;
             return this;
         }
 

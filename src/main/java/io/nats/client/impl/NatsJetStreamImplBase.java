@@ -51,7 +51,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
     NatsJetStreamImplBase(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
         conn = connection;
         jso = JetStreamOptions.builder(jsOptions).build(); // builder handles null
-        consumerCreate290Available = conn.getInfo().isSameOrNewerThanVersion("2.9.0") && !jso.optOut290ConsumerCreate();
+        consumerCreate290Available = conn.getInfo().isSameOrNewerThanVersion("2.9.0") && !jso.isOptOut290ConsumerCreate();
     }
 
     // ----------------------------------------------------------------------------------------------------

@@ -30,7 +30,7 @@ public class JetStreamOptionsTests extends TestBase {
         assertEquals(DEFAULT_API_PREFIX, jso.getPrefix());
         assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
         assertFalse(jso.isPublishNoAck());
-        assertFalse(jso.optOut290ConsumerCreate());
+        assertFalse(jso.isOptOut290ConsumerCreate());
 
         jso = JetStreamOptions.builder()
                 .prefix("pre")
@@ -39,7 +39,7 @@ public class JetStreamOptionsTests extends TestBase {
         assertEquals("pre.", jso.getPrefix());
         assertEquals(Duration.ofSeconds(42), jso.getRequestTimeout());
         assertFalse(jso.isPublishNoAck());
-        assertFalse(jso.optOut290ConsumerCreate());
+        assertFalse(jso.isOptOut290ConsumerCreate());
 
         jso = JetStreamOptions.builder()
                 .prefix("pre.")
@@ -47,13 +47,13 @@ public class JetStreamOptionsTests extends TestBase {
                 .build();
         assertEquals("pre.", jso.getPrefix());
         assertTrue(jso.isPublishNoAck());
-        assertFalse(jso.optOut290ConsumerCreate());
+        assertFalse(jso.isOptOut290ConsumerCreate());
 
         jso = JetStreamOptions.builder().build();
-        assertFalse(jso.optOut290ConsumerCreate());
+        assertFalse(jso.isOptOut290ConsumerCreate());
 
-        jso = JetStreamOptions.builder().optOut290ConsumerCreate().build();
-        assertTrue(jso.optOut290ConsumerCreate());
+        jso = JetStreamOptions.builder().optOut290ConsumerCreate(true).build();
+        assertTrue(jso.isOptOut290ConsumerCreate());
     }
 
     @Test

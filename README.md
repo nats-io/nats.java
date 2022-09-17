@@ -586,6 +586,7 @@ Subscription creation has many checks to make sure that a valid, operable subscr
 | JsSubNoMatchingStreamForSubject              | SUB   | 90007 | No matching streams for subject.                                                                    |
 | JsSubConsumerAlreadyConfiguredAsPush         | SUB   | 90008 | Consumer is already configured as a push consumer.                                                  |
 | JsSubConsumerAlreadyConfiguredAsPull         | SUB   | 90009 | Consumer is already configured as a pull consumer.                                                  |
+| _removed_                                    | SUB   | 90010 |                                                                                                     |
 | JsSubSubjectDoesNotMatchFilter               | SUB   | 90011 | Subject does not match consumer configuration filter.                                               |
 | JsSubConsumerAlreadyBound                    | SUB   | 90012 | Consumer is already bound to a subscription.                                                        |
 | JsSubExistingConsumerNotQueue                | SUB   | 90013 | Existing consumer is not configured as a queue / deliver group.                                     |
