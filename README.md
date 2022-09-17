@@ -32,7 +32,7 @@ The developer can opt out of using this feature by using a custom JetStreamOptio
 JetStream, Key Value and Object Store regular and management contexts.
 
 ```java
-JetStreamOptions jso = JetStreamOptions.builder().optOut290ConsumerCreate().build();
+JetStreamOptions jso = JetStreamOptions.builder().optOut290ConsumerCreate(true).build();
 
 JetStream js = connection.jetStream(jso);
 JetStreamManagement jsm = connection.jetStreamManagement(jso);
