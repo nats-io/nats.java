@@ -188,7 +188,7 @@ public class JetStreamOptions {
         }
 
         /**
-         * Set whether to opt-out of the server v2.9.0 consumer create api
+         * Set whether to opt-out of the server v2.9.0 consumer create api. Default is false (opt-in)
          * @return the builder
          */
         public Builder optOut290ConsumerCreate(boolean optOut) {
