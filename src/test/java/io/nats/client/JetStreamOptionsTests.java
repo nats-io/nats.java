@@ -26,34 +26,38 @@ public class JetStreamOptionsTests extends TestBase {
 
     @Test
     public void testBuilder() {
+        // default
         JetStreamOptions jso = JetStreamOptions.defaultOptions();
-        assertEquals(DEFAULT_API_PREFIX, jso.getPrefix());
         assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
+        assertEquals(DEFAULT_API_PREFIX, jso.getPrefix());
+        assertTrue(jso.isDefaultPrefix());
         assertFalse(jso.isPublishNoAck());
         assertFalse(jso.isOptOut290ConsumerCreate());
 
+        // affirmative
         jso = JetStreamOptions.builder()
-                .prefix("pre")
-                .requestTimeout(Duration.ofSeconds(42))
-                .build();
-        assertEquals("pre.", jso.getPrefix());
+            .prefix("pre")
+            .requestTimeout(Duration.ofSeconds(42))
+            .publishNoAck(true)
+            .optOut290ConsumerCreate(true)
+            .build();
         assertEquals(Duration.ofSeconds(42), jso.getRequestTimeout());
+        assertEquals("pre.", jso.getPrefix());
+        assertFalse(jso.isDefaultPrefix());
+        assertTrue(jso.isPublishNoAck());
+        assertTrue(jso.isOptOut290ConsumerCreate());
+
+        // variations / coverage
+        jso = JetStreamOptions.builder()
+            .prefix("pre.")
+            .publishNoAck(false)
+            .optOut290ConsumerCreate(false)
+            .build();
+        assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
+        assertEquals("pre.", jso.getPrefix());
+        assertFalse(jso.isDefaultPrefix());
         assertFalse(jso.isPublishNoAck());
         assertFalse(jso.isOptOut290ConsumerCreate());
-
-        jso = JetStreamOptions.builder()
-                .prefix("pre.")
-                .publishNoAck(true)
-                .build();
-        assertEquals("pre.", jso.getPrefix());
-        assertTrue(jso.isPublishNoAck());
-        assertFalse(jso.isOptOut290ConsumerCreate());
-
-        jso = JetStreamOptions.builder().build();
-        assertFalse(jso.isOptOut290ConsumerCreate());
-
-        jso = JetStreamOptions.builder().optOut290ConsumerCreate(true).build();
-        assertTrue(jso.isOptOut290ConsumerCreate());
     }
 
     @Test

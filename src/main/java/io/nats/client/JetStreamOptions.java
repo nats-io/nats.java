@@ -66,7 +66,7 @@ public class JetStreamOptions {
     }
 
     /**
-     * Returns true if the prefix for this options is the default prefix.
+     * Returns true if the prefix for the options is the default prefix.
      * @return the true for default prefix.
      */
     public boolean isDefaultPrefix() {
