@@ -24,11 +24,29 @@ Version 2.5.0 adds some back pressure to publish calls to alleviate issues when 
 
 Previous versions are still available in the repo.
 
+### Version 2.16.0 Consumer Create
+
+This release by default will use a new JetStream consumer create API when interacting with nats-server version 2.9.0 or higher. 
+This changes the subjects used by the client to create consumers, which might in some cases require changes in access and import/export configuration.
+The developer can opt out of using this feature by using a custom JetStreamOptions and using it when creating
+JetStream, Key Value and Object Store regular and management contexts.
+
+```java
+JetStreamOptions jso = JetStreamOptions.builder().optOut290ConsumerCreate(true).build();
+
+JetStream js = connection.jetStream(jso);
+JetStreamManagement jsm = connection.jetStreamManagement(jso);
+KeyValue kv = connection.keyValue("bucket", KeyValueOptions.builder(jso).build());
+KeyValueManagement kvm = connection.keyValueManagement(KeyValueOptions.builder(jso).build());
+ObjectStore os = connection.objectStore("bucket", ObjectStoreOptions.builder(jso).build());
+ObjectStoreManagement osm = connection.objectStoreManagement(ObjectStoreOptions.builder(jso).build());
+```
+
 ### SSL/TLS Performance
 
 After recent tests we realized that TLS performance is lower than we would like. After researching the problem and possible solutions we came to a few conclusions:
 
-* TLS performance for the native JDK has not be historically great
+* TLS performance for the native JDK has not been historically great
 * TLS performance is better in JDK12 than JDK8
 * A small fix to the library in 2.5.1 allows the use of https://github.com/google/conscrypt and https://github.com/wildfly/wildfly-openssl, conscrypt provides the best performance in our tests
 * TLS still comes at a price (1gb/s vs 4gb/s in some tests), but using the JNI libraries can result in a 10x boost in our testing
@@ -66,9 +84,9 @@ The java-nats client is provided in a single jar file, with a single external de
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.15.7/jnats-2.15.7.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.15.7/jnats-2.15.7.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.0/jnats-2.16.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.0/jnats-2.16.0.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.15.7/jnats-2.15.7-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.15.7/jnats-2.15.7-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.0/jnats-2.16.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.0/jnats-2.16.0-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
@@ -78,7 +96,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.15.7'
+    implementation 'io.nats:jnats:2.16.0'
 }
 ```
 
@@ -104,7 +122,7 @@ repositories {
 }
 
 dependencies {
-   implementation 'io.nats:jnats:2.15.7-SNAPSHOT'
+   implementation 'io.nats:jnats:2.16.0-SNAPSHOT'
 }
 ```
 
@@ -116,7 +134,7 @@ The NATS client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.15.7</version>
+    <version>2.16.0</version>
 </dependency>
 ```
 
@@ -150,7 +168,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.15.7-SNAPSHOT</version>
+    <version>2.16.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -584,10 +602,10 @@ Subscription creation has many checks to make sure that a valid, operable subscr
 | OsObjectAlreadyExists                        | OS    | 90203 | An object with that name already exists.                                                            |
 | OsCantLinkToLink                             | OS    | 90204 | A link cannot link to another link.                                                                 |
 | OsGetDigestMismatch                          | OS    | 90205 | Digest does not match meta data.                                                                    |
-| OsGetChunksMismatch                          | OS    | 90206 | Number of chunks ddoes not match meta data.                                                         |
+| OsGetChunksMismatch                          | OS    | 90206 | Number of chunks does not match meta data.                                                          |
 | OsGetSizeMismatch                            | OS    | 90207 | Total size does not match meta data.                                                                |
 | OsGetLinkToBucket                            | OS    | 90208 | Cannot get object, it is a link to a bucket.                                                        |
-| JsConsumerCantUseNameBefore290               | CON   | 90301 | Name field not valid against pre v2.9.0 servers.                                                    |
+| JsConsumerCreate290NotAvailable              | CON   | 90301 | Name field not valid when v2.9.0 consumer create api is not available.                              |
 | JsConsumerNameDurableMismatch                | CON   | 90302 | Name must match durable if both are supplied.                                                       |
 
 ### Message Acknowledgements
