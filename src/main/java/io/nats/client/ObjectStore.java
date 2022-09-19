@@ -97,7 +97,7 @@ public interface ObjectStore {
     ObjectInfo get(String objectName, OutputStream outputStream) throws IOException, JetStreamApiException, InterruptedException, NoSuchAlgorithmException;
 
     /**
-     * Get the info for an object if the object exists or did exist and is now deleted.
+     * Get the info for an object if the object exists / is not deleted.
      * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @param objectName The name of the object
      * @return the ObjectInfo for the object name or throw an exception if it does not exist.
@@ -105,6 +105,17 @@ public interface ObjectStore {
      * @throws JetStreamApiException the request had an error related to the data
      */
     ObjectInfo getInfo(String objectName) throws IOException, JetStreamApiException;
+
+    /**
+     * Get the info for an object if the object exists or optionally deleted info.
+     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
+     * @param objectName The name of the object
+     * @param includingDeleted whether to return info for deleted objects
+     * @return the ObjectInfo for the object name or throw an exception if it does not exist.
+     * @throws IOException covers various communication issues with the NATS server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    ObjectInfo getInfo(String objectName, boolean includingDeleted) throws IOException, JetStreamApiException;
 
     /**
      * Update the metadata of name, description or headers. All other changes are ignored.

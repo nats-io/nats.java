@@ -194,8 +194,8 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
      */
     @Override
     public ObjectInfo get(String objectName, OutputStream out) throws IOException, JetStreamApiException, InterruptedException, NoSuchAlgorithmException {
-        ObjectInfo oi = getInfo(objectName);
-        if (oi == null || oi.isDeleted()) {
+        ObjectInfo oi = getInfo(objectName, false);
+        if (oi == null) {
             throw OsObjectNotFound.instance();
         }
 
@@ -270,7 +270,24 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
     @Override
     public ObjectInfo getInfo(String objectName) throws IOException, JetStreamApiException {
         MessageInfo mi = _getLast(rawMetaSubject(objectName));
-        return mi == null ? null : new ObjectInfo(mi);
+        if (mi == null) {
+            return null;
+        }
+        ObjectInfo info = new ObjectInfo(mi);
+        return info.isDeleted() ? null : info;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectInfo getInfo(String objectName, boolean includingDeleted) throws IOException, JetStreamApiException {
+        MessageInfo mi = _getLast(rawMetaSubject(objectName));
+        if (mi == null) {
+            return null;
+        }
+        ObjectInfo info = new ObjectInfo(mi);
+        return includingDeleted || !info.isDeleted() ? info : null;
     }
 
     /**
@@ -282,7 +299,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         Validator.validateNotNull(meta, "ObjectMeta");
         Validator.validateNotNull(meta.getObjectName(), "ObjectMeta name");
 
-        ObjectInfo currentInfo = getInfo(objectName);
+        ObjectInfo currentInfo = getInfo(objectName, true);
         if (currentInfo == null) {
             throw OsObjectNotFound.instance();
         }
@@ -292,8 +309,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
 
         boolean nameChange = !objectName.equals(meta.getObjectName());
         if (nameChange) {
-            ObjectInfo infoForNewName = getInfo(meta.getObjectName());
-            if (infoForNewName != null && !infoForNewName.isDeleted()) {
+            if (getInfo(meta.getObjectName(), false) != null) {
                 throw OsObjectAlreadyExists.instance();
             }
         }
@@ -317,7 +333,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
      */
     @Override
     public ObjectInfo delete(String objectName) throws IOException, JetStreamApiException {
-        ObjectInfo info = getInfo(objectName);
+        ObjectInfo info = getInfo(objectName, true);
         if (info == null) {
             throw OsObjectNotFound.instance();
         }
@@ -354,8 +370,8 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             throw OsCantLinkToLink.instance();
         }
 
-        ObjectInfo info = getInfo(objectName);
-        if (info != null && !info.isDeleted() && !info.isLink()) {
+        ObjectInfo info = getInfo(objectName, false);
+        if (info != null && !info.isLink()) {
             throw OsObjectAlreadyExists.instance();
         }
 
@@ -373,8 +389,8 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         Validator.validateNotNull(objectName, "object name");
         Validator.validateNotNull(toStore, "Link-To ObjectStore");
 
-        ObjectInfo info = getInfo(objectName);
-        if (info != null && !info.isDeleted() && !info.isLink()) {
+        ObjectInfo info = getInfo(objectName, false);
+        if (info != null && !info.isLink()) {
             throw OsObjectAlreadyExists.instance();
         }
 
