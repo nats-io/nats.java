@@ -107,7 +107,7 @@ public interface ObjectStore {
     ObjectInfo getInfo(String objectName) throws IOException, JetStreamApiException;
 
     /**
-     * Get the info for an object if the object exists or optionally deleted info.
+     * Get the info for an object if the object exists, optionally including deleted.
      * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @param objectName The name of the object
      * @param includingDeleted whether to return info for deleted objects

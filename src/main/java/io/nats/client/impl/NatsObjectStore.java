@@ -269,12 +269,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
      */
     @Override
     public ObjectInfo getInfo(String objectName) throws IOException, JetStreamApiException {
-        MessageInfo mi = _getLast(rawMetaSubject(objectName));
-        if (mi == null) {
-            return null;
-        }
-        ObjectInfo info = new ObjectInfo(mi);
-        return info.isDeleted() ? null : info;
+        return getInfo(objectName, false);
     }
 
     /**
