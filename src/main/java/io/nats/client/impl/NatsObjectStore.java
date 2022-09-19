@@ -106,6 +106,9 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         Validator.validateNotNull(meta, "ObjectMeta");
         Validator.validateNotNull(meta.getObjectName(), "ObjectMeta name");
         Validator.validateNotNull(inputStream, "InputStream");
+        if (meta.getObjectMetaOptions().getLink() != null) {
+            throw OsLinkNotAllowOnPut.instance();
+        }
 
         String nuid = NUID.nextGlobal();
         String chunkSubject = pubSubChunkSubject(nuid);

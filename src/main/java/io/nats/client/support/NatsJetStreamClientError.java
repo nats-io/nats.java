@@ -60,10 +60,10 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError OsGetChunksMismatch = new NatsJetStreamClientError(OS, 90206, "Number of chunks does not match meta data.");
     public static final NatsJetStreamClientError OsGetSizeMismatch = new NatsJetStreamClientError(OS, 90207, "Total size does not match meta data.");
     public static final NatsJetStreamClientError OsGetLinkToBucket = new NatsJetStreamClientError(OS, 90208, "Cannot get object, it is a link to a bucket.");
+    public static final NatsJetStreamClientError OsLinkNotAllowOnPut = new NatsJetStreamClientError(OS, 90209, "Link cannot be set when putting the object in bucket.");
 
     public static final NatsJetStreamClientError JsConsumerCreate290NotAvailable = new NatsJetStreamClientError(CON, 90301, "Name field not valid when v2.9.0 consumer create api is not available.");
     public static final NatsJetStreamClientError JsConsumerNameDurableMismatch = new NatsJetStreamClientError(CON, 90302, "Name must match durable if both are supplied.");
-
 
     @Deprecated // Fixed spelling error
     public static final NatsJetStreamClientError JsSubFcHbHbNotValidQueue = new NatsJetStreamClientError(SUB, 90006, "Flow Control and/or heartbeat is not valid in queue mode.");

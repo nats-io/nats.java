@@ -364,6 +364,9 @@ public class ObjectStoreTests extends JetStreamTestBase {
             assertEquals(info12, crossInfo12);
             assertEquals(2, baos.size());
             assertEquals("12", baos.toString());
+
+            ObjectMeta linkInPut = ObjectMeta.builder("linkInPut").link(ObjectLink.object("na", "na")).build();
+            assertClientError(OsLinkNotAllowOnPut, () -> os2.put(linkInPut, new ByteArrayInputStream("na".getBytes())));
         });
     }
 
