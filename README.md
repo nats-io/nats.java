@@ -605,6 +605,7 @@ Subscription creation has many checks to make sure that a valid, operable subscr
 | OsGetChunksMismatch                          | OS    | 90206 | Number of chunks does not match meta data.                                                          |
 | OsGetSizeMismatch                            | OS    | 90207 | Total size does not match meta data.                                                                |
 | OsGetLinkToBucket                            | OS    | 90208 | Cannot get object, it is a link to a bucket.                                                        |
+| OsLinkNotAllowOnPut                          | OS    | 90209 | Link cannot be set when putting the object in bucket.                                               |
 | JsConsumerCreate290NotAvailable              | CON   | 90301 | Name field not valid when v2.9.0 consumer create api is not available.                              |
 | JsConsumerNameDurableMismatch                | CON   | 90302 | Name must match durable if both are supplied.                                                       |
 
