@@ -350,8 +350,10 @@ public class ObjectStoreTests extends JetStreamTestBase {
             ObjectInfo targetWillBeDeleted = os2.addLink("targetWillBeDeleted", info21);
             validateLink(targetWillBeDeleted, "targetWillBeDeleted", info21, null);
             os2.delete(info21.getObjectName());
-            ObjectInfo oiDeleted = os2.getInfo(info21.getObjectName());
-            assertTrue(oiDeleted.isDeleted()); // object is deleted
+            ObjectInfo oiDeleted = os2.getInfo(info21.getObjectName(), true);
+            assertTrue(oiDeleted.isDeleted()); // object is deleted but includingDeleted = true
+            assertNull(os2.getInfo(info21.getObjectName())); // does includingDeleted = false
+            assertNull(os2.getInfo(info21.getObjectName(), false)); // explicit includingDeleted = false
             assertClientError(OsObjectIsDeleted, () -> os2.addLink("willException", oiDeleted));
             ObjectInfo oiLink = os2.getInfo("targetWillBeDeleted");
             assertNotNull(oiLink); // link is still there but link target is deleted
@@ -364,6 +366,9 @@ public class ObjectStoreTests extends JetStreamTestBase {
             assertEquals(info12, crossInfo12);
             assertEquals(2, baos.size());
             assertEquals("12", baos.toString());
+
+            ObjectMeta linkInPut = ObjectMeta.builder("linkInPut").link(ObjectLink.object("na", "na")).build();
+            assertClientError(OsLinkNotAllowOnPut, () -> os2.put(linkInPut, new ByteArrayInputStream("na".getBytes())));
         });
     }
 
@@ -389,7 +394,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testObjectList() throws Exception {
+    public void testList() throws Exception {
         runInJsServer(nc -> {
             ObjectStoreManagement osm = nc.objectStoreManagement();
             osm.create(ObjectStoreConfiguration.builder(BUCKET).storageType(StorageType.Memory).build());
