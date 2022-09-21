@@ -34,7 +34,7 @@ import static io.nats.client.support.Validator.*;
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and
  * if necessary the server.
- * Options are created using a PublishOptions.Builder.
+ * Options are created using a ConsumerConfiguration.Builder.
  */
 public class ConsumerConfiguration implements JsonSerializable {
     @Deprecated
