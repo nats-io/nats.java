@@ -24,7 +24,7 @@ public class KeyValueOptions extends FeatureOptions {
     }
 
     /**
-     * Creates a builder for the publish options.
+     * Creates a builder for the options.
      * @return the builder.
      */
     public static Builder builder() {
