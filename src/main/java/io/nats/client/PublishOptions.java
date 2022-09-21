@@ -123,7 +123,7 @@ public class PublishOptions {
     }
 
     /**
-     * Creates a builder for the publish options.
+     * Creates a builder for the options.
      * @return the builder.s
      */
     public static Builder builder() {

@@ -560,7 +560,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
-     * Creates a builder for the publish options.
+     * Creates a builder for the options.
      * @return a publish options builder
      */
     public static Builder builder() {
@@ -568,7 +568,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
-     * Creates a builder for the publish options.
+     * Creates a builder for the options.
      * @param cc the consumer configuration
      * @return a publish options builder
      */
