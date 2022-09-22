@@ -219,12 +219,14 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     PullMessageManagerFactory PULL_MESSAGE_MANAGER_FACTORY = PullMessageManager::new;
 
     JetStreamSubscription createSubscription(String subject,
-                                                 String queueName,
-                                                 NatsDispatcher dispatcher,
-                                                 MessageHandler userHandler,
-                                                 boolean isAutoAck,
-                                                 PushSubscribeOptions pushSubscribeOptions,
-                                                 PullSubscribeOptions pullSubscribeOptions
+                                             String queueName,
+                                             NatsDispatcher dispatcher,
+                                             MessageHandler userHandler,
+                                             boolean isAutoAck,
+                                             PushSubscribeOptions pushSubscribeOptions,
+                                             PullSubscribeOptions pullSubscribeOptions,
+                                             PushMessageManagerFactory pushMmFactory,
+                                             PullMessageManagerFactory pullMmFactory
     ) throws IOException, JetStreamApiException {
 
         // 1. Prepare for all the validation
@@ -300,7 +302,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 ConsumerConfigurationComparer userCCC = new ConsumerConfigurationComparer(userCC);
                 List<String> changes = userCCC.getChanges(serverCC);
                 if (changes.size() > 0) {
-                    throw JsSubExistingConsumerCannotBeModified.instance("Changed fields: " + changes.toString());
+                    throw JsSubExistingConsumerCannotBeModified.instance("Changed fields: " + changes);
                 }
 
                 // deliver subject must be null/empty for pull, defined for push
@@ -379,16 +381,22 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         // 6. create the subscription. lambda needs final or effectively final vars
         NatsJetStreamSubscription sub;
+        final MessageManager[] managers;
+        final NatsSubscriptionFactory factory;
         if (isPullMode) {
-            final MessageManager[] managers = new MessageManager[] { PULL_MESSAGE_MANAGER_FACTORY.createPullMessageManager() };
-            final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
-                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, this, fnlStream, settledConsumerName, managers);
-            sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
+            if (pullMmFactory == null) {
+                pullMmFactory = PULL_MESSAGE_MANAGER_FACTORY;
+            }
+            managers = new MessageManager[] { pullMmFactory.createPullMessageManager() };
+            factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
+                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, dispatcher, this, fnlStream, settledConsumerName, managers);
         }
         else {
+            if (pushMmFactory == null) {
+                pushMmFactory = PUSH_MESSAGE_MANAGER_FACTORY;
+            }
             final MessageManager pushMessageManager =
-                PUSH_MESSAGE_MANAGER_FACTORY.createPushMessageManager(conn, so, settledServerCC, qgroup != null, dispatcher == null);
-            final MessageManager[] managers;
+                pushMmFactory.createPushMessageManager(conn, so, settledServerCC, qgroup != null, dispatcher == null);
             if (so.isOrdered()) {
                 managers = new MessageManager[3];
                 managers[0] = new SidCheckManager();
@@ -400,17 +408,16 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 managers[0] = pushMessageManager;
             }
 
-            final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
+            factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
                 -> new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,
                 this, fnlStream, settledConsumerName, managers);
-
-            if (dispatcher == null) {
-                sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
-            }
-            else {
-                AsyncMessageHandler handler = new AsyncMessageHandler(userHandler, isAutoAck, settledServerCC, managers);
-                sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(fnlInboxDeliver, qgroup, handler, factory);
-            }
+        }
+        if (dispatcher == null) {
+            sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
+        }
+        else {
+            AsyncMessageHandler handler = new AsyncMessageHandler(userHandler, isAutoAck, settledServerCC, managers);
+            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(fnlInboxDeliver, qgroup, handler, factory);
         }
 
         // 7. The consumer might need to be created, do it here
@@ -533,7 +540,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     @Override
     public JetStreamSubscription subscribe(String subject) throws IOException, JetStreamApiException {
         validateSubject(subject, true);
-        return createSubscription(subject, null, null, null, false, null, null);
+        return createSubscription(subject, null, null, null, false, null, null, null, null);
     }
 
     /**
@@ -542,7 +549,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     @Override
     public JetStreamSubscription subscribe(String subject, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         validateSubject(subject, isSubjectRequired(options));
-        return createSubscription(subject, null, null, null, false, options, null);
+        return createSubscription(subject, null, null, null, false, options, null, null, null);
     }
 
     /**
@@ -552,7 +559,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     public JetStreamSubscription subscribe(String subject, String queue, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         validateSubject(subject, isSubjectRequired(options));
         queue = emptyAsNull(validateQueueName(queue, false));
-        return createSubscription(subject, queue, null, null, false, options, null);
+        return createSubscription(subject, queue, null, null, false, options, null, null, null);
     }
 
     /**
@@ -563,7 +570,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         validateSubject(subject, true);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
-        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, null, null);
+        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, null, null, null, null);
     }
 
     /**
@@ -574,7 +581,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         validateSubject(subject, isSubjectRequired(options));
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
-        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, options, null);
+        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, options, null, null, null);
     }
 
     /**
@@ -586,7 +593,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         queue = emptyAsNull(validateQueueName(queue, false));
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
-        return createSubscription(subject, queue, (NatsDispatcher) dispatcher, handler, autoAck, options, null);
+        return createSubscription(subject, queue, (NatsDispatcher) dispatcher, handler, autoAck, options, null, null, null);
     }
 
     /**
@@ -596,7 +603,17 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     public JetStreamSubscription subscribe(String subject, PullSubscribeOptions options) throws IOException, JetStreamApiException {
         validateNotNull(options, "Pull Subscribe Options");
         validateSubject(subject, isSubjectRequired(options));
-        return createSubscription(subject, null, null, null, false, null, options);
+        return createSubscription(subject, null, null, null, false, null, options, null, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, PullSubscribeOptions options) throws IOException, JetStreamApiException {
+        validateNotNull(options, "Pull Subscribe Options");
+        validateSubject(subject, isSubjectRequired(options));
+        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, false, null, options, null, null);
     }
 
     private boolean isSubjectRequired(SubscribeOptions options) {

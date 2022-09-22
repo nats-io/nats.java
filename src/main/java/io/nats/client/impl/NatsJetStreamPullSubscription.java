@@ -26,10 +26,11 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
     NatsJetStreamPullSubscription(String sid, String subject,
                                   NatsConnection connection,
+                                  NatsDispatcher dispatcher,
                                   NatsJetStream js,
                                   String stream, String consumer,
                                   MessageManager[] managers) {
-        super(sid, subject, null, connection, null, js, stream, consumer, managers);
+        super(sid, subject, null, connection, dispatcher, js, stream, consumer, managers);
     }
 
     @Override
