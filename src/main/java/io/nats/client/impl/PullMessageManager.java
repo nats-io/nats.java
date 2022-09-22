@@ -20,6 +20,18 @@ import java.util.Arrays;
 import java.util.List;
 
 class PullMessageManager extends MessageManager {
+    /*
+        Known Pull Statuses
+        -------------------------------------------
+        409 Consumer is push based
+        409 Exceeded MaxRequestBatch of %d
+        409 Exceeded MaxRequestExpires of %v
+        409 Exceeded MaxRequestMaxBytes of %v
+        409 Message Size Exceeds MaxBytes
+        409 Exceeded MaxWaiting
+        404 No Messages
+        408 Request Timeout
+    */
 
     private static final List<Integer> MANAGED_STATUS_CODES = Arrays.asList(404, 408);
 
