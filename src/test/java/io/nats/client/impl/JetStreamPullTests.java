@@ -553,12 +553,10 @@ public class JetStreamPullTests extends JetStreamTestBase {
             Message m = sub.nextMessage(1000);
             assertNotNull(m);
             assertEquals("WAIT1", new String(m.getData()));
-            System.out.println(m);
 
             m = sub.nextMessage(1000);
             assertNotNull(m);
             assertEquals("WAIT2", new String(m.getData()));
-            System.out.println(m);
 
             sleep(2000);
 
@@ -567,13 +565,11 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertNotNull(m);
             assertEquals("WAIT1", new String(m.getData()));
             m.ack();
-            System.out.println(m);
 
             m = sub.nextMessage(1000);
             assertNotNull(m);
             assertEquals("WAIT2", new String(m.getData()));
             m.ack();
-            System.out.println(m);
 
             sub.pull(2);
             m = sub.nextMessage(1000);
@@ -670,21 +666,48 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testMaxPullRequests() throws Exception {
-        runInJsServer(true, nc -> {
+    public void testPull409s() throws Exception {
+        runInJsServer(nc -> {
             createDefaultTestStream(nc);
             JetStream js = nc.jetStream();
-            ((NatsJetStream)js).PULL_MESSAGE_MANAGER_FACTORY = NoopMessageManager::new;
 
-            PullSubscribeOptions plso = ConsumerConfiguration.builder().maxPullWaiting(1).buildPullSubscribeOptions();
-            JetStreamSubscription sub = js.subscribe(SUBJECT, plso);
-            js.publish(SUBJECT, new byte[0]);
+            PullSubscribeOptions opts = ConsumerConfiguration.builder()
+                .maxPullWaiting(1)
+                .maxBatch(1)
+                .maxExpires(1000)
+                .maxBytes(50)
+                .buildPullSubscribeOptions();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, opts);
             sub.pull(1);
             sub.pull(1);
-            sub.pull(1);
-            System.out.println(sub.nextMessage(1000));
-            System.out.println(sub.nextMessage(1000));
-            System.out.println(sub.nextMessage(1000));
+            assertStatusException(sub, "Exceeded MaxWaiting");
+
+            sub = js.subscribe(SUBJECT, opts);
+            sub.pull(2);
+            assertStatusException(sub, "Exceeded MaxRequestBatch");
+
+            sub = js.subscribe(SUBJECT, opts);
+            sub.pullExpiresIn(1, 2000);
+            assertStatusException(sub, "Exceeded MaxRequestExpires");
+
+            sub = js.subscribe(SUBJECT, opts);
+            sub.pull(PullRequestOptions.builder(1)
+                .maxBytes(500)
+                .build());
+            assertStatusException(sub, "Exceeded MaxRequestMaxBytes");
+
+            js.publish(SUBJECT, new byte[100]);
+            sub = js.subscribe(SUBJECT, opts);
+            sub.pull(PullRequestOptions.builder(1)
+                .maxBytes(50)
+                .build());
+            assertStatusException(sub, "Message Size Exceeds MaxBytes");
         });
+    }
+
+    private static void assertStatusException(JetStreamSubscription sub, String errMsg) {
+        JetStreamStatusException e = assertThrows(JetStreamStatusException.class, () -> sub.nextMessage(1000));
+        assertTrue(e.getMessage().contains(errMsg));
+        sub.unsubscribe();
     }
 }

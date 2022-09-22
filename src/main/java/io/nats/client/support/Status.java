@@ -17,6 +17,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Status {
+    /*
+        Known Statuses
+        -------------------------------------------
+        409 Consumer is push based
+        409 Exceeded MaxRequestBatch of %d
+        409 Exceeded MaxRequestExpires of %v
+        409 Exceeded MaxRequestMaxBytes of %v
+        409 Message Size Exceeds MaxBytes
+        409 Exceeded MaxWaiting
+        404 No Messages
+        408 Request Timeout
+    */
 
     public static final String FLOW_CONTROL_TEXT = "FlowControl Request";
     public static final String HEARTBEAT_TEXT = "Idle Heartbeat";
@@ -36,7 +48,18 @@ public class Status {
 
     public Status(int code, String message) {
         this.code = code;
-        this.message = message == null ? makeMessage(code) : message ;
+        if (message == null) {
+            String text = CODE_TO_TEXT.get(code);
+            if (text == null) {
+                this.message = "Server Status Message";
+            }
+            else {
+                this.message = text;
+            }
+        }
+        else {
+            this.message = message ;
+        }
     }
 
     public Status(Token codeToken, Token messageToken) {
@@ -64,17 +87,9 @@ public class Status {
         }
     }
 
-    private String makeMessage(int code) {
-        String message = CODE_TO_TEXT.get(code);
-        return message == null ? "Server Status Message: " + code : message;
-    }
-
     @Override
     public String toString() {
-        return "Status{" +
-                "code=" + code +
-                ", message='" + message + '\'' +
-                '}';
+        return message + " [" + code + "]";
     }
 
     private boolean isStatus(int code, String text) {

@@ -497,7 +497,7 @@ public class HeadersTests {
     @Test
     public void constructStatusWithValidBytes() {
         assertValidStatus("NATS/1.0 503\r\n", 503, "No Responders Available For Request"); // status made message
-        assertValidStatus("NATS/1.0 404\r\n", 404, "Server Status Message: 404");         // status made message
+        assertValidStatus("NATS/1.0 404\r\n", 404, "Server Status Message");         // status made message
         assertValidStatus("NATS/1.0 503 No Responders\r\n", 503, "No Responders");         // from data
         assertValidStatus("NATS/1.0   503   No Responders\r\n", 503, "No Responders");
     }

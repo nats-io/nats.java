@@ -20,8 +20,6 @@ import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.support.Status;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
@@ -29,8 +27,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
 class PushMessageManager extends MessageManager {
-
-    private static final List<Integer> PUSH_KNOWN_STATUS_CODES = Arrays.asList(409);
 
     private static final int THRESHOLD = 3;
 
@@ -188,9 +184,8 @@ class PushMessageManager extends MessageManager {
                     _processFlowControl(extractFcSubject(msg), ErrorListener.FlowControlSource.HEARTBEAT);
                 }
             }
-            else if (!PUSH_KNOWN_STATUS_CODES.contains(status.getCode())) {
-                // If this status is unknown to us, always use the error handler.
-                // If it's a sync call, also throw an exception
+            else { // all other codes are unmanaged usually a 409 or severe error
+                // Always use the error handler and if it's a sync call, also throw an exception
                 conn.getOptions().getErrorListener().unhandledStatus(conn, sub, status);
                 if (syncMode) {
                     throw new JetStreamStatusException(sub, status);

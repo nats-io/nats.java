@@ -382,6 +382,10 @@ public class MessageManagerTests extends JetStreamTestBase {
         return getStatus(408, "expired");
     }
 
+    private NatsMessage get409() {
+        return getStatus(409, "error");
+    }
+
     private NatsMessage getUnkStatus() {
         return getStatus(999, "blah blah");
     }

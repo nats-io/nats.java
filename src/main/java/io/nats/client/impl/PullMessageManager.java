@@ -21,14 +21,14 @@ import java.util.List;
 
 class PullMessageManager extends MessageManager {
 
-    private static final List<Integer> PULL_KNOWN_STATUS_CODES = Arrays.asList(404, 408, 409);
+    private static final List<Integer> MANAGED_STATUS_CODES = Arrays.asList(404, 408);
 
     boolean manage(Message msg) {
         if (msg.isStatusMessage()) {
-            if ( !PULL_KNOWN_STATUS_CODES.contains(msg.getStatus().getCode()) ) {
-                throw new JetStreamStatusException(sub, msg.getStatus());
+            if ( MANAGED_STATUS_CODES.contains(msg.getStatus().getCode()) ) {
+                return true;
             }
-            return true;
+            throw new JetStreamStatusException(sub, msg.getStatus());
         }
         return false;
     }
