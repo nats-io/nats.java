@@ -206,17 +206,13 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     }
 
     // Push/PullMessageManagerFactory are internal and used for testing / providing a MessageManager mocks
-    interface PushMessageManagerFactory {
-        MessageManager createPushMessageManager(
+    interface MessageManagerFactory {
+        MessageManager createMessageManager(
             NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode);
     }
 
-    interface PullMessageManagerFactory {
-        MessageManager createPullMessageManager();
-    }
-
-    PushMessageManagerFactory PUSH_MESSAGE_MANAGER_FACTORY = PushMessageManager::new;
-    PullMessageManagerFactory PULL_MESSAGE_MANAGER_FACTORY = PullMessageManager::new;
+    MessageManagerFactory DEFAULT_PUSH_MESSAGE_MANAGER_FACTORY = PushMessageManager::new;
+    MessageManagerFactory DEFAULT_PULL_MESSAGE_MANAGER_FACTORY = PullMessageManager::new;
 
     JetStreamSubscription createSubscription(String subject,
                                              String queueName,
@@ -225,8 +221,8 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                                              boolean isAutoAck,
                                              PushSubscribeOptions pushSubscribeOptions,
                                              PullSubscribeOptions pullSubscribeOptions,
-                                             PushMessageManagerFactory pushMmFactory,
-                                             PullMessageManagerFactory pullMmFactory
+                                             MessageManagerFactory pushMmFactory,
+                                             MessageManagerFactory pullMmFactory
     ) throws IOException, JetStreamApiException {
 
         // 1. Prepare for all the validation
@@ -385,18 +381,19 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         final NatsSubscriptionFactory factory;
         if (isPullMode) {
             if (pullMmFactory == null) {
-                pullMmFactory = PULL_MESSAGE_MANAGER_FACTORY;
+                pullMmFactory = DEFAULT_PULL_MESSAGE_MANAGER_FACTORY;
             }
-            managers = new MessageManager[] { pullMmFactory.createPullMessageManager() };
-            factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
-                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, dispatcher, this, fnlStream, settledConsumerName, managers);
+            managers = new MessageManager[] { pullMmFactory.createMessageManager(conn, so, settledServerCC, false, dispatcher == null) };
+            factory = (sid, lSubject, lQgroup, lConn, lDispatcher) ->
+                new NatsJetStreamPullSubscription(sid, lSubject, lConn, lDispatcher,
+                    this, fnlStream, settledConsumerName, managers);
         }
         else {
             if (pushMmFactory == null) {
-                pushMmFactory = PUSH_MESSAGE_MANAGER_FACTORY;
+                pushMmFactory = DEFAULT_PUSH_MESSAGE_MANAGER_FACTORY;
             }
             final MessageManager pushMessageManager =
-                pushMmFactory.createPushMessageManager(conn, so, settledServerCC, qgroup != null, dispatcher == null);
+                pushMmFactory.createMessageManager(conn, so, settledServerCC, qgroup != null, dispatcher == null);
             if (so.isOrdered()) {
                 managers = new MessageManager[3];
                 managers[0] = new SidCheckManager();
@@ -407,10 +404,9 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 managers = new MessageManager[1];
                 managers[0] = pushMessageManager;
             }
-
-            factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
-                -> new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,
-                this, fnlStream, settledConsumerName, managers);
+            factory = (sid, lSubject, lQgroup, lConn, lDispatcher) ->
+                new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,
+                    this, fnlStream, settledConsumerName, managers);
         }
         if (dispatcher == null) {
             sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);

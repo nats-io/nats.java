@@ -184,12 +184,12 @@ class PushMessageManager extends MessageManager {
                     _processFlowControl(extractFcSubject(msg), ErrorListener.FlowControlSource.HEARTBEAT);
                 }
             }
-            else { // all other codes are unmanaged usually a 409 or severe error
-                // Always use the error handler and if it's a sync call, also throw an exception
-                conn.getOptions().getErrorListener().unhandledStatus(conn, sub, status);
+            else {
+                // all other codes are unmanaged usually a 409 or severe error
                 if (syncMode) {
                     throw new JetStreamStatusException(sub, status);
                 }
+                conn.getOptions().getErrorListener().unhandledStatus(conn, sub, status);
             }
             return true;
         }

@@ -15,9 +15,13 @@ package io.nats.client.impl;
 
 import io.nats.client.JetStreamStatusException;
 import io.nats.client.Message;
+import io.nats.client.SubscribeOptions;
+import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.support.Status;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 class PullMessageManager extends MessageManager {
     /*
@@ -33,15 +37,75 @@ class PullMessageManager extends MessageManager {
         408 Request Timeout
     */
 
-    private static final List<Integer> MANAGED_STATUS_CODES = Arrays.asList(404, 408);
+    private static final List<Integer> WARNINGS = Arrays.asList(404, 408);
+
+    private final NatsConnection conn;
+    private final boolean syncMode;
+    private final boolean hb;
+
+    private final long idleHeartbeatSetting;
+    private final long alarmPeriodSetting;
+
+    private long lastStreamSeq;
+    private long lastConsumerSeq;
+
+    private final AtomicLong lastMsgReceived;
+
+    public PullMessageManager(NatsConnection conn, SubscribeOptions so,
+                              ConsumerConfiguration cc,
+                              boolean queueModeIgnored, boolean syncMode)
+    {
+        this.conn = conn;
+        this.syncMode = syncMode;
+        lastStreamSeq = -1;
+        lastConsumerSeq = -1;
+        lastMsgReceived = new AtomicLong();
+
+        // for now...
+        hb = false;
+        idleHeartbeatSetting = 0;
+        alarmPeriodSetting = 0;
+    }
+
+    @Override
+    void startup(NatsJetStreamSubscription sub) {
+        super.startup(sub);
+//        if (hb) {
+//            sub.setBeforeQueueProcessor(this::beforeQueueProcessor);
+//            heartbeatTimer = new PushMessageManager.HeartbeatTimer();
+//        }
+    }
+
+    NatsMessage beforeQueueProcessor(NatsMessage msg) {
+        lastMsgReceived.set(System.currentTimeMillis());
+        return msg;
+    }
 
     boolean manage(Message msg) {
         if (msg.isStatusMessage()) {
-            if ( MANAGED_STATUS_CODES.contains(msg.getStatus().getCode()) ) {
-                return true;
+            Status status = msg.getStatus();
+            if ( !WARNINGS.contains(status.getCode()) ) {
+                if (syncMode) {
+                    throw new JetStreamStatusException(sub, status);
+                }
+                conn.getOptions().getErrorListener().unhandledStatus(conn, sub, status);
             }
-            throw new JetStreamStatusException(sub, msg.getStatus());
+            return true;
         }
+
+        // JS Message
+        lastStreamSeq = msg.metaData().streamSequence();
+        lastConsumerSeq = msg.metaData().consumerSequence();
         return false;
     }
+
+    boolean isSyncMode() { return syncMode; }
+    boolean isHb() { return hb; }
+
+    long getIdleHeartbeatSetting() { return idleHeartbeatSetting; }
+    long getAlarmPeriodSetting() { return alarmPeriodSetting; }
+
+    long getLastStreamSequence() { return lastStreamSeq; }
+    long getLastConsumerSequence() { return lastConsumerSeq; }
+    long getLastMsgReceived() { return lastMsgReceived.get(); }
 }
