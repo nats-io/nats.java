@@ -69,6 +69,27 @@ public class NatsJsUtils {
         }
     }
 
+    public static StreamInfo createOrReplaceStream(JetStreamManagement jsm, String streamName, StorageType storageType, String... subjects) throws IOException, JetStreamApiException {
+        try {
+            jsm.deleteStream(streamName);
+        }
+        catch (Exception ignore) {}
+        // Create a stream, here will use a file storage type, and one subject,
+        // the passed subject.
+        StreamConfiguration sc = StreamConfiguration.builder()
+            .name(streamName)
+            .storageType(storageType)
+            .subjects(subjects)
+            .build();
+
+        // Add or use an existing stream.
+        StreamInfo si = jsm.addStream(sc);
+        System.out.printf("Created stream '%s' with subject(s) %s\n",
+            streamName, si.getConfiguration().getSubjects());
+
+        return si;
+    }
+
     public static StreamInfo createStream(JetStreamManagement jsm, String streamName, StorageType storageType, String... subjects) throws IOException, JetStreamApiException {
         // Create a stream, here will use a file storage type, and one subject,
         // the passed subject.

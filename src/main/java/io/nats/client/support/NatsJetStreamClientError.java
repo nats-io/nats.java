@@ -86,14 +86,14 @@ public class NatsJetStreamClientError {
     }
 
     public RuntimeException instance() {
-        return _instance(message);
+        if (kind == KIND_ILLEGAL_ARGUMENT) {
+            return new IllegalArgumentException(message);
+        }
+        return new IllegalStateException(message);
     }
 
     public RuntimeException instance(String extraMessage) {
-        return _instance(message + " " + extraMessage);
-    }
-
-    private RuntimeException _instance(String msg) {
+        String msg = message + " " + extraMessage;
         if (kind == KIND_ILLEGAL_ARGUMENT) {
             return new IllegalArgumentException(msg);
         }

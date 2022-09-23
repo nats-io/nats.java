@@ -490,6 +490,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     private static void addConsumer(JetStreamManagement jsm, boolean atLeast290, int id, boolean deliver, String fs, ConsumerConfiguration cc) throws IOException, JetStreamApiException {
         ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
+        System.out.println(deliver + " " + ci);
         assertEquals(durable(id), ci.getName());
         if (atLeast290) {
             assertEquals(durable(id), ci.getConsumerConfiguration().getName());

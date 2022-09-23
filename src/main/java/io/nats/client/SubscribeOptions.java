@@ -35,7 +35,7 @@ public abstract class SubscribeOptions {
     protected final long messageAlarmTime;
     protected final ConsumerConfiguration consumerConfig;
 
-    @SuppressWarnings("rawtypes") // Don't need the type of the builder to get it's vars
+    @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
     protected SubscribeOptions(Builder builder, boolean isPull, boolean isOrdered, String deliverSubject, String deliverGroup) {
 
         pull = isPull;

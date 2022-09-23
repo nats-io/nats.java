@@ -280,56 +280,11 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         };
     }
 
-    static class JetStreamReaderImpl implements JetStreamReader {
-        private final NatsJetStreamPullSubscription sub;
-        private final int batchSize;
-        private final int repullAt;
-        private int currentBatchRed;
-        private boolean keepGoing = true;
-
-        public JetStreamReaderImpl(final NatsJetStreamPullSubscription sub, final int batchSize, final int repullAt) {
-            this.sub = sub;
-            this.batchSize = batchSize;
-            this.repullAt = Math.max(1, Math.min(batchSize, repullAt));
-            currentBatchRed = 0;
-            sub.pull(batchSize);
-        }
-
-        @Override
-        public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
-            return track(sub.nextMessage(timeout));
-        }
-
-        @Override
-        public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
-            return track(sub.nextMessage(timeoutMillis));
-        }
-
-        private Message track(Message msg) {
-            if (msg != null) {
-                if (++currentBatchRed == repullAt) {
-                    if (keepGoing) {
-                        sub.pull(batchSize);
-                    }
-                }
-                if (currentBatchRed == batchSize) {
-                    currentBatchRed = 0;
-                }
-            }
-            return msg;
-        }
-
-        @Override
-        public void stop() {
-            keepGoing = false;
-        }
-    }
-
     /**
      * {@inheritDoc}
      */
     @Override
     public JetStreamReader reader(final int batchSize, final int repullAt) {
-        return new JetStreamReaderImpl(this, batchSize, repullAt);
+        return new NatsJetStreamPullReader(this, batchSize, repullAt);
     }
 }
