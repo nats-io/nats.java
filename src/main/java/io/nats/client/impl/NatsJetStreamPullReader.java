@@ -15,24 +15,26 @@ package io.nats.client.impl;
 
 import io.nats.client.JetStreamReader;
 import io.nats.client.Message;
+import io.nats.client.PullRequestOptions;
+import io.nats.client.SimpleConsumerOptions;
 
 import java.time.Duration;
 
 class NatsJetStreamPullReader extends NatsSimpleConsumer implements JetStreamReader {
-    private final int batchSize;
-    private final int repullAt;
     private final Object keepGoingLock;
     private boolean keepGoing;
     private int currentBatchRed;
 
-    public NatsJetStreamPullReader(final NatsJetStreamPullSubscription sub, final int batchSize, final int repullAt) {
-        super(sub);
-        this.batchSize = batchSize;
-        this.repullAt = Math.max(1, Math.min(batchSize, repullAt));
+    public NatsJetStreamPullReader(final NatsJetStreamPullSubscription sub, SimpleConsumerOptions sco) {
+        super(sub, sco);
         keepGoingLock = new Object();
         currentBatchRed = 0;
         keepGoing = true;
-        sub.pull(batchSize);
+        sub.pull(PullRequestOptions.builder(sco.batchSize)
+            .maxBytes(sco.maxBytes)
+            .expiresIn(sco.expiresIn)
+            .idleHeartbeat(sco.idleHeartbeat)
+            .build());
     }
 
     @Override
@@ -47,14 +49,14 @@ class NatsJetStreamPullReader extends NatsSimpleConsumer implements JetStreamRea
 
     private Message track(Message msg) {
         if (msg != null) {
-            if (++currentBatchRed == repullAt) {
+            if (++currentBatchRed == sco.repullAt) {
                 synchronized (keepGoingLock) {
                     if (keepGoing) {
-                        sub.pull(batchSize);
+                        sub.pull(sco.batchSize);
                     }
                 }
             }
-            if (currentBatchRed == batchSize) {
+            if (currentBatchRed == sco.batchSize) {
                 currentBatchRed = 0;
             }
         }

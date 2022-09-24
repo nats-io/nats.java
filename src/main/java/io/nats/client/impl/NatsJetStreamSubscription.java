@@ -29,7 +29,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
 
     public static final String SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL = "Subscription type does not support pull.";
 
-    protected final NatsJetStream js;
+    protected final NatsJetStreamImpl js;
 
     protected String stream;
     protected String consumerName;
@@ -38,7 +38,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
 
     NatsJetStreamSubscription(String sid, String subject, String queueName,
                               NatsConnection connection, NatsDispatcher dispatcher,
-                              NatsJetStream js,
+                              NatsJetStreamImpl js,
                               String stream, String consumer,
                               MessageManager[] managers)
     {

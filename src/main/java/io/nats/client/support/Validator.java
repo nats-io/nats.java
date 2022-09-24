@@ -106,6 +106,12 @@ public abstract class Validator {
         return s;
     }
 
+    public static void required(boolean condition, String errMsg) {
+        if (!condition) {
+            throw new IllegalArgumentException(errMsg);
+        }
+    }
+
     public static String _validate(String s, boolean required, String label, Check check) {
         if (emptyAsNull(s) == null) {
             if (required) {

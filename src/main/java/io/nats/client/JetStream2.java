@@ -12,96 +12,245 @@
 // limitations under the License.
 package io.nats.client;
 
-import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.ConsumerInfo;
+import io.nats.client.api.PublishAck;
 
-import java.util.List;
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
+/**
+ * JetStream context for creation and access to streams and consumers in NATS.
+ */
 public interface JetStream2 {
 
-    // ----------------------------------------------------------------------------------------------------
-    // Consumer creation - historically part of the "management" functions.
-    // ----------------------------------------------------------------------------------------------------
-    // Validations: Maybe just let the server do things? Maybe.
-    // * Deliver group is not allowed with an ordered consumer.
-    // * Durable is not allowed with an ordered consumer.
-    // * Deliver subject is not allowed with an ordered consumer.
-    // * Deliver subject is not allowed with an ordered consumer.
-    // * Max deliver is limited to 1 with an ordered consumer.
-    // ----------------------------------------------------------------------------------------------------
-    ConsumerInfo createOrUpdateConsumer(String streamName, ConsumerConfiguration config);
+    /**
+     * Send a message to the specified subject and waits for a response from
+     * Jetstream. The default publish options will be used.
+     * The message body <strong>will not</strong> be copied. The expected
+     * usage with string content is something like:
+     *
+     * <pre>
+     * nc = Nats.connect()
+     * JetStream js = nc.JetStream()
+     * js.publish("destination", "message".getBytes("UTF-8"))
+     * </pre>
+     *
+     * where the sender creates a byte array immediately before calling publish.
+     *
+     * See {@link #publish(String, byte[]) publish()} for more details on
+     * publish during reconnect.
+     *
+     * @param subject the subject to send the message to
+     * @param body the message body
+     * @return The publish acknowledgement
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    PublishAck publish(String subject, byte[] body) throws IOException, JetStreamApiException;
 
-    // ----------------------------------------------------------------------------------------------------
-    // Interfaces / classes
-    // ----------------------------------------------------------------------------------------------------
+    /**
+     * Send a message to the specified subject and waits for a response from
+     * Jetstream. The message body <strong>will not</strong> be copied. The expected
+     * usage with string content is something like:
+     *
+     * <pre>
+     * nc = Nats.connect()
+     * JetStream js = nc.JetStream()
+     * js.publish("destination", "message".getBytes("UTF-8"), publishOptions)
+     * </pre>
+     *
+     * where the sender creates a byte array immediately before calling publish.
+     *
+     * See {@link #publish(String, byte[]) publish()} for more details on
+     * publish during reconnect.
+     *
+     * @param subject the subject to send the message to
+     * @param body the message body
+     * @param options publisher options
+     * @return The publish acknowledgement
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    PublishAck publish(String subject, byte[] body, PublishOptions options) throws IOException, JetStreamApiException;
 
-    class PullRawOptions {
-        int batchSize; // required
-        int maxBytes;
-        boolean noWait;
-        long expiresInMillis;
-        long idleHeartbeat;
-    }
+    /**
+     * Send a message to the specified subject and waits for a response from
+     * Jetstream. The default publish options will be used.
+     * The message body <strong>will not</strong> be copied. The expected
+     * usage with string content is something like:
+     *
+     * <pre>
+     * nc = Nats.connect()
+     * JetStream js = nc.JetStream()
+     * js.publish(message)
+     * </pre>
+     *
+     * where the sender creates a byte array immediately before calling publish.
+     *
+     * <p>The Message object allows you to set a replyTo, but in publish requests,
+     * the replyTo is reserved for internal use as the address for the
+     * server to respond to the client with the PublishAck.</p>
+     *
+     * See {@link #publish(String, byte[]) publish()} for more details on
+     * publish during reconnect.
+     *
+     * @param message the message to send
+     * @return The publish acknowledgement
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    PublishAck publish(Message message) throws IOException, JetStreamApiException;
 
-    enum FetchType {
-        Instant, Wait, OneShot, Blah, AlbertoWasWorkingOnOptions
-    }
+    /**
+     * Send a message to the specified subject and waits for a response from
+     * Jetstream. The message body <strong>will not</strong> be copied. The expected
+     * usage with string content is something like:
+     *
+     * <pre>
+     * nc = Nats.connect()
+     * JetStream js = nc.JetStream()
+     * js.publish(message, publishOptions)
+     * </pre>
+     *
+     * where the sender creates a byte array immediately before calling publish.
+     *
+     * <p>The Message object allows you to set a replyTo, but in publish requests,
+     * the replyTo is reserved for internal use as the address for the
+     * server to respond to the client with the PublishAck.</p>
+     *
+     * See {@link #publish(String, byte[]) publish()} for more details on
+     * publish during reconnect.
+     *
+     * @param message the message to send
+     * @param options publisher options
+     * @return The publish acknowledgement
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    PublishAck publish(Message message, PublishOptions options) throws IOException, JetStreamApiException;
 
-    class FetchOptions {
-        FetchType fetchType; // required
+    /**
+     * Send a message to the specified subject but does not wait for a response from
+     * Jetstream. The default publish options will be used.
+     * The message body <strong>will not</strong> be copied. The expected
+     * usage with string content is something like:
+     *
+     * <pre>
+     * nc = Nats.connect()
+     * JetStream js = nc.JetStream()
+     * CompletableFuture&lt;PublishAck&gt; future =
+     *     js.publishAsync("destination", "message".getBytes("UTF-8"),)
+     * </pre>
+     *
+     * where the sender creates a byte array immediately before calling publish.
+     *
+     * See {@link #publish(String, byte[]) publish()} for more details on
+     * publish during reconnect.
+     *
+     * The future me be completed with an exception, either
+     * an IOException covers various communication issues with the NATS server such as timeout or interruption
+     * - or - a JetStreamApiException the request had an error related to the data
+     *
+     * @param subject the subject to send the message to
+     * @param body the message body
+     * @return The future
+     */
+    CompletableFuture<PublishAck> publishAsync(String subject, byte[] body);
 
-        // optional, but would need to know defaults for batchsize
-        // or possibly just pull out the PRO fields that make sense
-        PullRawOptions pullRawOptions;
-    }
+    /**
+     * Send a message to the specified subject but does not wait for a response from
+     * Jetstream. The message body <strong>will not</strong> be copied. The expected
+     * usage with string content is something like:
+     *
+     * <pre>
+     * nc = Nats.connect()
+     * JetStream js = nc.JetStream()
+     * CompletableFuture&lt;PublishAck&gt; future =
+     *     js.publishAsync("destination", "message".getBytes("UTF-8"), publishOptions)
+     * </pre>
+     *
+     * where the sender creates a byte array immediately before calling publish.
+     *
+     * See {@link #publish(String, byte[]) publish()} for more details on
+     * publish during reconnect.
+     *
+     * The future me be completed with an exception, either
+     * an IOException covers various communication issues with the NATS server such as timeout or interruption
+     * - or - a JetStreamApiException the request had an error related to the data
+     *
+     * @param subject the subject to send the message to
+     * @param body the message body
+     * @param options publisher options
+     * @return The future
+     */
+    CompletableFuture<PublishAck> publishAsync(String subject, byte[] body, PublishOptions options);
 
-    class AsyncOptions {
-        Dispatcher dispatcher;  // required
-        MessageHandler handler; // required
-        boolean autoAck;        // defaults to false
-    }
+    /**
+     * Send a message to the specified subject but does not wait for a response from
+     * Jetstream. The default publish options will be used.
+     * The message body <strong>will not</strong> be copied. The expected
+     * usage with string content is something like:
+     *
+     * <pre>
+     * nc = Nats.connect()
+     * JetStream js = nc.JetStream()
+     * CompletableFuture&lt;PublishAck&gt; future = js.publishAsync(message)
+     * </pre>
+     *
+     * where the sender creates a byte array immediately before calling publish.
+     *
+     * See {@link #publish(String, byte[]) publish()} for more details on
+     * publish during reconnect.
+     *
+     * The future me be completed with an exception, either
+     * an IOException covers various communication issues with the NATS server such as timeout or interruption
+     * - or - a JetStreamApiException the request had an error related to the data
+     *
+     * <p>The Message object allows you to set a replyTo, but in publish requests,
+     * the replyTo is reserved for internal use as the address for the
+     * server to respond to the client with the PublishAck.</p>
+     *
+     * @param message the message to send
+     * @return The future
+     */
+    CompletableFuture<PublishAck> publishAsync(Message message);
 
-    interface PushSyncSubscription {
-        Message NextMessage(long timeoutMillis);
-    }
+    /**
+     * Send a message to the specified subject but does not wait for a response from
+     * Jetstream. The message body <strong>will not</strong> be copied. The expected
+     * usage with string content is something like:
+     *
+     * <pre>
+     * nc = Nats.connect()
+     * JetStream js = nc.JetStream()
+     * CompletableFuture&lt;PublishAck&gt; future = js.publishAsync(message, publishOptions)
+     * </pre>
+     *
+     * where the sender creates a byte array immediately before calling publish.
+     *
+     * See {@link #publish(String, byte[]) publish()} for more details on
+     * publish during reconnect.
+     *
+     * The future me be completed with an exception, either
+     * an IOException covers various communication issues with the NATS server such as timeout or interruption
+     * - or - a JetStreamApiException the request had an error related to the data
+     *
+     * <p>The Message object allows you to set a replyTo, but in publish requests,
+     * the replyTo is reserved for internal use as the address for the
+     * server to respond to the client with the PublishAck.</p>
+     *
+     * @param message the message to publish
+     * @param options publisher options
+     * @return The future
+     */
+    CompletableFuture<PublishAck> publishAsync(Message message, PublishOptions options);
 
-    interface PushAsyncSubscription {}
+    JetStreamReader read(String stream, String consumerName) throws IOException, JetStreamApiException;
+    JetStreamReader read(String stream, String consumerName, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
 
-    interface PullFetchSubscription {
-        List<Message> Fetch(long timeoutMillis);
-    }
-
-    interface PullAsyncSubscription {}
-
-    interface PullRawSubscription {
-        Message NextMessage(long timeoutMillis);
-    }
-
-    // ----------------------------------------------------------------------------------------------------
-    // Durable Subscribes
-    // ----------------------------------------------------------------------------------------------------
-    // * consumer must exist, must be able to be looked up, must validate as the proper type
-    // * push consumer must have deliver subject
-    // * push consumer must NOT have pull settings like Max [Pull] Waiting, Max Batch, Max Bytes
-    // * push consumer must have deliver subject
-    // * pull consumer must NOT have deliver subject, deliver group, flow control
-    // ----------------------------------------------------------------------------------------------------
-    JetStreamReader reader(int batchSize, int repullAt);
-    PushSyncSubscription pushSyncSubscribe(String stream, String consumerName);
-    PushAsyncSubscription pushAsyncSubscribe(String stream, String consumerName, AsyncOptions asyncOptions);
-    PullFetchSubscription pullFetchSubscribe(String stream, String consumerName, FetchOptions fetchOptions);
-    PullAsyncSubscription pullAsyncSubscribe(String stream, String consumerName, FetchOptions fetchOptions, AsyncOptions asyncOptions);
-    PullRawSubscription pullRawSubscribe(String stream, String consumerName, PullRawOptions pullRawOptions);
-
-    // ----------------------------------------------------------------------------------------------------
-    // Ephemeral Subscribes
-    // ----------------------------------------------------------------------------------------------------
-    // * validates that a durable consumer name is not provided.
-    // * validates pull vs push options as in durable subscribes. Or maybe lets the server
-    // ----------------------------------------------------------------------------------------------------
-    PushSyncSubscription pushSyncSubscribe(ConsumerConfiguration config);
-    PushAsyncSubscription pushAsyncSubscribe(ConsumerConfiguration config, AsyncOptions asyncOptions);
-    PullFetchSubscription pullFetchSubscribe(ConsumerConfiguration config, FetchOptions fetchOptions);
-    PullAsyncSubscription pullAsyncSubscribe(ConsumerConfiguration config, FetchOptions fetchOptions, AsyncOptions asyncOptions);
-    PullRawSubscription pullRawSubscribe(ConsumerConfiguration config, PullRawOptions pullRawOptions);
+    SimpleConsumer listen(String stream, String consumerName, MessageHandler handler) throws IOException, JetStreamApiException;
+    SimpleConsumer listen(String stream, String consumerName, MessageHandler handler, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
 }

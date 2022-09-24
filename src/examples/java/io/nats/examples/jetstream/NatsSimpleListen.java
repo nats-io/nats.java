@@ -17,14 +17,17 @@ import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.StorageType;
 
-import java.time.Duration;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
 
 /**
- * This example will demonstrate JetStream2 and simplified reading
+ * This example will demonstrate JetStream2 and simplified listening
  */
-public class NatsSimpleRead {
+public class NatsSimpleListen {
     static String stream = "simple-stream";
     static String subject = "simple-subject";
     static String durable = "simple-durable";
@@ -48,29 +51,28 @@ public class NatsSimpleRead {
                 .build();
             jsm.addOrUpdateConsumer(stream, cc);
 
-            // Set up Reader
-            JetStreamReader reader = js.read(stream, durable,
+            CountDownLatch latch = new CountDownLatch(count);
+            AtomicInteger red = new AtomicInteger();
+
+            MessageHandler handler = msg -> {
+                System.out.println("\nMessage Received:");
+                System.out.printf("  Subject: %s\n  Data: %s\n",
+                    msg.getSubject(), new String(msg.getData(), StandardCharsets.UTF_8));
+                System.out.println("  " + msg.metaData());
+                msg.ack();
+                red.incrementAndGet();
+                latch.countDown();
+            };
+
+            // Set up Listener
+            SimpleConsumer simpleConsumer = js.listen(stream, durable, handler,
                 SimpleConsumerOptions.builder().batchSize(10).build());
 
-            // read loop
-            int red = 0;
-            Message msg = reader.nextMessage(Duration.ofSeconds(1)); // timeout can be Duration or millis
-            while (msg != null) {
-                System.out.printf("Subject: %s | Data: %s | Meta: %s\n",
-                    msg.getSubject(), new String(msg.getData()), msg.metaData());
-                msg.ack();
-                if (++red == count) {
-                    msg = null;
-                }
-                else {
-                    msg = reader.nextMessage(1000); // timeout can be Duration or millis
-                }
-            }
+            latch.await(10, TimeUnit.SECONDS);
 
-            System.out.println("\n" + red + " message(s) were received.\n");
+            System.out.println("\n" + red.get() + " message(s) were received.\n");
 
-            // be a good citizen
-            reader.unsubscribe();
+            simpleConsumer.unsubscribe();
         }
         catch (Exception e) {
             e.printStackTrace();

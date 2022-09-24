@@ -19,7 +19,7 @@ import io.nats.client.api.DeliverPolicy;
 
 class OrderedManager extends MessageManager {
 
-    private final NatsJetStream js;
+    private final NatsJetStreamImpl js;
     private final NatsDispatcher dispatcher;
     private final String stream;
     private final ConsumerConfiguration serverCC;
@@ -27,7 +27,7 @@ class OrderedManager extends MessageManager {
     private long lastStreamSeq;
     private long expectedConsumerSeq;
 
-    OrderedManager(NatsJetStream js, NatsDispatcher dispatcher, String stream, ConsumerConfiguration serverCC) {
+    OrderedManager(NatsJetStreamImpl js, NatsDispatcher dispatcher, String stream, ConsumerConfiguration serverCC) {
         this.js = js;
         this.dispatcher = dispatcher;
         this.stream = stream;

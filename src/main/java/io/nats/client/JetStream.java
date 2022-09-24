@@ -377,8 +377,4 @@ public interface JetStream {
      * @throws JetStreamApiException the request had an error related to the data
      */
     JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, PullSubscribeOptions options) throws IOException, JetStreamApiException;
-
-    JetStreamReader read(String stream, String consumerName, int batchSize, int repullAt) throws IOException, JetStreamApiException;
-
-    SimpleConsumer listen(String stream, String consumerName, Dispatcher dispatcher, MessageHandler handler, int batchSize, int repullAt) throws IOException, JetStreamApiException;
 }

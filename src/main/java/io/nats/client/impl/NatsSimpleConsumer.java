@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.JetStreamApiException;
 import io.nats.client.SimpleConsumer;
+import io.nats.client.SimpleConsumerOptions;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
@@ -23,9 +24,11 @@ import java.util.concurrent.CompletableFuture;
 
 class NatsSimpleConsumer implements SimpleConsumer {
     protected final NatsJetStreamSubscription sub;
+    protected final SimpleConsumerOptions sco;
 
-    public NatsSimpleConsumer(final NatsJetStreamSubscription sub) {
+    public NatsSimpleConsumer(NatsJetStreamSubscription sub, SimpleConsumerOptions sco) {
         this.sub = sub;
+        this.sco = sco;
     }
 
     @Override

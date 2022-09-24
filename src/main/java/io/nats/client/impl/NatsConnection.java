@@ -1965,6 +1965,24 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
+    public JetStream2 jetStream2() throws IOException {
+        ensureNotClosing();
+        return new NatsJetStream2(this, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public JetStream2 jetStream2(JetStreamOptions options) throws IOException {
+        ensureNotClosing();
+        return new NatsJetStream2(this, options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public JetStreamManagement jetStreamManagement() throws IOException {
         ensureNotClosing();
         return new NatsJetStreamManagement(this, null);

@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.JetStreamReader;
 import io.nats.client.Message;
 import io.nats.client.PullRequestOptions;
+import io.nats.client.SimpleConsumerOptions;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -27,7 +28,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     NatsJetStreamPullSubscription(String sid, String subject,
                                   NatsConnection connection,
                                   NatsDispatcher dispatcher,
-                                  NatsJetStream js,
+                                  NatsJetStreamImpl js,
                                   String stream, String consumer,
                                   MessageManager[] managers) {
         super(sid, subject, null, connection, dispatcher, js, stream, consumer, managers);
@@ -285,6 +286,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public JetStreamReader reader(final int batchSize, final int repullAt) {
-        return new NatsJetStreamPullReader(this, batchSize, repullAt);
+        return new NatsJetStreamPullReader(this, SimpleConsumerOptions.builder()
+            .batchSize(batchSize).repullAt(repullAt).build());
     }
 }
