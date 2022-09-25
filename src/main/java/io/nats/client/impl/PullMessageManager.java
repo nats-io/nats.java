@@ -15,8 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.JetStreamStatusException;
 import io.nats.client.Message;
-import io.nats.client.SubscribeOptions;
-import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.support.Status;
 
 import java.util.Arrays;
@@ -37,23 +35,22 @@ class PullMessageManager extends MessageManager {
         408 Request Timeout
     */
 
-    private static final List<Integer> WARNINGS = Arrays.asList(404, 408);
+    protected static final List<Integer> WARNINGS = Arrays.asList(404, 408);
 
-    private final NatsConnection conn;
-    private final boolean syncMode;
-    private final boolean hb;
+    protected final NatsConnection conn;
+    protected final boolean syncMode;
+    protected final boolean hb;
 
-    private final long idleHeartbeatSetting;
-    private final long alarmPeriodSetting;
+    protected final long idleHeartbeatSetting;
+    protected final long alarmPeriodSetting;
 
-    private long lastStreamSeq;
-    private long lastConsumerSeq;
+    protected long lastStreamSeq;
+    protected long lastConsumerSeq;
 
-    private final AtomicLong lastMsgReceived;
+    protected final AtomicLong lastMsgReceived;
 
-    public PullMessageManager(NatsConnection conn, SubscribeOptions so,
-                              ConsumerConfiguration cc,
-                              boolean queueModeIgnored, boolean syncMode)
+    public PullMessageManager(NatsConnection conn,
+                              boolean syncMode)
     {
         this.conn = conn;
         this.syncMode = syncMode;
@@ -96,8 +93,11 @@ class PullMessageManager extends MessageManager {
         // JS Message
         lastStreamSeq = msg.metaData().streamSequence();
         lastConsumerSeq = msg.metaData().consumerSequence();
+        subManage(msg);
         return false;
     }
+
+    protected void subManage(Message msg) {}
 
     boolean isSyncMode() { return syncMode; }
     boolean isHb() { return hb; }

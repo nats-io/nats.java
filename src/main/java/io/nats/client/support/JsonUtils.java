@@ -493,7 +493,7 @@ public abstract class JsonUtils {
      * @param value duration value
      */
     public static void addFieldAsNanos(StringBuilder sb, String fname, Duration value) {
-        if (value != null && value != Duration.ZERO) {
+        if (value != null && value.toNanos() > 0) {
             sb.append(Q);
             jsonEncode(sb, fname);
             sb.append(QCOLON).append(value.toNanos()).append(COMMA);

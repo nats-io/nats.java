@@ -39,12 +39,14 @@ class NatsJetStreamPullReader extends NatsSimpleConsumer implements JetStreamRea
 
     @Override
     public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
-        return track(sub.nextMessage(timeout));
+        return sub.nextMessage(timeout);
+//        return track(sub.nextMessage(timeout));
     }
 
     @Override
     public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
-        return track(sub.nextMessage(timeoutMillis));
+        return sub.nextMessage(timeoutMillis);
+//        return track(sub.nextMessage(timeoutMillis));
     }
 
     private Message track(Message msg) {
@@ -52,7 +54,11 @@ class NatsJetStreamPullReader extends NatsSimpleConsumer implements JetStreamRea
             if (++currentBatchRed == sco.repullAt) {
                 synchronized (keepGoingLock) {
                     if (keepGoing) {
-                        sub.pull(sco.batchSize);
+                        sub.pull(PullRequestOptions.builder(sco.batchSize)
+                            .maxBytes(sco.maxBytes)
+                            .expiresIn(sco.expiresIn)
+                            .idleHeartbeat(sco.idleHeartbeat)
+                            .build());
                     }
                 }
             }
@@ -63,11 +69,12 @@ class NatsJetStreamPullReader extends NatsSimpleConsumer implements JetStreamRea
         return msg;
     }
 
-    @Override
-    public void unsubscribe(int after) {
-        synchronized (keepGoingLock) {
-            keepGoing = false;
-        }
-        super.unsubscribe(after);
-    }
+//    @Override
+//    public void unsubscribe(int after) {
+//        synchronized (keepGoingLock) {
+//            keepGoing = false;
+//        }
+//        super.unsubscribe(after);
+//    }
 }
+

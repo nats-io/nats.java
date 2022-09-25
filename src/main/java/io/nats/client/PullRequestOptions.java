@@ -45,8 +45,8 @@ public class PullRequestOptions implements JsonSerializable {
     @Override
     public String toJson() {
         StringBuilder sb = JsonUtils.beginJson();
-        JsonUtils.addField(sb, BATCH, batchSize);
-        JsonUtils.addField(sb, MAX_BYTES, maxBytes);
+        JsonUtils.addFieldWhenGtZero(sb, BATCH, batchSize);
+        JsonUtils.addFieldWhenGtZero(sb, MAX_BYTES, maxBytes);
         JsonUtils.addFldWhenTrue(sb, NO_WAIT, noWait);
         JsonUtils.addFieldAsNanos(sb, EXPIRES, expiresIn);
         JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);

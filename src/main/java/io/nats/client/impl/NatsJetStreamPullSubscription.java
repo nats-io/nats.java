@@ -13,10 +13,8 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamReader;
 import io.nats.client.Message;
 import io.nats.client.PullRequestOptions;
-import io.nats.client.SimpleConsumerOptions;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -279,14 +277,5 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                 return next;
             }
         };
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public JetStreamReader reader(final int batchSize, final int repullAt) {
-        return new NatsJetStreamPullReader(this, SimpleConsumerOptions.builder()
-            .batchSize(batchSize).repullAt(repullAt).build());
     }
 }

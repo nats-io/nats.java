@@ -580,7 +580,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * ConsumerConfiguration is created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      *
-     * <p>{@code new ConsumerConfiguration.Builder().build()} will create a default ConsumerConfiguration.
+     * <p>{@code new ConsumerConfiguration.builder().build()} will create a default ConsumerConfiguration.
      *
      */
     public static class Builder {

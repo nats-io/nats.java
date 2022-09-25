@@ -405,7 +405,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     private PullMessageManager getPullManager(Connection conn, SubscribeOptions so, NatsJetStreamSubscription sub, boolean syncMode, boolean queueMode) {
-        PullMessageManager mgr = new PullMessageManager((NatsConnection)conn, so, so.getConsumerConfiguration(), queueMode, syncMode);
+        PullMessageManager mgr = new PullMessageManager((NatsConnection)conn, syncMode);
         mgr.startup(sub);
         return mgr;
     }

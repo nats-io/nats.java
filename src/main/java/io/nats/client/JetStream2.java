@@ -13,6 +13,7 @@
 package io.nats.client;
 
 import io.nats.client.api.PublishAck;
+import io.nats.client.api.SimpleConsumerConfiguration;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -250,7 +251,11 @@ public interface JetStream2 {
 
     JetStreamReader read(String stream, String consumerName) throws IOException, JetStreamApiException;
     JetStreamReader read(String stream, String consumerName, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
+    JetStreamReader read(String stream, SimpleConsumerConfiguration consumerConfiguration) throws IOException, JetStreamApiException;
+    JetStreamReader read(String stream, SimpleConsumerConfiguration consumerConfiguration, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
 
     SimpleConsumer listen(String stream, String consumerName, MessageHandler handler) throws IOException, JetStreamApiException;
     SimpleConsumer listen(String stream, String consumerName, MessageHandler handler, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
+    SimpleConsumer listen(String stream, SimpleConsumerConfiguration consumerConfiguration, MessageHandler handler) throws IOException, JetStreamApiException;
+    SimpleConsumer listen(String stream, SimpleConsumerConfiguration consumerConfiguration, MessageHandler handler, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
 }

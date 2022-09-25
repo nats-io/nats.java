@@ -45,6 +45,7 @@ class NatsSimpleConsumer implements SimpleConsumer {
     public void unsubscribe(int after) {
         if (sub.getNatsDispatcher() != null) {
             sub.getDispatcher().unsubscribe(sub, after);
+            sub.getNatsDispatcher().stop(false);
         }
         else {
             sub.unsubscribe(after);

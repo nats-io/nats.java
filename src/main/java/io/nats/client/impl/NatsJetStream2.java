@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.PublishAck;
+import io.nats.client.api.SimpleConsumerConfiguration;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -105,7 +106,10 @@ public class NatsJetStream2 extends NatsJetStreamImpl implements JetStream2 {
     // ----------------------------------------------------------------------------------------------------
     @Override
     public JetStreamReader read(String stream, String consumerName) throws IOException, JetStreamApiException {
-        return read(stream, consumerName, DEFAULT_SCO_OPTIONS);
+        validateNotNull(stream, "Stream");
+        validateNotNull(consumerName, "Consumer Name");
+        ConsumerConfiguration cc = _getConsumerInfo(stream, consumerName).getConsumerConfiguration();
+        return _read(stream, DEFAULT_SCO_OPTIONS, cc, true);
     }
 
     @Override
@@ -113,10 +117,29 @@ public class NatsJetStream2 extends NatsJetStreamImpl implements JetStream2 {
         validateNotNull(stream, "Stream");
         validateNotNull(consumerName, "Consumer Name");
         ConsumerConfiguration cc = _getConsumerInfo(stream, consumerName).getConsumerConfiguration();
+        return _read(stream, sco, cc, true);
+    }
+
+    @Override
+    public JetStreamReader read(String stream, SimpleConsumerConfiguration consumerConfiguration) throws IOException, JetStreamApiException {
+        validateNotNull(stream, "Stream");
+        return _read(stream, DEFAULT_SCO_OPTIONS, consumerConfiguration, false);
+    }
+
+    @Override
+    public JetStreamReader read(String stream, SimpleConsumerConfiguration consumerConfiguration, SimpleConsumerOptions sco) throws IOException, JetStreamApiException {
+        validateNotNull(stream, "Stream");
+        return _read(stream, sco, consumerConfiguration, false);
+    }
+
+    private NatsJetStreamPullReader _read(String stream, SimpleConsumerOptions sco, ConsumerConfiguration cc, boolean isSimplificationMode) throws IOException, JetStreamApiException {
         PullSubscribeOptions pullOpts = PullSubscribeOptions.builder()
             .stream(stream).configuration(cc).build();
+        MessageManagerFactory messageManagerFactory =
+            (conn, so, cc1, queueMode, syncMode) ->
+                new PullSimpleMessageManager(conn, syncMode, sco);
         NatsJetStreamPullSubscription sub = (NatsJetStreamPullSubscription)createSubscription(
-            cc.getFilterSubject(), null, null, null, false, true, true, pullOpts, null, null);
+            cc.getFilterSubject(), null, null, null, false, true, isSimplificationMode, pullOpts, messageManagerFactory);
         return new NatsJetStreamPullReader(sub, sco);
     }
 
@@ -130,13 +153,32 @@ public class NatsJetStream2 extends NatsJetStreamImpl implements JetStream2 {
         validateNotNull(stream, "Stream");
         validateNotNull(consumerName, "Consumer Name");
         ConsumerConfiguration cc = _getConsumerInfo(stream, consumerName).getConsumerConfiguration();
+        return _listen(stream, handler, sco, cc, true);
+    }
+
+    @Override
+    public SimpleConsumer listen(String stream, SimpleConsumerConfiguration consumerConfiguration, MessageHandler handler) throws IOException, JetStreamApiException {
+        validateNotNull(stream, "Stream");
+        return _listen(stream, handler, DEFAULT_SCO_OPTIONS, consumerConfiguration, false);
+    }
+
+    @Override
+    public SimpleConsumer listen(String stream, SimpleConsumerConfiguration consumerConfiguration, MessageHandler handler, SimpleConsumerOptions sco) throws IOException, JetStreamApiException {
+        validateNotNull(stream, "Stream");
+        return _listen(stream, handler, sco, consumerConfiguration, false);
+    }
+
+    private NatsSimpleConsumer _listen(String stream, MessageHandler handler, SimpleConsumerOptions sco, ConsumerConfiguration cc, boolean isSimplificationMode) throws IOException, JetStreamApiException {
         PullSubscribeOptions pullOpts = PullSubscribeOptions.builder()
             .stream(stream)
             .configuration(cc)
             .build();
+        MessageManagerFactory messageManagerFactory =
+            (conn, so, cc1, queueMode, syncMode) ->
+                new PullSimpleMessageManager(conn, syncMode, sco);
         NatsDispatcher dispatcher = (NatsDispatcher)conn.createDispatcher();
         NatsJetStreamPullSubscription sub = (NatsJetStreamPullSubscription)createSubscription(
-            cc.getFilterSubject(), null, dispatcher, handler, false, true, true, pullOpts, null, null);
+            cc.getFilterSubject(), null, dispatcher, handler, false, true, isSimplificationMode, pullOpts, messageManagerFactory);
         return new NatsSimpleConsumer(sub, sco);
     }
 }

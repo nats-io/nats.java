@@ -108,7 +108,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     @Override
     public JetStreamSubscription subscribe(String subject) throws IOException, JetStreamApiException {
         validateSubject(subject, true);
-        return createSubscription(subject, null, null, null, false, false, false, null, null, null);
+        return createSubscription(subject, null, null, null, false, false, false, null, null);
     }
 
     /**
@@ -117,7 +117,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     @Override
     public JetStreamSubscription subscribe(String subject, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         validateSubject(subject, isSubjectRequired(options));
-        return createSubscription(subject, null, null, null, false, false, false, options, null, null);
+        return createSubscription(subject, null, null, null, false, false, false, options, null);
     }
 
     /**
@@ -127,7 +127,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     public JetStreamSubscription subscribe(String subject, String queue, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         validateSubject(subject, isSubjectRequired(options));
         queue = emptyAsNull(validateQueueName(queue, false));
-        return createSubscription(subject, queue, null, null, false, false, false, options, null, null);
+        return createSubscription(subject, queue, null, null, false, false, false, options, null);
     }
 
     /**
@@ -138,7 +138,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         validateSubject(subject, true);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
-        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, false, false, null, null, null);
+        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, false, false, null, null);
     }
 
     /**
@@ -149,7 +149,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         validateSubject(subject, isSubjectRequired(options));
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
-        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, false, false, options, null, null);
+        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, false, false, options, null);
     }
 
     /**
@@ -161,7 +161,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         queue = emptyAsNull(validateQueueName(queue, false));
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
-        return createSubscription(subject, queue, (NatsDispatcher) dispatcher, handler, autoAck, false, false, options, null, null);
+        return createSubscription(subject, queue, (NatsDispatcher) dispatcher, handler, autoAck, false, false, options, null);
     }
 
     /**
@@ -171,7 +171,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     public JetStreamSubscription subscribe(String subject, PullSubscribeOptions options) throws IOException, JetStreamApiException {
         validateNotNull(options, "Pull Subscribe Options");
         validateSubject(subject, isSubjectRequired(options));
-        return createSubscription(subject, null, null, null, false, true, false, options, null, null);
+        return createSubscription(subject, null, null, null, false, true, false, options, null);
     }
 
     /**
@@ -181,7 +181,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, PullSubscribeOptions options) throws IOException, JetStreamApiException {
         validateNotNull(options, "Pull Subscribe Options");
         validateSubject(subject, isSubjectRequired(options));
-        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, false, true, false, options, null, null);
+        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, false, true, false, options, null);
     }
 
     private boolean isSubjectRequired(SubscribeOptions options) {

@@ -276,14 +276,14 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         }
     }
 
-    // Push/PullMessageManagerFactory are internal and used for testing / providing a MessageManager mocks
     interface MessageManagerFactory {
         MessageManager createMessageManager(
             NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode);
     }
 
     MessageManagerFactory DEFAULT_PUSH_MESSAGE_MANAGER_FACTORY = PushMessageManager::new;
-    MessageManagerFactory DEFAULT_PULL_MESSAGE_MANAGER_FACTORY = PullMessageManager::new;
+    MessageManagerFactory DEFAULT_PULL_MESSAGE_MANAGER_FACTORY =
+        (mmConn, mmSo, mmCo, mmQueueMode, mmSyncMode) -> new PullMessageManager(mmConn, mmSyncMode);
 
     JetStreamSubscription createSubscription(String subject,
                                              String queueName,
@@ -293,8 +293,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
                                              boolean isPullMode,
                                              boolean isSimplificationMode,
                                              SubscribeOptions subscribeOptions,
-                                             MessageManagerFactory pushMmFactory,
-                                             MessageManagerFactory pullMmFactory
+                                             MessageManagerFactory messageManagerFactory
     ) throws IOException, JetStreamApiException {
 
         // 1. Prepare for all the validation
@@ -455,20 +454,20 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         final MessageManager[] managers;
         final NatsSubscriptionFactory factory;
         if (isPullMode) {
-            if (pullMmFactory == null) {
-                pullMmFactory = DEFAULT_PULL_MESSAGE_MANAGER_FACTORY;
+            if (messageManagerFactory == null) {
+                messageManagerFactory = DEFAULT_PULL_MESSAGE_MANAGER_FACTORY;
             }
-            managers = new MessageManager[] { pullMmFactory.createMessageManager(conn, so, settledServerCC, false, dispatcher == null) };
+            managers = new MessageManager[] { messageManagerFactory.createMessageManager(conn, so, settledServerCC, false, dispatcher == null) };
             factory = (sid, lSubject, lQgroup, lConn, lDispatcher) ->
                 new NatsJetStreamPullSubscription(sid, lSubject, lConn, lDispatcher,
                     this, fnlStream, settledConsumerName, managers);
         }
         else {
-            if (pushMmFactory == null) {
-                pushMmFactory = DEFAULT_PUSH_MESSAGE_MANAGER_FACTORY;
+            if (messageManagerFactory == null) {
+                messageManagerFactory = DEFAULT_PUSH_MESSAGE_MANAGER_FACTORY;
             }
             final MessageManager pushMessageManager =
-                pushMmFactory.createMessageManager(conn, so, settledServerCC, qgroup != null, dispatcher == null);
+                messageManagerFactory.createMessageManager(conn, so, settledServerCC, qgroup != null, dispatcher == null);
             if (so.isOrdered()) {
                 managers = new MessageManager[3];
                 managers[0] = new SidCheckManager();
