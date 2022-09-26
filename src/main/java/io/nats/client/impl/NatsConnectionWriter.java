@@ -116,15 +116,13 @@ class NatsConnectionWriter implements Runnable {
             if (sendPosition + size > sendBuffer.length) {
                 if (sendPosition == 0) { // have to resize
                     this.sendBuffer = new byte[(int)Math.max(sendBuffer.length + size, sendBuffer.length * 2L)];
-                } else { // else send and go to next message
+                } else { // else send and continue with current message
                     dataPort.write(sendBuffer, sendPosition);
                     connection.getNatsStatistics().registerWrite(sendPosition);
                     sendPosition = 0;
-                    msg = msg.next;
 
-                    if (msg == null) {
-                        break;
-                    }
+                    // go back to the start of the loop, to ensure we check for resizing the buffer again
+                    continue;
                 }
             }
 
