@@ -18,6 +18,7 @@
   "sealed": true,
   "deny_delete": true,
   "deny_purge": true,
+  "discard_new_per_subject": true,
   "allow_rollup_hdrs": true,
   "allow_direct": true,
   "placement": {

@@ -59,6 +59,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final boolean allowDirect;
     private final boolean denyDelete;
     private final boolean denyPurge;
+    private final boolean discardNewPerSubject;
 
     // for the response from the server
     static StreamConfiguration instance(String json) {
@@ -101,6 +102,7 @@ public class StreamConfiguration implements JsonSerializable {
         builder.allowDirect(readBoolean(json, ALLOW_DIRECT_RE));
         builder.denyDelete(readBoolean(json, DENY_DELETE_RE));
         builder.denyPurge(readBoolean(json, DENY_PURGE_RE));
+        builder.discardNewPerSubject(readBoolean(json, DISCARD_NEW_PER_SUBJECT_RE));
 
         return builder.build();
     }
@@ -132,6 +134,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.allowDirect = b.allowDirect;
         this.denyDelete = b.denyDelete;
         this.denyPurge = b.denyPurge;
+        this.discardNewPerSubject = b.discardNewPerSubject;
     }
 
     /**
@@ -175,6 +178,7 @@ public class StreamConfiguration implements JsonSerializable {
         addFldWhenTrue(sb, ALLOW_DIRECT, allowDirect);
         addFldWhenTrue(sb, DENY_DELETE, denyDelete);
         addFldWhenTrue(sb, DENY_PURGE, denyPurge);
+        addFldWhenTrue(sb, DISCARD_NEW_PER_SUBJECT, discardNewPerSubject);
 
         return endJson(sb).toString();
     }
@@ -381,6 +385,14 @@ public class StreamConfiguration implements JsonSerializable {
         return denyPurge;
     }
 
+    /**
+     * Whether discard policy with max message per subject is applied per subject.
+     * @return the discard new per subject flag
+     */
+    public boolean isDiscardNewPerSubject() {
+        return discardNewPerSubject;
+    }
+
     @Override
     public String toString() {
         return "StreamConfiguration{" +
@@ -404,6 +416,7 @@ public class StreamConfiguration implements JsonSerializable {
             ", allowDirect=" + allowDirect +
             ", denyDelete=" + denyDelete +
             ", denyPurge=" + denyPurge +
+            ", discardNewPerSubject=" + discardNewPerSubject +
             ", " + objectString("mirror", mirror) +
             ", " + objectString("placement", placement) +
             ", sources=" + sources +
@@ -461,6 +474,7 @@ public class StreamConfiguration implements JsonSerializable {
         private boolean allowDirect = false;
         private boolean denyDelete = false;
         private boolean denyPurge = false;
+        private boolean discardNewPerSubject = false;
 
         /**
          * Default Builder
@@ -498,6 +512,7 @@ public class StreamConfiguration implements JsonSerializable {
                 this.allowDirect = sc.allowDirect;
                 this.denyDelete = sc.denyDelete;
                 this.denyPurge = sc.denyPurge;
+                this.discardNewPerSubject = sc.discardNewPerSubject;
             }
         }
 
@@ -845,6 +860,16 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder denyPurge(boolean denyPurge) {
             this.denyPurge = denyPurge;
+            return this;
+        }
+
+        /**
+         * Set whether discard policy new with max message per subject applies to existing subjects, not just new subjects.
+         * @param discardNewPerSubject the setting
+         * @return Builder
+         */
+        public Builder discardNewPerSubject(boolean discardNewPerSubject) {
+            this.discardNewPerSubject = discardNewPerSubject;
             return this;
         }
 
