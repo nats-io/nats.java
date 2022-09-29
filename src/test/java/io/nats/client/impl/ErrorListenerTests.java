@@ -78,6 +78,54 @@ public class ErrorListenerTests {
     }
 
     @Test
+    public void testClearLastError() throws Exception {
+        NatsConnection nc = null;
+        TestHandler handler = new TestHandler();
+        String[] customArgs = {"--user", "stephen", "--pass", "password"};
+
+        try (NatsTestServer ts = new NatsTestServer();
+             NatsTestServer ts2 = new NatsTestServer(customArgs, false); //ts2 requires auth
+             NatsTestServer ts3 = new NatsTestServer()) {
+            Options options = new Options.Builder().
+                    server(ts.getURI()).
+                    server(ts2.getURI()).
+                    server(ts3.getURI()).
+                    noRandomize().
+                    connectionListener(handler).
+                    maxReconnects(-1).
+                    build();
+            nc = (NatsConnection) Nats.connect(options);
+            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+            assertEquals(ts.getURI(), nc.getConnectedUrl());
+            handler.prepForStatusChange(Events.DISCONNECTED);
+
+            ts.close();
+
+            try {
+                nc.flush(Duration.ofSeconds(1));
+            }
+            catch (Exception exp) {
+                // this usually fails
+            }
+
+            handler.waitForStatusChange(5, TimeUnit.SECONDS);
+
+            handler.prepForStatusChange(Events.RECONNECTED);
+            handler.waitForStatusChange(5, TimeUnit.SECONDS);
+
+            assertNotNull(nc.getLastError());
+            assertTrue(nc.getLastError().contains("Authorization Violation"));
+            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+            assertEquals(ts3.getURI(), nc.getConnectedUrl());
+
+            nc.clearLastError();
+            assertNull(nc.getLastError());
+        } finally {
+            standardCloseConnection(nc);
+        }
+    }
+
+    @Test
     public void testErrorOnNoAuth() throws Exception {
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
         TestHandler handler = new TestHandler();
