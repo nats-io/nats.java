@@ -1636,6 +1636,11 @@ class NatsConnection implements Connection {
         return this.lastError.get();
     }
 
+    @Override
+    public void clearLastError() {
+        this.lastError.set("");
+    }
+
     ExecutorService getExecutor() {
         return executor;
     }
