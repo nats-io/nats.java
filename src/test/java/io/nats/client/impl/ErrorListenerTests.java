@@ -119,7 +119,7 @@ public class ErrorListenerTests {
             assertEquals(ts3.getURI(), nc.getConnectedUrl());
 
             nc.clearLastError();
-            assertNull(nc.getLastError());
+            assertEquals("", nc.getLastError());
         } finally {
             standardCloseConnection(nc);
         }
