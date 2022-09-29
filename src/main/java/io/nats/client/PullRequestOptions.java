@@ -19,6 +19,7 @@ import io.nats.client.support.JsonUtils;
 import java.time.Duration;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.Validator.validateGtZero;
 
 /**
  * The PullRequestOptions class specifies the options for pull requests
@@ -211,7 +212,7 @@ public class PullRequestOptions implements JsonSerializable {
          * @return the built PullRequestOptions
          */
         public PullRequestOptions build() {
-//            validateGtZero(batchSize, "Pull batch size");
+            validateGtZero(batchSize, "Pull batch size");
             return new PullRequestOptions(this);
         }
     }
