@@ -60,17 +60,17 @@ public class KeyValueTests extends JetStreamTestBase {
                 .build();
 
             KeyValueStatus status = kvm.create(kvc);
-            assertStatus(status);
+            assertInitialStatus(status);
 
             // get the kv context for the specific bucket
             KeyValue kv = nc.keyValue(BUCKET);
             assertEquals(BUCKET, kv.getBucketName());
             status = kv.getStatus();
-            assertStatus(status);
+            assertInitialStatus(status);
 
             KeyValue kv2 = nc.keyValue(BUCKET, KeyValueOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage
             assertEquals(BUCKET, kv2.getBucketName());
-            assertStatus(kv2.getStatus());
+            assertInitialStatus(kv2.getStatus());
 
             // Put some keys. Each key is put in a subject in the bucket (stream)
             // The put returns the sequence number in the bucket (stream)
@@ -101,7 +101,7 @@ public class KeyValueTests extends JetStreamTestBase {
             List<Object> stringHistory = new ArrayList<>();
             List<Object> longHistory = new ArrayList<>();
 
-            // entry gives detail about latest entry of the key
+            // entry gives detail about the latest entry of the key
             byteHistory.add(
                 assertEntry(BUCKET, byteKey, KeyValueOperation.PUT, 1, byteValue1, now, kv.get(byteKey)));
 
@@ -118,10 +118,9 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // let's check the bucket info
             status = kvm.getBucketInfo(BUCKET);
-            assertEquals(3, status.getEntryCount());
-            assertEquals(3, status.getBackingStreamInfo().getStreamState().getLastSequence());
+            assertState(status, 3, 3);
 
-            // delete a key. Its entry will still exist, but it's value is null
+            // delete a key. Its entry will still exist, but its value is null
             kv.delete(byteKey);
             assertNull(kv.get(byteKey));
             byteHistory.add(KeyValueOperation.DELETE);
@@ -133,8 +132,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // let's check the bucket info
             status = kvm.getBucketInfo(BUCKET);
-            assertEquals(4, status.getEntryCount());
-            assertEquals(4, status.getBackingStreamInfo().getStreamState().getLastSequence());
+            assertState(status, 4, 4);
 
             // if the key has been deleted no etnry is returned
             assertNull(kv.get(byteKey));
@@ -167,8 +165,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // let's check the bucket info
             status = kvm.getBucketInfo(BUCKET);
-            assertEquals(7, status.getEntryCount());
-            assertEquals(7, status.getBackingStreamInfo().getStreamState().getLastSequence());
+            assertState(status, 7, 7);
 
             // make sure it only keeps the correct amount of history
             assertEquals(8, kv.put(longKey, 3));
@@ -179,8 +176,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertHistory(longHistory, kv.history(longKey));
 
             status = kvm.getBucketInfo(BUCKET);
-            assertEquals(8, status.getEntryCount());
-            assertEquals(8, status.getBackingStreamInfo().getStreamState().getLastSequence());
+            assertState(status, 8, 8);
 
             // this would be the 4th entry for the longKey
             // sp the total records will stay the same
@@ -195,8 +191,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // record count does not increase
             status = kvm.getBucketInfo(BUCKET);
-            assertEquals(8, status.getEntryCount());
-            assertEquals(9, status.getBackingStreamInfo().getStreamState().getLastSequence());
+            assertState(status, 8, 9);
 
             // should have exactly these 3 keys
             assertKeys(kv.keys(), byteKey, stringKey, longKey);
@@ -209,8 +204,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertHistory(longHistory, kv.history(longKey));
 
             status = kvm.getBucketInfo(BUCKET);
-            assertEquals(6, status.getEntryCount()); // includes 1 purge
-            assertEquals(10, status.getBackingStreamInfo().getStreamState().getLastSequence());
+            assertState(status, 6, 10);
 
             // only 2 keys now
             assertKeys(kv.keys(), byteKey, stringKey);
@@ -222,8 +216,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertHistory(byteHistory, kv.history(byteKey));
 
             status = kvm.getBucketInfo(BUCKET);
-            assertEquals(4, status.getEntryCount()); // includes 2 purges
-            assertEquals(11, status.getBackingStreamInfo().getStreamState().getLastSequence());
+            assertState(status, 4, 11);
 
             // only 1 key now
             assertKeys(kv.keys(), stringKey);
@@ -235,8 +228,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertHistory(stringHistory, kv.history(stringKey));
 
             status = kvm.getBucketInfo(BUCKET);
-            assertEquals(3, status.getEntryCount()); // 3 purges
-            assertEquals(12, status.getBackingStreamInfo().getStreamState().getLastSequence());
+            assertState(status, 3, 12);
 
             // no more keys left
             assertKeys(kv.keys());
@@ -245,8 +237,7 @@ public class KeyValueTests extends JetStreamTestBase {
             KeyValuePurgeOptions kvpo = KeyValuePurgeOptions.builder().deleteMarkersNoThreshold().build();
             kv.purgeDeletes(kvpo);
             status = kvm.getBucketInfo(BUCKET);
-            assertEquals(0, status.getEntryCount()); // purges are all gone
-            assertEquals(12, status.getBackingStreamInfo().getStreamState().getLastSequence());
+            assertState(status, 0, 12);
 
             longHistory.clear();
             assertHistory(longHistory, kv.history(longKey));
@@ -279,8 +270,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertHistory(stringHistory, kv.history(stringKey));
 
             status = kvm.getBucketInfo(BUCKET);
-            assertEquals(5, status.getEntryCount());
-            assertEquals(17, status.getBackingStreamInfo().getStreamState().getLastSequence());
+            assertState(status, 5, 17);
 
             // delete the bucket
             kvm.delete(BUCKET);
@@ -291,7 +281,13 @@ public class KeyValueTests extends JetStreamTestBase {
         });
     }
 
-    private void assertStatus(KeyValueStatus status) {
+    private static void assertState(KeyValueStatus status, int entryCount, int lastSeq) {
+        assertEquals(entryCount, status.getEntryCount());
+        assertEquals(lastSeq, status.getBackingStreamInfo().getStreamState().getLastSequence());
+        assertEquals(status.getByteCount(), status.getBackingStreamInfo().getStreamState().getByteCount());
+    }
+
+    private void assertInitialStatus(KeyValueStatus status) {
         KeyValueConfiguration kvc;
         kvc = status.getConfiguration();
         assertEquals(BUCKET, status.getBucketName());
