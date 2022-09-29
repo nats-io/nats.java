@@ -92,7 +92,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .allowRollup(testSc.getAllowRollup())
             .allowDirect(testSc.getAllowDirect())
             .denyDelete(testSc.getDenyDelete())
-            .denyPurge(testSc.getDenyPurge());
+            .denyPurge(testSc.getDenyPurge())
+            .discardNewPerSubject(testSc.isDiscardNewPerSubject());
         validate(builder.build(), false);
         validate(builder.addSources((Source)null).build(), false);
 
@@ -358,6 +359,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             assertTrue(sc.getSealed());
             assertTrue(sc.getDenyDelete());
             assertTrue(sc.getDenyPurge());
+            assertTrue(sc.isDiscardNewPerSubject());
             assertTrue(sc.getAllowRollup());
             assertTrue(sc.getAllowDirect());
 
