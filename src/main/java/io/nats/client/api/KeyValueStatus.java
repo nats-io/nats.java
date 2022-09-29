@@ -68,6 +68,14 @@ public class KeyValueStatus {
     }
 
     /**
+     * Get the size of the bucket in bytes
+     * @return the number of bytes
+     */
+    public long getByteCount() {
+        return streamInfo.getStreamState().getByteCount();
+    }
+
+    /**
      * Gets the maximum number of history for any one key. Includes the current value.
      * @return the maximum number of values for any one key.
      */
