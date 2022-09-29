@@ -29,7 +29,7 @@ public interface NatsJetStreamConstants {
     String JSAPI_CONSUMER_CREATE_V290 = "CONSUMER.CREATE.%s.%s";
     String JSAPI_CONSUMER_CREATE_V290_W_FILTER = "CONSUMER.CREATE.%s.%s.%s";
 
-    // JSAPI_CONSUMER_INFO is used to create consumers.
+    // JSAPI_CONSUMER_INFO is used to read consumers.
     String JSAPI_CONSUMER_INFO = "CONSUMER.INFO.%s.%s";
 
     // JSAPI_CONSUMER_MSG_NEXT is the prefix for the request next message(s) for a consumer in worker/pull mode.

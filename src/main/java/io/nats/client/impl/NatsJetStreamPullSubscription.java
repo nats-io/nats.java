@@ -51,6 +51,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     @Override
     public void pull(PullRequestOptions pullRequestOptions) {
         String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
+        System.out.println(publishSubject + " " + pullRequestOptions.toJson());
         connection.publish(publishSubject, getSubject(), pullRequestOptions.serialize());
         connection.lenientFlushBuffer();
     }

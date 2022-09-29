@@ -18,15 +18,14 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.StorageType;
 
 import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.time.Duration;
 
 import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
 
 /**
- * This example will demonstrate JetStream2 and simplified listening
+ * This example will demonstrate JetStream2 and simplified reading
  */
-public class NatsSimpleListen {
+public class NatsSimpleReadExistingConsumer {
     static String stream = "simple-stream";
     static String subject = "simple-subject";
     static String durable = "simple-durable";
@@ -46,24 +45,10 @@ public class NatsSimpleListen {
             nc.jetStreamManagement().addOrUpdateConsumer(stream, cc);
 
             // JetStream2 context
-            JetStream2 js = nc.jetStream2();
+            JetStreamSimplified js = nc.jetStreamSimplified(stream);
 
             // ********************************************************************************
-            // Messages are sent to the handler without having to do nextMessage
-            // ********************************************************************************
-            CountDownLatch latch = new CountDownLatch(count);
-            AtomicInteger red = new AtomicInteger();
-            MessageHandler handler = msg -> {
-                System.out.printf("Subject: %s | Data: %s | Meta: %s\n",
-                    msg.getSubject(), new String(msg.getData()), msg.getReplyTo());
-                msg.ack();
-                red.incrementAndGet();
-                latch.countDown();
-            };
-
-            // ********************************************************************************
-            // Listener is just a simple consumer. Messages are sent to the handler.
-            // Keep a reference to the SimpleConsumer to be able to unsub, drain and get consumer info
+            // Set up Reader. Reader is a SimpleConsumer
             // ********************************************************************************
             SimpleConsumerOptions sco = SimpleConsumerOptions.builder()
                 .batchSize(10)
@@ -71,16 +56,29 @@ public class NatsSimpleListen {
 //                .maxBytes(999)
 //                .expiresIn(Duration.ofMillis(10000))
                 .build();
-            SimpleConsumer simpleConsumer = js.listen(stream, durable, handler, sco);
-            // ********************************************************************************
 
-            latch.await();
+            SimpleIterateConsumer reader = js.endlessIterate(durable, sco);
 
-            System.out.println("\n" + red.get() + " message(s) were received.\n");
-            System.out.println("\n" + simpleConsumer.getConsumerInfo());
+            // read loop
+            int red = 0;
+            Message msg = reader.nextMessage(Duration.ofSeconds(1)); // timeout can be Duration or millis
+            while (msg != null) {
+                System.out.printf("Subject: %s | Data: %s | Meta: %s\n",
+                    msg.getSubject(), new String(msg.getData()), msg.getReplyTo());
+                msg.ack();
+                if (++red == count) {
+                    msg = null;
+                }
+                else {
+                    msg = reader.nextMessage(1000); // timeout can be Duration or millis
+                }
+            }
+
+            System.out.println("\n" + red + " message(s) were received.\n");
+            System.out.println("\n" + reader.getConsumerInfo());
 
             // be a good citizen
-            simpleConsumer.unsubscribe();
+            reader.unsubscribe();
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -91,9 +89,9 @@ public class NatsSimpleListen {
         JetStreamManagement jsm = nc.jetStreamManagement();
         createOrReplaceStream(jsm, stream, StorageType.Memory, subject);
 
-        JetStream2 js = nc.jetStream2();
+        JetStreamSimplified js = nc.jetStreamSimplified(stream);
         for (int x = 1; x <= count; x++) {
-            js.publish(subject, ("m-" + x).getBytes());
+            js.getJetStream().publish(subject, ("m-" + x).getBytes());
         }
     }
 }

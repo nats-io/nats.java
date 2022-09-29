@@ -38,11 +38,20 @@ public class SimpleConsumerConfiguration extends ConsumerConfiguration {
 
     /**
      * Creates a builder for the options.
-     * @param cc the consumer configuration
+     * @param filterSubject the filter subject
      * @return a publish options builder
      */
-    public static Builder simpleBuilder(SimpleConsumerConfiguration cc) {
-        return cc == null ? new Builder() : new Builder(cc);
+    public static Builder simpleBuilder(String filterSubject) {
+        return new Builder().filterSubject(filterSubject);
+    }
+
+    /**
+     * Creates a builder for the options.
+     * @param scc the consumer configuration
+     * @return a publish options builder
+     */
+    public static Builder simpleBuilder(SimpleConsumerConfiguration scc) {
+        return new Builder(scc);
     }
 
     /**
@@ -54,6 +63,7 @@ public class SimpleConsumerConfiguration extends ConsumerConfiguration {
      */
     public static class Builder {
         ConsumerConfiguration.Builder builder;
+        String filterSubject;
 
         public Builder() {
             builder = new ConsumerConfiguration.Builder();
@@ -211,6 +221,7 @@ public class SimpleConsumerConfiguration extends ConsumerConfiguration {
          * @return Builder
          */
         public Builder filterSubject(String filterSubject) {
+            this.filterSubject = filterSubject;
             builder.filterSubject(filterSubject);
             return this;
         }
@@ -404,6 +415,9 @@ public class SimpleConsumerConfiguration extends ConsumerConfiguration {
          * @return The consumer configuration.
          */
         public SimpleConsumerConfiguration build() {
+            if (nullOrEmpty(filterSubject)) {
+                builder.filterSubject(">");
+            }
             return new SimpleConsumerConfiguration(builder.build());
         }
     }

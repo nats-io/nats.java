@@ -110,7 +110,7 @@ public interface JetStreamManagement {
     PurgeResponse purgeStream(String streamName, PurgeOptions options) throws IOException, JetStreamApiException;
 
     /**
-     * Loads or creates a consumer.
+     * Creates or updates a consumer.
      * @param streamName name of the stream
      * @param config the consumer configuration to use.
      * @throws IOException covers various communication issues with the NATS

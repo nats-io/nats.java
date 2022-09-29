@@ -475,8 +475,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
                 managers[2] = new OrderedManager(this, dispatcher, fnlStream, settledServerCC);
             }
             else {
-                managers = new MessageManager[1];
-                managers[0] = pushMessageManager;
+                managers = new MessageManager[] { pushMessageManager };
             }
             factory = (sid, lSubject, lQgroup, lConn, lDispatcher) ->
                 new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,

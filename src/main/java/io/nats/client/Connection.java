@@ -457,23 +457,9 @@ public interface Connection extends AutoCloseable {
      */
     JetStream jetStream(JetStreamOptions options) throws IOException;
 
-    /**
-     * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
-     * and consumers.
-     * @return a JetStream instance.
-     * @throws IOException various IO exception such as timeout or interruption
-     */
-    JetStream2 jetStream2() throws IOException;
 
-    /**
-     * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
-     * and consumers.
-     * @param options JetStream options.
-     * @return a JetStream instance.
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     */
-    JetStream2 jetStream2(JetStreamOptions options) throws IOException;
+    JetStreamSimplified jetStreamSimplified(String stream) throws IOException;
+    JetStreamSimplified jetStreamSimplified(String stream, JetStreamOptions options) throws IOException;
 
     /**
      * Gets a context for managing Jetstream streams

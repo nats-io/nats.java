@@ -271,6 +271,16 @@ public abstract class Validator {
         return s;
     }
 
+    public static String validateNotNull(String s1, String s2, String fieldName) {
+        if (s1 == null) {
+            if (s2 == null) {
+                throw new IllegalArgumentException(fieldName + " cannot be null");
+            }
+            return s2;
+        }
+        return s1;
+    }
+
     public static Object validateNotNull(Object o, String fieldName) {
         if (o == null) {
             throw new IllegalArgumentException(fieldName + " cannot be null");

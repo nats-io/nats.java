@@ -17,54 +17,54 @@ import io.nats.client.Message;
 import io.nats.client.PullRequestOptions;
 import io.nats.client.SimpleConsumerOptions;
 
+import java.time.Duration;
+
 class PullSimpleMessageManager extends PullMessageManager {
 
     private final SimpleConsumerOptions sco;
     private int currentBatchRedMessages;
     private int currentBatchRedBytes;
-    private final Object keepGoingLock;
-    private boolean keepGoing;
-
+    private final Object continueLock;
+    private boolean continueToPull;
+    private int repullAt;
 
     public PullSimpleMessageManager(NatsConnection conn, boolean syncMode, SimpleConsumerOptions sco) {
         super(conn, syncMode);
         this.sco = sco;
-        keepGoingLock = new Object();
+        continueLock = new Object();
         currentBatchRedMessages = 0;
-        keepGoing = true;
+        continueToPull = true;
     }
 
     @Override
     void startup(NatsJetStreamSubscription sub) {
         super.startup(sub);
-        if (!syncMode) {
-            sub.pull(PullRequestOptions.builder(sco.batchSize)
-                .maxBytes(sco.maxBytes)
-                .expiresIn(sco.expiresIn)
-                .idleHeartbeat(sco.idleHeartbeat)
-                .build());
-        }
+        sub.pull(PullRequestOptions.builder(sco.batchSize)
+            .maxBytes(sco.maxBytes)
+            .expiresIn(Duration.ofSeconds(10))
+            .idleHeartbeat(Duration.ofSeconds(1))
+            .build());
     }
 
     @Override
     void shutdown() {
-        synchronized (keepGoingLock) {
-            keepGoing = false;
+        synchronized (continueLock) {
+            continueToPull = false;
         }
         super.shutdown();
     }
 
     @Override
     protected void subManage(Message msg) {
-        System.out.println("SUB MANAGE");
+//        System.out.println("SUB MANAGE");
         if (++currentBatchRedMessages == sco.repullAt) {
-            synchronized (keepGoingLock) {
-                if (keepGoing) {
-                    System.out.println("RE PULL");
+            synchronized (continueLock) {
+                if (continueToPull) {
+//                    System.out.println("RE PULL");
                     sub.pull(PullRequestOptions.builder(sco.batchSize)
                         .maxBytes(sco.maxBytes)
-                        .expiresIn(sco.expiresIn)
-                        .idleHeartbeat(sco.idleHeartbeat)
+                        .expiresIn(Duration.ofSeconds(10))
+                        .idleHeartbeat(Duration.ofSeconds(1))
                         .build());
                 }
             }

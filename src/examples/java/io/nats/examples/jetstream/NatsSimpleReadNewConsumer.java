@@ -14,7 +14,7 @@
 package io.nats.examples.jetstream;
 
 import io.nats.client.*;
-import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.SimpleConsumerConfiguration;
 import io.nats.client.api.StorageType;
 
 import java.io.IOException;
@@ -25,10 +25,10 @@ import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
 /**
  * This example will demonstrate JetStream2 and simplified reading
  */
-public class NatsSimpleRead {
+public class NatsSimpleReadNewConsumer {
     static String stream = "simple-stream";
     static String subject = "simple-subject";
-    static String durable = "simple-durable";
+    static String durable = null; // "simple-durable";
     static int count = 20;
 
     public static void main(String[] args) {
@@ -37,15 +37,8 @@ public class NatsSimpleRead {
 
             setupStreamAndData(nc);
 
-            // Create durable consumer
-            ConsumerConfiguration cc =
-                ConsumerConfiguration.builder()
-                    .durable(durable)
-                    .build();
-            nc.jetStreamManagement().addOrUpdateConsumer(stream, cc);
-
             // JetStream2 context
-            JetStream2 js = nc.jetStream2();
+            JetStreamSimplified js = nc.jetStreamSimplified(stream);
 
             // ********************************************************************************
             // Set up Reader. Reader is a SimpleConsumer
@@ -57,7 +50,11 @@ public class NatsSimpleRead {
 //                .expiresIn(Duration.ofMillis(10000))
                 .build();
 
-            JetStreamReader reader = js.read(stream, durable, sco);
+            SimpleConsumerConfiguration scc = SimpleConsumerConfiguration
+                .simpleBuilder(">")
+                .durable(durable)
+                .build();
+            SimpleIterateConsumer reader = js.endlessIterate(scc, sco);
 
             // read loop
             int red = 0;
@@ -77,6 +74,7 @@ public class NatsSimpleRead {
             System.out.println("\n" + red + " message(s) were received.\n");
             System.out.println("\n" + reader.getConsumerInfo());
 
+            Thread.sleep(10000);
             // be a good citizen
             reader.unsubscribe();
         }
@@ -89,9 +87,9 @@ public class NatsSimpleRead {
         JetStreamManagement jsm = nc.jetStreamManagement();
         createOrReplaceStream(jsm, stream, StorageType.Memory, subject);
 
-        JetStream2 js = nc.jetStream2();
+        JetStreamSimplified js = nc.jetStreamSimplified(stream);
         for (int x = 1; x <= count; x++) {
-            js.publish(subject, ("m-" + x).getBytes());
+            js.getJetStream().publish(subject, ("m-" + x).getBytes());
         }
     }
 }

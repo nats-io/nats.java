@@ -19,12 +19,9 @@ import io.nats.client.support.JsonUtils;
 import java.time.Duration;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.Validator.validateGtZero;
 
 /**
  * The PullRequestOptions class specifies the options for pull requests
- *
- * IMPORTANT! PullRequestOptions ARE CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public class PullRequestOptions implements JsonSerializable {
 
@@ -33,6 +30,7 @@ public class PullRequestOptions implements JsonSerializable {
     private final boolean noWait;
     private final Duration expiresIn;
     private final Duration idleHeartbeat;
+    private final StatusHandler statusHandler;
 
     public PullRequestOptions(Builder b) {
         this.batchSize = b.batchSize;
@@ -40,6 +38,7 @@ public class PullRequestOptions implements JsonSerializable {
         this.noWait = b.noWait;
         this.expiresIn = b.expiresIn;
         this.idleHeartbeat = b.idleHeartbeat;
+        this.statusHandler = b.statusHandler;
     }
 
     @Override
@@ -93,6 +92,10 @@ public class PullRequestOptions implements JsonSerializable {
         return idleHeartbeat;
     }
 
+    public StatusHandler getStatusHandler() {
+        return statusHandler;
+    }
+
     /**
      * Creates a builder for the pull options, with batch size since it's always required
      * @param batchSize the size of the batch. Must be greater than 0
@@ -117,6 +120,7 @@ public class PullRequestOptions implements JsonSerializable {
         private boolean noWait;
         private Duration expiresIn;
         private Duration idleHeartbeat;
+        private StatusHandler statusHandler;
 
         /**
          * Set the batch size for the pull
@@ -197,12 +201,17 @@ public class PullRequestOptions implements JsonSerializable {
             return this;
         }
 
+        public Builder statusHandler(StatusHandler statusHandler) {
+            this.statusHandler = statusHandler;
+            return this;
+        }
+
         /**
          * Build the PullRequestOptions. Validates that the batch size is greater than 0
          * @return the built PullRequestOptions
          */
         public PullRequestOptions build() {
-            validateGtZero(batchSize, "Pull batch size");
+//            validateGtZero(batchSize, "Pull batch size");
             return new PullRequestOptions(this);
         }
     }

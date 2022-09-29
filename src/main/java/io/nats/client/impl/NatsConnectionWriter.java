@@ -105,8 +105,7 @@ class NatsConnectionWriter implements Runnable {
         return this.stopped;
     }
 
-    synchronized void sendMessageBatch(NatsMessage msg, DataPort dataPort, NatsStatistics stats)
-            throws IOException {
+    synchronized void sendMessageBatch(NatsMessage msg, DataPort dataPort, NatsStatistics stats) throws IOException {
 
         int sendPosition = 0;
 
@@ -120,11 +119,7 @@ class NatsConnectionWriter implements Runnable {
                     dataPort.write(sendBuffer, sendPosition);
                     connection.getNatsStatistics().registerWrite(sendPosition);
                     sendPosition = 0;
-                    msg = msg.next;
-
-                    if (msg == null) {
-                        break;
-                    }
+                    continue;
                 }
             }
 
@@ -154,7 +149,6 @@ class NatsConnectionWriter implements Runnable {
 
             stats.incrementOutMsgs();
             stats.incrementOutBytes(size);
-
             msg = msg.next;
         }
 

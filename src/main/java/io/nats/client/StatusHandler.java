@@ -1,4 +1,4 @@
-// Copyright 2022 The NATS Authors
+// Copyright 2015-2018 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -13,12 +13,6 @@
 
 package io.nats.client;
 
-import java.time.Duration;
-
-/**
- * THIS IS PART OF AN EXPERIMENTAL API AND IS CONSIDERED EXPERIMENTAL AND SUBJECT TO CHANGE
- */
-public interface JetStreamReader extends SimpleConsumer {
-    Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException;
-    Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException;
+public interface StatusHandler {
+    void onMessage(Connection.Status status) throws InterruptedException;
 }

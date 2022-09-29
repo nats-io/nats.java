@@ -20,20 +20,22 @@ import java.time.Duration;
  * Options are created using the  {@link SimpleConsumerOptions.Builder Builder}.
  */
 public class SimpleConsumerOptions {
-    public static final SimpleConsumerOptions DEFAULT_SCO_OPTIONS = new SimpleConsumerOptions.Builder().build();
+    public static final SimpleConsumerOptions DEFAULT_SCO_OPTIONS = builder().build();
+    public static final SimpleConsumerOptions XLARGE_PAYLOAD = predefined(10, 6);
+    public static final SimpleConsumerOptions LARGE_PAYLOAD = predefined(10, 6);
+    public static final SimpleConsumerOptions MEDIUM_PAYLOAD = predefined(30, 18);
+    public static final SimpleConsumerOptions SMALL_PAYLOAD = predefined(100, 60);
 
     public final int batchSize;
     public final int maxBytes;
     public final int repullAt;
-    public final Duration expiresIn;
-    public final Duration idleHeartbeat;
+    public final boolean ordered;
 
     public SimpleConsumerOptions(Builder b) {
         this.batchSize = b.batchSize;
         this.maxBytes = b.maxBytes;
         this.repullAt = b.repullAt;
-        this.expiresIn = b.expiresIn;
-        this.idleHeartbeat = b.idleHeartbeat;
+        this.ordered = b.ordered;
     }
 
     /**
@@ -44,10 +46,15 @@ public class SimpleConsumerOptions {
         return new Builder();
     }
 
+    private static SimpleConsumerOptions predefined(int batchSize, int repullAt) {
+        return new Builder().batchSize(batchSize).repullAt(repullAt).build();
+    }
+
     public static class Builder {
         private int batchSize;
         private int maxBytes;
         private int repullAt;
+        private boolean ordered;
         private Duration expiresIn;
         private Duration idleHeartbeat;
 
@@ -81,45 +88,45 @@ public class SimpleConsumerOptions {
             return this;
         }
 
-        /**
-         * Set the expires time in millis
-         * @param expiresInMillis the millis
-         * @return the builder
-         */
-        public Builder expiresIn(long expiresInMillis) {
-            this.expiresIn = Duration.ofMillis(expiresInMillis);
-            return this;
-        }
-
-        /**
-         * Set the expires duration
-         * @param expiresIn the duration
-         * @return the builder
-         */
-        public Builder expiresIn(Duration expiresIn) {
-            this.expiresIn = expiresIn;
-            return this;
-        }
-
-        /**
-         * Set the idle heartbeat time in millis
-         * @param idleHeartbeatMillis the millis
-         * @return the builder
-         */
-        public Builder idleHeartbeat(long idleHeartbeatMillis) {
-            this.idleHeartbeat = Duration.ofMillis(idleHeartbeatMillis);
-            return this;
-        }
-
-        /**
-         * Set the idle heartbeat duration
-         * @param idleHeartbeat the duration
-         * @return the builder
-         */
-        public Builder idleHeartbeat(Duration idleHeartbeat) {
-            this.idleHeartbeat = idleHeartbeat;
-            return this;
-        }
+//        /**
+//         * Set the expires time in millis
+//         * @param expiresInMillis the millis
+//         * @return the builder
+//         */
+//        public Builder expiresIn(long expiresInMillis) {
+//            this.expiresIn = Duration.ofMillis(expiresInMillis);
+//            return this;
+//        }
+//
+//        /**
+//         * Set the expires duration
+//         * @param expiresIn the duration
+//         * @return the builder
+//         */
+//        public Builder expiresIn(Duration expiresIn) {
+//            this.expiresIn = expiresIn;
+//            return this;
+//        }
+//
+//        /**
+//         * Set the idle heartbeat time in millis
+//         * @param idleHeartbeatMillis the millis
+//         * @return the builder
+//         */
+//        public Builder idleHeartbeat(long idleHeartbeatMillis) {
+//            this.idleHeartbeat = Duration.ofMillis(idleHeartbeatMillis);
+//            return this;
+//        }
+//
+//        /**
+//         * Set the idle heartbeat duration
+//         * @param idleHeartbeat the duration
+//         * @return the builder
+//         */
+//        public Builder idleHeartbeat(Duration idleHeartbeat) {
+//            this.idleHeartbeat = idleHeartbeat;
+//            return this;
+//        }
 
         /**
          * Build the SimpleConsumerOptions. Validates that the batch size is greater than 0
