@@ -426,6 +426,11 @@ public interface Connection extends AutoCloseable {
     String getLastError();
 
     /**
+     * Clear the last error from the server
+     */
+    void clearLastError();
+
+    /**
      * @return a new inbox subject, can be used for directed replies from
      * subscribers. These are guaranteed to be unique, but can be shared and subscribed
      * to by others.
