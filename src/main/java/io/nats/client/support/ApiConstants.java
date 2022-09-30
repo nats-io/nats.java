@@ -57,6 +57,7 @@ public interface ApiConstants {
     String DEST              = "dest";
     String DIGEST            = "digest";
     String DISCARD           = "discard";
+    String DISCARD_NEW_PER_SUBJECT = "discard_new_per_subject";
     String DOMAIN            = "domain";
     String DUPLICATE         = "duplicate";
     String DUPLICATE_WINDOW  = "duplicate_window";
@@ -203,6 +204,7 @@ public interface ApiConstants {
     Pattern DIGEST_RE             = string_pattern(DIGEST);
     Pattern DEST_RE               = string_pattern(DEST);
     Pattern DISCARD_RE            = string_pattern(DISCARD);
+    Pattern DISCARD_NEW_PER_SUBJECT_RE = boolean_pattern(DISCARD_NEW_PER_SUBJECT);
     Pattern DOMAIN_RE             = string_pattern(DOMAIN);
     Pattern DUPLICATE_RE          = boolean_pattern(DUPLICATE);
     Pattern DUPLICATE_WINDOW_RE   = integer_pattern(DUPLICATE_WINDOW);
