@@ -166,13 +166,15 @@ public class NatsMessage implements Message {
             if (protocolBytes != null) {
                 sizeInBytes += protocolBytes.length;
             }
-            if (hdrLen > 0) {
-                sizeInBytes += hdrLen + 2; // CRLF
-            }
-            if (data.length == 0) {
+            sizeInBytes += 2; // CRLF
+            if (!isProtocol()) {
+                if (hdrLen > 0) {
+                    sizeInBytes += hdrLen;
+                }
+                if (dataLen > 0) {
+                    sizeInBytes += dataLen;
+                }
                 sizeInBytes += 2; // CRLF
-            } else {
-                sizeInBytes += dataLen + 4; // CRLF
             }
         }
         return sizeInBytes;
