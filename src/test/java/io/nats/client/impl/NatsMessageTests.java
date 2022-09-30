@@ -55,6 +55,60 @@ public class NatsMessageTests {
     }
 
     @Test
+    public void testSizeOnPublishMessageWithHeaders() {
+        Headers headers = new Headers().add("Content-Type", "text/plain");
+        byte[] body = new byte[10];
+        String subject = "subj";
+        String replyTo = "reply";
+        String protocol = "HPUB " + subject + " " + replyTo + " " + headers.serializedLength() + " " + (headers.serializedLength() + body.length);
+
+        NatsMessage msg = new NatsMessage(subject, replyTo, headers, body);
+
+        assertEquals(msg.getProtocolBytes().length + headers.serializedLength() + body.length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
+        assertEquals(protocol.getBytes(StandardCharsets.US_ASCII).length + headers.serializedLength() + body.length + 4, msg.getSizeInBytes(), "Size is correct");
+
+        msg = new NatsMessage(subject, replyTo, headers, body);
+
+        assertEquals(msg.getProtocolBytes().length + headers.serializedLength() + body.length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
+        assertEquals(protocol.getBytes(StandardCharsets.UTF_8).length + headers.serializedLength() + body.length + 4, msg.getSizeInBytes(), "Size is correct");
+    }
+
+    @Test
+    public void testSizeOnPublishMessageOnlyHeaders() {
+        Headers headers = new Headers().add("Content-Type", "text/plain");
+        String subject = "subj";
+        String replyTo = "reply";
+        String protocol = "HPUB " + subject + " " + replyTo + " " + headers.serializedLength() + " " + headers.serializedLength();
+
+        NatsMessage msg = new NatsMessage(subject, replyTo, headers, null);
+
+        assertEquals(msg.getProtocolBytes().length + headers.serializedLength() + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
+        assertEquals(protocol.getBytes(StandardCharsets.US_ASCII).length + headers.serializedLength() + 4, msg.getSizeInBytes(), "Size is correct");
+
+        msg = new NatsMessage(subject, replyTo, headers, null);
+
+        assertEquals(msg.getProtocolBytes().length + headers.serializedLength() + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
+        assertEquals(protocol.getBytes(StandardCharsets.UTF_8).length + headers.serializedLength() + 4, msg.getSizeInBytes(), "Size is correct");
+    }
+
+    @Test
+    public void testSizeOnPublishMessageOnlySubject() {
+        String subject = "subj";
+        String replyTo = "reply";
+        String protocol = "PUB " + subject + " " + replyTo + " " + 0;
+
+        NatsMessage msg = new NatsMessage(subject, replyTo, null, null);
+
+        assertEquals(msg.getProtocolBytes().length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
+        assertEquals(protocol.getBytes(StandardCharsets.US_ASCII).length + 4, msg.getSizeInBytes(), "Size is correct");
+
+        msg = new NatsMessage(subject, replyTo, null, null);
+
+        assertEquals(msg.getProtocolBytes().length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
+        assertEquals(protocol.getBytes(StandardCharsets.UTF_8).length + 4, msg.getSizeInBytes(), "Size is correct");
+    }
+
+    @Test
     public void testCustomMaxControlLine() {
         assertThrows(IllegalArgumentException.class, () -> {
             byte[] body = new byte[10];
