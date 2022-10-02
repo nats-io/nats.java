@@ -16,6 +16,8 @@ package io.nats.client.api;
 import io.nats.client.support.JsonUtils;
 
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
@@ -30,8 +32,10 @@ public class StreamState {
     private final long deletedCount;
     private final ZonedDateTime firstTime;
     private final ZonedDateTime lastTime;
-    private final List<Subject> subjects;
     private final List<Long> deletedStreamSequences;
+
+    private List<Subject> subjects;
+    private long filteredSubjectCount;
 
     StreamState(String json) {
         msgs = JsonUtils.readLong(json, MESSAGES_RE, 0);
@@ -43,8 +47,8 @@ public class StreamState {
         lastTime = JsonUtils.readDate(json, LAST_TS_RE);
         subjectCount = JsonUtils.readLong(json, NUM_SUBJECTS_RE, 0);
         deletedCount = JsonUtils.readLong(json, NUM_DELETED_RE, 0);
-        subjects = Subject.optionalListOf(JsonUtils.getJsonObject(SUBJECTS, json));
         deletedStreamSequences = JsonUtils.getLongList(DELETED, json);
+        addAll(Subject.optionalListOf(JsonUtils.getJsonObject(SUBJECTS, json)));
     }
 
     /**
@@ -119,6 +123,10 @@ public class StreamState {
         return subjectCount;
     }
 
+    public long getFilteredSubjectCount() {
+        return filteredSubjectCount;
+    }
+
     /**
      * Get a list of the Subject objects. May be null if the Stream Info request did not ask for subjects
      * or if there are no subjects.
@@ -144,6 +152,19 @@ public class StreamState {
      */
     public List<Long> getDeleted() {
         return deletedStreamSequences;
+    }
+
+    public void addAll(Collection<Subject> addSubjects) {
+        if (addSubjects == null) {
+            return;
+        }
+        if (this.subjects == null) {
+            this.subjects = new ArrayList<>(addSubjects);
+        }
+        else {
+            this.subjects.addAll(addSubjects);
+        }
+        filteredSubjectCount = this.subjects.size();
     }
 
     @Override

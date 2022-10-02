@@ -19,6 +19,7 @@ import io.nats.client.api.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 
 import static io.nats.client.support.Validator.*;
@@ -85,7 +86,6 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         validateNotNull(streamName, "Stream Name");
         return _getStreamInfo(streamName, null);
     }
-
 
     /**
      * {@inheritDoc}
@@ -187,12 +187,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      */
     @Override
     public List<String> getStreamNames() throws IOException, JetStreamApiException {
-        StreamNamesReader snr = new StreamNamesReader();
-        while (snr.hasMore()) {
-            Message resp = makeRequestResponseRequired(JSAPI_STREAM_NAMES, snr.nextJson(), jso.getRequestTimeout());
-            snr.process(resp);
-        }
-        return snr.getStrings();
+        return _getStreamNames(null);
     }
 
     /**
@@ -200,7 +195,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      */
     @Override
     public List<String> getStreamNamesBySubjectFilter(String subjectFilter) throws IOException, JetStreamApiException {
-        return _getStreamNamesBySubjectFilter(subjectFilter);
+        return _getStreamNames(subjectFilter);
     }
 
     /**
@@ -208,12 +203,35 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      */
     @Override
     public List<StreamInfo> getStreams() throws IOException, JetStreamApiException {
-        StreamListReader slg = new StreamListReader();
-        while (slg.hasMore()) {
-            Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, slg.nextJson(), jso.getRequestTimeout());
-            slg.process(resp);
+        return getStreams(null);
+    }
+
+    @Override
+    public List<StreamInfo> getStreams(StreamInfoOptions options) throws IOException, JetStreamApiException {
+        StreamListReader slr = new StreamListReader();
+        while (slr.hasMore()) {
+            Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, slr.nextJson(), jso.getRequestTimeout());
+            slr.process(resp);
         }
-        return cacheStreamInfo(slg.getStreams());
+
+        // if there is no subject filter we are done.
+        if (options == null || options.getSubjectsFilter() == null) {
+            return cacheStreamInfo(slr.getStreams());
+        }
+
+        // if there is a subject filter, the stream list api did not load the subject
+        // this has to be done manually by calling getStreamInfo(streamName) for each stream
+        List<StreamInfo> woSubjects = slr.getStreams();
+        List<StreamInfo> withSubjects = new ArrayList<>();
+        for (StreamInfo si : woSubjects) {
+            String streamName = si.getConfiguration().getName();
+            StreamInfo info = getStreamInfo(streamName, options);
+            if (info.getStreamState().getFilteredSubjectCount() > 0) {
+                cacheStreamInfo(streamName, info);
+                withSubjects.add(info);
+            }
+        };
+        return withSubjects;
     }
 
     /**

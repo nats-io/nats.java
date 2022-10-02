@@ -343,6 +343,129 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testGetStreamInfoPagination() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/pagination.conf", false, true)) {
+//        try (NatsTestServer ts = new NatsTestServer(null, false, true)) {
+            try (Connection nc = standardConnection(ts.getURI())) {
+                JetStreamManagement jsm = nc.jetStreamManagement();
+                JetStream js = nc.jetStream();
+
+                long rounds = 101;
+                long size = 1000;
+                long count = rounds * size;
+                jsm.addStream(StreamConfiguration.builder()
+                    .name(stream(1))
+                    .storageType(StorageType.Memory)
+                    .subjects("s.*.*")
+                    .build());
+
+                jsm.addStream(StreamConfiguration.builder()
+                    .name(stream(2))
+                    .storageType(StorageType.Memory)
+                    .subjects("t.*.*")
+                    .build());
+
+                for (int x = 1; x <= rounds; x++) {
+                    for (int y = 1; y <= size; y++) {
+                        js.publish("s." + x + "." + y, null);
+                    }
+                }
+
+                for (int y = 1; y <= size; y++) {
+                    js.publish("t.7." + y, null);
+                }
+
+                StreamInfo si = jsm.getStreamInfo(stream(1));
+                validateStreamInfo(si.getStreamState(), null, 0, count);
+
+                si = jsm.getStreamInfo(stream(1), StreamInfoOptions.allSubjects());
+                validateStreamInfo(si.getStreamState(), count, count, count);
+
+                si = jsm.getStreamInfo(stream(1), StreamInfoOptions.filterSubjects("s.7.*"));
+                validateStreamInfo(si.getStreamState(), size, size, count);
+
+                si = jsm.getStreamInfo(stream(1), StreamInfoOptions.filterSubjects("s.7.1"));
+                validateStreamInfo(si.getStreamState(), 1L, 1, count);
+
+                si = jsm.getStreamInfo(stream(2), StreamInfoOptions.filterSubjects("t.7.*"));
+                validateStreamInfo(si.getStreamState(), size, size, size);
+
+                si = jsm.getStreamInfo(stream(2), StreamInfoOptions.filterSubjects("t.7.1"));
+                validateStreamInfo(si.getStreamState(), 1L, 1, size);
+
+                List<StreamInfo> infos = jsm.getStreams();
+                assertEquals(2, infos.size());
+                si = infos.get(0);
+                if (si.getConfiguration().getSubjects().get(0).equals("s.*.*")) {
+                    validateStreamInfo(si.getStreamState(), null, 0, count);
+                    validateStreamInfo(infos.get(1).getStreamState(), null, 0, size);
+                }
+                else {
+                    validateStreamInfo(si.getStreamState(), null, 0, size);
+                    validateStreamInfo(infos.get(1).getStreamState(), null, 0, count);
+                }
+
+                infos = jsm.getStreams(StreamInfoOptions.allSubjects());
+                assertEquals(2, infos.size());
+                si = infos.get(0);
+                if (si.getConfiguration().getSubjects().get(0).equals("s.*.*")) {
+                    validateStreamInfo(si.getStreamState(), count, count, count);
+                    validateStreamInfo(infos.get(1).getStreamState(), size, size, size);
+                }
+                else {
+                    validateStreamInfo(si.getStreamState(), size, size, size);
+                    validateStreamInfo(infos.get(1).getStreamState(), count, count, count);
+                }
+
+                infos = jsm.getStreams(StreamInfoOptions.filterSubjects("*.7.*"));
+                assertEquals(2, infos.size());
+                si = infos.get(0);
+                if (si.getConfiguration().getSubjects().get(0).equals("s.*.*")) {
+                    validateStreamInfo(si.getStreamState(), size, size, count);
+                    validateStreamInfo(infos.get(1).getStreamState(), size, size, size);
+                }
+                else {
+                    validateStreamInfo(si.getStreamState(), size, size, size);
+                    validateStreamInfo(infos.get(1).getStreamState(), size, size, count);
+                }
+
+                infos = jsm.getStreams(StreamInfoOptions.filterSubjects("*.7.1"));
+                assertEquals(2, infos.size());
+                si = infos.get(0);
+                if (si.getConfiguration().getSubjects().get(0).equals("s.*.*")) {
+                    validateStreamInfo(si.getStreamState(), 1L, 1, count);
+                    validateStreamInfo(infos.get(1).getStreamState(), 1L, 1, size);
+                }
+                else {
+                    validateStreamInfo(si.getStreamState(), 1L, 1, size);
+                    validateStreamInfo(infos.get(1).getStreamState(), 1L, 1, count);
+                }
+
+                infos = jsm.getStreams(StreamInfoOptions.filterSubjects("s.7.*"));
+                assertEquals(1, infos.size());
+                assertEquals("s.*.*", infos.get(0).getConfiguration().getSubjects().get(0));
+                validateStreamInfo(infos.get(0).getStreamState(), size, size, count);
+
+                infos = jsm.getStreams(StreamInfoOptions.filterSubjects("t.7.1"));
+                assertEquals(1, infos.size());
+                assertEquals("t.*.*", infos.get(0).getConfiguration().getSubjects().get(0));
+                validateStreamInfo(infos.get(0).getStreamState(), 1L, 1L, size);
+            }
+        }
+    }
+
+    private void validateStreamInfo(StreamState streamState, Long subjectsList, long filteredCount, long subjectCount) {
+        if (subjectsList == null) {
+            assertNull(streamState.getSubjects());
+        }
+        else {
+            assertEquals(subjectsList, streamState.getSubjects().size());
+        }
+        assertEquals(filteredCount, streamState.getFilteredSubjectCount());
+        assertEquals(subjectCount, streamState.getSubjectCount());
+    }
+
+    @Test
     public void testDeleteStream() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -686,7 +809,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testGetStreams() throws Exception {
+    public void testGetStreamsPagination() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
@@ -695,9 +818,18 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             List<StreamInfo> list = jsm.getStreams();
             assertEquals(600, list.size());
 
+            List<String> names = jsm.getStreamNames();
+            assertEquals(600, names.size());
+
+            names = jsm.getStreamNamesBySubjectFilter(">");
+            assertEquals(600, names.size());
+
             addStreams(jsm, 500, 600); // getStreamNames pages at 1024
 
-            List<String> names = jsm.getStreamNames();
+            names = jsm.getStreamNames();
+            assertEquals(1100, names.size());
+
+            names = jsm.getStreamNamesBySubjectFilter(">");
             assertEquals(1100, names.size());
         });
     }
@@ -706,6 +838,42 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         for (int x = 0; x < count; x++) {
             createMemoryStream(jsm, stream(x + adj), subject(x + adj));
         }
+    }
+
+    @Test
+    public void testGetStreamNamesBySubjectFilter() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            createMemoryStream(jsm, stream(1), "foo");
+            createMemoryStream(jsm, stream(2), "bar");
+            createMemoryStream(jsm, stream(3), "a.a");
+            createMemoryStream(jsm, stream(4), "a.b");
+
+            List<String> list = jsm.getStreamNamesBySubjectFilter("*");
+            assertStreamNameList(list, 1, 2);
+
+            list = jsm.getStreamNamesBySubjectFilter(">");
+            assertStreamNameList(list, 1, 2, 3, 4);
+
+            list = jsm.getStreamNamesBySubjectFilter("*.*");
+            assertStreamNameList(list, 3, 4);
+
+            list = jsm.getStreamNamesBySubjectFilter("a.>");
+            assertStreamNameList(list, 3, 4);
+
+            list = jsm.getStreamNamesBySubjectFilter("a.*");
+            assertStreamNameList(list, 3, 4);
+
+            list = jsm.getStreamNamesBySubjectFilter("foo");
+            assertStreamNameList(list, 1);
+
+            list = jsm.getStreamNamesBySubjectFilter("a.a");
+            assertStreamNameList(list, 3);
+
+            list = jsm.getStreamNamesBySubjectFilter("nomatch");
+            assertStreamNameList(list);
+        });
     }
 
     @Test
@@ -814,42 +982,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertEquals(StorageType.Memory, StorageType.get("memory"));
         assertEquals(StorageType.Memory, StorageType.get("MEMORY"));
         assertNull(StorageType.get("nope"));
-    }
-
-    @Test
-    public void testGetStreamNamesBySubjectFilter() throws Exception {
-        runInJsServer(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
-            createMemoryStream(jsm, stream(1), "foo");
-            createMemoryStream(jsm, stream(2), "bar");
-            createMemoryStream(jsm, stream(3), "a.a");
-            createMemoryStream(jsm, stream(4), "a.b");
-
-            List<String> list = jsm.getStreamNamesBySubjectFilter("*");
-            assertStreamNameList(list, 1, 2);
-
-            list = jsm.getStreamNamesBySubjectFilter(">");
-            assertStreamNameList(list, 1, 2, 3, 4);
-
-            list = jsm.getStreamNamesBySubjectFilter("*.*");
-            assertStreamNameList(list, 3, 4);
-
-            list = jsm.getStreamNamesBySubjectFilter("a.>");
-            assertStreamNameList(list, 3, 4);
-
-            list = jsm.getStreamNamesBySubjectFilter("a.*");
-            assertStreamNameList(list, 3, 4);
-
-            list = jsm.getStreamNamesBySubjectFilter("foo");
-            assertStreamNameList(list, 1);
-
-            list = jsm.getStreamNamesBySubjectFilter("a.a");
-            assertStreamNameList(list, 3);
-
-            list = jsm.getStreamNamesBySubjectFilter("nomatch");
-            assertStreamNameList(list);
-        });
     }
 
     private void assertStreamNameList(List<String> list, int... ids) {

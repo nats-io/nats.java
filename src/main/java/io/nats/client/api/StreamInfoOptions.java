@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.Validator;
 
 import static io.nats.client.support.ApiConstants.DELETED_DETAILS;
 import static io.nats.client.support.ApiConstants.SUBJECTS_FILTER;
@@ -29,6 +30,14 @@ public class StreamInfoOptions implements JsonSerializable {
     private StreamInfoOptions(String subjectsFilter, boolean deletedDetails) {
         this.subjectsFilter = subjectsFilter;
         this.deletedDetails = deletedDetails;
+    }
+
+    public String getSubjectsFilter() {
+        return subjectsFilter;
+    }
+
+    public boolean isDeletedDetails() {
+        return deletedDetails;
     }
 
     /**
@@ -92,7 +101,7 @@ public class StreamInfoOptions implements JsonSerializable {
          * @return the builder
          */
         public Builder filterSubjects(String subjectsFilter) {
-            this.subjectsFilter = subjectsFilter;
+            this.subjectsFilter = Validator.emptyAsNull(subjectsFilter);
             return this;
         }
 
