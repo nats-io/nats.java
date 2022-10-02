@@ -376,7 +376,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 }
 
                 StreamInfo si = jsm.getStreamInfo(stream(1));
-                validateStreamInfo(si.getStreamState(), null, 0, count);
+                validateStreamInfo(si.getStreamState(), 0, 0, count);
 
                 si = jsm.getStreamInfo(stream(1), StreamInfoOptions.allSubjects());
                 validateStreamInfo(si.getStreamState(), count, count, count);
@@ -397,12 +397,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 assertEquals(2, infos.size());
                 si = infos.get(0);
                 if (si.getConfiguration().getSubjects().get(0).equals("s.*.*")) {
-                    validateStreamInfo(si.getStreamState(), null, 0, count);
-                    validateStreamInfo(infos.get(1).getStreamState(), null, 0, size);
+                    validateStreamInfo(si.getStreamState(), 0, 0, count);
+                    validateStreamInfo(infos.get(1).getStreamState(), 0, 0, size);
                 }
                 else {
-                    validateStreamInfo(si.getStreamState(), null, 0, size);
-                    validateStreamInfo(infos.get(1).getStreamState(), null, 0, count);
+                    validateStreamInfo(si.getStreamState(), 0, 0, size);
+                    validateStreamInfo(infos.get(1).getStreamState(), 0, 0, count);
                 }
 
                 infos = jsm.getStreams(StreamInfoOptions.allSubjects());
@@ -454,14 +454,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         }
     }
 
-    private void validateStreamInfo(StreamState streamState, Long subjectsList, long filteredCount, long subjectCount) {
-        if (subjectsList == null) {
-            assertNull(streamState.getSubjects());
-        }
-        else {
-            assertEquals(subjectsList, streamState.getSubjects().size());
-        }
-        assertEquals(filteredCount, streamState.getFilteredSubjectCount());
+    private void validateStreamInfo(StreamState streamState, long subjectsList, long filteredCount, long subjectCount) {
+        assertEquals(subjectsList, streamState.getSubjects().size());
+        assertEquals(filteredCount, streamState.getSubjects().size());
         assertEquals(subjectCount, streamState.getSubjectCount());
     }
 

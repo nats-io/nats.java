@@ -226,7 +226,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         for (StreamInfo si : woSubjects) {
             String streamName = si.getConfiguration().getName();
             StreamInfo info = getStreamInfo(streamName, options);
-            if (info.getStreamState().getFilteredSubjectCount() > 0) {
+            if (info.getStreamState().getSubjects().size() > 0) {
                 cacheStreamInfo(streamName, info);
                 withSubjects.add(info);
             }
