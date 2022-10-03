@@ -193,8 +193,6 @@ public interface JetStreamManagement {
      */
     List<StreamInfo> getStreams() throws IOException, JetStreamApiException;
 
-    List<StreamInfo> getStreams(StreamInfoOptions options) throws IOException, JetStreamApiException;
-
     /**
      * Get MessageInfo for the message with the exact sequence in the stream.
      * @param streamName the name of the stream.

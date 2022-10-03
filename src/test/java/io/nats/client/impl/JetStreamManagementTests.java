@@ -345,7 +345,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testGetStreamInfoPagination() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/pagination.conf", false, true)) {
-//        try (NatsTestServer ts = new NatsTestServer(null, false, true)) {
             try (Connection nc = standardConnection(ts.getURI())) {
                 JetStreamManagement jsm = nc.jetStreamManagement();
                 JetStream js = nc.jetStream();
@@ -404,52 +403,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     validateStreamInfo(si.getStreamState(), 0, 0, size);
                     validateStreamInfo(infos.get(1).getStreamState(), 0, 0, count);
                 }
-
-                infos = jsm.getStreams(StreamInfoOptions.allSubjects());
-                assertEquals(2, infos.size());
-                si = infos.get(0);
-                if (si.getConfiguration().getSubjects().get(0).equals("s.*.*")) {
-                    validateStreamInfo(si.getStreamState(), count, count, count);
-                    validateStreamInfo(infos.get(1).getStreamState(), size, size, size);
-                }
-                else {
-                    validateStreamInfo(si.getStreamState(), size, size, size);
-                    validateStreamInfo(infos.get(1).getStreamState(), count, count, count);
-                }
-
-                infos = jsm.getStreams(StreamInfoOptions.filterSubjects("*.7.*"));
-                assertEquals(2, infos.size());
-                si = infos.get(0);
-                if (si.getConfiguration().getSubjects().get(0).equals("s.*.*")) {
-                    validateStreamInfo(si.getStreamState(), size, size, count);
-                    validateStreamInfo(infos.get(1).getStreamState(), size, size, size);
-                }
-                else {
-                    validateStreamInfo(si.getStreamState(), size, size, size);
-                    validateStreamInfo(infos.get(1).getStreamState(), size, size, count);
-                }
-
-                infos = jsm.getStreams(StreamInfoOptions.filterSubjects("*.7.1"));
-                assertEquals(2, infos.size());
-                si = infos.get(0);
-                if (si.getConfiguration().getSubjects().get(0).equals("s.*.*")) {
-                    validateStreamInfo(si.getStreamState(), 1L, 1, count);
-                    validateStreamInfo(infos.get(1).getStreamState(), 1L, 1, size);
-                }
-                else {
-                    validateStreamInfo(si.getStreamState(), 1L, 1, size);
-                    validateStreamInfo(infos.get(1).getStreamState(), 1L, 1, count);
-                }
-
-                infos = jsm.getStreams(StreamInfoOptions.filterSubjects("s.7.*"));
-                assertEquals(1, infos.size());
-                assertEquals("s.*.*", infos.get(0).getConfiguration().getSubjects().get(0));
-                validateStreamInfo(infos.get(0).getStreamState(), size, size, count);
-
-                infos = jsm.getStreams(StreamInfoOptions.filterSubjects("t.7.1"));
-                assertEquals(1, infos.size());
-                assertEquals("t.*.*", infos.get(0).getConfiguration().getSubjects().get(0));
-                validateStreamInfo(infos.get(0).getStreamState(), 1L, 1L, size);
             }
         }
     }
