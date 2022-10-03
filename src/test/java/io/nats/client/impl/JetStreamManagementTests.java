@@ -403,6 +403,23 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     validateStreamInfo(si.getStreamState(), 0, 0, size);
                     validateStreamInfo(infos.get(1).getStreamState(), 0, 0, count);
                 }
+
+                infos = jsm.getStreams(">");
+                assertEquals(2, infos.size());
+
+                infos = jsm.getStreams("*.7.*");
+                assertEquals(2, infos.size());
+
+                infos = jsm.getStreams("*.7.1");
+                assertEquals(2, infos.size());
+
+                infos = jsm.getStreams("s.7.*");
+                assertEquals(1, infos.size());
+                assertEquals("s.*.*", infos.get(0).getConfiguration().getSubjects().get(0));
+
+                infos = jsm.getStreams("t.7.1");
+                assertEquals(1, infos.size());
+                assertEquals("t.*.*", infos.get(0).getConfiguration().getSubjects().get(0));
             }
         }
     }

@@ -194,6 +194,15 @@ public interface JetStreamManagement {
     List<StreamInfo> getStreams() throws IOException, JetStreamApiException;
 
     /**
+     * Return a list of StreamInfo objects that have subjects matching the filter.
+     * @return The list of StreamInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    List<StreamInfo> getStreams(String subjectFilter) throws IOException, JetStreamApiException;
+
+    /**
      * Get MessageInfo for the message with the exact sequence in the stream.
      * @param streamName the name of the stream.
      * @param seq the sequence number of the message

@@ -202,12 +202,17 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      */
     @Override
     public List<StreamInfo> getStreams() throws IOException, JetStreamApiException {
+        return getStreams(null);
+    }
+
+    @Override
+    public List<StreamInfo> getStreams(String subjectFilter) throws IOException, JetStreamApiException {
         StreamListReader slr = new StreamListReader();
         while (slr.hasMore()) {
-            Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, slr.nextJson(), jso.getRequestTimeout());
+            Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, slr.nextJson(subjectFilter), jso.getRequestTimeout());
             slr.process(resp);
         }
-        return slr.getStreams();
+        return cacheStreamInfo(slr.getStreams());
     }
 
     /**
