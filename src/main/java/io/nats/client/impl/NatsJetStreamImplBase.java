@@ -21,8 +21,6 @@ import io.nats.client.support.NatsJetStreamConstants;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -131,13 +129,9 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         return si;
     }
 
-    List<StreamInfo> cacheStreamInfo(Collection<StreamInfo> coll) {
-        List<StreamInfo> result = new ArrayList<>(coll.size());
-        coll.forEach(si -> {
-            CACHED_STREAM_INFO_MAP.put(si.getConfiguration().getName(), new CachedStreamInfo(si));
-            result.add(si);
-        });
-        return result;
+    List<StreamInfo> cacheStreamInfo(List<StreamInfo> list) {
+        list.forEach(si -> CACHED_STREAM_INFO_MAP.put(si.getConfiguration().getName(), new CachedStreamInfo(si)));
+        return list;
     }
 
     List<String> _getStreamNames(String subjectFilter) throws IOException, JetStreamApiException {
