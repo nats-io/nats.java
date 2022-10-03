@@ -18,42 +18,32 @@ import io.nats.client.Message;
 import io.nats.client.api.StreamInfo;
 import io.nats.client.api.StreamInfoOptions;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-
 import static io.nats.client.support.ApiConstants.DELETED_DETAILS;
 import static io.nats.client.support.ApiConstants.SUBJECTS_FILTER;
 import static io.nats.client.support.JsonUtils.*;
 
 class StreamInfoReader {
 
-    private final Map<String, StreamInfo> byName;
+    private StreamInfo streamInfo;
     private ListRequestEngine engine;
 
     StreamInfoReader() {
-        byName = new HashMap<>();
         engine = new ListRequestEngine();
     }
 
     void process(Message msg) throws JetStreamApiException {
         engine = new ListRequestEngine(msg);
-        addOrMerge(new StreamInfo(new String(msg.getData())));
+        StreamInfo si = new StreamInfo(new String(msg.getData()));
+        if (streamInfo == null) {
+            streamInfo = si;
+        }
+        else {
+            streamInfo.getStreamState().addAll(si.getStreamState().getSubjects());
+        }
     }
 
     boolean hasMore() {
         return engine.hasMore();
-    }
-
-    private void addOrMerge(StreamInfo si) {
-        String name = si.getConfiguration().getName();
-        StreamInfo existing = byName.get(name);
-        if (existing == null) {
-            byName.put(name, si);
-        }
-        else {
-            existing.getStreamState().addAll(si.getStreamState().getSubjects());
-        }
     }
 
     byte[] nextJson(StreamInfoOptions options) {
@@ -66,11 +56,7 @@ class StreamInfoReader {
         return endJson(sb).toString().getBytes();
     }
 
-    Collection<StreamInfo> getStreamInfos() {
-        return byName.values();
-    }
-
     StreamInfo getStreamInfo(String streamName) {
-        return byName.get(streamName);
+        return streamInfo;
     }
 }
