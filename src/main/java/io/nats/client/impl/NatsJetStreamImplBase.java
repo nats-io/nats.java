@@ -119,7 +119,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
             Message resp = makeRequestResponseRequired(subj, sir.nextJson(options), jso.getRequestTimeout());
             sir.process(resp);
         }
-        return cacheStreamInfo(streamName, sir.getStreamInfo(streamName));
+        return cacheStreamInfo(streamName, sir.getStreamInfo());
     }
 
     StreamInfo createAndCacheStreamInfoThrowOnError(String streamName, Message resp) throws JetStreamApiException {

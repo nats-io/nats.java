@@ -56,7 +56,7 @@ class StreamInfoReader {
         return endJson(sb).toString().getBytes();
     }
 
-    StreamInfo getStreamInfo(String streamName) {
+    StreamInfo getStreamInfo() {
         return streamInfo;
     }
 }
