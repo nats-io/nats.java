@@ -32,8 +32,8 @@ public class StreamState {
     private final long deletedCount;
     private final ZonedDateTime firstTime;
     private final ZonedDateTime lastTime;
-    private final List<Long> deletedStreamSequences;
     private final List<Subject> subjects;
+    private final List<Long> deletedStreamSequences;
 
     StreamState(String json) {
         msgs = JsonUtils.readLong(json, MESSAGES_RE, 0);
@@ -45,8 +45,9 @@ public class StreamState {
         lastTime = JsonUtils.readDate(json, LAST_TS_RE);
         subjectCount = JsonUtils.readLong(json, NUM_SUBJECTS_RE, 0);
         deletedCount = JsonUtils.readLong(json, NUM_DELETED_RE, 0);
-        deletedStreamSequences = JsonUtils.getLongList(DELETED, json);
         subjects = new ArrayList<>();
+        deletedStreamSequences = JsonUtils.getLongList(DELETED, json);
+
         addAll(Subject.optionalListOf(JsonUtils.getJsonObject(SUBJECTS, json)));
     }
 
@@ -149,6 +150,11 @@ public class StreamState {
         return deletedStreamSequences;
     }
 
+    /**
+     * THIS METHOD IS INTENDED FOR INTERNAL USE ONLY EVEN THOUGH IT'S SCOPED public
+     * It is used when reading stream info with paged subjects.
+     * @param addSubjects the subjects to add to the state.
+     */
     public void addAll(Collection<Subject> addSubjects) {
         if (addSubjects != null) {
             this.subjects.addAll(addSubjects);
