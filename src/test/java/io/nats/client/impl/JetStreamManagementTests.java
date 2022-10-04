@@ -457,13 +457,13 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             list = jsm.getStreams("*.x256.*");
             assertEquals(300, list.size());
 
-            names = jsm.getStreamNamesBySubjectFilter("*.x256.*");
+            names = jsm.getStreamNames("*.x256.*");
             assertEquals(300, names.size());
 
             list = jsm.getStreams("*.x1024.*");
             assertEquals(1100, list.size());
 
-            names = jsm.getStreamNamesBySubjectFilter("*.x1024.*");
+            names = jsm.getStreamNames("*.x1024.*");
             assertEquals(1100, names.size());
         });
     }
@@ -484,28 +484,28 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             createMemoryStream(jsm, stream(3), "a.a");
             createMemoryStream(jsm, stream(4), "a.b");
 
-            List<String> list = jsm.getStreamNamesBySubjectFilter("*");
+            List<String> list = jsm.getStreamNames("*");
             assertStreamNameList(list, 1, 2);
 
-            list = jsm.getStreamNamesBySubjectFilter(">");
+            list = jsm.getStreamNames(">");
             assertStreamNameList(list, 1, 2, 3, 4);
 
-            list = jsm.getStreamNamesBySubjectFilter("*.*");
+            list = jsm.getStreamNames("*.*");
             assertStreamNameList(list, 3, 4);
 
-            list = jsm.getStreamNamesBySubjectFilter("a.>");
+            list = jsm.getStreamNames("a.>");
             assertStreamNameList(list, 3, 4);
 
-            list = jsm.getStreamNamesBySubjectFilter("a.*");
+            list = jsm.getStreamNames("a.*");
             assertStreamNameList(list, 3, 4);
 
-            list = jsm.getStreamNamesBySubjectFilter("foo");
+            list = jsm.getStreamNames("foo");
             assertStreamNameList(list, 1);
 
-            list = jsm.getStreamNamesBySubjectFilter("a.a");
+            list = jsm.getStreamNames("a.a");
             assertStreamNameList(list, 3);
 
-            list = jsm.getStreamNamesBySubjectFilter("nomatch");
+            list = jsm.getStreamNames("nomatch");
             assertStreamNameList(list);
         });
     }
