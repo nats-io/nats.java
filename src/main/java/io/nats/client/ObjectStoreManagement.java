@@ -50,21 +50,21 @@ public interface ObjectStoreManagement {
     /**
      * Gets the status for an existing object store bucket.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @return the bucket status object
      * @param bucketName the object store bucket name to get info for
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @return the bucket status object
      */
     ObjectStoreStatus getStatus(String bucketName) throws IOException, JetStreamApiException;
 
     /**
      * Gets the status for all object store buckets.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @return list of statuses
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @return the bucket status object
      */
     List<ObjectStoreStatus> getStatuses() throws IOException, JetStreamApiException;
 

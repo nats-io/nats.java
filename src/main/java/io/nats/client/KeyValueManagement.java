@@ -78,7 +78,7 @@ public interface KeyValueManagement {
 
     /**
      * Get the statuses for all buckets
-     * @return list of bucket statuses
+     * @return list of statuses
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
