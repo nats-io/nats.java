@@ -59,7 +59,7 @@ public interface ObjectStoreManagement {
     ObjectStoreStatus getStatus(String bucketName) throws IOException, JetStreamApiException;
 
     /**
-     * Gets the status for an all object store buckets.
+     * Gets the status for all object store buckets.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption

@@ -77,7 +77,7 @@ public interface KeyValueManagement {
     KeyValueStatus getStatus(String bucketName) throws IOException, JetStreamApiException;
 
     /**
-     * Get the info for all buckets
+     * Get the statuses for all buckets
      * @return list of bucket statuses
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
