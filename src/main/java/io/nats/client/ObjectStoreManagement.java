@@ -48,7 +48,7 @@ public interface ObjectStoreManagement {
     List<String> getBucketNames() throws IOException, JetStreamApiException;
 
     /**
-     * Gets the info for an existing object store bucket.
+     * Gets the status for an existing object store bucket.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param bucketName the object store bucket name to get info for
      * @throws IOException covers various communication issues with the NATS
@@ -59,7 +59,7 @@ public interface ObjectStoreManagement {
     ObjectStoreStatus getStatus(String bucketName) throws IOException, JetStreamApiException;
 
     /**
-     * Gets the info for an all object store buckets.
+     * Gets the status for an all object store buckets.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
