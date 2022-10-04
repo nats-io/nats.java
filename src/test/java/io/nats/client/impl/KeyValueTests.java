@@ -117,7 +117,9 @@ public class KeyValueTests extends JetStreamTestBase {
             assertHistory(longHistory, kv.history(longKey));
 
             // let's check the bucket info
-            status = kvm.getBucketInfo(BUCKET);
+            status = kvm.getStatus(BUCKET);
+            assertState(status, 3, 3);
+            status = kvm.getBucketInfo(BUCKET); // coverage for deprecated
             assertState(status, 3, 3);
 
             // delete a key. Its entry will still exist, but its value is null
@@ -131,7 +133,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertNotEquals(byteHistory.get(0).hashCode(), byteHistory.get(1).hashCode());
 
             // let's check the bucket info
-            status = kvm.getBucketInfo(BUCKET);
+            status = kvm.getStatus(BUCKET);
             assertState(status, 4, 4);
 
             // if the key has been deleted no etnry is returned
@@ -164,7 +166,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertHistory(longHistory, kv.history(longKey));
 
             // let's check the bucket info
-            status = kvm.getBucketInfo(BUCKET);
+            status = kvm.getStatus(BUCKET);
             assertState(status, 7, 7);
 
             // make sure it only keeps the correct amount of history
@@ -175,7 +177,7 @@ public class KeyValueTests extends JetStreamTestBase {
                 assertEntry(BUCKET, longKey, KeyValueOperation.PUT, 8, "3", now, kv.get(longKey)));
             assertHistory(longHistory, kv.history(longKey));
 
-            status = kvm.getBucketInfo(BUCKET);
+            status = kvm.getStatus(BUCKET);
             assertState(status, 8, 8);
 
             // this would be the 4th entry for the longKey
@@ -190,7 +192,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertHistory(longHistory, kv.history(longKey));
 
             // record count does not increase
-            status = kvm.getBucketInfo(BUCKET);
+            status = kvm.getStatus(BUCKET);
             assertState(status, 8, 9);
 
             // should have exactly these 3 keys
@@ -203,7 +205,7 @@ public class KeyValueTests extends JetStreamTestBase {
             longHistory.add(KeyValueOperation.PURGE);
             assertHistory(longHistory, kv.history(longKey));
 
-            status = kvm.getBucketInfo(BUCKET);
+            status = kvm.getStatus(BUCKET);
             assertState(status, 6, 10);
 
             // only 2 keys now
@@ -215,7 +217,7 @@ public class KeyValueTests extends JetStreamTestBase {
             byteHistory.add(KeyValueOperation.PURGE);
             assertHistory(byteHistory, kv.history(byteKey));
 
-            status = kvm.getBucketInfo(BUCKET);
+            status = kvm.getStatus(BUCKET);
             assertState(status, 4, 11);
 
             // only 1 key now
@@ -227,7 +229,7 @@ public class KeyValueTests extends JetStreamTestBase {
             stringHistory.add(KeyValueOperation.PURGE);
             assertHistory(stringHistory, kv.history(stringKey));
 
-            status = kvm.getBucketInfo(BUCKET);
+            status = kvm.getStatus(BUCKET);
             assertState(status, 3, 12);
 
             // no more keys left
@@ -236,7 +238,7 @@ public class KeyValueTests extends JetStreamTestBase {
             // clear things
             KeyValuePurgeOptions kvpo = KeyValuePurgeOptions.builder().deleteMarkersNoThreshold().build();
             kv.purgeDeletes(kvpo);
-            status = kvm.getBucketInfo(BUCKET);
+            status = kvm.getStatus(BUCKET);
             assertState(status, 0, 12);
 
             longHistory.clear();
@@ -269,13 +271,13 @@ public class KeyValueTests extends JetStreamTestBase {
             assertHistory(longHistory, kv.history(longKey));
             assertHistory(stringHistory, kv.history(stringKey));
 
-            status = kvm.getBucketInfo(BUCKET);
+            status = kvm.getStatus(BUCKET);
             assertState(status, 5, 17);
 
             // delete the bucket
             kvm.delete(BUCKET);
             assertThrows(JetStreamApiException.class, () -> kvm.delete(BUCKET));
-            assertThrows(JetStreamApiException.class, () -> kvm.getBucketInfo(BUCKET));
+            assertThrows(JetStreamApiException.class, () -> kvm.getStatus(BUCKET));
 
             assertEquals(0, kvm.getBucketNames().size());
         });
@@ -433,7 +435,7 @@ public class KeyValueTests extends JetStreamTestBase {
         runInJsServer(nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
 
-            assertThrows(JetStreamApiException.class, () -> kvm.getBucketInfo(BUCKET));
+            assertThrows(JetStreamApiException.class, () -> kvm.getStatus(BUCKET));
 
             KeyValueStatus kvs = kvm.create(KeyValueConfiguration.builder()
                 .name(BUCKET)
@@ -684,7 +686,7 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testManageGetBucketNames() throws Exception {
+    public void testManageGetBucketNamesStatuses() throws Exception {
         runInJsServer(nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
 
@@ -703,7 +705,17 @@ public class KeyValueTests extends JetStreamTestBase {
             createMemoryStream(nc, stream(1));
             createMemoryStream(nc, stream(2));
 
-            List<String> buckets = kvm.getBucketNames();
+            List<KeyValueStatus> infos = kvm.getStatuses();
+            assertEquals(2, infos.size());
+            List<String> buckets = new ArrayList<>();
+            for (KeyValueStatus status : infos) {
+                buckets.add(status.getBucketName());
+            }
+            assertEquals(2, buckets.size());
+            assertTrue(buckets.contains(bucket(1)));
+            assertTrue(buckets.contains(bucket(2)));
+
+            buckets = kvm.getBucketNames();
             assertEquals(2, buckets.size());
             assertTrue(buckets.contains(bucket(1)));
             assertTrue(buckets.contains(bucket(2)));
@@ -965,10 +977,10 @@ public class KeyValueTests extends JetStreamTestBase {
                 assertKvAccountBucketNames(kvmUserA.getBucketNames());
                 assertKvAccountBucketNames(kvmUserIBcktI.getBucketNames());
 
-                assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserA.getBucketInfo(BUCKET_CREATED_BY_USER_A).getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserIBcktA.getBucketInfo(BUCKET_CREATED_BY_USER_A).getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserA.getBucketInfo(BUCKET_CREATED_BY_USER_I).getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserIBcktI.getBucketInfo(BUCKET_CREATED_BY_USER_I).getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserA.getStatus(BUCKET_CREATED_BY_USER_A).getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserIBcktA.getStatus(BUCKET_CREATED_BY_USER_A).getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserA.getStatus(BUCKET_CREATED_BY_USER_I).getBucketName());
+                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserIBcktI.getStatus(BUCKET_CREATED_BY_USER_I).getBucketName());
 
                 // some more prep
                 KeyValue kv_connA_bucketA = connUserA.keyValue(BUCKET_CREATED_BY_USER_A);

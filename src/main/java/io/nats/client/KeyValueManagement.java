@@ -51,9 +51,20 @@ public interface KeyValueManagement {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @throws InterruptedException if the thread is interrupted
      */
-    List<String> getBucketNames() throws IOException, JetStreamApiException, InterruptedException;
+    List<String> getBucketNames() throws IOException, JetStreamApiException;
+
+    /**
+     * Gets the info for an existing bucket.
+     * @deprecated Use {@link #getStatus(String)} instead.
+     * @param bucketName the bucket name to use
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @return the bucket status object
+     */
+    @Deprecated
+    KeyValueStatus getBucketInfo(String bucketName) throws IOException, JetStreamApiException;
 
     /**
      * Gets the info for an existing bucket.
@@ -63,7 +74,16 @@ public interface KeyValueManagement {
      * @throws JetStreamApiException the request had an error related to the data
      * @return the bucket status object
      */
-    KeyValueStatus getBucketInfo(String bucketName) throws IOException, JetStreamApiException;
+    KeyValueStatus getStatus(String bucketName) throws IOException, JetStreamApiException;
+
+    /**
+     * Get the info for all buckets
+     * @return list of bucket statuses
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    List<KeyValueStatus> getStatuses() throws IOException, JetStreamApiException;
 
     /**
      * Deletes an existing bucket. Will throw a JetStreamApiException if the delete fails.

@@ -57,15 +57,15 @@ public class NatsKeyValueManagement implements KeyValueManagement {
      * {@inheritDoc}
      */
     @Override
-    public List<String> getBucketNames() throws IOException, JetStreamApiException, InterruptedException {
-        List<String> buckets = new ArrayList<>();
-        List<String> names = jsm.getStreamNames();
-        for (String name : names) {
+    public List<String> getBucketNames() throws IOException, JetStreamApiException {
+        List<String> bucketNames = new ArrayList<>();
+        List<String> streamNames = jsm.getStreamNames();
+        for (String name : streamNames) {
             if (name.startsWith(KV_STREAM_PREFIX)) {
-                buckets.add(extractBucketName(name));
+                bucketNames.add(extractBucketName(name));
             }
         }
-        return buckets;
+        return bucketNames;
     }
 
     /**
@@ -73,8 +73,29 @@ public class NatsKeyValueManagement implements KeyValueManagement {
      */
     @Override
     public KeyValueStatus getBucketInfo(String bucketName) throws IOException, JetStreamApiException {
+        return getStatus(bucketName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public KeyValueStatus getStatus(String bucketName) throws IOException, JetStreamApiException {
         Validator.validateBucketName(bucketName, true);
         return new KeyValueStatus(jsm.getStreamInfo(toStreamName(bucketName)));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<KeyValueStatus> getStatuses() throws IOException, JetStreamApiException {
+        List<String> bucketNames = getBucketNames();
+        List<KeyValueStatus> statuses = new ArrayList<>();
+        for (String name : bucketNames) {
+            statuses.add(new KeyValueStatus(jsm.getStreamInfo(toStreamName(name))));
+        }
+        return statuses;
     }
 
     /**
