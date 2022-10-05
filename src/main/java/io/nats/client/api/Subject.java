@@ -16,7 +16,6 @@ package io.nats.client.api;
 import io.nats.client.support.JsonUtils;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -24,16 +23,15 @@ public class Subject implements Comparable<Subject> {
     private final String name;
     private final long count;
 
-    static List<Subject> optionalListOf(String json) {
+    static List<Subject> getList(String json) {
         List<Subject> list = new ArrayList<>();
         if (json != null) {
             Map<String, Long> map = JsonUtils.getMapOfLongs(json);
             for (String subject : map.keySet()) {
                 list.add(new Subject(subject, map.get(subject)));
             }
-            Collections.sort(list);
         }
-        return list.isEmpty() ? null : list;
+        return list;
     }
 
     private Subject(String name, long count) {

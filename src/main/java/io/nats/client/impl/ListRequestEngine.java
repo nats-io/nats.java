@@ -46,15 +46,15 @@ class ListRequestEngine extends ApiResponse<ListRequestEngine> {
     }
 
     boolean hasMore() {
-        return total > (lastOffset + limit);
+        return total > nextOffset();
+    }
+
+    private byte[] noFilterJson() {
+        return (OFFSET_JSON_START + nextOffset() + "}").getBytes(StandardCharsets.US_ASCII);
     }
 
     byte[] internalNextJson() {
         return hasMore() ? noFilterJson() : null;
-    }
-
-    byte[] noFilterJson() {
-        return (OFFSET_JSON_START + (lastOffset + limit) + "}").getBytes(StandardCharsets.US_ASCII);
     }
 
     byte[] internalNextJson(String fieldName, String filter) {
@@ -62,10 +62,14 @@ class ListRequestEngine extends ApiResponse<ListRequestEngine> {
             if (filter == null) {
                 return noFilterJson();
             }
-            return (OFFSET_JSON_START + (lastOffset + limit)
+            return (OFFSET_JSON_START + nextOffset()
                     + ",\"" + fieldName + "\":\"" + filter + "\"}").getBytes(StandardCharsets.US_ASCII);
         }
         return null;
+    }
+
+    int nextOffset() {
+        return lastOffset + limit;
     }
 
     List<String> getObjectList(String objectName) {

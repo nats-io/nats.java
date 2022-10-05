@@ -43,7 +43,7 @@ public class StreamState {
         lastTime = JsonUtils.readDate(json, LAST_TS_RE);
         subjectCount = JsonUtils.readLong(json, NUM_SUBJECTS_RE, 0);
         deletedCount = JsonUtils.readLong(json, NUM_DELETED_RE, 0);
-        subjects = Subject.optionalListOf(JsonUtils.getJsonObject(SUBJECTS, json));
+        subjects = Subject.getList(JsonUtils.getJsonObject(SUBJECTS, json));
         deletedStreamSequences = JsonUtils.getLongList(DELETED, json);
     }
 
