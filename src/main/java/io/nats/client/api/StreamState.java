@@ -16,7 +16,6 @@ package io.nats.client.api;
 import io.nats.client.support.JsonUtils;
 
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
@@ -44,12 +43,8 @@ public class StreamState {
         lastTime = JsonUtils.readDate(json, LAST_TS_RE);
         subjectCount = JsonUtils.readLong(json, NUM_SUBJECTS_RE, 0);
         deletedCount = JsonUtils.readLong(json, NUM_DELETED_RE, 0);
+        subjects = Subject.getList(JsonUtils.getJsonObject(SUBJECTS, json));
         deletedStreamSequences = JsonUtils.getLongList(DELETED, json);
-        subjects = new ArrayList<>();
-        List<Subject> optional = Subject.optionalListOf(JsonUtils.getJsonObject(SUBJECTS, json));
-        if (optional != null) {
-            subjects.addAll(optional);
-        }
     }
 
     /**
