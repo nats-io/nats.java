@@ -73,6 +73,12 @@ public abstract class SubscribeOptions {
                 if (builder.cc.getMaxDeliver() > 1) {
                     throw JsSoOrderedRequiresMaxDeliver.instance();
                 }
+                if (builder.cc.memStorageWasSet() && !builder.cc.isMemStorage()) {
+                    throw JsSoOrderedMemStorageNotSuppliedOrTrue.instance();
+                }
+                if (builder.cc.numReplicasWasSet() && builder.cc.getNumReplicas() != 1) {
+                    throw JsSoOrderedReplicasNotSuppliedOrOne.instance();
+                }
                 Duration ccHb = builder.cc.getIdleHeartbeat();
                 if (ccHb != null && ccHb.toMillis() > hb) {
                     hb = ccHb.toMillis();
@@ -84,6 +90,8 @@ public abstract class SubscribeOptions {
                 .flowControl(hb)
                 .ackWait(Duration.ofHours(22))
                 .name(name)
+                .memStorage(true)
+                .numReplicas(1)
                 .build();
         }
         else {

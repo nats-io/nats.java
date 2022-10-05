@@ -317,5 +317,23 @@ public class SubscribeOptionsTests extends TestBase {
         ccHb = ConsumerConfiguration.builder().idleHeartbeat(DEFAULT_ORDERED_HEARTBEAT + 1).build();
         pso = PushSubscribeOptions.builder().configuration(ccHb).ordered(true).build();
         assertEquals(DEFAULT_ORDERED_HEARTBEAT + 1, pso.getConsumerConfiguration().getIdleHeartbeat().toMillis());
+
+        // okay if you set it to true
+        ConsumerConfiguration cc = ConsumerConfiguration.builder().memStorage(true).build();
+        PushSubscribeOptions.builder().configuration(cc).ordered(true).build();
+
+        // okay if you set it to 1
+        cc = ConsumerConfiguration.builder().numReplicas(1).build();
+        PushSubscribeOptions.builder().configuration(cc).ordered(true).build();
+
+        // not okay if you set it to false
+        ConsumerConfiguration ccMs = ConsumerConfiguration.builder().memStorage(false).build();
+        assertClientError(JsSoOrderedMemStorageNotSuppliedOrTrue,
+            () -> PushSubscribeOptions.builder().configuration(ccMs).ordered(true).build());
+
+        // not okay if you set it to something other than 1
+        ConsumerConfiguration ccR = ConsumerConfiguration.builder().numReplicas(3).build();
+        assertClientError(JsSoOrderedReplicasNotSuppliedOrOne,
+            () -> PushSubscribeOptions.builder().configuration(ccR).ordered(true).build());
     }
 }
