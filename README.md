@@ -577,6 +577,8 @@ Subscription creation has many checks to make sure that a valid, operable subscr
 | JsSoOrderedRequiresAckPolicyNone             | SO    | 90108 | Ordered consumer requires Ack Policy None.                                                          |
 | JsSoOrderedRequiresMaxDeliver                | SO    | 90109 | Max deliver is limited to 1 with an ordered consumer.                                               |
 | JsSoNameMismatch                             | SO    | 90110 | Builder name must match the consumer configuration name if both are provided.                       |
+| JsSoOrderedMemStorageNotSuppliedOrTrue       | SO    | 90112 | Mem Storage must be true if supplied.                                                               |
+| JsSoOrderedReplicasNotSuppliedOrOne          | SO    | 90113 | Replicas must be 1 if supplied.                                                                     |
 | JsSubPullCantHaveDeliverGroup                | SUB   | 90001 | Pull subscriptions can't have a deliver group.                                                      |
 | JsSubPullCantHaveDeliverSubject              | SUB   | 90002 | Pull subscriptions can't have a deliver subject.                                                    |
 | JsSubPushCantHaveMaxPullWaiting              | SUB   | 90003 | Push subscriptions cannot supply max pull waiting.                                                  |
