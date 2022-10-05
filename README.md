@@ -559,11 +559,12 @@ When creating the subscription, there are some restrictions for the consumer con
 
 You can however set the deliver policy which will be used to start the subscription. 
 
-### Subscription Creation Checks
+### Client Error Messages
 
-Subscription creation has many checks to make sure that a valid, operable subscription can be made.
-`SO` group are validations that can occur when building push or pull subscribe options. 
-`SUB` group are validations that occur when creating a subscription. 
+In addition to some generic validation messages for values in builders, there are also additional grouped and numbered client error messages:
+* Subscription building and creation
+* Consumer creation
+* Object Store operations
 
 | Name                                         | Group | Code  | Description                                                                                         |
 |----------------------------------------------|-------|-------|-----------------------------------------------------------------------------------------------------|
@@ -599,6 +600,8 @@ Subscription creation has many checks to make sure that a valid, operable subscr
 | JsSubOrderedNotAllowOnQueues                 | SUB   | 90018 | Ordered consumer not allowed on queues.                                                             |
 | JsSubPushCantHaveMaxBatch                    | SUB   | 90019 | Push subscriptions cannot supply max batch.                                                         |
 | JsSubPushCantHaveMaxBytes                    | SUB   | 90020 | Push subscriptions cannot supply max bytes.                                                         |
+| JsConsumerCreate290NotAvailable              | CON   | 90301 | Name field not valid when v2.9.0 consumer create api is not available.                              |
+| JsConsumerNameDurableMismatch                | CON   | 90302 | Name must match durable if both are supplied.                                                       |
 | OsObjectNotFound                             | OS    | 90201 | The object was not found.                                                                           |
 | OsObjectIsDeleted                            | OS    | 90202 | The object is deleted.                                                                              |
 | OsObjectAlreadyExists                        | OS    | 90203 | An object with that name already exists.                                                            |
@@ -608,8 +611,6 @@ Subscription creation has many checks to make sure that a valid, operable subscr
 | OsGetSizeMismatch                            | OS    | 90207 | Total size does not match meta data.                                                                |
 | OsGetLinkToBucket                            | OS    | 90208 | Cannot get object, it is a link to a bucket.                                                        |
 | OsLinkNotAllowOnPut                          | OS    | 90209 | Link not allowed in metadata when putting an object.                                                |
-| JsConsumerCreate290NotAvailable              | CON   | 90301 | Name field not valid when v2.9.0 consumer create api is not available.                              |
-| JsConsumerNameDurableMismatch                | CON   | 90302 | Name must match durable if both are supplied.                                                       |
 
 ### Message Acknowledgements
 
