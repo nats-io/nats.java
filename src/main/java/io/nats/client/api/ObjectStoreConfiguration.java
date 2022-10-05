@@ -57,6 +57,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
 
     /**
      * Creates a builder for the Object Store Configuration.
+     * @param name the name of the object store bucket
      * @return an Object Store configuration builder
      */
     public static ObjectStoreConfiguration.Builder builder(String name) {

@@ -236,7 +236,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testManageGetBucketNames() throws Exception {
+    public void testManageGetBucketNamesStatuses() throws Exception {
         runInJsServer(nc -> {
             ObjectStoreManagement osm = nc.objectStoreManagement();
 
@@ -252,9 +252,17 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
             createMemoryStream(nc, stream(1));
             createMemoryStream(nc, stream(2));
-
-            List<String> buckets = osm.getBucketNames();
+            List<ObjectStoreStatus> infos = osm.getStatuses();
+            assertEquals(2, infos.size());
+            List<String> buckets = new ArrayList<>();
+            for (ObjectStoreStatus status : infos) {
+                buckets.add(status.getBucketName());
+            }
             assertEquals(2, buckets.size());
+            assertTrue(buckets.contains(bucket(1)));
+            assertTrue(buckets.contains(bucket(2)));
+
+            buckets = osm.getBucketNames();
             assertTrue(buckets.contains(bucket(1)));
             assertTrue(buckets.contains(bucket(2)));
         });

@@ -44,20 +44,29 @@ public interface ObjectStoreManagement {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @throws InterruptedException if the thread is interrupted
      */
-    List<String> getBucketNames() throws IOException, JetStreamApiException, InterruptedException;
+    List<String> getBucketNames() throws IOException, JetStreamApiException;
 
     /**
-     * Gets the info for an existing object store.
+     * Gets the status for an existing object store bucket.
      * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param bucketName the object store bucket name to get info for
+     * @return the bucket status object
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @return the bucket status object
      */
     ObjectStoreStatus getStatus(String bucketName) throws IOException, JetStreamApiException;
+
+    /**
+     * Gets the status for all object store buckets.
+     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
+     * @return list of statuses
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    List<ObjectStoreStatus> getStatuses() throws IOException, JetStreamApiException;
 
     /**
      * Deletes an existing object store. Will throw a JetStreamApiException if the delete fails.

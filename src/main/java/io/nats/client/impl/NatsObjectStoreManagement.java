@@ -47,7 +47,7 @@ public class NatsObjectStoreManagement implements ObjectStoreManagement {
      * {@inheritDoc}
      */
     @Override
-    public List<String> getBucketNames() throws IOException, JetStreamApiException, InterruptedException {
+    public List<String> getBucketNames() throws IOException, JetStreamApiException {
         List<String> buckets = new ArrayList<>();
         List<String> names = jsm.getStreamNames();
         for (String name : names) {
@@ -67,6 +67,18 @@ public class NatsObjectStoreManagement implements ObjectStoreManagement {
         return new ObjectStoreStatus(jsm.getStreamInfo(toStreamName(bucketName)));
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<ObjectStoreStatus> getStatuses() throws IOException, JetStreamApiException {
+        List<String> bucketNames = getBucketNames();
+        List<ObjectStoreStatus> statuses = new ArrayList<>();
+        for (String name : bucketNames) {
+            statuses.add(new ObjectStoreStatus(jsm.getStreamInfo(toStreamName(name))));
+        }
+        return statuses;
+    }
     /**
      * {@inheritDoc}
      */

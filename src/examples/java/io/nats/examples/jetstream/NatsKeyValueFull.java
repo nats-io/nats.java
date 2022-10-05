@@ -166,7 +166,7 @@ public class NatsKeyValueFull {
 
             // let's check the bucket info
             System.out.println("\n9.1 Bucket before update/delete");
-            kvs = kvm.getBucketInfo(exArgs.bucket);
+            kvs = kvm.getStatus(exArgs.bucket);
             System.out.println(kvs);
 
             // update the bucket
@@ -183,7 +183,7 @@ public class NatsKeyValueFull {
             kvm.delete(exArgs.bucket);
 
             try {
-                kvm.getBucketInfo(exArgs.bucket);
+                kvm.getStatus(exArgs.bucket);
                 System.out.println("UH OH! Bucket should not have been found!");
             }
             catch (JetStreamApiException e) {
