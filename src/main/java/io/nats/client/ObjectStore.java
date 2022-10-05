@@ -173,6 +173,9 @@ public interface ObjectStore {
      * Get a list of all object [infos] in the store.
      * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @return the list of objects
+     * @throws IOException covers various communication issues with the NATS server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
      */
     List<ObjectInfo> getList() throws IOException, JetStreamApiException, InterruptedException;
 
