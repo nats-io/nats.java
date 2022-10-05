@@ -19,6 +19,7 @@ import io.nats.client.support.Validator;
 import static io.nats.client.support.ApiConstants.DELETED_DETAILS;
 import static io.nats.client.support.ApiConstants.SUBJECTS_FILTER;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.Validator.emptyAsNull;
 
 /**
  * Object used to make a request for special stream info requests
@@ -101,7 +102,7 @@ public class StreamInfoOptions implements JsonSerializable {
          * @return the builder
          */
         public Builder filterSubjects(String subjectsFilter) {
-            this.subjectsFilter = Validator.emptyAsNull(subjectsFilter);
+            this.subjectsFilter = emptyAsNull(subjectsFilter);
             return this;
         }
 
