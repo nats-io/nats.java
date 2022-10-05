@@ -17,7 +17,6 @@ import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamOptions;
 import io.nats.client.Message;
 import io.nats.client.api.*;
-import io.nats.client.support.JsonUtils;
 import io.nats.client.support.NatsJetStreamConstants;
 
 import java.io.IOException;
@@ -25,7 +24,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static io.nats.client.support.ApiConstants.SUBJECT;
 import static io.nats.client.support.NatsJetStreamClientError.JsConsumerCreate290NotAvailable;
 
 class NatsJetStreamImplBase implements NatsJetStreamConstants {
@@ -114,9 +112,12 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
 
     StreamInfo _getStreamInfo(String streamName, StreamInfoOptions options) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_STREAM_INFO, streamName);
-        byte[] payload = options == null ? null : options.serialize();
-        Message resp = makeRequestResponseRequired(subj, payload, jso.getRequestTimeout());
-        return createAndCacheStreamInfoThrowOnError(streamName, resp);
+        StreamInfoReader sir = new StreamInfoReader();
+        while (sir.hasMore()) {
+            Message resp = makeRequestResponseRequired(subj, sir.nextJson(options), jso.getRequestTimeout());
+            sir.process(resp);
+        }
+        return cacheStreamInfo(streamName, sir.getStreamInfo());
     }
 
     StreamInfo createAndCacheStreamInfoThrowOnError(String streamName, Message resp) throws JetStreamApiException {
@@ -133,11 +134,12 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
         return list;
     }
 
-    List<String> _getStreamNamesBySubjectFilter(String subjectFilter) throws IOException, JetStreamApiException {
-        byte[] body = JsonUtils.simpleMessageBody(SUBJECT, subjectFilter);
+    List<String> _getStreamNames(String subjectFilter) throws IOException, JetStreamApiException {
         StreamNamesReader snr = new StreamNamesReader();
-        Message resp = makeRequestResponseRequired(JSAPI_STREAM_NAMES, body, jso.getRequestTimeout());
-        snr.process(resp);
+        while (snr.hasMore()) {
+            Message resp = makeRequestResponseRequired(JSAPI_STREAM_NAMES, snr.nextJson(subjectFilter), jso.getRequestTimeout());
+            snr.process(resp);
+        }
         return snr.getStrings();
     }
 

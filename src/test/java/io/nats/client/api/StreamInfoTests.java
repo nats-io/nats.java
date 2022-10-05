@@ -184,14 +184,13 @@ public class StreamInfoTests {
 
     @Test
     public void testSubjectCoverage() {
-        List<Subject> list = Subject.optionalListOf("{}");
-        assertNull(list);
+        List<Subject> list = Subject.getList("{}");
+        assertTrue(list.isEmpty());
 
-        list = Subject.optionalListOf(null);
-        assertNull(list);
+        list = Subject.getList(null);
+        assertTrue(list.isEmpty());
 
-        list = Subject.optionalListOf("{\"sub0\": 1, \"sub1\": 2,\"x.foo\": 3}");
-        assertNotNull(list);
+        list = Subject.getList("{\"sub0\": 1, \"sub1\": 2,\"x.foo\": 3}");
         assertEquals(3, list.size());
     }
 }

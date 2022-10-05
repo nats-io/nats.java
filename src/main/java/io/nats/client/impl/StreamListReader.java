@@ -19,13 +19,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.STREAMS;
+import static io.nats.client.support.ApiConstants.SUBJECT;
 
 class StreamListReader extends AbstractListReader {
 
     List<StreamInfo> streams;
 
     StreamListReader() {
-        super(STREAMS, ListType.OBJECTS);
+        super(STREAMS, ListType.OBJECTS, SUBJECT);
         streams = new ArrayList<>();
     }
 

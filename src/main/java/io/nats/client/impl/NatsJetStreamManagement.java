@@ -86,7 +86,6 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         return _getStreamInfo(streamName, null);
     }
 
-
     /**
      * {@inheritDoc}
      */
@@ -187,20 +186,15 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      */
     @Override
     public List<String> getStreamNames() throws IOException, JetStreamApiException {
-        StreamNamesReader snr = new StreamNamesReader();
-        while (snr.hasMore()) {
-            Message resp = makeRequestResponseRequired(JSAPI_STREAM_NAMES, snr.nextJson(), jso.getRequestTimeout());
-            snr.process(resp);
-        }
-        return snr.getStrings();
+        return _getStreamNames(null);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public List<String> getStreamNamesBySubjectFilter(String subjectFilter) throws IOException, JetStreamApiException {
-        return _getStreamNamesBySubjectFilter(subjectFilter);
+    public List<String> getStreamNames(String subjectFilter) throws IOException, JetStreamApiException {
+        return _getStreamNames(subjectFilter);
     }
 
     /**
@@ -208,12 +202,17 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      */
     @Override
     public List<StreamInfo> getStreams() throws IOException, JetStreamApiException {
-        StreamListReader slg = new StreamListReader();
-        while (slg.hasMore()) {
-            Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, slg.nextJson(), jso.getRequestTimeout());
-            slg.process(resp);
+        return getStreams(null);
+    }
+
+    @Override
+    public List<StreamInfo> getStreams(String subjectFilter) throws IOException, JetStreamApiException {
+        StreamListReader slr = new StreamListReader();
+        while (slr.hasMore()) {
+            Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, slr.nextJson(subjectFilter), jso.getRequestTimeout());
+            slr.process(resp);
         }
-        return cacheStreamInfo(slg.getStreams());
+        return cacheStreamInfo(slr.getStreams());
     }
 
     /**
