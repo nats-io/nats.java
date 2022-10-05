@@ -38,7 +38,7 @@ class StreamInfoReader {
             streamInfo = si;
         }
         else {
-            streamInfo.getStreamState().addAll(si.getStreamState().getSubjects());
+            streamInfo.getStreamState().getSubjects().addAll(si.getStreamState().getSubjects());
         }
     }
 

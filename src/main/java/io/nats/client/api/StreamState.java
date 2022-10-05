@@ -17,7 +17,6 @@ import io.nats.client.support.JsonUtils;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
@@ -45,10 +44,12 @@ public class StreamState {
         lastTime = JsonUtils.readDate(json, LAST_TS_RE);
         subjectCount = JsonUtils.readLong(json, NUM_SUBJECTS_RE, 0);
         deletedCount = JsonUtils.readLong(json, NUM_DELETED_RE, 0);
-        subjects = new ArrayList<>();
         deletedStreamSequences = JsonUtils.getLongList(DELETED, json);
-
-        addAll(Subject.optionalListOf(JsonUtils.getJsonObject(SUBJECTS, json)));
+        subjects = new ArrayList<>();
+        List<Subject> optional = Subject.optionalListOf(JsonUtils.getJsonObject(SUBJECTS, json));
+        if (optional != null) {
+            subjects.addAll(optional);
+        }
     }
 
     /**
@@ -148,17 +149,6 @@ public class StreamState {
      */
     public List<Long> getDeleted() {
         return deletedStreamSequences;
-    }
-
-    /**
-     * THIS METHOD IS INTENDED FOR INTERNAL USE ONLY EVEN THOUGH IT'S SCOPED public
-     * It is used when reading stream info with paged subjects.
-     * @param addSubjects the subjects to add to the state.
-     */
-    public void addAll(Collection<Subject> addSubjects) {
-        if (addSubjects != null) {
-            this.subjects.addAll(addSubjects);
-        }
     }
 
     @Override
