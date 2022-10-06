@@ -198,24 +198,23 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     // ----------------------------------------------------------------------------------------------------
     private static final PushSubscribeOptions DEFAULT_PUSH_OPTS = PushSubscribeOptions.builder().build();
 
-    static class SidCheckManager extends MessageManager {
-        @Override
-        boolean manage(Message msg) {
-            return !sub.getSID().equals(msg.getSID());
-        }
-    }
-
     // Push/PullMessageManagerFactory are internal and used for testing / providing a MessageManager mocks
     interface PushMessageManagerFactory {
         MessageManager createPushMessageManager(
-            NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode);
+            NatsConnection conn,
+            NatsJetStream js,
+            String stream,
+            SubscribeOptions so,
+            ConsumerConfiguration serverCC,
+            boolean queueMode,
+            NatsDispatcher dispatcher);
     }
 
     interface PullMessageManagerFactory {
         MessageManager createPullMessageManager();
     }
 
-    PushMessageManagerFactory PUSH_MESSAGE_MANAGER_FACTORY = PushMessageManager::new;
+    PushMessageManagerFactory PUSH_MESSAGE_MANAGER_FACTORY = null;
     PullMessageManagerFactory PULL_MESSAGE_MANAGER_FACTORY = PullMessageManager::new;
 
     JetStreamSubscription createSubscription(String subject,
@@ -380,35 +379,32 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         // 6. create the subscription. lambda needs final or effectively final vars
         NatsJetStreamSubscription sub;
         if (isPullMode) {
-            final MessageManager[] managers = new MessageManager[] { PULL_MESSAGE_MANAGER_FACTORY.createPullMessageManager() };
+            final MessageManager manager = PULL_MESSAGE_MANAGER_FACTORY.createPullMessageManager();
             final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
-                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, this, fnlStream, settledConsumerName, managers);
+                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, this, fnlStream, settledConsumerName, manager);
             sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
         }
         else {
-            final MessageManager pushMessageManager =
-                PUSH_MESSAGE_MANAGER_FACTORY.createPushMessageManager(conn, so, settledServerCC, qgroup != null, dispatcher == null);
-            final MessageManager[] managers;
-            if (so.isOrdered()) {
-                managers = new MessageManager[3];
-                managers[0] = new SidCheckManager();
-                managers[1] = pushMessageManager;
-                managers[2] = new OrderedManager(this, dispatcher, fnlStream, settledServerCC);
+            final MessageManager manager;
+            if (PUSH_MESSAGE_MANAGER_FACTORY != null) {
+                manager = PUSH_MESSAGE_MANAGER_FACTORY.createPushMessageManager(conn, this, fnlStream, so, settledServerCC, qgroup != null, dispatcher);
+            }
+            else if (so.isOrdered()) {
+                manager = new OrderedManager(conn, this, fnlStream, so, settledServerCC, qgroup != null, dispatcher);
             }
             else {
-                managers = new MessageManager[1];
-                managers[0] = pushMessageManager;
+                manager = new PushMessageManager(conn, this, fnlStream, so, settledServerCC, qgroup != null, dispatcher);
             }
 
             final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
                 -> new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,
-                this, fnlStream, settledConsumerName, managers);
+                this, fnlStream, settledConsumerName, manager);
 
             if (dispatcher == null) {
                 sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
             }
             else {
-                AsyncMessageHandler handler = new AsyncMessageHandler(userHandler, isAutoAck, settledServerCC, managers);
+                AsyncMessageHandler handler = new AsyncMessageHandler(userHandler, isAutoAck, settledServerCC, manager);
                 sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(fnlInboxDeliver, qgroup, handler, factory);
             }
         }
@@ -471,30 +467,23 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     }
 
     static class AsyncMessageHandler implements MessageHandler {
-        List<MessageManager> managers;
+        MessageManager manager;
         List<MessageHandler> handlers;
 
-        public AsyncMessageHandler(MessageHandler userHandler, boolean isAutoAck, ConsumerConfiguration settledServerCC, MessageManager ... managers) {
+        public AsyncMessageHandler(MessageHandler userHandler, boolean isAutoAck, ConsumerConfiguration settledServerCC, MessageManager manager) {
             handlers = new ArrayList<>();
             handlers.add(userHandler);
             if (isAutoAck && settledServerCC.getAckPolicy() != AckPolicy.None) {
                 handlers.add(Message::ack);
             };
 
-            this.managers = new ArrayList<>();
-            for (MessageManager mm : managers) {
-                if (mm != null) {
-                    this.managers.add(mm);
-                }
-            }
+            this.manager = manager;
         }
 
         @Override
         public void onMessage(Message msg) throws InterruptedException {
-            for (MessageManager mm : managers) {
-                if (mm.manage(msg)) {
-                    return;
-                }
+            if (manager.manage(msg)) {
+                return;
             }
 
             for (MessageHandler mh : handlers) {

@@ -34,13 +34,13 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     protected String stream;
     protected String consumerName;
 
-    protected MessageManager[] managers;
+    protected MessageManager manager;
 
     NatsJetStreamSubscription(String sid, String subject, String queueName,
                               NatsConnection connection, NatsDispatcher dispatcher,
                               NatsJetStream js,
                               String stream, String consumer,
-                              MessageManager[] managers)
+                              MessageManager manager)
     {
         super(sid, subject, queueName, connection, dispatcher);
 
@@ -48,10 +48,8 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         this.stream = stream;
         this.consumerName = consumer; // might be null, someone will call setConsumerName
 
-        this.managers = managers;
-        for (MessageManager mm : managers) {
-            mm.startup(this);
-        }
+        this.manager = manager;
+        manager.startup(this);
     }
 
     void setConsumerName(String consumerName) {
@@ -70,13 +68,11 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return false;
     }
 
-    MessageManager[] getManagers() { return managers; } // internal, for testing
+    MessageManager getManager() { return manager; } // internal, for testing
 
     @Override
     void invalidate() {
-        for (MessageManager mm : managers) {
-            mm.shutdown();
-        }
+        manager.shutdown();
         super.invalidate();
     }
 
@@ -103,7 +99,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         // until we get an actual no (null) message or we get a message
         // that the managers do not handle
         Message msg = nextMessageInternal(timeout);
-        while (msg != null && anyManaged(msg)) {
+        while (msg != null && manager.manage(msg)) {
             msg = nextMessageInternal(timeout);
         }
         return msg;
@@ -124,22 +120,13 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
             if (msg == null) {
                 return null; // normal timeout
             }
-            if (!anyManaged(msg)) { // not managed means JS Message
+            if (!manager.manage(msg)) { // not managed means JS Message
                 return msg;
             }
             // managed so try again while we have time
             elapsed = System.currentTimeMillis() - start;
         }
         return null;
-    }
-
-    boolean anyManaged(Message msg) {
-        for (MessageManager mm : managers) {
-            if (mm.manage(msg)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**

@@ -20,7 +20,7 @@ import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.support.Status;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -30,33 +30,46 @@ import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR
 
 class PushMessageManager extends MessageManager {
 
-    private static final List<Integer> PUSH_KNOWN_STATUS_CODES = Arrays.asList(409);
+    protected static final List<Integer> PUSH_KNOWN_STATUS_CODES = Collections.singletonList(409);
 
-    private static final int THRESHOLD = 3;
+    protected static final int THRESHOLD = 3;
 
-    private final NatsConnection conn;
+    protected final NatsConnection conn;
 
-    private final boolean syncMode;
-    private final boolean queueMode;
-    private final boolean hb;
-    private final boolean fc;
+    protected final NatsJetStream js;
+    protected final String stream;
+    protected final ConsumerConfiguration serverCC;
+    protected final NatsDispatcher dispatcher;
 
-    private final long idleHeartbeatSetting;
-    private final long alarmPeriodSetting;
+    protected final boolean syncMode;
+    protected final boolean queueMode;
+    protected final boolean hb;
+    protected final boolean fc;
 
-    private String lastFcSubject;
-    private long lastStreamSeq;
-    private long lastConsumerSeq;
+    protected final long idleHeartbeatSetting;
+    protected final long alarmPeriodSetting;
 
-    private final AtomicLong lastMsgReceived;
-    private HeartbeatTimer heartbeatTimer;
+    protected String lastFcSubject;
+    protected long lastStreamSeq;
+    protected long lastConsumerSeq;
 
-    PushMessageManager(NatsConnection conn, SubscribeOptions so,
-                       ConsumerConfiguration cc,
-                       boolean queueMode, boolean syncMode)
+    protected final AtomicLong lastMsgReceived;
+    protected HeartbeatTimer heartbeatTimer;
+
+    PushMessageManager(NatsConnection conn,
+                       NatsJetStream js,
+                       String stream,
+                       SubscribeOptions so,
+                       ConsumerConfiguration serverCC,
+                       boolean queueMode,
+                       NatsDispatcher dispatcher)
     {
         this.conn = conn;
-        this.syncMode = syncMode;
+        this.js = js;
+        this.stream = stream;
+        this.serverCC = serverCC;
+        this.dispatcher = dispatcher;
+        this.syncMode = dispatcher == null;
         this.queueMode = queueMode;
         lastStreamSeq = -1;
         lastConsumerSeq = -1;
@@ -69,7 +82,7 @@ class PushMessageManager extends MessageManager {
             alarmPeriodSetting = 0;
         }
         else {
-            idleHeartbeatSetting = cc.getIdleHeartbeat() == null ? 0 : cc.getIdleHeartbeat().toMillis();
+            idleHeartbeatSetting = serverCC.getIdleHeartbeat() == null ? 0 : serverCC.getIdleHeartbeat().toMillis();
             if (idleHeartbeatSetting <= 0) {
                 alarmPeriodSetting = 0;
                 hb = false;
@@ -84,7 +97,7 @@ class PushMessageManager extends MessageManager {
                 }
                 hb = true;
             }
-            fc = hb && cc.isFlowControl(); // can't have fc w/o heartbeat
+            fc = hb && serverCC.isFlowControl(); // can't have fc w/o heartbeat
         }
     }
 
@@ -106,6 +119,10 @@ class PushMessageManager extends MessageManager {
         super.shutdown();
     }
 
+    protected void handleHeartbeatError() {
+        conn.getOptions().getErrorListener().heartbeatAlarm(conn, sub, lastStreamSeq, lastConsumerSeq);
+    }
+
     class HeartbeatTimer {
         Timer timer;
         boolean alive = true;
@@ -115,7 +132,7 @@ class PushMessageManager extends MessageManager {
             public void run() {
                 long sinceLast = System.currentTimeMillis() - lastMsgReceived.get();
                 if (sinceLast > alarmPeriodSetting) {
-                    conn.getOptions().getErrorListener().heartbeatAlarm(conn, sub, lastStreamSeq, lastConsumerSeq);
+                    handleHeartbeatError();
                 }
                 restart();
             }
@@ -171,7 +188,15 @@ class PushMessageManager extends MessageManager {
         return msg;
     }
 
+    protected boolean subManage(Message msg) {
+        return false;
+    }
+
     boolean manage(Message msg) {
+        if (!sub.getSID().equals(msg.getSID())) {
+            return true;
+        }
+
         if (msg.isStatusMessage()) {
             // this checks fc, hb and unknown
             // only process fc and hb if those flags are set
@@ -199,9 +224,14 @@ class PushMessageManager extends MessageManager {
             return true;
         }
 
+        if (subManage(msg)) {
+            return true;
+        }
+
         // JS Message
         lastStreamSeq = msg.metaData().streamSequence();
         lastConsumerSeq = msg.metaData().consumerSequence();
+
         return false;
     }
 

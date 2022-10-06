@@ -28,8 +28,8 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                                   NatsConnection connection,
                                   NatsJetStream js,
                                   String stream, String consumer,
-                                  MessageManager[] managers) {
-        super(sid, subject, null, connection, null, js, stream, consumer, managers);
+                                  MessageManager manager) {
+        super(sid, subject, null, connection, null, js, stream, consumer, manager);
     }
 
     @Override
@@ -143,7 +143,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                 if (msg == null) {
                     return messages; // normal timeout
                 }
-                if (!anyManaged(msg)) { // not null and not managed means JS Message
+                if (!manager.manage(msg)) { // not null and not managed means JS Message
                     messages.add(msg);
                     batchLeft--;
                 }
@@ -162,7 +162,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         try {
             Message msg = nextMessageInternal(null); // null means do not wait, it's either already here or not
             while (msg != null) {
-                if (!anyManaged(msg)) { // not null and not managed means JS Message
+                if (!manager.manage(msg)) { // not null and not managed means JS Message
                     messages.add(msg);
                     if (messages.size() == batchSize) {
                         return messages;

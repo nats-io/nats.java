@@ -26,6 +26,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static io.nats.examples.jetstream.NatsJsUtils.printConsumerInfo;
@@ -44,21 +45,34 @@ public class JetStreamTestBase extends TestBase {
 
     public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(1000);
 
+    private static final AtomicInteger MOCK_SID_HOLDER = new AtomicInteger(4273);
+    public static String mockSid() {
+        return "" + MOCK_SID_HOLDER.incrementAndGet();
+    }
+
     public NatsMessage getTestNatsMessage() {
-        return getTestMessage("replyTo");
+        return getTestMessage("replyTo", mockSid());
     }
 
     public NatsMessage getTestJsMessage() {
-        return getTestMessage(TestMetaV2);
+        return getTestMessage(TestMetaV2, mockSid());
     }
 
     public NatsMessage getTestJsMessage(long seq) {
-        return getTestMessage("$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1." + seq + "." + seq + ".1605139610113260000.4");
+        return getTestJsMessage(seq, mockSid());
+    }
+
+    public NatsMessage getTestJsMessage(long seq, String sid) {
+        return getTestMessage("$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1." + seq + "." + seq + ".1605139610113260000.4", sid);
     }
 
     public NatsMessage getTestMessage(String replyTo) {
-        return new NatsMessage.InternalMessageFactory("sid", "subj", replyTo, 0, false).getMessage();
+        return new NatsMessage.InternalMessageFactory(mockSid(), "subj", replyTo, 0, false).getMessage();
     }
+
+    public NatsMessage getTestMessage(String replyTo, String sid) {
+        return new NatsMessage.InternalMessageFactory(sid, "subj", replyTo, 0, false).getMessage();
+    } 
 
     static class NoopMessageManager extends MessageManager {}
 

@@ -29,11 +29,11 @@ public class JetStreamOrderedConsumerTests extends JetStreamTestBase {
 
     // ------------------------------------------------------------------------------------------
     // This allows me to intercept messages before it gets to the connection queue
-    // which is before the messages is available for nextMessage or before
+    // which is before the messages is available for nextMessage, or before
     // it gets dispatched to a handler.
-    static class OrderedTestDropSimulator extends PushMessageManager {
-        public OrderedTestDropSimulator(NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode) {
-            super(conn, so, cc, queueMode, syncMode);
+    static class OrderedTestDropSimulator extends OrderedManager {
+        public OrderedTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, NatsDispatcher dispatcher) {
+            super(conn, js, stream, so, serverCC, queueMode, dispatcher);
         }
 
         @Override
