@@ -73,7 +73,7 @@ class PushMessageManager extends MessageManager {
         this.queueMode = queueMode;
         lastStreamSeq = -1;
         lastConsumerSeq = -1;
-        lastMsgReceived = new AtomicLong();
+        lastMsgReceived = new AtomicLong(System.currentTimeMillis());
 
         if (queueMode) {
             hb = false;
@@ -120,7 +120,7 @@ class PushMessageManager extends MessageManager {
     }
 
     protected void handleHeartbeatError() {
-        conn.getOptions().getErrorListener().heartbeatAlarm(conn, sub, lastStreamSeq, lastConsumerSeq);
+        conn.executeCallback((c, el) -> el.heartbeatAlarm(c, sub, lastStreamSeq, lastConsumerSeq));
     }
 
     class HeartbeatTimer {
@@ -216,7 +216,7 @@ class PushMessageManager extends MessageManager {
             else if (!PUSH_KNOWN_STATUS_CODES.contains(status.getCode())) {
                 // If this status is unknown to us, always use the error handler.
                 // If it's a sync call, also throw an exception
-                conn.getOptions().getErrorListener().unhandledStatus(conn, sub, status);
+                conn.executeCallback((c, el) -> el.unhandledStatus(c, sub, status));
                 if (syncMode) {
                     throw new JetStreamStatusException(sub, status);
                 }
@@ -245,7 +245,7 @@ class PushMessageManager extends MessageManager {
         if (fcSubject != null && !fcSubject.equals(lastFcSubject)) {
             conn.publishInternal(fcSubject, null, null, null, false);
             lastFcSubject = fcSubject; // set after publish in case the pub fails
-            conn.getOptions().getErrorListener().flowControlProcessed(conn, sub, fcSubject, source);
+            conn.executeCallback((c, el) -> el.flowControlProcessed(c, sub, fcSubject, source));
         }
     }
 }

@@ -38,6 +38,11 @@ class OrderedManager extends PushMessageManager {
         return false;
     }
 
+    @Override
+    protected void handleHeartbeatError() {
+        handleErrorCondition();
+    }
+
     private void handleErrorCondition() {
         try {
             expectedConsumerSeq = 1; // consumer always starts with consumer sequence 1
@@ -55,7 +60,7 @@ class OrderedManager extends PushMessageManager {
             ConsumerConfiguration userCC = ConsumerConfiguration.builder(serverCC)
                 .deliverPolicy(DeliverPolicy.ByStartSequence)
                 .deliverSubject(newDeliverSubject)
-                .startSequence(lastStreamSeq + 1)
+                .startSequence(Math.max(1, lastStreamSeq + 1))
                 .startTime(null) // clear start time in case it was originally set
                 .build();
             js._createConsumerUnsubscribeOnException(stream, userCC, sub);

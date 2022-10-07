@@ -1472,6 +1472,20 @@ class NatsConnection implements Connection {
         }
     }
 
+    interface ErrorListenerCaller {
+        void call(Connection conn, ErrorListener el);
+    }
+
+    void executeCallback(ErrorListenerCaller elc) {
+        if (!this.callbackRunner.isShutdown()) {
+            try {
+                this.callbackRunner.execute(() -> elc.call(this, options.getErrorListener()));
+            } catch (RejectedExecutionException re) {
+                // Timing with shutdown, let it go
+            }
+        }
+    }
+
     void processConnectionEvent(Events type) {
         ConnectionListener handler = this.options.getConnectionListener();
 

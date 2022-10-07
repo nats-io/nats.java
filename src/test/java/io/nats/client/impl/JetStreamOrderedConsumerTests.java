@@ -19,8 +19,10 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.NatsJetStreamClientError.JsSubOrderedNotAllowOnQueues;
 import static org.junit.jupiter.api.Assertions.*;
@@ -146,6 +148,98 @@ public class JetStreamOrderedConsumerTests extends JetStreamTestBase {
                 assertEquals(expectedStreamSeq, ssFlags[idx].get());
                 assertEquals(EXPECTED_CON_SEQ_NUMS[idx], csFlags[idx].get());
                 ++expectedStreamSeq;
+            }
+        });
+    }
+
+    static class OrderedMissHeartbeatSimulator extends OrderedManager {
+        public AtomicInteger skip = new AtomicInteger(5);
+        public AtomicInteger startups = new AtomicInteger(0);
+        public AtomicInteger handles = new AtomicInteger(0);
+        public CountDownLatch latch = new CountDownLatch(1);
+
+        public OrderedMissHeartbeatSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, NatsDispatcher dispatcher) {
+            super(conn, js, stream, so, serverCC, queueMode, dispatcher);
+        }
+
+        @Override
+        void startup(NatsJetStreamSubscription sub) {
+            super.startup(sub);
+            startups.incrementAndGet();
+        }
+
+        @Override
+        protected void handleHeartbeatError() {
+            handles.incrementAndGet();
+            skip.set(9999); // more than the number of messages left
+            super.handleHeartbeatError();
+            latch.countDown();
+        }
+
+        @Override
+        NatsMessage beforeQueueProcessor(NatsMessage msg) {
+            if (skip.decrementAndGet() < 0) {
+                return null;
+            }
+            return super.beforeQueueProcessor(msg);
+        }
+
+        public String SID() {
+            return sub.getSID();
+        }
+    }
+
+    @Test
+    public void testOrderedConsumerHbSync() throws Exception {
+        runInJsServer(nc -> {
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            String subject = subject(333);
+            createMemoryStream(jsm, stream(333), subject);
+
+            // Get this in place before any subscriptions are made
+            AtomicReference<OrderedMissHeartbeatSimulator> simRef = new AtomicReference<>();
+            ((NatsJetStream)js).PUSH_MESSAGE_MANAGER_FACTORY = (conn, lJs, stream, so, serverCC, qmode, dispatcher) -> {
+                OrderedMissHeartbeatSimulator sim = new OrderedMissHeartbeatSimulator(conn, lJs, stream, so, serverCC, qmode, dispatcher);
+                simRef.set(sim);
+                return sim;
+            };
+
+            jsPublish(js, subject, 1, 10);
+
+            // Setup subscription
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true)
+                .configuration(ConsumerConfiguration.builder().flowControl(500).build())
+                .build();
+
+            JetStreamSubscription sub = js.subscribe(subject, pso);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            OrderedMissHeartbeatSimulator sim = simRef.get();
+
+            String firstSid = null;
+            int expectedStreamSeq = 1;
+            while (expectedStreamSeq <= 5) {
+                Message m = sub.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
+                if (m != null) {
+                    if (firstSid == null) {
+                        firstSid = sim.SID();
+                    }
+                    else {
+                        assertEquals(firstSid, sim.SID());
+                    }
+                    assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
+                }
+            }
+            sim.latch.await(10, TimeUnit.SECONDS);
+
+            while (expectedStreamSeq <= 10) {
+                Message m = sub.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
+                if (m != null) {
+                    assertNotEquals(firstSid, sim.SID());
+                    assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
+                }
             }
         });
     }
