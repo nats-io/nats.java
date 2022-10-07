@@ -118,16 +118,19 @@ public class MessageManagerTests extends JetStreamTestBase {
 
         Message m = get404(sid);
         assertTrue(manager.manage(m));
+        sleep(100); // the error listener is called async, need to give it time to be called.
         assertSame(sub, el.sub);
         assertSame(m.getStatus(), el.status);
 
         m = get408(sid);
         assertTrue(manager.manage(m));
+        sleep(100); // the error listener is called async, need to give it time to be called.
         assertSame(sub, el.sub);
         assertSame(m.getStatus(), el.status);
 
         m = getUnkStatus(sid);
         assertTrue(manager.manage(m));
+        sleep(100); // the error listener is called async, need to give it time to be called.
         assertSame(sub, el.sub);
         assertSame(m.getStatus(), el.status);
     }
@@ -277,7 +280,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         js.publish(SUBJECT, dataBytes(0));
         sub.nextMessage(1000);
         NatsJetStreamSubscription nsub = (NatsJetStreamSubscription)sub;
-        assertEquals(0, findStatusManager(nsub).getLastMsgReceived());
+        assertTrue(findStatusManager(nsub).getLastMsgReceived() <= System.currentTimeMillis());
         jsm.purgeStream(STREAM);
         sub.unsubscribe();
     }
