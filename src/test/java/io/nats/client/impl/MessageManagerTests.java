@@ -31,7 +31,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void testConstruction() throws Exception {
         runInJsServer(nc -> {
-            NatsJetStreamSubscription sub = mockSub(nc);
+            NatsJetStreamSubscription sub = genericSub(nc);
 
             _pushConstruction(nc, true, true, push_hb_fc(), sub);
             _pushConstruction(nc, true, false, push_hb_xfc(), sub);
@@ -57,7 +57,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void test_status_handle_pushSync() throws Exception {
         runInJsServer(nc -> {
-            NatsJetStreamSubscription sub = mockSub(nc);
+            NatsJetStreamSubscription sub = genericSub(nc);
             _status_handle_pushSync(nc, sub, push_hb_fc());
             _status_handle_pushSync(nc, sub, push_hb_xfc());
             _status_handle_pushSync(nc, sub, push_xhb_xfc());
@@ -66,26 +66,28 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     private void _status_handle_pushSync(Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
         PushMessageManager manager = getManager(conn, so, sub, true, false);
-        assertFalse(manager.manage(getTestJsMessage(1)));
-        assertTrue(manager.manage(getFlowControl(1)));
-        assertTrue(manager.manage(getFcHeartbeat(1)));
-        _status_handle_throws(sub, manager, get404());
-        _status_handle_throws(sub, manager, get408());
-        _status_handle_throws(sub, manager, getUnkStatus());
+        String sid = sub.getSID();
+        assertFalse(manager.manage(getTestJsMessage(1, sid)));
+        assertTrue(manager.manage(getFlowControl(1, sid)));
+        assertTrue(manager.manage(getFcHeartbeat(1, sid)));
+        _status_handle_throws(sub, manager, get404(sid));
+        _status_handle_throws(sub, manager, get408(sid));
+        _status_handle_throws(sub, manager, getUnkStatus(sid));
     }
 
     @Test
     public void test_status_handle_pull() throws Exception {
         runInJsServer(nc -> {
-            NatsJetStreamSubscription sub = mockSub(nc);
+            NatsJetStreamSubscription sub = genericSub(nc);
             PullMessageManager manager = new PullMessageManager();
             manager.startup(sub);
-            assertFalse(manager.manage(getTestJsMessage(1)));
-            assertTrue(manager.manage(get404()));
-            assertTrue(manager.manage(get408()));
-            _status_handle_throws(sub, manager, getFlowControl(1));
-            _status_handle_throws(sub, manager, getFcHeartbeat(1));
-            _status_handle_throws(sub, manager, getUnkStatus());
+            String sid = sub.getSID();
+            assertFalse(manager.manage(getTestJsMessage(1, sid)));
+            assertTrue(manager.manage(get404(sid)));
+            assertTrue(manager.manage(get408(sid)));
+            _status_handle_throws(sub, manager, getFlowControl(1, sid));
+            _status_handle_throws(sub, manager, getFcHeartbeat(1, sid));
+            _status_handle_throws(sub, manager, getUnkStatus(sid));
         });
     }
 
@@ -97,34 +99,38 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_status_handle_pushAsync() throws Exception {
-        AsmEl el = new AsmEl();
+        MmtEl el = new MmtEl();
         runInJsServer(optsWithEl(el), nc -> {
-            NatsJetStreamSubscription sub = mockSub(nc);
+            NatsJetStreamSubscription sub = genericSub(nc);
             _status_handle_pushAsync(el, nc, sub, push_hb_fc());
             _status_handle_pushAsync(el, nc, sub, push_hb_xfc());
             _status_handle_pushAsync(el, nc, sub, push_xhb_xfc());
         });
     }
 
-    private void _status_handle_pushAsync(AsmEl el, Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
+    private void _status_handle_pushAsync(MmtEl el, Connection conn, NatsJetStreamSubscription sub, SubscribeOptions so) {
         PushMessageManager manager = getManager(conn, so, sub, false, false);
-        el.reset();
-        assertFalse(manager.manage(getTestJsMessage(1)));
-        assertTrue(manager.manage(getFlowControl(1)));
-        assertTrue(manager.manage(getFcHeartbeat(1)));
+        el.reset(sub);
+        String sid = sub.getSID();
+        assertFalse(manager.manage(getTestJsMessage(1, sid)));
+        assertTrue(manager.manage(getFlowControl(1, sid)));
+        assertTrue(manager.manage(getFcHeartbeat(1, sid)));
 
-        Message m = get404();
+        Message m = get404(sid);
         assertTrue(manager.manage(m));
+        sleep(100); // the error listener is called async, need to give it time to be called.
         assertSame(sub, el.sub);
         assertSame(m.getStatus(), el.status);
 
-        m = get408();
+        m = get408(sid);
         assertTrue(manager.manage(m));
+        sleep(100); // the error listener is called async, need to give it time to be called.
         assertSame(sub, el.sub);
         assertSame(m.getStatus(), el.status);
 
-        m = getUnkStatus();
+        m = getUnkStatus(sid);
         assertTrue(manager.manage(m));
+        sleep(100); // the error listener is called async, need to give it time to be called.
         assertSame(sub, el.sub);
         assertSame(m.getStatus(), el.status);
     }
@@ -132,58 +138,63 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void test_push_fc() {
         SubscribeOptions so = push_hb_fc();
-        MockPublishInternal mc = new MockPublishInternal();
-        PushMessageManager asm = new PushMessageManager(mc, so, so.getConsumerConfiguration(), false, true);
-        assertNull(asm.getLastFcSubject());
-        asm.manage(getFlowControl(1));
-        assertEquals(getFcSubject(1), asm.getLastFcSubject());
-        assertEquals(getFcSubject(1), mc.fcSubject);
-        assertEquals(1, mc.pubCount);
+        MockPublishInternal mpi = new MockPublishInternal();
+        NatsDispatcher natsDispatcher = new NatsDispatcher(null, null);
+        PushMessageManager pmm = new PushMessageManager(mpi, null, null, so, so.getConsumerConfiguration(), false, natsDispatcher);
+        NatsJetStreamSubscription sub = mockSub(mpi, pmm);
+        String sid = sub.getSID();
+        pmm.startup(sub);
 
-        asm.manage(getFlowControl(1)); // duplicate should not call publish
-        assertEquals(getFcSubject(1), asm.getLastFcSubject());
-        assertEquals(getFcSubject(1), mc.fcSubject);
-        assertEquals(1, mc.pubCount);
+        assertNull(pmm.getLastFcSubject());
+        pmm.manage(getFlowControl(1, sid));
+        assertEquals(getFcSubject(1), pmm.getLastFcSubject());
+        assertEquals(getFcSubject(1), mpi.fcSubject);
+        assertEquals(1, mpi.pubCount);
 
-        asm.manage(getFlowControl(2)); // duplicate should not call publish
-        assertEquals(getFcSubject(2), asm.getLastFcSubject());
-        assertEquals(getFcSubject(2), mc.fcSubject);
-        assertEquals(2, mc.pubCount);
+        pmm.manage(getFlowControl(1, sid)); // duplicate should not call publish
+        assertEquals(getFcSubject(1), pmm.getLastFcSubject());
+        assertEquals(getFcSubject(1), mpi.fcSubject);
+        assertEquals(1, mpi.pubCount);
 
-        asm.manage(getFcHeartbeat(2)); // duplicate should not call publish
-        assertEquals(getFcSubject(2), asm.getLastFcSubject());
-        assertEquals(getFcSubject(2), mc.fcSubject);
-        assertEquals(2, mc.pubCount);
+        pmm.manage(getFlowControl(2, sid)); // duplicate should not call publish
+        assertEquals(getFcSubject(2), pmm.getLastFcSubject());
+        assertEquals(getFcSubject(2), mpi.fcSubject);
+        assertEquals(2, mpi.pubCount);
 
-        asm.manage(getFcHeartbeat(3));
-        assertEquals(getFcSubject(3), asm.getLastFcSubject());
-        assertEquals(getFcSubject(3), mc.fcSubject);
-        assertEquals(3, mc.pubCount);
+        pmm.manage(getFcHeartbeat(2, sid)); // duplicate should not call publish
+        assertEquals(getFcSubject(2), pmm.getLastFcSubject());
+        assertEquals(getFcSubject(2), mpi.fcSubject);
+        assertEquals(2, mpi.pubCount);
 
-        asm.manage(getHeartbeat());
-        assertEquals(getFcSubject(3), asm.getLastFcSubject());
-        assertEquals(getFcSubject(3), mc.fcSubject);
-        assertEquals(3, mc.pubCount);
+        pmm.manage(getFcHeartbeat(3, sid));
+        assertEquals(getFcSubject(3), pmm.getLastFcSubject());
+        assertEquals(getFcSubject(3), mpi.fcSubject);
+        assertEquals(3, mpi.pubCount);
+
+        pmm.manage(getHeartbeat(sid));
+        assertEquals(getFcSubject(3), pmm.getLastFcSubject());
+        assertEquals(getFcSubject(3), mpi.fcSubject);
+        assertEquals(3, mpi.pubCount);
 
         // coverage sequences
-        asm.manage(getTestJsMessage(1));
-        assertEquals(1, asm.getLastStreamSequence());
-        assertEquals(1, asm.getLastConsumerSequence());
+        pmm.manage(getTestJsMessage(1, sid));
+        assertEquals(1, pmm.getLastStreamSequence());
+        assertEquals(1, pmm.getLastConsumerSequence());
 
-        asm.manage(getTestJsMessage(2));
-        assertEquals(2, asm.getLastStreamSequence());
-        assertEquals(2, asm.getLastConsumerSequence());
+        pmm.manage(getTestJsMessage(2, sid));
+        assertEquals(2, pmm.getLastStreamSequence());
+        assertEquals(2, pmm.getLastConsumerSequence());
 
         // coverage beforeQueueProcessor
-        assertNotNull(asm.beforeQueueProcessor(getTestJsMessage()));
-        assertNotNull(asm.beforeQueueProcessor(get408()));
-        assertNotNull(asm.beforeQueueProcessor(getFcHeartbeat(9)));
-        assertNull(asm.beforeQueueProcessor(getHeartbeat()));
+        assertNotNull(pmm.beforeQueueProcessor(getTestJsMessage(3, sid)));
+        assertNotNull(pmm.beforeQueueProcessor(get408(sid)));
+        assertNotNull(pmm.beforeQueueProcessor(getFcHeartbeat(9, sid)));
+        assertNull(pmm.beforeQueueProcessor(getHeartbeat(sid)));
 
         // coverage extractFcSubject
-        assertNull(asm.extractFcSubject(getTestJsMessage()));
-        assertNull(asm.extractFcSubject(getHeartbeat()));
-        assertNotNull(asm.extractFcSubject(getFcHeartbeat(9)));
+        assertNull(pmm.extractFcSubject(getTestJsMessage(4, sid)));
+        assertNull(pmm.extractFcSubject(getHeartbeat(sid)));
+        assertNotNull(pmm.extractFcSubject(getFcHeartbeat(9, sid)));
     }
 
     @Test
@@ -193,39 +204,42 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     private void _push_xfc(SubscribeOptions so) {
-        MockPublishInternal mc = new MockPublishInternal();
-        PushMessageManager asm = new PushMessageManager(mc, so, so.getConsumerConfiguration(), false, true);
-        assertNull(asm.getLastFcSubject());
+        MockPublishInternal mpi = new MockPublishInternal();
+        PushMessageManager pmm = new PushMessageManager(mpi, null, null, so, so.getConsumerConfiguration(), false, new NatsDispatcher(null, null));
+        NatsJetStreamSubscription sub = mockSub(mpi, pmm);
+        String sid = sub.getSID();
+        pmm.startup(sub);
+        assertNull(pmm.getLastFcSubject());
 
-        asm.manage(getFlowControl(1));
-        assertNull(asm.getLastFcSubject());
-        assertNull(mc.fcSubject);
-        assertEquals(0, mc.pubCount);
+        pmm.manage(getFlowControl(1, sid));
+        assertNull(pmm.getLastFcSubject());
+        assertNull(mpi.fcSubject);
+        assertEquals(0, mpi.pubCount);
 
-        asm.manage(getHeartbeat());
-        assertNull(asm.getLastFcSubject());
-        assertNull(mc.fcSubject);
-        assertEquals(0, mc.pubCount);
+        pmm.manage(getHeartbeat(sid));
+        assertNull(pmm.getLastFcSubject());
+        assertNull(mpi.fcSubject);
+        assertEquals(0, mpi.pubCount);
 
         // coverage sequences
-        asm.manage(getTestJsMessage(1));
-        assertEquals(1, asm.getLastStreamSequence());
-        assertEquals(1, asm.getLastConsumerSequence());
+        pmm.manage(getTestJsMessage(1, sid));
+        assertEquals(1, pmm.getLastStreamSequence());
+        assertEquals(1, pmm.getLastConsumerSequence());
 
-        asm.manage(getTestJsMessage(2));
-        assertEquals(2, asm.getLastStreamSequence());
-        assertEquals(2, asm.getLastConsumerSequence());
+        pmm.manage(getTestJsMessage(2, sid));
+        assertEquals(2, pmm.getLastStreamSequence());
+        assertEquals(2, pmm.getLastConsumerSequence());
 
         // coverage beforeQueueProcessor
-        assertNotNull(asm.beforeQueueProcessor(getTestJsMessage()));
-        assertNotNull(asm.beforeQueueProcessor(get408()));
-        assertNotNull(asm.beforeQueueProcessor(getFcHeartbeat(9)));
-        assertNull(asm.beforeQueueProcessor(getHeartbeat()));
+        assertNotNull(pmm.beforeQueueProcessor(getTestJsMessage(3, sid)));
+        assertNotNull(pmm.beforeQueueProcessor(get408(sid)));
+        assertNotNull(pmm.beforeQueueProcessor(getFcHeartbeat(9, sid)));
+        assertNull(pmm.beforeQueueProcessor(getHeartbeat(sid)));
 
         // coverage extractFcSubject
-        assertNull(asm.extractFcSubject(getTestJsMessage()));
-        assertNull(asm.extractFcSubject(getHeartbeat()));
-        assertNotNull(asm.extractFcSubject(getFcHeartbeat(9)));
+        assertNull(pmm.extractFcSubject(getTestJsMessage()));
+        assertNull(pmm.extractFcSubject(getHeartbeat(sid)));
+        assertNotNull(pmm.extractFcSubject(getFcHeartbeat(9, sid)));
     }
 
     @Test
@@ -255,10 +269,9 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     PushMessageManager findStatusManager(NatsJetStreamSubscription sub) {
-        for (MessageManager mm : sub.getManagers()) {
-            if (mm instanceof PushMessageManager) {
-                return (PushMessageManager)mm;
-            }
+        MessageManager mm = sub.getManager();
+        if (mm instanceof PushMessageManager) {
+            return (PushMessageManager)mm;
         }
         return null;
     };
@@ -267,7 +280,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         js.publish(SUBJECT, dataBytes(0));
         sub.nextMessage(1000);
         NatsJetStreamSubscription nsub = (NatsJetStreamSubscription)sub;
-        assertEquals(0, findStatusManager(nsub).getLastMsgReceived());
+        assertTrue(findStatusManager(nsub).getLastMsgReceived() <= System.currentTimeMillis());
         jsm.purgeStream(STREAM);
         sub.unsubscribe();
     }
@@ -275,7 +288,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void test_hb_yes_settings() throws Exception {
         runInJsServer(nc -> {
-            NatsJetStreamSubscription sub = mockSub(nc);
+            NatsJetStreamSubscription sub = genericSub(nc);
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder().idleHeartbeat(1000).build();
 
@@ -308,7 +321,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void test_hb_no_settings() throws Exception {
         runInJsServer(nc -> {
-            NatsJetStreamSubscription sub = mockSub(nc);
+            NatsJetStreamSubscription sub = genericSub(nc);
             SubscribeOptions so = push_xhb_xfc();
             PushMessageManager manager = getManager(nc, so, sub);
             assertEquals(0, manager.getIdleHeartbeatSetting());
@@ -345,13 +358,14 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     private PushMessageManager getManager(Connection conn, SubscribeOptions so, NatsJetStreamSubscription sub, boolean syncMode, boolean queueMode) {
-        PushMessageManager asm = new PushMessageManager((NatsConnection)conn, so, so.getConsumerConfiguration(), queueMode, syncMode);
+        NatsDispatcher natsDispatcher = syncMode ? null : new NatsDispatcher(null, null);
+        PushMessageManager asm = new PushMessageManager((NatsConnection)conn, null, null, so, so.getConsumerConfiguration(), queueMode, natsDispatcher);
         asm.startup(sub);
         return asm;
     }
 
-    private NatsMessage getFlowControl(int replyToId) {
-        NatsMessage.InternalMessageFactory imf = new NatsMessage.InternalMessageFactory("sid", "subj", getFcSubject(replyToId), 0, false);
+    private NatsMessage getFlowControl(int replyToId, String sid) {
+        NatsMessage.InternalMessageFactory imf = new NatsMessage.InternalMessageFactory(sid, "subj", getFcSubject(replyToId), 0, false);
         imf.setHeaders(new IncomingHeadersProcessor(("NATS/1.0 " + FLOW_OR_HEARTBEAT_STATUS_CODE + " " + FLOW_CONTROL_TEXT + "\r\n").getBytes()));
         return imf.getMessage();
     }
@@ -360,39 +374,39 @@ public class MessageManagerTests extends JetStreamTestBase {
         return "fcSubject." + id;
     }
 
-    private NatsMessage getFcHeartbeat(int replyToId) {
-        NatsMessage.InternalMessageFactory imf = new NatsMessage.InternalMessageFactory("sid", "subj", null, 0, false);
+    private NatsMessage getFcHeartbeat(int replyToId, String sid) {
+        NatsMessage.InternalMessageFactory imf = new NatsMessage.InternalMessageFactory(sid, "subj", null, 0, false);
         String s = "NATS/1.0 " + FLOW_OR_HEARTBEAT_STATUS_CODE + " " + HEARTBEAT_TEXT + "\r\n" + CONSUMER_STALLED_HDR + ":" + getFcSubject(replyToId) + "\r\n\r\n";
         imf.setHeaders(new IncomingHeadersProcessor(s.getBytes()));
         return imf.getMessage();
     }
 
-    private NatsMessage getHeartbeat() {
-        NatsMessage.InternalMessageFactory imf = new NatsMessage.InternalMessageFactory("sid", "subj", null, 0, false);
+    private NatsMessage getHeartbeat(String sid) {
+        NatsMessage.InternalMessageFactory imf = new NatsMessage.InternalMessageFactory(mockSid(), "subj", null, 0, false);
         String s = "NATS/1.0 " + FLOW_OR_HEARTBEAT_STATUS_CODE + " " + HEARTBEAT_TEXT + "\r\n";
         imf.setHeaders(new IncomingHeadersProcessor(s.getBytes()));
         return imf.getMessage();
     }
 
-    private NatsMessage get404() {
-        return getStatus(404, "not found");
+    private NatsMessage get404(String sid) {
+        return getStatus(404, "not found", sid);
     }
 
-    private NatsMessage get408() {
-        return getStatus(408, "expired");
+    private NatsMessage get408(String sid) {
+        return getStatus(408, "expired", sid);
     }
 
-    private NatsMessage getUnkStatus() {
-        return getStatus(999, "blah blah");
+    private NatsMessage getUnkStatus(String sid) {
+        return getStatus(999, "blah blah", sid);
     }
 
-    private NatsMessage getStatus(int code, String message) {
-        NatsMessage.InternalMessageFactory imf = new NatsMessage.InternalMessageFactory("sid", "subj", null, 0, false);
+    private NatsMessage getStatus(int code, String message, String sid) {
+        NatsMessage.InternalMessageFactory imf = new NatsMessage.InternalMessageFactory(sid, "subj", null, 0, false);
         imf.setHeaders(new IncomingHeadersProcessor(("NATS/1.0 " + code + " " + message + "\r\n").getBytes()));
         return imf.getMessage();
     }
 
-    static class AsmEl implements ErrorListener {
+    static class MmtEl implements ErrorListener {
         JetStreamSubscription sub;
         long lastStreamSequence = -1;
         long lastConsumerSequence = -1;
@@ -400,8 +414,8 @@ public class MessageManagerTests extends JetStreamTestBase {
         long receivedConsumerSeq = -1;
         Status status;
 
-        public void reset() {
-            sub = null;
+        public void reset(JetStreamSubscription sub) {
+            this.sub = sub;
             expectedConsumerSeq = -1;
             receivedConsumerSeq = -1;
             status = null;
@@ -442,10 +456,17 @@ public class MessageManagerTests extends JetStreamTestBase {
         }
     }
 
-    private NatsJetStreamSubscription mockSub(Connection nc) throws IOException, JetStreamApiException {
+    private static NatsJetStreamSubscription genericSub(Connection nc) throws IOException, JetStreamApiException {
         createDefaultTestStream(nc);
         JetStream js = nc.jetStream();
         return (NatsJetStreamSubscription) js.subscribe(SUBJECT);
+    }
+
+    private static NatsJetStreamSubscription mockSub(NatsConnection connection, MessageManager manager) {
+        return new NatsJetStreamSubscription(mockSid(), null, null,
+            connection, null /* dispatcher */,
+            null /* js */,
+            null, null, manager);
     }
 
     static class TestMessageManager extends MessageManager {
@@ -456,11 +477,10 @@ public class MessageManagerTests extends JetStreamTestBase {
     public void testMessageManagerInterfaceDefaultImplCoverage() {
         TestMessageManager tmm = new TestMessageManager();
         NatsJetStreamSubscription sub =
-            new NatsJetStreamSubscription("sid", "sub", null, null, null, null, "stream", "con", new MessageManager[]{tmm});
+            new NatsJetStreamSubscription(mockSid(), "sub", null, null, null, null, "stream", "con", tmm);
         tmm.startup(sub);
         assertFalse(tmm.manage(null));
         assertSame(sub, tmm.getSub());
         tmm.shutdown();
     }
 }
-

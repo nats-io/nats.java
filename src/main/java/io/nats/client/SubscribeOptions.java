@@ -80,7 +80,7 @@ public abstract class SubscribeOptions {
                     throw JsSoOrderedReplicasNotSuppliedOrOne.instance();
                 }
                 Duration ccHb = builder.cc.getIdleHeartbeat();
-                if (ccHb != null && ccHb.toMillis() > hb) {
+                if (ccHb != null) {
                     hb = ccHb.toMillis();
                 }
             }

@@ -650,28 +650,4 @@ public class JetStreamPushTests extends JetStreamTestBase {
             js.subscribe(SUBJECT, pso);
         });
     }
-
-    // ------------------------------------------------------------------------------------------
-    // this allows me to intercept messages before it gets to the connection queue
-    // which is before the messages is available for nextMessage or before
-    // it gets dispatched to a handler.
-    static class OrderedTestPushMessageManager extends PushMessageManager {
-
-        public OrderedTestPushMessageManager(NatsConnection conn, SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode) {
-            super(conn, so, cc, queueMode, syncMode);
-        }
-
-        @Override
-        NatsMessage beforeQueueProcessor(NatsMessage msg) {
-            msg = super.beforeQueueProcessor(msg);
-            if (msg != null && msg.isJetStream()) {
-                long ss = msg.metaData().streamSequence();
-                long cs = msg.metaData().consumerSequence();
-                if ((ss == 2 && cs == 2) || (ss == 5 && cs == 4) || (ss == 8 && cs == 2) || (ss == 11 && cs == 4)) {
-                    return null;
-                }
-            }
-            return msg;
-        }
-    }
 }
