@@ -57,7 +57,7 @@ public class NatsSimpleReadExistingConsumer {
 //                .expiresIn(Duration.ofMillis(10000))
                 .build();
 
-            SimpleIterateConsumer reader = js.endlessIterate(durable, sco);
+            SimpleIterateSubscription reader = js.endlessIterate(durable, sco);
 
             // read loop
             int red = 0;

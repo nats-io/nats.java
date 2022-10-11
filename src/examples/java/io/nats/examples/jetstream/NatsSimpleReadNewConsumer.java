@@ -54,7 +54,7 @@ public class NatsSimpleReadNewConsumer {
                 .simpleBuilder(">")
                 .durable(durable)
                 .build();
-            SimpleIterateConsumer reader = js.endlessIterate(scc, sco);
+            SimpleIterateSubscription reader = js.endlessIterate(scc, sco);
 
             // read loop
             int red = 0;
