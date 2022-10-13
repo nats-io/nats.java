@@ -98,8 +98,8 @@ public class ByteArrayBuilder {
      */
     public ByteArrayBuilder(int initialSize, int allocationSize, Charset defaultCharset) {
         this.allocationSize = allocationSize > 0 ? allocationSize : (defaultCharset == US_ASCII ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION);
-        int bytesNeeeded = initialSize > 0 ? initialSize : (defaultCharset == US_ASCII ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION);
-        this.buffer = ByteBuffer.allocate(bytesNeeeded);
+        int bytesNeeded = initialSize > 0 ? initialSize : (defaultCharset == US_ASCII ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION);
+        this.buffer = ByteBuffer.allocate(bytesNeeded);
         this.defaultCharset = defaultCharset;
     }
 
@@ -110,6 +110,14 @@ public class ByteArrayBuilder {
      */
     public int length() {
         return buffer.position();
+    }
+
+    /**
+     * Get the number of bytes currently allocated (available) without resizing
+     * @return the number of bytes
+     */
+    public int capacity() {
+        return buffer.capacity();
     }
 
     /**
@@ -183,16 +191,20 @@ public class ByteArrayBuilder {
         int bytesAvailable = buffer.capacity() - buffer.position();
         if (bytesAvailable < bytesNeeded) {
             ByteBuffer newBuffer
-                    = ByteBuffer.allocate(
-                    computeAmountToAllocate(buffer.position(), bytesNeeded));
+                = ByteBuffer.allocate(
+                computeAmountToAllocate(buffer.position(), bytesNeeded));
             newBuffer.put(buffer.array(), 0, buffer.position());
             buffer = newBuffer;
         }
         return this;
     }
 
+    public boolean hasUnusedBytes(long bytesNeeded) {
+        return (long)(buffer.capacity() - buffer.position()) >= bytesNeeded;
+    }
+
     /**
-     * Clear the buffer, resetting it's length
+     * Clear the buffer, resetting its length
      *
      * @return this (fluent)
      */

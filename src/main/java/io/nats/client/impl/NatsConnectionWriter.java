@@ -14,9 +14,11 @@
 package io.nats.client.impl;
 
 import io.nats.client.Options;
+import io.nats.client.support.ByteArrayBuilder;
 
 import java.io.IOException;
 import java.nio.BufferOverflowException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CancellationException;
@@ -26,8 +28,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static io.nats.client.support.NatsConstants.OP_PING_BYTES;
-import static io.nats.client.support.NatsConstants.OP_PONG_BYTES;
+import static io.nats.client.support.NatsConstants.*;
 
 class NatsConnectionWriter implements Runnable {
 
@@ -40,7 +41,7 @@ class NatsConnectionWriter implements Runnable {
     private final AtomicBoolean reconnectMode;
     private final ReentrantLock startStopLock;
 
-    private byte[] sendBuffer;
+    private final ByteArrayBuilder sendBuffer;
 
     private final MessageQueue outgoing;
     private final MessageQueue reconnectOutgoing;
@@ -57,7 +58,7 @@ class NatsConnectionWriter implements Runnable {
 
         Options options = connection.getOptions();
         int bufSize = options.getBufferSize();
-        this.sendBuffer = new byte[bufSize];
+        sendBuffer = new ByteArrayBuilder(bufSize, StandardCharsets.UTF_8);
 
         outgoing = new MessageQueue(true,
                 options.getMaxMessagesInOutgoingQueue(),
@@ -105,49 +106,34 @@ class NatsConnectionWriter implements Runnable {
         return this.stopped;
     }
 
-    synchronized void sendMessageBatch(NatsMessage msg, DataPort dataPort, NatsStatistics stats)
-            throws IOException {
+    synchronized void sendMessageBatch(NatsMessage msg, DataPort dataPort, NatsStatistics stats) throws IOException {
 
-        int sendPosition = 0;
-
+        sendBuffer.clear();
         while (msg != null) {
             long size = msg.getSizeInBytes();
-
-            if (sendPosition + size > sendBuffer.length) {
-                if (sendPosition == 0) { // have to resize
-                    this.sendBuffer = new byte[(int)Math.max(sendBuffer.length + size, sendBuffer.length * 2L)];
-                } else { // else send and continue with current message
-                    dataPort.write(sendBuffer, sendPosition);
-                    connection.getNatsStatistics().registerWrite(sendPosition);
-                    sendPosition = 0;
-
-                    // go back to the start of the loop, to ensure we check for resizing the buffer again
-                    continue;
+            if (!sendBuffer.hasUnusedBytes(size)) {
+                // the message could be bigger than the initial buffer size
+                if (sendBuffer.length() > 0) {
+                    dataPort.write(sendBuffer.toByteArray());
+                    connection.getNatsStatistics().registerWrite(sendBuffer.length());
+                    sendBuffer.clear();
                 }
             }
 
-            byte[] bytes = msg.getProtocolBytes();
-            System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
-            sendPosition += bytes.length;
-
-            sendBuffer[sendPosition++] = '\r';
-            sendBuffer[sendPosition++] = '\n';
+            sendBuffer.append(msg.getProtocolBytes());
+            sendBuffer.append(CRLF_BYTES);
 
             if (!msg.isProtocol()) {
-                bytes = msg.getSerializedHeader();
+                byte[] bytes = msg.getSerializedHeader();
                 if (bytes != null && bytes.length > 0) {
-                    System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
-                    sendPosition += bytes.length;
+                    sendBuffer.append(bytes);
                 }
 
                 bytes = msg.getData(); // guaranteed to not be null
                 if (bytes.length > 0) {
-                    System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
-                    sendPosition += bytes.length;
+                    sendBuffer.append(bytes);
                 }
-
-                sendBuffer[sendPosition++] = '\r';
-                sendBuffer[sendPosition++] = '\n';
+                sendBuffer.append(CRLF_BYTES);
             }
 
             stats.incrementOutMsgs();
@@ -156,8 +142,8 @@ class NatsConnectionWriter implements Runnable {
             msg = msg.next;
         }
 
-        dataPort.write(sendBuffer, sendPosition);
-        connection.getNatsStatistics().registerWrite(sendPosition);
+        dataPort.write(sendBuffer.toByteArray());
+        connection.getNatsStatistics().registerWrite(sendBuffer.length());
     }
 
     @Override
@@ -174,9 +160,9 @@ class NatsConnectionWriter implements Runnable {
                 NatsMessage msg = null;
 
                 if (this.reconnectMode.get()) {
-                    msg = this.reconnectOutgoing.accumulate(this.sendBuffer.length, maxAccumulate, reconnectWait);
+                    msg = this.reconnectOutgoing.accumulate(sendBuffer.capacity(), maxAccumulate, reconnectWait);
                 } else {
-                    msg = this.outgoing.accumulate(this.sendBuffer.length, maxAccumulate, waitForMessage);
+                    msg = this.outgoing.accumulate(sendBuffer.capacity(), maxAccumulate, waitForMessage);
                 }
 
                 if (msg == null) { // Make sure we are still running
