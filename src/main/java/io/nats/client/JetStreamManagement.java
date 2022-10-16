@@ -193,6 +193,7 @@ public interface JetStreamManagement {
 
     /**
      * Return a list of StreamInfo objects that have subjects matching the filter.
+     * @param subjectFilter the filter to limit the streams by subjects. Wildcards allowed.
      * @return The list of StreamInfo
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
