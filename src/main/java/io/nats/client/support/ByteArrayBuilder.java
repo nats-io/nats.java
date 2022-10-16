@@ -199,7 +199,7 @@ public class ByteArrayBuilder {
         return this;
     }
 
-    public boolean hasUnusedBytes(long bytesNeeded) {
+    public boolean hasEnoughRoomFor(long bytesNeeded) {
         return (long)(buffer.capacity() - buffer.position()) >= bytesNeeded;
     }
 

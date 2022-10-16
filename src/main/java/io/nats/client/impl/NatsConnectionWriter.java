@@ -111,7 +111,7 @@ class NatsConnectionWriter implements Runnable {
         sendBuffer.clear();
         while (msg != null) {
             long size = msg.getSizeInBytes();
-            if (!sendBuffer.hasUnusedBytes(size)) {
+            if (!sendBuffer.hasEnoughRoomFor(size)) {
                 // the message could be bigger than the initial buffer size
                 if (sendBuffer.length() > 0) {
                     dataPort.write(sendBuffer.toByteArray());
