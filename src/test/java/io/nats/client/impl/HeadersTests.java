@@ -28,13 +28,20 @@ public class HeadersTests {
     private static final String EMPTY = "";
 
     @Test
+    public void dirty_and_serialized_coverage() {
+        Headers headers = new Headers();
+        headers.clear();
+        validateDirtyAndLength(headers);
+    }
+
+    @Test
     public void add_key_strings_works() {
         add(
-                headers -> headers.add(KEY1, VAL1),
-                headers -> headers.add(KEY1, VAL2),
-                headers -> headers.add(KEY2, VAL3),
-                headers -> { headers.add(KEY1_ALT, VAL4); headers.add(KEY1_ALT, VAL5); }
-                );
+            headers -> headers.add(KEY1, VAL1),
+            headers -> headers.add(KEY1, VAL2),
+            headers -> headers.add(KEY2, VAL3),
+            headers -> { headers.add(KEY1_ALT, VAL4); headers.add(KEY1_ALT, VAL5); }
+        );
     }
 
     @Test

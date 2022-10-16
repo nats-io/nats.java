@@ -14,27 +14,20 @@
 package io.nats.client.impl;
 
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.nats.client.*;
+import io.nats.client.ConnectionListener.Events;
+import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.NatsServerProtocolMock;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.TestHandler;
-import io.nats.client.ConnectionListener.Events;
+import static io.nats.client.utils.TestBase.runInServer;
+import static io.nats.client.utils.TestBase.subject;
+import static org.junit.jupiter.api.Assertions.*;
 
 
 public class MessageContentTests {
@@ -129,7 +122,95 @@ public class MessageContentTests {
             assertTrue(Arrays.equals(msg.getData(), data));
         }
     }
-    
+
+    @Test
+    public void testHeaders() throws Exception {
+        runInServer(nc -> {
+            CountDownLatch latch = new CountDownLatch(6);
+            Dispatcher d = nc.createDispatcher();
+            d.subscribe(subject(0), msg -> {
+                assertEquals(10, msg.getData().length);
+                assertFalse(msg.hasHeaders());
+                assertNull(msg.getHeaders());
+                latch.countDown();
+            });
+            d.subscribe(subject(1), msg -> {
+                assertEquals(4, msg.getData().length);
+                assertTrue(msg.hasHeaders());
+                assertNotNull(msg.getHeaders());
+                assertEquals("msg-has-data", msg.getHeaders().getFirst("one"));
+                latch.countDown();
+            });
+            d.subscribe(subject(2), msg -> {
+                assertEquals(0, msg.getData().length);
+                assertTrue(msg.hasHeaders());
+                assertNotNull(msg.getHeaders());
+                assertEquals("msg-no-data", msg.getHeaders().getFirst("two"));
+                latch.countDown();
+            });
+            d.subscribe(subject(3), msg -> {
+                assertTrue(msg.hasHeaders());
+                assertNotNull(msg.getHeaders());
+                assertEquals("changed", msg.getHeaders().getFirst("three"));
+                latch.countDown();
+            });
+            d.subscribe(subject(4), msg -> {
+                assertTrue(msg.hasHeaders());
+                assertNotNull(msg.getHeaders());
+                assertNull(msg.getHeaders().getFirst("three"));
+                assertEquals("also-changed", msg.getHeaders().getFirst("four"));
+                latch.countDown();
+            });
+            d.subscribe(subject(5), msg -> {
+                assertEquals("no-headers", new String(msg.getData()));
+                assertFalse(msg.hasHeaders());
+                latch.countDown();
+            });
+
+            nc.publish(NatsMessage.builder()
+                .subject(subject(0))
+                .data("no-headers".getBytes(StandardCharsets.UTF_8))
+                .build());
+
+            nc.publish(NatsMessage.builder()
+                .subject(subject(1))
+                .data("data".getBytes(StandardCharsets.UTF_8))
+                .headers(new Headers().put("one", "msg-has-data"))
+                .build());
+
+            nc.publish(NatsMessage.builder()
+                .subject(subject(2))
+                .headers(new Headers().put("two", "msg-no-data"))
+                .build());
+
+            Headers h = new Headers().put("three", "change-after-make-message");
+            Message m = NatsMessage.builder()
+                .subject(subject(3))
+                .headers(h)
+                .build();
+            h.put("three", "changed");
+            nc.publish(m);
+
+            m = NatsMessage.builder()
+                .subject(subject(4))
+                .headers(h)
+                .build();
+            h.remove("three");
+            h.put("four", "also-changed");
+            nc.publish(m);
+
+            m = NatsMessage.builder()
+                .subject(subject(5))
+                .data("no-headers")
+                .headers(h)
+                .build();
+            h.clear();
+            nc.publish(m);
+
+            latch.await(5, TimeUnit.SECONDS); // wait at most 5 seconds, gives time for the messages to round trip
+        });
+    }
+
     @Test
     public void testDisconnectOnMissingLineFeedContent() throws Exception {
         CompletableFuture<Boolean> ready = new CompletableFuture<>();

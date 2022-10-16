@@ -124,12 +124,11 @@ class NatsConnectionWriter implements Runnable {
             sendBuffer.append(CRLF_BYTES);
 
             if (!msg.isProtocol()) {
-                byte[] bytes = msg.getSerializedHeader();
-                if (bytes != null && bytes.length > 0) {
-                    sendBuffer.append(bytes);
-                }
+                // save a buffer copy having the headers serialize
+                // directly to our buffer
+                msg.serializeNonEmptyHeaders(sendBuffer);
 
-                bytes = msg.getData(); // guaranteed to not be null
+                byte[] bytes = msg.getData(); // guaranteed to not be null
                 if (bytes.length > 0) {
                     sendBuffer.append(bytes);
                 }

@@ -92,7 +92,7 @@ public class NatsMessage implements Message {
     }
 
 
-    @Deprecated // Plans are to remove allowing utf8mode
+    @Deprecated // Plans are to remove allowing utf8-mode
     public NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
         this(subject, replyTo, headers, data);
         this.utf8mode = utf8mode;
@@ -112,15 +112,11 @@ public class NatsMessage implements Message {
     // Only for implementors. The user created message is the only current one that calculates.
     // ----------------------------------------------------------------------------------------------------
     protected boolean calculateIfDirty() {
-        if (dirty || (hasHeaders() && headers.isDirty())) {
+        if (dirty || (headers != null && headers.isDirty())) {
             int replyToLen = replyTo == null ? 0 : replyTo.length();
             dataLen = data.length;
 
-            if (headers != null && !headers.isEmpty()) {
-                hdrLen = headers.serializedLength();
-            } else {
-                hdrLen = 0;
-            }
+            hdrLen = headers == null || headers.isEmpty() ? 0 : headers.serializedLength();
             totLen = hdrLen + dataLen;
 
             // initialize the builder with a reasonable length, preventing resize in 99.9% of the cases
@@ -194,13 +190,6 @@ public class NatsMessage implements Message {
         return (protocolBytes != null) ? protocolBytes.length + 2 : -1;
     }
 
-    Headers getOrCreateHeaders() {
-        if (headers == null) {
-            headers = new Headers();
-        }
-        return headers;
-    }
-
     void setSubscription(NatsSubscription sub) {
         subscription = sub;
     }
@@ -244,8 +233,10 @@ public class NatsMessage implements Message {
         return replyTo;
     }
 
-    byte[] getSerializedHeader() {
-        return hasHeaders() ? headers.getSerialized() : null;
+    void serializeNonEmptyHeaders(ByteArrayBuilder bab) {
+        if (hasHeaders()) {
+            headers.serialize(bab);
+        }
     }
 
     /**
