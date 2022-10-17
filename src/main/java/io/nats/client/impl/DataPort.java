@@ -33,10 +33,6 @@ public interface DataPort {
 
     int read(byte[] dst, int off, int len) throws IOException;
 
-    default void write(byte[] src) throws IOException {
-        write(src, src.length);
-    }
-
     void write(byte[] src, int toWrite) throws IOException;
 
     void shutdownInput() throws IOException;

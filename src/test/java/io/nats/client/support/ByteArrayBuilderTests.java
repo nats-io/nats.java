@@ -2,6 +2,8 @@ package io.nats.client.support;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -39,13 +41,21 @@ public class ByteArrayBuilderTests {
     }
 
     @Test
-    public void copyTo() {
+    public void copyTo() throws IOException {
         ByteArrayBuilder bab = new ByteArrayBuilder();
         bab.append("0123456789");
-        byte[] target = "AAAAAAAAAAAAAAAAAAAA".getBytes(StandardCharsets.US_ASCII);
+        byte[] target = new byte[20];
         assertEquals(10, bab.copyTo(target, 0));
         assertEquals(10, bab.copyTo(target, 10));
         assertEquals("01234567890123456789", new String(target));
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        bab.copyTo(baos);
+        assertEquals("0123456789", baos.toString());
+
+        baos = new ByteArrayOutputStream();
+        bab.copyTo(baos, 5);
+        assertEquals("01234", baos.toString());
     }
 
     @Test

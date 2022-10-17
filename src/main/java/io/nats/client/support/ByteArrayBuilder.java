@@ -13,6 +13,8 @@
 
 package io.nats.client.support;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
@@ -149,10 +151,18 @@ public class ByteArrayBuilder {
      * @return the number of bytes copied
      */
     public int copyTo(byte[] dest, int destPos) {
-        int len = length();
+        int len = buffer.position();
         byte[] hb = buffer.array();
         System.arraycopy(hb, 0, dest, destPos, len);
         return len;
+    }
+
+    public void copyTo(OutputStream out) throws IOException {
+        out.write(buffer.array(), 0, buffer.position());
+    }
+
+    public void copyTo(OutputStream out, int len) throws IOException {
+        out.write(buffer.array(), 0, len);
     }
 
     /**
@@ -179,9 +189,9 @@ public class ByteArrayBuilder {
     }
 
     /**
-     * Ensures that the buffer can accept the number of bytes needed
+     * Ensures that the buffer can accept the number of bytes needed.
      * Useful if the size of multiple append operations is known ahead of time
-     * therefore reducing the number of possible allocations during those appends
+     * therefore reducing the number of possible allocations
      *
      * @param bytesNeeded the number of bytes needed
      *
@@ -199,6 +209,11 @@ public class ByteArrayBuilder {
         return this;
     }
 
+    /**
+     * Is there enough room allocated in the buffer to add the number of bytes needed
+     * @param bytesNeeded the number of bytes needed
+     * @return whether there is enough room
+     */
     public boolean hasEnoughRoomFor(long bytesNeeded) {
         return (long)(buffer.capacity() - buffer.position()) >= bytesNeeded;
     }

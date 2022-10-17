@@ -156,7 +156,7 @@ public class NatsMessage implements Message {
     // ----------------------------------------------------------------------------------------------------
     // Client and Message Internal Methods
     // ----------------------------------------------------------------------------------------------------
-    long getSizeInBytes() {
+    int getSizeInBytes() {
         if (calculateIfDirty() || sizeInBytes == -1) {
             sizeInBytes = protocolLineLength;
             if (protocolBytes != null) {

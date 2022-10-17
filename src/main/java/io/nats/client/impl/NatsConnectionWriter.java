@@ -110,14 +110,22 @@ class NatsConnectionWriter implements Runnable {
 
         sendBuffer.clear();
         while (msg != null) {
-            long size = msg.getSizeInBytes();
+            int size = msg.getSizeInBytes();
+
+            // 1. Is there enough room in the buffer - we want to avoid constantly growing the buffer
+            // 2. If there is not, if there was already data in the buffer, write it and clear the buffer.
+            // 3. A clear buffer may still have to be resized, but that's unavoidable
             if (!sendBuffer.hasEnoughRoomFor(size)) {
-                // the message could be bigger than the initial buffer size
+                // no data in the buffer just means the message is bigger than the buffer
+                // this should be unusual, but it's accounted for
                 if (sendBuffer.length() > 0) {
-                    dataPort.write(sendBuffer.toByteArray());
+                    dataPort.write(sendBuffer.internalArray(), sendBuffer.length());
                     connection.getNatsStatistics().registerWrite(sendBuffer.length());
                     sendBuffer.clear();
                 }
+                // by calling ensureCapacity with the total message size
+                // we avoid multiple resizes, which are array copies, which are expensive
+                sendBuffer.ensureCapacity(size);
             }
 
             sendBuffer.append(msg.getProtocolBytes());
@@ -141,7 +149,7 @@ class NatsConnectionWriter implements Runnable {
             msg = msg.next;
         }
 
-        dataPort.write(sendBuffer.toByteArray());
+        dataPort.write(sendBuffer.internalArray(), sendBuffer.length());
         connection.getNatsStatistics().registerWrite(sendBuffer.length());
     }
 
