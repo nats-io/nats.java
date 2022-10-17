@@ -35,7 +35,7 @@ public class NatsAutoBench {
     static final String usageString =
             "\nUsage: java -cp <classpath> NatsAutoBench" +
                     "\n[serverURL] [help] [tiny|small|med|large] [conscrypt] [jsfile]" +
-                    "\n[PubOnly] [PubSub] [PubDispatch] [ReqReply] [Latency] " +
+                    "\n[PubOnly] [PubOnlyWithHeaders] [PubSub] [PubDispatch] [ReqReply] [Latency] " +
                     "\n[JsPubSync] [JsPubAsync] [JsSub] [JsPubRounds]" +
                     "[-lcsv <filespec>] \n\n"
             + "If no specific test name(s) are supplied all will be run, otherwise only supplied tests will be run."
@@ -47,6 +47,7 @@ public class NatsAutoBench {
         // TO RUN WITH ARGS FROM IDE, ADD A LINE LIKE THESE
         // args = "myhost:4222 med".split(" ");
          args = "small PubOnly".split(" ");
+        // args = "large PubOnlyWithHeaders".split(" ");
         // args = "med JsPubAsync".split(" ");
         // args = "help".split(" ");
         // args = "latency large".split(" ");
@@ -149,7 +150,12 @@ public class NatsAutoBench {
 
         if (a.allTests || a.pubOnly) {
             addTests(a.baseMsgs, a.maxSize, tests, sizes, msgsMultiple,
-                    (msize, mcnt) -> new PubBenchmark("PubOnly " + msize, mcnt, msize));
+                (msize, mcnt) -> new PubBenchmark("PubOnly " + msize, mcnt, msize));
+        }
+
+        if (a.PubOnlyWithHeaders) {
+            addTests(a.baseMsgs, a.maxSize, tests, sizes, msgsMultiple,
+                (msize, mcnt) -> new PubWithHeadersBenchmark("PubOnlyWithHeaders " + msize, mcnt, msize));
         }
 
         if (a.allTests || a.pubSub) {
@@ -285,6 +291,7 @@ public class NatsAutoBench {
         boolean allTests = true;
 
         boolean pubOnly = false;
+        boolean PubOnlyWithHeaders = false;
         boolean pubSub = false;
         boolean pubDispatch = false;
         boolean reqReply = false;
@@ -331,6 +338,10 @@ public class NatsAutoBench {
                     case "pubonly":
                         a.allTests = false;
                         a.pubOnly = true;
+                        break;
+                    case "pubonlywithheaders":
+                        a.allTests = false;
+                        a.PubOnlyWithHeaders = true;
                         break;
                     case "pubsub":
                         a.allTests = false;
