@@ -26,8 +26,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static io.nats.client.support.NatsConstants.OP_PING_BYTES;
-import static io.nats.client.support.NatsConstants.OP_PONG_BYTES;
+import static io.nats.client.support.NatsConstants.*;
 
 class NatsConnectionWriter implements Runnable {
 
@@ -56,8 +55,7 @@ class NatsConnectionWriter implements Runnable {
         ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
 
         Options options = connection.getOptions();
-        int bufSize = options.getBufferSize();
-        this.sendBuffer = new byte[bufSize];
+        this.sendBuffer = new byte[bufferAllocSize(options.getBufferSize())];
 
         outgoing = new MessageQueue(true,
                 options.getMaxMessagesInOutgoingQueue(),
@@ -105,6 +103,26 @@ class NatsConnectionWriter implements Runnable {
         return this.stopped;
     }
 
+    private static final int BUFFER_BLOCK_SIZE = 256;
+    private int bufferAllocSize(long atLeast) {
+        return (int)(atLeast < BUFFER_BLOCK_SIZE
+            ? BUFFER_BLOCK_SIZE
+            : ((atLeast + BUFFER_BLOCK_SIZE) / BUFFER_BLOCK_SIZE) * BUFFER_BLOCK_SIZE);
+    }
+
+    private int checkedCopy(int sendPosition, byte[] bytes) throws IOException {
+        if (bytes.length == 0) {
+            return sendPosition;
+        }
+        if (sendPosition + bytes.length > sendBuffer.length) {
+            dataPort.write(sendBuffer, sendPosition);
+            connection.getNatsStatistics().registerWrite(sendPosition);
+            sendPosition = 0;
+        }
+        System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
+        return sendPosition + bytes.length;
+    }
+
     synchronized void sendMessageBatch(NatsMessage msg, DataPort dataPort, NatsStatistics stats)
             throws IOException {
 
@@ -113,41 +131,24 @@ class NatsConnectionWriter implements Runnable {
         while (msg != null) {
             long size = msg.getSizeInBytes();
 
-            if (sendPosition + size > sendBuffer.length) {
+            while (sendPosition + size > sendBuffer.length) {
                 if (sendPosition == 0) { // have to resize
-                    this.sendBuffer = new byte[(int)Math.max(sendBuffer.length + size, sendBuffer.length * 2L)];
-                } else { // else send and continue with current message
-                    dataPort.write(sendBuffer, sendPosition);
-                    connection.getNatsStatistics().registerWrite(sendPosition);
-                    sendPosition = 0;
-
-                    // go back to the start of the loop, to ensure we check for resizing the buffer again
-                    continue;
+                    this.sendBuffer = new byte[bufferAllocSize(size)];
+                    break;
                 }
+                // else send and continue with current message
+                dataPort.write(sendBuffer, sendPosition);
+                connection.getNatsStatistics().registerWrite(sendPosition);
+                sendPosition = 0;
             }
 
-            byte[] bytes = msg.getProtocolBytes();
-            System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
-            sendPosition += bytes.length;
-
-            sendBuffer[sendPosition++] = '\r';
-            sendBuffer[sendPosition++] = '\n';
+            sendPosition = checkedCopy(sendPosition, msg.getProtocolBytes());
+            sendPosition = checkedCopy(sendPosition, CRLF_BYTES);
 
             if (!msg.isProtocol()) {
-                bytes = msg.getSerializedHeader();
-                if (bytes != null && bytes.length > 0) {
-                    System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
-                    sendPosition += bytes.length;
-                }
-
-                bytes = msg.getData(); // guaranteed to not be null
-                if (bytes.length > 0) {
-                    System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
-                    sendPosition += bytes.length;
-                }
-
-                sendBuffer[sendPosition++] = '\r';
-                sendBuffer[sendPosition++] = '\n';
+                sendPosition = checkedCopy(sendPosition, msg.getSerializedHeader());
+                sendPosition = checkedCopy(sendPosition, msg.getData());
+                sendPosition = checkedCopy(sendPosition, CRLF_BYTES);
             }
 
             stats.incrementOutMsgs();

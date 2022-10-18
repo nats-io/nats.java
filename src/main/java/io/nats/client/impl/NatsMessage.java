@@ -245,7 +245,7 @@ public class NatsMessage implements Message {
     }
 
     byte[] getSerializedHeader() {
-        return hasHeaders() ? headers.getSerialized() : null;
+        return hasHeaders() ? headers.getSerialized() : EMPTY_BODY;
     }
 
     /**
