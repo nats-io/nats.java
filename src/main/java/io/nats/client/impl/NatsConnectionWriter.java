@@ -26,6 +26,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static io.nats.client.support.BuilderUtils.DEFAULT_BUFFER_BLOCK_SIZE;
+import static io.nats.client.support.BuilderUtils.bufferAllocSize;
 import static io.nats.client.support.NatsConstants.*;
 
 class NatsConnectionWriter implements Runnable {
@@ -55,7 +57,7 @@ class NatsConnectionWriter implements Runnable {
         ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
 
         Options options = connection.getOptions();
-        this.sendBuffer = new byte[bufferAllocSize(options.getBufferSize())];
+        this.sendBuffer = new byte[bufferAllocSize(options.getBufferSize(), DEFAULT_BUFFER_BLOCK_SIZE)];
 
         outgoing = new MessageQueue(true,
                 options.getMaxMessagesInOutgoingQueue(),
@@ -103,13 +105,6 @@ class NatsConnectionWriter implements Runnable {
         return this.stopped;
     }
 
-    private static final int BUFFER_BLOCK_SIZE = 256;
-    private int bufferAllocSize(long atLeast) {
-        return (int)(atLeast < BUFFER_BLOCK_SIZE
-            ? BUFFER_BLOCK_SIZE
-            : ((atLeast + BUFFER_BLOCK_SIZE) / BUFFER_BLOCK_SIZE) * BUFFER_BLOCK_SIZE);
-    }
-
     private int checkedCopy(int sendPosition, byte[] bytes) throws IOException {
         if (bytes.length == 0) {
             return sendPosition;
@@ -133,7 +128,7 @@ class NatsConnectionWriter implements Runnable {
 
             while (sendPosition + size > sendBuffer.length) {
                 if (sendPosition == 0) { // have to resize
-                    this.sendBuffer = new byte[bufferAllocSize(size)];
+                    this.sendBuffer = new byte[bufferAllocSize(size, DEFAULT_BUFFER_BLOCK_SIZE)];
                     break;
                 }
                 // else send and continue with current message
