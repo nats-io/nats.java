@@ -13,7 +13,7 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.support.ByteArrayBuilder;
+import io.nats.client.support.ByteArrayPrimitiveBuilder;
 
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -35,12 +35,14 @@ public class Headers {
 
 	private final Map<String, List<String>> valuesMap;
 	private final Map<String, Integer> lengthMap;
-	private byte[] serialized;
+	private final ByteArrayPrimitiveBuilder serializedBuilder;
+	private boolean dirty;
 	private int dataLength;
 
 	public Headers() {
 		valuesMap = new HashMap<>();
 		lengthMap = new HashMap<>();
+		serializedBuilder = appendSerialized(new ByteArrayPrimitiveBuilder(NON_DATA_BYTES));
 	}
 
 	public Headers(Headers headers) {
@@ -49,7 +51,7 @@ public class Headers {
 			valuesMap.putAll(headers.valuesMap);
 			lengthMap.putAll(headers.lengthMap);
 			dataLength = headers.dataLength;
-			serialized = null;
+			dirty = true;
 		}
 	}
 
@@ -99,7 +101,7 @@ public class Headers {
 				dataLength += checked.len;
 				int oldLen = lengthMap.getOrDefault(key, 0);
 				lengthMap.put(key, oldLen + checked.len);
-				serialized = null; // since the data changed, clear this so it's rebuilt
+				dirty = true;
 			}
 		}
 	}
@@ -165,7 +167,7 @@ public class Headers {
 				dataLength = dataLength - lengthMap.getOrDefault(key, 0) + checked.len;
 				valuesMap.put(key, checked.list);
 				lengthMap.put(key, checked.len);
-				serialized = null; // since the data changed, clear this so it's rebuilt
+				dirty = true;
 			}
 		}
 	}
@@ -179,7 +181,7 @@ public class Headers {
 		for (String key : keys) {
 			_remove(key);
 		}
-		serialized = null; // since the data changed, clear this so it's rebuilt
+		dirty = true;
 	}
 
 	/**
@@ -191,7 +193,7 @@ public class Headers {
 		for (String key : keys) {
 			_remove(key);
 		}
-		serialized = null; // since the data changed, clear this so it's rebuilt
+		dirty = true;
 	}
 
 	private void _remove(String key) {
@@ -226,7 +228,7 @@ public class Headers {
 		valuesMap.clear();
 		lengthMap.clear();
 		dataLength = 0;
-		serialized = null;
+		dirty = true;
 	}
 
 	/**
@@ -345,7 +347,7 @@ public class Headers {
 	 * @return true if dirty
 	 */
 	public boolean isDirty() {
-		return serialized == null;
+		return dirty;
 	}
 
 	/**
@@ -365,10 +367,21 @@ public class Headers {
 	 * @return the bytes
 	 */
 	public byte[] getSerialized() {
-		if (serialized == null) {
-			serialized = appendSerialized(new ByteArrayBuilder(dataLength + NON_DATA_BYTES)).toByteArray();
+		return getBuilder().toByteArray();
+	}
+
+	/**
+	 * Returns the ByteArrayPrimitiveBuilder. Intended for readonly use.
+	 * @return the builder
+	 */
+	public ByteArrayPrimitiveBuilder getBuilder() {
+		if (dirty) {
+			appendSerialized(serializedBuilder
+				.clear()
+				.ensureCapacity(dataLength + NON_DATA_BYTES));
+			dirty = false;
 		}
-		return serialized;
+		return serializedBuilder;
 	}
 
 	/**
@@ -376,7 +389,7 @@ public class Headers {
 	 *
 	 * @return the builder
 	 */
-	public ByteArrayBuilder appendSerialized(ByteArrayBuilder bab) {
+	public ByteArrayPrimitiveBuilder appendSerialized(ByteArrayPrimitiveBuilder bab) {
 		bab.append(HEADER_VERSION_BYTES_PLUS_CRLF);
 		for (String key : valuesMap.keySet()) {
 			for (String value : valuesMap.get(key)) {

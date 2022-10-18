@@ -230,7 +230,7 @@ public class HeadersTests {
     public void valuesThatAreEmptyButAreAllowed() {
         Headers headers = new Headers();
         assertEquals(0, headers.size());
-        validateDirtyAndLength(headers);
+        validateNotDirtyAndLength(headers);
 
         headers.add(KEY1, "");
         assertEquals(1, headers.get(KEY1).size());
@@ -254,7 +254,7 @@ public class HeadersTests {
     public void valuesThatAreNullButAreIgnored() {
         Headers headers = new Headers();
         assertEquals(0, headers.size());
-        validateDirtyAndLength(headers);
+        validateNotDirtyAndLength(headers);
 
         headers.add(KEY1, VAL1, null, VAL2);
         assertEquals(2, headers.get(KEY1).size());
@@ -611,7 +611,7 @@ public class HeadersTests {
 
     private Headers testHeaders() {
         Headers headers = new Headers();
-        validateDirtyAndLength(headers);
+        validateNotDirtyAndLength(headers);
         headers.put(KEY1, VAL1);
         validateDirtyAndLength(headers);
         headers.put(KEY2, VAL2);

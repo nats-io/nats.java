@@ -252,11 +252,11 @@ public class NatsMessageTests {
         assertNotNull(m.getOrCreateHeaders());
 
         NatsMessage.ProtocolMessage pm = new NatsMessage.ProtocolMessage((byte[])null);
-        assertNotNull(pm.protocolBytes);
-        assertEquals(0, pm.protocolBytes.length);
+        assertNotNull(pm.protocolBab);
+        assertEquals(0, pm.protocolBab.length());
 
         NatsMessage.InternalMessage scm = new NatsMessage.InternalMessage() {};
-        assertNull(scm.protocolBytes);
+        assertNull(scm.protocolBab);
         assertEquals(-1, scm.getControlLineLength());
 
         // coverage coverage coverage
@@ -278,7 +278,7 @@ public class NatsMessageTests {
         assertTrue(nmCov.toDetailString().contains("HPUB sub reply 21 21"));
         assertTrue(nmCov.toDetailString().contains("next=No"));
 
-        nmCov.protocolBytes = null;
+        nmCov.protocolBab = null;
         nmCov.next = nmCov;
         assertTrue(nmCov.toDetailString().contains("protocolBytes=null"));
         assertTrue(nmCov.toDetailString().contains("next=Yes"));

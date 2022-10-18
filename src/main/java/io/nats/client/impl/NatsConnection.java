@@ -18,6 +18,7 @@ import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.NatsMessage.ProtocolMessage;
 import io.nats.client.support.ByteArrayBuilder;
+import io.nats.client.support.ByteArrayPrimitiveBuilder;
 import io.nats.client.support.NatsRequestCompletableFuture;
 import io.nats.client.support.Validator;
 
@@ -861,8 +862,8 @@ class NatsConnection implements Connection {
     }
 
     void sendUnsub(NatsSubscription sub, int after) {
-        ByteArrayBuilder bab =
-            new ByteArrayBuilder().append(UNSUB_SP_BYTES).append(sub.getSID());
+        ByteArrayPrimitiveBuilder bab =
+            new ByteArrayPrimitiveBuilder().append(UNSUB_SP_BYTES).append(sub.getSID());
         if (after > 0) {
             bab.append(SP).append(after);
         }
@@ -908,7 +909,7 @@ class NatsConnection implements Connection {
             return; // We will setup sub on reconnect or ignore
         }
 
-        ByteArrayBuilder bab = new ByteArrayBuilder(UTF_8).append(SUB_SP_BYTES).append(subject);
+        ByteArrayPrimitiveBuilder bab = new ByteArrayPrimitiveBuilder(UTF_8).append(SUB_SP_BYTES).append(subject);
         if (queueName != null) {
             bab.append(SP).append(queueName);
         }
@@ -1207,8 +1208,8 @@ class NatsConnection implements Connection {
         try {
             ServerInfo info = this.serverInfo.get();
             CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
-            ByteArrayBuilder bab =
-                new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit(), ByteArrayBuilder.DEFAULT_OTHER_ALLOCATION, UTF_8)
+            ByteArrayPrimitiveBuilder bab =
+                new ByteArrayPrimitiveBuilder(OP_CONNECT_SP_LEN + connectOptions.limit(), ByteArrayBuilder.DEFAULT_OTHER_ALLOCATION, UTF_8)
                     .append(CONNECT_SP_BYTES).append(connectOptions);
             queueInternalOutgoing(new ProtocolMessage(bab));
         } catch (Exception exp) {

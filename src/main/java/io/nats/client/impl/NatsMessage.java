@@ -16,7 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
-import io.nats.client.support.ByteArrayBuilder;
+import io.nats.client.support.ByteArrayPrimitiveBuilder;
 import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
 
@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
+import static io.nats.client.support.ByteArrayPrimitiveBuilder.EMPTY_BAPB;
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.NatsJetStreamConstants.JS_ACK_SUBJECT_PREFIX;
 import static io.nats.client.support.Validator.validateReplyTo;
@@ -47,7 +48,7 @@ public class NatsMessage implements Message {
     protected int protocolLineLength;
 
     // protocol specific : just this field
-    protected byte[] protocolBytes;
+    protected ByteArrayPrimitiveBuilder protocolBab;
 
     // housekeeping
     protected int sizeInBytes = -1;
@@ -125,32 +126,37 @@ public class NatsMessage implements Message {
 
             // initialize the builder with a reasonable length, preventing resize in 99.9% of the cases
             // 32 for misc + subject length doubled in case of utf8 mode + replyToLen + totLen (hdrLen + dataLen)
-            ByteArrayBuilder bab = new ByteArrayBuilder(32 + (subject.length() * 2) + replyToLen + totLen);
+            int needed = 32 + (subject.length() * 2) + replyToLen + totLen;
+            if (protocolBab == null) {
+                protocolBab = new ByteArrayPrimitiveBuilder(needed);
+            }
+            else {
+                protocolBab.clear().ensureCapacity(needed);
+            }
 
             // protocol come first
             if (hdrLen > 0) {
-                bab.append(HPUB_SP_BYTES);
+                protocolBab.append(HPUB_SP_BYTES);
             } else {
-                bab.append(PUB_SP_BYTES);
+                protocolBab.append(PUB_SP_BYTES);
             }
 
             // next comes the subject
-            bab.append(subject, utf8mode ? UTF_8 : US_ASCII).append(SP);
+            protocolBab.append(subject, utf8mode ? UTF_8 : US_ASCII).append(SP);
 
             // reply to if it's there
             if (replyToLen > 0) {
-                bab.append(replyTo).append(SP);
+                protocolBab.append(replyTo).append(SP);
             }
 
             // header length if there are headers
             if (hdrLen > 0) {
-                bab.append(Integer.toString(hdrLen)).append(SP);
+                protocolBab.append(Integer.toString(hdrLen)).append(SP);
             }
 
             // payload length
-            bab.append(Integer.toString(totLen));
+            protocolBab.append(Integer.toString(totLen));
 
-            protocolBytes = bab.toByteArray();
             dirty = false;
             return true;
         }
@@ -163,8 +169,8 @@ public class NatsMessage implements Message {
     long getSizeInBytes() {
         if (calculateIfDirty() || sizeInBytes == -1) {
             sizeInBytes = protocolLineLength;
-            if (protocolBytes != null) {
-                sizeInBytes += protocolBytes.length;
+            if (protocolBab != null) {
+                sizeInBytes += protocolBab.length();
             }
             sizeInBytes += 2; // CRLF
             if (!isProtocol()) {
@@ -186,12 +192,22 @@ public class NatsMessage implements Message {
 
     byte[] getProtocolBytes() {
         calculateIfDirty();
-        return protocolBytes;
+        return protocolBab.toByteArray();
+    }
+
+    ByteArrayPrimitiveBuilder protocol() {
+        calculateIfDirty();
+        return protocolBab;
+    }
+
+    boolean protocolEquals(byte[] bytes) {
+        calculateIfDirty();
+        return protocolBab != null && protocolBab.equals(bytes);
     }
 
     int getControlLineLength() {
         calculateIfDirty();
-        return (protocolBytes != null) ? protocolBytes.length + 2 : -1;
+        return (protocolBab != null) ? protocolBab.length() + 2 : -1;
     }
 
     Headers getOrCreateHeaders() {
@@ -246,6 +262,10 @@ public class NatsMessage implements Message {
 
     byte[] getSerializedHeader() {
         return hasHeaders() ? headers.getSerialized() : EMPTY_BODY;
+    }
+
+    ByteArrayPrimitiveBuilder getHeaderBuilder() {
+        return hasHeaders() ? headers.getBuilder() : EMPTY_BAPB;
     }
 
     /**
@@ -384,7 +404,7 @@ public class NatsMessage implements Message {
     @Override
     public String toString() {
         if (subject == null) {
-            return "NatsMessage | " + new String(protocolBytes);
+            return "NatsMessage | " + protocolBab.toString();
         }
         return "NatsMessage |" + subject + "|" + replyToString() + "|" + dataToString() + "|";
     }
@@ -432,7 +452,7 @@ public class NatsMessage implements Message {
     }
 
     private String protocolBytesToString() {
-        return protocolBytes == null ? null : new String(protocolBytes, UTF_8);
+        return protocolBab == null ? null : protocolBab.toString();
     }
 
     private String nextToString() {
@@ -626,15 +646,15 @@ public class NatsMessage implements Message {
 
     static class ProtocolMessage extends InternalMessage {
         ProtocolMessage(byte[] protocol) {
-            this.protocolBytes = protocol == null ? EMPTY_BODY : protocol;
+            this.protocolBab = protocol == null ? EMPTY_BAPB : new ByteArrayPrimitiveBuilder(protocol);
         }
 
-        ProtocolMessage(ByteArrayBuilder babProtocol) {
-            this(babProtocol.toByteArray());
+        ProtocolMessage(ByteArrayPrimitiveBuilder babProtocol) {
+            protocolBab = babProtocol;
         }
 
         ProtocolMessage(String asciiProtocol) {
-            this(asciiProtocol.getBytes(StandardCharsets.US_ASCII));
+            protocolBab = new ByteArrayPrimitiveBuilder(asciiProtocol.getBytes(US_ASCII));
         }
 
         @Override

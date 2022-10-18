@@ -14,11 +14,11 @@
 package io.nats.client.impl;
 
 import io.nats.client.Options;
+import io.nats.client.support.ByteArrayPrimitiveBuilder;
 
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -95,8 +95,7 @@ class NatsConnectionWriter implements Runnable {
             this.reconnectOutgoing.pause();
             // Clear old ping/pong requests
             this.outgoing.filter((msg) ->
-                    Arrays.equals(OP_PING_BYTES, msg.getProtocolBytes())
-                            || Arrays.equals(OP_PONG_BYTES, msg.getProtocolBytes()));
+                    msg.protocolEquals(OP_PING_BYTES) || msg.protocolEquals(OP_PONG_BYTES));
 
         } finally {
             this.startStopLock.unlock();
@@ -105,17 +104,14 @@ class NatsConnectionWriter implements Runnable {
         return this.stopped;
     }
 
-    private int checkedCopy(int sendPosition, byte[] bytes) throws IOException {
-        if (bytes.length == 0) {
-            return sendPosition;
-        }
-        if (sendPosition + bytes.length > sendBuffer.length) {
+    private int checkedCopy(int sendPosition, byte[] bytes, int dataLen) throws IOException {
+        if (sendPosition + dataLen > sendBuffer.length) {
             dataPort.write(sendBuffer, sendPosition);
             connection.getNatsStatistics().registerWrite(sendPosition);
             sendPosition = 0;
         }
-        System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
-        return sendPosition + bytes.length;
+        System.arraycopy(bytes, 0, sendBuffer, sendPosition, dataLen);
+        return sendPosition + dataLen;
     }
 
     synchronized void sendMessageBatch(NatsMessage msg, DataPort dataPort, NatsStatistics stats)
@@ -137,13 +133,18 @@ class NatsConnectionWriter implements Runnable {
                 sendPosition = 0;
             }
 
-            sendPosition = checkedCopy(sendPosition, msg.getProtocolBytes());
-            sendPosition = checkedCopy(sendPosition, CRLF_BYTES);
+            ByteArrayPrimitiveBuilder bapb = msg.protocol();
+            sendPosition = checkedCopy(sendPosition, bapb.internalArray(), bapb.length());
+            sendPosition = checkedCopy(sendPosition, CRLF_BYTES, 2);
 
             if (!msg.isProtocol()) {
-                sendPosition = checkedCopy(sendPosition, msg.getSerializedHeader());
-                sendPosition = checkedCopy(sendPosition, msg.getData());
-                sendPosition = checkedCopy(sendPosition, CRLF_BYTES);
+                bapb = msg.getHeaderBuilder();
+                sendPosition = checkedCopy(sendPosition, bapb.internalArray(), bapb.length());
+                byte[] data = msg.getData();
+                if (data.length > 0) {
+                    sendPosition = checkedCopy(sendPosition, data, data.length);
+                }
+                sendPosition = checkedCopy(sendPosition, CRLF_BYTES, 2);
             }
 
             stats.incrementOutMsgs();
