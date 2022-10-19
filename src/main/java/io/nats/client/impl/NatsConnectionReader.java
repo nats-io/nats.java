@@ -484,10 +484,10 @@ class NatsConnectionReader implements Runnable {
                     break;
                 case OP_HMSG:
                     int hProtocolLength = this.msgLinePosition; //This is just after the last character
-                    int hProtocolLineLength = hProtocolLength + 4; // 5 for the "HMSG "
+                    int hProtocolLineLength = hProtocolLength + 5; // 5 for the "HMSG "
 
                     if (this.utf8Mode) {
-                        hProtocolLineLength = protocolBuffer.remaining() + 4;
+                        hProtocolLineLength = protocolBuffer.remaining() + 5;
 
                         CharBuffer buff = StandardCharsets.UTF_8.decode(protocolBuffer);
                         hProtocolLength = buff.remaining();
