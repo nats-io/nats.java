@@ -191,8 +191,7 @@ public class NatsMessage implements Message {
     }
 
     byte[] getProtocolBytes() {
-        calculateIfDirty();
-        return protocolBab.toByteArray();
+        return protocol() == null ? null : protocol().toByteArray();
     }
 
     ByteArrayPrimitiveBuilder protocol() {
@@ -201,13 +200,11 @@ public class NatsMessage implements Message {
     }
 
     boolean protocolEquals(byte[] bytes) {
-        calculateIfDirty();
-        return protocolBab != null && protocolBab.equals(bytes);
+        return protocol() != null && protocolBab.equals(bytes);
     }
 
     int getControlLineLength() {
-        calculateIfDirty();
-        return (protocolBab != null) ? protocolBab.length() + 2 : -1;
+        return protocol() == null ? -1 : protocolBab.length() + 2;
     }
 
     Headers getOrCreateHeaders() {
