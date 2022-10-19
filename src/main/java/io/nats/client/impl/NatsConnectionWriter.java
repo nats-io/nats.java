@@ -106,10 +106,13 @@ class NatsConnectionWriter implements Runnable {
     }
 
     private int checkedCopy(int sendPosition, byte[] bytes) throws IOException {
-        if (bytes.length == 0) {
+        if (bytes == null || bytes.length == 0) {
             return sendPosition;
         }
         if (sendPosition + bytes.length > sendBuffer.length) {
+            // don't resize in the middle, just write what is there
+            // this is a rare case that we've seen happen but don't know why - yet
+            // see this issue https://github.com/nats-io/nats.java/issues/644
             dataPort.write(sendBuffer, sendPosition);
             connection.getNatsStatistics().registerWrite(sendPosition);
             sendPosition = 0;
@@ -131,7 +134,7 @@ class NatsConnectionWriter implements Runnable {
                     this.sendBuffer = new byte[bufferAllocSize(size, DEFAULT_BUFFER_BLOCK_SIZE)];
                     break;
                 }
-                // else send and continue with current message
+                // else write and continue with current message
                 dataPort.write(sendBuffer, sendPosition);
                 connection.getNatsStatistics().registerWrite(sendPosition);
                 sendPosition = 0;
