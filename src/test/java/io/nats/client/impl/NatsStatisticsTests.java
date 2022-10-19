@@ -63,17 +63,27 @@ public class NatsStatisticsTests {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 
                 Dispatcher d = nc.createDispatcher((msg) -> {
-                    nc.publish(msg.getReplyTo(), new byte[16]);
+                    Message m = NatsMessage.builder()
+                        .subject(msg.getReplyTo())
+                        .data(new byte[16])
+                        .headers(new Headers().put("header", "reply"))
+                        .build();
+                    nc.publish(m);
                 });
                 d.subscribe("subject");
 
-                Future<Message> incoming = nc.request("subject", new byte[8]);
+                Message m = NatsMessage.builder()
+                    .subject("subject")
+                    .data(new byte[8])
+                    .headers(new Headers().put("header", "request"))
+                    .build();
+                Future<Message> incoming = nc.request(m);
                 Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
                 assertNotNull(msg);
                 assertEquals(0, stats.getOutstandingRequests(), "outstanding");
-                assertTrue(stats.getInBytes() > 100, "bytes in");
-                assertTrue(stats.getInBytes() > 100, "bytes out");
+                assertTrue(stats.getInBytes() > 200, "bytes in");
+                assertTrue(stats.getOutBytes() > 400, "bytes out");
                 assertEquals(2, stats.getInMsgs(), "messages in"); // reply & request
                 assertEquals(6, stats.getOutMsgs(), "messages out"); // ping, sub, pub, msg, pub, msg
                 assertEquals(5, stats.getOKs(), "oks"); //sub, pub, msg, pub, msg
