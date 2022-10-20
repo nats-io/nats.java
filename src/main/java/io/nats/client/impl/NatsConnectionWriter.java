@@ -193,7 +193,7 @@ class NatsConnectionWriter implements Runnable {
     }
 
     boolean canQueueDuringReconnect(NatsMessage msg) {
-        // don't over fill the send buffer while waiting to reconnect
+        // don't over fill the "send" buffer while waiting to reconnect
         return (reconnectBufferSize < 0 || (outgoing.sizeInBytes() + msg.getSizeInBytes()) < reconnectBufferSize);
     }
 

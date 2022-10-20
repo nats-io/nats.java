@@ -117,8 +117,7 @@ class MessageQueue {
             // If we aren't running, then we need to obey the filter lock
             // to avoid ordering problems
             if (!internal && this.discardWhenFull) {
-                boolean myOffer = this.queue.offer(msg);
-                return myOffer;
+                return this.queue.offer(msg);
             }
             if (!this.offer(msg)) {
                 throw new IllegalStateException("Output queue is full " + queue.size());
