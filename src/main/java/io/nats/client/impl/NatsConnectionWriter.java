@@ -105,22 +105,6 @@ class NatsConnectionWriter implements Runnable {
         return this.stopped;
     }
 
-    private int checkedCopy(int sendPosition, byte[] bytes) throws IOException {
-        if (bytes == null || bytes.length == 0) {
-            return sendPosition;
-        }
-        if (sendPosition + bytes.length > sendBuffer.length) {
-            // don't resize in the middle, just write what is there
-            // this is a rare case that we've seen happen but don't know why - yet
-            // see this issue https://github.com/nats-io/nats.java/issues/644
-            dataPort.write(sendBuffer, sendPosition);
-            connection.getNatsStatistics().registerWrite(sendPosition);
-            sendPosition = 0;
-        }
-        System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
-        return sendPosition + bytes.length;
-    }
-
     synchronized void sendMessageBatch(NatsMessage msg, DataPort dataPort, NatsStatistics stats)
             throws IOException {
 
@@ -140,13 +124,24 @@ class NatsConnectionWriter implements Runnable {
                 sendPosition = 0;
             }
 
-            sendPosition = checkedCopy(sendPosition, msg.getProtocolBytes());
-            sendPosition = checkedCopy(sendPosition, CRLF_BYTES);
+            byte[] bytes = msg.getProtocolBytes();
+            System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
+            sendPosition += bytes.length;
+
+            sendBuffer[sendPosition++] = CR;
+            sendBuffer[sendPosition++] = LF;
 
             if (!msg.isProtocol()) {
-                sendPosition = checkedCopy(sendPosition, msg.getSerializedHeader());
-                sendPosition = checkedCopy(sendPosition, msg.getData());
-                sendPosition = checkedCopy(sendPosition, CRLF_BYTES);
+                sendPosition += msg.appendHeadersIfHas(sendPosition, sendBuffer);
+
+                bytes = msg.getData();
+                if (bytes.length > 0) {
+                    System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
+                    sendPosition += bytes.length;
+                }
+
+                sendBuffer[sendPosition++] = CR;
+                sendBuffer[sendPosition++] = LF;
             }
 
             stats.incrementOutMsgs();

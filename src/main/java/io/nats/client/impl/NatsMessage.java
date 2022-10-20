@@ -16,7 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
-import io.nats.client.support.ByteArrayBuilder;
+import io.nats.client.support.ByteArrayPrimitiveBuilder;
 import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
 
@@ -125,30 +125,30 @@ public class NatsMessage implements Message {
 
             // initialize the builder with a reasonable length, preventing resize in 99.9% of the cases
             // 32 for misc + subject length doubled in case of utf8 mode + replyToLen + totLen (hdrLen + dataLen)
-            ByteArrayBuilder bab = new ByteArrayBuilder(32 + (subject.length() * 2) + replyToLen + totLen);
+            ByteArrayPrimitiveBuilder bab = new ByteArrayPrimitiveBuilder(32 + (subject.length() * 2) + replyToLen + totLen);
 
             // protocol come first
             if (hdrLen > 0) {
-                bab.append(HPUB_SP_BYTES);
+                bab.append(HPUB_SP_BYTES, 0, HPUB_SP_BYTES_LEN);
             } else {
-                bab.append(PUB_SP_BYTES);
+                bab.append(PUB_SP_BYTES, 0, PUB_SP_BYTES_LEN);
             }
 
             // next comes the subject
-            bab.append(subject, utf8mode ? UTF_8 : US_ASCII).append(SP);
+            bab.append(subject.getBytes(UTF_8)).append(SP);
 
             // reply to if it's there
             if (replyToLen > 0) {
-                bab.append(replyTo).append(SP);
+                bab.append(replyTo.getBytes(UTF_8)).append(SP);
             }
 
             // header length if there are headers
             if (hdrLen > 0) {
-                bab.append(Integer.toString(hdrLen)).append(SP);
+                bab.append(Integer.toString(hdrLen).getBytes(US_ASCII)).append(SP);
             }
 
             // payload length
-            bab.append(Integer.toString(totLen));
+            bab.append(Integer.toString(totLen).getBytes(US_ASCII));
 
             protocolBytes = bab.toByteArray();
             dirty = false;
@@ -244,8 +244,16 @@ public class NatsMessage implements Message {
         return replyTo;
     }
 
-    byte[] getSerializedHeader() {
-        return hasHeaders() ? headers.getSerialized() : null;
+    /**
+     * @param destPosition the position index in destination byte array to start
+     * @param dest the byte array to write to
+     * @return the length of the header
+     */
+    int appendHeadersIfHas(int destPosition, byte[] dest) {
+        if (headers != null && !headers.isEmpty()) {
+            return headers.serializeToArray(destPosition, dest);
+        }
+        return 0;
     }
 
     /**
@@ -629,12 +637,12 @@ public class NatsMessage implements Message {
             this.protocolBytes = protocol == null ? EMPTY_BODY : protocol;
         }
 
-        ProtocolMessage(ByteArrayBuilder babProtocol) {
-            this(babProtocol.toByteArray());
+        ProtocolMessage(ByteArrayPrimitiveBuilder babProtocol) {
+            protocolBytes = babProtocol.toByteArray();
         }
 
         ProtocolMessage(String asciiProtocol) {
-            this(asciiProtocol.getBytes(StandardCharsets.US_ASCII));
+            protocolBytes = asciiProtocol.getBytes(StandardCharsets.US_ASCII);
         }
 
         @Override
