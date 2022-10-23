@@ -249,7 +249,7 @@ public class NatsMessage implements Message {
      * @param dest the byte array to write to
      * @return the length of the header
      */
-    int appendHeadersIfHas(int destPosition, byte[] dest) {
+    int copyNotEmptyHeaders(int destPosition, byte[] dest) {
         if (headers != null && !headers.isEmpty()) {
             return headers.serializeToArray(destPosition, dest);
         }
@@ -643,6 +643,11 @@ public class NatsMessage implements Message {
 
         ProtocolMessage(String asciiProtocol) {
             protocolBytes = asciiProtocol.getBytes(StandardCharsets.US_ASCII);
+        }
+
+        @Override
+        byte[] getProtocolBytes() {
+            return protocolBytes;
         }
 
         @Override

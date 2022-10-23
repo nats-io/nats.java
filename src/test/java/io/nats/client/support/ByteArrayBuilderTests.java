@@ -7,6 +7,7 @@ import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.List;
 
+import static io.nats.client.support.BuilderBase.ALLOCATION_BOUNDARY;
 import static io.nats.client.support.ByteArrayBuilder.DEFAULT_ASCII_ALLOCATION;
 import static io.nats.client.support.ByteArrayBuilder.DEFAULT_OTHER_ALLOCATION;
 import static io.nats.client.support.NatsConstants.*;
@@ -93,28 +94,59 @@ public class ByteArrayBuilderTests {
     public void constructorCoverage() {
         ByteArrayBuilder bab = new ByteArrayBuilder("0123456789".getBytes());
         assertEquals("0123456789", bab.toString());
-        assertEquals(10, bab.internalArray().length);
+        assertEquals(DEFAULT_ASCII_ALLOCATION, bab.internalArray().length);
+        assertEquals(DEFAULT_ASCII_ALLOCATION, bab.getAllocationSize());
+        assertEquals(10, bab.length());
 
         bab = new ByteArrayBuilder(-1, UTF_8);
         assertEquals(DEFAULT_OTHER_ALLOCATION, bab.internalArray().length);
+        assertEquals(DEFAULT_OTHER_ALLOCATION, bab.getAllocationSize());
+        assertEquals(0, bab.length());
+
+        bab = new ByteArrayBuilder(-1, US_ASCII);
+        assertEquals(DEFAULT_ASCII_ALLOCATION, bab.internalArray().length);
+        assertEquals(DEFAULT_ASCII_ALLOCATION, bab.getAllocationSize());
+        assertEquals(0, bab.length());
 
         bab = new ByteArrayBuilder(-1, -1, US_ASCII);
         assertEquals(DEFAULT_ASCII_ALLOCATION, bab.internalArray().length);
+        assertEquals(DEFAULT_ASCII_ALLOCATION, bab.getAllocationSize());
+        assertEquals(0, bab.length());
+
+        bab = new ByteArrayBuilder(-1, UTF_8);
+        assertEquals(DEFAULT_OTHER_ALLOCATION, bab.internalArray().length);
+        assertEquals(DEFAULT_OTHER_ALLOCATION, bab.getAllocationSize());
+        assertEquals(0, bab.length());
 
         bab = new ByteArrayBuilder(-1, -1, UTF_8);
         assertEquals(DEFAULT_OTHER_ALLOCATION, bab.internalArray().length);
+        assertEquals(DEFAULT_OTHER_ALLOCATION, bab.getAllocationSize());
+        assertEquals(0, bab.length());
 
-        bab = new ByteArrayBuilder(-1, 100, US_ASCII);
+        bab = new ByteArrayBuilder(-1, DEFAULT_ASCII_ALLOCATION - 1, US_ASCII);
         assertEquals(DEFAULT_ASCII_ALLOCATION, bab.internalArray().length);
+        assertEquals(DEFAULT_ASCII_ALLOCATION, bab.getAllocationSize());
+        assertEquals(0, bab.length());
 
-        bab = new ByteArrayBuilder(-1, 100, UTF_8);
+        bab = new ByteArrayBuilder(-1, DEFAULT_OTHER_ALLOCATION - 1, UTF_8);
         assertEquals(DEFAULT_OTHER_ALLOCATION, bab.internalArray().length);
+        assertEquals(DEFAULT_OTHER_ALLOCATION, bab.getAllocationSize());
+        assertEquals(0, bab.length());
 
-        bab = new ByteArrayBuilder(100, -1, US_ASCII);
-        assertEquals(100, bab.internalArray().length);
+        bab = new ByteArrayBuilder(-1, DEFAULT_ASCII_ALLOCATION + 1, US_ASCII);
+        assertEquals(DEFAULT_ASCII_ALLOCATION * 2, bab.internalArray().length);
+        assertEquals(DEFAULT_ASCII_ALLOCATION * 2, bab.getAllocationSize());
+        assertEquals(0, bab.length());
 
-        bab = new ByteArrayBuilder(100, -1, UTF_8);
-        assertEquals(100, bab.internalArray().length);
+        bab = new ByteArrayBuilder(-1, DEFAULT_OTHER_ALLOCATION + 1, UTF_8);
+        assertEquals(DEFAULT_OTHER_ALLOCATION + ALLOCATION_BOUNDARY, bab.internalArray().length);
+        assertEquals(DEFAULT_OTHER_ALLOCATION + ALLOCATION_BOUNDARY, bab.getAllocationSize());
+        assertEquals(0, bab.length());
+
+        bab = new ByteArrayBuilder(-1, DEFAULT_OTHER_ALLOCATION + ALLOCATION_BOUNDARY + 1, UTF_8);
+        assertEquals(DEFAULT_OTHER_ALLOCATION * 2, bab.internalArray().length);
+        assertEquals(DEFAULT_OTHER_ALLOCATION * 2, bab.getAllocationSize());
+        assertEquals(0, bab.length());
     }
 
     @Test
@@ -160,12 +192,17 @@ public class ByteArrayBuilderTests {
         assertEquals(DEFAULT_OTHER_ALLOCATION, bab.getAllocationSize());
         assertEquals(0, bab.length());
 
-        bab = new ByteArrayPrimitiveBuilder(DEFAULT_ASCII_ALLOCATION + 1, DEFAULT_ASCII_ALLOCATION + 1, US_ASCII);
+        bab = new ByteArrayPrimitiveBuilder(-1, DEFAULT_ASCII_ALLOCATION + 1, US_ASCII);
         assertEquals(DEFAULT_ASCII_ALLOCATION * 2, bab.internalArray().length);
         assertEquals(DEFAULT_ASCII_ALLOCATION * 2, bab.getAllocationSize());
         assertEquals(0, bab.length());
 
-        bab = new ByteArrayPrimitiveBuilder(DEFAULT_OTHER_ALLOCATION + 1, DEFAULT_OTHER_ALLOCATION + 1, UTF_8);
+        bab = new ByteArrayPrimitiveBuilder(-1, DEFAULT_OTHER_ALLOCATION + 1, UTF_8);
+        assertEquals(DEFAULT_OTHER_ALLOCATION + ALLOCATION_BOUNDARY, bab.internalArray().length);
+        assertEquals(DEFAULT_OTHER_ALLOCATION + ALLOCATION_BOUNDARY, bab.getAllocationSize());
+        assertEquals(0, bab.length());
+
+        bab = new ByteArrayPrimitiveBuilder(-1, DEFAULT_OTHER_ALLOCATION + ALLOCATION_BOUNDARY + 1, UTF_8);
         assertEquals(DEFAULT_OTHER_ALLOCATION * 2, bab.internalArray().length);
         assertEquals(DEFAULT_OTHER_ALLOCATION * 2, bab.getAllocationSize());
         assertEquals(0, bab.length());

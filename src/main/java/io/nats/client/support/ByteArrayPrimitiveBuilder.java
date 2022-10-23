@@ -18,20 +18,24 @@ import java.io.OutputStream;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 
-import static io.nats.client.support.BuilderUtils.bufferAllocSize;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
-public class ByteArrayPrimitiveBuilder {
-    public static final ByteArrayPrimitiveBuilder EMPTY_BAPB = new ByteArrayPrimitiveBuilder();
-
-    public static final int DEFAULT_ASCII_ALLOCATION = 32;
-    public static final int DEFAULT_OTHER_ALLOCATION = 64;
-    public static final byte[] NULL = "null".getBytes(US_ASCII);
-
-    private final Charset defaultCharset;
+public class ByteArrayPrimitiveBuilder extends BuilderBase {
     private byte[] buffer;
-    private int allocationSize;
     private int position;
+
+    /**
+     * Construct the ByteArrayPrimitiveBuilder with the supplied initial size,
+     * allocation size and character set
+     * @param initialSize the initial size
+     * @param allocationSizeSuggestion the allocationSize size suggestion
+     * @param defaultCharset the default character set
+     */
+    public ByteArrayPrimitiveBuilder(int initialSize, int allocationSizeSuggestion, Charset defaultCharset) {
+        super(defaultCharset, allocationSizeSuggestion);
+        this.buffer = new byte[bufferAllocSize(initialSize, allocationSize)];
+        position = 0;
+    }
 
     /**
      * Construct the ByteArrayPrimitiveBuilder with
@@ -39,7 +43,7 @@ public class ByteArrayPrimitiveBuilder {
      * and the character set {@link java.nio.charset.StandardCharsets#US_ASCII}
      */
     public ByteArrayPrimitiveBuilder() {
-        this(DEFAULT_ASCII_ALLOCATION, DEFAULT_ASCII_ALLOCATION, US_ASCII);
+        this(-1, DEFAULT_ASCII_ALLOCATION, US_ASCII);
     }
 
     /**
@@ -50,45 +54,6 @@ public class ByteArrayPrimitiveBuilder {
      */
     public ByteArrayPrimitiveBuilder(int initialSize) {
         this(initialSize, DEFAULT_ASCII_ALLOCATION, US_ASCII);
-    }
-
-    /**
-     * Construct the ByteArrayPrimitiveBuilder copying all the bytes in the src
-     * and the character set {@link java.nio.charset.StandardCharsets#US_ASCII}
-     * Then initializes the buffer with the supplied bytes
-     * @param src the bytes
-     */
-    public ByteArrayPrimitiveBuilder(byte[] src) {
-        this(src, src.length);
-    }
-
-    /**
-     * Construct the ByteArrayPrimitiveBuilder copying the specfied number of bytes;
-     * and the character set {@link java.nio.charset.StandardCharsets#US_ASCII}
-     * Then initializes the buffer with the supplied bytes
-     * @param src the bytes
-     * @param len the number of bytes to copy
-     */
-    public ByteArrayPrimitiveBuilder(byte[] src, int len) {
-        defaultCharset = US_ASCII;
-        allocationSize = DEFAULT_ASCII_ALLOCATION;
-        position = len;
-        buffer = new byte[bufferAllocSize(len, allocationSize)];
-        System.arraycopy(src, 0, buffer, 0, len);
-    }
-
-    /**
-     * Construct the ByteArrayPrimitiveBuilder with the supplied initial size,
-     * allocation size and character set
-     * @param initialSize the initial size
-     * @param allocationSize the allocationSize size
-     * @param defaultCharset the default character set
-     */
-    public ByteArrayPrimitiveBuilder(int initialSize, int allocationSize, Charset defaultCharset) {
-        this.defaultCharset = defaultCharset;
-        setAllocationSize(allocationSize);
-        this.buffer = new byte[bufferAllocSize(initialSize, this.allocationSize)];
-        position = 0;
     }
 
     /**
@@ -108,6 +73,30 @@ public class ByteArrayPrimitiveBuilder {
      */
     public ByteArrayPrimitiveBuilder(int initialSize, Charset defaultCharset) {
         this(initialSize, -1, defaultCharset);
+    }
+
+    /**
+     * Construct the ByteArrayPrimitiveBuilder copying all the bytes
+     * using the character set {@link java.nio.charset.StandardCharsets#US_ASCII}
+     * Then initializes the buffer with the supplied bytes
+     * @param bytes the bytes
+     */
+    public ByteArrayPrimitiveBuilder(byte[] bytes) {
+        this(bytes, bytes.length);
+    }
+
+    /**
+     * Construct the ByteArrayPrimitiveBuilder copying the specified number of bytes;
+     * and the character set {@link java.nio.charset.StandardCharsets#US_ASCII}
+     * Then initializes the buffer with the supplied bytes
+     * @param bytes the bytes
+     * @param len the number of bytes to copy
+     */
+    public ByteArrayPrimitiveBuilder(byte[] bytes, int len) {
+        super(US_ASCII, DEFAULT_ASCII_ALLOCATION);
+        position = len;
+        buffer = new byte[bufferAllocSize(len, allocationSize)];
+        System.arraycopy(bytes, 0, buffer, 0, len);
     }
 
     /**
@@ -156,6 +145,11 @@ public class ByteArrayPrimitiveBuilder {
         return position;
     }
 
+    /**
+     * Copy the contents of the buffer to the output stream
+     * @param out the output stream
+     * @throws IOException if an I/O error occurs
+     */
     public void copyTo(OutputStream out) throws IOException {
         out.write(buffer, 0, position);
     }
@@ -177,10 +171,6 @@ public class ByteArrayPrimitiveBuilder {
      */
     public byte[] internalArray() {
         return buffer;
-    }
-
-    public void setLength(int len) {
-        position = len;
     }
 
     /**
@@ -208,8 +198,7 @@ public class ByteArrayPrimitiveBuilder {
     }
 
     /**
-     * Clear the buffer, resetting its length
-     *
+     * Clear the buffer, resetting its length but not capacity
      * @return this (fluent)
      */
     public ByteArrayPrimitiveBuilder clear() {
@@ -219,26 +208,10 @@ public class ByteArrayPrimitiveBuilder {
 
     /**
      * Change the allocation size
-     * @param allocationSize the new allocation size
-     * @return this (fluent)
+     * @param allocationSizeSuggestion the new allocation size suggestion
      */
-    public ByteArrayPrimitiveBuilder setAllocationSize(int allocationSize) {
-        int dftlAllo = defaultCharset == US_ASCII ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION;
-        if (allocationSize < dftlAllo) {
-            this.allocationSize = dftlAllo;
-        }
-        else {
-            this.allocationSize = bufferAllocSize(allocationSize, dftlAllo);
-        }
-        return this;
-    }
-
-    /**
-     * Get the current allocation size
-     * @return the allocation size
-     */
-    public int getAllocationSize() {
-        return allocationSize;
+    public void setAllocationSize(int allocationSizeSuggestion) {
+        _setAllocationSize(allocationSizeSuggestion);
     }
 
     /**
@@ -311,7 +284,7 @@ public class ByteArrayPrimitiveBuilder {
     }
 
     /**
-     * Append a entire byte array
+     * Append an entire byte array
      * @param src The array from which bytes are to be read
      * @return this (fluent)
      */
@@ -345,14 +318,9 @@ public class ByteArrayPrimitiveBuilder {
         return this;
     }
 
-    public void appendFast(byte[] src, int offset, int len) {
-        System.arraycopy(src, offset, buffer, position, len);
-        position += len;
-    }
-
     /**
-     * Appends the data bytes from an existing byte array builder
-     * @param bab the existing builder
+     * Appends the data bytes from an existing byte array primitive builder
+     * @param bab an existing builder
      * @return this (fluent)
      */
     public ByteArrayPrimitiveBuilder append(ByteArrayPrimitiveBuilder bab) {
