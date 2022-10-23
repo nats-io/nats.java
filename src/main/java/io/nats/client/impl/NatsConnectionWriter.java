@@ -175,9 +175,9 @@ class NatsConnectionWriter implements Runnable {
                 NatsMessage msg = null;
 
                 if (this.reconnectMode.get()) {
-                    msg = this.reconnectOutgoing.accumulate(this.sendBuffer.length, maxAccumulate, reconnectWait);
+                    msg = this.reconnectOutgoing.accumulate(sendBufferLength.get(), maxAccumulate, reconnectWait);
                 } else {
-                    msg = this.outgoing.accumulate(this.sendBuffer.length, maxAccumulate, waitForMessage);
+                    msg = this.outgoing.accumulate(sendBufferLength.get(), maxAccumulate, waitForMessage);
                 }
 
                 if (msg == null) { // Make sure we are still running
