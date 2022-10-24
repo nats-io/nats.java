@@ -90,7 +90,7 @@ public class ByteArrayBuilder extends BuilderBase {
     }
 
     /**
-     * Construct the ByteArrayPrimitiveBuilder copying the specified number of bytes;
+     * Construct the ByteArrayBuilder copying the specified number of bytes;
      * and the character set {@link java.nio.charset.StandardCharsets#US_ASCII}
      * Then initializes the buffer with the supplied bytes
      * @param bytes the bytes

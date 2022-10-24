@@ -21,6 +21,8 @@ import java.nio.charset.Charset;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public class ByteArrayPrimitiveBuilder extends BuilderBase {
+    public static ByteArrayPrimitiveBuilder EMPTY_BAB = new ByteArrayPrimitiveBuilder();
+
     private byte[] buffer;
     private int position;
 
@@ -283,6 +285,11 @@ public class ByteArrayPrimitiveBuilder extends BuilderBase {
         return this;
     }
 
+    public ByteArrayPrimitiveBuilder unchecked(byte b) {
+        buffer[position++] = b;
+        return this;
+    }
+
     /**
      * Append an entire byte array
      * @param src The array from which bytes are to be read
@@ -299,22 +306,37 @@ public class ByteArrayPrimitiveBuilder extends BuilderBase {
      * @return this (fluent)
      */
     public ByteArrayPrimitiveBuilder append(byte[] src, int len) {
-        return append(src, 0, len);
+        if (len > 0) {
+            ensureCapacity(len);
+            System.arraycopy(src, 0, buffer, position, len);
+            position += len;
+        }
+        return this;
     }
 
     /**
      * Append a byte array
      * @param src The array from which bytes are to be read
-     * @param  offset The offset within the array of the first byte to be read;
+     * @param index The index in the array of the first byte to be read;
      * @param  len The number of bytes to be read from the given array;
      * @return this (fluent)
      */
-    public ByteArrayPrimitiveBuilder append(byte[] src, int offset, int len) {
+    public ByteArrayPrimitiveBuilder append(byte[] src, int index, int len) {
         if (len > 0) {
             ensureCapacity(len);
-            System.arraycopy(src, offset, buffer, position, len);
+            System.arraycopy(src, index, buffer, position, len);
             position += len;
         }
+        return this;
+    }
+
+    public ByteArrayPrimitiveBuilder unchecked(byte[] src) {
+        return unchecked(src, 0, src.length);
+    }
+
+    public ByteArrayPrimitiveBuilder unchecked(byte[] src, int index, int len) {
+        System.arraycopy(src, index, buffer, position, len);
+        position += len;
         return this;
     }
 

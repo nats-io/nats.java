@@ -18,7 +18,6 @@ import io.nats.client.Options;
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -31,7 +30,7 @@ import static io.nats.client.support.BuilderBase.bufferAllocSize;
 import static io.nats.client.support.NatsConstants.*;
 
 class NatsConnectionWriter implements Runnable {
-    private static final int BUFFER_BLOCK_SIZE = 64;
+    private static final int BUFFER_BLOCK_SIZE = 256;
 
     private final NatsConnection connection;
 
@@ -98,9 +97,9 @@ class NatsConnectionWriter implements Runnable {
             this.outgoing.pause();
             this.reconnectOutgoing.pause();
             // Clear old ping/pong requests
-            this.outgoing.filter((msg) -> msg.isProtocol() &&
-                (Arrays.equals(OP_PING_BYTES, msg.getProtocolBytes())
-                            || Arrays.equals(OP_PONG_BYTES, msg.getProtocolBytes())));
+            this.outgoing.filter((msg) ->
+                msg.isProtocol() &&
+                    (msg.protocolBytes.equals(OP_PING_BYTES) || msg.protocolBytes.equals(OP_PONG_BYTES)));
 
         } finally {
             this.startStopLock.unlock();
@@ -110,7 +109,7 @@ class NatsConnectionWriter implements Runnable {
     }
 
     synchronized void sendMessageBatch(NatsMessage msg, DataPort dataPort, NatsStatistics stats)
-            throws IOException {
+        throws IOException {
 
         int sendPosition = 0;
         int sbl = sendBufferLength.get();

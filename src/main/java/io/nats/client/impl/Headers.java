@@ -396,7 +396,7 @@ public class Headers {
 
 	/**
 	 * Write the header to the byte array. Assumes that the caller has
-	 * already validated that the destination array is large enough
+	 * already validated that the destination array is large enough by using getSerialized()
 	 * @param destPosition the position index in destination byte array to start
 	 * @param dest the byte array to write to
 	 * @return the length of the header

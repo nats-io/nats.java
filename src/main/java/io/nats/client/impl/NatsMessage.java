@@ -130,7 +130,8 @@ public class NatsMessage implements Message {
             // protocol come first
             if (hdrLen > 0) {
                 bab.append(HPUB_SP_BYTES, 0, HPUB_SP_BYTES_LEN);
-            } else {
+            }
+            else {
                 bab.append(PUB_SP_BYTES, 0, PUB_SP_BYTES_LEN);
             }
 
@@ -156,6 +157,76 @@ public class NatsMessage implements Message {
         }
         return false;
     }
+
+//    protected boolean calculateIfDirtyB() {
+//        if (dirty || (hasHeaders() && headers.isDirty())) {
+//            dataLen = data.length;
+//
+//            byte[] pubBytes;
+//            int hdrSp;
+//            byte[] hdrLenBytes;
+//            int hdrLenBytesLen;
+//            if (headers != null && !headers.isEmpty()) {
+//                pubBytes = HPUB_SP_BYTES;
+//                hdrLen = headers.serializedLength();
+//                hdrSp = 1;
+//                hdrLenBytes = Integer.toString(hdrLen).getBytes(US_ASCII);
+//                hdrLenBytesLen = hdrLenBytes.length;
+//            }
+//            else {
+//                pubBytes = PUB_SP_BYTES;
+//                hdrLen = 0;
+//                hdrSp = 0;
+//                hdrLenBytes = null;
+//                hdrLenBytesLen = 0;
+//            }
+//            totLen = hdrLen + dataLen;
+//            byte[] totLenBytes = Integer.toString(totLen).getBytes(US_ASCII);
+//
+//            byte[] subBytes = subject.getBytes(UTF_8);
+//            int subLen = subBytes.length;
+//
+//            byte[] repBytes;
+//            int repLen;
+//            int repSp;
+//            if (replyTo == null) {
+//                repBytes = null;
+//                repLen = 0;
+//                repSp = 0;
+//            }
+//            else {
+//                repBytes = replyTo.getBytes(UTF_8);
+//                repLen = repBytes.length;
+//                repSp = 1;
+//            }
+//
+//            int pos = pubBytes.length;
+//            protocolBytes = new byte[pos + subLen + 1 + repLen + repSp + hdrLenBytesLen + hdrSp + totLenBytes.length];
+//            System.arraycopy(pubBytes, 0, protocolBytes, 0, pos);
+//
+//            System.arraycopy(subBytes, 0, protocolBytes, pos, subLen);
+//            pos += subLen;
+//            protocolBytes[pos++] = SP;
+//
+//            if (repLen > 0) {
+//                System.arraycopy(repBytes, 0, protocolBytes, pos, repLen);
+//                pos += repLen;
+//                protocolBytes[pos++] = SP;
+//            }
+//
+//            if (hdrLenBytes != null) {
+//                System.arraycopy(hdrLenBytes, 0, protocolBytes, pos, hdrLenBytesLen);
+//                pos += hdrLenBytesLen;
+//                protocolBytes[pos++] = SP;
+//            }
+//
+//            System.arraycopy(totLenBytes, 0, protocolBytes, pos, totLenBytes.length);
+//            dirty = false;
+//            return true;
+//        }
+//        return false;
+//    }
+
 
     // ----------------------------------------------------------------------------------------------------
     // Client and Message Internal Methods
@@ -392,7 +463,7 @@ public class NatsMessage implements Message {
     @Override
     public String toString() {
         if (subject == null) {
-            return "NatsMessage | " + new String(protocolBytes);
+            return "NatsMessage | " + protocolBytes.toString();
         }
         return "NatsMessage |" + subject + "|" + replyToString() + "|" + dataToString() + "|";
     }
@@ -440,7 +511,7 @@ public class NatsMessage implements Message {
     }
 
     private String protocolBytesToString() {
-        return protocolBytes == null ? null : new String(protocolBytes, UTF_8);
+        return protocolBytes == null ? null : protocolBytes.toString();
     }
 
     private String nextToString() {
