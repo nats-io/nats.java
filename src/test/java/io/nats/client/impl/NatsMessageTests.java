@@ -33,7 +33,7 @@ public class NatsMessageTests {
         NatsMessage msg = new NatsMessage.ProtocolMessage("PING");
         assertEquals(msg.getProtocolBytes().length + 2, msg.getSizeInBytes(), "Size is set, with CRLF");
         assertEquals("PING".getBytes(StandardCharsets.UTF_8).length + 2, msg.getSizeInBytes(), "Size is correct");
-        assertTrue(msg.toString().contains("PING")); // toString COVERAGE
+        assertTrue(msg.toString().endsWith("PING")); // toString COVERAGE
     }
 
     @Test
