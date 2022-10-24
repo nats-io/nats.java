@@ -104,9 +104,9 @@ public class ByteArrayBuilder extends BuilderBase {
 
     /**
      * Get the length of the data in the buffer
-     *
      * @return the length of the data
      */
+    @Override
     public int length() {
         return buffer.position();
     }
@@ -115,15 +115,17 @@ public class ByteArrayBuilder extends BuilderBase {
      * Get the number of bytes currently allocated (available) without resizing
      * @return the number of bytes
      */
+    @Override
     public int capacity() {
         return buffer.capacity();
     }
 
     /**
-     * Determine if a byte array contains the same bytes as this buffer
+     * Determine if a byte array contains the same bytes as this builder
      * @param bytes the bytes
-     * @return true if the supplied value equals what is in the buffer
+     * @return true if the supplied value equals what is in the builder
      */
+    @Override
     public boolean equals(byte[] bytes) {
         if (bytes == null || buffer.position() != bytes.length) {
             return false;
@@ -165,6 +167,7 @@ public class ByteArrayBuilder extends BuilderBase {
      * Copy the value in the buffer to a new byte array
      * @return the copy of the bytes
      */
+    @Override
     public byte[] toByteArray() {
         return Arrays.copyOf(buffer.array(), buffer.position());
     }
@@ -175,6 +178,7 @@ public class ByteArrayBuilder extends BuilderBase {
      *
      * @return a direct handle to the internal byte array
      */
+    @Override
     public byte[] internalArray() {
         return buffer.array();
     }
@@ -336,6 +340,33 @@ public class ByteArrayBuilder extends BuilderBase {
             append(bab.buffer.array(), 0, bab.length());
         }
         return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int appendUnchecked(byte b) {
+        buffer.put(b);
+        return 1;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int appendUnchecked(byte[] src) {
+        buffer.put(src, 0, src.length);
+        return src.length;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int appendUnchecked(byte[] src, int srcPos, int len) {
+        buffer.put(src, srcPos, len);
+        return len;
     }
 
     @Override

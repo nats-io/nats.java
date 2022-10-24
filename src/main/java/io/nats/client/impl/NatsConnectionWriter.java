@@ -99,7 +99,7 @@ class NatsConnectionWriter implements Runnable {
             // Clear old ping/pong requests
             this.outgoing.filter((msg) ->
                 msg.isProtocol() &&
-                    (msg.protocolBytes.equals(OP_PING_BYTES) || msg.protocolBytes.equals(OP_PONG_BYTES)));
+                    (msg.protocolBab.equals(OP_PING_BYTES) || msg.protocolBab.equals(OP_PONG_BYTES)));
 
         } finally {
             this.startStopLock.unlock();
@@ -130,9 +130,9 @@ class NatsConnectionWriter implements Runnable {
                 }
             }
 
-            byte[] bytes = msg.protocolBytes; // getSizeInBytes() above ensures this is ready
-            System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
-            sendPosition += bytes.length;
+            int blen = msg.protocolBab.length();
+            System.arraycopy(msg.protocolBab.internalArray(), 0, sendBuffer, sendPosition, blen);
+            sendPosition += blen;
 
             sendBuffer[sendPosition++] = CR;
             sendBuffer[sendPosition++] = LF;
@@ -140,7 +140,7 @@ class NatsConnectionWriter implements Runnable {
             if (!msg.isProtocol()) {
                 sendPosition += msg.copyNotEmptyHeaders(sendPosition, sendBuffer);
 
-                bytes = msg.getData(); // guaranteed to not be null
+                byte[] bytes = msg.getData(); // guaranteed to not be null
                 if (bytes.length > 0) {
                     System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
                     sendPosition += bytes.length;

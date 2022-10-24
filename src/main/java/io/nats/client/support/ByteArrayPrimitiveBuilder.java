@@ -21,8 +21,6 @@ import java.nio.charset.Charset;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public class ByteArrayPrimitiveBuilder extends BuilderBase {
-    public static ByteArrayPrimitiveBuilder EMPTY_BAB = new ByteArrayPrimitiveBuilder();
-
     private byte[] buffer;
     private int position;
 
@@ -105,6 +103,7 @@ public class ByteArrayPrimitiveBuilder extends BuilderBase {
      * Get the length of the data in the buffer
      * @return the length of the data
      */
+    @Override
     public int length() {
         return position;
     }
@@ -113,15 +112,17 @@ public class ByteArrayPrimitiveBuilder extends BuilderBase {
      * Get the number of bytes currently allocated (available) without resizing
      * @return the number of bytes
      */
+    @Override
     public int capacity() {
         return buffer.length;
     }
 
     /**
-     * Determine if a byte array contains the same bytes as this buffer
+     * Determine if a byte array contains the same bytes as this builder
      * @param bytes the bytes
-     * @return true if the supplied value equals what is in the buffer
+     * @return true if the supplied value equals what is in the builder
      */
+    @Override
     public boolean equals(byte[] bytes) {
         if (bytes == null || position != bytes.length) {
             return false;
@@ -160,6 +161,7 @@ public class ByteArrayPrimitiveBuilder extends BuilderBase {
      * Copy the value in the buffer to a new byte array
      * @return the copy of the bytes
      */
+    @Override
     public byte[] toByteArray() {
         byte[] bytes = new byte[position];
         System.arraycopy(buffer, 0, bytes, 0, position);
@@ -171,6 +173,7 @@ public class ByteArrayPrimitiveBuilder extends BuilderBase {
      * with knowledge of {@link #length()}
      * @return a direct handle to the internal byte array
      */
+    @Override
     public byte[] internalArray() {
         return buffer;
     }
@@ -188,15 +191,6 @@ public class ByteArrayPrimitiveBuilder extends BuilderBase {
             System.arraycopy(buffer, 0, newBuffer, 0, position);
             buffer = newBuffer;
         }
-    }
-
-    /**
-     * Is there enough room allocated in the buffer to add the number of bytes needed
-     * @param bytesNeeded the number of bytes needed
-     * @return whether there is enough room
-     */
-    public boolean hasEnoughRoomFor(int bytesNeeded) {
-        return (buffer.length - position) >= bytesNeeded;
     }
 
     /**
@@ -285,11 +279,6 @@ public class ByteArrayPrimitiveBuilder extends BuilderBase {
         return this;
     }
 
-    public ByteArrayPrimitiveBuilder unchecked(byte b) {
-        buffer[position++] = b;
-        return this;
-    }
-
     /**
      * Append an entire byte array
      * @param src The array from which bytes are to be read
@@ -330,16 +319,6 @@ public class ByteArrayPrimitiveBuilder extends BuilderBase {
         return this;
     }
 
-    public ByteArrayPrimitiveBuilder unchecked(byte[] src) {
-        return unchecked(src, 0, src.length);
-    }
-
-    public ByteArrayPrimitiveBuilder unchecked(byte[] src, int index, int len) {
-        System.arraycopy(src, index, buffer, position, len);
-        position += len;
-        return this;
-    }
-
     /**
      * Appends the data bytes from an existing byte array primitive builder
      * @param bab an existing builder
@@ -350,6 +329,33 @@ public class ByteArrayPrimitiveBuilder extends BuilderBase {
             append(bab.buffer, bab.length());
         }
         return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int appendUnchecked(byte b) {
+        buffer[position++] = b;
+        return 1;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int appendUnchecked(byte[] src) {
+        return appendUnchecked(src, 0, src.length);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int appendUnchecked(byte[] src, int srcPos, int len) {
+        System.arraycopy(src, srcPos, buffer, position, len);
+        position += len;
+        return len;
     }
 
     @Override

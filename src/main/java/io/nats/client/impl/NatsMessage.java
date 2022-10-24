@@ -16,7 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
-import io.nats.client.support.ByteArrayPrimitiveBuilder;
+import io.nats.client.support.ByteArrayBuilder;
 import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
 
@@ -47,7 +47,7 @@ public class NatsMessage implements Message {
     protected int protocolLineLength;
 
     // protocol specific : just this field
-    protected byte[] protocolBytes;
+    protected ByteArrayBuilder protocolBab;
 
     // housekeeping
     protected int sizeInBytes = -1;
@@ -74,7 +74,7 @@ public class NatsMessage implements Message {
         this.data = data == null ? EMPTY_BODY : data;
     }
 
-    @Deprecated // Plans are to remove allowing utf8mode
+    @Deprecated // Plans are to remove allowing utf8-mode
     public NatsMessage(String subject, String replyTo, byte[] data, boolean utf8mode) {
         this(subject, replyTo, null, data, utf8mode);
     }
@@ -92,7 +92,7 @@ public class NatsMessage implements Message {
     }
 
 
-    @Deprecated // Plans are to remove allowing utf8mode
+    @Deprecated // Plans are to remove allowing utf8-mode
     public NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
         this(subject, replyTo, headers, data);
         this.utf8mode = utf8mode;
@@ -125,7 +125,7 @@ public class NatsMessage implements Message {
 
             // initialize the builder with a reasonable length, preventing resize in 99.9% of the cases
             // 32 for misc + subject length doubled in case of utf8 mode + replyToLen + totLen (hdrLen + dataLen)
-            ByteArrayPrimitiveBuilder bab = new ByteArrayPrimitiveBuilder(32 + (subject.length() * 2) + replyToLen + totLen);
+            ByteArrayBuilder bab = new ByteArrayBuilder(32 + (subject.length() * 2) + replyToLen + totLen);
 
             // protocol come first
             if (hdrLen > 0) {
@@ -151,7 +151,7 @@ public class NatsMessage implements Message {
             // payload length
             bab.append(Integer.toString(totLen).getBytes(US_ASCII));
 
-            protocolBytes = bab.toByteArray();
+            protocolBab = bab;
             dirty = false;
             return true;
         }
@@ -164,8 +164,8 @@ public class NatsMessage implements Message {
     long getSizeInBytes() {
         if (calculateIfDirty() || sizeInBytes == -1) {
             sizeInBytes = protocolLineLength;
-            if (protocolBytes != null) {
-                sizeInBytes += protocolBytes.length;
+            if (protocolBab != null) {
+                sizeInBytes += protocolBab.length();
             }
             sizeInBytes += 2; // CRLF
             if (!isProtocol()) {
@@ -187,12 +187,12 @@ public class NatsMessage implements Message {
 
     byte[] getProtocolBytes() {
         calculateIfDirty();
-        return protocolBytes;
+        return protocolBab.toByteArray();
     }
 
     int getControlLineLength() {
         calculateIfDirty();
-        return (protocolBytes != null) ? protocolBytes.length + 2 : -1;
+        return (protocolBab != null) ? protocolBab.length() + 2 : -1;
     }
 
     Headers getOrCreateHeaders() {
@@ -441,7 +441,7 @@ public class NatsMessage implements Message {
     }
 
     private String protocolBytesToString() {
-        return protocolBytes == null ? null : new String(protocolBytes);
+        return protocolBab == null ? null : protocolBab.toString();
     }
 
     private String nextToString() {
@@ -538,12 +538,11 @@ public class NatsMessage implements Message {
 
         /**
          * Set if the subject should be treated as utf
-         *
-         * @deprecated Plans are to remove allowing utf8mode
+         * @deprecated Code is just always treating as utf8
          * @param utf8mode true if utf8 mode for subject
          * @return the builder
          */
-        @Deprecated // Plans are to remove allowing utf8mode
+        @Deprecated
         public Builder utf8mode(final boolean utf8mode) {
             this.utf8mode = utf8mode;
             return this;
@@ -633,22 +632,24 @@ public class NatsMessage implements Message {
         }
     }
 
+    private static final ByteArrayBuilder EMPTY_BAB = new ByteArrayBuilder();
+
     static class ProtocolMessage extends InternalMessage {
         ProtocolMessage(byte[] protocol) {
-            this.protocolBytes = protocol == null ? EMPTY_BODY : protocol;
+            this.protocolBab = protocol == null ? EMPTY_BAB : new ByteArrayBuilder(protocol);
         }
 
-        ProtocolMessage(ByteArrayPrimitiveBuilder babProtocol) {
-            protocolBytes = babProtocol.toByteArray();
+        ProtocolMessage(ByteArrayBuilder babProtocol) {
+            protocolBab = babProtocol;
         }
 
         ProtocolMessage(String asciiProtocol) {
-            protocolBytes = asciiProtocol.getBytes(StandardCharsets.US_ASCII);
+            protocolBab = new ByteArrayBuilder().append(asciiProtocol);
         }
 
         @Override
         byte[] getProtocolBytes() {
-            return protocolBytes;
+            return protocolBab.toByteArray();
         }
 
         @Override
