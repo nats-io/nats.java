@@ -1250,13 +1250,12 @@ class NatsConnection implements Connection {
         }
 
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
-        NatsMessage msg = new ProtocolMessage(OP_PING_BYTES);
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
-            queueInternalOutgoing(msg);
+            queueInternalOutgoing(PING_MSG);
         } else {
-            queueOutgoing(msg);
+            queueOutgoing(PING_MSG);
         }
 
         this.needPing.set(true);
@@ -1264,8 +1263,11 @@ class NatsConnection implements Connection {
         return pongFuture;
     }
 
+    static final NatsMessage PING_MSG = new ProtocolMessage(OP_PING_BYTES);
+    static final NatsMessage PONG_MSG = new ProtocolMessage(OP_PONG_BYTES);
+
     void sendPong() {
-        queueInternalOutgoing( new ProtocolMessage(OP_PONG_BYTES) );
+        queueInternalOutgoing(PONG_MSG);
     }
 
     // Called by the reader

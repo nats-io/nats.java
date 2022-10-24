@@ -60,7 +60,7 @@ class NatsConnectionWriter implements Runnable {
         Options options = connection.getOptions();
         int sbl = bufferAllocSize(options.getBufferSize(), BUFFER_BLOCK_SIZE);
         sendBufferLength = new AtomicInteger(sbl);
-        this.sendBuffer = new byte[sbl];
+        sendBuffer = new byte[sbl];
 
         outgoing = new MessageQueue(true,
                 options.getMaxMessagesInOutgoingQueue(),
@@ -126,7 +126,7 @@ class NatsConnectionWriter implements Runnable {
                 if (size > sbl) { // have to resize b/c can't fit 1 message
                     sbl = bufferAllocSize((int)size, BUFFER_BLOCK_SIZE);
                     sendBufferLength.set(sbl);
-                    this.sendBuffer = new byte[sbl];
+                    sendBuffer = new byte[sbl];
                 }
             }
 

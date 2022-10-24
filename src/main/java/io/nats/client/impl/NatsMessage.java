@@ -118,7 +118,8 @@ public class NatsMessage implements Message {
 
             if (headers != null && !headers.isEmpty()) {
                 hdrLen = headers.serializedLength();
-            } else {
+            }
+            else {
                 hdrLen = 0;
             }
             totLen = hdrLen + dataLen;
@@ -188,6 +189,11 @@ public class NatsMessage implements Message {
     byte[] getProtocolBytes() {
         calculateIfDirty();
         return protocolBab.toByteArray();
+    }
+
+    ByteArrayBuilder getProtocolBab() {
+        calculateIfDirty();
+        return protocolBab;
     }
 
     int getControlLineLength() {
@@ -650,6 +656,11 @@ public class NatsMessage implements Message {
         @Override
         byte[] getProtocolBytes() {
             return protocolBab.toByteArray();
+        }
+
+        @Override
+        ByteArrayBuilder getProtocolBab() {
+            return protocolBab;
         }
 
         @Override
