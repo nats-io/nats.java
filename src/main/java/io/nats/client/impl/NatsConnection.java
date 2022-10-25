@@ -1253,9 +1253,9 @@ class NatsConnection implements Connection {
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
-            queueInternalOutgoing(PING_MSG);
+            queueInternalOutgoing(new ProtocolMessage(OP_PING_BYTES));
         } else {
-            queueOutgoing(PING_MSG);
+            queueOutgoing(new ProtocolMessage(OP_PING_BYTES));
         }
 
         this.needPing.set(true);
@@ -1263,11 +1263,8 @@ class NatsConnection implements Connection {
         return pongFuture;
     }
 
-    static final NatsMessage PING_MSG = new ProtocolMessage(OP_PING_BYTES);
-    static final NatsMessage PONG_MSG = new ProtocolMessage(OP_PONG_BYTES);
-
     void sendPong() {
-        queueInternalOutgoing(PONG_MSG);
+        queueInternalOutgoing(new ProtocolMessage(OP_PONG_BYTES));
     }
 
     // Called by the reader
