@@ -83,40 +83,40 @@ public class NatsJetStreamSimplified extends NatsJetStreamImpl implements JetStr
 //    }
 
     @Override
-    public SimpleIterateSubscription iterate(String consumerName, int limit) throws IOException, JetStreamApiException {
+    public ConsumerReader iterate(String consumerName, int limit) throws IOException, JetStreamApiException {
         return null;
     }
 
     @Override
-    public SimpleSubscription listen(String consumerName, int limit, MessageHandler handler) throws IOException, JetStreamApiException {
+    public SimpleConsumer listen(String consumerName, int limit, MessageHandler handler) throws IOException, JetStreamApiException {
         return null;
     }
 
     @Override
-    public SimpleIterateSubscription endlessIterate(String consumerName) throws IOException, JetStreamApiException {
+    public ConsumerReader endlessIterate(String consumerName) throws IOException, JetStreamApiException {
         validateNotNull(consumerName, "Consumer Name");
         ConsumerConfiguration cc = _getConsumerConfiguration(consumerName);
         return _read(DEFAULT_SCO_OPTIONS, cc, true);
     }
 
     @Override
-    public SimpleIterateSubscription endlessIterate(String consumerName, SimpleConsumerOptions sco) throws IOException, JetStreamApiException {
+    public ConsumerReader endlessIterate(String consumerName, SimpleConsumerOptions sco) throws IOException, JetStreamApiException {
         validateNotNull(consumerName, "Consumer Name");
         ConsumerConfiguration cc = _getConsumerConfiguration(consumerName);
         return _read(sco, cc, true);
     }
 
     @Override
-    public SimpleIterateSubscription endlessIterate(SimpleConsumerConfiguration consumerConfiguration) throws IOException, JetStreamApiException {
+    public ConsumerReader endlessIterate(SimpleConsumerConfiguration consumerConfiguration) throws IOException, JetStreamApiException {
         return _read(DEFAULT_SCO_OPTIONS, consumerConfiguration, false);
     }
 
     @Override
-    public SimpleIterateSubscription endlessIterate(SimpleConsumerConfiguration consumerConfiguration, SimpleConsumerOptions sco) throws IOException, JetStreamApiException {
+    public ConsumerReader endlessIterate(SimpleConsumerConfiguration consumerConfiguration, SimpleConsumerOptions sco) throws IOException, JetStreamApiException {
         return _read(sco, consumerConfiguration, false);
     }
 
-    private NatsSimpleIterateSubscription _read(SimpleConsumerOptions sco, ConsumerConfiguration cc, boolean isSimplificationMode) throws IOException, JetStreamApiException {
+    private NatsConsumerReader _read(SimpleConsumerOptions sco, ConsumerConfiguration cc, boolean isSimplificationMode) throws IOException, JetStreamApiException {
         PullSubscribeOptions pullOpts = PullSubscribeOptions.builder()
             .stream(stream).configuration(cc).build();
         MessageManagerFactory messageManagerFactory =
@@ -124,35 +124,35 @@ public class NatsJetStreamSimplified extends NatsJetStreamImpl implements JetStr
                 new PullSimpleMessageManager(lConn, lSyncMode, sco);
         JetStreamSubscription sub = createSubscription(
             cc.getFilterSubject(), null, null, null, false, true, isSimplificationMode, pullOpts, messageManagerFactory);
-        return new NatsSimpleIterateSubscription((NatsJetStreamPullSubscription)sub, sco);
+        return new NatsConsumerReader((NatsJetStreamPullSubscription)sub, sco);
     }
 
     // ----------------------------------------------------------------------------------------------------
     // Listen
     // ----------------------------------------------------------------------------------------------------
     @Override
-    public SimpleSubscription endlessListen(String consumerName, MessageHandler handler) throws IOException, JetStreamApiException {
+    public SimpleConsumer endlessListen(String consumerName, MessageHandler handler) throws IOException, JetStreamApiException {
         return endlessListen(consumerName, handler, DEFAULT_SCO_OPTIONS);
     }
 
     @Override
-    public SimpleSubscription endlessListen(String consumerName, MessageHandler handler, SimpleConsumerOptions sco) throws IOException, JetStreamApiException {
+    public SimpleConsumer endlessListen(String consumerName, MessageHandler handler, SimpleConsumerOptions sco) throws IOException, JetStreamApiException {
         validateNotNull(consumerName, "Consumer Name");
         ConsumerConfiguration cc = _getConsumerConfiguration(consumerName);
         return _listen(handler, sco, cc, true);
     }
 
     @Override
-    public SimpleSubscription endlessListen(SimpleConsumerConfiguration consumerConfiguration, MessageHandler handler) throws IOException, JetStreamApiException {
+    public SimpleConsumer endlessListen(SimpleConsumerConfiguration consumerConfiguration, MessageHandler handler) throws IOException, JetStreamApiException {
         return _listen(handler, DEFAULT_SCO_OPTIONS, consumerConfiguration, false);
     }
 
     @Override
-    public SimpleSubscription endlessListen(SimpleConsumerConfiguration consumerConfiguration, MessageHandler handler, SimpleConsumerOptions sco) throws IOException, JetStreamApiException {
+    public SimpleConsumer endlessListen(SimpleConsumerConfiguration consumerConfiguration, MessageHandler handler, SimpleConsumerOptions sco) throws IOException, JetStreamApiException {
         return _listen(handler, sco, consumerConfiguration, false);
     }
 
-    private NatsSimpleSubscription _listen(MessageHandler handler, SimpleConsumerOptions sco, ConsumerConfiguration cc, boolean isSimplificationMode) throws IOException, JetStreamApiException {
+    private NatsSimpleConsumer _listen(MessageHandler handler, SimpleConsumerOptions sco, ConsumerConfiguration cc, boolean isSimplificationMode) throws IOException, JetStreamApiException {
         PullSubscribeOptions pullOpts = PullSubscribeOptions.builder()
             .stream(stream)
             .configuration(cc)
@@ -163,7 +163,7 @@ public class NatsJetStreamSimplified extends NatsJetStreamImpl implements JetStr
         NatsDispatcher dispatcher = (NatsDispatcher)conn.createDispatcher();
         JetStreamSubscription sub = createSubscription(
             cc.getFilterSubject(), null, dispatcher, handler, false, true, isSimplificationMode, pullOpts, messageManagerFactory);
-        return new NatsSimpleSubscription((NatsJetStreamSubscription)sub, sco);
+        return new NatsSimpleConsumer((NatsJetStreamSubscription)sub, sco);
     }
 
     // ----------------------------------------------------------------------------------------------------

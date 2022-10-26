@@ -13,6 +13,7 @@
 package io.nats.client;
 
 import io.nats.client.api.PublishAck;
+import io.nats.client.api.SimpleConsumerConfiguration;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -377,4 +378,20 @@ public interface JetStream {
      * @throws JetStreamApiException the request had an error related to the data
      */
     JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, PullSubscribeOptions options) throws IOException, JetStreamApiException;
+
+    ConsumerReader read(String streamName, String consumerName, int messageLimit) throws IOException, JetStreamApiException;
+    ConsumerListener listen(String streamName, String consumerName, int messageLimit, ConsumerCallback callback) throws IOException, JetStreamApiException;
+
+    ConsumerReader read(String streamName, String consumerName) throws IOException, JetStreamApiException;
+    ConsumerReader read(String streamName, String consumerName, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
+    ConsumerReader read(String streamName, SimpleConsumerConfiguration config) throws IOException, JetStreamApiException;
+    ConsumerReader read(String streamName, SimpleConsumerConfiguration config, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
+
+    ConsumerListener listen(String streamName, String consumerName, ConsumerCallback callback) throws IOException, JetStreamApiException;
+    ConsumerListener listen(String streamName, String consumerName, ConsumerCallback callback, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
+    ConsumerListener listen(String streamName, SimpleConsumerConfiguration config, ConsumerCallback callback) throws IOException, JetStreamApiException;
+    ConsumerListener listen(String streamName, SimpleConsumerConfiguration config, ConsumerCallback callback, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
+
+    StreamContext getStreamContext(String streamName);
+    ConsumerContext getConsumerContext(String streamName, String consumerName);
 }

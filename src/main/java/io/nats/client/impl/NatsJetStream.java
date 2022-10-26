@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.PublishAck;
+import io.nats.client.api.SimpleConsumerConfiguration;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -186,5 +187,65 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
     private boolean isSubjectRequired(SubscribeOptions options) {
         return options == null || !options.isBind();
+    }
+
+    @Override
+    public ConsumerReader read(String streamName, String consumerName, int messageLimit) throws IOException, JetStreamApiException {
+        return null;
+    }
+
+    @Override
+    public ConsumerListener listen(String streamName, String consumerName, int messageLimit, ConsumerCallback callback) throws IOException, JetStreamApiException {
+        return null;
+    }
+
+    @Override
+    public ConsumerReader read(String streamName, String consumerName) throws IOException, JetStreamApiException {
+        return null;
+    }
+
+    @Override
+    public ConsumerReader read(String streamName, String consumerName, SimpleConsumerOptions options) throws IOException, JetStreamApiException {
+        return null;
+    }
+
+    @Override
+    public ConsumerReader read(String streamName, SimpleConsumerConfiguration config) throws IOException, JetStreamApiException {
+        return null;
+    }
+
+    @Override
+    public ConsumerReader read(String streamName, SimpleConsumerConfiguration config, SimpleConsumerOptions options) throws IOException, JetStreamApiException {
+        return null;
+    }
+
+    @Override
+    public ConsumerListener listen(String streamName, String consumerName, ConsumerCallback callback) throws IOException, JetStreamApiException {
+        return null;
+    }
+
+    @Override
+    public ConsumerListener listen(String streamName, String consumerName, ConsumerCallback callback, SimpleConsumerOptions options) throws IOException, JetStreamApiException {
+        return null;
+    }
+
+    @Override
+    public ConsumerListener listen(String streamName, SimpleConsumerConfiguration config, ConsumerCallback callback) throws IOException, JetStreamApiException {
+        return null;
+    }
+
+    @Override
+    public ConsumerListener listen(String streamName, SimpleConsumerConfiguration config, ConsumerCallback callback, SimpleConsumerOptions options) throws IOException, JetStreamApiException {
+        return null;
+    }
+
+    @Override
+    public StreamContext getStreamContext(String streamName) {
+        return null;
+    }
+
+    @Override
+    public ConsumerContext getConsumerContext(String streamName, String consumerName) {
+        return null;
     }
 }

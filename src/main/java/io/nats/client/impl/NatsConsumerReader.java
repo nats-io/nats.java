@@ -13,14 +13,14 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.ConsumerReader;
 import io.nats.client.Message;
 import io.nats.client.SimpleConsumerOptions;
-import io.nats.client.SimpleIterateSubscription;
 
 import java.time.Duration;
 
-class NatsSimpleIterateSubscription extends NatsSimpleSubscription implements SimpleIterateSubscription {
-    public NatsSimpleIterateSubscription(final NatsJetStreamPullSubscription sub, SimpleConsumerOptions sco) {
+class NatsConsumerReader extends NatsSimpleConsumer implements ConsumerReader {
+    public NatsConsumerReader(final NatsJetStreamPullSubscription sub, SimpleConsumerOptions sco) {
         super(sub, sco);
     }
 

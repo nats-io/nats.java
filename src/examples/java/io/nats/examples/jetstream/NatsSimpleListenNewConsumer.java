@@ -70,16 +70,16 @@ public class NatsSimpleListenNewConsumer {
                 .durable(durable)
                 .build();
 
-            SimpleSubscription simpleSubscription = js.endlessListen(scc, handler, sco);
+            SimpleConsumer simpleConsumer = js.endlessListen(scc, handler, sco);
             // ********************************************************************************
 
             latch.await();
 
             System.out.println("\n" + red.get() + " message(s) were received.\n");
-            System.out.println("\n" + simpleSubscription.getConsumerInfo());
+            System.out.println("\n" + simpleConsumer.getConsumerInfo());
 
             // be a good citizen
-            simpleSubscription.unsubscribe();
+            simpleConsumer.unsubscribe();
         }
         catch (Exception e) {
             e.printStackTrace();

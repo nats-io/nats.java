@@ -1,4 +1,4 @@
-// Copyright 2022 The NATS Authors
+// Copyright 2015-2018 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -13,13 +13,10 @@
 
 package io.nats.client;
 
-import java.time.Duration;
-
 /**
- * THIS IS PART OF AN EXPERIMENTAL API AND IS CONSIDERED EXPERIMENTAL AND SUBJECT TO CHANGE
+ * {@link Dispatcher Dispatchers} use the MessageHandler interface to define the listener
+ * for their messages. Each Dispatcher can have a single message handler, although the 
+ * handler can use the incoming message's subject to branch for the actual work.
  */
-public interface SimpleIterateSubscription extends SimpleSubscription {
-    Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException;
-    Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException;
-    boolean hasEnded();
+public interface ConsumerCallback extends MessageHandler {
 }

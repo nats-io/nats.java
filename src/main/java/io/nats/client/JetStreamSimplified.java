@@ -25,18 +25,18 @@ public interface JetStreamSimplified {
     // access the original if you want
     JetStream getJetStream();
 
-    SimpleIterateSubscription iterate(String consumerName, int messageLimit) throws IOException, JetStreamApiException;
-    SimpleSubscription listen(String consumerName, int messageLimit, MessageHandler handler) throws IOException, JetStreamApiException;
+    ConsumerReader iterate(String consumerName, int messageLimit) throws IOException, JetStreamApiException;
+    SimpleConsumer listen(String consumerName, int messageLimit, MessageHandler handler) throws IOException, JetStreamApiException;
 
-    SimpleIterateSubscription endlessIterate(String consumerName) throws IOException, JetStreamApiException;
-    SimpleIterateSubscription endlessIterate(String consumerName, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
-    SimpleIterateSubscription endlessIterate(SimpleConsumerConfiguration config) throws IOException, JetStreamApiException;
-    SimpleIterateSubscription endlessIterate(SimpleConsumerConfiguration config, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
+    ConsumerReader endlessIterate(String consumerName) throws IOException, JetStreamApiException;
+    ConsumerReader endlessIterate(String consumerName, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
+    ConsumerReader endlessIterate(SimpleConsumerConfiguration config) throws IOException, JetStreamApiException;
+    ConsumerReader endlessIterate(SimpleConsumerConfiguration config, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
 
-    SimpleSubscription endlessListen(String consumerName, MessageHandler handler) throws IOException, JetStreamApiException;
-    SimpleSubscription endlessListen(String consumerName, MessageHandler handler, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
-    SimpleSubscription endlessListen(SimpleConsumerConfiguration config, MessageHandler handler) throws IOException, JetStreamApiException;
-    SimpleSubscription endlessListen(SimpleConsumerConfiguration config, MessageHandler handler, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
+    SimpleConsumer endlessListen(String consumerName, MessageHandler handler) throws IOException, JetStreamApiException;
+    SimpleConsumer endlessListen(String consumerName, MessageHandler handler, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
+    SimpleConsumer endlessListen(SimpleConsumerConfiguration config, MessageHandler handler) throws IOException, JetStreamApiException;
+    SimpleConsumer endlessListen(SimpleConsumerConfiguration config, MessageHandler handler, SimpleConsumerOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Creates or updates a consumer.
