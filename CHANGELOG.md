@@ -1,5 +1,39 @@
 # Change Log
 
+## 2.16.2
+
+#### Core
+* reader HMSG protocol line length size was wrong #774 @scottf
+* Message sending optimization #776 @scottf @MauriceVanVeen
+
+#### Misc
+* Fix Get Streams Doc #771 @scottf
+* PubWithHeadersBenchmark #772 @scottf
+
+## 2.16.1
+#### Core
+
+* Fix - Ensure resizing of the sendBuffer #746 @MauriceVanVeen
+* Enhancement - Additional API to clear last error from Nats server #750 @Ryner51
+* Sync NatsMessage.getSizeInBytes() with usage in NatsConnectionWriter #756 @MauriceVanVeen
+
+#### JetStream
+
+* discard_new_per_subject #755 @scottf
+* streams / names with subject filtering, info pagination #759 @scottf
+* ordered consumer config setting changes #762 @scottf
+* Ordered Consumer Heartbeat Handling #766 @scottf
+
+#### KV or OS
+
+* object store tuning #731 @scottf
+* KV status bytes - Issue #754 @scottf
+* List materialized views #765 @scottf
+
+#### Examples
+
+* Example to show handling pub acks in a separate thread than the publish. #748 @scottf
+
 ## 2.16.0 Support Server v2.9.0 and Object Store Experimental
 
 This release is a re-release of 2.15.7 with an additional opt-out and the minor version bump.
