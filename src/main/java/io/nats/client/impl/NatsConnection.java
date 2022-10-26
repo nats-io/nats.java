@@ -854,7 +854,7 @@ class NatsConnection implements Connection {
         }
 
         if (!isConnected()) {
-            return;// We will setup sub on reconnect or ignore
+            return; // We will set up sub on reconnect or ignore
         }
 
         sendUnsub(sub, after);
@@ -905,7 +905,7 @@ class NatsConnection implements Connection {
 
     void sendSubscriptionMessage(String sid, String subject, String queueName, boolean treatAsInternal) {
         if (!isConnected()) {
-            return; // We will setup sub on reconnect or ignore
+            return; // We will set up sub on reconnect or ignore
         }
 
         ByteArrayBuilder bab = new ByteArrayBuilder(UTF_8).append(SUB_SP_BYTES).append(subject);
@@ -1208,7 +1208,7 @@ class NatsConnection implements Connection {
             ServerInfo info = this.serverInfo.get();
             CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
             ByteArrayBuilder bab =
-                new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit(), ByteArrayBuilder.DEFAULT_OTHER_ALLOCATION, UTF_8)
+                new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit(), UTF_8)
                     .append(CONNECT_SP_BYTES).append(connectOptions);
             queueInternalOutgoing(new ProtocolMessage(bab));
         } catch (Exception exp) {
@@ -1250,13 +1250,12 @@ class NatsConnection implements Connection {
         }
 
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
-        NatsMessage msg = new ProtocolMessage(OP_PING_BYTES);
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
-            queueInternalOutgoing(msg);
+            queueInternalOutgoing(new ProtocolMessage(OP_PING_BYTES));
         } else {
-            queueOutgoing(msg);
+            queueOutgoing(new ProtocolMessage(OP_PING_BYTES));
         }
 
         this.needPing.set(true);
@@ -1265,7 +1264,7 @@ class NatsConnection implements Connection {
     }
 
     void sendPong() {
-        queueInternalOutgoing( new ProtocolMessage(OP_PONG_BYTES) );
+        queueInternalOutgoing(new ProtocolMessage(OP_PONG_BYTES));
     }
 
     // Called by the reader
