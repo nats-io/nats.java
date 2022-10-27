@@ -1,5 +1,10 @@
 # Change Log
 
+## 2.16.3
+
+#### JetStream
+* changed handling of missing offset for paged #782 @scottf
+
 ## 2.16.2
 
 #### Core
