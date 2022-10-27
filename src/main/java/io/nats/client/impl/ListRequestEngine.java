@@ -40,7 +40,7 @@ class ListRequestEngine extends ApiResponse<ListRequestEngine> {
         if (hasError()) {
             throw new JetStreamApiException(this);
         }
-        total = JsonUtils.readInt(json, TOTAL_RE, Integer.MAX_VALUE);
+        total = JsonUtils.readInt(json, TOTAL_RE, -1);
         limit = JsonUtils.readInt(json, LIMIT_RE, 0);
         lastOffset = JsonUtils.readInt(json, OFFSET_RE, 0);
     }
