@@ -38,19 +38,20 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testRoundTrip() throws Exception {
-        StreamConfiguration sc = StreamConfiguration.builder(getTestConfiguration())
-            .mirror(null)
-            .sources()
-            .replicas(1)
-            .templateOwner(null)
-            .allowRollup(false)
-            .allowDirect(false)
-            .sealed(false)
-            .build();
-
         runInJsServer(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            validate(jsm.addStream(sc).getConfiguration(), true);
+            if (nc.getServerInfo().isNewerVersionThan("2.8.4")) {
+                StreamConfiguration sc = StreamConfiguration.builder(getTestConfiguration())
+                    .mirror(null)
+                    .sources()
+                    .replicas(1)
+                    .templateOwner(null)
+                    .allowRollup(false)
+                    .allowDirect(false)
+                    .sealed(false)
+                    .build();
+                JetStreamManagement jsm = nc.jetStreamManagement();
+                validate(jsm.addStream(sc).getConfiguration(), true);
+            }
         });
     }
 

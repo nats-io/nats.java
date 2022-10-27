@@ -346,80 +346,82 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     public void testGetStreamInfoSubjectPagination() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/pagination.conf", false, true)) {
             try (Connection nc = standardConnection(ts.getURI())) {
-                JetStreamManagement jsm = nc.jetStreamManagement();
-                JetStream js = nc.jetStream();
+                if (nc.getServerInfo().isNewerVersionThan("2.8.4")) {
+                    JetStreamManagement jsm = nc.jetStreamManagement();
+                    JetStream js = nc.jetStream();
 
-                long rounds = 101;
-                long size = 1000;
-                long count = rounds * size;
-                jsm.addStream(StreamConfiguration.builder()
-                    .name(stream(1))
-                    .storageType(StorageType.Memory)
-                    .subjects("s.*.*")
-                    .build());
+                    long rounds = 101;
+                    long size = 1000;
+                    long count = rounds * size;
+                    jsm.addStream(StreamConfiguration.builder()
+                        .name(stream(1))
+                        .storageType(StorageType.Memory)
+                        .subjects("s.*.*")
+                        .build());
 
-                jsm.addStream(StreamConfiguration.builder()
-                    .name(stream(2))
-                    .storageType(StorageType.Memory)
-                    .subjects("t.*.*")
-                    .build());
+                    jsm.addStream(StreamConfiguration.builder()
+                        .name(stream(2))
+                        .storageType(StorageType.Memory)
+                        .subjects("t.*.*")
+                        .build());
 
-                for (int x = 1; x <= rounds; x++) {
-                    for (int y = 1; y <= size; y++) {
-                        js.publish("s." + x + "." + y, null);
+                    for (int x = 1; x <= rounds; x++) {
+                        for (int y = 1; y <= size; y++) {
+                            js.publish("s." + x + "." + y, null);
+                        }
                     }
-                }
 
-                for (int y = 1; y <= size; y++) {
-                    js.publish("t.7." + y, null);
-                }
+                    for (int y = 1; y <= size; y++) {
+                        js.publish("t.7." + y, null);
+                    }
 
-                StreamInfo si = jsm.getStreamInfo(stream(1));
-                validateStreamInfo(si.getStreamState(), 0, 0, count);
-
-                si = jsm.getStreamInfo(stream(1), StreamInfoOptions.allSubjects());
-                validateStreamInfo(si.getStreamState(), count, count, count);
-
-                si = jsm.getStreamInfo(stream(1), StreamInfoOptions.filterSubjects("s.7.*"));
-                validateStreamInfo(si.getStreamState(), size, size, count);
-
-                si = jsm.getStreamInfo(stream(1), StreamInfoOptions.filterSubjects("s.7.1"));
-                validateStreamInfo(si.getStreamState(), 1L, 1, count);
-
-                si = jsm.getStreamInfo(stream(2), StreamInfoOptions.filterSubjects("t.7.*"));
-                validateStreamInfo(si.getStreamState(), size, size, size);
-
-                si = jsm.getStreamInfo(stream(2), StreamInfoOptions.filterSubjects("t.7.1"));
-                validateStreamInfo(si.getStreamState(), 1L, 1, size);
-
-                List<StreamInfo> infos = jsm.getStreams();
-                assertEquals(2, infos.size());
-                si = infos.get(0);
-                if (si.getConfiguration().getSubjects().get(0).equals("s.*.*")) {
+                    StreamInfo si = jsm.getStreamInfo(stream(1));
                     validateStreamInfo(si.getStreamState(), 0, 0, count);
-                    validateStreamInfo(infos.get(1).getStreamState(), 0, 0, size);
+
+                    si = jsm.getStreamInfo(stream(1), StreamInfoOptions.allSubjects());
+                    validateStreamInfo(si.getStreamState(), count, count, count);
+
+                    si = jsm.getStreamInfo(stream(1), StreamInfoOptions.filterSubjects("s.7.*"));
+                    validateStreamInfo(si.getStreamState(), size, size, count);
+
+                    si = jsm.getStreamInfo(stream(1), StreamInfoOptions.filterSubjects("s.7.1"));
+                    validateStreamInfo(si.getStreamState(), 1L, 1, count);
+
+                    si = jsm.getStreamInfo(stream(2), StreamInfoOptions.filterSubjects("t.7.*"));
+                    validateStreamInfo(si.getStreamState(), size, size, size);
+
+                    si = jsm.getStreamInfo(stream(2), StreamInfoOptions.filterSubjects("t.7.1"));
+                    validateStreamInfo(si.getStreamState(), 1L, 1, size);
+
+                    List<StreamInfo> infos = jsm.getStreams();
+                    assertEquals(2, infos.size());
+                    si = infos.get(0);
+                    if (si.getConfiguration().getSubjects().get(0).equals("s.*.*")) {
+                        validateStreamInfo(si.getStreamState(), 0, 0, count);
+                        validateStreamInfo(infos.get(1).getStreamState(), 0, 0, size);
+                    }
+                    else {
+                        validateStreamInfo(si.getStreamState(), 0, 0, size);
+                        validateStreamInfo(infos.get(1).getStreamState(), 0, 0, count);
+                    }
+
+                    infos = jsm.getStreams(">");
+                    assertEquals(2, infos.size());
+
+                    infos = jsm.getStreams("*.7.*");
+                    assertEquals(2, infos.size());
+
+                    infos = jsm.getStreams("*.7.1");
+                    assertEquals(2, infos.size());
+
+                    infos = jsm.getStreams("s.7.*");
+                    assertEquals(1, infos.size());
+                    assertEquals("s.*.*", infos.get(0).getConfiguration().getSubjects().get(0));
+
+                    infos = jsm.getStreams("t.7.1");
+                    assertEquals(1, infos.size());
+                    assertEquals("t.*.*", infos.get(0).getConfiguration().getSubjects().get(0));
                 }
-                else {
-                    validateStreamInfo(si.getStreamState(), 0, 0, size);
-                    validateStreamInfo(infos.get(1).getStreamState(), 0, 0, count);
-                }
-
-                infos = jsm.getStreams(">");
-                assertEquals(2, infos.size());
-
-                infos = jsm.getStreams("*.7.*");
-                assertEquals(2, infos.size());
-
-                infos = jsm.getStreams("*.7.1");
-                assertEquals(2, infos.size());
-
-                infos = jsm.getStreams("s.7.*");
-                assertEquals(1, infos.size());
-                assertEquals("s.*.*", infos.get(0).getConfiguration().getSubjects().get(0));
-
-                infos = jsm.getStreams("t.7.1");
-                assertEquals(1, infos.size());
-                assertEquals("t.*.*", infos.get(0).getConfiguration().getSubjects().get(0));
             }
         }
     }
@@ -994,32 +996,34 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testGetMessage() throws Exception {
         runInJsServer(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            JetStream js = nc.jetStream();
+            if (nc.getServerInfo().isNewerVersionThan("2.8.4")) {
+                JetStreamManagement jsm = nc.jetStreamManagement();
+                JetStream js = nc.jetStream();
 
-            StreamConfiguration sc = StreamConfiguration.builder()
-                .name(STREAM)
-                .storageType(StorageType.Memory)
-                .subjects(subject(1), subject(2))
-                .build();
-            StreamInfo si = jsm.addStream(sc);
+                StreamConfiguration sc = StreamConfiguration.builder()
+                    .name(STREAM)
+                    .storageType(StorageType.Memory)
+                    .subjects(subject(1), subject(2))
+                    .build();
+                StreamInfo si = jsm.addStream(sc);
 
-            ZonedDateTime beforeCreated = ZonedDateTime.now();
-            js.publish(NatsMessage.builder().subject(subject(1)).data("s1-q1").build());
-            js.publish(NatsMessage.builder().subject(subject(2)).data("s2-q2").build());
-            js.publish(NatsMessage.builder().subject(subject(1)).data("s1-q3").build());
-            js.publish(NatsMessage.builder().subject(subject(2)).data("s2-q4").build());
-            js.publish(NatsMessage.builder().subject(subject(1)).data("s1-q5").build());
-            js.publish(NatsMessage.builder().subject(subject(2)).data("s2-q6").build());
+                ZonedDateTime beforeCreated = ZonedDateTime.now();
+                js.publish(NatsMessage.builder().subject(subject(1)).data("s1-q1").build());
+                js.publish(NatsMessage.builder().subject(subject(2)).data("s2-q2").build());
+                js.publish(NatsMessage.builder().subject(subject(1)).data("s1-q3").build());
+                js.publish(NatsMessage.builder().subject(subject(2)).data("s2-q4").build());
+                js.publish(NatsMessage.builder().subject(subject(1)).data("s1-q5").build());
+                js.publish(NatsMessage.builder().subject(subject(2)).data("s2-q6").build());
 
-            validateGetMessage(jsm, si, false, beforeCreated);
+                validateGetMessage(jsm, si, false, beforeCreated);
 
-            sc = StreamConfiguration.builder(si.getConfiguration()).allowDirect(true).build();
-            si = jsm.updateStream(sc);
-            validateGetMessage(jsm, si, true, beforeCreated);
+                sc = StreamConfiguration.builder(si.getConfiguration()).allowDirect(true).build();
+                si = jsm.updateStream(sc);
+                validateGetMessage(jsm, si, true, beforeCreated);
 
-            // error case stream doesn't exist
-            assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream(999), 1));
+                // error case stream doesn't exist
+                assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream(999), 1));
+            }
         });
     }
 
