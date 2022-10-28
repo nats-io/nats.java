@@ -445,6 +445,13 @@ public interface Connection extends AutoCloseable {
     void flushBuffer() throws IOException;
 
     /**
+     * Calculates the round trip time between this client and the server.
+     * @return the RTT as a duration
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    Duration RTT() throws IOException;
+
+    /**
      * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
      * and consumers.
      * @return a JetStream instance.
