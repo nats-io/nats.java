@@ -1224,6 +1224,32 @@ class NatsConnection implements Connection {
         return this.sendPing(false);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Duration RTT() throws IOException {
+        if (!isConnectedOrConnecting()) {
+            throw new IOException("Must be connected to do RTT.");
+        }
+
+        long timeout = options.getConnectionTimeout().toMillis();
+        CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
+        pongQueue.add(pongFuture);
+        try {
+            long time = System.nanoTime();
+            writer.queueInternalMessage(new ProtocolMessage(OP_PING_BYTES));
+            pongFuture.get(timeout, TimeUnit.MILLISECONDS);
+            return Duration.ofNanos(System.nanoTime() - time);
+        }
+        catch (ExecutionException e) {
+            throw new IOException(e.getCause());
+        }
+        catch (InterruptedException | TimeoutException e) {
+            throw new IOException(e);
+        }
+    }
+
     // Send a ping request and push a pong future on the queue.
     // futures are completed in order, keep this one if a thread wants to wait
     // for a specific pong. Note, if no pong returns the wait will not return

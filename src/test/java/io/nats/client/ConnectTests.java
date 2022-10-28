@@ -420,5 +420,5 @@ public class ConnectTests {
 
             standardCloseConnection(nc);
         }
-    }     
+    }
 }

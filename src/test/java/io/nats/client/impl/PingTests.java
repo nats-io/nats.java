@@ -13,30 +13,17 @@
 
 package io.nats.client.impl;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.nats.client.*;
+import io.nats.client.ConnectionListener.Events;
+import io.nats.client.NatsServerProtocolMock.ExitAt;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Nats;
-import io.nats.client.NatsServerProtocolMock;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.TestHandler;
-import io.nats.client.ConnectionListener.Events;
-import io.nats.client.NatsServerProtocolMock.ExitAt;
+import static io.nats.client.utils.TestBase.runInJsServer;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class PingTests {
     @Test
@@ -277,5 +264,14 @@ public class PingTests {
                 nc.close();
             }
         }
+    }
+
+    @Test
+    public void testRtt() throws Exception {
+        runInJsServer(nc -> {
+            assertTrue(nc.RTT().toMillis() < 10);
+            nc.close();
+            assertThrows(IOException.class, nc::RTT);
+        });
     }
 }
