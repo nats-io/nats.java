@@ -20,6 +20,7 @@ import io.nats.client.support.Status;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 import static io.nats.client.support.Status.*;
@@ -456,10 +457,14 @@ public class MessageManagerTests extends JetStreamTestBase {
         }
     }
 
+    static AtomicInteger ID = new AtomicInteger();
     private static NatsJetStreamSubscription genericSub(Connection nc) throws IOException, JetStreamApiException {
-        createDefaultTestStream(nc);
+        String id = "-" + ID.incrementAndGet() + "-" + System.currentTimeMillis();
+        String stream = STREAM + id;
+        String subject = STREAM + id;
+        createMemoryStream(nc, stream, subject);
         JetStream js = nc.jetStream();
-        return (NatsJetStreamSubscription) js.subscribe(SUBJECT);
+        return (NatsJetStreamSubscription) js.subscribe(subject);
     }
 
     private static NatsJetStreamSubscription mockSub(NatsConnection connection, MessageManager manager) {
