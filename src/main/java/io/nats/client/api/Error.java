@@ -39,7 +39,7 @@ public class Error {
         this.json = json;
         code = JsonUtils.readInt(json, CODE_RE, NOT_SET);
         apiErrorCode = JsonUtils.readInt(json, ERR_CODE_RE, NOT_SET);
-        desc = JsonUtils.readString(json, DESCRIPTION_RE, "Unknown JetStream Error");
+        desc = JsonUtils.readStringMayHaveQuotes(json, DESCRIPTION, "Unknown JetStream Error");
     }
 
     Error(int code, int apiErrorCode, String desc) {

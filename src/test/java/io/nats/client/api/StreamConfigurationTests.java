@@ -47,6 +47,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                     .templateOwner(null)
                     .allowRollup(false)
                     .allowDirect(false)
+                    .mirrorDirect(false)
                     .sealed(false)
                     .build();
                 JetStreamManagement jsm = nc.jetStreamManagement();
@@ -92,6 +93,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .sealed(testSc.getSealed())
             .allowRollup(testSc.getAllowRollup())
             .allowDirect(testSc.getAllowDirect())
+            .mirrorDirect(testSc.getMirrorDirect())
             .denyDelete(testSc.getDenyDelete())
             .denyPurge(testSc.getDenyPurge())
             .discardNewPerSubject(testSc.isDiscardNewPerSubject());

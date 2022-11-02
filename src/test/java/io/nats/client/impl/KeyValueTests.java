@@ -1093,6 +1093,7 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(KeyValueOperation.PUT, kveUserA.getOperation());
     }
 
+    @SuppressWarnings({"SimplifiableAssertion", "ConstantConditions"})
     @Test
     public void testCoverBucketAndKey() {
         NatsKeyValueUtil.BucketAndKey bak1 = new NatsKeyValueUtil.BucketAndKey(DOT + BUCKET + DOT + KEY);
@@ -1216,5 +1217,98 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(-1,
             KeyValuePurgeOptions.builder().deleteMarkersNoThreshold().build()
                 .getDeleteMarkersThresholdMillis());
+    }
+
+    @Test
+    public void testCreateDiscardPolicy() throws Exception {
+        runInJsServer(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            // create bucket
+            KeyValueStatus status = kvm.create(KeyValueConfiguration.builder()
+                .name(bucket(1))
+                .storageType(StorageType.Memory)
+                .build());
+
+            DiscardPolicy dp = status.getConfiguration().getBackingConfig().getDiscardPolicy();
+            if (nc.getServerInfo().isSameOrNewerThanVersion("2.7.2")) {
+                assertEquals(DiscardPolicy.New, dp);
+            }
+            else {
+                assertTrue(dp == DiscardPolicy.New || dp == DiscardPolicy.Old);
+            }
+        });
+    }
+
+    @Test
+    public void testKeyValueMirrorCrossDomains() throws Exception {
+        runInJsHubLeaf((hub, leaf) -> {
+            KeyValueManagement hubKvm = hub.keyValueManagement();
+            KeyValueManagement leafKvm = leaf.keyValueManagement();
+
+            // Create main KV on HUB
+            KeyValueStatus hubStatus = hubKvm.create(KeyValueConfiguration.builder().name("TEST").build());
+
+            KeyValue hubKv = hub.keyValue("TEST");
+            hubKv.put("key1", "aaa0");
+            hubKv.put("key2", "bb0");
+            hubKv.put("key3", "c0");
+            hubKv.delete("key3");
+
+            leafKvm.create(KeyValueConfiguration.builder()
+                .name("MIRROR")
+                .mirror(Mirror.builder()
+                    .sourceName("TEST")
+                    .domain("HUB").build())
+                .build());
+
+            sleep(200); // make sure things get a chance to propagate
+            StreamInfo si = leaf.jetStreamManagement().getStreamInfo("KV_MIRROR");
+            assertTrue(si.getConfiguration().getMirrorDirect());
+            assertEquals(3, si.getStreamState().getMsgCount());
+
+            KeyValue leafKv = leaf.keyValue("MIRROR");
+            _testMirror(hubKv, leafKv, 1);
+
+            // Bind through leafnode connection but to origin KV.
+            KeyValue hubViaLeafKv =
+                leaf.keyValue("TEST", KeyValueOptions.builder().jsDomain("HUB").build());
+            _testMirror(hubKv, hubViaLeafKv, 2);
+
+            hub.close();
+            _testMirror(null, leafKv, 3);
+            _testMirror(null, hubViaLeafKv, 4);
+        });
+    }
+
+    private void _testMirror(KeyValue okv, KeyValue mkv, int num) throws Exception {
+        mkv.put("key1", "aaa" + num);
+        mkv.put("key3", "c" + num);
+
+        sleep(200); // make sure things get a chance to propagate
+        KeyValueEntry kve = mkv.get("key3");
+        assertEquals("c" + num, kve.getValueAsString());
+
+        mkv.delete("key3");
+        sleep(200); // make sure things get a chance to propagate
+        assertNull(mkv.get("key3"));
+
+        kve = mkv.get("key1");
+        assertEquals("aaa" + num, kve.getValueAsString());
+
+        // Also make sure we can create a watcher on the mirror KV.
+        TestKeyValueWatcher watcher = new TestKeyValueWatcher("mirrorWatcher" + num, false);
+        try (NatsKeyValueWatchSubscription watchSub = mkv.watchAll(watcher)) {
+            sleep(100);
+        }
+        validateWatcher(new Object[]{"bb0", "aaa" + num, KeyValueOperation.DELETE}, watcher);
+
+        if (okv != null) {
+            watcher = new TestKeyValueWatcher("originWatcher" + num, false);
+            try (NatsKeyValueWatchSubscription watchSub = okv.watchAll(watcher)) {
+                sleep(100);
+            }
+            validateWatcher(new Object[]{"bb0", "aaa" + num, KeyValueOperation.DELETE}, watcher);
+        }
     }
 }

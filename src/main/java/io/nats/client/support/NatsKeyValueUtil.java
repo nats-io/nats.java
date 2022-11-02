@@ -39,11 +39,22 @@ public abstract class NatsKeyValueUtil {
         return KV_STREAM_PREFIX + bucketName;
     }
 
+    public static boolean hasPrefix(String bucketName) {
+        return bucketName.startsWith(KV_STREAM_PREFIX);
+    }
+
+    public static String trimPrefix(String bucketName) {
+        if (bucketName.startsWith(KV_STREAM_PREFIX)) {
+            return bucketName.substring(KV_STREAM_PREFIX.length());
+        }
+        return bucketName;
+    }
+
     public static String toStreamSubject(String bucketName) {
         return KV_SUBJECT_PREFIX + bucketName + KV_SUBJECT_SUFFIX;
     }
 
-    public static String toKeyPrefix(String bucketName) {
+    public static String toReadPrefix(String bucketName) {
         return KV_SUBJECT_PREFIX + bucketName + DOT;
     }
 

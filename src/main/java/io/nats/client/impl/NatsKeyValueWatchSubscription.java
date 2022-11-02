@@ -54,6 +54,6 @@ public class NatsKeyValueWatchSubscription extends NatsWatchSubscription<KeyValu
                 }
             };
 
-        finishInit(kv, kv.rawKeySubject(keyPattern), deliverPolicy, headersOnly, handler);
+        finishInit(kv, kv.readSubject(keyPattern), deliverPolicy, headersOnly, handler);
     }
 }

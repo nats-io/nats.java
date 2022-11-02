@@ -13,7 +13,7 @@ public interface NatsJetStreamConstants {
     int MAX_HISTORY_PER_KEY = 64;
 
     String PREFIX_DOLLAR_JS_DOT = "$JS.";
-    String PREFIX_API_DOT = "API.";
+    String PREFIX_API = "API";
     String DEFAULT_API_PREFIX = "$JS.API.";
     String JS_ACK_SUBJECT_PREFIX = "$JS.ACK.";
 

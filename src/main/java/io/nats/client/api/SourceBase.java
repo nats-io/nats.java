@@ -18,11 +18,12 @@ import io.nats.client.support.JsonUtils;
 
 import java.time.ZonedDateTime;
 
+import static io.nats.client.JetStreamOptions.convertDomainToPrefix;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
 
 abstract class SourceBase implements JsonSerializable {
-    private final String sourceName;
+    private final String name;
     private final long startSeq;
     private final ZonedDateTime startTime;
     private final String filterSubject;
@@ -30,7 +31,7 @@ abstract class SourceBase implements JsonSerializable {
     private final String objectName;
 
     SourceBase(String objectName, String json) {
-        sourceName = JsonUtils.readString(json, NAME_RE);
+        name = JsonUtils.readString(json, NAME_RE);
         startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, 0);
         startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
         filterSubject = JsonUtils.readString(json, FILTER_SUBJECT_RE);
@@ -38,12 +39,13 @@ abstract class SourceBase implements JsonSerializable {
         this.objectName = normalize(objectName);
     }
 
-    SourceBase(String objectName, String sourceName, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
-        this.sourceName = sourceName;
-        this.startSeq = startSeq;
-        this.startTime = startTime;
-        this.filterSubject = filterSubject;
-        this.external = external;
+    @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
+    SourceBase(String objectName, SourceBaseBuilder b) {
+        this.name = b.name;
+        this.startSeq = b.startSeq;
+        this.startTime = b.startTime;
+        this.filterSubject = b.filterSubject;
+        this.external = b.external;
         this.objectName = normalize(objectName);
     }
 
@@ -54,7 +56,7 @@ abstract class SourceBase implements JsonSerializable {
      */
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonUtils.addField(sb, NAME, sourceName);
+        JsonUtils.addField(sb, NAME, name);
         if (startSeq > 0) {
             JsonUtils.addField(sb, OPT_START_SEQ, startSeq);
         }
@@ -64,8 +66,20 @@ abstract class SourceBase implements JsonSerializable {
         return endJson(sb).toString();
     }
 
+    /**
+     * Get the name of the source. Same as getName()
+     * @return get the source name
+     */
     public String getSourceName() {
-        return sourceName;
+        return name;
+    }
+
+    /**
+     * Get the name of the source. Same as getSourceName()
+     * @return the source name
+     */
+    public String getName() {
+        return name;
     }
 
     public long getStartSeq() {
@@ -87,7 +101,7 @@ abstract class SourceBase implements JsonSerializable {
     @Override
     public String toString() {
         return objectName + "{" +
-                "sourceName='" + sourceName + '\'' +
+                "name='" + name + '\'' +
                 ", startSeq=" + startSeq +
                 ", startTime=" + startTime +
                 ", filterSubject='" + filterSubject + '\'' +
@@ -96,7 +110,7 @@ abstract class SourceBase implements JsonSerializable {
     }
 
     public abstract static class SourceBaseBuilder<T> {
-        String sourceName;
+        String name;
         long startSeq;
         ZonedDateTime startTime;
         String filterSubject;
@@ -104,8 +118,23 @@ abstract class SourceBase implements JsonSerializable {
 
         abstract T getThis();
 
-        public T sourceName(String sourceName) {
-            this.sourceName = sourceName;
+        public SourceBaseBuilder() {}
+
+        public SourceBaseBuilder(SourceBase base) {
+            this.name = base.name;
+            this.startSeq = base.startSeq;
+            this.startTime = base.startTime;
+            this.filterSubject = base.filterSubject;
+            this.external = base.external;
+        }
+
+        public T sourceName(String name) {
+            this.name = name;
+            return getThis();
+        }
+
+        public T name(String name) {
+            this.name = name;
             return getThis();
         }
 
@@ -128,6 +157,11 @@ abstract class SourceBase implements JsonSerializable {
             this.external = external;
             return getThis();
         }
+
+        public T domain(String domain) {
+            external = External.builder().api(convertDomainToPrefix(domain)).build();
+            return getThis();
+        }
     }
 
     @Override
@@ -138,7 +172,7 @@ abstract class SourceBase implements JsonSerializable {
         SourceBase that = (SourceBase) o;
 
         if (startSeq != that.startSeq) return false;
-        if (sourceName != null ? !sourceName.equals(that.sourceName) : that.sourceName != null) return false;
+        if (name != null ? !name.equals(that.name) : that.name != null) return false;
         if (startTime != null ? !startTime.equals(that.startTime) : that.startTime != null) return false;
         if (filterSubject != null ? !filterSubject.equals(that.filterSubject) : that.filterSubject != null)
             return false;
@@ -148,7 +182,7 @@ abstract class SourceBase implements JsonSerializable {
 
     @Override
     public int hashCode() {
-        int result = sourceName != null ? sourceName.hashCode() : 0;
+        int result = name != null ? name.hashCode() : 0;
         result = 31 * result + (int) (startSeq ^ (startSeq >>> 32));
         result = 31 * result + (startTime != null ? startTime.hashCode() : 0);
         result = 31 * result + (filterSubject != null ? filterSubject.hashCode() : 0);

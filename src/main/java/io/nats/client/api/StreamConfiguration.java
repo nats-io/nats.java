@@ -57,6 +57,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final boolean sealed;
     private final boolean allowRollup;
     private final boolean allowDirect;
+    private final boolean mirrorDirect;
     private final boolean denyDelete;
     private final boolean denyPurge;
     private final boolean discardNewPerSubject;
@@ -100,6 +101,7 @@ public class StreamConfiguration implements JsonSerializable {
         builder.sealed(readBoolean(json, SEALED_RE));
         builder.allowRollup(readBoolean(json, ALLOW_ROLLUP_HDRS_RE));
         builder.allowDirect(readBoolean(json, ALLOW_DIRECT_RE));
+        builder.mirrorDirect(readBoolean(json, MIRROR_DIRECT_RE));
         builder.denyDelete(readBoolean(json, DENY_DELETE_RE));
         builder.denyPurge(readBoolean(json, DENY_PURGE_RE));
         builder.discardNewPerSubject(readBoolean(json, DISCARD_NEW_PER_SUBJECT_RE));
@@ -132,6 +134,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.sealed = b.sealed;
         this.allowRollup = b.allowRollup;
         this.allowDirect = b.allowDirect;
+        this.mirrorDirect = b.mirrorDirect;
         this.denyDelete = b.denyDelete;
         this.denyPurge = b.denyPurge;
         this.discardNewPerSubject = b.discardNewPerSubject;
@@ -176,6 +179,7 @@ public class StreamConfiguration implements JsonSerializable {
         addFldWhenTrue(sb, SEALED, sealed);
         addFldWhenTrue(sb, ALLOW_ROLLUP_HDRS, allowRollup);
         addFldWhenTrue(sb, ALLOW_DIRECT, allowDirect);
+        addFldWhenTrue(sb, MIRROR_DIRECT, mirrorDirect);
         addFldWhenTrue(sb, DENY_DELETE, denyDelete);
         addFldWhenTrue(sb, DENY_PURGE, denyPurge);
         addFldWhenTrue(sb, DISCARD_NEW_PER_SUBJECT, discardNewPerSubject);
@@ -370,6 +374,15 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
+     * Get the flag indicating if the stream allows
+     * higher performance and unified direct access for mirrors as well.
+     * @return the allows direct flag
+     */
+    public boolean getMirrorDirect() {
+        return mirrorDirect;
+    }
+
+    /**
      * Get the flag indicating if deny delete is set for the stream
      * @return the deny delete flag
      */
@@ -414,6 +427,7 @@ public class StreamConfiguration implements JsonSerializable {
             ", duplicateWindow=" + duplicateWindow +
             ", allowRollup=" + allowRollup +
             ", allowDirect=" + allowDirect +
+            ", mirrorDirect=" + mirrorDirect +
             ", denyDelete=" + denyDelete +
             ", denyPurge=" + denyPurge +
             ", discardNewPerSubject=" + discardNewPerSubject +
@@ -472,6 +486,7 @@ public class StreamConfiguration implements JsonSerializable {
         private boolean sealed = false;
         private boolean allowRollup = false;
         private boolean allowDirect = false;
+        private boolean mirrorDirect = false;
         private boolean denyDelete = false;
         private boolean denyPurge = false;
         private boolean discardNewPerSubject = false;
@@ -510,6 +525,7 @@ public class StreamConfiguration implements JsonSerializable {
                 this.sealed = sc.sealed;
                 this.allowRollup = sc.allowRollup;
                 this.allowDirect = sc.allowDirect;
+                this.mirrorDirect = sc.mirrorDirect;
                 this.denyDelete = sc.denyDelete;
                 this.denyPurge = sc.denyPurge;
                 this.discardNewPerSubject = sc.discardNewPerSubject;
@@ -557,8 +573,8 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Sets the subjects in the StreamConfiguration.
-         * @param subjects the stream's subjects
+         * Adds unique subjects into the StreamConfiguration.
+         * @param subjects the stream's subjects to add
          * @return Builder
          */
         public Builder addSubjects(String... subjects) {
@@ -569,8 +585,8 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Sets the subjects in the StreamConfiguration.
-         * @param subjects the stream's subjects
+         * Adds unique subjects into the StreamConfiguration.
+         * @param subjects the stream's subjects to add
          * @return Builder
          */
         public Builder addSubjects(Collection<String> subjects) {
@@ -778,7 +794,7 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Sets the sources in the StreamConfiguration.
+         * Add the sources into the StreamConfiguration.
          * @param sources the stream's sources
          * @return Builder
          */
@@ -788,12 +804,24 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Sets the sources in the StreamConfiguration.
+         * Add the sources into the StreamConfiguration.
          * @param sources the stream's sources
          * @return Builder
          */
         public Builder addSources(Source... sources) {
             return addSources(Arrays.asList(sources));
+        }
+
+        /**
+         * Add a source into the StreamConfiguration.
+         * @param source a stream source
+         * @return Builder
+         */
+        public Builder addSource(Source source) {
+            if (!this.sources.contains(source)) {
+                this.sources.add(source);
+            }
+            return this;
         }
 
         /**
@@ -840,6 +868,16 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder allowDirect(boolean allowDirect) {
             this.allowDirect = allowDirect;
+            return this;
+        }
+
+        /**
+         * Set whether to allow unified direct access for mirrors
+         * @param mirrorDirect the allow direct setting
+         * @return Builder
+         */
+        public Builder mirrorDirect(boolean mirrorDirect) {
+            this.mirrorDirect = mirrorDirect;
             return this;
         }
 

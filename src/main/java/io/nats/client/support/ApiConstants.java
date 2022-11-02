@@ -25,6 +25,7 @@ public interface ApiConstants {
     String ACTIVE            = "active";
     String ALLOW_ROLLUP_HDRS = "allow_rollup_hdrs";
     String ALLOW_DIRECT      = "allow_direct";
+    String MIRROR_DIRECT     = "mirror_direct";
     String API               = "api";
     String AUTH_REQUIRED     = "auth_required";
     String BACKOFF           = "backoff";
@@ -251,6 +252,7 @@ public interface ApiConstants {
     Pattern MEMORY_RE             = integer_pattern(MEMORY);
     Pattern MEMORY_MAX_STREAM_BYTES_RE= integer_pattern(MEMORY_MAX_STREAM_BYTES);
     Pattern MESSAGES_RE           = integer_pattern(MESSAGES);
+    Pattern MIRROR_DIRECT_RE      = boolean_pattern(MIRROR_DIRECT);
     Pattern MTIME_RE              = string_pattern(MTIME);
     Pattern NAME_RE               = string_pattern(NAME);
     Pattern NO_ACK_RE             = boolean_pattern(NO_ACK);

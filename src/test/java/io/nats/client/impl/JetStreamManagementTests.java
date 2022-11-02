@@ -194,6 +194,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             jsm.addStream(getTestStreamConfigurationBuilder().allowDirect(false).build());
             jsm.updateStream(getTestStreamConfigurationBuilder().allowDirect(true).build());
             jsm.updateStream(getTestStreamConfigurationBuilder().allowDirect(false).build());
+
+            // allowed to change Mirror Direct
+            jsm.deleteStream(STREAM);
+            jsm.addStream(getTestStreamConfigurationBuilder().mirrorDirect(false).build());
+            jsm.updateStream(getTestStreamConfigurationBuilder().mirrorDirect(true).build());
+            jsm.updateStream(getTestStreamConfigurationBuilder().mirrorDirect(false).build());
         });
     }
 
