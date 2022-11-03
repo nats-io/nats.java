@@ -308,7 +308,7 @@ from both streams and directly from other NATS producers.
 After establishing a connection as described above, create a JetStream Context.
    
    ```java
-   JetStream js = nc.JetStream();
+   JetStream js = nc.jetStream();
    ```
 
 You can pass options to configure the JetStream client, although the defaults should
