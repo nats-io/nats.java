@@ -2,6 +2,9 @@ package io.nats.client.support;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.BufferOverflowException;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.util.Collections;
@@ -81,13 +84,31 @@ public class ByteArrayBuilderTests {
     }
 
     @Test
-    public void copyTo() {
+    public void copyTo() throws IOException {
         ByteArrayBuilder bab = new ByteArrayBuilder();
         bab.append("0123456789");
         byte[] target = "AAAAAAAAAAAAAAAAAAAA".getBytes(US_ASCII);
         assertEquals(10, bab.copyTo(target, 0));
         assertEquals(10, bab.copyTo(target, 10));
         assertEquals("01234567890123456789", new String(target));
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        bab.copyTo(out);
+        assertEquals(10, out.toString().length());
+    }
+
+    @Test
+    public void copyToPrimitiveBuilder() throws IOException {
+        ByteArrayPrimitiveBuilder bab = new ByteArrayPrimitiveBuilder();
+        bab.append("0123456789");
+        byte[] target = "AAAAAAAAAAAAAAAAAAAA".getBytes(US_ASCII);
+        assertEquals(10, bab.copyTo(target, 0));
+        assertEquals(10, bab.copyTo(target, 10));
+        assertEquals("01234567890123456789", new String(target));
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        bab.copyTo(out);
+        assertEquals(10, out.toString().length());
     }
 
     @Test
@@ -231,13 +252,27 @@ public class ByteArrayBuilderTests {
             ;
         assertEquals(" \r\nnullfoonullbar4273zbazbazz", bab.toString());
         assertEquals(29, bab.length());
+        assertEquals(DEFAULT_ASCII_ALLOCATION, bab.capacity());
         bab.append(bab);
         assertEquals(" \r\nnullfoonullbar4273zbazbazz \r\nnullfoonullbar4273zbazbazz", bab.toString());
         assertEquals(58, bab.length());
+        assertEquals(DEFAULT_ASCII_ALLOCATION * 2, bab.capacity());
 
         bab.setAllocationSize(100);
         bab.clear();
         assertEquals(0, bab.length());
+        assertEquals(DEFAULT_ASCII_ALLOCATION * 2, bab.capacity());
+
+        bab.appendUnchecked((byte)'0');
+        bab.appendUnchecked("123456789".getBytes());
+        assertEquals(10, bab.length());
+        bab.appendUnchecked("1234567890".getBytes());
+        bab.appendUnchecked("1234567890".getBytes());
+        bab.appendUnchecked("1234567890".getBytes());
+        bab.appendUnchecked("1234567890".getBytes());
+        bab.appendUnchecked("1234567890".getBytes(), 0, 10);
+        assertEquals(60, bab.length());
+        assertThrows(BufferOverflowException.class, () -> bab.appendUnchecked("12345".getBytes()));
     }
 
     @Test
@@ -263,13 +298,28 @@ public class ByteArrayBuilderTests {
             ;
         assertEquals(" \r\nnullfoonullbar4273zbazbazz", bab.toString());
         assertEquals(29, bab.length());
+        assertEquals(DEFAULT_ASCII_ALLOCATION, bab.capacity());
+
         bab.append(bab);
         assertEquals(" \r\nnullfoonullbar4273zbazbazz \r\nnullfoonullbar4273zbazbazz", bab.toString());
         assertEquals(58, bab.length());
+        assertEquals(DEFAULT_ASCII_ALLOCATION * 2, bab.capacity());
 
         bab.setAllocationSize(DEFAULT_ASCII_ALLOCATION + 1);
         bab.clear();
         assertEquals(0, bab.length());
         assertEquals(DEFAULT_ASCII_ALLOCATION * 2, bab.getAllocationSize());
+        assertEquals(DEFAULT_ASCII_ALLOCATION * 2, bab.capacity());
+
+        bab.appendUnchecked((byte)'0');
+        bab.appendUnchecked("123456789".getBytes());
+        assertEquals(10, bab.length());
+        bab.appendUnchecked("1234567890".getBytes());
+        bab.appendUnchecked("1234567890".getBytes());
+        bab.appendUnchecked("1234567890".getBytes());
+        bab.appendUnchecked("1234567890".getBytes());
+        bab.appendUnchecked("1234567890".getBytes());
+        assertEquals(60, bab.length());
+        assertThrows(ArrayIndexOutOfBoundsException.class, () -> bab.appendUnchecked("12345".getBytes()));
     }
 }

@@ -286,9 +286,9 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          */
         public Builder addSources(Collection<Source> sources) {
             if (sources != null) {
-                for (Source sub : sources) {
-                    if (sub != null && !this.sources.contains(sub)) {
-                        this.sources.add(sub);
+                for (Source source : sources) {
+                    if (source != null && !this.sources.contains(source)) {
+                        this.sources.add(source);
                     }
                 }
             }

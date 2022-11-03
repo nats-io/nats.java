@@ -24,7 +24,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class JetStreamMirrorTests extends JetStreamTestBase {
+public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
     static final String S1 = stream(1);
     static final String S2 = stream(2);
     static final String S3 = stream(3);

@@ -23,6 +23,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
@@ -1116,6 +1117,15 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testCoverPrefix() {
+        assertTrue(NatsKeyValueUtil.hasPrefix("KV_has"));
+        assertFalse(NatsKeyValueUtil.hasPrefix("doesn't"));
+        assertEquals("has", NatsKeyValueUtil.trimPrefix("KV_has"));
+        assertEquals("doesn't", NatsKeyValueUtil.trimPrefix("doesn't"));
+
+    }
+
+    @Test
     public void testKeyValueEntryEqualsImpl() throws Exception {
         runInJsServer(nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
@@ -1241,13 +1251,82 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testMiscCoverage() throws Exception {
+        runInJsServer(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            // create bucket
+            kvm.create(KeyValueConfiguration.builder()
+                .name(BUCKET)
+                .storageType(StorageType.Memory)
+                .build());
+
+            KeyValue kv = nc.keyValue(BUCKET);
+            kv.put("a", "a");
+            KeyValueEntry kve = kv.get("a");
+            assertThrows(NumberFormatException.class, kve::getValueAsLong);
+
+            kv.delete("a");
+            List<KeyValueEntry> list = kv.history("a");
+            assertNull(list.get(0).getValueAsString());
+            assertNull(list.get(0).getValueAsLong());
+        });
+
+        KeyValueConfiguration kvc = KeyValueConfiguration.builder()
+            .name(BUCKET)
+            .mirror(Mirror.builder().name("name").build())
+            .build();
+        assertEquals("KV_name", kvc.getBackingConfig().getMirror().getName());
+
+        kvc = KeyValueConfiguration.builder()
+            .name(BUCKET)
+            .mirror(Mirror.builder().name("KV_name").build())
+            .build();
+        assertEquals("KV_name", kvc.getBackingConfig().getMirror().getName());
+
+        Source s1 = Source.builder().name("s1").build();
+        Source s2 = Source.builder().name("s2").build();
+        Source s3 = Source.builder().name("s3").build();
+        Source s4 = Source.builder().name("s4").build();
+        Source s5 = Source.builder().name("KV_s5").build();
+        Source s6 = Source.builder().name("KV_s6").build();
+
+        kvc = KeyValueConfiguration.builder()
+            .name(BUCKET)
+            .sources(s3, s4)
+            .sources(Arrays.asList(s1, s2))
+            .addSources(s1, s2)
+            .addSources(Arrays.asList(s1, s2, null))
+            .addSources(s3, s4)
+            .addSources(s5, s6)
+            .addSources((Source[])null)
+            .addSources((Collection<Source>)null)
+            .build();
+
+        assertEquals(6, kvc.getBackingConfig().getSources().size());
+        List<String> names = new ArrayList<>();
+        for (Source source : kvc.getBackingConfig().getSources()) {
+            names.add(source.getName());
+        }
+        assertTrue(names.contains("KV_s1"));
+        assertTrue(names.contains("KV_s2"));
+        assertTrue(names.contains("KV_s3"));
+        assertTrue(names.contains("KV_s4"));
+        assertTrue(names.contains("KV_s5"));
+        assertTrue(names.contains("KV_s6"));
+    }
+
+    @Test
     public void testKeyValueMirrorCrossDomains() throws Exception {
         runInJsHubLeaf((hub, leaf) -> {
             KeyValueManagement hubKvm = hub.keyValueManagement();
             KeyValueManagement leafKvm = leaf.keyValueManagement();
 
             // Create main KV on HUB
-            KeyValueStatus hubStatus = hubKvm.create(KeyValueConfiguration.builder().name("TEST").build());
+            KeyValueStatus hubStatus = hubKvm.create(KeyValueConfiguration.builder()
+                .name("TEST")
+                .storageType(StorageType.Memory)
+                .build());
 
             KeyValue hubKv = hub.keyValue("TEST");
             hubKv.put("key1", "aaa0");
@@ -1296,19 +1375,20 @@ public class KeyValueTests extends JetStreamTestBase {
         kve = mkv.get("key1");
         assertEquals("aaa" + num, kve.getValueAsString());
 
-        // Also make sure we can create a watcher on the mirror KV.
-        TestKeyValueWatcher watcher = new TestKeyValueWatcher("mirrorWatcher" + num, false);
-        try (NatsKeyValueWatchSubscription watchSub = mkv.watchAll(watcher)) {
-            sleep(100);
+        // Make sure we can create a watcher on the mirror KV.
+        TestKeyValueWatcher mWatcher = new TestKeyValueWatcher("mirrorWatcher" + num, false);
+        try (NatsKeyValueWatchSubscription mWatchSub = mkv.watchAll(mWatcher)) {
+            sleep(200); // give the messages time to propagate
         }
-        validateWatcher(new Object[]{"bb0", "aaa" + num, KeyValueOperation.DELETE}, watcher);
+        validateWatcher(new Object[]{"bb0", "aaa" + num, KeyValueOperation.DELETE}, mWatcher);
 
+        // Does the origin data match?
         if (okv != null) {
-            watcher = new TestKeyValueWatcher("originWatcher" + num, false);
-            try (NatsKeyValueWatchSubscription watchSub = okv.watchAll(watcher)) {
-                sleep(100);
+            TestKeyValueWatcher oWatcher = new TestKeyValueWatcher("originWatcher" + num, false);
+            try (NatsKeyValueWatchSubscription oWatchSub = okv.watchAll(oWatcher)) {
+                sleep(200); // give the messages time to propagate
             }
-            validateWatcher(new Object[]{"bb0", "aaa" + num, KeyValueOperation.DELETE}, watcher);
+            validateWatcher(new Object[]{"bb0", "aaa" + num, KeyValueOperation.DELETE}, oWatcher);
         }
     }
 }

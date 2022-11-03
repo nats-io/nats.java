@@ -408,8 +408,9 @@ public class RequestTests extends TestBase {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 
                 Future<Message> incoming = nc.request("subject", null);
-                incoming.cancel(true);
-
+                // incoming.cancel(true); // sff I don't think this call helps the test or matters.
+                // This flaps sometimes. I think it's better to check it as soon as possible
+                //   hence removing the cancel call
                 assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
             } finally {
                 nc.close();

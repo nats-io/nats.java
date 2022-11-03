@@ -628,19 +628,23 @@ public abstract class JsonUtils {
         return m.find() ? jsonDecode(m.group(1)) : dflt;
     }
 
-    // {"code":500,"err_code":10052,"description":"stream external api prefix \"$JS.HUB.API.\" must be a valid subject without wildcards"}
     public static String readStringMayHaveQuotes(String json, String field, String dflt) {
         String jfield = "\"" + field + "\"";
         int at = json.indexOf(jfield);
         if (at != -1) {
             at = json.indexOf('"', at + jfield.length());
             StringBuilder sb = new StringBuilder();
-            int jlen = json.length();
-            for (int x = at + 1; x < jlen; x++) {
-                char c = json.charAt(x);
-                if (c == '\\' && json.charAt(x + 1) == '"') {
-                    sb.append('"');
-                    x++;
+            while (true) {
+                char c = json.charAt(++at);
+                if (c == '\\') {
+                    char c2 = json.charAt(++at);
+                    if (c2 == '"') {
+                        sb.append('"');
+                    }
+                    else {
+                        sb.append(c);
+                        sb.append(c2);
+                    }
                 }
                 else if (c == '"') {
                     break;

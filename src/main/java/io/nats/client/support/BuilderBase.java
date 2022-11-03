@@ -26,11 +26,6 @@ public abstract class BuilderBase {
     public static final int DEFAULT_OTHER_ALLOCATION = 64;
     public static final byte[] NULL = "null".getBytes(US_ASCII);
 
-    protected BuilderBase(Charset defaultCharset) {
-        this.defaultCharset = defaultCharset;
-        this.allocationSize = _defaultCharsetAllocationSize();
-    }
-
     protected BuilderBase(Charset defaultCharset, int allocationSize) {
         this.defaultCharset = defaultCharset;
         _setAllocationSize(allocationSize);

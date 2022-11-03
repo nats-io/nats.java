@@ -106,6 +106,15 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         sources.add(copy);
         validate(builder.addSources(sources).build(), false);
 
+        // covering add a single source
+        sources = new ArrayList<>(testSc.getSources());
+        builder.sources(new ArrayList<>()); // clears the sources
+        for (Source source : sources) {
+            builder.addSource(source);
+        }
+        builder.addSource(sources.get(0));
+        validate(builder.build(), false);
+
         // equals and hashcode coverage
         External external = copy.getExternal();
 
@@ -119,6 +128,10 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             if (l1.startsWith("{")) {
                 Mirror m1 = new Mirror(l1);
                 assertEquals(m1, m1);
+                assertEquals(m1, Mirror.builder(m1).build());
+                Source s1 = new Source(l1);
+                assertEquals(s1, s1);
+                assertEquals(s1, Source.builder(s1).build());
                 //this provides testing coverage
                 //noinspection ConstantConditions,SimplifiableAssertion
                 assertTrue(!m1.equals(null));
@@ -126,11 +139,14 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 for (String l2 : lines) {
                     if (l2.startsWith("{")) {
                         Mirror m2 = new Mirror(l2);
+                        Source s2 = new Source(l2);
                         if (l1.equals(l2)) {
                             assertEquals(m1, m2);
+                            assertEquals(s1, s2);
                         }
                         else {
                             assertNotEquals(m1, m2);
+                            assertNotEquals(s1, s2);
                         }
                     }
                 }

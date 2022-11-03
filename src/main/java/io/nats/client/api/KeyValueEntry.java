@@ -74,8 +74,7 @@ public class KeyValueEntry {
     }
 
     public Long getValueAsLong() {
-        String svalue = value == null ? null : new String(value, StandardCharsets.US_ASCII);
-        return svalue == null ? null : Long.parseLong(svalue);
+        return value == null ? null : Long.parseLong(new String(value, StandardCharsets.US_ASCII));
     }
 
     public long getDataLen() {
