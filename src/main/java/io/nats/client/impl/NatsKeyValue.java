@@ -53,7 +53,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
         }
 
         streamSubject = toStreamSubject(bucketName);
-        String readTemp = toReadPrefix(bucketName);
+        String readTemp = toKeyPrefix(bucketName);
 
         String writeTemp;
         Mirror m = si.getConfiguration().getMirror();
@@ -61,11 +61,11 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
             String bName = trimPrefix(m.getName());
             String mExtApi = m.getExternal() == null ? null : m.getExternal().getApi();
             if (mExtApi != null) {
-                readTemp = toReadPrefix(bName);
-                writeTemp = mExtApi + DOT + toReadPrefix(bName);
+                readTemp = toKeyPrefix(bName);
+                writeTemp = mExtApi + DOT + toKeyPrefix(bName);
             }
             else {
-                writeTemp = toReadPrefix(bName);
+                writeTemp = toKeyPrefix(bName);
             }
         }
         else if (kvo == null || kvo.getJetStreamOptions().isDefaultPrefix()) {

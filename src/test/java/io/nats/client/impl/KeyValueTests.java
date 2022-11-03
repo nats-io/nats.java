@@ -1338,7 +1338,9 @@ public class KeyValueTests extends JetStreamTestBase {
                 .name("MIRROR")
                 .mirror(Mirror.builder()
                     .sourceName("TEST")
-                    .domain("HUB").build())
+                    .domain(null)  // just for coverage!
+                    .domain("HUB") // it will take this since it comes last
+                    .build())
                 .build());
 
             sleep(200); // make sure things get a chance to propagate

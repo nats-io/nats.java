@@ -159,7 +159,8 @@ abstract class SourceBase implements JsonSerializable {
         }
 
         public T domain(String domain) {
-            external = External.builder().api(convertDomainToPrefix(domain)).build();
+            String prefix = convertDomainToPrefix(domain);
+            external = prefix == null ? null : External.builder().api(prefix).build();
             return getThis();
         }
     }

@@ -109,6 +109,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         // covering add a single source
         sources = new ArrayList<>(testSc.getSources());
         builder.sources(new ArrayList<>()); // clears the sources
+        builder.addSource(null); // coverage
         for (Source source : sources) {
             builder.addSource(source);
         }

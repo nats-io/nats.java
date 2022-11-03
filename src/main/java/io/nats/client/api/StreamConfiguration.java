@@ -813,18 +813,6 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Add a source into the StreamConfiguration.
-         * @param source a stream source
-         * @return Builder
-         */
-        public Builder addSource(Source source) {
-            if (!this.sources.contains(source)) {
-                this.sources.add(source);
-            }
-            return this;
-        }
-
-        /**
          * Sets the sources in the StreamConfiguration.
          * @param sources the stream's sources
          * @return Builder
@@ -836,6 +824,18 @@ public class StreamConfiguration implements JsonSerializable {
                         this.sources.add(source);
                     }
                 }
+            }
+            return this;
+        }
+
+        /**
+         * Add a source into the StreamConfiguration.
+         * @param source a stream source
+         * @return Builder
+         */
+        public Builder addSource(Source source) {
+            if (source != null && !this.sources.contains(source)) {
+                this.sources.add(source);
             }
             return this;
         }
