@@ -1271,7 +1271,10 @@ public class KeyValueTests extends JetStreamTestBase {
             assertNull(list.get(0).getValueAsString());
             assertNull(list.get(0).getValueAsLong());
         });
+    }
 
+    @Test
+    public void testMirrorSoureceBuilderPrefixConversion() throws Exception {
         KeyValueConfiguration kvc = KeyValueConfiguration.builder()
             .name(BUCKET)
             .mirror(Mirror.builder().name("name").build())
@@ -1358,10 +1361,6 @@ public class KeyValueTests extends JetStreamTestBase {
             KeyValue hubViaLeafKv =
                 leaf.keyValue("TEST", KeyValueOptions.builder().jsDomain("HUB").build());
             _testMirror(hubKv, hubViaLeafKv, 2);
-
-            hub.close();
-            _testMirror(null, leafKv, 3);
-            _testMirror(null, hubViaLeafKv, 4);
         });
     }
 

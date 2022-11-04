@@ -382,6 +382,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             assertTrue(sc.isDiscardNewPerSubject());
             assertTrue(sc.getAllowRollup());
             assertTrue(sc.getAllowDirect());
+            assertTrue(sc.getMirrorDirect());
 
             assertEquals(5, sc.getReplicas());
             assertEquals("twnr", sc.getTemplateOwner());
