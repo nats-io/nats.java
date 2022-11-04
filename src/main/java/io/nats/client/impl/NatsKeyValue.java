@@ -60,12 +60,12 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
         if (m != null) {
             String bName = trimPrefix(m.getName());
             String mExtApi = m.getExternal() == null ? null : m.getExternal().getApi();
-            if (mExtApi != null) {
-                readTemp = toKeyPrefix(bName);
-                writeTemp = mExtApi + DOT + toKeyPrefix(bName);
+            if (mExtApi == null) {
+                writeTemp = toKeyPrefix(bName);
             }
             else {
-                writeTemp = toKeyPrefix(bName);
+                readTemp = toKeyPrefix(bName);
+                writeTemp = mExtApi + DOT + toKeyPrefix(bName);
             }
         }
         else if (kvo == null || kvo.getJetStreamOptions().isDefaultPrefix()) {

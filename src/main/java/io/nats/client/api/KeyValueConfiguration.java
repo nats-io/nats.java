@@ -268,6 +268,18 @@ public class KeyValueConfiguration extends FeatureConfiguration {
         }
 
         /**
+         * Add a source into the KeyValueConfiguration.
+         * @param source a KeyValue source
+         * @return Builder
+         */
+        public Builder addSource(Source source) {
+            if (source != null && !this.sources.contains(source)) {
+                this.sources.add(source);
+            }
+            return this;
+        }
+
+        /**
          * Adds the sources into the KeyValueConfiguration
          * @param sources the KeyValue's sources to add
          * @return Builder

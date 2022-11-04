@@ -1298,7 +1298,10 @@ public class KeyValueTests extends JetStreamTestBase {
             .addSources(s1, s2)
             .addSources(Arrays.asList(s1, s2, null))
             .addSources(s3, s4)
-            .addSources(s5, s6)
+            .addSource(null)
+            .addSource(s5)
+            .addSource(s5)
+            .addSources(s6)
             .addSources((Source[])null)
             .addSources((Collection<Source>)null)
             .build();
