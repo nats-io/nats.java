@@ -16,6 +16,7 @@ package io.nats.client;
 import io.nats.client.api.ServerInfo;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -419,7 +420,12 @@ public interface Connection extends AutoCloseable {
      * @return the url used for the current connection, or null if disconnected
      */
     String getConnectedUrl();
-    
+
+    /**
+     * @return the InetAddress of client as known by the NATS server, otherwise null.
+     */
+    InetAddress getClientInetAddress();
+
     /**
      * @return the error text from the last error sent by the server to this client
      */

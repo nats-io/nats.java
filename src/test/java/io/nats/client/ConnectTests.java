@@ -18,6 +18,7 @@ import io.nats.client.NatsServerProtocolMock.ExitAt;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
@@ -41,6 +42,10 @@ public class ConnectTests {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Connection nc = standardConnection(ts.getURI());
             assertEquals(ts.getPort(), nc.getServerInfo().getPort());
+            // coverage for getClientAddress
+            InetAddress inetAddress = nc.getClientInetAddress();
+            assertTrue(inetAddress.equals(InetAddress.getLoopbackAddress())
+                || inetAddress.equals(InetAddress.getLocalHost()));
             standardCloseConnection(nc);
         }
     }
