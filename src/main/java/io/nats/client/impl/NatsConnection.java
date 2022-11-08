@@ -22,6 +22,7 @@ import io.nats.client.support.NatsRequestCompletableFuture;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
@@ -1532,6 +1533,16 @@ class NatsConnection implements Connection {
     @Override
     public ServerInfo getServerInfo() {
         return getInfo();
+    }
+
+    @Override
+    public InetAddress getClientInetAddress() {
+        try {
+            return InetAddress.getByName(getInfo().getClientIp());
+        }
+        catch (Exception e) {
+            return null;
+        }
     }
 
     ServerInfo getInfo() {
