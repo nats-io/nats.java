@@ -1,5 +1,24 @@
 # Change Log
 
+## 2.16.4
+
+#### Key Value (KV)
+
+* kv mirror support #789 @scottf
+
+#### JetStream
+
+* stream state lost #792 @scottf
+
+#### Core
+
+* Implement RTT #784 @scottf
+* get client inet address #791 @scottf
+
+#### Misc
+
+* Minor fix for README.md Jetstream example #790 @JonasPed
+
 ## 2.16.3
 
 #### JetStream
