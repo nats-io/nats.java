@@ -148,6 +148,10 @@ public class StreamState {
         return deletedStreamSequences;
     }
 
+    /**
+     * Get the lost stream data information if available.
+     * @return the LostStreamData
+     */
     public LostStreamData getLostStreamData() {
         return lostStreamData;
     }
