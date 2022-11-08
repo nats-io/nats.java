@@ -95,12 +95,20 @@ public class StreamInfoTests {
 
         assertEquals(6, ss.getDeletedCount());
         assertEquals(6, ss.getDeleted().size());
-        for (long x = 91; x < 97; x++) {
+        for (long x = 91; x <= 96; x++) {
             assertTrue(ss.getDeleted().contains(x));
         }
 
+        LostStreamData lost = ss.getLostStreamData();
+        assertNotNull(lost);
+        assertEquals(3, lost.getMessages().size());
+        for (long x = 101; x <= 103; x++) {
+            assertTrue(lost.getMessages().contains(x));
+        }
+        assertEquals(104, lost.getBytes());
+
         assertEquals(DateTimeUtils.parseDateTime("0001-01-01T00:00:00Z"), ss.getFirstTime());
-        assertEquals(DateTimeUtils.parseDateTime("0001-01-01T00:00:00Z"), ss.getLastTime());
+        assertEquals(DateTimeUtils.parseDateTime("0002-01-01T00:00:00Z"), ss.getLastTime());
 
         Placement pl = si.getConfiguration().getPlacement();
         assertNotNull(pl);

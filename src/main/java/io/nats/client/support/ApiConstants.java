@@ -92,6 +92,7 @@ public interface ApiConstants {
     String LIMIT             = "limit";
     String LIMITS            = "limits";
     String LINK              = "link";
+    String LOST              = "lost";
     String MAX_ACK_PENDING   = "max_ack_pending";
     String MAX_AGE           = "max_age";
     String MAX_BATCH         = "max_batch";
@@ -115,6 +116,7 @@ public interface ApiConstants {
     String MESSAGES          = "messages";
     String MTIME             = "mtime";
     String MIRROR            = "mirror";
+    String MSGS              = "msgs";
     String NAME              = "name";
     String NEXT_BY_SUBJECT   = "next_by_subj";
     String NO_ACK            = "no_ack";
