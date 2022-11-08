@@ -63,6 +63,10 @@ public class TestBase {
         void test(Connection nc) throws Exception;
     }
 
+    public interface TwoServerTest {
+        void test(Connection nc1, Connection nc2) throws Exception;
+    }
+
     public static void runInServer(InServerTest inServerTest) throws Exception {
         runInServer(false, false, inServerTest);
     }
@@ -124,6 +128,46 @@ public class TestBase {
     public static void runInExternalServer(String url, InServerTest inServerTest) throws Exception {
         try (Connection nc = Nats.connect(url)) {
             inServerTest.test(nc);
+        }
+    }
+
+    public static void runInJsHubLeaf(TwoServerTest twoServerTest) throws Exception {
+        int hubPort = NatsTestServer.nextPort();
+        int hubLeafPort = NatsTestServer.nextPort();
+        int leafPort = NatsTestServer.nextPort();
+
+        String[] hubInserts = new String[] {
+            "server_name: HUB",
+            "jetstream {",
+            "    domain: HUB",
+            "}",
+            "leafnodes {",
+            "  listen = 127.0.0.1:" + hubLeafPort,
+            "}"
+        };
+
+        String[] leafInserts = new String[] {
+            "server_name: LEAF",
+            "jetstream {",
+            "    domain: LEAF",
+            "}",
+            "leafnodes {",
+            "  remotes = [ { url: \"leaf://127.0.0.1:" + hubLeafPort + "\" } ]",
+            "}"
+        };
+
+        try (NatsTestServer hub = new NatsTestServer(hubPort, false, true, null, hubInserts, null);
+             Connection nchub = standardConnection(hub.getURI());
+             NatsTestServer leaf = new NatsTestServer(leafPort, false, true, null, leafInserts, null);
+             Connection ncleaf = standardConnection(leaf.getURI())
+        ) {
+            try {
+                twoServerTest.test(nchub, ncleaf);
+            }
+            finally {
+                cleanupJs(nchub);
+                cleanupJs(ncleaf);
+            }
         }
     }
 

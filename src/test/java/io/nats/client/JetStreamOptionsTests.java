@@ -157,7 +157,7 @@ public class JetStreamOptionsTests extends TestBase {
     private void assertValidDomain(String domain) {
         JetStreamOptions jso = JetStreamOptions.builder().domain(domain).build();
         String prefixWithDot = domain.endsWith(DOT) ? domain : domain + DOT;
-        String expected = PREFIX_DOLLAR_JS_DOT + prefixWithDot + PREFIX_API_DOT;
+        String expected = PREFIX_DOLLAR_JS_DOT + prefixWithDot + PREFIX_API + DOT;
         assertEquals(expected, jso.getPrefix());
     }
 

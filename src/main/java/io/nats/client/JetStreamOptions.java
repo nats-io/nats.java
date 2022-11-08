@@ -15,6 +15,7 @@ package io.nats.client;
 
 import java.time.Duration;
 
+import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamConstants.*;
 import static io.nats.client.support.Validator.ensureEndsWithDot;
 import static io.nats.client.support.Validator.validatePrefixOrDomain;
@@ -172,8 +173,8 @@ public class JetStreamOptions {
          * @return the builder.
          */
         public Builder domain(String domain) {
-            String valid = validatePrefixOrDomain(domain, "Prefix", false);
-            jsPrefix = valid == null ? null : PREFIX_DOLLAR_JS_DOT + ensureEndsWithDot(valid) + PREFIX_API_DOT;
+            String prefix = convertDomainToPrefix(domain);
+            jsPrefix = prefix == null ? null : prefix + DOT;
             return this;
         }
 
@@ -205,5 +206,11 @@ public class JetStreamOptions {
             this.requestTimeout = requestTimeout == null ? DEFAULT_TIMEOUT : requestTimeout;
             return new JetStreamOptions(this);
         }
+    }
+
+    public static String convertDomainToPrefix(String domain) {
+        String valid = validatePrefixOrDomain(domain, "Domain", false);
+        return valid == null ? null
+            : PREFIX_DOLLAR_JS_DOT + ensureEndsWithDot(valid) + PREFIX_API;
     }
 }

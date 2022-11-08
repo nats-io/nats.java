@@ -14,6 +14,7 @@
 package io.nats.client.support;
 
 import io.nats.client.PurgeOptions;
+import io.nats.client.impl.Headers;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
+import static io.nats.client.support.ApiConstants.DESCRIPTION;
 import static io.nats.client.support.Encoding.jsonDecode;
 import static io.nats.client.support.Encoding.jsonEncode;
 import static io.nats.client.support.JsonUtils.*;
@@ -221,6 +223,15 @@ public final class JsonUtilsTests {
 
         addFieldWhenGtZero(sb, "longgt0", 1L);
         assertEquals(110, sb.length());
+
+        addField(sb, "null-header", (Headers)null);
+        assertEquals(110, sb.length());
+
+        addField(sb, "null-header", new Headers());
+        assertEquals(110, sb.length());
+
+        addField(sb, "header", new Headers().add("foo", "bar").add("foo", "baz"));
+        assertEquals(141, sb.length());
     }
 
     static final String EXPECTED_LIST_JSON = "{\"a1\":[\"one\"],\"a2\":[\"two\",\"too\"],\"l1\":[\"one\"],\"l2\":[\"two\",\"too\"],\"j1\":[{\"filter\":\"sub1\",\"keep\":421}],\"j2\":[{\"filter\":\"sub2\",\"seq\":732},{\"filter\":\"sub3\"}],\"d1\":[1000000],\"d2\":[2000000,3000000]}";
@@ -401,5 +412,12 @@ public final class JsonUtilsTests {
         assertEquals(0, getMapOfObjects("\"bad\": ").size());
         assertEquals(0, getMapOfLists("\"bad\": ").size());
         assertEquals("\"field\": ", removeObject("\"field\": ", "notfound"));
+    }
+
+    @Test
+    public void testReadStringMayHaveQuotes() {
+        String json = "{\"num\":1,\"description\":\"q\\\"quoted\\\"q tab\\ttab =\\u003d=\"}";
+        assertNull(readStringMayHaveQuotes(json, "NotThere", null));
+        assertEquals("q\"quoted\"q tab\ttab ===", readStringMayHaveQuotes(json, DESCRIPTION, null));
     }
 }

@@ -22,10 +22,8 @@ import io.nats.client.api.Watcher;
 import java.io.IOException;
 
 public class NatsWatchSubscription<T> implements AutoCloseable {
-    private static final Object dispatcherLock = new Object();
-    private static NatsDispatcher dispatcher;
-
     private final JetStream js;
+    private NatsDispatcher dispatcher;
     private JetStreamSubscription sub;
 
     public NatsWatchSubscription(JetStream js) {
@@ -53,7 +51,8 @@ public class NatsWatchSubscription<T> implements AutoCloseable {
                     .build())
             .build();
 
-        sub = js.subscribe(subscribeSubject, getDispatcher(js), handler, false, pso);
+        dispatcher = (NatsDispatcher) ((NatsJetStream) js).conn.createDispatcher();
+        sub = js.subscribe(subscribeSubject, dispatcher, handler, false, pso);
         if (!handler.endOfDataSent) {
             long pending = sub.getConsumerInfo().getCalculatedPending();
             if (pending == 0) {
@@ -76,17 +75,8 @@ public class NatsWatchSubscription<T> implements AutoCloseable {
         }
     }
 
-    private static Dispatcher getDispatcher(JetStream js) {
-        synchronized (dispatcherLock) {
-            if (dispatcher == null) {
-                dispatcher = (NatsDispatcher) ((NatsJetStream) js).conn.createDispatcher();
-            }
-            return dispatcher;
-        }
-    }
-
     public void unsubscribe() {
-        synchronized (dispatcherLock) {
+        if (dispatcher != null) {
             dispatcher.unsubscribe(sub);
             if (dispatcher.getSubscriptionHandlers().size() == 0) {
                 dispatcher.connection.closeDispatcher(dispatcher);

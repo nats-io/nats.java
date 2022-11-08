@@ -15,6 +15,10 @@ package io.nats.client.api;
 import io.nats.client.support.NatsKeyValueUtil;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 
 import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
@@ -107,6 +111,8 @@ public class KeyValueConfiguration extends FeatureConfiguration {
 
         String name;
         StreamConfiguration.Builder scBuilder;
+        Mirror mirror;
+        List<Source> sources = new ArrayList<>();
 
         /**
          * Default Builder
@@ -232,17 +238,118 @@ public class KeyValueConfiguration extends FeatureConfiguration {
         }
 
         /**
+         * Sets the mirror in the KeyValueConfiguration.
+         * @param mirror the KeyValue's mirror
+         * @return Builder
+         */
+        public Builder mirror(Mirror mirror) {
+            this.mirror = mirror;
+            return this;
+        }
+
+        /**
+         * Sets the sources in the KeyValueConfiguration.
+         * @param sources the KeyValue's sources
+         * @return Builder
+         */
+        public Builder sources(Source... sources) {
+            this.sources.clear();
+            return addSources(sources);
+        }
+
+        /**
+         * Sets the sources in the KeyValueConfiguration
+         * @param sources the KeyValue's sources
+         * @return Builder
+         */
+        public Builder sources(Collection<Source> sources) {
+            this.sources.clear();
+            return addSources(sources);
+        }
+
+        /**
+         * Add a source into the KeyValueConfiguration.
+         * @param source a KeyValue source
+         * @return Builder
+         */
+        public Builder addSource(Source source) {
+            if (source != null && !this.sources.contains(source)) {
+                this.sources.add(source);
+            }
+            return this;
+        }
+
+        /**
+         * Adds the sources into the KeyValueConfiguration
+         * @param sources the KeyValue's sources to add
+         * @return Builder
+         */
+        public Builder addSources(Source... sources) {
+            if (sources != null) {
+                return addSources(Arrays.asList(sources));
+            }
+            return this;
+        }
+
+        /**
+         * Adds the sources into the KeyValueConfiguration
+         * @param sources the KeyValue's sources to add
+         * @return Builder
+         */
+        public Builder addSources(Collection<Source> sources) {
+            if (sources != null) {
+                for (Source source : sources) {
+                    if (source != null && !this.sources.contains(source)) {
+                        this.sources.add(source);
+                    }
+                }
+            }
+            return this;
+        }
+
+        /**
          * Builds the KeyValueConfiguration
          * @return the KeyValueConfiguration.
          */
         public KeyValueConfiguration build() {
             name = validateBucketName(name, true);
             scBuilder.name(toStreamName(name))
-                .subjects(toStreamSubject(name))
                 .allowRollup(true)
                 .allowDirect(true) // by design
                 .discardPolicy(DiscardPolicy.New)
                 .denyDelete(true);
+
+            if (mirror != null) {
+                scBuilder.mirrorDirect(true);
+                String name = mirror.getName();
+                if (hasPrefix(name)) {
+                    scBuilder.mirror(mirror);
+                }
+                else {
+                    scBuilder.mirror(
+                        Mirror.builder(mirror)
+                            .name(toStreamName(name))
+                            .build());
+                }
+            }
+            else if (sources.size() > 0) {
+                for (Source source : sources) {
+                    String name = source.getName();
+                    if (hasPrefix(name)) {
+                        scBuilder.addSource(source);
+                    }
+                    else {
+                        scBuilder.addSource(
+                            Source.builder(source)
+                                .name(toStreamName(name))
+                                .build());
+                    }
+                }
+            }
+            else {
+                scBuilder.subjects(toStreamSubject(name));
+            }
+
             return new KeyValueConfiguration(scBuilder.build());
         }
     }

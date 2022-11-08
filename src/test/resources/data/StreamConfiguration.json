@@ -21,6 +21,7 @@
   "discard_new_per_subject": true,
   "allow_rollup_hdrs": true,
   "allow_direct": true,
+  "mirror_direct": true,
   "placement": {
     "cluster": "clstr",
     "tags": ["tag1", "tag2"]

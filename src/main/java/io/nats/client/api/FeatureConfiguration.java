@@ -18,8 +18,7 @@ import java.time.Duration;
 public abstract class FeatureConfiguration {
     protected final StreamConfiguration sc;
     protected final String bucketName;
-
-
+    
     public FeatureConfiguration(StreamConfiguration sc, String bucketName) {
         this.sc = sc;
         this.bucketName = bucketName;

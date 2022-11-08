@@ -47,6 +47,17 @@ public abstract class NatsKeyValueUtil {
         return KV_SUBJECT_PREFIX + bucketName + DOT;
     }
 
+    public static boolean hasPrefix(String bucketName) {
+        return bucketName.startsWith(KV_STREAM_PREFIX);
+    }
+
+    public static String trimPrefix(String bucketName) {
+        if (bucketName.startsWith(KV_STREAM_PREFIX)) {
+            return bucketName.substring(KV_STREAM_PREFIX.length());
+        }
+        return bucketName;
+    }
+
     public static String getOperationHeader(Headers h) {
         return h == null ? null : h.getFirst(KV_OPERATION_HEADER_KEY);
     }

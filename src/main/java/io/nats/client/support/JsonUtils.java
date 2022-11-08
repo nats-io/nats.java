@@ -628,6 +628,36 @@ public abstract class JsonUtils {
         return m.find() ? jsonDecode(m.group(1)) : dflt;
     }
 
+    public static String readStringMayHaveQuotes(String json, String field, String dflt) {
+        String jfield = "\"" + field + "\"";
+        int at = json.indexOf(jfield);
+        if (at != -1) {
+            at = json.indexOf('"', at + jfield.length());
+            StringBuilder sb = new StringBuilder();
+            while (true) {
+                char c = json.charAt(++at);
+                if (c == '\\') {
+                    char c2 = json.charAt(++at);
+                    if (c2 == '"') {
+                        sb.append('"');
+                    }
+                    else {
+                        sb.append(c);
+                        sb.append(c2);
+                    }
+                }
+                else if (c == '"') {
+                    break;
+                }
+                else {
+                    sb.append(c);
+                }
+            }
+            return jsonDecode(sb.toString());
+        }
+        return dflt;
+    }
+
     public static byte[] readBytes(String json, Pattern pattern) {
         String s = readString(json, pattern, null);
         return s == null ? null : s.getBytes(StandardCharsets.US_ASCII);

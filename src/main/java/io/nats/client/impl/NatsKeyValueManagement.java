@@ -42,6 +42,9 @@ public class NatsKeyValueManagement implements KeyValueManagement {
     @Override
     public KeyValueStatus create(KeyValueConfiguration config) throws IOException, JetStreamApiException {
         StreamConfiguration sc = config.getBackingConfig();
+
+        // most validation / KVC setup is done in the KeyValueConfiguration Builder
+        // but this is done here because the context has a connection which has the server info with a version
         if ( serverOlderThan272 ) {
             sc = StreamConfiguration.builder(sc).discardPolicy(null).build(); // null discard policy will use default
         }

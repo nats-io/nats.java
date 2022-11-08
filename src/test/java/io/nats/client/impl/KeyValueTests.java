@@ -23,6 +23,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
@@ -1093,6 +1094,7 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(KeyValueOperation.PUT, kveUserA.getOperation());
     }
 
+    @SuppressWarnings({"SimplifiableAssertion", "ConstantConditions"})
     @Test
     public void testCoverBucketAndKey() {
         NatsKeyValueUtil.BucketAndKey bak1 = new NatsKeyValueUtil.BucketAndKey(DOT + BUCKET + DOT + KEY);
@@ -1112,6 +1114,15 @@ public class KeyValueTests extends JetStreamTestBase {
 
         assertFalse(bak4.equals(null));
         assertFalse(bak4.equals(new Object()));
+    }
+
+    @Test
+    public void testCoverPrefix() {
+        assertTrue(NatsKeyValueUtil.hasPrefix("KV_has"));
+        assertFalse(NatsKeyValueUtil.hasPrefix("doesn't"));
+        assertEquals("has", NatsKeyValueUtil.trimPrefix("KV_has"));
+        assertEquals("doesn't", NatsKeyValueUtil.trimPrefix("doesn't"));
+
     }
 
     @Test
@@ -1216,5 +1227,172 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(-1,
             KeyValuePurgeOptions.builder().deleteMarkersNoThreshold().build()
                 .getDeleteMarkersThresholdMillis());
+    }
+
+    @Test
+    public void testCreateDiscardPolicy() throws Exception {
+        runInJsServer(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            // create bucket
+            KeyValueStatus status = kvm.create(KeyValueConfiguration.builder()
+                .name(bucket(1))
+                .storageType(StorageType.Memory)
+                .build());
+
+            DiscardPolicy dp = status.getConfiguration().getBackingConfig().getDiscardPolicy();
+            if (nc.getServerInfo().isSameOrNewerThanVersion("2.7.2")) {
+                assertEquals(DiscardPolicy.New, dp);
+            }
+            else {
+                assertTrue(dp == DiscardPolicy.New || dp == DiscardPolicy.Old);
+            }
+        });
+    }
+
+    @Test
+    public void testMiscCoverage() throws Exception {
+        runInJsServer(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            // create bucket
+            kvm.create(KeyValueConfiguration.builder()
+                .name(BUCKET)
+                .storageType(StorageType.Memory)
+                .build());
+
+            KeyValue kv = nc.keyValue(BUCKET);
+            kv.put("a", "a");
+            KeyValueEntry kve = kv.get("a");
+            assertThrows(NumberFormatException.class, kve::getValueAsLong);
+
+            kv.delete("a");
+            List<KeyValueEntry> list = kv.history("a");
+            assertNull(list.get(0).getValueAsString());
+            assertNull(list.get(0).getValueAsLong());
+        });
+    }
+
+    @Test
+    public void testMirrorSoureceBuilderPrefixConversion() throws Exception {
+        KeyValueConfiguration kvc = KeyValueConfiguration.builder()
+            .name(BUCKET)
+            .mirror(Mirror.builder().name("name").build())
+            .build();
+        assertEquals("KV_name", kvc.getBackingConfig().getMirror().getName());
+
+        kvc = KeyValueConfiguration.builder()
+            .name(BUCKET)
+            .mirror(Mirror.builder().name("KV_name").build())
+            .build();
+        assertEquals("KV_name", kvc.getBackingConfig().getMirror().getName());
+
+        Source s1 = Source.builder().name("s1").build();
+        Source s2 = Source.builder().name("s2").build();
+        Source s3 = Source.builder().name("s3").build();
+        Source s4 = Source.builder().name("s4").build();
+        Source s5 = Source.builder().name("KV_s5").build();
+        Source s6 = Source.builder().name("KV_s6").build();
+
+        kvc = KeyValueConfiguration.builder()
+            .name(BUCKET)
+            .sources(s3, s4)
+            .sources(Arrays.asList(s1, s2))
+            .addSources(s1, s2)
+            .addSources(Arrays.asList(s1, s2, null))
+            .addSources(s3, s4)
+            .addSource(null)
+            .addSource(s5)
+            .addSource(s5)
+            .addSources(s6)
+            .addSources((Source[])null)
+            .addSources((Collection<Source>)null)
+            .build();
+
+        assertEquals(6, kvc.getBackingConfig().getSources().size());
+        List<String> names = new ArrayList<>();
+        for (Source source : kvc.getBackingConfig().getSources()) {
+            names.add(source.getName());
+        }
+        assertTrue(names.contains("KV_s1"));
+        assertTrue(names.contains("KV_s2"));
+        assertTrue(names.contains("KV_s3"));
+        assertTrue(names.contains("KV_s4"));
+        assertTrue(names.contains("KV_s5"));
+        assertTrue(names.contains("KV_s6"));
+    }
+
+    @Test
+    public void testKeyValueMirrorCrossDomains() throws Exception {
+        runInJsHubLeaf((hub, leaf) -> {
+            KeyValueManagement hubKvm = hub.keyValueManagement();
+            KeyValueManagement leafKvm = leaf.keyValueManagement();
+
+            // Create main KV on HUB
+            KeyValueStatus hubStatus = hubKvm.create(KeyValueConfiguration.builder()
+                .name("TEST")
+                .storageType(StorageType.Memory)
+                .build());
+
+            KeyValue hubKv = hub.keyValue("TEST");
+            hubKv.put("key1", "aaa0");
+            hubKv.put("key2", "bb0");
+            hubKv.put("key3", "c0");
+            hubKv.delete("key3");
+
+            leafKvm.create(KeyValueConfiguration.builder()
+                .name("MIRROR")
+                .mirror(Mirror.builder()
+                    .sourceName("TEST")
+                    .domain(null)  // just for coverage!
+                    .domain("HUB") // it will take this since it comes last
+                    .build())
+                .build());
+
+            sleep(200); // make sure things get a chance to propagate
+            StreamInfo si = leaf.jetStreamManagement().getStreamInfo("KV_MIRROR");
+            assertTrue(si.getConfiguration().getMirrorDirect());
+            assertEquals(3, si.getStreamState().getMsgCount());
+
+            KeyValue leafKv = leaf.keyValue("MIRROR");
+            _testMirror(hubKv, leafKv, 1);
+
+            // Bind through leafnode connection but to origin KV.
+            KeyValue hubViaLeafKv =
+                leaf.keyValue("TEST", KeyValueOptions.builder().jsDomain("HUB").build());
+            _testMirror(hubKv, hubViaLeafKv, 2);
+        });
+    }
+
+    private void _testMirror(KeyValue okv, KeyValue mkv, int num) throws Exception {
+        mkv.put("key1", "aaa" + num);
+        mkv.put("key3", "c" + num);
+
+        sleep(200); // make sure things get a chance to propagate
+        KeyValueEntry kve = mkv.get("key3");
+        assertEquals("c" + num, kve.getValueAsString());
+
+        mkv.delete("key3");
+        sleep(200); // make sure things get a chance to propagate
+        assertNull(mkv.get("key3"));
+
+        kve = mkv.get("key1");
+        assertEquals("aaa" + num, kve.getValueAsString());
+
+        // Make sure we can create a watcher on the mirror KV.
+        TestKeyValueWatcher mWatcher = new TestKeyValueWatcher("mirrorWatcher" + num, false);
+        try (NatsKeyValueWatchSubscription mWatchSub = mkv.watchAll(mWatcher)) {
+            sleep(200); // give the messages time to propagate
+        }
+        validateWatcher(new Object[]{"bb0", "aaa" + num, KeyValueOperation.DELETE}, mWatcher);
+
+        // Does the origin data match?
+        if (okv != null) {
+            TestKeyValueWatcher oWatcher = new TestKeyValueWatcher("originWatcher" + num, false);
+            try (NatsKeyValueWatchSubscription oWatchSub = okv.watchAll(oWatcher)) {
+                sleep(200); // give the messages time to propagate
+            }
+            validateWatcher(new Object[]{"bb0", "aaa" + num, KeyValueOperation.DELETE}, oWatcher);
+        }
     }
 }
