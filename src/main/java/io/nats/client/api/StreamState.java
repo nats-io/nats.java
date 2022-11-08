@@ -32,6 +32,7 @@ public class StreamState {
     private final ZonedDateTime lastTime;
     private final List<Subject> subjects;
     private final List<Long> deletedStreamSequences;
+    private final LostStreamData lostStreamData;
 
     StreamState(String json) {
         msgs = JsonUtils.readLong(json, MESSAGES_RE, 0);
@@ -45,6 +46,7 @@ public class StreamState {
         deletedCount = JsonUtils.readLong(json, NUM_DELETED_RE, 0);
         subjects = Subject.getList(JsonUtils.getJsonObject(SUBJECTS, json));
         deletedStreamSequences = JsonUtils.getLongList(DELETED, json);
+        lostStreamData = LostStreamData.optionalInstance(json);
     }
 
     /**
@@ -146,6 +148,10 @@ public class StreamState {
         return deletedStreamSequences;
     }
 
+    public LostStreamData getLostStreamData() {
+        return lostStreamData;
+    }
+
     @Override
     public String toString() {
         return "StreamState{" +
@@ -160,6 +166,7 @@ public class StreamState {
             ", subjects=" + subjects +
             ", deletedCount=" + deletedCount +
             ", deleteds=" + deletedStreamSequences +
+            ", lostStreamData=" + lostStreamData +
             '}';
     }
 }
