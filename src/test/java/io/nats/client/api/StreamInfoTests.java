@@ -108,7 +108,7 @@ public class StreamInfoTests {
         assertEquals(104, lost.getBytes());
 
         assertEquals(DateTimeUtils.parseDateTime("0001-01-01T00:00:00Z"), ss.getFirstTime());
-        assertEquals(DateTimeUtils.parseDateTime("0001-01-01T00:00:00Z"), ss.getLastTime());
+        assertEquals(DateTimeUtils.parseDateTime("0002-01-01T00:00:00Z"), ss.getLastTime());
 
         Placement pl = si.getConfiguration().getPlacement();
         assertNotNull(pl);
