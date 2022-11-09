@@ -1351,7 +1351,9 @@ public class KeyValueTests extends JetStreamTestBase {
 
             sleep(200); // make sure things get a chance to propagate
             StreamInfo si = leaf.jetStreamManagement().getStreamInfo("KV_MIRROR");
-            assertTrue(si.getConfiguration().getMirrorDirect());
+            if (hub.getServerInfo().isSameOrNewerThanVersion("2.9.0")) {
+                assertTrue(si.getConfiguration().getMirrorDirect());
+            }
             assertEquals(3, si.getStreamState().getMsgCount());
 
             KeyValue leafKv = leaf.keyValue("MIRROR");
