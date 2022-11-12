@@ -221,7 +221,7 @@ There are four different ways to connect using the Java library:
 5. Connect with authentication handler:
 
     ```java
-    AuthHandler authHandler = Nats.credentials(System.getenv("NATS_CREDS")
+    AuthHandler authHandler = Nats.credentials(System.getenv("NATS_CREDS"));
     Connection nc = Nats.connect("nats://myhost:4222", authHandler);
     ```
 
