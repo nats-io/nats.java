@@ -22,6 +22,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -362,7 +363,7 @@ public class AuthTests {
     }
 
     String createNKeyConfigFile(char[] nkey) throws Exception {
-        File tmp = File.createTempFile("nats_java_test", ".conf");
+        File tmp = Files.createTempFile("nats_java_test", ".conf").toFile();
         BufferedWriter writer = new BufferedWriter(new FileWriter(tmp));
 
         writer.write("port: 8222"); // will get rewritten
