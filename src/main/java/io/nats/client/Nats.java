@@ -15,7 +15,10 @@ package io.nats.client;
 
 import io.nats.client.impl.NatsImpl;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.util.List;
 
 /**
  * The Nats class is the entry point into the NATS client for Java. This class
@@ -83,6 +86,20 @@ public abstract class Nats {
         String cv;
         try { cv = Nats.class.getPackage().getImplementationVersion(); }
         catch (Exception ignore) { cv = null; }
+        if (cv == null) {
+            try {
+                List<String> lines = Files.readAllLines(new File("build.gradle").toPath());
+                for (String l : lines) {
+                    if (l.startsWith("def jarVersion")) {
+                        int at = l.indexOf('"');
+                        int lat = l.lastIndexOf('"');
+                        cv = l.substring(at + 1, lat) + ".dev";
+                        break;
+                    }
+                }
+            }
+            catch (Exception ignore) {}
+        }
         CLIENT_VERSION = cv == null ? "development" : cv;
     }
 
@@ -235,7 +252,6 @@ public abstract class Nats {
     /**
      * Create an auth handler from a creds file. The handler will read the file each time it needs to respond to a request
      * and clear the memory after. This has a small price, but will only be encountered during connect or reconnect.
-     * 
      * The creds file has a JWT - generally commented with a separator - followed by an nkey - also with a separator.
      * 
      * @param credsFile a file containing a user JWT and an nkey
