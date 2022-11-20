@@ -44,7 +44,7 @@ public class OptionsTests {
 
     @Test
     public void testClientVersion() {
-        assertEquals("development", Nats.CLIENT_VERSION);
+        assertTrue(Nats.CLIENT_VERSION.endsWith(".dev"));
     }
 
     @Test

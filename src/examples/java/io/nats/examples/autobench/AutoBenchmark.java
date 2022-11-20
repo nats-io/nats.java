@@ -51,7 +51,18 @@ public abstract class AutoBenchmark {
     }
 
     private String generate(String prefix) {
-        return prefix + Long.toHexString(getName().hashCode()) + "-" + Long.toHexString(getMessageCount()) + "x" + Long.toHexString(getMessageSize());
+        return prefix + toSafeName(getName()) + "x" + getMessageCount();
+    }
+
+    public static String toSafeName(String text) {
+        StringBuilder sb = new StringBuilder();
+        for (int x = 0; x < text.length(); x++) {
+            char c = text.charAt(x);
+            if (Character.isLetterOrDigit(c) || c == '.' || c == '-'|| c == '_') {
+                sb.append(c);
+            }
+        }
+        return sb.toString().trim();
     }
 
     public long getMessageSize() {
