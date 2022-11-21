@@ -136,11 +136,23 @@ public class PushSubscribeOptions extends SubscribeOptions {
             return this;
         }
 
+        /**
+         * Set the maximum number of messages that non-dispatched push subscriptions can hold
+         * in the internal (pending) message queue. Defaults to 512 * 1024  (Consumer.DEFAULT_MAX_MESSAGES)
+         * @param pendingMessageLimit the number of messages.
+         * @return the builder
+         */
         public Builder pendingMessageLimit(long pendingMessageLimit) {
             this.pendingMessageLimit = pendingMessageLimit;
             return this;
         }
 
+        /**
+         * Set the maximum number of bytes that non-dispatched push subscriptions can hold
+         * in the internal (pending) message queue. Defaults to 64 * 1024 * 1024 (Consumer.DEFAULT_MAX_BYTES)
+         * @param pendingByteLimit the number of bytes.
+         * @return the builder
+         */
         public Builder pendingByteLimit(long pendingByteLimit) {
             this.pendingByteLimit = pendingByteLimit;
             return this;
