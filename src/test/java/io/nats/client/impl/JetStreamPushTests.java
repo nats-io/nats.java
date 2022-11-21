@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.client.support.NatsJetStreamClientError.JsSubPushAsyncCantSetPending;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPushTests extends JetStreamTestBase {
@@ -713,8 +714,8 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             js.subscribe(SUBJECT, d, m ->{}, false, psoAsyncLtZero);
 
-            assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, d, m ->{}, false, psoAsyncNopeMessages));
-            assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, d, m ->{}, false, psoAsyncNopeBytes));
+            assertClientError(JsSubPushAsyncCantSetPending, () -> js.subscribe(SUBJECT, d, m ->{}, false, psoAsyncNopeMessages));
+            assertClientError(JsSubPushAsyncCantSetPending, () -> js.subscribe(SUBJECT, d, m ->{}, false, psoAsyncNopeBytes));
         });
     }
 }
