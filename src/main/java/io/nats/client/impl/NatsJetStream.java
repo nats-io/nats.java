@@ -397,8 +397,17 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             }
 
             final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
-                -> new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,
-                this, fnlStream, settledConsumerName, manager);
+                -> {
+                NatsJetStreamSubscription nsub = new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,
+                    this, fnlStream, settledConsumerName, manager);
+                if (lDispatcher == null) {
+                    nsub.setPendingLimits(so.getPendingMessageLimit(), so.getPendingByteLimit());
+                }
+                else if (so.getPendingMessageLimit() >= 0 || so.getPendingByteLimit() >= 0){
+                    throw JsSubPushAsyncCantSetPending.instance();
+                }
+                return nsub;
+            };
 
             if (dispatcher == null) {
                 sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);

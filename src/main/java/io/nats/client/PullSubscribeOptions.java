@@ -20,7 +20,7 @@ package io.nats.client;
 public class PullSubscribeOptions extends SubscribeOptions {
 
     private PullSubscribeOptions(Builder builder) {
-        super(builder, true, false, null, null);
+        super(builder, true, false, null, null, -1, -1);
     }
 
     /**

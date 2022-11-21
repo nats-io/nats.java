@@ -13,6 +13,8 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Consumer;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
@@ -21,17 +23,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import io.nats.client.Consumer;
-
 abstract class NatsConsumer implements Consumer {
 
     NatsConnection connection;
-    private AtomicLong maxMessages;
-    private AtomicLong maxBytes;
-    private AtomicLong droppedMessages;
-    private AtomicLong messagesDelivered;
-    private AtomicBoolean slow;
-    private AtomicReference<CompletableFuture<Boolean>> drainingFuture;
+    private final AtomicLong maxMessages;
+    private final AtomicLong maxBytes;
+    private final AtomicLong droppedMessages;
+    private final AtomicLong messagesDelivered;
+    private final AtomicBoolean slow;
+    private final AtomicReference<CompletableFuture<Boolean>> drainingFuture;
 
     NatsConsumer(NatsConnection conn) {
         this.connection = conn;
@@ -59,8 +59,8 @@ abstract class NatsConsumer implements Consumer {
      *                    {{@value #DEFAULT_MAX_BYTES}}.
      */
     public void setPendingLimits(long maxMessages, long maxBytes) {
-        this.maxMessages.set(maxMessages);
-        this.maxBytes.set(maxBytes);
+        this.maxMessages.set(maxMessages < 0 ? Consumer.DEFAULT_MAX_MESSAGES : maxMessages);
+        this.maxBytes.set(maxBytes < 0 ? Consumer.DEFAULT_MAX_BYTES : maxBytes);
     }
 
     /**
@@ -139,9 +139,12 @@ abstract class NatsConsumer implements Consumer {
     }
 
     boolean hasReachedPendingLimits() {
-        return ((this.getPendingByteCount() >= this.getPendingByteLimit() && this.getPendingByteLimit() > 0)
-                || (this.getPendingMessageCount() >= this.getPendingMessageLimit()
-                        && this.getPendingMessageLimit() > 0));
+        long ml = maxMessages.get();
+        if (ml > 0 && getPendingMessageCount() >= ml) {
+            return true;
+        }
+        long bl = maxBytes.get();
+        return bl > 0 && getPendingByteCount() >= bl;
     }
 
     void markDraining(CompletableFuture<Boolean> future) {

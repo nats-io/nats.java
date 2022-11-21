@@ -40,6 +40,7 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError JsSubOrderedNotAllowOnQueues = new NatsJetStreamClientError(SUB, 90018, "Ordered consumer not allowed on queues.");
     public static final NatsJetStreamClientError JsSubPushCantHaveMaxBatch = new NatsJetStreamClientError(SUB, 90019, "Push subscriptions cannot supply max batch.");
     public static final NatsJetStreamClientError JsSubPushCantHaveMaxBytes = new NatsJetStreamClientError(SUB, 90020, "Push subscriptions cannot supply max bytes.");
+    public static final NatsJetStreamClientError JsSubPushAsyncCantSetPending = new NatsJetStreamClientError(SUB, 90021, "Pending limits must be set directly on the dispatcher.");
 
     public static final NatsJetStreamClientError JsSoDurableMismatch = new NatsJetStreamClientError(SO, 90101, "Builder durable must match the consumer configuration durable if both are provided.");
     public static final NatsJetStreamClientError JsSoDeliverGroupMismatch = new NatsJetStreamClientError(SO, 90102, "Builder deliver group must match the consumer configuration deliver group if both are provided.");
