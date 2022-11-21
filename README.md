@@ -602,6 +602,7 @@ In addition to some generic validation messages for values in builders, there ar
 | JsSubOrderedNotAllowOnQueues                 | SUB   | 90018 | Ordered consumer not allowed on queues.                                                             |
 | JsSubPushCantHaveMaxBatch                    | SUB   | 90019 | Push subscriptions cannot supply max batch.                                                         |
 | JsSubPushCantHaveMaxBytes                    | SUB   | 90020 | Push subscriptions cannot supply max bytes.                                                         |
+| JsSubPushAsyncCantSetPending                 | SUB   | 90021 | Pending limits must be set directly on the dispatcher.                                              |
 | JsConsumerCreate290NotAvailable              | CON   | 90301 | Name field not valid when v2.9.0 consumer create api is not available.                              |
 | JsConsumerNameDurableMismatch                | CON   | 90302 | Name must match durable if both are supplied.                                                       |
 | OsObjectNotFound                             | OS    | 90201 | The object was not found.                                                                           |
