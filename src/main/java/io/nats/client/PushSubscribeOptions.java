@@ -21,8 +21,9 @@ import static io.nats.client.support.Validator.emptyAsNull;
  */
 public class PushSubscribeOptions extends SubscribeOptions {
 
-    private PushSubscribeOptions(Builder builder, boolean ordered, String deliverSubject, String deliverGroup) {
-        super(builder, false, ordered, deliverSubject, deliverGroup);
+    private PushSubscribeOptions(Builder builder, boolean ordered, String deliverSubject, String deliverGroup,
+                                 long pendingMessageLimit, long pendingByteLimit) {
+        super(builder, false, ordered, deliverSubject, deliverGroup, pendingMessageLimit, pendingByteLimit);
     }
 
     /**
@@ -95,6 +96,8 @@ public class PushSubscribeOptions extends SubscribeOptions {
         private boolean ordered;
         private String deliverSubject;
         private String deliverGroup;
+        private long pendingMessageLimit = -1;
+        private long pendingByteLimit = -1;
 
         @Override
         protected Builder getThis() {
@@ -134,12 +137,35 @@ public class PushSubscribeOptions extends SubscribeOptions {
         }
 
         /**
+         * Set the maximum number of messages that non-dispatched push subscriptions can hold
+         * in the internal (pending) message queue. Defaults to 512 * 1024  (Consumer.DEFAULT_MAX_MESSAGES)
+         * @param pendingMessageLimit the number of messages.
+         * @return the builder
+         */
+        public Builder pendingMessageLimit(long pendingMessageLimit) {
+            this.pendingMessageLimit = pendingMessageLimit;
+            return this;
+        }
+
+        /**
+         * Set the maximum number of bytes that non-dispatched push subscriptions can hold
+         * in the internal (pending) message queue. Defaults to 64 * 1024 * 1024 (Consumer.DEFAULT_MAX_BYTES)
+         * @param pendingByteLimit the number of bytes.
+         * @return the builder
+         */
+        public Builder pendingByteLimit(long pendingByteLimit) {
+            this.pendingByteLimit = pendingByteLimit;
+            return this;
+        }
+
+        /**
          * Builds the push subscribe options.
          * @return push subscribe options
          */
         @Override
         public PushSubscribeOptions build() {
-            return new PushSubscribeOptions(this, ordered, deliverSubject, deliverGroup);
+            return new PushSubscribeOptions(this, ordered, deliverSubject, deliverGroup,
+                pendingMessageLimit, pendingByteLimit);
         }
     }
 }

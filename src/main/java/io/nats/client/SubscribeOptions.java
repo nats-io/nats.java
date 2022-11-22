@@ -34,9 +34,13 @@ public abstract class SubscribeOptions {
     protected final boolean ordered;
     protected final long messageAlarmTime;
     protected final ConsumerConfiguration consumerConfig;
+    protected final long pendingMessageLimit; // Only applicable for non dispatched (sync) push consumers.
+    protected final long pendingByteLimit; // Only applicable for non dispatched (sync) push consumers.
 
     @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
-    protected SubscribeOptions(Builder builder, boolean isPull, boolean isOrdered, String deliverSubject, String deliverGroup) {
+    protected SubscribeOptions(Builder builder, boolean isPull, boolean isOrdered,
+                               String deliverSubject, String deliverGroup,
+                               long pendingMessageLimit, long pendingByteLimit) {
 
         pull = isPull;
         bind = builder.bind;
@@ -59,6 +63,9 @@ public abstract class SubscribeOptions {
         deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, builder.cc == null ? null : builder.cc.getDeliverGroup(), JsSoDeliverGroupMismatch);
 
         deliverSubject = validateMustMatchIfBothSupplied(deliverSubject, builder.cc == null ? null : builder.cc.getDeliverSubject(), JsSoDeliverSubjectMismatch);
+
+        this.pendingMessageLimit = pendingMessageLimit;
+        this.pendingByteLimit = pendingByteLimit;
 
         if (isOrdered) {
             validateNotSupplied(deliverGroup, JsSoOrderedNotAllowedWithDeliverGroup);
@@ -159,6 +166,22 @@ public abstract class SubscribeOptions {
      */
     public ConsumerConfiguration getConsumerConfiguration() {
         return consumerConfig;
+    }
+
+    /**
+     * Gets the pending message limit. Only applicable for non dispatched (sync) push consumers.
+     * @return the message limit
+     */
+    public long getPendingMessageLimit() {
+        return pendingMessageLimit;
+    }
+
+    /**
+     * Gets the pending byte limit. Only applicable for non dispatched (sync) push consumers.
+     * @return the byte limit
+     */
+    public long getPendingByteLimit() {
+        return pendingByteLimit;
     }
 
     @Override
