@@ -57,6 +57,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(2, sc.getSubjects().size());
             assertEquals(subject(0), sc.getSubjects().get(0));
             assertEquals(subject(1), sc.getSubjects().get(1));
+            assertTrue(subject(0).compareTo(subject(1)) != 0); // coverage
 
             assertEquals(RetentionPolicy.Limits, sc.getRetentionPolicy());
             assertEquals(DiscardPolicy.Old, sc.getDiscardPolicy());

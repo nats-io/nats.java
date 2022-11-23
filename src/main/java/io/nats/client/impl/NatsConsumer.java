@@ -45,22 +45,21 @@ abstract class NatsConsumer implements Consumer {
 
     /**
      * Set limits on the maximum number of messages, or maximum size of messages
-     * this consumer will hold before it starts to drop new messages waiting for the
-     * application to drain the queue.
-     * 
+     * this consumer will hold before it starts to drop new messages waiting.
      * <p>
      * Messages are dropped as they encounter a full queue, which is to say, new
      * messages are dropped rather than old messages. If a queue is 10 deep and
      * fills up, the 11th message is dropped.
-     * 
+     * <p>
+     * Any value less than or equal to zero means unlimited and will be stored as 0.
      * @param maxMessages the maximum message count to hold, defaults to
      *                    {{@value #DEFAULT_MAX_MESSAGES}}.
      * @param maxBytes    the maximum bytes to hold, defaults to
      *                    {{@value #DEFAULT_MAX_BYTES}}.
      */
     public void setPendingLimits(long maxMessages, long maxBytes) {
-        this.maxMessages.set(maxMessages < 0 ? Consumer.DEFAULT_MAX_MESSAGES : maxMessages);
-        this.maxBytes.set(maxBytes < 0 ? Consumer.DEFAULT_MAX_BYTES : maxBytes);
+        this.maxMessages.set(maxMessages <= 0 ? 0 : maxMessages);
+        this.maxBytes.set(maxBytes <= 0 ? 0 : maxBytes);
     }
 
     /**

@@ -661,38 +661,61 @@ public class JetStreamPushTests extends JetStreamTestBase {
             // create the stream.
             createDefaultTestStream(nc);
 
+            int customMessageLimit = 1000;
+            int customByteLimit = 1024 * 1024;
+
             PushSubscribeOptions psoDefaultSync = PushSubscribeOptions.builder()
                 .build();
 
-            int customMessageLimit = 1000;
-            int customByteLimit = 1024 * 1024;
             PushSubscribeOptions psoCustomSync = PushSubscribeOptions.builder()
                 .pendingMessageLimit(customMessageLimit)
                 .pendingByteLimit(customByteLimit)
                 .build();
 
-            JetStreamSubscription subDefaultSync = js.subscribe(SUBJECT, psoDefaultSync);
-            JetStreamSubscription subCustomSync = js.subscribe(SUBJECT, psoCustomSync);
+            PushSubscribeOptions psoCustomSyncUnlimited0 = PushSubscribeOptions.builder()
+                .pendingMessageLimit(0)
+                .pendingByteLimit(0)
+                .build();
 
-            assertEquals(Consumer.DEFAULT_MAX_MESSAGES, subDefaultSync.getPendingMessageLimit());
-            assertEquals(Consumer.DEFAULT_MAX_BYTES, subDefaultSync.getPendingByteLimit());
+            PushSubscribeOptions psoCustomSyncUnlimitedUnlimitedNegative = PushSubscribeOptions.builder()
+                .pendingMessageLimit(-1)
+                .pendingByteLimit(-1)
+                .build();
 
-            assertEquals(customMessageLimit, subCustomSync.getPendingMessageLimit());
-            assertEquals(customByteLimit, subCustomSync.getPendingByteLimit());
+            JetStreamSubscription syncSub = js.subscribe(SUBJECT, psoDefaultSync);
+            assertEquals(Consumer.DEFAULT_MAX_MESSAGES, syncSub.getPendingMessageLimit());
+            assertEquals(Consumer.DEFAULT_MAX_BYTES, syncSub.getPendingByteLimit());
+
+            syncSub = js.subscribe(SUBJECT, psoCustomSync);
+            assertEquals(customMessageLimit, syncSub.getPendingMessageLimit());
+            assertEquals(customByteLimit, syncSub.getPendingByteLimit());
+
+            syncSub = js.subscribe(SUBJECT, psoCustomSyncUnlimited0);
+            assertEquals(0, syncSub.getPendingMessageLimit());
+            assertEquals(0, syncSub.getPendingByteLimit());
+
+            syncSub = js.subscribe(SUBJECT, psoCustomSyncUnlimitedUnlimitedNegative);
+            assertEquals(0, syncSub.getPendingMessageLimit());
+            assertEquals(0, syncSub.getPendingByteLimit());
 
             Dispatcher d = nc.createDispatcher();
             d.setPendingLimits(customMessageLimit, customByteLimit);
             assertEquals(customMessageLimit, d.getPendingMessageLimit());
             assertEquals(customByteLimit, d.getPendingByteLimit());
 
-            PushSubscribeOptions psoAsyncDefault = PushSubscribeOptions.builder()
+            PushSubscribeOptions psoAsyncDefault = PushSubscribeOptions.builder().build();
+            PushSubscribeOptions psoAsyncNonDefaultValid = PushSubscribeOptions.builder()
+                .pendingMessageLimit(Consumer.DEFAULT_MAX_MESSAGES)
+                .pendingByteLimit(Consumer.DEFAULT_MAX_BYTES)
                 .build();
 
-            // any negative is treated as not set / ignored
-            PushSubscribeOptions psoAsyncLtZero = PushSubscribeOptions.builder()
-                .pendingMessageLimit(-999)
-                .pendingByteLimit(-999)
-                .build();
+            JetStreamSubscription subAsync = js.subscribe(SUBJECT, d, m -> {}, false, psoAsyncDefault);
+            assertEquals(Consumer.DEFAULT_MAX_MESSAGES, subAsync.getPendingMessageLimit());
+            assertEquals(Consumer.DEFAULT_MAX_BYTES, subAsync.getPendingByteLimit());
+
+            subAsync = js.subscribe(SUBJECT, d, m -> {}, false, psoAsyncNonDefaultValid);
+            assertEquals(Consumer.DEFAULT_MAX_MESSAGES, subAsync.getPendingMessageLimit());
+            assertEquals(Consumer.DEFAULT_MAX_BYTES, subAsync.getPendingByteLimit());
 
             PushSubscribeOptions psoAsyncNopeMessages = PushSubscribeOptions.builder()
                 .pendingMessageLimit(customMessageLimit)
@@ -702,14 +725,18 @@ public class JetStreamPushTests extends JetStreamTestBase {
                 .pendingByteLimit(customByteLimit)
                 .build();
 
-            JetStreamSubscription subAsyncDefault = js.subscribe(SUBJECT, d, m ->{}, false, psoAsyncDefault);
-            assertEquals(Consumer.DEFAULT_MAX_MESSAGES, subAsyncDefault.getPendingMessageLimit());
-            assertEquals(Consumer.DEFAULT_MAX_BYTES, subAsyncDefault.getPendingByteLimit());
+            PushSubscribeOptions psoAsyncNope2Messages = PushSubscribeOptions.builder()
+                .pendingMessageLimit(0)
+                .build();
 
-            js.subscribe(SUBJECT, d, m ->{}, false, psoAsyncLtZero);
+            PushSubscribeOptions psoAsyncNope2Bytes = PushSubscribeOptions.builder()
+                .pendingByteLimit(0)
+                .build();
 
             assertClientError(JsSubPushAsyncCantSetPending, () -> js.subscribe(SUBJECT, d, m ->{}, false, psoAsyncNopeMessages));
             assertClientError(JsSubPushAsyncCantSetPending, () -> js.subscribe(SUBJECT, d, m ->{}, false, psoAsyncNopeBytes));
+            assertClientError(JsSubPushAsyncCantSetPending, () -> js.subscribe(SUBJECT, d, m ->{}, false, psoAsyncNope2Messages));
+            assertClientError(JsSubPushAsyncCantSetPending, () -> js.subscribe(SUBJECT, d, m ->{}, false, psoAsyncNope2Bytes));
         });
     }
 }
