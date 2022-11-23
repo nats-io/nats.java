@@ -52,7 +52,7 @@ public class SlowConsumerTests {
             sub.setPendingLimits(1, -1);
 
             assertEquals(1, sub.getPendingMessageLimit());
-            assertEquals(Consumer.DEFAULT_MAX_BYTES, sub.getPendingByteLimit());
+            assertEquals(0, sub.getPendingByteLimit());
             assertEquals(0, sub.getDroppedCount());
 
             nc.publish("subject", null);
@@ -85,7 +85,7 @@ public class SlowConsumerTests {
             sub.setPendingLimits(-1, 10); // will take the first, not the second
 
             assertEquals(10, sub.getPendingByteLimit());
-            assertEquals(Consumer.DEFAULT_MAX_MESSAGES, sub.getPendingMessageLimit());
+            assertEquals(0, sub.getPendingMessageLimit());
             assertEquals(0, sub.getDroppedCount());
 
             nc.publish("subject", null);
@@ -122,7 +122,7 @@ public class SlowConsumerTests {
             d.subscribe("subject");
 
             assertEquals(1, d.getPendingMessageLimit());
-            assertEquals(Consumer.DEFAULT_MAX_BYTES, d.getPendingByteLimit());
+            assertEquals(0, d.getPendingByteLimit());
             assertEquals(0, d.getDroppedCount());
 
             nc.publish("subject", null);
@@ -162,7 +162,7 @@ public class SlowConsumerTests {
             d.setPendingLimits(-1, 10);
             d.subscribe("subject");
 
-            assertEquals(Consumer.DEFAULT_MAX_MESSAGES, d.getPendingMessageLimit());
+            assertEquals(0, d.getPendingMessageLimit());
             assertEquals(10, d.getPendingByteLimit());
             assertEquals(0, d.getDroppedCount());
 

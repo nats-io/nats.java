@@ -259,6 +259,13 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
             if (so.isOrdered() && qgroup != null) {
                 throw JsSubOrderedNotAllowOnQueues.instance();
             }
+
+            if (dispatcher != null &&
+                (so.getPendingMessageLimit() != Consumer.DEFAULT_MAX_MESSAGES ||
+                    so.getPendingByteLimit() != Consumer.DEFAULT_MAX_BYTES))
+            {
+                throw JsSubPushAsyncCantSetPending.instance();
+            }
         }
 
         // 2A. Flow Control / heartbeat not always valid
@@ -402,9 +409,6 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                     this, fnlStream, settledConsumerName, manager);
                 if (lDispatcher == null) {
                     nsub.setPendingLimits(so.getPendingMessageLimit(), so.getPendingByteLimit());
-                }
-                else if (so.getPendingMessageLimit() >= 0 || so.getPendingByteLimit() >= 0){
-                    throw JsSubPushAsyncCantSetPending.instance();
                 }
                 return nsub;
             };

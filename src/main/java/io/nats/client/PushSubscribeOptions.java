@@ -96,8 +96,8 @@ public class PushSubscribeOptions extends SubscribeOptions {
         private boolean ordered;
         private String deliverSubject;
         private String deliverGroup;
-        private long pendingMessageLimit = -1;
-        private long pendingByteLimit = -1;
+        private long pendingMessageLimit = Consumer.DEFAULT_MAX_MESSAGES;
+        private long pendingByteLimit = Consumer.DEFAULT_MAX_BYTES;
 
         @Override
         protected Builder getThis() {
