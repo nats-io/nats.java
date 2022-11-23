@@ -662,13 +662,11 @@ public class JetStreamPushTests extends JetStreamTestBase {
             createDefaultTestStream(nc);
 
             PushSubscribeOptions psoDefaultSync = PushSubscribeOptions.builder()
-                .name("defaultSync")
                 .build();
 
             int customMessageLimit = 1000;
             int customByteLimit = 1024 * 1024;
             PushSubscribeOptions psoCustomSync = PushSubscribeOptions.builder()
-                .name("customSync")
                 .pendingMessageLimit(customMessageLimit)
                 .pendingByteLimit(customByteLimit)
                 .build();
@@ -688,23 +686,19 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertEquals(customByteLimit, d.getPendingByteLimit());
 
             PushSubscribeOptions psoAsyncDefault = PushSubscribeOptions.builder()
-                .name("defaultAsync")
                 .build();
 
             // any negative is treated as not set / ignored
             PushSubscribeOptions psoAsyncLtZero = PushSubscribeOptions.builder()
-                .name("ltZeroAsync")
                 .pendingMessageLimit(-999)
                 .pendingByteLimit(-999)
                 .build();
 
             PushSubscribeOptions psoAsyncNopeMessages = PushSubscribeOptions.builder()
-                .name("nopeAsyncM")
                 .pendingMessageLimit(customMessageLimit)
                 .build();
 
             PushSubscribeOptions psoAsyncNopeBytes = PushSubscribeOptions.builder()
-                .name("nopeAsyncB")
                 .pendingByteLimit(customByteLimit)
                 .build();
 
