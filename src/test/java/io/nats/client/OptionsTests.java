@@ -391,7 +391,7 @@ public class OptionsTests {
         Options o = new Options.Builder().build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true}";
-        assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "default connect options");
+        assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", null).toString(), "default connect options");
     }
 
     @Test
@@ -399,7 +399,7 @@ public class OptionsTests {
         Options o = new Options.Builder().noNoResponders().noHeaders().noEcho().pedantic().verbose().build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":true,\"pedantic\":true,\"tls_required\":false,\"echo\":false,\"headers\":false,\"no_responders\":false}";
-        assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "non default connect options");
+        assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", null).toString(), "non default connect options");
     }
 
     @Test
@@ -408,19 +408,16 @@ public class OptionsTests {
         Options o = new Options.Builder().sslContext(ctx).connectionName("c1").build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\",\"name\":\"c1\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":true,\"echo\":true,\"headers\":true,\"no_responders\":true}";
-        assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "default connect options");
+        assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", null).toString(), "default connect options");
     }
 
     @Test
     public void testAuthConnectOptions() {
         Options o = new Options.Builder().userInfo("hello".toCharArray(), "world".toCharArray()).build();
-        String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true}";
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true"
                 + ",\"user\":\"hello\",\"pass\":\"world\"}";
-        assertEquals(expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "no auth connect options");
-        assertEquals(expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, null).toString(), "auth connect options");
+           assertEquals(expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", null).toString(), "auth connect options");
     }
     /*
     expected: <{"lang":"java","version":"2.8.0","protocol":1,"verbose":false,"pedantic":false,"tls_required":false,"echo":true}>
@@ -434,13 +431,10 @@ public class OptionsTests {
         String sig = Base64.getUrlEncoder().withoutPadding().encodeToString(th.sign(nonce));
 
         Options o = new Options.Builder().authHandler(th).build();
-        String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true}";
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true"
                 + ",\"no_responders\":true,\"nkey\":\""+new String(th.getID())+"\",\"sig\":\""+sig+"\",\"jwt\":\"\"}";
-        assertEquals(expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, nonce).toString(), "no auth connect options");
-        assertEquals(expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, nonce).toString(), "auth connect options");
+        assertEquals(expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", nonce).toString(), "auth connect options");
     }
 
     @Test
@@ -481,7 +475,7 @@ public class OptionsTests {
         String serverURI = "nats://derek:password@localhost:2222";
         Options o = new Options.Builder().server(serverURI).build();
 
-        String connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        String connectString = o.buildProtocolConnectOptionsString(serverURI, null).toString();
         assertTrue(connectString.contains("\"user\":\"derek\""));
         assertTrue(connectString.contains("\"pass\":\"password\""));
         assertFalse(connectString.contains("\"token\":"));
@@ -492,7 +486,7 @@ public class OptionsTests {
         String serverURI = "nats://alberto@localhost:2222";
         Options o = new Options.Builder().server(serverURI).build();
 
-        String connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        String connectString = o.buildProtocolConnectOptionsString(serverURI, null).toString();
         assertTrue(connectString.contains("\"auth_token\":\"alberto\""));
         assertFalse(connectString.contains("\"user\":"));
         assertFalse(connectString.contains("\"pass\":"));

@@ -1889,18 +1889,17 @@ public class Options {
         throw new URISyntaxException(serverURI, "unable to parse server URI");
     }
 
-    /**
-     * Create the options string sent with a connect message.
+   /**
+     * Create the options string sent with a connect message. For internal use; do not use.
      * 
      * If includeAuth is true the auth information is included:
      * If the server URIs have auth info it is used. Otherwise the userInfo is used.
      * 
      * @param serverURI the current server uri
-     * @param includeAuth tells the options to build a connection string that includes auth information
      * @param nonce if the client is supposed to sign the nonce for authentication
      * @return the options String, basically JSON
      */
-    public CharBuffer buildProtocolConnectOptionsString(String serverURI, boolean includeAuth, byte[] nonce) {
+    public CharBuffer buildProtocolConnectOptionsString(String serverURI, byte[] nonce) {
         CharBuffer connectString = CharBuffer.allocate(this.maxControlLine);
         connectString.append("{");
 
@@ -1920,7 +1919,7 @@ public class Options {
         appendOption(connectString, Options.OPTION_HEADERS, String.valueOf(!this.isNoHeaders()), false, true);
         appendOption(connectString, Options.OPTION_NORESPONDERS, String.valueOf(!this.isNoNoResponders()), false, true);
 
-        if (includeAuth && nonce != null && this.getAuthHandler() != null) {
+        if (nonce != null && this.getAuthHandler() != null) {
             char[] nkey = this.getAuthHandler().getID();
             byte[] sig = this.getAuthHandler().sign(nonce);
             char[] jwt = this.getAuthHandler().getJWT();
@@ -1942,7 +1941,7 @@ public class Options {
             appendOption(connectString, Options.OPTION_NKEY, nkey, true, true);
             appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);
             appendOption(connectString, Options.OPTION_JWT, jwt, true, true);
-        } else if (includeAuth) {
+        } else {
             String uriUser = null;
             String uriPass = null;
             String uriToken = null;
@@ -1988,6 +1987,21 @@ public class Options {
         connectString.append("}");
         connectString.flip();
         return connectString;
+    }
+     
+    /**
+     * Create the options string sent with a connect message.  For internal use; do not use.
+     * 
+     * If includeAuth is true the auth information is included:
+     * If the server URIs have auth info it is used. Otherwise the userInfo is used.
+     * 
+     * @param serverURI the current server uri
+     * @param includeAuth no longer used
+     * @param nonce if the client is supposed to sign the nonce for authentication
+     * @return the options String, basically JSON
+     */
+    public CharBuffer buildProtocolConnectOptionsString(String serverURI, boolean includeAuth, byte[] nonce) {
+        return buildProtocolConnectOptionsString(serverURI, nonce);
     }
 
     private void appendOption(CharBuffer builder, String key, String value, boolean quotes, boolean comma) {
