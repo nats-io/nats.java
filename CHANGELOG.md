@@ -1,5 +1,21 @@
 # Change Log
 
+## 2.16.5
+
+#### Core
+
+* increase default max (pending) messages, ability to set pending limits in subscribe options #799 @scottf
+* better setup of pending limits #804 @scottf
+* ignore auth required flag from server when building connection string #807 @scottf @ColinSullivan1
+
+#### Etc. Tests / Docs / Examples
+
+* Fix test only check mirror direct 2.9.0 and later #794 @scottf
+* Fixes typo in Readme #795 @aaabramov
+* Better dev version and autobench naming #798 @scottf
+* Change Temporary File Creation in unit test. #800 @JLLeitschuh
+* fixed test - name not necessary, better for regression #803 @scottf
+
 ## 2.16.4
 
 #### Key Value (KV)
