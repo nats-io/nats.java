@@ -426,7 +426,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
-     * Get the amount of time before the ephemeral consumer is deemed inactive.
+     * Get the amount of time before the consumer is deemed inactive.
      * @return the inactive threshold
      */
     public Duration getInactiveThreshold() {
@@ -951,7 +951,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
-         * sets the amount of time before the ephemeral consumer is deemed inactive.
+         * sets the amount of time before the consumer is deemed inactive.
          * @param inactiveThreshold the threshold duration
          * @return Builder
          */
@@ -961,7 +961,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
-         * sets the amount of time before the ephemeral consumer is deemed inactive.
+         * sets the amount of time before the consumer is deemed inactive.
          * @param inactiveThreshold the threshold duration in milliseconds
          * @return Builder
          */
