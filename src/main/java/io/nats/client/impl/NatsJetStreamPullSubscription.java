@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
+public class  NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
     NatsJetStreamPullSubscription(String sid, String subject,
                                   NatsConnection connection,
