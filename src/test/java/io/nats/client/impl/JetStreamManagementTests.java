@@ -278,6 +278,13 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             subjects[5] = "foo.>";
             createMemoryStream(jsm, STREAM, subjects);
 
+            StreamInfo si = jsm.getStreamInfo(STREAM);
+            assertEquals(STREAM, si.getConfiguration().getName());
+            assertEquals(0, si.getStreamState().getSubjectCount());
+            assertEquals(0, si.getStreamState().getSubjects().size());
+            assertEquals(0, si.getStreamState().getDeletedCount());
+            assertEquals(0, si.getStreamState().getDeleted().size());
+
             List<PublishAck> packs = new ArrayList<>();
             JetStream js = nc.jetStream();
             for (int x = 0; x < 5; x++) {
@@ -288,7 +295,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             }
             jsPublish(js, "foo.bar", 6);
 
-            StreamInfo si = jsm.getStreamInfo(STREAM);
+            si = jsm.getStreamInfo(STREAM);
             assertEquals(STREAM, si.getConfiguration().getName());
             assertEquals(6, si.getStreamState().getSubjectCount());
             assertEquals(0, si.getStreamState().getSubjects().size());
