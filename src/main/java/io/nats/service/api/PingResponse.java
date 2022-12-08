@@ -23,24 +23,24 @@ import static io.nats.client.support.JsonUtils.*;
  * TBD
  */
 public class PingResponse implements JsonSerializable {
+    private final String serviceId;
     private final String name;
-    private final String id;
 
-    public PingResponse(String name, String id) {
+    public PingResponse(String serviceId, String name) {
+        this.serviceId = serviceId;
         this.name = name;
-        this.id = id;
     }
 
     public PingResponse(String json) {
         name = JsonUtils.readString(json, string_pattern(NAME));
-        id = JsonUtils.readString(json, string_pattern("id"));
+        serviceId = JsonUtils.readString(json, string_pattern("id"));
     }
 
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, "id", id);
+        JsonUtils.addField(sb, "id", serviceId);
         return endJson(sb).toString();
     }
 
@@ -56,7 +56,7 @@ public class PingResponse implements JsonSerializable {
      * The unique ID of the service reporting the status
      * @return the service id
      */
-    public String getId() {
-        return id;
+    public String getServiceId() {
+        return serviceId;
     }
 }

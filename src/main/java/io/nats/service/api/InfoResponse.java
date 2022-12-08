@@ -15,6 +15,7 @@ package io.nats.service.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.service.ServiceDescriptor;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
@@ -24,22 +25,30 @@ import static io.nats.client.support.JsonUtils.*;
  */
 public class InfoResponse implements JsonSerializable {
     private final String name;
-    private final String id;
+    private final String serviceId;
     private final String description;
     private final String version;
     private final String subject;
 
-    public InfoResponse(String name, String id, String description, String version, String subject) {
+    public InfoResponse(String id, String name, String description, String version, String subject) {
         this.name = name;
-        this.id = id;
+        this.serviceId = id;
         this.description = description;
         this.version = version;
         this.subject = subject;
     }
 
+    public InfoResponse(String id, ServiceDescriptor descriptor) {
+        this.serviceId = id;
+        this.name = descriptor.name;
+        this.description = descriptor.description;
+        this.version = descriptor.version;
+        this.subject = descriptor.subject;
+    }
+
     public InfoResponse(String json) {
         name = JsonUtils.readString(json, string_pattern(NAME));
-        id = JsonUtils.readString(json, string_pattern("id"));
+        serviceId = JsonUtils.readString(json, string_pattern("id"));
         description = JsonUtils.readString(json, DESCRIPTION_RE);
         version = JsonUtils.readString(json, VERSION_RE);
         subject = JsonUtils.readString(json, SUBJECT_RE);
@@ -49,7 +58,7 @@ public class InfoResponse implements JsonSerializable {
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, "id", id);
+        JsonUtils.addField(sb, "id", serviceId);
         JsonUtils.addField(sb, DESCRIPTION, description);
         JsonUtils.addField(sb, VERSION, version);
         JsonUtils.addField(sb, SUBJECT, subject);
@@ -68,8 +77,8 @@ public class InfoResponse implements JsonSerializable {
      * The unique ID of the service reporting the status
      * @return the service id
      */
-    public String getId() {
-        return id;
+    public String getServiceId() {
+        return serviceId;
     }
 
     /**

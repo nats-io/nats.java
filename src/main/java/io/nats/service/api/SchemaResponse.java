@@ -15,6 +15,7 @@ package io.nats.service.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.service.ServiceDescriptor;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
@@ -23,21 +24,28 @@ import static io.nats.client.support.JsonUtils.*;
  * TBD
  */
 public class SchemaResponse implements JsonSerializable {
+    private final String serviceId;
     private final String name;
-    private final String id;
     private final String version;
     private final Schema schema;
 
-    public SchemaResponse(String name, String id, String version, Schema schema) {
+    public SchemaResponse(String id, String name, String version, Schema schema) {
+        this.serviceId = id;
         this.name = name;
-        this.id = id;
         this.version = version;
         this.schema = schema;
     }
 
-    protected SchemaResponse(String json) {
+    public SchemaResponse(String serviceId, ServiceDescriptor descriptor)  {
+        this.serviceId = serviceId;
+        this.name = descriptor.name;
+        this.version = descriptor.version;
+        this.schema = new Schema(descriptor);
+    }
+
+    public SchemaResponse(String json) {
         name = JsonUtils.readString(json, string_pattern(NAME));
-        id = JsonUtils.readString(json, string_pattern("id"));
+        serviceId = JsonUtils.readString(json, string_pattern("id"));
         version = JsonUtils.readString(json, VERSION_RE);
         schema = Schema.optionalInstance(json);
     }
@@ -46,7 +54,7 @@ public class SchemaResponse implements JsonSerializable {
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, "id", id);
+        JsonUtils.addField(sb, "id", serviceId);
         JsonUtils.addField(sb, VERSION, version);
         return endJson(sb).toString();
     }
@@ -63,8 +71,8 @@ public class SchemaResponse implements JsonSerializable {
      * The unique ID of the service reporting the status
      * @return the service id
      */
-    public String getId() {
-        return id;
+    public String getServiceId() {
+        return serviceId;
     }
 
     /**
@@ -73,5 +81,9 @@ public class SchemaResponse implements JsonSerializable {
      */
     public String getVersion() {
         return version;
+    }
+
+    public Schema getSchema() {
+        return schema;
     }
 }

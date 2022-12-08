@@ -21,13 +21,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public class Service implements Runnable {
+public class Service {
 
     private final Connection conn;
     private final String id;
-    private final String name;
-    private final String subject;
-    private final String version;
+    private final ServiceDescriptor sd;
     private final List<Context> verbs;
     private final Context service;
     private final Dispatcher discoveryDispatcher;
@@ -35,21 +33,12 @@ public class Service implements Runnable {
     private final MessageHandler userMessageHandler;
     private final List<EndpointStats> allEndpointStats;
 
-    public Service(Connection conn,
-                   String name,
-                   String description,
-                   String version,
-                   String subject,
-                   Schema schema,
-                   MessageHandler userMessageHandler
-    ) {
+    public Service(Connection conn, ServiceDescriptor descriptor, MessageHandler userMessageHandler) {
         this.conn = conn;
         this.userMessageHandler = userMessageHandler;
 
         id = io.nats.client.NUID.nextGlobal();
-        this.name = name;
-        this.subject = subject;
-        this.version = version;
+        this.sd = descriptor;
 
         discoveryDispatcher = conn.createDispatcher();
         subjectDispatcher = conn.createDispatcher();
@@ -57,15 +46,15 @@ public class Service implements Runnable {
         allEndpointStats = new ArrayList<>();
 
         verbs = new ArrayList<>();
-        addDiscoveryContexts(verbs, "PING", new PingResponse(name, id).serialize());
-        addDiscoveryContexts(verbs, "INFO", new InfoResponse(name, id, description, version, subject).serialize());
-        addDiscoveryContexts(verbs, "SCHEMA", new SchemaResponse(name, id, version, schema).serialize());
+        addDiscoveryContexts(verbs, "PING", new PingResponse(id, this.sd.name).serialize());
+        addDiscoveryContexts(verbs, "INFO", new InfoResponse(id, this.sd).serialize());
+        addDiscoveryContexts(verbs, "SCHEMA", new SchemaResponse(id, this.sd).serialize());
 
         addStatsContexts(verbs);
 
-        service = new ServiceContext(subject);
+        service = new ServiceContext(this.sd.subject);
         allEndpointStats.add(service.stats);
-        service.sub = subjectDispatcher.subscribe(subject, "q", service::onMessage);
+        service.sub = subjectDispatcher.subscribe(this.sd.subject, "q", service::onMessage);
     }
 
     //    stop(error?) function that allows user code to stop the service. Optionally this function should allow for an optional error. Stop should always drain its service subscriptions.
@@ -90,7 +79,7 @@ public class Service implements Runnable {
         return service.stats;
     }
 
-    CompletableFuture<Boolean> done = new CompletableFuture<>();
+    CompletableFuture<Boolean> done = null; // new CompletableFuture<>();
     public CompletableFuture<Boolean> doneFuture() {
         return done;
     }
@@ -101,12 +90,12 @@ public class Service implements Runnable {
         verbs.add(ctx0);
         allEndpointStats.add(ctx0.stats);
 
-        final DiscoveryContext ctx1 = new DiscoveryContext(getPrefix() + action + "." + name, response);
+        final DiscoveryContext ctx1 = new DiscoveryContext(getPrefix() + action + "." + sd.name, response);
         ctx1.sub = discoveryDispatcher.subscribe(ctx1.subject, ctx1::onMessage);
         verbs.add(ctx1);
         allEndpointStats.add(ctx1.stats);
 
-        final DiscoveryContext ctx2 = new DiscoveryContext(getPrefix() + action + "." + name + "." + id, response);
+        final DiscoveryContext ctx2 = new DiscoveryContext(getPrefix() + action + "." + sd.name + "." + id, response);
         ctx2.sub = discoveryDispatcher.subscribe(ctx2.subject, ctx2::onMessage);
         verbs.add(ctx2);
         allEndpointStats.add(ctx2.stats);
@@ -118,12 +107,12 @@ public class Service implements Runnable {
         verbs.add(ctx0);
         allEndpointStats.add(ctx0.stats);
 
-        final StatsContext ctx1 = new StatsContext(getPrefix() + "STATS." + name);
+        final StatsContext ctx1 = new StatsContext(getPrefix() + "STATS." + sd.name);
         ctx1.sub = discoveryDispatcher.subscribe(ctx1.subject, ctx1::onMessage);
         verbs.add(ctx1);
         allEndpointStats.add(ctx1.stats);
 
-        final StatsContext ctx2 = new StatsContext(getPrefix() + "STATS." + name + "." + id);
+        final StatsContext ctx2 = new StatsContext(getPrefix() + "STATS." + sd.name + "." + id);
         ctx2.sub = discoveryDispatcher.subscribe(ctx2.subject, ctx2::onMessage);
         verbs.add(ctx2);
         allEndpointStats.add(ctx2.stats);
@@ -133,20 +122,17 @@ public class Service implements Runnable {
         return "$SRV.";
     }
 
-    static class Context {
+    abstract static class Context {
         String subject;
         Subscription sub;
         EndpointStats stats;
-        MessageHandler requestHandler;
 
         public Context(String subject) {
+            this.subject = subject;
             this.stats = new EndpointStats(subject);
         }
 
-        public Context(String subject, MessageHandler requestHandler) {
-            this.stats = new EndpointStats(subject);
-            this.requestHandler = requestHandler;
-        }
+        protected abstract void subOnMessage(Message msg) throws InterruptedException;
 
         public void onMessage(Message msg) throws InterruptedException {
             long requests = 1;
@@ -154,7 +140,7 @@ public class Service implements Runnable {
             try {
                 requests = stats.numRequests.incrementAndGet();
                 start = System.nanoTime();
-                requestHandler.onMessage(msg);
+                subOnMessage(msg);
             }
             catch (Throwable t) {
                 stats.numErrors.incrementAndGet();
@@ -171,37 +157,44 @@ public class Service implements Runnable {
 
     class ServiceContext extends Context {
         public ServiceContext(String subject) {
-            super(subject, userMessageHandler);
+            super(subject);
+        }
+
+        @Override
+        protected void subOnMessage(Message msg) throws InterruptedException {
+            userMessageHandler.onMessage(msg);
         }
     }
 
     class DiscoveryContext extends Context {
+        byte[] response;
         public DiscoveryContext(String subject, byte[] response) {
-            super(subject, msg -> conn.publish(msg.getReplyTo(), response));
+            super(subject);
+            this.response = response;
+        }
+
+        @Override
+        protected void subOnMessage(Message msg) {
+            conn.publish(msg.getReplyTo(), response);
         }
     }
 
     class StatsContext extends Context {
         public StatsContext(String subject) {
             super(subject);
-            requestHandler =
-                msg -> {
-                    if (new StatsRequest(msg.getData()).isInternal()) {
-                        conn.publish(msg.getReplyTo(),
-                            new StatsResponse(name, id, version, stats).serialize());
-                    }
-                    else {
-                        conn.publish(msg.getReplyTo(),
-                            new StatsResponse(name, id, version, allEndpointStats).serialize());
-                    }
-                };
         }
-    }
 
-    @Override
-    public void run() {
-        while (true) {
-
+        @Override
+        protected void subOnMessage(Message msg) throws InterruptedException {
+            StatsRequest rq = new StatsRequest(msg.getData());
+            if (rq.isInternal()) {
+                conn.publish(msg.getReplyTo(),
+                    new StatsResponse(id, sd, allEndpointStats).serialize());
+            }
+            else {
+                conn.publish(msg.getReplyTo(),
+                    new StatsResponse(id, sd, stats).serialize());
+            }
         }
     }
 }

@@ -15,6 +15,7 @@ package io.nats.service.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.service.ServiceDescriptor;
 
 import java.util.Collections;
 import java.util.List;
@@ -26,28 +27,42 @@ import static io.nats.client.support.JsonUtils.*;
  * TBD
  */
 public class StatsResponse implements JsonSerializable {
+    private final String serviceId;
     private final String name;
-    private final String id;
     private final String version;
     private final List<EndpointStats> stats;
 
-    public StatsResponse(String name, String id, String version, EndpointStats stats) {
+    public StatsResponse(String serviceId, ServiceDescriptor descriptor, EndpointStats stats) {
+        this.serviceId = serviceId;
+        this.name = descriptor.name;
+        this.version = descriptor.version;
+        this.stats = Collections.singletonList(stats);
+    }
+
+    public StatsResponse(String serviceId, ServiceDescriptor descriptor, List<EndpointStats> stats) {
+        this.serviceId = serviceId;
+        this.name = descriptor.name;
+        this.version = descriptor.version;
+        this.stats = stats;
+    }
+
+    public StatsResponse(String serviceId, String name, String version, EndpointStats stats) {
+        this.serviceId = serviceId;
         this.name = name;
-        this.id = id;
         this.version = version;
         this.stats = Collections.singletonList(stats);
     }
 
-    public StatsResponse(String name, String id, String version, List<EndpointStats> stats) {
+    public StatsResponse(String serviceId, String name, String version, List<EndpointStats> stats) {
         this.name = name;
-        this.id = id;
+        this.serviceId = serviceId;
         this.version = version;
         this.stats = stats;
     }
 
-    StatsResponse(String json) {
+    public StatsResponse(String json) {
         name = JsonUtils.readString(json, string_pattern(NAME));
-        id = JsonUtils.readString(json, string_pattern("id"));
+        serviceId = JsonUtils.readString(json, string_pattern("id"));
         version = JsonUtils.readString(json, VERSION_RE);
         stats = EndpointStats.optionalListOf(json);
     }
@@ -56,7 +71,7 @@ public class StatsResponse implements JsonSerializable {
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, "id", id);
+        JsonUtils.addField(sb, "id", serviceId);
         JsonUtils.addField(sb, VERSION, version);
         addJsons(sb, "stats", stats);
         return endJson(sb).toString();
@@ -74,8 +89,8 @@ public class StatsResponse implements JsonSerializable {
      * The unique ID of the service reporting the status
      * @return the service id
      */
-    public String getId() {
-        return id;
+    public String getServiceId() {
+        return serviceId;
     }
 
     /**

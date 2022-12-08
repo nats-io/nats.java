@@ -36,6 +36,11 @@ public class EndpointStats implements JsonSerializable {
 
     public EndpointStats(String name) {
         this.name = name;
+        this.numRequests = new AtomicLong();
+        this.numErrors = new AtomicLong();
+        this.lastError = null;
+        this.totalProcessingTime = new AtomicLong();
+        this.averageProcessingTime = new AtomicLong();
     }
 
     public void reset() {
