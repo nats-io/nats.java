@@ -79,7 +79,7 @@ public class Service {
         return service.stats;
     }
 
-    CompletableFuture<Boolean> done = null; // new CompletableFuture<>();
+    CompletableFuture<Boolean> done = new CompletableFuture<>();
     public CompletableFuture<Boolean> doneFuture() {
         return done;
     }
