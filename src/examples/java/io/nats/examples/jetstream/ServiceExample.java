@@ -21,6 +21,7 @@ import io.nats.service.api.*;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 public class ServiceExample {
 
@@ -37,7 +38,7 @@ public class ServiceExample {
                 "schema request text/url", "schema response text/url");
             Service service = new Service(nc, sd,
                 msg -> {
-                    System.out.println("SERVICE RECEIVED: " + msg);
+                    System.out.println("SERVICE REQUEST: " + msg);
                     byte[] outBytes = ("Echo " + new String(msg.getData())).getBytes();
                     nc.publish(msg.getReplyTo(), outBytes);
             });
@@ -65,7 +66,9 @@ public class ServiceExample {
 
             rr(nc, "$SRV.STATS.EchoService." + tr.getServiceId(), new StatsRequest(true).serialize());
 
-            // service.doneFuture().get();
+            service.stop();
+
+            System.out.println(service.done().get(1, TimeUnit.SECONDS));
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -79,7 +82,7 @@ public class ServiceExample {
     private static String rr(Connection nc, String subject, byte[] body) throws InterruptedException, ExecutionException {
         CompletableFuture<Message> reply = nc.request(subject, body);
         String data = new String(reply.get().getData());
-        System.out.println("Reply received for " + subject + " -> " + data);
+        System.out.println("RECEIVED REPLY: " + subject + " -> " + data);
         return data;
     }
 }

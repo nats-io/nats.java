@@ -23,112 +23,189 @@ import java.util.concurrent.CompletableFuture;
 
 public class Service {
 
+    private static final String PING = "PING";
+    private static final String INFO = "INFO";
+    private static final String SCHEMA = "SCHEMA";
+    private static final String STATS = "STATS";
+    private static final String SRV_PREFIX = "$SRV.";
+    public static final String QGROUP = "q";
+    public static final Duration DRAIN_TIMEOUT = Duration.ofSeconds(10);
+
     private final Connection conn;
     private final String id;
     private final ServiceDescriptor sd;
-    private final List<Context> verbs;
-    private final Context service;
-    private final Dispatcher discoveryDispatcher;
-    private final Dispatcher subjectDispatcher;
+    private final List<Context> discoveryContexts;
+    private final Context serviceContext;
     private final MessageHandler userMessageHandler;
-    private final List<EndpointStats> allEndpointStats;
+    private final CompletableFuture<Boolean> doneFuture;
 
-    public Service(Connection conn, ServiceDescriptor descriptor, MessageHandler userMessageHandler) {
-        this.conn = conn;
-        this.userMessageHandler = userMessageHandler;
-
-        id = io.nats.client.NUID.nextGlobal();
-        this.sd = descriptor;
-
-        discoveryDispatcher = conn.createDispatcher();
-        subjectDispatcher = conn.createDispatcher();
-
-        allEndpointStats = new ArrayList<>();
-
-        verbs = new ArrayList<>();
-        addDiscoveryContexts(verbs, "PING", new PingResponse(id, this.sd.name).serialize());
-        addDiscoveryContexts(verbs, "INFO", new InfoResponse(id, this.sd).serialize());
-        addDiscoveryContexts(verbs, "SCHEMA", new SchemaResponse(id, this.sd).serialize());
-
-        addStatsContexts(verbs);
-
-        service = new ServiceContext(this.sd.subject);
-        allEndpointStats.add(service.stats);
-        service.sub = subjectDispatcher.subscribe(this.sd.subject, "q", service::onMessage);
+    public Service(Connection conn, ServiceDescriptor descriptor,
+                   MessageHandler userMessageHandler) {
+        this(conn, descriptor, userMessageHandler, null, null, null, null, null);
     }
 
-    //    stop(error?) function that allows user code to stop the service. Optionally this function should allow for an optional error. Stop should always drain its service subscriptions.
-    public void stop(Throwable t) throws InterruptedException {
-        discoveryDispatcher.drain(Duration.ofSeconds(3));
-        subjectDispatcher.drain(Duration.ofSeconds(3));
-        if (t == null) {
-            done.complete(true);
+    public Service(Connection conn, ServiceDescriptor descriptor, MessageHandler userMessageHandler,
+                   Dispatcher dUserPing, Dispatcher dUserInfo, Dispatcher dUserSchema, Dispatcher dUserStats, Dispatcher dUserService) {
+        id = io.nats.client.NUID.nextGlobal();
+        this.conn = conn;
+        this.sd = descriptor;
+        this.userMessageHandler = userMessageHandler;
+
+        // User may provide 0 or more dispatchers, just use theirs when provided else use one we make
+        Dispatcher dInternal = null;
+        if (dUserPing == null || dUserInfo == null || dUserSchema == null || dUserStats == null) {
+            dInternal =  conn.createDispatcher();
+        }
+
+        Dispatcher dPing = getDispatcher(dUserPing, dInternal);
+        Dispatcher dInfo = getDispatcher(dUserInfo, dInternal);
+        Dispatcher dSchema = getDispatcher(dUserSchema, dInternal);
+        Dispatcher dStats = getDispatcher(dUserStats, dInternal);
+        Dispatcher dService = getDispatcher(dUserService, null);
+
+        discoveryContexts = new ArrayList<>();
+        addDiscoveryContexts(PING, new PingResponse(id, this.sd.name).serialize(), dPing, dUserPing == null);
+        addDiscoveryContexts(INFO, new InfoResponse(id, this.sd).serialize(), dInfo, dUserInfo == null);
+        addDiscoveryContexts(SCHEMA, new SchemaResponse(id, this.sd).serialize(), dSchema, dUserSchema == null);
+        addStatsContexts(dStats, dUserStats == null);
+
+        serviceContext = new ServiceContext(this.sd.subject, dService, dUserService == null);
+        serviceContext.sub = dService.subscribe(this.sd.subject, QGROUP, serviceContext::onMessage);
+
+        doneFuture = new CompletableFuture<>();
+    }
+
+    private Dispatcher getDispatcher(Dispatcher userDispatcher, Dispatcher dInternal) {
+        if (userDispatcher == null) {
+            return dInternal == null ? conn.createDispatcher() : dInternal;
+        }
+        return userDispatcher;
+    }
+
+    private static String toSubject(String action) {
+        return SRV_PREFIX + action;
+    }
+
+    public void stop() {
+        stop(null);
+    }
+
+    private final Object stopLock = new Object();
+
+    public void stop(Throwable t) {
+        synchronized (stopLock) {
+            if (!doneFuture.isDone()) {
+                // drain all dispatchers
+                List<Dispatcher> internals = new ArrayList<>();
+                List<CompletableFuture<Boolean>> futures = new ArrayList<>();
+
+                drain(serviceContext, internals, futures);
+
+                for (Context c : discoveryContexts) {
+                    drain(c, internals, futures);
+                }
+
+                // make sure drain is done before closing dispatcher
+                for (CompletableFuture<Boolean> f : futures) {
+                    f.join(); // don't care if it completes successfully or not, just that it's done.
+                }
+
+                // close all internal dispatchers
+                for (Dispatcher d : internals) {
+                    conn.closeDispatcher(d);
+                }
+
+                // ok we are done
+                if (t == null) {
+                    doneFuture.complete(true);
+                }
+                else {
+                    doneFuture.completeExceptionally(t);
+                }
+            }
+        }
+    }
+
+    private static void drain(Context c, List<Dispatcher> internals, List<CompletableFuture<Boolean>> futures) {
+        if (c.internalDispatcher) {
+            internals.add(c.dispatcher);
+            try {
+                futures.add(c.dispatcher.drain(DRAIN_TIMEOUT));
+            }
+            catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
         }
         else {
-            done.completeExceptionally(t);
+            try {
+                futures.add(c.sub.drain(DRAIN_TIMEOUT));
+            }
+            catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
         }
     }
 
     public void reset() {
-        for (EndpointStats e : allEndpointStats) {
-            e.reset();
+        serviceContext.stats.reset();
+    }
+
+    public void resetDiscovery() {
+        for (Context c : discoveryContexts) {
+            c.stats.reset();
         }
     }
 
     public EndpointStats stats() {
-        return service.stats;
+        return serviceContext.stats;
     }
 
-    CompletableFuture<Boolean> done = new CompletableFuture<>();
-    public CompletableFuture<Boolean> doneFuture() {
-        return done;
+    public List<EndpointStats> discoveryStats() {
+        List<EndpointStats> list = new ArrayList<>();
+        for (Context c : discoveryContexts) {
+            list.add(c.stats);
+        }
+        return list;
     }
 
-    private void addDiscoveryContexts(List<Context> verbs, String action, byte[] response) {
-        final DiscoveryContext ctx0 = new DiscoveryContext(getPrefix() + action, response);
-        ctx0.sub = discoveryDispatcher.subscribe(ctx0.subject, ctx0::onMessage);
-        verbs.add(ctx0);
-        allEndpointStats.add(ctx0.stats);
-
-        final DiscoveryContext ctx1 = new DiscoveryContext(getPrefix() + action + "." + sd.name, response);
-        ctx1.sub = discoveryDispatcher.subscribe(ctx1.subject, ctx1::onMessage);
-        verbs.add(ctx1);
-        allEndpointStats.add(ctx1.stats);
-
-        final DiscoveryContext ctx2 = new DiscoveryContext(getPrefix() + action + "." + sd.name + "." + id, response);
-        ctx2.sub = discoveryDispatcher.subscribe(ctx2.subject, ctx2::onMessage);
-        verbs.add(ctx2);
-        allEndpointStats.add(ctx2.stats);
+    public CompletableFuture<Boolean> done() {
+        return doneFuture;
     }
 
-    private void addStatsContexts(List<Context> verbs) {
-        final StatsContext ctx0 = new StatsContext(getPrefix() + "STATS");
-        ctx0.sub = discoveryDispatcher.subscribe(ctx0.subject, ctx0::onMessage);
-        verbs.add(ctx0);
-        allEndpointStats.add(ctx0.stats);
+    private void addDiscoveryContexts(String action, byte[] response, Dispatcher dispatcher, boolean internalDispatcher) {
+        finishAddDiscoveryContext(dispatcher,
+            new DiscoveryContext(action, response, dispatcher, internalDispatcher));
 
-        final StatsContext ctx1 = new StatsContext(getPrefix() + "STATS." + sd.name);
-        ctx1.sub = discoveryDispatcher.subscribe(ctx1.subject, ctx1::onMessage);
-        verbs.add(ctx1);
-        allEndpointStats.add(ctx1.stats);
+        finishAddDiscoveryContext(dispatcher,
+            new DiscoveryContext(action + "." + sd.name, response, dispatcher, internalDispatcher));
 
-        final StatsContext ctx2 = new StatsContext(getPrefix() + "STATS." + sd.name + "." + id);
-        ctx2.sub = discoveryDispatcher.subscribe(ctx2.subject, ctx2::onMessage);
-        verbs.add(ctx2);
-        allEndpointStats.add(ctx2.stats);
+        finishAddDiscoveryContext(dispatcher,
+            new DiscoveryContext(action + "." + sd.name + "." + id, response, dispatcher, internalDispatcher));
     }
 
-    private static String getPrefix() {
-        return "$SRV.";
+    private void addStatsContexts(Dispatcher dispatcher, boolean internalDispatcher) {
+        finishAddDiscoveryContext(dispatcher,
+            new StatsContext(STATS, dispatcher, internalDispatcher));
+
+        finishAddDiscoveryContext(dispatcher,
+            new StatsContext(STATS + "." + sd.name, dispatcher, internalDispatcher));
+
+        finishAddDiscoveryContext(dispatcher,
+            new StatsContext(STATS + "." + sd.name + "." + id, dispatcher, internalDispatcher));
     }
 
-    abstract static class Context {
+    private void finishAddDiscoveryContext(Dispatcher dispatcher, final Context ctx) {
+        ctx.sub = dispatcher.subscribe(ctx.subject, ctx::onMessage);
+        discoveryContexts.add(ctx);
+    }
+
+    abstract class Context {
         String subject;
         Subscription sub;
         EndpointStats stats;
+        Dispatcher dispatcher;
+        boolean internalDispatcher;
 
-        public Context(String subject) {
+        public Context(String subject, Dispatcher dispatcher, boolean internalDispatcher) {
             this.subject = subject;
+            this.dispatcher = dispatcher;
+            this.internalDispatcher = internalDispatcher;
             this.stats = new EndpointStats(subject);
         }
 
@@ -145,6 +222,7 @@ public class Service {
             catch (Throwable t) {
                 stats.numErrors.incrementAndGet();
                 stats.lastError = t.toString();
+                Service.this.stop(t);
             }
             finally {
                 long elapsed = System.nanoTime() - start;
@@ -156,8 +234,8 @@ public class Service {
     }
 
     class ServiceContext extends Context {
-        public ServiceContext(String subject) {
-            super(subject);
+        public ServiceContext(String subject, Dispatcher dispatcher, boolean internalDispatcher) {
+            super(subject, dispatcher, internalDispatcher);
         }
 
         @Override
@@ -168,8 +246,9 @@ public class Service {
 
     class DiscoveryContext extends Context {
         byte[] response;
-        public DiscoveryContext(String subject, byte[] response) {
-            super(subject);
+
+        public DiscoveryContext(String subject, byte[] response, Dispatcher dispatcher, boolean internalDispatcher) {
+            super(toSubject(subject), dispatcher, internalDispatcher);
             this.response = response;
         }
 
@@ -180,16 +259,18 @@ public class Service {
     }
 
     class StatsContext extends Context {
-        public StatsContext(String subject) {
-            super(subject);
+        public StatsContext(String subject, Dispatcher dispatcher, boolean internalDispatcher) {
+            super(toSubject(subject), dispatcher, internalDispatcher);
         }
 
         @Override
-        protected void subOnMessage(Message msg) throws InterruptedException {
+        protected void subOnMessage(Message msg) {
             StatsRequest rq = new StatsRequest(msg.getData());
             if (rq.isInternal()) {
+                List<EndpointStats> list = discoveryStats();
+                list.add(stats);
                 conn.publish(msg.getReplyTo(),
-                    new StatsResponse(id, sd, allEndpointStats).serialize());
+                    new StatsResponse(id, sd, list).serialize());
             }
             else {
                 conn.publish(msg.getReplyTo(),
