@@ -18,19 +18,14 @@ import io.nats.service.api.*;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import static io.nats.service.ServiceUtil.*;
+
 public class Service {
-
-    private static final String PING = "PING";
-    private static final String INFO = "INFO";
-    private static final String SCHEMA = "SCHEMA";
-    private static final String STATS = "STATS";
-    private static final String SRV_PREFIX = "$SRV.";
-    public static final String QGROUP = "q";
-    public static final Duration DRAIN_TIMEOUT = Duration.ofSeconds(10);
-
     private final Connection conn;
     private final String id;
     private final ServiceDescriptor sd;
@@ -38,6 +33,8 @@ public class Service {
     private final Context serviceContext;
     private final MessageHandler userMessageHandler;
     private final CompletableFuture<Boolean> doneFuture;
+    private final Object stopLock = new Object();
+    private Duration drainTimeout = DEFAULT_DRAIN_TIMEOUT;
 
     public Service(Connection conn, ServiceDescriptor descriptor,
                    MessageHandler userMessageHandler) {
@@ -69,10 +66,36 @@ public class Service {
         addDiscoveryContexts(SCHEMA, new SchemaResponse(id, this.sd).serialize(), dSchema, dUserSchema == null);
         addStatsContexts(dStats, dUserStats == null);
 
-        serviceContext = new ServiceContext(this.sd.subject, dService, dUserService == null);
+        serviceContext = new ServiceContext(this.sd.name, this.sd.subject, dService, dUserService == null);
         serviceContext.sub = dService.subscribe(this.sd.subject, QGROUP, serviceContext::onMessage);
 
         doneFuture = new CompletableFuture<>();
+    }
+
+    public Service setDrainTimeout(Duration drainTimeout) {
+        this.drainTimeout = drainTimeout;
+        return this;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public ServiceDescriptor getServiceDescriptor() {
+        return sd;
+    }
+
+    @Override
+    public String toString() {
+        return "Service{" +
+            "id='" + id + '\'' +
+            ", name='" + sd.name + '\'' +
+            ", description='" + sd.description + '\'' +
+            ", version='" + sd.version + '\'' +
+            ", subject='" + sd.subject + '\'' +
+            ", schemaRequest='" + sd.schemaRequest + '\'' +
+            ", schemaResponse='" + sd.schemaResponse + '\'' +
+            '}';
     }
 
     private Dispatcher getDispatcher(Dispatcher userDispatcher, Dispatcher dInternal) {
@@ -82,32 +105,36 @@ public class Service {
         return userDispatcher;
     }
 
-    private static String toSubject(String action) {
-        return SRV_PREFIX + action;
-    }
-
     public void stop() {
-        stop(null);
+        stop(true, null);
     }
-
-    private final Object stopLock = new Object();
 
     public void stop(Throwable t) {
+        stop(true, t);
+    }
+
+    public void stop(boolean drain) {
+        stop(drain, null);
+    }
+
+    public void stop(boolean drain, Throwable t) {
         synchronized (stopLock) {
             if (!doneFuture.isDone()) {
-                // drain all dispatchers
                 List<Dispatcher> internals = new ArrayList<>();
-                List<CompletableFuture<Boolean>> futures = new ArrayList<>();
 
-                drain(serviceContext, internals, futures);
+                if (drain) {
+                    List<CompletableFuture<Boolean>> futures = new ArrayList<>();
 
-                for (Context c : discoveryContexts) {
-                    drain(c, internals, futures);
-                }
+                    drain(serviceContext, internals, futures);
 
-                // make sure drain is done before closing dispatcher
-                for (CompletableFuture<Boolean> f : futures) {
-                    f.join(); // don't care if it completes successfully or not, just that it's done.
+                    for (Context c : discoveryContexts) {
+                        drain(c, internals, futures);
+                    }
+
+                    // make sure drain is done before closing dispatcher
+                    for (CompletableFuture<Boolean> f : futures) {
+                        f.join(); // don't care if it completes successfully or not, just that it's done.
+                    }
                 }
 
                 // close all internal dispatchers
@@ -126,17 +153,17 @@ public class Service {
         }
     }
 
-    private static void drain(Context c, List<Dispatcher> internals, List<CompletableFuture<Boolean>> futures) {
+    private void drain(Context c, List<Dispatcher> internals, List<CompletableFuture<Boolean>> futures) {
         if (c.internalDispatcher) {
             internals.add(c.dispatcher);
             try {
-                futures.add(c.dispatcher.drain(DRAIN_TIMEOUT));
+                futures.add(c.dispatcher.drain(drainTimeout));
             }
             catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
         }
         else {
             try {
-                futures.add(c.sub.drain(DRAIN_TIMEOUT));
+                futures.add(c.sub.drain(drainTimeout));
             }
             catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
         }
@@ -157,37 +184,47 @@ public class Service {
     }
 
     public List<EndpointStats> discoveryStats() {
-        List<EndpointStats> list = new ArrayList<>();
+        return new ArrayList<>(_discoveryStats());
+    }
+
+    private Set<EndpointStats> _discoveryStats() {
+        Set<EndpointStats> set = new HashSet<>();
         for (Context c : discoveryContexts) {
-            list.add(c.stats);
+            set.add(c.stats);
         }
-        return list;
+        return set;
     }
 
     public CompletableFuture<Boolean> done() {
         return doneFuture;
     }
 
-    private void addDiscoveryContexts(String action, byte[] response, Dispatcher dispatcher, boolean internalDispatcher) {
+    private EndpointStats addDiscoveryContexts(String action, byte[] response, Dispatcher dispatcher, boolean internalDispatcher) {
+        EndpointStats es = new EndpointStats(action);
         finishAddDiscoveryContext(dispatcher,
-            new DiscoveryContext(action, response, dispatcher, internalDispatcher));
+            new DiscoveryContext(es, action, null, null, response, dispatcher, internalDispatcher));
 
         finishAddDiscoveryContext(dispatcher,
-            new DiscoveryContext(action + "." + sd.name, response, dispatcher, internalDispatcher));
+            new DiscoveryContext(es, action, sd.name, null, response, dispatcher, internalDispatcher));
 
         finishAddDiscoveryContext(dispatcher,
-            new DiscoveryContext(action + "." + sd.name + "." + id, response, dispatcher, internalDispatcher));
+            new DiscoveryContext(es, action, sd.name, id, response, dispatcher, internalDispatcher));
+
+        return es;
     }
 
-    private void addStatsContexts(Dispatcher dispatcher, boolean internalDispatcher) {
+    private EndpointStats addStatsContexts(Dispatcher dispatcher, boolean internalDispatcher) {
+        EndpointStats es = new EndpointStats(STATS);
         finishAddDiscoveryContext(dispatcher,
-            new StatsContext(STATS, dispatcher, internalDispatcher));
+            new StatsContext(es, null, null, dispatcher, internalDispatcher));
 
         finishAddDiscoveryContext(dispatcher,
-            new StatsContext(STATS + "." + sd.name, dispatcher, internalDispatcher));
+            new StatsContext(es, sd.name, null, dispatcher, internalDispatcher));
 
         finishAddDiscoveryContext(dispatcher,
-            new StatsContext(STATS + "." + sd.name + "." + id, dispatcher, internalDispatcher));
+            new StatsContext(es, sd.name, id, dispatcher, internalDispatcher));
+
+        return es;
     }
 
     private void finishAddDiscoveryContext(Dispatcher dispatcher, final Context ctx) {
@@ -202,11 +239,11 @@ public class Service {
         Dispatcher dispatcher;
         boolean internalDispatcher;
 
-        public Context(String subject, Dispatcher dispatcher, boolean internalDispatcher) {
+        public Context(String subject, EndpointStats stats, Dispatcher dispatcher, boolean internalDispatcher) {
             this.subject = subject;
+            this.stats = stats;
             this.dispatcher = dispatcher;
             this.internalDispatcher = internalDispatcher;
-            this.stats = new EndpointStats(subject);
         }
 
         protected abstract void subOnMessage(Message msg) throws InterruptedException;
@@ -230,12 +267,11 @@ public class Service {
                 stats.averageProcessingTime.set(total / requests);
             }
         }
-
     }
 
     class ServiceContext extends Context {
-        public ServiceContext(String subject, Dispatcher dispatcher, boolean internalDispatcher) {
-            super(subject, dispatcher, internalDispatcher);
+        public ServiceContext(String name, String subject, Dispatcher dispatcher, boolean internalDispatcher) {
+            super(subject, new EndpointStats(name), dispatcher, internalDispatcher);
         }
 
         @Override
@@ -247,8 +283,8 @@ public class Service {
     class DiscoveryContext extends Context {
         byte[] response;
 
-        public DiscoveryContext(String subject, byte[] response, Dispatcher dispatcher, boolean internalDispatcher) {
-            super(toSubject(subject), dispatcher, internalDispatcher);
+        public DiscoveryContext(EndpointStats es, String name, String serviceName, String serviceId, byte[] response, Dispatcher dispatcher, boolean internalDispatcher) {
+            super(toDiscoverySubject(name, serviceName, serviceId), es, dispatcher, internalDispatcher);
             this.response = response;
         }
 
@@ -259,16 +295,17 @@ public class Service {
     }
 
     class StatsContext extends Context {
-        public StatsContext(String subject, Dispatcher dispatcher, boolean internalDispatcher) {
-            super(toSubject(subject), dispatcher, internalDispatcher);
+        public StatsContext(EndpointStats es, String serviceName, String serviceId, Dispatcher dispatcher, boolean internalDispatcher) {
+            super(toDiscoverySubject(STATS, serviceName, serviceId), es, dispatcher, internalDispatcher);
         }
 
         @Override
         protected void subOnMessage(Message msg) {
             StatsRequest rq = new StatsRequest(msg.getData());
             if (rq.isInternal()) {
-                List<EndpointStats> list = discoveryStats();
-                list.add(stats);
+                List<EndpointStats> list = new ArrayList<>(_discoveryStats());
+                list.add(serviceContext.stats);
+                list.sort(ENDPOINT_STATS_COMPARATOR);
                 conn.publish(msg.getReplyTo(),
                     new StatsResponse(id, sd, list).serialize());
             }

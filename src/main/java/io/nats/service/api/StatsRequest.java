@@ -22,6 +22,8 @@ import static io.nats.client.support.JsonUtils.*;
  * TBD
  */
 public class StatsRequest implements JsonSerializable {
+    public static final byte[] INTERNAL_STATS_REQUEST_BYTES = new StatsRequest(true).serialize();
+
     private final boolean internal;
 
     public StatsRequest(boolean internal) {
@@ -50,5 +52,10 @@ public class StatsRequest implements JsonSerializable {
 
     public boolean isInternal() {
         return internal;
+    }
+
+    @Override
+    public String toString() {
+        return toJson();
     }
 }

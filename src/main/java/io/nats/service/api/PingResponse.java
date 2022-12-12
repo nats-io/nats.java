@@ -59,4 +59,9 @@ public class PingResponse implements JsonSerializable {
     public String getServiceId() {
         return serviceId;
     }
+
+    @Override
+    public String toString() {
+        return toJson();
+    }
 }

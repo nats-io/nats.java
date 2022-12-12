@@ -17,6 +17,8 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.service.ServiceDescriptor;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -39,11 +41,11 @@ public class StatsResponse implements JsonSerializable {
         this.stats = Collections.singletonList(stats);
     }
 
-    public StatsResponse(String serviceId, ServiceDescriptor descriptor, List<EndpointStats> stats) {
+    public StatsResponse(String serviceId, ServiceDescriptor descriptor, Collection<EndpointStats> stats) {
         this.serviceId = serviceId;
         this.name = descriptor.name;
         this.version = descriptor.version;
-        this.stats = stats;
+        this.stats = new ArrayList<>(stats);
     }
 
     public StatsResponse(String serviceId, String name, String version, EndpointStats stats) {
@@ -53,11 +55,11 @@ public class StatsResponse implements JsonSerializable {
         this.stats = Collections.singletonList(stats);
     }
 
-    public StatsResponse(String serviceId, String name, String version, List<EndpointStats> stats) {
+    public StatsResponse(String serviceId, String name, String version, Collection<EndpointStats> stats) {
         this.name = name;
         this.serviceId = serviceId;
         this.version = version;
-        this.stats = stats;
+        this.stats = new ArrayList<>(stats);
     }
 
     public StatsResponse(String json) {
@@ -107,5 +109,10 @@ public class StatsResponse implements JsonSerializable {
      */
     public List<EndpointStats> getStats() {
         return stats;
+    }
+
+    @Override
+    public String toString() {
+        return toJson();
     }
 }

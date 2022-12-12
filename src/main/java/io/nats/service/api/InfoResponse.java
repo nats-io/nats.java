@@ -104,4 +104,9 @@ public class InfoResponse implements JsonSerializable {
     public String getSubject() {
         return subject;
     }
+
+    @Override
+    public String toString() {
+        return toJson();
+    }
 }

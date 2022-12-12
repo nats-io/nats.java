@@ -82,4 +82,9 @@ public class EndpointStats implements JsonSerializable {
         JsonUtils.addField(sb, "average_processing_time", averageProcessingTime.get());
         return endJson(sb).toString();
     }
+
+    @Override
+    public String toString() {
+        return toJson();
+    }
 }

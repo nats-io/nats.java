@@ -56,6 +56,7 @@ public class SchemaResponse implements JsonSerializable {
         JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, "id", serviceId);
         JsonUtils.addField(sb, VERSION, version);
+        addField(sb, "schema", schema);
         return endJson(sb).toString();
     }
 
@@ -85,5 +86,10 @@ public class SchemaResponse implements JsonSerializable {
 
     public Schema getSchema() {
         return schema;
+    }
+
+    @Override
+    public String toString() {
+        return toJson();
     }
 }

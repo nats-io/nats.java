@@ -72,4 +72,9 @@ public class Schema implements JsonSerializable {
     public String getResponse() {
         return response;
     }
+
+    @Override
+    public String toString() {
+        return toJson();
+    }
 }

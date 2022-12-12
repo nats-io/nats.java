@@ -786,23 +786,36 @@ public abstract class JsonUtils {
     public static String getFormatted(Object o) {
         StringBuilder sb = new StringBuilder();
         int level = 0;
+        int arrayLevel = 0;
+        boolean lastWasClose = false;
         boolean indentNext = true;
         String s = o.toString();
         for (int x = 0; x < s.length(); x++) {
             char c = s.charAt(x);
             if (c == '{') {
+                if (arrayLevel > 0 && lastWasClose) {
+                    sb.append(indent(level));
+                }
                 sb.append(c).append('\n');
                 ++level;
                 indentNext = true;
+                lastWasClose = false;
             }
             else if (c == '}') {
                 sb.append('\n').append(indent(--level)).append(c);
+                lastWasClose = true;
             }
             else if (c == ',') {
                 sb.append('\n');
                 indentNext = true;
             }
             else {
+                if (c == '[') {
+                    arrayLevel++;
+                }
+                else if (c == ']') {
+                    arrayLevel--;
+                }
                 if (indentNext) {
                     if (c != ' ') {
                         sb.append(indent(level)).append(c);
@@ -812,6 +825,7 @@ public abstract class JsonUtils {
                 else {
                     sb.append(c);
                 }
+                lastWasClose = lastWasClose && Character.isWhitespace(c);
             }
         }
         return sb.toString();
