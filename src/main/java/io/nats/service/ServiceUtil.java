@@ -20,7 +20,7 @@ import java.util.Comparator;
 
 import static io.nats.client.support.Validator.nullOrEmpty;
 
-public class ServiceUtil {
+public abstract class ServiceUtil {
 
     static final String PING = "PING";
     static final String INFO = "INFO";
@@ -33,6 +33,8 @@ public class ServiceUtil {
     public static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofSeconds(5);
     public static final long DEFAULT_DISCOVERY_MAX_TIME_MILLIS = 5000;
     public static final int DEFAULT_DISCOVERY_MAX_RESULTS = 10;
+
+    private ServiceUtil() {} /* ensures cannot be constructed */
 
     static String toDiscoverySubject(String name) {
         return toDiscoverySubject(name, null, null);

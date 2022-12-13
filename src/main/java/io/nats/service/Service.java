@@ -187,15 +187,13 @@ public class Service {
     }
 
     public List<EndpointStats> discoveryStats() {
-        return new ArrayList<>(_discoveryStats());
-    }
-
-    private Set<EndpointStats> _discoveryStats() {
         Set<EndpointStats> set = new HashSet<>();
         for (Context c : discoveryContexts) {
             set.add(c.stats);
         }
-        return set;
+        List<EndpointStats> list = new ArrayList<>(set);
+        list.sort(ENDPOINT_STATS_COMPARATOR);
+        return list;
     }
 
     public CompletableFuture<Boolean> done() {
@@ -306,9 +304,8 @@ public class Service {
         protected void subOnMessage(Message msg) {
             StatsRequest rq = new StatsRequest(msg.getData());
             if (rq.isInternal()) {
-                List<EndpointStats> list = new ArrayList<>(_discoveryStats());
-                list.add(serviceContext.stats);
-                list.sort(ENDPOINT_STATS_COMPARATOR);
+                List<EndpointStats> list = discoveryStats();
+                list.add(0, serviceContext.stats);
                 conn.publish(msg.getReplyTo(),
                     new StatsResponse(id, sd, list).serialize());
             }

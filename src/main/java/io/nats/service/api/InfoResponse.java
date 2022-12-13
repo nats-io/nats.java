@@ -30,14 +30,6 @@ public class InfoResponse implements JsonSerializable {
     private final String version;
     private final String subject;
 
-    public InfoResponse(String id, String name, String description, String version, String subject) {
-        this.name = name;
-        this.serviceId = id;
-        this.description = description;
-        this.version = version;
-        this.subject = subject;
-    }
-
     public InfoResponse(String id, ServiceDescriptor descriptor) {
         this.serviceId = id;
         this.name = descriptor.name;

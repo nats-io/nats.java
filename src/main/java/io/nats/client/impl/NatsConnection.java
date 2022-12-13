@@ -1156,6 +1156,10 @@ class NatsConnection implements Connection {
         this.dispatchers.remove(nd.getId());
     }
 
+    Map<String, Dispatcher> getDispatchers() {
+        return Collections.unmodifiableMap(dispatchers);
+    }
+
     public void flush(Duration timeout) throws TimeoutException, InterruptedException {
 
         Instant start = Instant.now();

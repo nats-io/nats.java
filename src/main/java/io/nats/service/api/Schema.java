@@ -15,7 +15,6 @@ package io.nats.service.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
-import io.nats.service.ServiceDescriptor;
 
 import static io.nats.client.support.JsonUtils.*;
 
@@ -26,7 +25,7 @@ public class Schema implements JsonSerializable {
     private final String request;
     private final String response;
 
-    static Schema optionalInstance(String fullJson) {
+    public static Schema optionalInstance(String fullJson) {
         String objJson = JsonUtils.getJsonObject("schema", fullJson, null);
         return objJson == null ? null : new Schema(objJson);
     }
@@ -34,11 +33,6 @@ public class Schema implements JsonSerializable {
     public Schema(String request, String response) {
         this.request = request;
         this.response = response;
-    }
-
-    public Schema(ServiceDescriptor descriptor) {
-        this.request = descriptor.schemaRequest;
-        this.response = descriptor.schemaResponse;
     }
 
     protected Schema(String json) {

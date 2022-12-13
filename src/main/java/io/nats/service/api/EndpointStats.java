@@ -51,7 +51,7 @@ public class EndpointStats implements JsonSerializable {
         averageProcessingTime.set(0);
     }
 
-    static List<EndpointStats> optionalListOf(String json) {
+    public static List<EndpointStats> optionalListOf(String json) {
         List<String> listJson = getObjectList("stats", json);
         List<EndpointStats> list = new ArrayList<>();
         for (String j : listJson) {
