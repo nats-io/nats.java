@@ -13,6 +13,8 @@
 
 package io.nats.service;
 
+import java.util.Objects;
+
 public class ServiceDescriptor {
 
     public final String name;
@@ -34,5 +36,32 @@ public class ServiceDescriptor {
         this.subject = subject; // TODO validate subject
         this.schemaRequest = schemaRequest;
         this.schemaResponse = schemaResponse;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        ServiceDescriptor that = (ServiceDescriptor) o;
+
+        if (!Objects.equals(name, that.name)) return false;
+        if (!Objects.equals(description, that.description)) return false;
+        if (!Objects.equals(version, that.version)) return false;
+        if (!Objects.equals(subject, that.subject)) return false;
+        if (!Objects.equals(schemaRequest, that.schemaRequest))
+            return false;
+        return Objects.equals(schemaResponse, that.schemaResponse);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = name != null ? name.hashCode() : 0;
+        result = 31 * result + (description != null ? description.hashCode() : 0);
+        result = 31 * result + (version != null ? version.hashCode() : 0);
+        result = 31 * result + (subject != null ? subject.hashCode() : 0);
+        result = 31 * result + (schemaRequest != null ? schemaRequest.hashCode() : 0);
+        result = 31 * result + (schemaResponse != null ? schemaResponse.hashCode() : 0);
+        return result;
     }
 }

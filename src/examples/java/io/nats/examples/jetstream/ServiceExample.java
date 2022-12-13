@@ -22,6 +22,7 @@ import io.nats.service.api.PingResponse;
 import io.nats.service.api.SchemaResponse;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -33,7 +34,7 @@ import static io.nats.client.support.JsonUtils.printFormatted;
 public class ServiceExample {
 
     public static final String ECHO_SERVICE = "EchoService";
-    public static final String TIME_SERVICE = "TimeService";
+    public static final String SORT_SERVICE = "SortService";
 
     public static void main(String[] args) throws IOException {
 
@@ -43,55 +44,37 @@ public class ServiceExample {
             .build();
 
         try (Connection nc = Nats.connect(options)) {
-            ServiceDescriptor sd = new ServiceDescriptor(
+            ServiceDescriptor sdEcho = new ServiceDescriptor(
                 ECHO_SERVICE, "An Echo Service", "0.0.1", ECHO_SERVICE,
                 "echo schema request string/url", "echo schema response string/url");
-            Service service1 = new Service(nc, sd,
+            Service serviceEcho = new Service(nc, sdEcho,
                 msg -> {
                     byte[] outBytes = ("Echo " + new String(msg.getData())).getBytes();
                     nc.publish(msg.getReplyTo(), outBytes);
                 });
-            System.out.println(getFormatted(service1));
+            System.out.println(getFormatted(serviceEcho));
 
-            ServiceDescriptor sd2 = new ServiceDescriptor(
-                TIME_SERVICE, "A Time Service", "0.0.2", TIME_SERVICE,
-                "time schema request string/url", "time schema response string/url");
-            Service service2 = new Service(nc, sd2,
+            ServiceDescriptor sdSort = new ServiceDescriptor(
+                SORT_SERVICE, "A Sort Service", "0.0.2", SORT_SERVICE,
+                "sort schema request string/url", "sort schema response string/url");
+            Service serviceSort = new Service(nc, sdSort,
                 msg -> {
-                    byte[] outBytes = ("" + System.currentTimeMillis()).getBytes();
+                    byte[] data = msg.getData();
+                    Arrays.sort(data);
+                    byte[] outBytes = ("Sort " + new String(data)).getBytes();
                     nc.publish(msg.getReplyTo(), outBytes);
                 });
-            System.out.println("\n" + getFormatted(service2));
-
-//            rr(nc, "$SRV.PING");
-//            String data = rr(nc, "$SRV.PING.EchoService");
-//            PingResponse pr = new PingResponse(data);
-//            rr(nc, "$SRV.PING.EchoService." + pr.getServiceId());
-//
-//            rr(nc, "$SRV.INFO");
-//            data = rr(nc, "$SRV.INFO.EchoService");
-//            InfoResponse in = new InfoResponse(data);
-//            rr(nc, "$SRV.INFO.EchoService." + in.getServiceId());
-//
-//            rr(nc, "$SRV.SCHEMA");
-//            data = rr(nc, "$SRV.SCHEMA.EchoService");
-//            SchemaResponse sr = new SchemaResponse(data);
-//            rr(nc, "$SRV.SCHEMA.EchoService." + sr.getServiceId());
-//
-//            rr(nc, "$SRV.STATS");
-//            data = rr(nc, "$SRV.STATS.EchoService", new StatsRequest(false).serialize());
-//            StatsResponse tr = new StatsResponse(data);
-//
-//            rr(nc, "EchoListener", "Hello".getBytes());
-//
-//            rr(nc, "$SRV.STATS.EchoService." + tr.getServiceId(), new StatsRequest(true).serialize());
+            System.out.println("\n" + getFormatted(serviceSort));
 
             // ----------------------------------------------------------------------------------------------------
             // Call the services
             // ----------------------------------------------------------------------------------------------------
             callService(nc, ECHO_SERVICE);
-            callService(nc, TIME_SERVICE);
+            callService(nc, SORT_SERVICE);
 
+            // ----------------------------------------------------------------------------------------------------
+            // discovery
+            // ----------------------------------------------------------------------------------------------------
             Discovery discovery = new Discovery(nc, 1000, 3);
 
             // ----------------------------------------------------------------------------------------------------
@@ -106,12 +89,12 @@ public class ServiceExample {
             PingResponse ping = discovery.ping(ECHO_SERVICE, echoId);
             report("Ping", ECHO_SERVICE, echoId, ping);
 
-            pings = discovery.ping(TIME_SERVICE);
-            report("Ping", TIME_SERVICE, pings);
+            pings = discovery.ping(SORT_SERVICE);
+            report("Ping", SORT_SERVICE, pings);
 
-            String timeId = pings.get(0).getServiceId();
-            ping = discovery.ping(TIME_SERVICE, timeId);
-            report("Ping", TIME_SERVICE, timeId, ping);
+            String sortId = pings.get(0).getServiceId();
+            ping = discovery.ping(SORT_SERVICE, sortId);
+            report("Ping", SORT_SERVICE, sortId, ping);
 
             // ----------------------------------------------------------------------------------------------------
             // info discover variations
@@ -124,11 +107,11 @@ public class ServiceExample {
             InfoResponse info = discovery.info(ECHO_SERVICE, echoId);
             report("Info", ECHO_SERVICE, echoId, info);
 
-            infos = discovery.info(TIME_SERVICE);
-            report("Info", TIME_SERVICE, infos);
+            infos = discovery.info(SORT_SERVICE);
+            report("Info", SORT_SERVICE, infos);
 
-            info = discovery.info(TIME_SERVICE, timeId);
-            report("Info", TIME_SERVICE, timeId, info);
+            info = discovery.info(SORT_SERVICE, sortId);
+            report("Info", SORT_SERVICE, sortId, info);
 
             // ----------------------------------------------------------------------------------------------------
             // schema discover variations
@@ -141,11 +124,11 @@ public class ServiceExample {
             SchemaResponse schema = discovery.schema(ECHO_SERVICE, echoId);
             report("Schema", ECHO_SERVICE, echoId, schema);
 
-            schemas = discovery.schema(TIME_SERVICE);
-            report("Schema", TIME_SERVICE, schemas);
+            schemas = discovery.schema(SORT_SERVICE);
+            report("Schema", SORT_SERVICE, schemas);
 
-            schema = discovery.schema(TIME_SERVICE, timeId);
-            report("Schema", TIME_SERVICE, timeId, schema);
+            schema = discovery.schema(SORT_SERVICE, sortId);
+            report("Schema", SORT_SERVICE, sortId, schema);
 
             // ----------------------------------------------------------------------------------------------------
             // schema discover variations
@@ -156,11 +139,11 @@ public class ServiceExample {
             // ----------------------------------------------------------------------------------------------------
             // stop the service
             // ----------------------------------------------------------------------------------------------------
-            service1.stop();
-            service2.stop();
+            serviceEcho.stop();
+            serviceSort.stop();
             System.out.println();
-            System.out.println("service1 done ? " + service1.done().get(1, TimeUnit.SECONDS));
-            System.out.println("service2 done ? " + service2.done().get(1, TimeUnit.SECONDS));
+            System.out.println("Echo service done ? " + serviceEcho.done().get(1, TimeUnit.SECONDS));
+            System.out.println("Sort Service done ? " + serviceSort.done().get(1, TimeUnit.SECONDS));
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -181,8 +164,9 @@ public class ServiceExample {
     }
 
     private static void callService(Connection nc, String serviceName) throws InterruptedException, ExecutionException {
-        CompletableFuture<Message> reply = nc.request(serviceName, null);
-        String data = new String(reply.get().getData());
-        System.out.println("\nReply from " + serviceName + " -> " + data);
+        String request = Long.toHexString(System.currentTimeMillis()) + Long.toHexString(System.nanoTime()); // just some random text
+        CompletableFuture<Message> reply = nc.request(serviceName, request.getBytes());
+        String response = new String(reply.get().getData());
+        System.out.println("\nReply from " + serviceName + ". " + request + " -> " + response);
     }
 }

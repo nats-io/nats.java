@@ -40,6 +40,9 @@ public class Service {
                    MessageHandler userMessageHandler) {
         this(conn, descriptor, userMessageHandler, null, null, null, null, null);
     }
+    public Service(Connection conn, ServiceDescriptor descriptor, MessageHandler userMessageHandler, Dispatcher dDiscoveryServices, Dispatcher dUserService) {
+        this(conn, descriptor, userMessageHandler, dDiscoveryServices, dDiscoveryServices, dDiscoveryServices, dDiscoveryServices, dUserService);
+    }
 
     public Service(Connection conn, ServiceDescriptor descriptor, MessageHandler userMessageHandler,
                    Dispatcher dUserPing, Dispatcher dUserInfo, Dispatcher dUserSchema, Dispatcher dUserStats, Dispatcher dUserService) {
@@ -311,7 +314,7 @@ public class Service {
             }
             else {
                 conn.publish(msg.getReplyTo(),
-                    new StatsResponse(id, sd, stats).serialize());
+                    new StatsResponse(id, sd, serviceContext.stats).serialize());
             }
         }
     }

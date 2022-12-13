@@ -17,6 +17,8 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.service.ServiceDescriptor;
 
+import java.util.Objects;
+
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
 
@@ -91,5 +93,18 @@ public class SchemaResponse implements JsonSerializable {
     @Override
     public String toString() {
         return toJson();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        SchemaResponse that = (SchemaResponse) o;
+
+        if (!Objects.equals(serviceId, that.serviceId)) return false;
+        if (!Objects.equals(name, that.name)) return false;
+        if (!Objects.equals(version, that.version)) return false;
+        return Objects.equals(schema, that.schema);
     }
 }
