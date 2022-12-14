@@ -15,7 +15,6 @@ package io.nats.service.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
-import io.nats.service.ServiceDescriptor;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;

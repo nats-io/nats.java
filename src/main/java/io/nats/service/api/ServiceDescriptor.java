@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.service;
+package io.nats.service.api;
 
 import static io.nats.client.support.Validator.required;
 import static io.nats.client.support.Validator.validateIsRestrictedTerm;

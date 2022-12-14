@@ -16,10 +16,10 @@ package io.nats.examples.jetstream;
 import io.nats.client.*;
 import io.nats.service.Discovery;
 import io.nats.service.Service;
-import io.nats.service.ServiceDescriptor;
 import io.nats.service.api.InfoResponse;
 import io.nats.service.api.PingResponse;
 import io.nats.service.api.SchemaResponse;
+import io.nats.service.api.ServiceDescriptor;
 
 import java.io.IOException;
 import java.util.Arrays;
