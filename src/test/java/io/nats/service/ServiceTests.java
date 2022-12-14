@@ -34,13 +34,37 @@ public class ServiceTests extends JetStreamTestBase {
     private static final String ECHO_SERVICE = "EchoService";
     private static final String SORT_SERVICE = "SortService";
 
-    static ServiceDescriptor SD_ECHO = new ServiceDescriptor(
-        ECHO_SERVICE, "An Echo Service", "0.0.1", ECHO_SERVICE,
-        "echo request string", "echo response string");
+    private static Service.Builder echoServiceBuilder(Connection nc, MessageHandler handler) {
+        return Service.builder()
+            .connection(nc)
+            .name(ECHO_SERVICE)
+            .subject(ECHO_SERVICE)
+            .description("An Echo Service")
+            .version("0.0.1")
+            .schemaRequest("echo schema request string/url")
+            .schemaResponse("echo schema response string/url")
+            .serviceMessageHandler(handler);
+    }
 
-    static ServiceDescriptor SD_SORT = new ServiceDescriptor(
-        SORT_SERVICE, "A Sort Service", "0.0.1", SORT_SERVICE,
-        "sort request", "sort response");
+    private static Service.Builder sortServiceBuilder(Connection nc, MessageHandler handler) {
+        return Service.builder()
+            .connection(nc)
+            .name(SORT_SERVICE)
+            .subject(SORT_SERVICE)
+            .description("A Sort Service")
+            .version("0.0.2")
+            .schemaRequest("sort schema request string/url")
+            .schemaResponse("sort schema response string/url")
+            .serviceMessageHandler(handler);
+    }
+
+    private Service echoService(Connection nc, MessageHandler handler) {
+        return echoServiceBuilder(nc, handler).build();
+    }
+
+    private Service sortService(Connection nc, MessageHandler handler) {
+        return sortServiceBuilder(nc, handler).build();
+    }
 
     @Test
     public void testJetStreamContextCreate() throws Exception {
@@ -54,20 +78,20 @@ public class ServiceTests extends JetStreamTestBase {
                 // construction
                 Dispatcher dShared = serviceNc1.createDispatcher(); // services can share dispatchers if the user wants to
 
-                // DISCOVERY coverage include no results
-
-                Service echoService1 = new Service(serviceNc1, SD_ECHO, new EchoHandler(11, serviceNc1), null, dShared);
-                String echoServiceId1 = verifyServiceCreation(SD_ECHO, echoService1);
+                Service echoService1 = echoServiceBuilder(serviceNc1, new EchoHandler(11, serviceNc1))
+                    .userServiceDispatcher(dShared).build();
+                String echoServiceId1 = echoService1.getId();
                 echoService1.setDrainTimeout(DEFAULT_DRAIN_TIMEOUT); // coverage
 
-                Service sortService1 = new Service(serviceNc1, SD_SORT, new SortHandler(21, serviceNc1), dShared, null);
-                String sortServiceId1 = verifyServiceCreation(SD_SORT, sortService1);
+                Service sortService1 = sortServiceBuilder(serviceNc1, new SortHandler(21, serviceNc1))
+                    .userDiscoveryDispatcher(dShared).build();
+                String sortServiceId1 = sortService1.getId();
 
-                Service echoService2 = new Service(serviceNc2, SD_ECHO, new EchoHandler(12, serviceNc2));
-                String echoServiceId2 = verifyServiceCreation(SD_ECHO, echoService2);
+                Service echoService2 = echoService(serviceNc2, new EchoHandler(12, serviceNc2));
+                String echoServiceId2 = echoService2.getId();
 
-                Service sortService2 = new Service(serviceNc2, SD_SORT, new SortHandler(22, serviceNc2));
-                String sortServiceId2 = verifyServiceCreation(SD_SORT, sortService2);
+                Service sortService2 = sortService(serviceNc2, new SortHandler(22, serviceNc2));
+                String sortServiceId2 = sortService2.getId();
 
                 assertNotEquals(echoServiceId1, echoServiceId2);
                 assertNotEquals(sortServiceId1, sortServiceId2);
@@ -79,65 +103,70 @@ public class ServiceTests extends JetStreamTestBase {
                     verifyServiceExecution(clientNc, SORT_SERVICE);
                 }
 
+                Info echoInfo = echoService1.getInfo();
+                Info sortInfo = sortService1.getInfo();
+                SchemaInfo echoSchemaInfo = echoService1.getSchemaInfo();
+                SchemaInfo sortSchemaInfo = sortService1.getSchemaInfo();
+
                 // discovery - wait at most 500 millis for responses, 5 total responses max
                 Discovery discovery = new Discovery(clientNc, 500, 5);
 
                 // ping discovery
-                DiscoveryVerifier pingValidator = (descriptor, o) -> {
+                InfoVerifier pingValidator = (info, o) -> {
                     assertTrue(o instanceof Ping);
                     Ping pr = (Ping)o;
-                    if (descriptor != null) {
-                        assertEquals(descriptor.name, pr.getName());
+                    if (info != null) {
+                        assertEquals(info.getName(), pr.getName());
                     }
                     return pr.getServiceId();
                 };
                 verifyDiscovery(null, discovery.ping(), pingValidator, echoServiceId1, sortServiceId1, echoServiceId2, sortServiceId2);
-                verifyDiscovery(SD_ECHO, discovery.ping(ECHO_SERVICE), pingValidator, echoServiceId1, echoServiceId2);
-                verifyDiscovery(SD_SORT, discovery.ping(SORT_SERVICE), pingValidator, sortServiceId1, sortServiceId2);
-                verifyDiscovery(SD_ECHO, discovery.ping(ECHO_SERVICE, echoServiceId1), pingValidator, echoServiceId1);
-                verifyDiscovery(SD_SORT, discovery.ping(SORT_SERVICE, sortServiceId1), pingValidator, sortServiceId1);
-                verifyDiscovery(SD_ECHO, discovery.ping(ECHO_SERVICE, echoServiceId2), pingValidator, echoServiceId2);
-                verifyDiscovery(SD_SORT, discovery.ping(SORT_SERVICE, sortServiceId2), pingValidator, sortServiceId2);
+                verifyDiscovery(echoInfo, discovery.ping(ECHO_SERVICE), pingValidator, echoServiceId1, echoServiceId2);
+                verifyDiscovery(sortInfo, discovery.ping(SORT_SERVICE), pingValidator, sortServiceId1, sortServiceId2);
+                verifyDiscovery(echoInfo, discovery.ping(ECHO_SERVICE, echoServiceId1), pingValidator, echoServiceId1);
+                verifyDiscovery(sortInfo, discovery.ping(SORT_SERVICE, sortServiceId1), pingValidator, sortServiceId1);
+                verifyDiscovery(echoInfo, discovery.ping(ECHO_SERVICE, echoServiceId2), pingValidator, echoServiceId2);
+                verifyDiscovery(sortInfo, discovery.ping(SORT_SERVICE, sortServiceId2), pingValidator, sortServiceId2);
 
                 // info discovery
-                DiscoveryVerifier infoValidator = (descriptor, o) -> {
+                InfoVerifier infoValidator = (info, o) -> {
                     assertTrue(o instanceof Info);
                     Info ir = (Info)o;
-                    if (descriptor != null) {
-                        assertEquals(descriptor.name, ir.getName());
-                        assertEquals(descriptor.description, ir.getDescription());
-                        assertEquals(descriptor.version, ir.getVersion());
-                        assertEquals(descriptor.subject, ir.getSubject());
+                    if (info != null) {
+                        assertEquals(info.getName(), ir.getName());
+                        assertEquals(info.getDescription(), ir.getDescription());
+                        assertEquals(info.getVersion(), ir.getVersion());
+                        assertEquals(info.getSubject(), ir.getSubject());
                     }
                     return ir.getServiceId();
                 };
                 verifyDiscovery(null, discovery.info(), infoValidator, echoServiceId1, sortServiceId1, echoServiceId2, sortServiceId2);
-                verifyDiscovery(SD_ECHO, discovery.info(ECHO_SERVICE), infoValidator, echoServiceId1, echoServiceId2);
-                verifyDiscovery(SD_SORT, discovery.info(SORT_SERVICE), infoValidator, sortServiceId1, sortServiceId2);
-                verifyDiscovery(SD_ECHO, discovery.info(ECHO_SERVICE, echoServiceId1), infoValidator, echoServiceId1);
-                verifyDiscovery(SD_SORT, discovery.info(SORT_SERVICE, sortServiceId1), infoValidator, sortServiceId1);
-                verifyDiscovery(SD_ECHO, discovery.info(ECHO_SERVICE, echoServiceId2), infoValidator, echoServiceId2);
-                verifyDiscovery(SD_SORT, discovery.info(SORT_SERVICE, sortServiceId2), infoValidator, sortServiceId2);
+                verifyDiscovery(echoInfo, discovery.info(ECHO_SERVICE), infoValidator, echoServiceId1, echoServiceId2);
+                verifyDiscovery(sortInfo, discovery.info(SORT_SERVICE), infoValidator, sortServiceId1, sortServiceId2);
+                verifyDiscovery(echoInfo, discovery.info(ECHO_SERVICE, echoServiceId1), infoValidator, echoServiceId1);
+                verifyDiscovery(sortInfo, discovery.info(SORT_SERVICE, sortServiceId1), infoValidator, sortServiceId1);
+                verifyDiscovery(echoInfo, discovery.info(ECHO_SERVICE, echoServiceId2), infoValidator, echoServiceId2);
+                verifyDiscovery(sortInfo, discovery.info(SORT_SERVICE, sortServiceId2), infoValidator, sortServiceId2);
 
                 // schema discovery
-                DiscoveryVerifier schemaValidator = (descriptor, o) -> {
+                SchemaInfoVerifier schemaValidator = (info, schemaInfo, o) -> {
                     assertTrue(o instanceof SchemaInfo);
                     SchemaInfo sr = (SchemaInfo)o;
-                    if (descriptor != null) {
-                        assertEquals(descriptor.name, sr.getName());
-                        assertEquals(descriptor.version, sr.getVersion());
-                        assertEquals(descriptor.schemaRequest, sr.getSchema().getRequest());
-                        assertEquals(descriptor.schemaResponse, sr.getSchema().getResponse());
+                    if (info != null) {
+                        assertEquals(info.getName(), sr.getName());
+                        assertEquals(info.getVersion(), sr.getVersion());
+                        assertEquals(schemaInfo.getSchema().getRequest(), sr.getSchema().getRequest());
+                        assertEquals(schemaInfo.getSchema().getResponse(), sr.getSchema().getResponse());
                     }
                     return sr.getServiceId();
                 };
-                verifyDiscovery(null, discovery.schema(), schemaValidator, echoServiceId1, sortServiceId1, echoServiceId2, sortServiceId2);
-                verifyDiscovery(SD_ECHO, discovery.schema(ECHO_SERVICE), schemaValidator, echoServiceId1, echoServiceId2);
-                verifyDiscovery(SD_SORT, discovery.schema(SORT_SERVICE), schemaValidator, sortServiceId1, sortServiceId2);
-                verifyDiscovery(SD_ECHO, discovery.schema(ECHO_SERVICE, echoServiceId1), schemaValidator, echoServiceId1);
-                verifyDiscovery(SD_SORT, discovery.schema(SORT_SERVICE, sortServiceId1), schemaValidator, sortServiceId1);
-                verifyDiscovery(SD_ECHO, discovery.schema(ECHO_SERVICE, echoServiceId2), schemaValidator, echoServiceId2);
-                verifyDiscovery(SD_SORT, discovery.schema(SORT_SERVICE, sortServiceId2), schemaValidator, sortServiceId2);
+                verifyDiscovery(null, null, discovery.schema(), schemaValidator, echoServiceId1, sortServiceId1, echoServiceId2, sortServiceId2);
+                verifyDiscovery(echoInfo, echoSchemaInfo, discovery.schema(ECHO_SERVICE), schemaValidator, echoServiceId1, echoServiceId2);
+                verifyDiscovery(sortInfo, sortSchemaInfo, discovery.schema(SORT_SERVICE), schemaValidator, sortServiceId1, sortServiceId2);
+                verifyDiscovery(echoInfo, echoSchemaInfo, discovery.schema(ECHO_SERVICE, echoServiceId1), schemaValidator, echoServiceId1);
+                verifyDiscovery(sortInfo, sortSchemaInfo, discovery.schema(SORT_SERVICE, sortServiceId1), schemaValidator, sortServiceId1);
+                verifyDiscovery(echoInfo, echoSchemaInfo, discovery.schema(ECHO_SERVICE, echoServiceId2), schemaValidator, echoServiceId2);
+                verifyDiscovery(sortInfo, sortSchemaInfo, discovery.schema(SORT_SERVICE, sortServiceId2), schemaValidator, sortServiceId2);
 
                 // stats discovery
                 discovery = new Discovery(clientNc); // coverage for the simple constructor
@@ -166,11 +195,11 @@ public class ServiceTests extends JetStreamTestBase {
                 // stats one specific instance so I can also test reset
                 Stats sr = discovery.stats(ECHO_SERVICE, echoServiceId1);
                 assertEquals(echoServiceId1, sr.getServiceId());
-                assertEquals(SD_ECHO.version, sr.getVersion());
+                assertEquals(echoInfo.getVersion(), sr.getVersion());
 
                 // reset stats
                 echoService1.reset();
-                sr = echoService1.stats();
+                sr = echoService1.getStats();
                 assertEquals(0, sr.getNumRequests());
                 assertEquals(0, sr.getNumErrors());
                 assertEquals(0, sr.getTotalProcessingTime());
@@ -219,20 +248,38 @@ public class ServiceTests extends JetStreamTestBase {
         }
     }
 
-    interface DiscoveryVerifier {
-        String verify(ServiceDescriptor expected, Object o);
+    interface InfoVerifier {
+        String verify(Info expectedInfo, Object o);
     }
 
-    private static void verifyDiscovery(ServiceDescriptor expectedSd, Object object, DiscoveryVerifier idEx, String... expectedIds) {
-        verifyDiscovery(expectedSd, Collections.singletonList(object), idEx, expectedIds);
+    interface SchemaInfoVerifier {
+        String verify(Info expectedInfo, SchemaInfo expectedSchemaInfo, Object o);
+    }
+
+    private static void verifyDiscovery(Info expectedInfo, Object object, InfoVerifier iv, String... expectedIds) {
+        verifyDiscovery(expectedInfo, Collections.singletonList(object), iv, expectedIds);
+    }
+
+    private static void verifyDiscovery(Info expectedInfo, SchemaInfo expectedSchemaInfo, Object object, SchemaInfoVerifier siv, String... expectedIds) {
+        verifyDiscovery(expectedInfo, expectedSchemaInfo, Collections.singletonList(object), siv, expectedIds);
     }
 
     @SuppressWarnings("rawtypes") // verifyDiscovery
-    private static void verifyDiscovery(ServiceDescriptor expectedSd, List objects, DiscoveryVerifier dv, String... expectedIds) {
+    private static void verifyDiscovery(Info expectedInfo, List objects, InfoVerifier iv, String... expectedIds) {
         List<String> expectedList = Arrays.asList(expectedIds);
         assertEquals(expectedList.size(), objects.size());
         for (Object o : objects) {
-            String id = dv.verify(expectedSd, o);
+            String id = iv.verify(expectedInfo, o);
+            assertTrue(expectedList.contains(id));
+        }
+    }
+
+    @SuppressWarnings("rawtypes") // verifyDiscovery
+    private static void verifyDiscovery(Info expectedInfo, SchemaInfo expectedSchemaInfo, List objects, SchemaInfoVerifier siv, String... expectedIds) {
+        List<String> expectedList = Arrays.asList(expectedIds);
+        assertEquals(expectedList.size(), objects.size());
+        for (Object o : objects) {
+            String id = siv.verify(expectedInfo, expectedSchemaInfo, o);
             assertTrue(expectedList.contains(id));
         }
     }
@@ -248,17 +295,6 @@ public class ServiceTests extends JetStreamTestBase {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private static String verifyServiceCreation(ServiceDescriptor sd, Service service) {
-        Info info = service.info();
-        String id = info.getServiceId();
-        assertNotNull(id);
-        assertEquals(sd.name, info.getName());
-        assertEquals(sd.version, info.getVersion());
-        assertEquals(sd.subject, info.getSubject());
-        assertNotNull(service.toString()); // coverage
-        return id;
     }
 
     static class EchoHandler implements MessageHandler {
@@ -309,32 +345,31 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testServiceDescriptorValidation() {
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor(null, "desc", "version", "subject", null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("", "desc", "version", "subject", null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "", "subject", null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", null, "subject", null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", "", null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", null, null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", "this is not value", null, null));
+    public void testServiceBuilderValidation() throws Exception {
+        runInServer(nc -> {
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(null, m -> {}).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, null).version("").build());
 
-        new ServiceDescriptor("name", "desc", "version", PLAIN); // constructor coverage
-        new ServiceDescriptor("name", "desc", "version", PLAIN, null, null);
-        new ServiceDescriptor("name", "desc", "version", HAS_DASH, null, null);
-        new ServiceDescriptor("name", "desc", "version", HAS_UNDER, null, null);
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(null).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name("").build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).version(null).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).version("").build());
 
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", HAS_SPACE, null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", HAS_PRINTABLE, null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", HAS_DOT, null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", HAS_STAR, null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", HAS_GT, null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", HAS_DOLLAR, null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", HAS_LOW, null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", HAS_127, null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", HAS_FWD_SLASH, null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", HAS_BACK_SLASH, null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", HAS_EQUALS, null, null));
-        assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", HAS_TIC, null, null));
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(null).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject("").build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_SPACE).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_PRINTABLE).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_DOT).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_STAR).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_GT).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_DOLLAR).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_LOW).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_127).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_FWD_SLASH).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_BACK_SLASH).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_EQUALS).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_TIC).build());
+        });
     }
 
     @Test
@@ -349,20 +384,8 @@ public class ServiceTests extends JetStreamTestBase {
     public void testApiCoverage() {
         new Ping("id", "name").toString();
         new Schema("request", "response").toString();
-        new Info("id", SD_ECHO).toString();
+        new Info("id", "name", "description", "version", "subject").toString();
         assertNull(Schema.optionalInstance("{}"));
-
-        ServiceDescriptor sd = new ServiceDescriptor("name", "desc", "version", "subject", "", null);
-        SchemaInfo sch = new SchemaInfo("serviceId", sd);
-        assertNull(sch.getSchema());
-
-        sd = new ServiceDescriptor("name", "desc", "version", "subject", "request", null);
-        sch = new SchemaInfo("serviceId", sd);
-        assertNotNull(sch.getSchema());
-
-        sd = new ServiceDescriptor("name", "desc", "version", "subject", "", "response");
-        sch = new SchemaInfo("serviceId", sd);
-        assertNotNull(sch.getSchema());
     }
 
     @Test

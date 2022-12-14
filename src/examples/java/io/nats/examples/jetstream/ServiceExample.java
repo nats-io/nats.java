@@ -19,7 +19,6 @@ import io.nats.service.Service;
 import io.nats.service.api.Info;
 import io.nats.service.api.Ping;
 import io.nats.service.api.SchemaInfo;
-import io.nats.service.api.ServiceDescriptor;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -47,26 +46,38 @@ public class ServiceExample {
             .build();
 
         try (Connection nc = Nats.connect(options)) {
-            ServiceDescriptor sdEcho = new ServiceDescriptor(
-                ECHO_SERVICE, "An Echo Service", "0.0.1", ECHO_SERVICE,
-                "echo schema request string/url", "echo schema response string/url");
-            Service serviceEcho = new Service(nc, sdEcho,
-                msg -> {
+            Service serviceEcho = Service.builder()
+                .connection(nc)
+                .name(ECHO_SERVICE)
+                .subject(ECHO_SERVICE)
+                .description("An Echo Service")
+                .version("0.0.1")
+                .schemaRequest("echo schema request string/url")
+                .schemaResponse("echo schema response string/url")
+                .serviceMessageHandler(msg -> {
                     byte[] outBytes = ("Echo " + new String(msg.getData())).getBytes();
                     nc.publish(msg.getReplyTo(), outBytes);
-                });
+                })
+                .build();
+
             System.out.println(getFormatted(serviceEcho));
 
-            ServiceDescriptor sdSort = new ServiceDescriptor(
-                SORT_SERVICE, "A Sort Service", "0.0.2", SORT_SERVICE,
-                "sort schema request string/url", "sort schema response string/url");
-            Service serviceSort = new Service(nc, sdSort,
-                msg -> {
+            Service serviceSort = Service.builder()
+                .connection(nc)
+                .name(SORT_SERVICE)
+                .subject(SORT_SERVICE)
+                .description("A Sort Service")
+                .version("0.0.2")
+                .schemaRequest("sort schema request string/url")
+                .schemaResponse("sort schema response string/url")
+                .serviceMessageHandler(msg -> {
                     byte[] data = msg.getData();
                     Arrays.sort(data);
                     byte[] outBytes = ("Sort " + new String(data)).getBytes();
                     nc.publish(msg.getReplyTo(), outBytes);
-                });
+                })
+                .build();
+
             System.out.println("\n" + getFormatted(serviceSort));
 
             // ----------------------------------------------------------------------------------------------------

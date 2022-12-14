@@ -75,6 +75,7 @@ public class Stats implements JsonSerializable {
         lastError.set(null);
         totalProcessingTime.set(0);
         averageProcessingTime.set(0);
+        data = null;
     }
 
     @Override

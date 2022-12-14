@@ -24,18 +24,18 @@ import static io.nats.client.support.JsonUtils.endJson;
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class Info implements JsonSerializable {
-    private final String name;
     private final String serviceId;
+    private final String name;
     private final String description;
     private final String version;
     private final String subject;
 
-    public Info(String id, ServiceDescriptor descriptor) {
-        this.serviceId = id;
-        this.name = descriptor.name;
-        this.description = descriptor.description;
-        this.version = descriptor.version;
-        this.subject = descriptor.subject;
+    public Info(String serviceId, String name, String description, String version, String subject) {
+        this.serviceId = serviceId;
+        this.name = name;
+        this.description = description;
+        this.version = version;
+        this.subject = subject;
     }
 
     public Info(String json) {

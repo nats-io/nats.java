@@ -29,15 +29,15 @@ public class SchemaInfo implements JsonSerializable {
     private final String version;
     private final Schema schema;
 
-    public SchemaInfo(String serviceId, ServiceDescriptor descriptor) {
+    public SchemaInfo(String serviceId, String name, String version, String schemaRequest, String schemaResponse) {
         this.serviceId = serviceId;
-        this.name = descriptor.name;
-        this.version = descriptor.version;
-        if (nullOrEmpty(descriptor.schemaRequest) && nullOrEmpty(descriptor.schemaResponse)) {
+        this.name = name;
+        this.version = version;
+        if (nullOrEmpty(schemaRequest) && nullOrEmpty(schemaResponse)) {
             this.schema = null;
         }
         else {
-            this.schema = new Schema(descriptor.schemaRequest, descriptor.schemaResponse);
+            this.schema = new Schema(schemaRequest, schemaResponse);
         }
     }
 

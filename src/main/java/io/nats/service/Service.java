@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static io.nats.client.support.Validator.*;
 import static io.nats.service.ServiceUtil.*;
 
 /**
@@ -31,37 +32,117 @@ public class Service {
     private final Connection conn;
     private final String id;
     private final Info info;
+    private final SchemaInfo schemaInfo;
     private final Stats stats;
     private final List<Context> discoveryContexts;
     private final Context serviceContext;
-    private final MessageHandler userMessageHandler;
+    private final MessageHandler serviceMessageHandler;
     private final CompletableFuture<Boolean> doneFuture;
     private final Object stopLock = new Object();
     private Duration drainTimeout = DEFAULT_DRAIN_TIMEOUT;
 
-    public Service(Connection conn, ServiceDescriptor descriptor,
-                   MessageHandler userMessageHandler) {
-        this(conn, descriptor, userMessageHandler, null, null);
+    public static Builder builder() {
+        return new Builder();
     }
-    public Service(Connection conn, ServiceDescriptor descriptor, MessageHandler userMessageHandler, Dispatcher dUserDiscovery, Dispatcher dUserService) {
+
+    public static class Builder {
+        Connection conn;
+        String name;
+        String description;
+        String version;
+        String subject;
+        String schemaRequest;
+        String schemaResponse;
+        MessageHandler serviceMessageHandler;
+        Dispatcher dUserDiscovery;
+        Dispatcher dUserService;
+        StatsDataHandler statsDataHandler;
+
+        public Builder connection(Connection conn) {
+            this.conn = conn;
+            return this;
+        }
+
+        public Builder name(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public Builder description(String description) {
+            this.description = description;
+            return this;
+        }
+
+        public Builder version(String version) {
+            this.version = version;
+            return this;
+        }
+
+        public Builder subject(String subject) {
+            this.subject = subject;
+            return this;
+        }
+
+        public Builder schemaRequest(String schemaRequest) {
+            this.schemaRequest = schemaRequest;
+            return this;
+        }
+
+        public Builder schemaResponse(String schemaResponse) {
+            this.schemaResponse = schemaResponse;
+            return this;
+        }
+
+        public Builder serviceMessageHandler(MessageHandler userMessageHandler) {
+            this.serviceMessageHandler = userMessageHandler;
+            return this;
+        }
+
+        public Builder userDiscoveryDispatcher(Dispatcher dUserDiscovery) {
+            this.dUserDiscovery = dUserDiscovery;
+            return this;
+        }
+
+        public Builder userServiceDispatcher(Dispatcher dUserService) {
+            this.dUserService = dUserService;
+            return this;
+        }
+
+        public Builder statsDataHandler(StatsDataHandler statsDataHandler) {
+            this.statsDataHandler = statsDataHandler;
+            return this;
+        }
+
+        public Service build() {
+            required(conn, "Connection");
+            required(serviceMessageHandler, "Service Message Handler");
+            validateIsRestrictedTerm(name, "Name", true);
+            required(version, "Version");
+            validateSubject(subject, true);
+            return new Service(this);
+        }
+    }
+
+    private Service(Builder b) {
         id = io.nats.client.NUID.nextGlobal();
-        this.conn = conn;
-        this.userMessageHandler = userMessageHandler;
-        info = new Info(id, descriptor);
+        this.conn = b.conn;
+        this.serviceMessageHandler = b.serviceMessageHandler;
+        info = new Info(id, b.name, b.description, b.version, b.subject);
+        schemaInfo = new SchemaInfo(id, b.name, b.version, b.schemaRequest, b.schemaResponse);
 
         // User may provide 0 or more dispatchers, just use theirs when provided else use one we make
-        boolean internalDiscovery = dUserDiscovery == null;
-        boolean internalService = dUserService == null;
-        Dispatcher dDiscovery = internalDiscovery ? conn.createDispatcher() : dUserDiscovery;
-        Dispatcher dService = internalService ? conn.createDispatcher() : dUserService;
+        boolean internalDiscovery = b.dUserDiscovery == null;
+        boolean internalService = b.dUserService == null;
+        Dispatcher dDiscovery = internalDiscovery ? conn.createDispatcher() : b.dUserDiscovery;
+        Dispatcher dService = internalService ? conn.createDispatcher() : b.dUserService;
 
         discoveryContexts = new ArrayList<>();
         addDiscoveryContexts(PING, new Ping(id, info.getName()).serialize(), dDiscovery, internalDiscovery);
         addDiscoveryContexts(INFO, info.serialize(), dDiscovery, internalDiscovery);
-        addDiscoveryContexts(SCHEMA, new SchemaInfo(id, descriptor).serialize(), dDiscovery, internalDiscovery);
+        addDiscoveryContexts(SCHEMA, schemaInfo.serialize(), dDiscovery, internalDiscovery);
         addStatsContexts(dDiscovery, internalDiscovery);
 
-        stats = new Stats(id, descriptor.name, descriptor.version);
+        stats = new Stats(id, b.name, b.version);
         serviceContext = new ServiceContext(info.getSubject(), dService, internalService);
         serviceContext.sub = dService.subscribe(info.getSubject(), QGROUP, serviceContext::onMessage);
 
@@ -145,11 +226,19 @@ public class Service {
         stats.reset();
     }
 
-    public Info info() {
+    public String getId() {
+        return info.getServiceId();
+    }
+
+    public Info getInfo() {
         return info;
     }
 
-    public Stats stats() {
+    public SchemaInfo getSchemaInfo() {
+        return schemaInfo;
+    }
+
+    public Stats getStats() {
         return stats.copy();
     }
 
@@ -233,7 +322,7 @@ public class Service {
         @Override
         protected long subOnMessage(Message msg) throws InterruptedException {
             long requestNo = stats.incrementNumRequests();
-            userMessageHandler.onMessage(msg);
+            serviceMessageHandler.onMessage(msg);
             return requestNo;
         }
 
