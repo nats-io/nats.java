@@ -28,6 +28,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import static io.nats.client.support.JsonUtils.getFormatted;
+import static io.nats.client.support.JsonUtils.printFormatted;
+
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
@@ -161,14 +164,6 @@ public class ServiceExample {
         for (Object o : objects) {
             System.out.println(getFormatted(o));
         }
-    }
-
-    private static void printFormatted(Object o) {
-        System.out.println(o);
-    }
-
-    private static String getFormatted(Object o) {
-        return o.toString();
     }
 
     private static void callService(Connection nc, String serviceName) throws InterruptedException, ExecutionException {
