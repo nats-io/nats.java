@@ -22,7 +22,7 @@ import static io.nats.client.support.JsonUtils.*;
 import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
- * TBD
+ * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class SchemaResponse implements JsonSerializable {
     private final String serviceId;
@@ -43,8 +43,8 @@ public class SchemaResponse implements JsonSerializable {
     }
 
     public SchemaResponse(String json) {
-        name = JsonUtils.readString(json, string_pattern(NAME));
-        serviceId = JsonUtils.readString(json, string_pattern("id"));
+        name = JsonUtils.readString(json, NAME_RE);
+        serviceId = JsonUtils.readString(json, ID_RE);
         version = JsonUtils.readString(json, VERSION_RE);
         schema = Schema.optionalInstance(json);
     }
@@ -53,9 +53,9 @@ public class SchemaResponse implements JsonSerializable {
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, "id", serviceId);
+        JsonUtils.addField(sb, ID, serviceId);
         JsonUtils.addField(sb, VERSION, version);
-        addField(sb, "schema", schema);
+        addField(sb, SCHEMA, schema);
         return endJson(sb).toString();
     }
 

@@ -28,6 +28,9 @@ import java.util.List;
 import static io.nats.service.ServiceUtil.*;
 import static io.nats.service.api.StatsRequest.INTERNAL_STATS_REQUEST_BYTES;
 
+/**
+ * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ */
 public class Discovery {
 
     private final Connection conn;
@@ -143,6 +146,7 @@ public class Discovery {
     // ----------------------------------------------------------------------------------------------------
     private String discoverOne(String action, String serviceName, String serviceId, byte[] body) {
         String subject = toDiscoverySubject(action, serviceName, serviceId);
+
         try {
             Message m = conn.request(subject, body, Duration.ofMillis(maxTimeMillis));
             if (m != null) {

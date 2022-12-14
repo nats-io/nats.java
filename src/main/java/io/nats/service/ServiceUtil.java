@@ -20,13 +20,16 @@ import java.util.Comparator;
 
 import static io.nats.client.support.Validator.nullOrEmpty;
 
+/**
+ * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ */
 public abstract class ServiceUtil {
 
     static final String PING = "PING";
     static final String INFO = "INFO";
     static final String SCHEMA = "SCHEMA";
     static final String STATS = "STATS";
-    static final String SRV_PREFIX = "$SRV.";
+    static final String DEFAULT_SERVICE_PREFIX = "$SRV.";
 
     static final String QGROUP = "q";
 
@@ -47,14 +50,14 @@ public abstract class ServiceUtil {
     static String toDiscoverySubject(String name, String serviceName, String serviceId) {
         if (nullOrEmpty(serviceId)) {
             if (nullOrEmpty(serviceName)) {
-                return SRV_PREFIX + name;
+                return DEFAULT_SERVICE_PREFIX + name;
             }
-            return SRV_PREFIX + name + "." + serviceName;
+            return DEFAULT_SERVICE_PREFIX + name + "." + serviceName;
         }
-        return SRV_PREFIX + name + "." + serviceName + "." + serviceId;
+        return DEFAULT_SERVICE_PREFIX + name + "." + serviceName + "." + serviceId;
     }
 
-    static Comparator<EndpointStats> ENDPOINT_STATS_COMPARATOR = new Comparator<EndpointStats>() {
+    public static Comparator<EndpointStats> ENDPOINT_STATS_COMPARATOR = new Comparator<EndpointStats>() {
         @Override
         public int compare(EndpointStats o1, EndpointStats o2) {
             return order(o1).compareTo(order(o2));

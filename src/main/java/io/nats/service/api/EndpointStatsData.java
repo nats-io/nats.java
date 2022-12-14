@@ -11,16 +11,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.impl;
+package io.nats.service.api;
 
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
+import io.nats.client.support.JsonSerializable;
 
-import java.util.Map;
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
 
-public class NatsPackageScopeWorkarounds {
+/**
+ * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ */
+public class EndpointStatsData implements JsonSerializable {
 
-    public static Map<String, Dispatcher> getDispatchers(Connection connection) {
-        return ((NatsConnection)connection).getDispatchers();
+    @Override
+    public String toJson() {
+        StringBuilder sb = beginJson();
+        return endJson(sb).toString();
+    }
+
+    @Override
+    public String toString() {
+        return toJson();
     }
 }

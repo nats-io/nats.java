@@ -24,9 +24,10 @@ import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.service.ServiceUtil.ENDPOINT_STATS_COMPARATOR;
 
 /**
- * TBD
+ * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class StatsResponse implements JsonSerializable {
     private final String serviceId;
@@ -46,6 +47,7 @@ public class StatsResponse implements JsonSerializable {
         this.name = descriptor.name;
         this.version = descriptor.version;
         this.stats = new ArrayList<>(stats);
+        this.stats.sort(ENDPOINT_STATS_COMPARATOR);
     }
 
     public StatsResponse(String serviceId, String name, String version, EndpointStats stats) {
@@ -60,22 +62,24 @@ public class StatsResponse implements JsonSerializable {
         this.serviceId = serviceId;
         this.version = version;
         this.stats = new ArrayList<>(stats);
+        this.stats.sort(ENDPOINT_STATS_COMPARATOR);
     }
 
     public StatsResponse(String json) {
-        name = JsonUtils.readString(json, string_pattern(NAME));
-        serviceId = JsonUtils.readString(json, string_pattern("id"));
+        name = JsonUtils.readString(json, NAME_RE);
+        serviceId = JsonUtils.readString(json, ID_RE);
         version = JsonUtils.readString(json, VERSION_RE);
-        stats = EndpointStats.optionalListOf(json);
+        stats = EndpointStats.toList(json);
+        this.stats.sort(ENDPOINT_STATS_COMPARATOR);
     }
 
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, "id", serviceId);
+        JsonUtils.addField(sb, ID, serviceId);
         JsonUtils.addField(sb, VERSION, version);
-        addJsons(sb, "stats", stats);
+        addJsons(sb, STATS, stats);
         return endJson(sb).toString();
     }
 

@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -374,19 +374,22 @@ public class ServiceTests extends JetStreamTestBase {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Test
-    public void testApicCoverage() {
+    public void testApiCoverage() {
         new PingResponse("id", "name").toString();
         new Schema("request", "response").toString();
         new EndpointStats("name").toString();
         new StatsRequest("{}").toString();
         new InfoResponse("id", SD_ECHO).toString();
+        new EndpointStatsData().toString();
+
         assertNull(Schema.optionalInstance("{}"));
-        assertNull(EndpointStats.optionalListOf("{}"));
+        assertEquals(0, EndpointStats.toList("{}").size());
         assertFalse(new StatsRequest("{}").isInternal());
         assertFalse(new StatsRequest((byte[])null).isInternal());
 
-        new StatsResponse("serviceId", "name", "version", new EndpointStats("name")).toString();
         new StatsResponse("serviceId", "name", "version", Collections.singletonList(new EndpointStats("name"))).toString();
+        StatsResponse stats = new StatsResponse("serviceId", "name", "version", new EndpointStats("name"));
+        assertNull(stats.getStats().get(0).lastError.get());
 
         ServiceDescriptor sd = new ServiceDescriptor("name", "desc", "version", "subject", "", null);
         SchemaResponse sch = new SchemaResponse("serviceId", sd);
@@ -399,5 +402,118 @@ public class ServiceTests extends JetStreamTestBase {
         sd = new ServiceDescriptor("name", "desc", "version", "subject", "", "response");
         sch = new SchemaResponse("serviceId", sd);
         assertNotNull(sch.getSchema());
+    }
+
+    @Test
+    public void testApiJsonInOut() {
+        PingResponse pr1 = new PingResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\"}");
+        PingResponse pr2 = new PingResponse(pr1.toJson());
+        assertEquals("ServiceName", pr1.getName());
+        assertEquals("serviceId", pr1.getServiceId());
+        assertEquals(pr1.getName(), pr2.getName());
+        assertEquals(pr1.getServiceId(), pr2.getServiceId());
+
+        InfoResponse ir1 = new InfoResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"description\":\"desc\",\"version\":\"0.0.1\",\"subject\":\"ServiceSubject\"}");
+        InfoResponse ir2 = new InfoResponse(ir1.toJson());
+        assertEquals("ServiceName", ir1.getName());
+        assertEquals("serviceId", ir1.getServiceId());
+        assertEquals("desc", ir1.getDescription());
+        assertEquals("0.0.1", ir1.getVersion());
+        assertEquals("ServiceSubject", ir1.getSubject());
+        assertEquals(ir1.getName(), ir2.getName());
+        assertEquals(ir1.getServiceId(), ir2.getServiceId());
+        assertEquals(ir1.getDescription(), ir2.getDescription());
+        assertEquals(ir1.getVersion(), ir2.getVersion());
+        assertEquals(ir1.getSubject(), ir2.getSubject());
+
+        SchemaResponse sr1 = new SchemaResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"schema\":{\"request\":\"rqst\",\"response\":\"rspns\"}}");
+        SchemaResponse sr2 = new SchemaResponse(sr1.toJson());
+        assertEquals("ServiceName", sr1.getName());
+        assertEquals("serviceId", sr1.getServiceId());
+        assertEquals("0.0.1", sr1.getVersion());
+        assertEquals("rqst", sr1.getSchema().getRequest());
+        assertEquals("rspns", sr1.getSchema().getResponse());
+        assertEquals(sr1.getName(), sr2.getName());
+        assertEquals(sr1.getServiceId(), sr2.getServiceId());
+        assertEquals(sr1.getVersion(), sr2.getVersion());
+        assertEquals(sr1.getSchema().getRequest(), sr2.getSchema().getRequest());
+        assertEquals(sr1.getSchema().getResponse(), sr2.getSchema().getResponse());
+
+        sr1 = new SchemaResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\"}");
+        sr2 = new SchemaResponse(sr1.toJson());
+        assertEquals("ServiceName", sr1.getName());
+        assertEquals("serviceId", sr1.getServiceId());
+        assertEquals("0.0.1", sr1.getVersion());
+        assertEquals(sr1.getName(), sr2.getName());
+        assertEquals(sr1.getServiceId(), sr2.getServiceId());
+        assertEquals(sr1.getVersion(), sr2.getVersion());
+        assertNull(sr1.getSchema());
+        assertNull(sr2.getSchema());
+
+        StatsResponse stats1 = new StatsResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"stats\":[{\"name\":\"ServiceName\",\"num_requests\":1,\"num_errors\":2,\"last_error\":\"npeA\",\"total_processing_time\":3,\"average_processing_time\":4},{\"name\":\"PING\",\"num_requests\":5,\"num_errors\":6,\"last_error\": \"npeB\",\"total_processing_time\":7,\"average_processing_time\":8}]}");
+        StatsResponse stats2 = new StatsResponse(stats1.toJson());
+        assertEquals("ServiceName", stats1.getName());
+        assertEquals("serviceId", stats1.getServiceId());
+        assertEquals("0.0.1", stats1.getVersion());
+        assertEquals(stats1.getName(), stats2.getName());
+        assertEquals(stats1.getServiceId(), stats2.getServiceId());
+        assertEquals(stats1.getVersion(), stats2.getVersion());
+        assertEquals(2, stats1.getStats().size());
+        assertEquals(2, stats2.getStats().size());
+
+        EndpointStats es10 = stats1.getStats().get(0);
+        EndpointStats es11 = stats1.getStats().get(1);
+        EndpointStats es20 = stats2.getStats().get(0);
+        EndpointStats es21 = stats2.getStats().get(1);
+
+        assertEquals(1, es10.numRequests.get());
+        assertEquals(1, es20.numRequests.get());
+        assertEquals(2, es10.numErrors.get());
+        assertEquals(2, es20.numErrors.get());
+        assertEquals("npeA", es10.lastError.get());
+        assertEquals("npeA", es20.lastError.get());
+        assertEquals(3, es10.totalProcessingTime.get());
+        assertEquals(3, es20.totalProcessingTime.get());
+        assertEquals(4, es10.averageProcessingTime.get());
+        assertEquals(4, es20.averageProcessingTime.get());
+
+        assertEquals(5, es11.numRequests.get());
+        assertEquals(5, es21.numRequests.get());
+        assertEquals(6, es11.numErrors.get());
+        assertEquals(6, es21.numErrors.get());
+        assertEquals("npeB", es11.lastError.get());
+        assertEquals("npeB", es21.lastError.get());
+        assertEquals(7, es11.totalProcessingTime.get());
+        assertEquals(7, es21.totalProcessingTime.get());
+        assertEquals(8, es11.averageProcessingTime.get());
+        assertEquals(8, es21.averageProcessingTime.get());
+
+        assertTrue(new StatsRequest(new StatsRequest(true).toJson()).isInternal());
+        assertFalse(new StatsRequest(new StatsRequest(false).toJson()).isInternal());
+
+        StatsRequest r1 = new StatsRequest("{}");
+        StatsRequest r2 = new StatsRequest(r1.toJson());
+        assertFalse(r1.isInternal());
+        assertFalse(r2.isInternal());
+
+        r1 = new StatsRequest((byte[])null);
+        r2 = new StatsRequest(r1.toJson());
+        assertFalse(r1.isInternal());
+        assertFalse(r2.isInternal());
+
+        r1 = new StatsRequest("{}".getBytes());
+        r2 = new StatsRequest(r1.toJson());
+        assertFalse(r1.isInternal());
+        assertFalse(r2.isInternal());
+
+        r1 = new StatsRequest("{\"internal\":false}".getBytes());
+        r2 = new StatsRequest(r1.toJson());
+        assertFalse(r1.isInternal());
+        assertFalse(r2.isInternal());
+
+        r1 = new StatsRequest("{\"internal\":true}".getBytes());
+        r2 = new StatsRequest(r1.toJson());
+        assertTrue(r1.isInternal());
+        assertTrue(r2.isInternal());
     }
 }

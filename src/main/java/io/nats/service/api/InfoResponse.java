@@ -18,10 +18,11 @@ import io.nats.client.support.JsonUtils;
 import io.nats.service.ServiceDescriptor;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
 
 /**
- * TBD
+ * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class InfoResponse implements JsonSerializable {
     private final String name;
@@ -39,8 +40,8 @@ public class InfoResponse implements JsonSerializable {
     }
 
     public InfoResponse(String json) {
-        name = JsonUtils.readString(json, string_pattern(NAME));
-        serviceId = JsonUtils.readString(json, string_pattern("id"));
+        name = JsonUtils.readString(json, NAME_RE);
+        serviceId = JsonUtils.readString(json, ID_RE);
         description = JsonUtils.readString(json, DESCRIPTION_RE);
         version = JsonUtils.readString(json, VERSION_RE);
         subject = JsonUtils.readString(json, SUBJECT_RE);
@@ -50,7 +51,7 @@ public class InfoResponse implements JsonSerializable {
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, "id", serviceId);
+        JsonUtils.addField(sb, ID, serviceId);
         JsonUtils.addField(sb, DESCRIPTION, description);
         JsonUtils.addField(sb, VERSION, version);
         JsonUtils.addField(sb, SUBJECT, subject);

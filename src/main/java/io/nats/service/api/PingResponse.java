@@ -16,11 +16,12 @@ package io.nats.service.api;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 
-import static io.nats.client.support.ApiConstants.NAME;
-import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
 
 /**
- * TBD
+ * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class PingResponse implements JsonSerializable {
     private final String serviceId;
@@ -32,15 +33,15 @@ public class PingResponse implements JsonSerializable {
     }
 
     public PingResponse(String json) {
-        name = JsonUtils.readString(json, string_pattern(NAME));
-        serviceId = JsonUtils.readString(json, string_pattern("id"));
+        name = JsonUtils.readString(json, NAME_RE);
+        serviceId = JsonUtils.readString(json, ID_RE);
     }
 
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, "id", serviceId);
+        JsonUtils.addField(sb, ID, serviceId);
         return endJson(sb).toString();
     }
 

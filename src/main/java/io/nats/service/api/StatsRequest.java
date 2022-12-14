@@ -16,10 +16,13 @@ package io.nats.service.api;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 
-import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.ApiConstants.INTERNAL;
+import static io.nats.client.support.ApiConstants.INTERNAL_RE;
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
 
 /**
- * TBD
+ * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class StatsRequest implements JsonSerializable {
     public static final byte[] INTERNAL_STATS_REQUEST_BYTES = new StatsRequest(true).serialize();
@@ -35,18 +38,18 @@ public class StatsRequest implements JsonSerializable {
             internal = false;
         }
         else {
-            internal = JsonUtils.readBoolean(new String(data), boolean_pattern("internal"));
+            internal = JsonUtils.readBoolean(new String(data), INTERNAL_RE);
         }
     }
 
     public StatsRequest(String json) {
-        internal = JsonUtils.readBoolean(json, boolean_pattern("internal"));
+        internal = JsonUtils.readBoolean(json, INTERNAL_RE);
     }
 
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonUtils.addFldWhenTrue(sb, "internal", internal);
+        JsonUtils.addFldWhenTrue(sb, INTERNAL, internal);
         return endJson(sb).toString();
     }
 

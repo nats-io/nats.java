@@ -16,6 +16,9 @@ package io.nats.service;
 import static io.nats.client.support.Validator.required;
 import static io.nats.client.support.Validator.validateIsRestrictedTerm;
 
+/**
+ * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ */
 public class ServiceDescriptor {
 
     public final String name;

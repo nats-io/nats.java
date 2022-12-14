@@ -25,6 +25,9 @@ import java.util.concurrent.CompletableFuture;
 
 import static io.nats.service.ServiceUtil.*;
 
+/**
+ * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ */
 public class Service {
     private final Connection conn;
     private final String id;
@@ -259,7 +262,7 @@ public class Service {
             }
             catch (Throwable t) {
                 stats.numErrors.incrementAndGet();
-                stats.lastError = t.toString();
+                stats.lastError.set(t.toString());
                 Service.this.stop(t);
             }
             finally {

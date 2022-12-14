@@ -16,17 +16,19 @@ package io.nats.service.api;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 
-import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
 
 /**
- * TBD
+ * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class Schema implements JsonSerializable {
     private final String request;
     private final String response;
 
     public static Schema optionalInstance(String fullJson) {
-        String objJson = JsonUtils.getJsonObject("schema", fullJson, null);
+        String objJson = JsonUtils.getJsonObject(SCHEMA, fullJson, null);
         return objJson == null ? null : new Schema(objJson);
     }
 
@@ -36,8 +38,8 @@ public class Schema implements JsonSerializable {
     }
 
     protected Schema(String json) {
-        request = JsonUtils.readString(json, string_pattern("request"));
-        response = JsonUtils.readString(json, string_pattern("response"));
+        request = JsonUtils.readString(json, REQUEST_RE);
+        response = JsonUtils.readString(json, RESPONSE_RE);
     }
 
     @Override
@@ -46,8 +48,8 @@ public class Schema implements JsonSerializable {
     }
 
     protected StringBuilder appendSuperFields(StringBuilder sb) {
-        JsonUtils.addField(sb, "request", request);
-        JsonUtils.addField(sb, "response", response);
+        JsonUtils.addField(sb, REQUEST, request);
+        JsonUtils.addField(sb, RESPONSE, response);
         return sb;
     }
 
