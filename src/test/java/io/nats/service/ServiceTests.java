@@ -84,8 +84,8 @@ public class ServiceTests extends JetStreamTestBase {
 
                 // ping discovery
                 DiscoveryVerifier pingValidator = (descriptor, o) -> {
-                    assertTrue(o instanceof PingResponse);
-                    PingResponse pr = (PingResponse)o;
+                    assertTrue(o instanceof Ping);
+                    Ping pr = (Ping)o;
                     if (descriptor != null) {
                         assertEquals(descriptor.name, pr.getName());
                     }
@@ -101,8 +101,8 @@ public class ServiceTests extends JetStreamTestBase {
 
                 // info discovery
                 DiscoveryVerifier infoValidator = (descriptor, o) -> {
-                    assertTrue(o instanceof InfoResponse);
-                    InfoResponse ir = (InfoResponse)o;
+                    assertTrue(o instanceof Info);
+                    Info ir = (Info)o;
                     if (descriptor != null) {
                         assertEquals(descriptor.name, ir.getName());
                         assertEquals(descriptor.description, ir.getDescription());
@@ -121,8 +121,8 @@ public class ServiceTests extends JetStreamTestBase {
 
                 // schema discovery
                 DiscoveryVerifier schemaValidator = (descriptor, o) -> {
-                    assertTrue(o instanceof SchemaResponse);
-                    SchemaResponse sr = (SchemaResponse)o;
+                    assertTrue(o instanceof SchemaInfo);
+                    SchemaInfo sr = (SchemaInfo)o;
                     if (descriptor != null) {
                         assertEquals(descriptor.name, sr.getName());
                         assertEquals(descriptor.version, sr.getVersion());
@@ -141,23 +141,21 @@ public class ServiceTests extends JetStreamTestBase {
 
                 // stats discovery
                 discovery = new Discovery(clientNc); // coverage for the simple constructor
-                List<StatsResponse> srList = discovery.stats();
+                List<Stats> srList = discovery.stats();
                 assertEquals(4, srList.size());
                 int responseEcho = 0;
                 int responseSort = 0;
                 int requestsEcho = 0;
                 int requestsSort = 0;
-                for (StatsResponse sr : srList) {
-                    assertEquals(1, sr.getStats().size());
-                    EndpointStats es = sr.getStats().get(0);
-                    assertEquals(sr.getName(), es.name);
+                for (Stats sr : srList) {
+                    assertEquals(sr.getName(), sr.getName());
                     if (sr.getName().equals(ECHO_SERVICE)) {
                         responseEcho++;
-                        requestsEcho += es.numRequests.get();
+                        requestsEcho += sr.getNumRequests();
                     }
                     else {
                         responseSort++;
-                        requestsSort += es.numRequests.get();
+                        requestsSort += sr.getNumRequests();
                     }
                 }
                 assertEquals(2, responseEcho);
@@ -165,54 +163,24 @@ public class ServiceTests extends JetStreamTestBase {
                 assertEquals(requestCount, requestsEcho);
                 assertEquals(requestCount, requestsSort);
 
-                // stats discovery with internal
-                srList = discovery.stats(true);
-                assertEquals(4, srList.size());
-                for (StatsResponse sr : srList) {
-                    assertEquals(5, sr.getStats().size());
-                    assertEquals(sr.getName(), sr.getStats().get(0).name); // because it's sorted
-                    assertEquals(PING, sr.getStats().get(1).name);
-                    assertEquals(INFO, sr.getStats().get(2).name);
-                    assertEquals(SCHEMA, sr.getStats().get(3).name);
-                    assertEquals(STATS, sr.getStats().get(4).name);
-                }
-
                 // stats one specific instance so I can also test reset
-                StatsResponse sr = discovery.stats(ECHO_SERVICE, echoServiceId1, true);
+                Stats sr = discovery.stats(ECHO_SERVICE, echoServiceId1);
                 assertEquals(echoServiceId1, sr.getServiceId());
                 assertEquals(SD_ECHO.version, sr.getVersion());
-                assertEquals(5, sr.getStats().size());
-                assertEquals(sr.getName(), sr.getStats().get(0).name); // because it's sorted
-                assertEquals(PING, sr.getStats().get(1).name);
-                assertEquals(INFO, sr.getStats().get(2).name);
-                assertEquals(SCHEMA, sr.getStats().get(3).name);
-                assertEquals(STATS, sr.getStats().get(4).name);
 
                 // reset stats
                 echoService1.reset();
-                echoService1.resetDiscovery();
-                EndpointStats es = echoService1.stats();
-                assertEquals(0, es.numRequests.get());
-                List<EndpointStats> list = echoService1.discoveryStats();
-                assertEquals(0, list.get(0).numRequests.get());
-                assertEquals(0, list.get(1).numRequests.get());
-                assertEquals(0, list.get(2).numRequests.get());
-                assertEquals(0, list.get(3).numRequests.get());
+                sr = echoService1.stats();
+                assertEquals(0, sr.getNumRequests());
+                assertEquals(0, sr.getNumErrors());
+                assertEquals(0, sr.getTotalProcessingTime());
+                assertEquals(0, sr.getAverageProcessingTime());
 
-                sr = discovery.stats(ECHO_SERVICE, echoServiceId1, true);
-                assertEquals(5, sr.getStats().size());
-                assertEquals(sr.getName(), sr.getStats().get(0).name); // because it's sorted
-                assertEquals(PING, sr.getStats().get(1).name);
-                assertEquals(INFO, sr.getStats().get(2).name);
-                assertEquals(SCHEMA, sr.getStats().get(3).name);
-                assertEquals(STATS, sr.getStats().get(4).name);
-                assertEquals(0, sr.getStats().get(0).numRequests.get());
-                assertEquals(0, sr.getStats().get(1).numRequests.get());
-                assertEquals(0, sr.getStats().get(2).numRequests.get());
-                assertEquals(0, sr.getStats().get(3).numRequests.get());
-                assertEquals(1, sr.getStats().get(4).numRequests.get()); // remember we just did a stats request!
-
-                sr.getStats().sort(ENDPOINT_STATS_COMPARATOR); // coverage
+                sr = discovery.stats(ECHO_SERVICE, echoServiceId1);
+                assertEquals(0, sr.getNumRequests());
+                assertEquals(0, sr.getNumErrors());
+                assertEquals(0, sr.getTotalProcessingTime());
+                assertEquals(0, sr.getAverageProcessingTime());
 
                 // shutdown
                 Map<String, Dispatcher> dispatchers = getDispatchers(serviceNc1);
@@ -283,9 +251,12 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     private static String verifyServiceCreation(ServiceDescriptor sd, Service service) {
-        String id = service.getId();
+        Info info = service.info();
+        String id = info.getServiceId();
         assertNotNull(id);
-        assertNotNull(service.getServiceDescriptor()); // coverage
+        assertEquals(sd.name, info.getName());
+        assertEquals(sd.version, info.getVersion());
+        assertEquals(sd.subject, info.getSubject());
         assertNotNull(service.toString()); // coverage
         return id;
     }
@@ -347,6 +318,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", null, null, null));
         assertThrows(IllegalArgumentException.class, () -> new ServiceDescriptor("name", "desc", "version", "this is not value", null, null));
 
+        new ServiceDescriptor("name", "desc", "version", PLAIN); // constructor coverage
         new ServiceDescriptor("name", "desc", "version", PLAIN, null, null);
         new ServiceDescriptor("name", "desc", "version", HAS_DASH, null, null);
         new ServiceDescriptor("name", "desc", "version", HAS_UNDER, null, null);
@@ -367,54 +339,43 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testServiceUtil() {
-        assertEquals("$SRV.PING", toDiscoverySubject(PING));
-        assertEquals("$SRV.PING.myservice", toDiscoverySubject(PING, "myservice"));
+        assertEquals("$SRV.PING", toDiscoverySubject(PING, null, null));
+        assertEquals("$SRV.PING.myservice", toDiscoverySubject(PING, "myservice", null));
         assertEquals("$SRV.PING.myservice.123", toDiscoverySubject(PING, "myservice", "123"));
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Test
     public void testApiCoverage() {
-        new PingResponse("id", "name").toString();
+        new Ping("id", "name").toString();
         new Schema("request", "response").toString();
-        new EndpointStats("name").toString();
-        new StatsRequest("{}").toString();
-        new InfoResponse("id", SD_ECHO).toString();
-        new EndpointStatsData().toString();
-
+        new Info("id", SD_ECHO).toString();
         assertNull(Schema.optionalInstance("{}"));
-        assertEquals(0, EndpointStats.toList("{}").size());
-        assertFalse(new StatsRequest("{}").isInternal());
-        assertFalse(new StatsRequest((byte[])null).isInternal());
-
-        new StatsResponse("serviceId", "name", "version", Collections.singletonList(new EndpointStats("name"))).toString();
-        StatsResponse stats = new StatsResponse("serviceId", "name", "version", new EndpointStats("name"));
-        assertNull(stats.getStats().get(0).lastError.get());
 
         ServiceDescriptor sd = new ServiceDescriptor("name", "desc", "version", "subject", "", null);
-        SchemaResponse sch = new SchemaResponse("serviceId", sd);
+        SchemaInfo sch = new SchemaInfo("serviceId", sd);
         assertNull(sch.getSchema());
 
         sd = new ServiceDescriptor("name", "desc", "version", "subject", "request", null);
-        sch = new SchemaResponse("serviceId", sd);
+        sch = new SchemaInfo("serviceId", sd);
         assertNotNull(sch.getSchema());
 
         sd = new ServiceDescriptor("name", "desc", "version", "subject", "", "response");
-        sch = new SchemaResponse("serviceId", sd);
+        sch = new SchemaInfo("serviceId", sd);
         assertNotNull(sch.getSchema());
     }
 
     @Test
     public void testApiJsonInOut() {
-        PingResponse pr1 = new PingResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\"}");
-        PingResponse pr2 = new PingResponse(pr1.toJson());
+        Ping pr1 = new Ping("{\"name\":\"ServiceName\",\"id\":\"serviceId\"}");
+        Ping pr2 = new Ping(pr1.toJson());
         assertEquals("ServiceName", pr1.getName());
         assertEquals("serviceId", pr1.getServiceId());
         assertEquals(pr1.getName(), pr2.getName());
         assertEquals(pr1.getServiceId(), pr2.getServiceId());
 
-        InfoResponse ir1 = new InfoResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"description\":\"desc\",\"version\":\"0.0.1\",\"subject\":\"ServiceSubject\"}");
-        InfoResponse ir2 = new InfoResponse(ir1.toJson());
+        Info ir1 = new Info("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"description\":\"desc\",\"version\":\"0.0.1\",\"subject\":\"ServiceSubject\"}");
+        Info ir2 = new Info(ir1.toJson());
         assertEquals("ServiceName", ir1.getName());
         assertEquals("serviceId", ir1.getServiceId());
         assertEquals("desc", ir1.getDescription());
@@ -426,8 +387,8 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(ir1.getVersion(), ir2.getVersion());
         assertEquals(ir1.getSubject(), ir2.getSubject());
 
-        SchemaResponse sr1 = new SchemaResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"schema\":{\"request\":\"rqst\",\"response\":\"rspns\"}}");
-        SchemaResponse sr2 = new SchemaResponse(sr1.toJson());
+        SchemaInfo sr1 = new SchemaInfo("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"schema\":{\"request\":\"rqst\",\"response\":\"rspns\"}}");
+        SchemaInfo sr2 = new SchemaInfo(sr1.toJson());
         assertEquals("ServiceName", sr1.getName());
         assertEquals("serviceId", sr1.getServiceId());
         assertEquals("0.0.1", sr1.getVersion());
@@ -439,8 +400,8 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(sr1.getSchema().getRequest(), sr2.getSchema().getRequest());
         assertEquals(sr1.getSchema().getResponse(), sr2.getSchema().getResponse());
 
-        sr1 = new SchemaResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\"}");
-        sr2 = new SchemaResponse(sr1.toJson());
+        sr1 = new SchemaInfo("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\"}");
+        sr2 = new SchemaInfo(sr1.toJson());
         assertEquals("ServiceName", sr1.getName());
         assertEquals("serviceId", sr1.getServiceId());
         assertEquals("0.0.1", sr1.getVersion());
@@ -450,70 +411,23 @@ public class ServiceTests extends JetStreamTestBase {
         assertNull(sr1.getSchema());
         assertNull(sr2.getSchema());
 
-        StatsResponse stats1 = new StatsResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"stats\":[{\"name\":\"ServiceName\",\"num_requests\":1,\"num_errors\":2,\"last_error\":\"npeA\",\"total_processing_time\":3,\"average_processing_time\":4},{\"name\":\"PING\",\"num_requests\":5,\"num_errors\":6,\"last_error\": \"npeB\",\"total_processing_time\":7,\"average_processing_time\":8}]}");
-        StatsResponse stats2 = new StatsResponse(stats1.toJson());
+        Stats stats1 = new Stats("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"num_requests\":1,\"num_errors\":2,\"last_error\":\"lastErr\",\"total_processing_time\":3,\"average_processing_time\":4}");
+        Stats stats2 = new Stats(stats1.toJson());
         assertEquals("ServiceName", stats1.getName());
         assertEquals("serviceId", stats1.getServiceId());
         assertEquals("0.0.1", stats1.getVersion());
         assertEquals(stats1.getName(), stats2.getName());
         assertEquals(stats1.getServiceId(), stats2.getServiceId());
         assertEquals(stats1.getVersion(), stats2.getVersion());
-        assertEquals(2, stats1.getStats().size());
-        assertEquals(2, stats2.getStats().size());
-
-        EndpointStats es10 = stats1.getStats().get(0);
-        EndpointStats es11 = stats1.getStats().get(1);
-        EndpointStats es20 = stats2.getStats().get(0);
-        EndpointStats es21 = stats2.getStats().get(1);
-
-        assertEquals(1, es10.numRequests.get());
-        assertEquals(1, es20.numRequests.get());
-        assertEquals(2, es10.numErrors.get());
-        assertEquals(2, es20.numErrors.get());
-        assertEquals("npeA", es10.lastError.get());
-        assertEquals("npeA", es20.lastError.get());
-        assertEquals(3, es10.totalProcessingTime.get());
-        assertEquals(3, es20.totalProcessingTime.get());
-        assertEquals(4, es10.averageProcessingTime.get());
-        assertEquals(4, es20.averageProcessingTime.get());
-
-        assertEquals(5, es11.numRequests.get());
-        assertEquals(5, es21.numRequests.get());
-        assertEquals(6, es11.numErrors.get());
-        assertEquals(6, es21.numErrors.get());
-        assertEquals("npeB", es11.lastError.get());
-        assertEquals("npeB", es21.lastError.get());
-        assertEquals(7, es11.totalProcessingTime.get());
-        assertEquals(7, es21.totalProcessingTime.get());
-        assertEquals(8, es11.averageProcessingTime.get());
-        assertEquals(8, es21.averageProcessingTime.get());
-
-        assertTrue(new StatsRequest(new StatsRequest(true).toJson()).isInternal());
-        assertFalse(new StatsRequest(new StatsRequest(false).toJson()).isInternal());
-
-        StatsRequest r1 = new StatsRequest("{}");
-        StatsRequest r2 = new StatsRequest(r1.toJson());
-        assertFalse(r1.isInternal());
-        assertFalse(r2.isInternal());
-
-        r1 = new StatsRequest((byte[])null);
-        r2 = new StatsRequest(r1.toJson());
-        assertFalse(r1.isInternal());
-        assertFalse(r2.isInternal());
-
-        r1 = new StatsRequest("{}".getBytes());
-        r2 = new StatsRequest(r1.toJson());
-        assertFalse(r1.isInternal());
-        assertFalse(r2.isInternal());
-
-        r1 = new StatsRequest("{\"internal\":false}".getBytes());
-        r2 = new StatsRequest(r1.toJson());
-        assertFalse(r1.isInternal());
-        assertFalse(r2.isInternal());
-
-        r1 = new StatsRequest("{\"internal\":true}".getBytes());
-        r2 = new StatsRequest(r1.toJson());
-        assertTrue(r1.isInternal());
-        assertTrue(r2.isInternal());
+        assertEquals(1, stats1.getNumRequests());
+        assertEquals(1, stats2.getNumRequests());
+        assertEquals(2, stats1.getNumErrors());
+        assertEquals(2, stats2.getNumErrors());
+        assertEquals("lastErr", stats1.getLastError());
+        assertEquals("lastErr", stats2.getLastError());
+        assertEquals(3, stats1.getTotalProcessingTime());
+        assertEquals(3, stats2.getTotalProcessingTime());
+        assertEquals(4, stats1.getAverageProcessingTime());
+        assertEquals(4, stats2.getAverageProcessingTime());
     }
 }

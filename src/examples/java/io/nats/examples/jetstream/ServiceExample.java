@@ -16,9 +16,9 @@ package io.nats.examples.jetstream;
 import io.nats.client.*;
 import io.nats.service.Discovery;
 import io.nats.service.Service;
-import io.nats.service.api.InfoResponse;
-import io.nats.service.api.PingResponse;
-import io.nats.service.api.SchemaResponse;
+import io.nats.service.api.Info;
+import io.nats.service.api.Ping;
+import io.nats.service.api.SchemaInfo;
 import io.nats.service.api.ServiceDescriptor;
 
 import java.io.IOException;
@@ -85,11 +85,11 @@ public class ServiceExample {
             // ----------------------------------------------------------------------------------------------------
             report("Ping", "All", discovery.ping());
 
-            List<PingResponse> pings = discovery.ping(ECHO_SERVICE);
+            List<Ping> pings = discovery.ping(ECHO_SERVICE);
             report("Ping", ECHO_SERVICE, pings);
 
             String echoId = pings.get(0).getServiceId();
-            PingResponse ping = discovery.ping(ECHO_SERVICE, echoId);
+            Ping ping = discovery.ping(ECHO_SERVICE, echoId);
             report("Ping", ECHO_SERVICE, echoId, ping);
 
             pings = discovery.ping(SORT_SERVICE);
@@ -104,10 +104,10 @@ public class ServiceExample {
             // ----------------------------------------------------------------------------------------------------
             report("Info", "All", discovery.info());
 
-            List<InfoResponse> infos = discovery.info(ECHO_SERVICE);
+            List<Info> infos = discovery.info(ECHO_SERVICE);
             report("Info", ECHO_SERVICE, infos);
 
-            InfoResponse info = discovery.info(ECHO_SERVICE, echoId);
+            Info info = discovery.info(ECHO_SERVICE, echoId);
             report("Info", ECHO_SERVICE, echoId, info);
 
             infos = discovery.info(SORT_SERVICE);
@@ -121,23 +121,24 @@ public class ServiceExample {
             // ----------------------------------------------------------------------------------------------------
             report("Schema", "All", discovery.schema());
 
-            List<SchemaResponse> schemas = discovery.schema(ECHO_SERVICE);
-            report("Schema", ECHO_SERVICE, schemas);
+            List<SchemaInfo> schemaInfos = discovery.schema(ECHO_SERVICE);
+            report("Schema", ECHO_SERVICE, schemaInfos);
 
-            SchemaResponse schema = discovery.schema(ECHO_SERVICE, echoId);
-            report("Schema", ECHO_SERVICE, echoId, schema);
+            SchemaInfo schemaInfo = discovery.schema(ECHO_SERVICE, echoId);
+            report("Schema", ECHO_SERVICE, echoId, schemaInfo);
 
-            schemas = discovery.schema(SORT_SERVICE);
-            report("Schema", SORT_SERVICE, schemas);
+            schemaInfos = discovery.schema(SORT_SERVICE);
+            report("Schema", SORT_SERVICE, schemaInfos);
 
-            schema = discovery.schema(SORT_SERVICE, sortId);
-            report("Schema", SORT_SERVICE, sortId, schema);
+            schemaInfo = discovery.schema(SORT_SERVICE, sortId);
+            report("Schema", SORT_SERVICE, sortId, schemaInfo);
 
             // ----------------------------------------------------------------------------------------------------
             // schema discover variations
             // ----------------------------------------------------------------------------------------------------
             report("Stats", "All", discovery.stats());
-            report("Stats", "All, Internal", discovery.stats(true));
+            report("Stats", ECHO_SERVICE, discovery.stats(ECHO_SERVICE));
+            report("Stats", SORT_SERVICE, discovery.stats(SORT_SERVICE));
 
             // ----------------------------------------------------------------------------------------------------
             // stop the service
@@ -170,6 +171,6 @@ public class ServiceExample {
         String request = Long.toHexString(System.currentTimeMillis()) + Long.toHexString(System.nanoTime()); // just some random text
         CompletableFuture<Message> reply = nc.request(serviceName, request.getBytes());
         String response = new String(reply.get().getData());
-        System.out.println("\nReply from " + serviceName + ". " + request + " -> " + response);
+        System.out.println("\nReply from " + serviceName + ". Sent [" + request + "] Received [" + response + "]");
     }
 }

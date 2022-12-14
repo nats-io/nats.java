@@ -162,7 +162,7 @@ public abstract class Validator {
         });
     }
 
-    public static String validateIsRestrictedTerm(String label, String s, boolean required) {
+    public static String validateIsRestrictedTerm(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
             if (notRestrictedTerm(s)) {
                 throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `-` or `_` [" + s + "]");
@@ -172,7 +172,7 @@ public abstract class Validator {
     }
 
     public static String validateBucketName(String s, boolean required) {
-        return validateIsRestrictedTerm("Bucket Name", s, required);
+        return validateIsRestrictedTerm(s, "Bucket Name", required);
     }
 
     public static String validateWildcardKvKey(String s, String label, boolean required) {

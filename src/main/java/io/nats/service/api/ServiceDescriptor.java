@@ -28,6 +28,13 @@ public class ServiceDescriptor {
     public final String schemaRequest;
     public final String schemaResponse;
 
+    public ServiceDescriptor(String name,
+                             String description,
+                             String version,
+                             String subject) {
+        this(name, description, version, subject, null, null);
+    }
+
     public ServiceDescriptor(String name, 
                              String description, 
                              String version, 
@@ -37,7 +44,7 @@ public class ServiceDescriptor {
         this.name = required(name, "name");
         this.description = description;
         this.version = required(version, "version");
-        this.subject = validateIsRestrictedTerm("subject", subject, true);
+        this.subject = validateIsRestrictedTerm(subject, "subject", true);
         this.schemaRequest = schemaRequest;
         this.schemaResponse = schemaResponse;
     }

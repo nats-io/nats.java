@@ -14,19 +14,51 @@
 package io.nats.service.api;
 
 import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonUtils;
 
+import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class EndpointStatsData implements JsonSerializable {
+public class Ping implements JsonSerializable {
+    private final String serviceId;
+    private final String name;
+
+    public Ping(String serviceId, String name) {
+        this.serviceId = serviceId;
+        this.name = name;
+    }
+
+    public Ping(String json) {
+        name = JsonUtils.readString(json, NAME_RE);
+        serviceId = JsonUtils.readString(json, ID_RE);
+    }
 
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
+        JsonUtils.addField(sb, NAME, name);
+        JsonUtils.addField(sb, ID, serviceId);
         return endJson(sb).toString();
+    }
+
+    /**
+     * The kind of the service reporting the status
+     * @return the service name
+     */
+    public String getName() {
+        return name;
+    }
+
+    /**
+     * The unique ID of the service reporting the status
+     * @return the service id
+     */
+    public String getServiceId() {
+        return serviceId;
     }
 
     @Override

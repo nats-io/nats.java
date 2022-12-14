@@ -13,10 +13,7 @@
 
 package io.nats.service;
 
-import io.nats.service.api.EndpointStats;
-
 import java.time.Duration;
-import java.util.Comparator;
 
 import static io.nats.client.support.Validator.nullOrEmpty;
 
@@ -30,8 +27,10 @@ public abstract class ServiceUtil {
     static final String SCHEMA = "SCHEMA";
     static final String STATS = "STATS";
     static final String DEFAULT_SERVICE_PREFIX = "$SRV.";
-
     static final String QGROUP = "q";
+
+    public static final String NATS_SERVICE_ERROR = "Nats-Service-Error";
+    public static final String NATS_SERVICE_ERROR_CODE = "Nats-Service-Error-Code";
 
     public static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofSeconds(5);
     public static final long DEFAULT_DISCOVERY_MAX_TIME_MILLIS = 5000;
@@ -39,38 +38,13 @@ public abstract class ServiceUtil {
 
     private ServiceUtil() {} /* ensures cannot be constructed */
 
-    static String toDiscoverySubject(String name) {
-        return toDiscoverySubject(name, null, null);
-    }
-
-    static String toDiscoverySubject(String name, String serviceName) {
-        return toDiscoverySubject(name, serviceName, null);
-    }
-
-    static String toDiscoverySubject(String name, String serviceName, String serviceId) {
-        if (nullOrEmpty(serviceId)) {
-            if (nullOrEmpty(serviceName)) {
-                return DEFAULT_SERVICE_PREFIX + name;
+    static String toDiscoverySubject(String baseSubject, String optionalServiceNameSegment, String optionalServiceIdSegment) {
+        if (nullOrEmpty(optionalServiceIdSegment)) {
+            if (nullOrEmpty(optionalServiceNameSegment)) {
+                return DEFAULT_SERVICE_PREFIX + baseSubject;
             }
-            return DEFAULT_SERVICE_PREFIX + name + "." + serviceName;
+            return DEFAULT_SERVICE_PREFIX + baseSubject + "." + optionalServiceNameSegment;
         }
-        return DEFAULT_SERVICE_PREFIX + name + "." + serviceName + "." + serviceId;
+        return DEFAULT_SERVICE_PREFIX + baseSubject + "." + optionalServiceNameSegment + "." + optionalServiceIdSegment;
     }
-
-    public static Comparator<EndpointStats> ENDPOINT_STATS_COMPARATOR = new Comparator<EndpointStats>() {
-        @Override
-        public int compare(EndpointStats o1, EndpointStats o2) {
-            return order(o1).compareTo(order(o2));
-        }
-
-        private Integer order(EndpointStats es) {
-            switch (es.name) {
-                case PING: return 1;
-                case INFO: return 2;
-                case SCHEMA: return 3;
-                case STATS: return 4;
-            }
-            return 0;
-        }
-    };
 }

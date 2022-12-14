@@ -16,17 +16,18 @@ package io.nats.service;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
-import io.nats.service.api.InfoResponse;
-import io.nats.service.api.PingResponse;
-import io.nats.service.api.SchemaResponse;
-import io.nats.service.api.StatsResponse;
+import io.nats.service.api.Info;
+import io.nats.service.api.Ping;
+import io.nats.service.api.SchemaInfo;
+import io.nats.service.api.Stats;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
+import static io.nats.client.NUID.nextGlobal;
 import static io.nats.service.ServiceUtil.*;
-import static io.nats.service.api.StatsRequest.INTERNAL_STATS_REQUEST_BYTES;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
@@ -50,105 +51,90 @@ public class Discovery {
     // ----------------------------------------------------------------------------------------------------
     // ping
     // ----------------------------------------------------------------------------------------------------
-    public List<PingResponse> ping() {
+    public List<Ping> ping() {
         return ping(null);
     }
 
-    public List<PingResponse> ping(String serviceName) {
-        List<PingResponse> list = new ArrayList<>();
-        discover(PING, serviceName, null, null, json -> {
-            list.add(new PingResponse(json));
+    public List<Ping> ping(String serviceName) {
+        List<Ping> list = new ArrayList<>();
+        discoverMany(PING, serviceName, json -> {
+            list.add(new Ping(json));
         });
         return list;
     }
 
-    public PingResponse ping(String serviceName, String serviceId) {
-        String json = discoverOne(PING, serviceName, serviceId, null);
-        return json == null ? null : new PingResponse(json);
+    public Ping ping(String serviceName, String serviceId) {
+        String json = discoverOne(PING, serviceName, serviceId);
+        return json == null ? null : new Ping(json);
     }
 
     // ----------------------------------------------------------------------------------------------------
     // info
     // ----------------------------------------------------------------------------------------------------
-    public List<InfoResponse> info() {
+    public List<Info> info() {
         return info(null);
     }
 
-    public List<InfoResponse> info(String serviceName) {
-        List<InfoResponse> list = new ArrayList<>();
-        discover(INFO, serviceName, null, null, json -> {
-            list.add(new InfoResponse(json));
+    public List<Info> info(String serviceName) {
+        List<Info> list = new ArrayList<>();
+        discoverMany(INFO, serviceName, json -> {
+            list.add(new Info(json));
         });
         return list;
     }
 
-    public InfoResponse info(String serviceName, String serviceId) {
-        String json = discoverOne(INFO, serviceName, serviceId, null);
-        return json == null ? null : new InfoResponse(json);
+    public Info info(String serviceName, String serviceId) {
+        String json = discoverOne(INFO, serviceName, serviceId);
+        return json == null ? null : new Info(json);
     }
 
     // ----------------------------------------------------------------------------------------------------
     // schema
     // ----------------------------------------------------------------------------------------------------
-    public List<SchemaResponse> schema() {
+    public List<SchemaInfo> schema() {
         return schema(null);
     }
 
-    public List<SchemaResponse> schema(String serviceName) {
-        List<SchemaResponse> list = new ArrayList<>();
-        discover(SCHEMA, serviceName, null, null, json -> {
-            list.add(new SchemaResponse(json));
+    public List<SchemaInfo> schema(String serviceName) {
+        List<SchemaInfo> list = new ArrayList<>();
+        discoverMany(SCHEMA, serviceName, json -> {
+            list.add(new SchemaInfo(json));
         });
         return list;
     }
 
-    public SchemaResponse schema(String serviceName, String serviceId) {
-        String json = discoverOne(SCHEMA, serviceName, serviceId, null);
-        return json == null ? null : new SchemaResponse(json);
+    public SchemaInfo schema(String serviceName, String serviceId) {
+        String json = discoverOne(SCHEMA, serviceName, serviceId);
+        return json == null ? null : new SchemaInfo(json);
     }
 
     // ----------------------------------------------------------------------------------------------------
     // stats
     // ----------------------------------------------------------------------------------------------------
-    public List<StatsResponse> stats() {
-        return stats(null, false);
+    public List<Stats> stats() {
+        return stats(null);
     }
 
-    public List<StatsResponse> stats(boolean includeInternal) {
-        return stats(null, includeInternal);
-    }
-
-    public List<StatsResponse> stats(String serviceName) {
-        return stats(serviceName, false);
-    }
-
-    public List<StatsResponse> stats(String serviceName, boolean includeInternal) {
-        List<StatsResponse> list = new ArrayList<>();
-        byte[] body = includeInternal ? INTERNAL_STATS_REQUEST_BYTES : null;
-        discover(STATS, serviceName, null, body, json -> {
-            list.add(new StatsResponse(json));
+    public List<Stats> stats(String serviceName) {
+        List<Stats> list = new ArrayList<>();
+        discoverMany(STATS, serviceName, json -> {
+            list.add(new Stats(json));
         });
         return list;
     }
 
-    public StatsResponse stats(String serviceName, String serviceId) {
-        return stats(serviceName, serviceId, false);
-    }
-
-    public StatsResponse stats(String serviceName, String serviceId, boolean includeInternal) {
-        byte[] body = includeInternal ? INTERNAL_STATS_REQUEST_BYTES : null;
-        String json = discoverOne(STATS, serviceName, serviceId, body);
-        return json == null ? null : new StatsResponse(json);
+    public Stats stats(String serviceName, String serviceId) {
+        String json = discoverOne(STATS, serviceName, serviceId);
+        return json == null ? null : new Stats(json);
     }
 
     // ----------------------------------------------------------------------------------------------------
     // workers
     // ----------------------------------------------------------------------------------------------------
-    private String discoverOne(String action, String serviceName, String serviceId, byte[] body) {
+    private String discoverOne(String action, String serviceName, String serviceId) {
         String subject = toDiscoverySubject(action, serviceName, serviceId);
-
         try {
-            Message m = conn.request(subject, body, Duration.ofMillis(maxTimeMillis));
+            Message m = conn.request(subject, null, Duration.ofMillis(maxTimeMillis));
             if (m != null) {
                 return new String(m.getData());
             }
@@ -157,15 +143,19 @@ public class Discovery {
         return null;
     }
 
-    private void discover(String action, String serviceName, String serviceId, byte[] body,
-                          java.util.function.Consumer<String> stringConsumer) {
+    private void discoverMany(String action, String serviceName, Consumer<String> stringConsumer) {
         Subscription sub = null;
         try {
-            String replyTo = toReplyTo(action, serviceName, serviceId);
+            StringBuilder sb = new StringBuilder(nextGlobal()).append('-').append(action);
+            if (serviceName != null) {
+                sb.append('-').append(serviceName);
+            }
+            String replyTo = sb.toString();
+
             sub = conn.subscribe(replyTo);
 
-            String subject = toDiscoverySubject(action, serviceName, serviceId);
-            conn.publish(subject, replyTo, body);
+            String subject = toDiscoverySubject(action, serviceName, null);
+            conn.publish(subject, replyTo, null);
 
             int resultsLeft = maxResults;
             long start = System.currentTimeMillis();
@@ -193,17 +183,4 @@ public class Discovery {
             catch (Exception ignore) {}
         }
     }
-
-    private String toReplyTo(String action, String serviceName, String serviceId) {
-        StringBuilder sb = new StringBuilder(io.nats.client.NUID.nextGlobal());
-        sb.append('-').append(action);
-        if (serviceName != null) {
-            sb.append('-').append(serviceName);
-        }
-        if (serviceId != null) {
-            sb.append('-').append(serviceId);
-        }
-        return sb.toString();
-    }
-
 }

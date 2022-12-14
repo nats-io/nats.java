@@ -16,60 +16,36 @@ package io.nats.service.api;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
-import static io.nats.service.ServiceUtil.ENDPOINT_STATS_COMPARATOR;
+import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class StatsResponse implements JsonSerializable {
+public class SchemaInfo implements JsonSerializable {
     private final String serviceId;
     private final String name;
     private final String version;
-    private final List<EndpointStats> stats;
+    private final Schema schema;
 
-    public StatsResponse(String serviceId, ServiceDescriptor descriptor, EndpointStats stats) {
+    public SchemaInfo(String serviceId, ServiceDescriptor descriptor) {
         this.serviceId = serviceId;
         this.name = descriptor.name;
         this.version = descriptor.version;
-        this.stats = Collections.singletonList(stats);
+        if (nullOrEmpty(descriptor.schemaRequest) && nullOrEmpty(descriptor.schemaResponse)) {
+            this.schema = null;
+        }
+        else {
+            this.schema = new Schema(descriptor.schemaRequest, descriptor.schemaResponse);
+        }
     }
 
-    public StatsResponse(String serviceId, ServiceDescriptor descriptor, Collection<EndpointStats> stats) {
-        this.serviceId = serviceId;
-        this.name = descriptor.name;
-        this.version = descriptor.version;
-        this.stats = new ArrayList<>(stats);
-        this.stats.sort(ENDPOINT_STATS_COMPARATOR);
-    }
-
-    public StatsResponse(String serviceId, String name, String version, EndpointStats stats) {
-        this.serviceId = serviceId;
-        this.name = name;
-        this.version = version;
-        this.stats = Collections.singletonList(stats);
-    }
-
-    public StatsResponse(String serviceId, String name, String version, Collection<EndpointStats> stats) {
-        this.name = name;
-        this.serviceId = serviceId;
-        this.version = version;
-        this.stats = new ArrayList<>(stats);
-        this.stats.sort(ENDPOINT_STATS_COMPARATOR);
-    }
-
-    public StatsResponse(String json) {
+    public SchemaInfo(String json) {
         name = JsonUtils.readString(json, NAME_RE);
         serviceId = JsonUtils.readString(json, ID_RE);
         version = JsonUtils.readString(json, VERSION_RE);
-        stats = EndpointStats.toList(json);
-        this.stats.sort(ENDPOINT_STATS_COMPARATOR);
+        schema = Schema.optionalInstance(json);
     }
 
     @Override
@@ -78,7 +54,7 @@ public class StatsResponse implements JsonSerializable {
         JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, ID, serviceId);
         JsonUtils.addField(sb, VERSION, version);
-        addJsons(sb, STATS, stats);
+        addField(sb, SCHEMA, schema);
         return endJson(sb).toString();
     }
 
@@ -99,19 +75,15 @@ public class StatsResponse implements JsonSerializable {
     }
 
     /**
-     * Version of the service
+     * Version of the schema
      * @return the version
      */
     public String getVersion() {
         return version;
     }
 
-    /**
-     *
-     * @return
-     */
-    public List<EndpointStats> getStats() {
-        return stats;
+    public Schema getSchema() {
+        return schema;
     }
 
     @Override
