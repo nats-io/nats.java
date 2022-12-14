@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static io.nats.client.impl.NatsPackageScopeWorkarounds.getDispatchers;
-import static io.nats.service.ServiceUtil.*;
+import static io.nats.service.Service.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ServiceTests extends JetStreamTestBase {

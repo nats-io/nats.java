@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import static io.nats.client.NUID.nextGlobal;
-import static io.nats.service.ServiceUtil.*;
+import static io.nats.service.Service.*;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE

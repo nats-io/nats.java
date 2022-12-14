@@ -23,12 +23,26 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static io.nats.client.support.Validator.*;
-import static io.nats.service.ServiceUtil.*;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class Service {
+
+    static final String PING = "PING";
+    static final String INFO = "INFO";
+    static final String SCHEMA = "SCHEMA";
+    static final String STATS = "STATS";
+    static final String DEFAULT_SERVICE_PREFIX = "$SRV.";
+    static final String QGROUP = "q";
+
+    public static final String NATS_SERVICE_ERROR = "Nats-Service-Error";
+    public static final String NATS_SERVICE_ERROR_CODE = "Nats-Service-Error-Code";
+
+    public static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofSeconds(5);
+    public static final long DEFAULT_DISCOVERY_MAX_TIME_MILLIS = 5000;
+    public static final int DEFAULT_DISCOVERY_MAX_RESULTS = 10;
+
     private final Connection conn;
     private final String id;
     private final Info info;
@@ -364,5 +378,15 @@ public class Service {
             conn.publish(msg.getReplyTo(), stats.serialize());
             return -1;
         }
+    }
+
+    public static String toDiscoverySubject(String baseSubject, String optionalServiceNameSegment, String optionalServiceIdSegment) {
+        if (nullOrEmpty(optionalServiceIdSegment)) {
+            if (nullOrEmpty(optionalServiceNameSegment)) {
+                return DEFAULT_SERVICE_PREFIX + baseSubject;
+            }
+            return DEFAULT_SERVICE_PREFIX + baseSubject + "." + optionalServiceNameSegment;
+        }
+        return DEFAULT_SERVICE_PREFIX + baseSubject + "." + optionalServiceNameSegment + "." + optionalServiceIdSegment;
     }
 }
