@@ -63,7 +63,7 @@ In the `io.nats.examples.jetstream` package...
 1. `ExampleUtils.java` - Miscellaneous utils used to start or in running examples.
 1. `NatsJsUtils.java` - Miscellaneous utils specific to JetStream examples.
 
-All of these examples take the server URL on the command line, which means that you can use the `tls` and `opentls` schemaInfos to test over a secure connection.
+All of these examples take the server URL on the command line, which means that you can use the `tls` and `opentls` schemas to test over a secure connection.
 
 ## Running the examples
 
