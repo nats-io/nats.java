@@ -14,7 +14,6 @@
 package io.nats.service;
 
 import io.nats.client.*;
-import io.nats.client.impl.NatsMessage;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -35,9 +34,6 @@ public class Service {
     static final String DEFAULT_SERVICE_PREFIX = "$SRV.";
     static final String QGROUP = "q";
 
-    public static final String NATS_SERVICE_ERROR = "Nats-Service-Error";
-    public static final String NATS_SERVICE_ERROR_CODE = "Nats-Service-Error-Code";
-
     public static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofSeconds(5);
     public static final long DEFAULT_DISCOVERY_MAX_TIME_MILLIS = 5000;
     public static final int DEFAULT_DISCOVERY_MAX_RESULTS = 10;
@@ -56,111 +52,23 @@ public class Service {
     private final Object stopLock = new Object();
     private Duration drainTimeout = DEFAULT_DRAIN_TIMEOUT;
 
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    public static class Builder {
-        Connection conn;
-        String name;
-        String description;
-        String version;
-        String subject;
-        String schemaRequest;
-        String schemaResponse;
-        MessageHandler serviceMessageHandler;
-        Dispatcher dUserDiscovery;
-        Dispatcher dUserService;
-        StatsDataSupplier statsDataSupplier;
-        StatsDataDecoder statsDataDecoder;
-
-        public Builder connection(Connection conn) {
-            this.conn = conn;
-            return this;
-        }
-
-        public Builder name(String name) {
-            this.name = name;
-            return this;
-        }
-
-        public Builder description(String description) {
-            this.description = description;
-            return this;
-        }
-
-        public Builder version(String version) {
-            this.version = version;
-            return this;
-        }
-
-        public Builder subject(String subject) {
-            this.subject = subject;
-            return this;
-        }
-
-        public Builder schemaRequest(String schemaRequest) {
-            this.schemaRequest = schemaRequest;
-            return this;
-        }
-
-        public Builder schemaResponse(String schemaResponse) {
-            this.schemaResponse = schemaResponse;
-            return this;
-        }
-
-        public Builder serviceMessageHandler(MessageHandler userMessageHandler) {
-            this.serviceMessageHandler = userMessageHandler;
-            return this;
-        }
-
-        public Builder userDiscoveryDispatcher(Dispatcher dUserDiscovery) {
-            this.dUserDiscovery = dUserDiscovery;
-            return this;
-        }
-
-        public Builder userServiceDispatcher(Dispatcher dUserService) {
-            this.dUserService = dUserService;
-            return this;
-        }
-
-        public Builder statsDataHandlers(StatsDataSupplier statsDataSupplier, StatsDataDecoder statsDataDecoder) {
-            this.statsDataSupplier = statsDataSupplier;
-            this.statsDataDecoder = statsDataDecoder;
-            return this;
-        }
-
-        public Service build() {
-            required(conn, "Connection");
-            required(serviceMessageHandler, "Service Message Handler");
-            validateIsRestrictedTerm(name, "Name", true);
-            required(version, "Version");
-            if ((statsDataSupplier != null && statsDataDecoder == null)
-                || (statsDataSupplier == null && statsDataDecoder != null)) {
-                throw new IllegalArgumentException("You must provide neither or both the stats data supplier and decoder");
-            }
-
-            return new Service(this);
-        }
-    }
-
-    private Service(Builder b) {
+    private Service(ServiceCreator sc) {
         id = io.nats.client.NUID.nextGlobal();
-        conn = b.conn;
-        serviceMessageHandler = b.serviceMessageHandler;
-        statsDataSupplier = b.statsDataSupplier;
-        statsDataDecoder = b.statsDataDecoder;
-        info = new Info(id, b.name, b.description, b.version, b.subject);
-        schemaInfo = new SchemaInfo(id, b.name, b.version, b.schemaRequest, b.schemaResponse);
+        conn = sc.conn;
+        serviceMessageHandler = sc.serviceMessageHandler;
+        statsDataSupplier = sc.statsDataSupplier;
+        statsDataDecoder = sc.statsDataDecoder;
+        info = new Info(id, sc.name, sc.description, sc.version, sc.subject);
+        schemaInfo = new SchemaInfo(id, sc.name, sc.version, sc.schemaRequest, sc.schemaResponse);
 
         // User may provide 0 or more dispatchers, just use theirs when provided else use one we make
-        boolean internalDiscovery = b.dUserDiscovery == null;
-        boolean internalService = b.dUserService == null;
-        Dispatcher dDiscovery = internalDiscovery ? conn.createDispatcher() : b.dUserDiscovery;
-        Dispatcher dService = internalService ? conn.createDispatcher() : b.dUserService;
+        boolean internalDiscovery = sc.dUserDiscovery == null;
+        boolean internalService = sc.dUserService == null;
+        Dispatcher dDiscovery = internalDiscovery ? conn.createDispatcher() : sc.dUserDiscovery;
+        Dispatcher dService = internalService ? conn.createDispatcher() : sc.dUserService;
 
         // do the service first in case the server feels like rejecting the subject
-        stats = new Stats(id, b.name, b.version);
+        stats = new Stats(id, sc.name, sc.version);
         serviceContext = new ServiceContext(info.getSubject(), dService, internalService);
         serviceContext.sub = dService.subscribe(info.getSubject(), QGROUP, serviceContext::onMessage);
 
@@ -302,6 +210,7 @@ public class Service {
         Subscription sub;
         Dispatcher dispatcher;
         boolean isInternalDispatcher;
+        boolean isServiceContext;
 
         public Context(String subject, Dispatcher dispatcher, boolean isInternalDispatcher) {
             this.subject = subject;
@@ -309,31 +218,30 @@ public class Service {
             this.isInternalDispatcher = isInternalDispatcher;
         }
 
-        protected abstract long subOnMessage(Message msg) throws InterruptedException;
-        protected void subOnError(Throwable t) {}
-        protected void subFinally(long elapsed, long requestNo) {}
+        protected abstract void subOnMessage(Message msg) throws InterruptedException;
 
         public void onMessage(Message msg) throws InterruptedException {
-            long requestNo = 0;
+            long requestNo = isServiceContext ? stats.incrementNumRequests() : -1;
             long start = 0;
             try {
                 start = System.nanoTime();
-                requestNo = subOnMessage(msg);
+                subOnMessage(msg);
             }
             catch (Throwable t) {
-                subOnError(t);
+                if (isServiceContext) {
+                    stats.incrementNumErrors();
+                    stats.setLastError(t.toString());
+                }
                 try {
-                    conn.publish(
-                        NatsMessage.builder()
-                            .subject(msg.getReplyTo())
-                            .headers(ServiceException.getInstance(t).getHeaders())
-                            .build());
+                    ServiceMessage.replyStandardError(conn, msg, t.getMessage(), 500);
                 }
                 catch (Exception ignore) {}
-                Service.this.stop(t);
             }
             finally {
-                subFinally(System.nanoTime() - start, requestNo);
+                if (isServiceContext) {
+                    long total = stats.addTotalProcessingTime(System.nanoTime() - start);
+                    stats.setAverageProcessingTime(total / requestNo);
+                }
             }
         }
     }
@@ -341,25 +249,12 @@ public class Service {
     class ServiceContext extends Context {
         public ServiceContext(String subject, Dispatcher dispatcher, boolean internalDispatcher) {
             super(subject, dispatcher, internalDispatcher);
+            isServiceContext = true;
         }
 
         @Override
-        protected long subOnMessage(Message msg) throws InterruptedException {
-            long requestNo = stats.incrementNumRequests();
+        protected void subOnMessage(Message msg) throws InterruptedException {
             serviceMessageHandler.onMessage(msg);
-            return requestNo;
-        }
-
-        @Override
-        protected void subOnError(Throwable t) {
-            stats.incrementNumErrors();
-            stats.setLastError(t.toString());
-        }
-
-        @Override
-        protected void subFinally(long requestNo, long elapsed) {
-            long total = stats.addTotalProcessingTime(elapsed);
-            stats.setAverageProcessingTime(total / requestNo);
         }
     }
 
@@ -372,9 +267,8 @@ public class Service {
         }
 
         @Override
-        protected long subOnMessage(Message msg) {
+        protected void subOnMessage(Message msg) {
             conn.publish(msg.getReplyTo(), response);
-            return -1;
         }
     }
 
@@ -384,12 +278,11 @@ public class Service {
         }
 
         @Override
-        protected long subOnMessage(Message msg) {
+        protected void subOnMessage(Message msg) {
             if (statsDataSupplier != null) {
                 stats.setData(statsDataSupplier.get());
             }
             conn.publish(msg.getReplyTo(), stats.serialize());
-            return -1;
         }
     }
 
@@ -401,5 +294,96 @@ public class Service {
             return DEFAULT_SERVICE_PREFIX + baseSubject + "." + optionalServiceNameSegment;
         }
         return DEFAULT_SERVICE_PREFIX + baseSubject + "." + optionalServiceNameSegment + "." + optionalServiceIdSegment;
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // Service Creator (Builder)
+    // ----------------------------------------------------------------------------------------------------
+    public static ServiceCreator creator() {
+        return new ServiceCreator();
+    }
+
+    public static class ServiceCreator {
+        Connection conn;
+        String name;
+        String description;
+        String version;
+        String subject;
+        String schemaRequest;
+        String schemaResponse;
+        MessageHandler serviceMessageHandler;
+        Dispatcher dUserDiscovery;
+        Dispatcher dUserService;
+        StatsDataSupplier statsDataSupplier;
+        StatsDataDecoder statsDataDecoder;
+
+        public ServiceCreator connection(Connection conn) {
+            this.conn = conn;
+            return this;
+        }
+
+        public ServiceCreator name(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public ServiceCreator description(String description) {
+            this.description = description;
+            return this;
+        }
+
+        public ServiceCreator version(String version) {
+            this.version = version;
+            return this;
+        }
+
+        public ServiceCreator subject(String subject) {
+            this.subject = subject;
+            return this;
+        }
+
+        public ServiceCreator schemaRequest(String schemaRequest) {
+            this.schemaRequest = schemaRequest;
+            return this;
+        }
+
+        public ServiceCreator schemaResponse(String schemaResponse) {
+            this.schemaResponse = schemaResponse;
+            return this;
+        }
+
+        public ServiceCreator serviceMessageHandler(MessageHandler userMessageHandler) {
+            this.serviceMessageHandler = userMessageHandler;
+            return this;
+        }
+
+        public ServiceCreator userDiscoveryDispatcher(Dispatcher dUserDiscovery) {
+            this.dUserDiscovery = dUserDiscovery;
+            return this;
+        }
+
+        public ServiceCreator userServiceDispatcher(Dispatcher dUserService) {
+            this.dUserService = dUserService;
+            return this;
+        }
+
+        public ServiceCreator statsDataHandlers(StatsDataSupplier statsDataSupplier, StatsDataDecoder statsDataDecoder) {
+            this.statsDataSupplier = statsDataSupplier;
+            this.statsDataDecoder = statsDataDecoder;
+            return this;
+        }
+
+        public Service startService() {
+            required(conn, "Connection");
+            required(serviceMessageHandler, "Service Message Handler");
+            validateIsRestrictedTerm(name, "Name", true);
+            required(version, "Version");
+            if ((statsDataSupplier != null && statsDataDecoder == null)
+                || (statsDataSupplier == null && statsDataDecoder != null)) {
+                throw new IllegalArgumentException("You must provide neither or both the stats data supplier and decoder");
+            }
+
+            return new Service(this);
+        }
     }
 }

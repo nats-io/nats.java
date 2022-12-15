@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
@@ -46,7 +47,7 @@ public class ServiceExample {
         ExampleStatsDataDecoder sdd = new ExampleStatsDataDecoder();
 
         try (Connection nc = Nats.connect(options)) {
-            Service serviceEcho = Service.builder()
+            Service serviceEcho = Service.creator()
                 .connection(nc)
                 .name(ECHO_SERVICE)
                 .subject(ECHO_SERVICE)
@@ -55,15 +56,12 @@ public class ServiceExample {
                 .schemaRequest("echo schema request string/url")
                 .schemaResponse("echo schema response string/url")
                 .statsDataHandlers(sds, sdd)
-                .serviceMessageHandler(msg -> {
-                    byte[] outBytes = ("Echo " + new String(msg.getData())).getBytes();
-                    nc.publish(msg.getReplyTo(), outBytes);
-                })
-                .build();
+                .serviceMessageHandler(msg -> ServiceMessage.reply(nc, msg, "Echo " + new String(msg.getData())))
+                .startService();
 
             System.out.println(getFormatted(serviceEcho));
 
-            Service serviceSort = Service.builder()
+            Service serviceSort = Service.creator()
                 .connection(nc)
                 .name(SORT_SERVICE)
                 .subject(SORT_SERVICE)
@@ -74,10 +72,9 @@ public class ServiceExample {
                 .serviceMessageHandler(msg -> {
                     byte[] data = msg.getData();
                     Arrays.sort(data);
-                    byte[] outBytes = ("Sort " + new String(data)).getBytes();
-                    nc.publish(msg.getReplyTo(), outBytes);
+                    ServiceMessage.reply(nc, msg, "Sort " + new String(data));
                 })
-                .build();
+                .startService();
 
             System.out.println("\n" + getFormatted(serviceSort));
 
@@ -227,7 +224,7 @@ public class ServiceExample {
         @Override
         public JsonSerializable decode(String json) {
             ExampleStatsData esd = new ExampleStatsData(json);
-            return esd.sData == null ? null : esd;
+            return nullOrEmpty(esd.sData) ? null : esd;
         }
     }
 }

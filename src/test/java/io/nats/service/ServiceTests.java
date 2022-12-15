@@ -16,7 +16,6 @@ package io.nats.service;
 import io.nats.client.*;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
-import io.nats.client.impl.NatsMessage;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import org.junit.jupiter.api.Test;
@@ -28,17 +27,22 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static io.nats.client.impl.NatsPackageScopeWorkarounds.getDispatchers;
-import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.NatsConstants.EMPTY;
+import static io.nats.client.support.Validator.nullOrEmpty;
 import static io.nats.service.Service.*;
+import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR;
+import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR_CODE;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ServiceTests extends JetStreamTestBase {
     private static final String ECHO_SERVICE = "EchoService";
     private static final String SORT_SERVICE = "SortService";
 
-    private static Service.Builder echoServiceBuilder(Connection nc, MessageHandler handler) {
-        return Service.builder()
+    private static ServiceCreator echoServiceBuilder(Connection nc, MessageHandler handler) {
+        return Service.creator()
             .connection(nc)
             .name(ECHO_SERVICE)
             .subject(ECHO_SERVICE)
@@ -49,8 +53,8 @@ public class ServiceTests extends JetStreamTestBase {
             .serviceMessageHandler(handler);
     }
 
-    private static Service.Builder sortServiceBuilder(Connection nc, MessageHandler handler) {
-        return Service.builder()
+    private static ServiceCreator sortServiceBuilder(Connection nc, MessageHandler handler) {
+        return Service.creator()
             .connection(nc)
             .name(SORT_SERVICE)
             .subject(SORT_SERVICE)
@@ -62,11 +66,11 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     private Service echoService(Connection nc, MessageHandler handler) {
-        return echoServiceBuilder(nc, handler).build();
+        return echoServiceBuilder(nc, handler).startService();
     }
 
     private Service sortService(Connection nc, MessageHandler handler) {
-        return sortServiceBuilder(nc, handler).build();
+        return sortServiceBuilder(nc, handler).startService();
     }
 
     @Test
@@ -86,17 +90,17 @@ public class ServiceTests extends JetStreamTestBase {
                 Service echoService1 = echoServiceBuilder(serviceNc1, new EchoHandler(11, serviceNc1))
                     .userServiceDispatcher(dShared)
                     .statsDataHandlers(sds, sdd)
-                    .build();
+                    .startService();
                 String echoServiceId1 = echoService1.getId();
                 echoService1.setDrainTimeout(DEFAULT_DRAIN_TIMEOUT); // coverage
 
                 Service sortService1 = sortServiceBuilder(serviceNc1, new SortHandler(21, serviceNc1))
-                    .userDiscoveryDispatcher(dShared).build();
+                    .userDiscoveryDispatcher(dShared).startService();
                 String sortServiceId1 = sortService1.getId();
 
                 Service echoService2 = echoServiceBuilder(serviceNc2, new EchoHandler(12, serviceNc1))
                     .statsDataHandlers(sds, sdd)
-                    .build();
+                    .startService();
                 String echoServiceId2 = echoService2.getId();
 
                 Service sortService2 = sortService(serviceNc2, new SortHandler(22, serviceNc2));
@@ -276,7 +280,7 @@ public class ServiceTests extends JetStreamTestBase {
         verifyDiscovery(expectedInfo, expectedSchemaInfo, Collections.singletonList(object), siv, expectedIds);
     }
 
-    @SuppressWarnings("rawtypes") // verifyDiscovery
+    @SuppressWarnings("rawtypes")
     private static void verifyDiscovery(Info expectedInfo, List objects, InfoVerifier iv, String... expectedIds) {
         List<String> expectedList = Arrays.asList(expectedIds);
         assertEquals(expectedList.size(), objects.size());
@@ -286,7 +290,7 @@ public class ServiceTests extends JetStreamTestBase {
         }
     }
 
-    @SuppressWarnings("rawtypes") // verifyDiscovery
+    @SuppressWarnings("rawtypes")
     private static void verifyDiscovery(Info expectedInfo, SchemaInfo expectedSchemaInfo, List objects, SchemaInfoVerifier siv, String... expectedIds) {
         List<String> expectedList = Arrays.asList(expectedIds);
         assertEquals(expectedList.size(), objects.size());
@@ -309,41 +313,42 @@ public class ServiceTests extends JetStreamTestBase {
         }
     }
 
-    static class EchoHandler implements MessageHandler {
+    static abstract class BaseHandler implements MessageHandler {
         int handlerId;
         Connection conn;
 
-        public EchoHandler(int handlerId, Connection conn) {
+        public BaseHandler(int handlerId, Connection conn) {
             this.handlerId = handlerId;
             this.conn = conn;
         }
 
         @Override
         public void onMessage(Message msg) throws InterruptedException {
-            conn.publish(NatsMessage.builder()
-                .subject(msg.getReplyTo())
-                .data(echo(msg.getData()))
-                .headers(new Headers().put("handlerId", Integer.toString(handlerId)))
-                .build());
+            ServiceMessage.reply(conn, msg, handle(msg.getData()), new Headers().put("handlerId", Integer.toString(handlerId)));
+        }
+
+        abstract String handle(byte[] requestData);
+    }
+
+    static class EchoHandler extends BaseHandler {
+        public EchoHandler(int handlerId, Connection conn) {
+            super(handlerId, conn);
+        }
+
+        @Override
+        String handle(byte[] requestData) {
+            return echo(requestData);
         }
     }
 
-    static class SortHandler implements MessageHandler {
-        int handlerId;
-        Connection conn;
-
+    static class SortHandler extends BaseHandler {
         public SortHandler(int handlerId, Connection conn) {
-            this.handlerId = handlerId;
-            this.conn = conn;
+            super(handlerId, conn);
         }
 
         @Override
-        public void onMessage(Message msg) throws InterruptedException {
-            conn.publish(NatsMessage.builder()
-                .subject(msg.getReplyTo())
-                .data(sort(msg.getData()))
-                .headers(new Headers().put("handlerId", Integer.toString(handlerId)))
-                .build());
+        String handle(byte[] requestData) {
+            return sort(requestData);
         }
     }
 
@@ -357,28 +362,49 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testHandlerException() throws Exception {
+        runInServer(nc -> {
+            Service devexService = Service.creator()
+                .connection(nc)
+                .name("HandlerExceptionService")
+                .subject("HandlerExceptionService")
+                .version("0.0.1")
+                .serviceMessageHandler( m-> { throw new RuntimeException("handler-problem"); })
+                .startService();
+
+            CompletableFuture<Message> future = nc.request("HandlerExceptionService", null);
+            Message m = future.get();
+            assertEquals("handler-problem", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertEquals("500", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+            assertEquals(1, devexService.getStats().getNumRequests());
+            assertEquals(1, devexService.getStats().getNumErrors());
+            assertEquals("java.lang.RuntimeException: handler-problem", devexService.getStats().getLastError());
+        });
+    }
+
+    @Test
     public void testServiceBuilderValidation() throws Exception {
         runInServer(nc -> {
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(null, m -> {}).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, null).version("").build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(null, m -> {}).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, null).version("").startService());
 
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).version(null).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).version(EMPTY).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).version(null).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).version(EMPTY).startService());
 
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(null).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(EMPTY).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_SPACE).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_PRINTABLE).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_DOT).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_STAR).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_GT).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_DOLLAR).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_LOW).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_127).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_FWD_SLASH).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_BACK_SLASH).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_EQUALS).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_TIC).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(null).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(EMPTY).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_SPACE).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_PRINTABLE).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_DOT).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_STAR).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_GT).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_DOLLAR).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_LOW).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_127).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_FWD_SLASH).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_BACK_SLASH).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_EQUALS).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_TIC).startService());
         });
     }
 
@@ -444,8 +470,10 @@ public class ServiceTests extends JetStreamTestBase {
         assertNull(sr1.getSchema());
         assertNull(sr2.getSchema());
 
-        Stats stats1 = new Stats("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"num_requests\":1,\"num_errors\":2,\"last_error\":\"lastErr\",\"total_processing_time\":3,\"average_processing_time\":4}", null);
-        Stats stats2 = new Stats(stats1.toJson(), null);
+        TestStatsDataDecoder sdd = new TestStatsDataDecoder();
+        String statsJson = "{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"num_requests\":1,\"num_errors\":2,\"last_error\":\"npe\",\"total_processing_time\":3,\"average_processing_time\":4,\"data\":{\"id\":\"user id\",\"last_error\":\"user last error\"}}";
+        Stats stats1 = new Stats(statsJson, sdd);
+        Stats stats2 = new Stats(stats1.toJson(), sdd);
         assertEquals("ServiceName", stats1.getName());
         assertEquals("serviceId", stats1.getServiceId());
         assertEquals("0.0.1", stats1.getVersion());
@@ -456,33 +484,42 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(1, stats2.getNumRequests());
         assertEquals(2, stats1.getNumErrors());
         assertEquals(2, stats2.getNumErrors());
-        assertEquals("lastErr", stats1.getLastError());
-        assertEquals("lastErr", stats2.getLastError());
+        assertEquals("npe", stats1.getLastError());
+        assertEquals("npe", stats2.getLastError());
         assertEquals(3, stats1.getTotalProcessingTime());
         assertEquals(3, stats2.getTotalProcessingTime());
         assertEquals(4, stats1.getAverageProcessingTime());
         assertEquals(4, stats2.getAverageProcessingTime());
+        assertTrue(stats1.getData() instanceof TestStatsData);
+        assertTrue(stats2.getData() instanceof TestStatsData);
+        TestStatsData data1 = (TestStatsData)stats1.getData();
+        TestStatsData data2 = (TestStatsData)stats2.getData();
+        assertEquals("user id", data1.id);
+        assertEquals("user id", data2.id);
+        assertEquals("user last error", data1.lastError);
+        assertEquals("user last error", data2.lastError);
     }
 
     static class TestStatsData implements JsonSerializable {
-        public String sData;
-        public int iData;
+        // using id and  last_error as field names to ensure that the manual parsing works
+        public String id;
+        public String lastError;
 
-        public TestStatsData(String sData, int iData) {
-            this.sData = sData;
-            this.iData = iData;
+        public TestStatsData(String id, String lastError) {
+            this.id = id;
+            this.lastError = lastError;
         }
 
         public TestStatsData(String json) {
-            this.sData = JsonUtils.readString(json, string_pattern("sdata"));
-            this.iData = JsonUtils.readInt(json, integer_pattern("idata"), -1);
+            this.id = JsonUtils.readString(json, ID_RE);
+            this.lastError = JsonUtils.readString(json, LAST_ERROR_RE);
         }
 
         @Override
         public String toJson() {
             StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "sdata", sData);
-            JsonUtils.addField(sb, "idata", iData);
+            JsonUtils.addField(sb, ID, id);
+            JsonUtils.addField(sb, LAST_ERROR, lastError);
             return endJson(sb).toString();
         }
 
@@ -493,11 +530,11 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     static class TestStatsDataSupplier implements StatsDataSupplier {
-        int x = 0;
+        int id = 0;
         @Override
         public JsonSerializable get() {
-            ++x;
-            return new TestStatsData("s-" + hashCode(), x);
+            ++id;
+            return new TestStatsData("" + id, "blah error");
         }
     }
 
@@ -505,7 +542,7 @@ public class ServiceTests extends JetStreamTestBase {
         @Override
         public JsonSerializable decode(String json) {
             TestStatsData esd = new TestStatsData(json);
-            return esd.sData == null ? null : esd;
+            return nullOrEmpty(esd.lastError) ? null : esd;
         }
     }
 }
