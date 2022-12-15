@@ -47,7 +47,7 @@ public class ServiceExample {
         ExampleStatsDataDecoder sdd = new ExampleStatsDataDecoder();
 
         try (Connection nc = Nats.connect(options)) {
-            Service serviceEcho = Service.creator()
+            Service serviceEcho = ServiceCreator.instance()
                 .connection(nc)
                 .name(ECHO_SERVICE)
                 .subject(ECHO_SERVICE)
@@ -61,7 +61,7 @@ public class ServiceExample {
 
             System.out.println(getFormatted(serviceEcho));
 
-            Service serviceSort = Service.creator()
+            Service serviceSort = ServiceCreator.instance()
                 .connection(nc)
                 .name(SORT_SERVICE)
                 .subject(SORT_SERVICE)

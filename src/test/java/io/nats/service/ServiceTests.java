@@ -41,8 +41,8 @@ public class ServiceTests extends JetStreamTestBase {
     private static final String ECHO_SERVICE = "EchoService";
     private static final String SORT_SERVICE = "SortService";
 
-    private static ServiceCreator echoServiceBuilder(Connection nc, MessageHandler handler) {
-        return Service.creator()
+    private static ServiceCreator echoServiceCreator(Connection nc, MessageHandler handler) {
+        return ServiceCreator.instance()
             .connection(nc)
             .name(ECHO_SERVICE)
             .subject(ECHO_SERVICE)
@@ -53,8 +53,8 @@ public class ServiceTests extends JetStreamTestBase {
             .serviceMessageHandler(handler);
     }
 
-    private static ServiceCreator sortServiceBuilder(Connection nc, MessageHandler handler) {
-        return Service.creator()
+    private static ServiceCreator sortServiceCreator(Connection nc, MessageHandler handler) {
+        return ServiceCreator.instance()
             .connection(nc)
             .name(SORT_SERVICE)
             .subject(SORT_SERVICE)
@@ -66,11 +66,11 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     private Service echoService(Connection nc, MessageHandler handler) {
-        return echoServiceBuilder(nc, handler).startService();
+        return echoServiceCreator(nc, handler).startService();
     }
 
     private Service sortService(Connection nc, MessageHandler handler) {
-        return sortServiceBuilder(nc, handler).startService();
+        return sortServiceCreator(nc, handler).startService();
     }
 
     @Test
@@ -87,18 +87,18 @@ public class ServiceTests extends JetStreamTestBase {
                 TestStatsDataSupplier sds = new TestStatsDataSupplier();
                 TestStatsDataDecoder sdd = new TestStatsDataDecoder();
 
-                Service echoService1 = echoServiceBuilder(serviceNc1, new EchoHandler(11, serviceNc1))
+                Service echoService1 = echoServiceCreator(serviceNc1, new EchoHandler(11, serviceNc1))
                     .userServiceDispatcher(dShared)
                     .statsDataHandlers(sds, sdd)
                     .startService();
                 String echoServiceId1 = echoService1.getId();
                 echoService1.setDrainTimeout(DEFAULT_DRAIN_TIMEOUT); // coverage
 
-                Service sortService1 = sortServiceBuilder(serviceNc1, new SortHandler(21, serviceNc1))
+                Service sortService1 = sortServiceCreator(serviceNc1, new SortHandler(21, serviceNc1))
                     .userDiscoveryDispatcher(dShared).startService();
                 String sortServiceId1 = sortService1.getId();
 
-                Service echoService2 = echoServiceBuilder(serviceNc2, new EchoHandler(12, serviceNc1))
+                Service echoService2 = echoServiceCreator(serviceNc2, new EchoHandler(12, serviceNc1))
                     .statsDataHandlers(sds, sdd)
                     .startService();
                 String echoServiceId2 = echoService2.getId();
@@ -364,7 +364,7 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testHandlerException() throws Exception {
         runInServer(nc -> {
-            Service devexService = Service.creator()
+            Service devexService = ServiceCreator.instance()
                 .connection(nc)
                 .name("HandlerExceptionService")
                 .subject("HandlerExceptionService")
@@ -383,28 +383,28 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testServiceBuilderValidation() throws Exception {
+    public void testServiceCreatorValidation() throws Exception {
         runInServer(nc -> {
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(null, m -> {}).startService());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, null).version("").startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(null, m -> {}).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, null).version("").startService());
 
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).version(null).startService());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).version(EMPTY).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).version(null).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).version(EMPTY).startService());
 
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(null).startService());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(EMPTY).startService());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_SPACE).startService());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_PRINTABLE).startService());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_DOT).startService());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_STAR).startService());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_GT).startService());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_DOLLAR).startService());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_LOW).startService());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_127).startService());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_FWD_SLASH).startService());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_BACK_SLASH).startService());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_EQUALS).startService());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_TIC).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(null).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(EMPTY).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_SPACE).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_PRINTABLE).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_DOT).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_STAR).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_GT).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_DOLLAR).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_LOW).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_127).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_FWD_SLASH).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_BACK_SLASH).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_EQUALS).startService());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_TIC).startService());
         });
     }
 
