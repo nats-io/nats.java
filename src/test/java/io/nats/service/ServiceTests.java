@@ -19,7 +19,6 @@ import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.impl.NatsMessage;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
-import io.nats.service.api.*;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;

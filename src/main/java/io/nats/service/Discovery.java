@@ -16,10 +16,6 @@ package io.nats.service;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
-import io.nats.service.api.Info;
-import io.nats.service.api.Ping;
-import io.nats.service.api.SchemaInfo;
-import io.nats.service.api.Stats;
 
 import java.time.Duration;
 import java.util.ArrayList;

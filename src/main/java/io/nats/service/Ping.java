@@ -11,41 +11,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.service.api;
+package io.nats.service;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.Validator.nullOrEmpty;
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class SchemaInfo implements JsonSerializable {
+public class Ping implements JsonSerializable {
     private final String serviceId;
     private final String name;
-    private final String version;
-    private final Schema schema;
 
-    public SchemaInfo(String serviceId, String name, String version, String schemaRequest, String schemaResponse) {
+    public Ping(String serviceId, String name) {
         this.serviceId = serviceId;
         this.name = name;
-        this.version = version;
-        if (nullOrEmpty(schemaRequest) && nullOrEmpty(schemaResponse)) {
-            this.schema = null;
-        }
-        else {
-            this.schema = new Schema(schemaRequest, schemaResponse);
-        }
     }
 
-    public SchemaInfo(String json) {
+    public Ping(String json) {
         name = JsonUtils.readString(json, NAME_RE);
         serviceId = JsonUtils.readString(json, ID_RE);
-        version = JsonUtils.readString(json, VERSION_RE);
-        schema = Schema.optionalInstance(json);
     }
 
     @Override
@@ -53,8 +42,6 @@ public class SchemaInfo implements JsonSerializable {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, ID, serviceId);
-        JsonUtils.addField(sb, VERSION, version);
-        addField(sb, SCHEMA, schema);
         return endJson(sb).toString();
     }
 
@@ -72,18 +59,6 @@ public class SchemaInfo implements JsonSerializable {
      */
     public String getServiceId() {
         return serviceId;
-    }
-
-    /**
-     * Version of the schema
-     * @return the version
-     */
-    public String getVersion() {
-        return version;
-    }
-
-    public Schema getSchema() {
-        return schema;
     }
 
     @Override

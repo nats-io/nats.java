@@ -16,13 +16,7 @@ package io.nats.examples.jetstream;
 import io.nats.client.*;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
-import io.nats.service.Discovery;
-import io.nats.service.Service;
-import io.nats.service.StatsDataDecoder;
-import io.nats.service.StatsDataSupplier;
-import io.nats.service.api.Info;
-import io.nats.service.api.Ping;
-import io.nats.service.api.SchemaInfo;
+import io.nats.service.*;
 
 import java.io.IOException;
 import java.util.Arrays;

@@ -11,39 +11,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.service.api;
+package io.nats.service;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class Info implements JsonSerializable {
+public class SchemaInfo implements JsonSerializable {
     private final String serviceId;
     private final String name;
-    private final String description;
     private final String version;
-    private final String subject;
+    private final Schema schema;
 
-    public Info(String serviceId, String name, String description, String version, String subject) {
+    public SchemaInfo(String serviceId, String name, String version, String schemaRequest, String schemaResponse) {
         this.serviceId = serviceId;
         this.name = name;
-        this.description = description;
         this.version = version;
-        this.subject = subject;
+        if (nullOrEmpty(schemaRequest) && nullOrEmpty(schemaResponse)) {
+            this.schema = null;
+        }
+        else {
+            this.schema = new Schema(schemaRequest, schemaResponse);
+        }
     }
 
-    public Info(String json) {
+    public SchemaInfo(String json) {
         name = JsonUtils.readString(json, NAME_RE);
         serviceId = JsonUtils.readString(json, ID_RE);
-        description = JsonUtils.readString(json, DESCRIPTION_RE);
         version = JsonUtils.readString(json, VERSION_RE);
-        subject = JsonUtils.readString(json, SUBJECT_RE);
+        schema = Schema.optionalInstance(json);
     }
 
     @Override
@@ -51,9 +53,8 @@ public class Info implements JsonSerializable {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, ID, serviceId);
-        JsonUtils.addField(sb, DESCRIPTION, description);
         JsonUtils.addField(sb, VERSION, version);
-        JsonUtils.addField(sb, SUBJECT, subject);
+        addField(sb, SCHEMA, schema);
         return endJson(sb).toString();
     }
 
@@ -74,27 +75,15 @@ public class Info implements JsonSerializable {
     }
 
     /**
-     * Description for the service
-     * @return the description
-     */
-    public String getDescription() {
-        return description;
-    }
-
-    /**
-     * Version of the service
+     * Version of the schema
      * @return the version
      */
     public String getVersion() {
         return version;
     }
 
-    /**
-     * Subject where the service can be invoked
-     * @return the subject
-     */
-    public String getSubject() {
-        return subject;
+    public Schema getSchema() {
+        return schema;
     }
 
     @Override

@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.service.api;
+package io.nats.service;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
@@ -23,18 +23,27 @@ import static io.nats.client.support.JsonUtils.endJson;
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class Ping implements JsonSerializable {
+public class Info implements JsonSerializable {
     private final String serviceId;
     private final String name;
+    private final String description;
+    private final String version;
+    private final String subject;
 
-    public Ping(String serviceId, String name) {
+    public Info(String serviceId, String name, String description, String version, String subject) {
         this.serviceId = serviceId;
         this.name = name;
+        this.description = description;
+        this.version = version;
+        this.subject = subject;
     }
 
-    public Ping(String json) {
+    public Info(String json) {
         name = JsonUtils.readString(json, NAME_RE);
         serviceId = JsonUtils.readString(json, ID_RE);
+        description = JsonUtils.readString(json, DESCRIPTION_RE);
+        version = JsonUtils.readString(json, VERSION_RE);
+        subject = JsonUtils.readString(json, SUBJECT_RE);
     }
 
     @Override
@@ -42,6 +51,9 @@ public class Ping implements JsonSerializable {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, ID, serviceId);
+        JsonUtils.addField(sb, DESCRIPTION, description);
+        JsonUtils.addField(sb, VERSION, version);
+        JsonUtils.addField(sb, SUBJECT, subject);
         return endJson(sb).toString();
     }
 
@@ -59,6 +71,30 @@ public class Ping implements JsonSerializable {
      */
     public String getServiceId() {
         return serviceId;
+    }
+
+    /**
+     * Description for the service
+     * @return the description
+     */
+    public String getDescription() {
+        return description;
+    }
+
+    /**
+     * Version of the service
+     * @return the version
+     */
+    public String getVersion() {
+        return version;
+    }
+
+    /**
+     * Subject where the service can be invoked
+     * @return the subject
+     */
+    public String getSubject() {
+        return subject;
     }
 
     @Override

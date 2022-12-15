@@ -15,7 +15,6 @@ package io.nats.service;
 
 import io.nats.client.*;
 import io.nats.client.impl.NatsMessage;
-import io.nats.service.api.*;
 
 import java.time.Duration;
 import java.util.ArrayList;
