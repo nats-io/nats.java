@@ -18,7 +18,6 @@ import io.nats.client.support.JsonSerializable;
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public interface StatsDataHandler {
-    JsonSerializable getData();
+public interface StatsDataDecoder {
     JsonSerializable decode(String json);
 }

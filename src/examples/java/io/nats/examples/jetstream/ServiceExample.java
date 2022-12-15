@@ -18,7 +18,8 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.service.Discovery;
 import io.nats.service.Service;
-import io.nats.service.StatsDataHandler;
+import io.nats.service.StatsDataDecoder;
+import io.nats.service.StatsDataSupplier;
 import io.nats.service.api.Info;
 import io.nats.service.api.Ping;
 import io.nats.service.api.SchemaInfo;
@@ -47,7 +48,8 @@ public class ServiceExample {
             .errorListener(new ErrorListener() {})
             .build();
 
-        ExampleStatsDataHandler sdh = new ExampleStatsDataHandler();
+        ExampleStatsDataSupplier sds = new ExampleStatsDataSupplier();
+        ExampleStatsDataDecoder sdd = new ExampleStatsDataDecoder();
 
         try (Connection nc = Nats.connect(options)) {
             Service serviceEcho = Service.builder()
@@ -58,7 +60,7 @@ public class ServiceExample {
                 .version("0.0.1")
                 .schemaRequest("echo schema request string/url")
                 .schemaResponse("echo schema response string/url")
-                .statsDataHandler(sdh)
+                .statsDataHandlers(sds, sdd)
                 .serviceMessageHandler(msg -> {
                     byte[] outBytes = ("Echo " + new String(msg.getData())).getBytes();
                     nc.publish(msg.getReplyTo(), outBytes);
@@ -152,9 +154,9 @@ public class ServiceExample {
             // ----------------------------------------------------------------------------------------------------
             // stats discover variations
             // ----------------------------------------------------------------------------------------------------
-            report("Stats", "All", discovery.stats(sdh));
-            report("Stats", ECHO_SERVICE, discovery.stats(ECHO_SERVICE, sdh));
-            report("Stats", SORT_SERVICE, discovery.stats(SORT_SERVICE, sdh));
+            report("Stats", "All", discovery.stats(sdd));
+            report("Stats", ECHO_SERVICE, discovery.stats(ECHO_SERVICE)); // will show echo without data decoder
+            report("Stats", SORT_SERVICE, discovery.stats(SORT_SERVICE));
 
             // ----------------------------------------------------------------------------------------------------
             // stop the service
@@ -218,14 +220,16 @@ public class ServiceExample {
         }
     }
 
-    static class ExampleStatsDataHandler implements StatsDataHandler {
+    static class ExampleStatsDataSupplier implements StatsDataSupplier {
         int x = 0;
         @Override
-        public JsonSerializable getData() {
+        public JsonSerializable get() {
             ++x;
             return new ExampleStatsData("s-" + hashCode(), x);
         }
+    }
 
+    static class ExampleStatsDataDecoder implements StatsDataDecoder {
         @Override
         public JsonSerializable decode(String json) {
             ExampleStatsData esd = new ExampleStatsData(json);

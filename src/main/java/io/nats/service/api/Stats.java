@@ -15,7 +15,7 @@ package io.nats.service.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
-import io.nats.service.StatsDataHandler;
+import io.nats.service.StatsDataDecoder;
 
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -49,20 +49,30 @@ public class Stats implements JsonSerializable {
         this.averageProcessingTime = new AtomicLong();
     }
 
-    public Stats copy(StatsDataHandler statsDataHandler) {
+    public Stats copy(StatsDataDecoder decoder) {
         Stats copy = new Stats(serviceId, name, version);
         copy.numRequests.set(numRequests.get());
         copy.numErrors.set(numErrors.get());
         copy.lastError.set(lastError.get());
         copy.totalProcessingTime.set(totalProcessingTime.get());
         copy.averageProcessingTime.set(averageProcessingTime.get());
-        if (data != null && statsDataHandler != null) {
-            copy.data = statsDataHandler.decode(data.toJson());
+        if (data != null && decoder != null) {
+            copy.data = decoder.decode(data.toJson());
         }
         return copy;
     }
 
-    public Stats(String json, StatsDataHandler statsDataHandler) {
+    public Stats(String json, StatsDataDecoder decoder) {
+        // handle the data first just in the off chance that the data has a duplicate
+        // field name to the stats. This is because we don't have a proper parse, but it works fine.
+        String dataJson = JsonUtils.getJsonObject(DATA, json, null);
+        if (dataJson != null) {
+            if (decoder != null) {
+                data = decoder.decode(dataJson);
+            }
+            JsonUtils.removeObject(json, DATA);
+        }
+
         name = JsonUtils.readString(json, NAME_RE);
         serviceId = JsonUtils.readString(json, ID_RE);
         version = JsonUtils.readString(json, VERSION_RE);
@@ -71,9 +81,6 @@ public class Stats implements JsonSerializable {
         lastError = new AtomicReference<>(JsonUtils.readString(json, LAST_ERROR_RE));
         totalProcessingTime = new AtomicLong(JsonUtils.readLong(json, TOTAL_PROCESSING_TIME_RE, 0));
         averageProcessingTime = new AtomicLong(JsonUtils.readLong(json, AVERAGE_PROCESSING_TIME_RE, 0));
-        if (statsDataHandler != null) {
-            data = statsDataHandler.decode(JsonUtils.getJsonObject(DATA, json));
-        }
     }
 
     public void reset() {

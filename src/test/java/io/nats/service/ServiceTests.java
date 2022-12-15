@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static io.nats.client.impl.NatsPackageScopeWorkarounds.getDispatchers;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.service.Service.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -69,26 +70,6 @@ public class ServiceTests extends JetStreamTestBase {
         return sortServiceBuilder(nc, handler).build();
     }
 
-
-    @Test
-    public void testServiceX() throws Exception {
-        runInServer(nc -> {
-            TestStatsDataHandler h = new TestStatsDataHandler();
-            Service echoService1 = echoServiceBuilder(nc, new EchoHandler(11, nc))
-                .statsDataHandler(h)
-                .build();
-
-            Discovery discovery = new Discovery(nc, 200, 2);
-            try {
-                List<Stats> stats = discovery.stats(h);
-                int x = 0;
-            }
-            catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
     @Test
     public void testService() throws Exception {
         try (NatsTestServer ts = new NatsTestServer())
@@ -100,9 +81,12 @@ public class ServiceTests extends JetStreamTestBase {
                 // construction
                 Dispatcher dShared = serviceNc1.createDispatcher(); // services can share dispatchers if the user wants to
 
+                TestStatsDataSupplier sds = new TestStatsDataSupplier();
+                TestStatsDataDecoder sdd = new TestStatsDataDecoder();
+
                 Service echoService1 = echoServiceBuilder(serviceNc1, new EchoHandler(11, serviceNc1))
                     .userServiceDispatcher(dShared)
-                    .statsDataHandler(new TestStatsDataHandler())
+                    .statsDataHandlers(sds, sdd)
                     .build();
                 String echoServiceId1 = echoService1.getId();
                 echoService1.setDrainTimeout(DEFAULT_DRAIN_TIMEOUT); // coverage
@@ -112,7 +96,7 @@ public class ServiceTests extends JetStreamTestBase {
                 String sortServiceId1 = sortService1.getId();
 
                 Service echoService2 = echoServiceBuilder(serviceNc2, new EchoHandler(12, serviceNc1))
-                    .statsDataHandler(new TestStatsDataHandler())
+                    .statsDataHandlers(sds, sdd)
                     .build();
                 String echoServiceId2 = echoService2.getId();
 
@@ -196,7 +180,7 @@ public class ServiceTests extends JetStreamTestBase {
 
                 // stats discovery
                 discovery = new Discovery(clientNc); // coverage for the simple constructor
-                List<Stats> srList = discovery.stats(new TestStatsDataHandler());
+                List<Stats> srList = discovery.stats(sdd);
                 assertEquals(4, srList.size());
                 int responseEcho = 0;
                 int responseSort = 0;
@@ -379,25 +363,23 @@ public class ServiceTests extends JetStreamTestBase {
             assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(null, m -> {}).build());
             assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, null).version("").build());
 
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(null).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name("").build());
             assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).version(null).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).version("").build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).version(EMPTY).build());
 
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(null).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject("").build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_SPACE).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_PRINTABLE).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_DOT).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_STAR).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_GT).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_DOLLAR).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_LOW).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_127).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_FWD_SLASH).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_BACK_SLASH).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_EQUALS).build());
-            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).subject(HAS_TIC).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(null).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(EMPTY).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_SPACE).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_PRINTABLE).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_DOT).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_STAR).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_GT).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_DOLLAR).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_LOW).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_127).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_FWD_SLASH).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_BACK_SLASH).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_EQUALS).build());
+            assertThrows(IllegalArgumentException.class, () -> echoServiceBuilder(nc, m -> {}).name(HAS_TIC).build());
         });
     }
 
@@ -511,19 +493,20 @@ public class ServiceTests extends JetStreamTestBase {
         }
     }
 
-    static class TestStatsDataHandler implements StatsDataHandler {
+    static class TestStatsDataSupplier implements StatsDataSupplier {
         int x = 0;
-
         @Override
-        public JsonSerializable getData() {
+        public JsonSerializable get() {
             ++x;
-            return new TestStatsData("s-" + x + "-" + hashCode(), x);
+            return new TestStatsData("s-" + hashCode(), x);
         }
+    }
 
+    static class TestStatsDataDecoder implements StatsDataDecoder {
         @Override
         public JsonSerializable decode(String json) {
-            TestStatsData tsd = new TestStatsData(json);
-            return tsd.sData == null ? null : tsd;
+            TestStatsData esd = new TestStatsData(json);
+            return esd.sData == null ? null : esd;
         }
     }
 }

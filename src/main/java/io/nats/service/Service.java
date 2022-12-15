@@ -51,7 +51,8 @@ public class Service {
     private final List<Context> discoveryContexts;
     private final Context serviceContext;
     private final MessageHandler serviceMessageHandler;
-    private final StatsDataHandler statsDataHandler;
+    private final StatsDataSupplier statsDataSupplier;
+    private final StatsDataDecoder statsDataDecoder;
     private final CompletableFuture<Boolean> doneFuture;
     private final Object stopLock = new Object();
     private Duration drainTimeout = DEFAULT_DRAIN_TIMEOUT;
@@ -71,7 +72,8 @@ public class Service {
         MessageHandler serviceMessageHandler;
         Dispatcher dUserDiscovery;
         Dispatcher dUserService;
-        StatsDataHandler statsDataHandler;
+        StatsDataSupplier statsDataSupplier;
+        StatsDataDecoder statsDataDecoder;
 
         public Builder connection(Connection conn) {
             this.conn = conn;
@@ -123,8 +125,9 @@ public class Service {
             return this;
         }
 
-        public Builder statsDataHandler(StatsDataHandler statsDataHandler) {
-            this.statsDataHandler = statsDataHandler;
+        public Builder statsDataHandlers(StatsDataSupplier statsDataSupplier, StatsDataDecoder statsDataDecoder) {
+            this.statsDataSupplier = statsDataSupplier;
+            this.statsDataDecoder = statsDataDecoder;
             return this;
         }
 
@@ -133,16 +136,21 @@ public class Service {
             required(serviceMessageHandler, "Service Message Handler");
             validateIsRestrictedTerm(name, "Name", true);
             required(version, "Version");
-            validateSubject(subject, true);
+            if ((statsDataSupplier != null && statsDataDecoder == null)
+                || (statsDataSupplier == null && statsDataDecoder != null)) {
+                throw new IllegalArgumentException("You must provide neither or both the stats data supplier and decoder");
+            }
+
             return new Service(this);
         }
     }
 
     private Service(Builder b) {
         id = io.nats.client.NUID.nextGlobal();
-        this.conn = b.conn;
-        this.serviceMessageHandler = b.serviceMessageHandler;
-        this.statsDataHandler = b.statsDataHandler;
+        conn = b.conn;
+        serviceMessageHandler = b.serviceMessageHandler;
+        statsDataSupplier = b.statsDataSupplier;
+        statsDataDecoder = b.statsDataDecoder;
         info = new Info(id, b.name, b.description, b.version, b.subject);
         schemaInfo = new SchemaInfo(id, b.name, b.version, b.schemaRequest, b.schemaResponse);
 
@@ -152,15 +160,16 @@ public class Service {
         Dispatcher dDiscovery = internalDiscovery ? conn.createDispatcher() : b.dUserDiscovery;
         Dispatcher dService = internalService ? conn.createDispatcher() : b.dUserService;
 
+        // do the service first in case the server feels like rejecting the subject
+        stats = new Stats(id, b.name, b.version);
+        serviceContext = new ServiceContext(info.getSubject(), dService, internalService);
+        serviceContext.sub = dService.subscribe(info.getSubject(), QGROUP, serviceContext::onMessage);
+
         discoveryContexts = new ArrayList<>();
         addDiscoveryContexts(PING, new Ping(id, info.getName()).serialize(), dDiscovery, internalDiscovery);
         addDiscoveryContexts(INFO, info.serialize(), dDiscovery, internalDiscovery);
         addDiscoveryContexts(SCHEMA, schemaInfo.serialize(), dDiscovery, internalDiscovery);
         addStatsContexts(dDiscovery, internalDiscovery);
-
-        stats = new Stats(id, b.name, b.version);
-        serviceContext = new ServiceContext(info.getSubject(), dService, internalService);
-        serviceContext.sub = dService.subscribe(info.getSubject(), QGROUP, serviceContext::onMessage);
 
         doneFuture = new CompletableFuture<>();
     }
@@ -255,7 +264,7 @@ public class Service {
     }
 
     public Stats getStats() {
-        return stats.copy(statsDataHandler);
+        return stats.copy(statsDataDecoder);
     }
 
     public CompletableFuture<Boolean> done() {
@@ -377,8 +386,8 @@ public class Service {
 
         @Override
         protected long subOnMessage(Message msg) {
-            if (statsDataHandler != null) {
-                stats.setData(statsDataHandler.getData());
+            if (statsDataSupplier != null) {
+                stats.setData(statsDataSupplier.get());
             }
             conn.publish(msg.getReplyTo(), stats.serialize());
             return -1;
