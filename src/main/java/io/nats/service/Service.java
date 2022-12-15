@@ -51,6 +51,7 @@ public class Service {
     private final List<Context> discoveryContexts;
     private final Context serviceContext;
     private final MessageHandler serviceMessageHandler;
+    private final StatsDataHandler statsDataHandler;
     private final CompletableFuture<Boolean> doneFuture;
     private final Object stopLock = new Object();
     private Duration drainTimeout = DEFAULT_DRAIN_TIMEOUT;
@@ -141,6 +142,7 @@ public class Service {
         id = io.nats.client.NUID.nextGlobal();
         this.conn = b.conn;
         this.serviceMessageHandler = b.serviceMessageHandler;
+        this.statsDataHandler = b.statsDataHandler;
         info = new Info(id, b.name, b.description, b.version, b.subject);
         schemaInfo = new SchemaInfo(id, b.name, b.version, b.schemaRequest, b.schemaResponse);
 
@@ -253,7 +255,7 @@ public class Service {
     }
 
     public Stats getStats() {
-        return stats.copy();
+        return stats.copy(statsDataHandler);
     }
 
     public CompletableFuture<Boolean> done() {
@@ -375,6 +377,9 @@ public class Service {
 
         @Override
         protected long subOnMessage(Message msg) {
+            if (statsDataHandler != null) {
+                stats.setData(statsDataHandler.getData());
+            }
             conn.publish(msg.getReplyTo(), stats.serialize());
             return -1;
         }

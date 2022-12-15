@@ -112,20 +112,32 @@ public class Discovery {
     // stats
     // ----------------------------------------------------------------------------------------------------
     public List<Stats> stats() {
-        return stats(null);
+        return stats(null, (StatsDataHandler)null);
+    }
+
+    public List<Stats> stats(StatsDataHandler statsDataHandler) {
+        return stats(null, statsDataHandler);
     }
 
     public List<Stats> stats(String serviceName) {
+        return stats(serviceName, (StatsDataHandler)null);
+    }
+
+    public List<Stats> stats(String serviceName, StatsDataHandler statsDataHandler) {
         List<Stats> list = new ArrayList<>();
         discoverMany(STATS, serviceName, json -> {
-            list.add(new Stats(json));
+            list.add(new Stats(json, statsDataHandler));
         });
         return list;
     }
 
     public Stats stats(String serviceName, String serviceId) {
+        return stats(serviceName, serviceId, null);
+    }
+
+    public Stats stats(String serviceName, String serviceId, StatsDataHandler statsDataHandler) {
         String json = discoverOne(STATS, serviceName, serviceId);
-        return json == null ? null : new Stats(json);
+        return json == null ? null : new Stats(json, statsDataHandler);
     }
 
     // ----------------------------------------------------------------------------------------------------

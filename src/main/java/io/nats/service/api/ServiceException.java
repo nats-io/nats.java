@@ -15,8 +15,8 @@ package io.nats.service.api;
 
 import io.nats.client.impl.Headers;
 
-import static io.nats.service.ServiceUtil.NATS_SERVICE_ERROR;
-import static io.nats.service.ServiceUtil.NATS_SERVICE_ERROR_CODE;
+import static io.nats.service.Service.NATS_SERVICE_ERROR;
+import static io.nats.service.Service.NATS_SERVICE_ERROR_CODE;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE

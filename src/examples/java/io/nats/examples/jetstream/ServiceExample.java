@@ -14,8 +14,11 @@
 package io.nats.examples.jetstream;
 
 import io.nats.client.*;
+import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonUtils;
 import io.nats.service.Discovery;
 import io.nats.service.Service;
+import io.nats.service.StatsDataHandler;
 import io.nats.service.api.Info;
 import io.nats.service.api.Ping;
 import io.nats.service.api.SchemaInfo;
@@ -27,8 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import static io.nats.client.support.JsonUtils.getFormatted;
-import static io.nats.client.support.JsonUtils.printFormatted;
+import static io.nats.client.support.JsonUtils.*;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
@@ -45,6 +47,8 @@ public class ServiceExample {
             .errorListener(new ErrorListener() {})
             .build();
 
+        ExampleStatsDataHandler sdh = new ExampleStatsDataHandler();
+
         try (Connection nc = Nats.connect(options)) {
             Service serviceEcho = Service.builder()
                 .connection(nc)
@@ -54,6 +58,7 @@ public class ServiceExample {
                 .version("0.0.1")
                 .schemaRequest("echo schema request string/url")
                 .schemaResponse("echo schema response string/url")
+                .statsDataHandler(sdh)
                 .serviceMessageHandler(msg -> {
                     byte[] outBytes = ("Echo " + new String(msg.getData())).getBytes();
                     nc.publish(msg.getReplyTo(), outBytes);
@@ -145,11 +150,11 @@ public class ServiceExample {
             report("Schema", SORT_SERVICE, sortId, schemaInfo);
 
             // ----------------------------------------------------------------------------------------------------
-            // schema discover variations
+            // stats discover variations
             // ----------------------------------------------------------------------------------------------------
-            report("Stats", "All", discovery.stats());
-            report("Stats", ECHO_SERVICE, discovery.stats(ECHO_SERVICE));
-            report("Stats", SORT_SERVICE, discovery.stats(SORT_SERVICE));
+            report("Stats", "All", discovery.stats(sdh));
+            report("Stats", ECHO_SERVICE, discovery.stats(ECHO_SERVICE, sdh));
+            report("Stats", SORT_SERVICE, discovery.stats(SORT_SERVICE, sdh));
 
             // ----------------------------------------------------------------------------------------------------
             // stop the service
@@ -183,5 +188,48 @@ public class ServiceExample {
         CompletableFuture<Message> reply = nc.request(serviceName, request.getBytes());
         String response = new String(reply.get().getData());
         System.out.println("\nReply from " + serviceName + ". Sent [" + request + "] Received [" + response + "]");
+    }
+
+    static class ExampleStatsData implements JsonSerializable {
+        public String sData;
+        public int iData;
+
+        public ExampleStatsData(String sData, int iData) {
+            this.sData = sData;
+            this.iData = iData;
+        }
+
+        public ExampleStatsData(String json) {
+            this.sData = JsonUtils.readString(json, string_pattern("sdata"));
+            this.iData = JsonUtils.readInt(json, integer_pattern("idata"), -1);
+        }
+
+        @Override
+        public String toJson() {
+            StringBuilder sb = beginJson();
+            JsonUtils.addField(sb, "sdata", sData);
+            JsonUtils.addField(sb, "idata", iData);
+            return endJson(sb).toString();
+        }
+
+        @Override
+        public String toString() {
+            return "ExampleStatsData" + toJson();
+        }
+    }
+
+    static class ExampleStatsDataHandler implements StatsDataHandler {
+        int x = 0;
+        @Override
+        public JsonSerializable getData() {
+            ++x;
+            return new ExampleStatsData("s-" + hashCode(), x);
+        }
+
+        @Override
+        public JsonSerializable decode(String json) {
+            ExampleStatsData esd = new ExampleStatsData(json);
+            return esd.sData == null ? null : esd;
+        }
     }
 }

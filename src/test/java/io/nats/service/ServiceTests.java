@@ -17,6 +17,8 @@ import io.nats.client.*;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.impl.NatsMessage;
+import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonUtils;
 import io.nats.service.api.*;
 import org.junit.jupiter.api.Test;
 
@@ -27,6 +29,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static io.nats.client.impl.NatsPackageScopeWorkarounds.getDispatchers;
+import static io.nats.client.support.JsonUtils.*;
 import static io.nats.service.Service.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -66,9 +69,28 @@ public class ServiceTests extends JetStreamTestBase {
         return sortServiceBuilder(nc, handler).build();
     }
 
-    @Test
-    public void testJetStreamContextCreate() throws Exception {
 
+    @Test
+    public void testServiceX() throws Exception {
+        runInServer(nc -> {
+            TestStatsDataHandler h = new TestStatsDataHandler();
+            Service echoService1 = echoServiceBuilder(nc, new EchoHandler(11, nc))
+                .statsDataHandler(h)
+                .build();
+
+            Discovery discovery = new Discovery(nc, 200, 2);
+            try {
+                List<Stats> stats = discovery.stats(h);
+                int x = 0;
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    @Test
+    public void testService() throws Exception {
         try (NatsTestServer ts = new NatsTestServer())
         {
             try (Connection serviceNc1 = standardConnection(ts.getURI());
@@ -79,7 +101,9 @@ public class ServiceTests extends JetStreamTestBase {
                 Dispatcher dShared = serviceNc1.createDispatcher(); // services can share dispatchers if the user wants to
 
                 Service echoService1 = echoServiceBuilder(serviceNc1, new EchoHandler(11, serviceNc1))
-                    .userServiceDispatcher(dShared).build();
+                    .userServiceDispatcher(dShared)
+                    .statsDataHandler(new TestStatsDataHandler())
+                    .build();
                 String echoServiceId1 = echoService1.getId();
                 echoService1.setDrainTimeout(DEFAULT_DRAIN_TIMEOUT); // coverage
 
@@ -87,7 +111,9 @@ public class ServiceTests extends JetStreamTestBase {
                     .userDiscoveryDispatcher(dShared).build();
                 String sortServiceId1 = sortService1.getId();
 
-                Service echoService2 = echoService(serviceNc2, new EchoHandler(12, serviceNc2));
+                Service echoService2 = echoServiceBuilder(serviceNc2, new EchoHandler(12, serviceNc1))
+                    .statsDataHandler(new TestStatsDataHandler())
+                    .build();
                 String echoServiceId2 = echoService2.getId();
 
                 Service sortService2 = sortService(serviceNc2, new SortHandler(22, serviceNc2));
@@ -170,7 +196,7 @@ public class ServiceTests extends JetStreamTestBase {
 
                 // stats discovery
                 discovery = new Discovery(clientNc); // coverage for the simple constructor
-                List<Stats> srList = discovery.stats();
+                List<Stats> srList = discovery.stats(new TestStatsDataHandler());
                 assertEquals(4, srList.size());
                 int responseEcho = 0;
                 int responseSort = 0;
@@ -181,6 +207,8 @@ public class ServiceTests extends JetStreamTestBase {
                     if (sr.getName().equals(ECHO_SERVICE)) {
                         responseEcho++;
                         requestsEcho += sr.getNumRequests();
+                        assertNotNull(sr.getData());
+                        assertTrue(sr.getData() instanceof TestStatsData);
                     }
                     else {
                         responseSort++;
@@ -204,6 +232,7 @@ public class ServiceTests extends JetStreamTestBase {
                 assertEquals(0, sr.getNumErrors());
                 assertEquals(0, sr.getTotalProcessingTime());
                 assertEquals(0, sr.getAverageProcessingTime());
+                assertNull(sr.getData());
 
                 sr = discovery.stats(ECHO_SERVICE, echoServiceId1);
                 assertEquals(0, sr.getNumRequests());
@@ -373,7 +402,7 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testServiceUtil() {
+    public void testToDiscoverySubject() {
         assertEquals("$SRV.PING", toDiscoverySubject(PING, null, null));
         assertEquals("$SRV.PING.myservice", toDiscoverySubject(PING, "myservice", null));
         assertEquals("$SRV.PING.myservice.123", toDiscoverySubject(PING, "myservice", "123"));
@@ -434,8 +463,8 @@ public class ServiceTests extends JetStreamTestBase {
         assertNull(sr1.getSchema());
         assertNull(sr2.getSchema());
 
-        Stats stats1 = new Stats("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"num_requests\":1,\"num_errors\":2,\"last_error\":\"lastErr\",\"total_processing_time\":3,\"average_processing_time\":4}");
-        Stats stats2 = new Stats(stats1.toJson());
+        Stats stats1 = new Stats("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"num_requests\":1,\"num_errors\":2,\"last_error\":\"lastErr\",\"total_processing_time\":3,\"average_processing_time\":4}", null);
+        Stats stats2 = new Stats(stats1.toJson(), null);
         assertEquals("ServiceName", stats1.getName());
         assertEquals("serviceId", stats1.getServiceId());
         assertEquals("0.0.1", stats1.getVersion());
@@ -452,5 +481,49 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(3, stats2.getTotalProcessingTime());
         assertEquals(4, stats1.getAverageProcessingTime());
         assertEquals(4, stats2.getAverageProcessingTime());
+    }
+
+    static class TestStatsData implements JsonSerializable {
+        public String sData;
+        public int iData;
+
+        public TestStatsData(String sData, int iData) {
+            this.sData = sData;
+            this.iData = iData;
+        }
+
+        public TestStatsData(String json) {
+            this.sData = JsonUtils.readString(json, string_pattern("sdata"));
+            this.iData = JsonUtils.readInt(json, integer_pattern("idata"), -1);
+        }
+
+        @Override
+        public String toJson() {
+            StringBuilder sb = beginJson();
+            JsonUtils.addField(sb, "sdata", sData);
+            JsonUtils.addField(sb, "idata", iData);
+            return endJson(sb).toString();
+        }
+
+        @Override
+        public String toString() {
+            return "TestStatsData" + toJson();
+        }
+    }
+
+    static class TestStatsDataHandler implements StatsDataHandler {
+        int x = 0;
+
+        @Override
+        public JsonSerializable getData() {
+            ++x;
+            return new TestStatsData("s-" + x + "-" + hashCode(), x);
+        }
+
+        @Override
+        public JsonSerializable decode(String json) {
+            TestStatsData tsd = new TestStatsData(json);
+            return tsd.sData == null ? null : tsd;
+        }
     }
 }
