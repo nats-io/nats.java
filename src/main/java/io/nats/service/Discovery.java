@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import static io.nats.client.NUID.nextGlobal;
-import static io.nats.service.Service.*;
+import static io.nats.service.ServiceUtil.*;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
@@ -111,8 +111,8 @@ public class Discovery {
         return stats(null, (StatsDataDecoder)null);
     }
 
-    public List<Stats> stats(StatsDataDecoder statsDataHandler) {
-        return stats(null, statsDataHandler);
+    public List<Stats> stats(StatsDataDecoder statsDataDecoder) {
+        return stats(null, statsDataDecoder);
     }
 
     public List<Stats> stats(String serviceName) {
@@ -140,7 +140,7 @@ public class Discovery {
     // workers
     // ----------------------------------------------------------------------------------------------------
     private String discoverOne(String action, String serviceName, String serviceId) {
-        String subject = toDiscoverySubject(action, serviceName, serviceId);
+        String subject = ServiceUtil.toDiscoverySubject(action, serviceName, serviceId);
         try {
             Message m = conn.request(subject, null, Duration.ofMillis(maxTimeMillis));
             if (m != null) {
@@ -162,7 +162,7 @@ public class Discovery {
 
             sub = conn.subscribe(replyTo);
 
-            String subject = toDiscoverySubject(action, serviceName, null);
+            String subject = ServiceUtil.toDiscoverySubject(action, serviceName, null);
             conn.publish(subject, replyTo, null);
 
             int resultsLeft = maxResults;

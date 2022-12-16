@@ -4,8 +4,11 @@ import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.MessageHandler;
 
+import java.time.Duration;
+
 import static io.nats.client.support.Validator.required;
 import static io.nats.client.support.Validator.validateIsRestrictedTerm;
+import static io.nats.service.ServiceUtil.DEFAULT_DRAIN_TIMEOUT;
 
 public class ServiceCreator {
     Connection conn;
@@ -20,6 +23,7 @@ public class ServiceCreator {
     Dispatcher dUserService;
     StatsDataSupplier statsDataSupplier;
     StatsDataDecoder statsDataDecoder;
+    Duration drainTimeout = DEFAULT_DRAIN_TIMEOUT;
 
     public static ServiceCreator instance() {
         return new ServiceCreator();
@@ -81,15 +85,12 @@ public class ServiceCreator {
         return this;
     }
 
-    /**
-     * Synonym for startService
-     * @return a new running service
-     */
-    public Service build() {
-        return startService();
+    public ServiceCreator drainTimeout(Duration drainTimeout) {
+        this.drainTimeout = drainTimeout;
+        return this;
     }
 
-    public Service startService() {
+    public Service build() {
         required(conn, "Connection");
         required(serviceMessageHandler, "Service Message Handler");
         validateIsRestrictedTerm(name, "Name", true);
@@ -98,7 +99,6 @@ public class ServiceCreator {
             || (statsDataSupplier == null && statsDataDecoder != null)) {
             throw new IllegalArgumentException("You must provide neither or both the stats data supplier and decoder");
         }
-
         return new Service(this);
     }
 }

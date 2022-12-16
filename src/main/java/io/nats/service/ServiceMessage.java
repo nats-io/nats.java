@@ -28,25 +28,28 @@ public abstract class ServiceMessage {
     public static final String NATS_SERVICE_ERROR = "Nats-Service-Error";
     public static final String NATS_SERVICE_ERROR_CODE = "Nats-Service-Error-Code";
 
-    public static void reply(Connection conn, Message request, byte[] data, Headers headers) {
-        conn.publish(NatsMessage.builder()
-            .subject(request.getReplyTo())
-            .data(data)
-            .headers(headers)
-            .build());
+    public static void reply(Connection conn, Message request, byte[] data) {
+        conn.publish(request.getReplyTo(), data);
     }
 
     public static void reply(Connection conn, Message request, String data) {
-        reply(conn, request, data.getBytes(StandardCharsets.UTF_8), null);
+        conn.publish(request.getReplyTo(), data.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public static void reply(Connection conn, Message request, byte[] data, Headers headers) {
+        conn.publish(NatsMessage.builder().subject(request.getReplyTo()).data(data).headers(headers).build());
     }
 
     public static void reply(Connection conn, Message request, String data, Headers headers) {
-        reply(conn, request, data.getBytes(StandardCharsets.UTF_8), headers);
+        conn.publish(NatsMessage.builder().subject(request.getReplyTo()).data(data).headers(headers).build());
     }
 
     public static void replyStandardError(Connection conn, Message request, String errorMessage, int errorCode) {
-        reply(conn, request, (byte[])null, new Headers()
-            .put(NATS_SERVICE_ERROR, errorMessage)
-            .put(NATS_SERVICE_ERROR_CODE, "" + errorCode));
+        conn.publish(NatsMessage.builder()
+            .subject(request.getReplyTo())
+            .headers(new Headers()
+                .put(NATS_SERVICE_ERROR, errorMessage)
+                .put(NATS_SERVICE_ERROR_CODE, "" + errorCode))
+            .build());
     }
 }

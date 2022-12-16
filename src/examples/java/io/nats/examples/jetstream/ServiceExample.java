@@ -43,8 +43,8 @@ public class ServiceExample {
             .errorListener(new ErrorListener() {})
             .build();
 
-        ExampleStatsDataSupplier sds = new ExampleStatsDataSupplier();
-        ExampleStatsDataDecoder sdd = new ExampleStatsDataDecoder();
+        StatsDataSupplier sds = new ExampleStatsDataSupplier();
+        StatsDataDecoder sdd = new ExampleStatsDataDecoder();
 
         try (Connection nc = Nats.connect(options)) {
             Service serviceEcho = ServiceCreator.instance()
@@ -57,7 +57,7 @@ public class ServiceExample {
                 .schemaResponse("echo schema response string/url")
                 .statsDataHandlers(sds, sdd)
                 .serviceMessageHandler(msg -> ServiceMessage.reply(nc, msg, "Echo " + new String(msg.getData())))
-                .startService();
+                .build();
 
             System.out.println(getFormatted(serviceEcho));
 
@@ -74,9 +74,15 @@ public class ServiceExample {
                     Arrays.sort(data);
                     ServiceMessage.reply(nc, msg, "Sort " + new String(data));
                 })
-                .startService();
+                .build();
 
             System.out.println("\n" + getFormatted(serviceSort));
+
+            // ----------------------------------------------------------------------------------------------------
+            // Start the services
+            // ----------------------------------------------------------------------------------------------------
+            CompletableFuture<Boolean> doneEcho = serviceEcho.startService();
+            CompletableFuture<Boolean> doneSort = serviceSort.startService();
 
             // ----------------------------------------------------------------------------------------------------
             // Call the services
@@ -155,8 +161,8 @@ public class ServiceExample {
             serviceEcho.stop();
             serviceSort.stop();
             System.out.println();
-            System.out.println("Echo service done ? " + serviceEcho.done().get(1, TimeUnit.SECONDS));
-            System.out.println("Sort Service done ? " + serviceSort.done().get(1, TimeUnit.SECONDS));
+            System.out.println("Echo service done ? " + doneEcho.get(1, TimeUnit.SECONDS));
+            System.out.println("Sort Service done ? " + doneSort.get(1, TimeUnit.SECONDS));
         }
         catch (Exception e) {
             e.printStackTrace();

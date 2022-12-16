@@ -204,6 +204,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
         return this.subscribeImplCore(subject, null, null);
     }
+
     public Subscription subscribe(String subject, MessageHandler handler) {
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in subscribe");
