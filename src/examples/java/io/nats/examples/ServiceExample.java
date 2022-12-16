@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.examples.jetstream;
+package io.nats.examples;
 
 import io.nats.client.*;
 import io.nats.client.support.JsonSerializable;
