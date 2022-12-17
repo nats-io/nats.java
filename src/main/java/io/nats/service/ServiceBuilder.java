@@ -10,7 +10,7 @@ import static io.nats.client.support.Validator.required;
 import static io.nats.client.support.Validator.validateIsRestrictedTerm;
 import static io.nats.service.ServiceUtil.DEFAULT_DRAIN_TIMEOUT;
 
-public class ServiceCreator {
+public class ServiceBuilder {
     Connection conn;
     String name;
     String description;
@@ -25,67 +25,63 @@ public class ServiceCreator {
     StatsDataDecoder statsDataDecoder;
     Duration drainTimeout = DEFAULT_DRAIN_TIMEOUT;
 
-    public static ServiceCreator instance() {
-        return new ServiceCreator();
-    }
-
-    public ServiceCreator connection(Connection conn) {
+    public ServiceBuilder connection(Connection conn) {
         this.conn = conn;
         return this;
     }
 
-    public ServiceCreator name(String name) {
+    public ServiceBuilder name(String name) {
         this.name = name;
         return this;
     }
 
-    public ServiceCreator description(String description) {
+    public ServiceBuilder description(String description) {
         this.description = description;
         return this;
     }
 
-    public ServiceCreator version(String version) {
+    public ServiceBuilder version(String version) {
         this.version = version;
         return this;
     }
 
-    public ServiceCreator subject(String subject) {
+    public ServiceBuilder subject(String subject) {
         this.subject = subject;
         return this;
     }
 
-    public ServiceCreator schemaRequest(String schemaRequest) {
+    public ServiceBuilder schemaRequest(String schemaRequest) {
         this.schemaRequest = schemaRequest;
         return this;
     }
 
-    public ServiceCreator schemaResponse(String schemaResponse) {
+    public ServiceBuilder schemaResponse(String schemaResponse) {
         this.schemaResponse = schemaResponse;
         return this;
     }
 
-    public ServiceCreator serviceMessageHandler(MessageHandler userMessageHandler) {
+    public ServiceBuilder serviceMessageHandler(MessageHandler userMessageHandler) {
         this.serviceMessageHandler = userMessageHandler;
         return this;
     }
 
-    public ServiceCreator userDiscoveryDispatcher(Dispatcher dUserDiscovery) {
+    public ServiceBuilder userDiscoveryDispatcher(Dispatcher dUserDiscovery) {
         this.dUserDiscovery = dUserDiscovery;
         return this;
     }
 
-    public ServiceCreator userServiceDispatcher(Dispatcher dUserService) {
+    public ServiceBuilder userServiceDispatcher(Dispatcher dUserService) {
         this.dUserService = dUserService;
         return this;
     }
 
-    public ServiceCreator statsDataHandlers(StatsDataSupplier statsDataSupplier, StatsDataDecoder statsDataDecoder) {
+    public ServiceBuilder statsDataHandlers(StatsDataSupplier statsDataSupplier, StatsDataDecoder statsDataDecoder) {
         this.statsDataSupplier = statsDataSupplier;
         this.statsDataDecoder = statsDataDecoder;
         return this;
     }
 
-    public ServiceCreator drainTimeout(Duration drainTimeout) {
+    public ServiceBuilder drainTimeout(Duration drainTimeout) {
         this.drainTimeout = drainTimeout;
         return this;
     }

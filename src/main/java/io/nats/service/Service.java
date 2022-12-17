@@ -45,29 +45,29 @@ public class Service {
     private final Object stopLock;
     private CompletableFuture<Boolean> doneFuture;
 
-    Service(ServiceCreator creator) {
-        id = io.nats.client.NUID.nextGlobal();
-        conn = creator.conn;
-        statsDataDecoder = creator.statsDataDecoder;
-        drainTimeout = creator.drainTimeout;
-        info = new Info(id, creator.name, creator.description, creator.version, creator.subject);
-        schemaInfo = new SchemaInfo(id, creator.name, creator.version, creator.schemaRequest, creator.schemaResponse);
+    Service(ServiceBuilder builder) {
+        id = new io.nats.client.NUID().next();
+        conn = builder.conn;
+        statsDataDecoder = builder.statsDataDecoder;
+        drainTimeout = builder.drainTimeout;
+        info = new Info(id, builder.name, builder.description, builder.version, builder.subject);
+        schemaInfo = new SchemaInfo(id, builder.name, builder.version, builder.schemaRequest, builder.schemaResponse);
 
         // User may provide 0 or more dispatchers, just use theirs when provided else use one we make
-        boolean internalDiscovery = creator.dUserDiscovery == null;
-        boolean internalService = creator.dUserService == null;
-        Dispatcher dDiscovery = internalDiscovery ? conn.createDispatcher() : creator.dUserDiscovery;
-        Dispatcher dService = internalService ? conn.createDispatcher() : creator.dUserService;
+        boolean internalDiscovery = builder.dUserDiscovery == null;
+        boolean internalService = builder.dUserService == null;
+        Dispatcher dDiscovery = internalDiscovery ? conn.createDispatcher() : builder.dUserDiscovery;
+        Dispatcher dService = internalService ? conn.createDispatcher() : builder.dUserService;
 
         // do the service first in case the server feels like rejecting the subject
-        Stats stats = new Stats(id, creator.name, creator.version);
-        serviceContext = new ServiceContext(conn, info.getSubject(), dService, internalService, stats, creator.serviceMessageHandler);
+        Stats stats = new Stats(id, builder.name, builder.version);
+        serviceContext = new ServiceContext(conn, info.getSubject(), dService, internalService, stats, builder.serviceMessageHandler);
 
         discoveryContexts = new ArrayList<>();
         addDiscoveryContexts(PING, new Ping(id, info.getName()).serialize(), dDiscovery, internalDiscovery);
         addDiscoveryContexts(INFO, info.serialize(), dDiscovery, internalDiscovery);
         addDiscoveryContexts(SCHEMA, schemaInfo.serialize(), dDiscovery, internalDiscovery);
-        addStatsContexts(dDiscovery, internalDiscovery, stats, creator.statsDataSupplier);
+        addStatsContexts(dDiscovery, internalDiscovery, stats, builder.statsDataSupplier);
 
         stopLock = new Object();
     }

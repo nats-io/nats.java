@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.support.JsonUtils.*;
@@ -47,7 +46,8 @@ public class ServiceExample {
         StatsDataDecoder sdd = new ExampleStatsDataDecoder();
 
         try (Connection nc = Nats.connect(options)) {
-            Service serviceEcho = ServiceCreator.instance()
+            // create the services
+            Service serviceEcho = new ServiceBuilder()
                 .connection(nc)
                 .name(ECHO_SERVICE)
                 .subject(ECHO_SERVICE)
@@ -61,7 +61,7 @@ public class ServiceExample {
 
             System.out.println(getFormatted(serviceEcho));
 
-            Service serviceSort = ServiceCreator.instance()
+            ServiceBuilder serviceBuilderSort = new ServiceBuilder()
                 .connection(nc)
                 .name(SORT_SERVICE)
                 .subject(SORT_SERVICE)
@@ -73,22 +73,32 @@ public class ServiceExample {
                     byte[] data = msg.getData();
                     Arrays.sort(data);
                     ServiceMessage.reply(nc, msg, "Sort " + new String(data));
-                })
-                .build();
+                });
 
+            Service serviceSort = serviceBuilderSort.build();
+            Service serviceAnotherSort = serviceBuilderSort.build();
             System.out.println("\n" + getFormatted(serviceSort));
+            System.out.println("\n" + getFormatted(serviceAnotherSort));
 
             // ----------------------------------------------------------------------------------------------------
             // Start the services
             // ----------------------------------------------------------------------------------------------------
             CompletableFuture<Boolean> doneEcho = serviceEcho.startService();
             CompletableFuture<Boolean> doneSort = serviceSort.startService();
+            CompletableFuture<Boolean> doneAnotherSort = serviceAnotherSort.startService();
 
             // ----------------------------------------------------------------------------------------------------
             // Call the services
             // ----------------------------------------------------------------------------------------------------
-            callService(nc, ECHO_SERVICE);
-            callService(nc, SORT_SERVICE);
+            String request = randomText();
+            CompletableFuture<Message> reply = nc.request(ECHO_SERVICE, request.getBytes());
+            String response = new String(reply.get().getData());
+            System.out.println("\nCalled " + ECHO_SERVICE + " with [" + request + "] Received [" + response + "]");
+
+            request = randomText();
+            reply = nc.request(SORT_SERVICE, request.getBytes());
+            response = new String(reply.get().getData());
+            System.out.println("Called " + SORT_SERVICE + " with [" + request + "] Received [" + response + "]");
 
             // ----------------------------------------------------------------------------------------------------
             // discovery
@@ -98,95 +108,102 @@ public class ServiceExample {
             // ----------------------------------------------------------------------------------------------------
             // ping discover variations
             // ----------------------------------------------------------------------------------------------------
-            report("Ping", "All", discovery.ping());
+            List<Ping> pings = discovery.ping();
+            printDiscovery("Ping", "[All]", pings);
 
-            List<Ping> pings = discovery.ping(ECHO_SERVICE);
-            report("Ping", ECHO_SERVICE, pings);
+            pings = discovery.ping(ECHO_SERVICE);
+            printDiscovery("Ping", ECHO_SERVICE, pings);
 
             String echoId = pings.get(0).getServiceId();
             Ping ping = discovery.ping(ECHO_SERVICE, echoId);
-            report("Ping", ECHO_SERVICE, echoId, ping);
+            printDiscovery("Ping", ECHO_SERVICE, echoId, ping);
 
             pings = discovery.ping(SORT_SERVICE);
-            report("Ping", SORT_SERVICE, pings);
+            printDiscovery("Ping", SORT_SERVICE, pings);
 
             String sortId = pings.get(0).getServiceId();
             ping = discovery.ping(SORT_SERVICE, sortId);
-            report("Ping", SORT_SERVICE, sortId, ping);
+            printDiscovery("Ping", SORT_SERVICE, sortId, ping);
 
             // ----------------------------------------------------------------------------------------------------
             // info discover variations
             // ----------------------------------------------------------------------------------------------------
-            report("Info", "All", discovery.info());
+            List<Info> infos = discovery.info();
+            printDiscovery("Info", "[All]", infos);
 
-            List<Info> infos = discovery.info(ECHO_SERVICE);
-            report("Info", ECHO_SERVICE, infos);
+            infos = discovery.info(ECHO_SERVICE);
+            printDiscovery("Info", ECHO_SERVICE, infos);
 
             Info info = discovery.info(ECHO_SERVICE, echoId);
-            report("Info", ECHO_SERVICE, echoId, info);
+            printDiscovery("Info", ECHO_SERVICE, echoId, info);
 
             infos = discovery.info(SORT_SERVICE);
-            report("Info", SORT_SERVICE, infos);
+            printDiscovery("Info", SORT_SERVICE, infos);
 
             info = discovery.info(SORT_SERVICE, sortId);
-            report("Info", SORT_SERVICE, sortId, info);
+            printDiscovery("Info", SORT_SERVICE, sortId, info);
 
             // ----------------------------------------------------------------------------------------------------
             // schema discover variations
             // ----------------------------------------------------------------------------------------------------
-            report("Schema", "All", discovery.schema());
+            List<SchemaInfo> schemaInfos = discovery.schema();
+            printDiscovery("Schema", "[All]", schemaInfos);
 
-            List<SchemaInfo> schemaInfos = discovery.schema(ECHO_SERVICE);
-            report("Schema", ECHO_SERVICE, schemaInfos);
+            schemaInfos = discovery.schema(ECHO_SERVICE);
+            printDiscovery("Schema", ECHO_SERVICE, schemaInfos);
 
             SchemaInfo schemaInfo = discovery.schema(ECHO_SERVICE, echoId);
-            report("Schema", ECHO_SERVICE, echoId, schemaInfo);
+            printDiscovery("Schema", ECHO_SERVICE, echoId, schemaInfo);
 
             schemaInfos = discovery.schema(SORT_SERVICE);
-            report("Schema", SORT_SERVICE, schemaInfos);
+            printDiscovery("Schema", SORT_SERVICE, schemaInfos);
 
             schemaInfo = discovery.schema(SORT_SERVICE, sortId);
-            report("Schema", SORT_SERVICE, sortId, schemaInfo);
+            printDiscovery("Schema", SORT_SERVICE, sortId, schemaInfo);
 
             // ----------------------------------------------------------------------------------------------------
             // stats discover variations
             // ----------------------------------------------------------------------------------------------------
-            report("Stats", "All", discovery.stats(sdd));
-            report("Stats", ECHO_SERVICE, discovery.stats(ECHO_SERVICE)); // will show echo without data decoder
-            report("Stats", SORT_SERVICE, discovery.stats(SORT_SERVICE));
+            List<Stats> statsList = discovery.stats(sdd);
+            printDiscovery("Stats", "[All]", statsList);
+
+            statsList = discovery.stats(ECHO_SERVICE);
+            printDiscovery("Stats", ECHO_SERVICE, statsList); // will show echo without data decoder
+
+            statsList = discovery.stats(SORT_SERVICE);
+            printDiscovery("Stats", SORT_SERVICE, statsList);
 
             // ----------------------------------------------------------------------------------------------------
             // stop the service
             // ----------------------------------------------------------------------------------------------------
             serviceEcho.stop();
             serviceSort.stop();
-            System.out.println();
-            System.out.println("Echo service done ? " + doneEcho.get(1, TimeUnit.SECONDS));
+            serviceAnotherSort.stop();
+            System.out.println("\nEcho service done ? " + doneEcho.get(1, TimeUnit.SECONDS));
             System.out.println("Sort Service done ? " + doneSort.get(1, TimeUnit.SECONDS));
+            System.out.println("Another Sort Service done ? " + doneAnotherSort.get(1, TimeUnit.SECONDS));
+
         }
         catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private static void report(String action, String serviceName, String serviceId, Object o) {
+    private static void printDiscovery(String action, String serviceName, String serviceId, Object o) {
         System.out.println("\n" + action  + " " + serviceName + " " + serviceId);
-        printFormatted(o);
+        System.out.println("  " + o);
     }
 
     @SuppressWarnings("rawtypes")
-    private static void report(String action, String label, List objects) {
-        System.out.println("\n" + action + " " + label + " [" + objects.size() + "]");
+    private static void printDiscovery(String action, String label, List objects) {
+        System.out.println("\n" + action + " " + label);
         for (Object o : objects) {
-            System.out.println(getFormatted(o));
+            System.out.println("  " + o);
         }
     }
 
-    private static void callService(Connection nc, String serviceName) throws InterruptedException, ExecutionException {
-        String request = Long.toHexString(System.currentTimeMillis()) + Long.toHexString(System.nanoTime()); // just some random text
-        CompletableFuture<Message> reply = nc.request(serviceName, request.getBytes());
-        String response = new String(reply.get().getData());
-        System.out.println("\nReply from " + serviceName + ". Sent [" + request + "] Received [" + response + "]");
+    private static String randomText() {
+        return Long.toHexString(System.currentTimeMillis()) + Long.toHexString(System.nanoTime());
     }
 
     static class ExampleStatsData implements JsonSerializable {

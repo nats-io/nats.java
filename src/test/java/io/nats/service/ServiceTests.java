@@ -237,8 +237,8 @@ public class ServiceTests extends JetStreamTestBase {
         }
     }
 
-    private static ServiceCreator echoServiceCreator(Connection nc, MessageHandler handler) {
-        return ServiceCreator.instance()
+    private static ServiceBuilder echoServiceCreator(Connection nc, MessageHandler handler) {
+        return new ServiceBuilder()
             .connection(nc)
             .name(ECHO_SERVICE)
             .subject(ECHO_SERVICE)
@@ -249,8 +249,8 @@ public class ServiceTests extends JetStreamTestBase {
             .serviceMessageHandler(handler);
     }
 
-    private static ServiceCreator sortServiceCreator(Connection nc, MessageHandler handler) {
-        return ServiceCreator.instance()
+    private static ServiceBuilder sortServiceCreator(Connection nc, MessageHandler handler) {
+        return new ServiceBuilder()
             .connection(nc)
             .name(SORT_SERVICE)
             .subject(SORT_SERVICE)
@@ -357,7 +357,7 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testHandlerException() throws Exception {
         runInServer(nc -> {
-            Service devexService = ServiceCreator.instance()
+            Service devexService = new ServiceBuilder()
                 .connection(nc)
                 .name("HandlerExceptionService")
                 .subject("HandlerExceptionService")
