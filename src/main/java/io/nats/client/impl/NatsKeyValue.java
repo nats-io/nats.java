@@ -190,6 +190,14 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      * {@inheritDoc}
      */
     @Override
+    public long update(String key, String value, long expectedRevision) throws IOException, JetStreamApiException {
+        return update(key, value.getBytes(StandardCharsets.UTF_8), expectedRevision);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void delete(String key) throws IOException, JetStreamApiException {
         validateNonWildcardKvKeyRequired(key);
         _write(key, null, getDeleteHeaders());
