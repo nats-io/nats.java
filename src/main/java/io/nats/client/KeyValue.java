@@ -117,6 +117,19 @@ public interface KeyValue {
     long update(String key, byte[] value, long expectedRevision) throws IOException, JetStreamApiException;
 
     /**
+     * Put a string as the value for a key iff the key exists and its last revision matches the expected
+     * @param key the key
+     * @param value the UTF-8 string
+     * @param expectedRevision the expected last revision
+     * @return the revision number for the key
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws IllegalArgumentException the server is not JetStream enabled
+     */
+    long update(String key, String value, long expectedRevision) throws IOException, JetStreamApiException;
+
+    /**
      * Soft deletes the key by placing a delete marker.
      * @param key the key
      * @throws IOException covers various communication issues with the NATS
