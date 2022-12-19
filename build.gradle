@@ -16,9 +16,13 @@ plugins {
 def jarVersion = "2.16.6"
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
+def bsf = System.getenv("BRANCH_SNAPSHOT_FOR")
+def snap = bsf == null || bsf.equals("") ? "-SNAPSHOT" : "." + bsf + "-SNAPSHOT"
+
+println "snap is " + snap
 
 // version is the variable the build actually uses.
-version = isRelease ? jarVersion : jarVersion + "-SNAPSHOT"
+version = isRelease ? jarVersion : jarVersion + snap
 
 archivesBaseName = 'jnats'
 group = 'io.nats'
