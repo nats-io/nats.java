@@ -1,4 +1,4 @@
-name: GitHub Build Actions To Build a Branch Specific Snapshot
+name: Build a Branch Specific Snapshot
 
 on:
   workflow_dispatch:
@@ -8,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BUILD_EVENT: ${{ github.event_name }}
+      BRANCH_SNAPSHOT: ${{ github.ref_name }}
       OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
       OSSRH_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
       SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
@@ -16,9 +17,36 @@ jobs:
       COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
       GODEBUG: x509sha1=1
     steps:
-      - name: Set env.BRANCH
-        run: echo "BRANCH=$(echo $GITHUB_REF | cut -d'/' -f 3)" >> $GITHUB_ENV
-      - name: Debug
+      - name: Setup JDK 8
+        uses: actions/setup-java@v2
+        with:
+          java-version: '8'
+          distribution: 'adopt'
+      - name: Setup GO
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19.1
+      - name: Install Nats Server
         run: |
-          echo ${{env.BRANCH}}
-          echo ${{GITHUB_REF}}
+          cd $GITHUB_WORKSPACE
+          git clone https://github.com/nats-io/nats-server.git
+          cd nats-server
+          go get
+          go build main.go
+          mkdir -p ~/.local/bin
+          cp main ~/.local/bin/nats-server
+          cd ..
+          rm -rf nats-server
+          nats-server -v
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Build and Test
+        run: chmod +x gradlew && ./gradlew clean test jacocoTestReport coveralls
+      - name: Verify Javadoc
+        if: ${{ success() }}
+        run: ./gradlew javadoc
+      - name: Publish Branch Snapshot
+        if: ${{ success() }}
+        run: ./gradlew -i publishToSonatype
+
+
