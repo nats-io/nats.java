@@ -9,7 +9,6 @@ jobs:
     env:
       BUILD_EVENT: ${{ github.event_name }}
       BRANCH_SNAPSHOT: ${{ github.ref_name }}
-      REF_NAME: ${{ github.ref_name }}
       OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
       OSSRH_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
       SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
