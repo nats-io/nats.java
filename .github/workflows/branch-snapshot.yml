@@ -1,4 +1,4 @@
-name: GitHub Build Actions To Build a Branch Specific Snapshot
+name: Build a Branch Specific Snapshot
 
 on:
   workflow_dispatch:

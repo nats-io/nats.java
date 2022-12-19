@@ -1,4 +1,4 @@
-name: GitHub Build Actions For JNats NATS.io Java Client
+name: Build for Pr, Merge or Tag
 
 on:
   pull_request:
