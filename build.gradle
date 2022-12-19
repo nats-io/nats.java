@@ -16,8 +16,8 @@ plugins {
 def jarVersion = "2.16.6"
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
-def bsf = System.getenv("BRANCH_SNAPSHOT")
-def snap = bsf == null || bsf.equals("") ? "-SNAPSHOT" : "." + bsf + "-SNAPSHOT"
+def bs = System.getenv("BRANCH_SNAPSHOT")
+def snap = bs == null || bs.equals("") ? "-SNAPSHOT" : "." + bs + "-SNAPSHOT"
 
 println "snap is " + snap
 
