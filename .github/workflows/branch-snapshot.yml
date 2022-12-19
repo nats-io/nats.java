@@ -20,7 +20,7 @@ jobs:
     steps:
       - name: Test
         run: |
-          echo BSF 8 ${env.BRANCH_SNAPSHOT}
+          echo BSF 9 ${{ env.BRANCH_SNAPSHOT }}
       - name: Check out code
         uses: actions/checkout@v2
       - name: Build and Test
