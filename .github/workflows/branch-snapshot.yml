@@ -18,9 +18,6 @@ jobs:
       COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
       GODEBUG: x509sha1=1
     steps:
-      - name: Test
-        run: |
-          echo BSF 9 ${{ env.BRANCH_SNAPSHOT }}
       - name: Check out code
         uses: actions/checkout@v2
       - name: Build and Test
