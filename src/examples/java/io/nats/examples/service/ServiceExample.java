@@ -11,10 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.examples;
+package io.nats.examples.service;
 
 import io.nats.client.*;
-import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.service.*;
 
@@ -23,6 +22,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static io.nats.client.support.JsonUtils.*;
 import static io.nats.client.support.Validator.nullOrEmpty;
@@ -31,9 +32,10 @@ import static io.nats.client.support.Validator.nullOrEmpty;
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class ServiceExample {
-
-    public static final String ECHO_SERVICE = "EchoService";
-    public static final String SORT_SERVICE = "SortService";
+    public static final String ECHO_SERVICE_NAME = "EchoService";
+    public static final String SORT_SERVICE_NAME = "SortService";
+    public static final String ECHO_SERVICE_SUBJECT = "echo";
+    public static final String SORT_SERVICE_SUBJECT = "sort";
 
     public static void main(String[] args) throws IOException {
 
@@ -42,15 +44,15 @@ public class ServiceExample {
             .errorListener(new ErrorListener() {})
             .build();
 
-        StatsDataSupplier sds = new ExampleStatsDataSupplier();
-        StatsDataDecoder sdd = new ExampleStatsDataDecoder();
+        Supplier<StatsData> sds = new ExampleStatsDataSupplier();
+        Function<String, StatsData> sdd = new ExampleStatsDataDecoder();
 
         try (Connection nc = Nats.connect(options)) {
             // create the services
             Service serviceEcho = new ServiceBuilder()
                 .connection(nc)
-                .name(ECHO_SERVICE)
-                .subject(ECHO_SERVICE)
+                .name(ECHO_SERVICE_NAME)
+                .subject(ECHO_SERVICE_SUBJECT)
                 .description("An Echo Service")
                 .version("0.0.1")
                 .schemaRequest("echo schema request string/url")
@@ -63,8 +65,8 @@ public class ServiceExample {
 
             ServiceBuilder serviceBuilderSort = new ServiceBuilder()
                 .connection(nc)
-                .name(SORT_SERVICE)
-                .subject(SORT_SERVICE)
+                .name(SORT_SERVICE_NAME)
+                .subject(SORT_SERVICE_SUBJECT)
                 .description("A Sort Service")
                 .version("0.0.2")
                 .schemaRequest("sort schema request string/url")
@@ -91,14 +93,14 @@ public class ServiceExample {
             // Call the services
             // ----------------------------------------------------------------------------------------------------
             String request = randomText();
-            CompletableFuture<Message> reply = nc.request(ECHO_SERVICE, request.getBytes());
+            CompletableFuture<Message> reply = nc.request(ECHO_SERVICE_SUBJECT, request.getBytes());
             String response = new String(reply.get().getData());
-            System.out.println("\nCalled " + ECHO_SERVICE + " with [" + request + "] Received [" + response + "]");
+            System.out.println("\nCalled " + ECHO_SERVICE_SUBJECT + " with [" + request + "] Received [" + response + "]");
 
             request = randomText();
-            reply = nc.request(SORT_SERVICE, request.getBytes());
+            reply = nc.request(SORT_SERVICE_SUBJECT, request.getBytes());
             response = new String(reply.get().getData());
-            System.out.println("Called " + SORT_SERVICE + " with [" + request + "] Received [" + response + "]");
+            System.out.println("Called " + SORT_SERVICE_SUBJECT + " with [" + request + "] Received [" + response + "]");
 
             // ----------------------------------------------------------------------------------------------------
             // discovery
@@ -111,19 +113,19 @@ public class ServiceExample {
             List<Ping> pings = discovery.ping();
             printDiscovery("Ping", "[All]", pings);
 
-            pings = discovery.ping(ECHO_SERVICE);
-            printDiscovery("Ping", ECHO_SERVICE, pings);
+            pings = discovery.ping(ECHO_SERVICE_NAME);
+            printDiscovery("Ping", ECHO_SERVICE_NAME, pings);
 
             String echoId = pings.get(0).getServiceId();
-            Ping ping = discovery.ping(ECHO_SERVICE, echoId);
-            printDiscovery("Ping", ECHO_SERVICE, echoId, ping);
+            Ping ping = discovery.ping(ECHO_SERVICE_NAME, echoId);
+            printDiscovery("Ping", ECHO_SERVICE_NAME, echoId, ping);
 
-            pings = discovery.ping(SORT_SERVICE);
-            printDiscovery("Ping", SORT_SERVICE, pings);
+            pings = discovery.ping(SORT_SERVICE_NAME);
+            printDiscovery("Ping", SORT_SERVICE_NAME, pings);
 
             String sortId = pings.get(0).getServiceId();
-            ping = discovery.ping(SORT_SERVICE, sortId);
-            printDiscovery("Ping", SORT_SERVICE, sortId, ping);
+            ping = discovery.ping(SORT_SERVICE_NAME, sortId);
+            printDiscovery("Ping", SORT_SERVICE_NAME, sortId, ping);
 
             // ----------------------------------------------------------------------------------------------------
             // info discover variations
@@ -131,17 +133,17 @@ public class ServiceExample {
             List<Info> infos = discovery.info();
             printDiscovery("Info", "[All]", infos);
 
-            infos = discovery.info(ECHO_SERVICE);
-            printDiscovery("Info", ECHO_SERVICE, infos);
+            infos = discovery.info(ECHO_SERVICE_NAME);
+            printDiscovery("Info", ECHO_SERVICE_NAME, infos);
 
-            Info info = discovery.info(ECHO_SERVICE, echoId);
-            printDiscovery("Info", ECHO_SERVICE, echoId, info);
+            Info info = discovery.info(ECHO_SERVICE_NAME, echoId);
+            printDiscovery("Info", ECHO_SERVICE_NAME, echoId, info);
 
-            infos = discovery.info(SORT_SERVICE);
-            printDiscovery("Info", SORT_SERVICE, infos);
+            infos = discovery.info(SORT_SERVICE_NAME);
+            printDiscovery("Info", SORT_SERVICE_NAME, infos);
 
-            info = discovery.info(SORT_SERVICE, sortId);
-            printDiscovery("Info", SORT_SERVICE, sortId, info);
+            info = discovery.info(SORT_SERVICE_NAME, sortId);
+            printDiscovery("Info", SORT_SERVICE_NAME, sortId, info);
 
             // ----------------------------------------------------------------------------------------------------
             // schema discover variations
@@ -149,17 +151,17 @@ public class ServiceExample {
             List<SchemaInfo> schemaInfos = discovery.schema();
             printDiscovery("Schema", "[All]", schemaInfos);
 
-            schemaInfos = discovery.schema(ECHO_SERVICE);
-            printDiscovery("Schema", ECHO_SERVICE, schemaInfos);
+            schemaInfos = discovery.schema(ECHO_SERVICE_NAME);
+            printDiscovery("Schema", ECHO_SERVICE_NAME, schemaInfos);
 
-            SchemaInfo schemaInfo = discovery.schema(ECHO_SERVICE, echoId);
-            printDiscovery("Schema", ECHO_SERVICE, echoId, schemaInfo);
+            SchemaInfo schemaInfo = discovery.schema(ECHO_SERVICE_NAME, echoId);
+            printDiscovery("Schema", ECHO_SERVICE_NAME, echoId, schemaInfo);
 
-            schemaInfos = discovery.schema(SORT_SERVICE);
-            printDiscovery("Schema", SORT_SERVICE, schemaInfos);
+            schemaInfos = discovery.schema(SORT_SERVICE_NAME);
+            printDiscovery("Schema", SORT_SERVICE_NAME, schemaInfos);
 
-            schemaInfo = discovery.schema(SORT_SERVICE, sortId);
-            printDiscovery("Schema", SORT_SERVICE, sortId, schemaInfo);
+            schemaInfo = discovery.schema(SORT_SERVICE_NAME, sortId);
+            printDiscovery("Schema", SORT_SERVICE_NAME, sortId, schemaInfo);
 
             // ----------------------------------------------------------------------------------------------------
             // stats discover variations
@@ -167,11 +169,11 @@ public class ServiceExample {
             List<Stats> statsList = discovery.stats(sdd);
             printDiscovery("Stats", "[All]", statsList);
 
-            statsList = discovery.stats(ECHO_SERVICE);
-            printDiscovery("Stats", ECHO_SERVICE, statsList); // will show echo without data decoder
+            statsList = discovery.stats(ECHO_SERVICE_NAME);
+            printDiscovery("Stats", ECHO_SERVICE_NAME, statsList); // will show echo without data decoder
 
-            statsList = discovery.stats(SORT_SERVICE);
-            printDiscovery("Stats", SORT_SERVICE, statsList);
+            statsList = discovery.stats(SORT_SERVICE_NAME);
+            printDiscovery("Stats", SORT_SERVICE_NAME, statsList);
 
             // ----------------------------------------------------------------------------------------------------
             // stop the service
@@ -202,11 +204,7 @@ public class ServiceExample {
         }
     }
 
-    private static String randomText() {
-        return Long.toHexString(System.currentTimeMillis()) + Long.toHexString(System.nanoTime());
-    }
-
-    static class ExampleStatsData implements JsonSerializable {
+    public static class ExampleStatsData implements StatsData {
         public String sData;
         public int iData;
 
@@ -234,20 +232,24 @@ public class ServiceExample {
         }
     }
 
-    static class ExampleStatsDataSupplier implements StatsDataSupplier {
+    static class ExampleStatsDataSupplier implements Supplier<StatsData> {
         int x = 0;
         @Override
-        public JsonSerializable get() {
+        public StatsData get() {
             ++x;
             return new ExampleStatsData("s-" + hashCode(), x);
         }
     }
 
-    static class ExampleStatsDataDecoder implements StatsDataDecoder {
+    static class ExampleStatsDataDecoder implements Function<String, StatsData> {
         @Override
-        public JsonSerializable decode(String json) {
+        public StatsData apply(String json) {
             ExampleStatsData esd = new ExampleStatsData(json);
             return nullOrEmpty(esd.sData) ? null : esd;
         }
+    }
+
+    static String randomText() {
+        return Long.toHexString(System.currentTimeMillis()) + Long.toHexString(System.nanoTime());
     }
 }

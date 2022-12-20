@@ -16,17 +16,20 @@ package io.nats.service;
 import io.nats.client.*;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
-import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonUtils;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static io.nats.client.impl.NatsPackageScopeWorkarounds.getDispatchers;
 import static io.nats.client.support.ApiConstants.*;
@@ -40,8 +43,10 @@ import static io.nats.service.ServiceUtil.PING;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ServiceTests extends JetStreamTestBase {
-    private static final String ECHO_SERVICE = "EchoService";
-    private static final String SORT_SERVICE = "SortService";
+    private static final String ECHO_SERVICE_NAME = "EchoService";
+    private static final String SORT_SERVICE_NAME = "SortService";
+    private static final String ECHO_SERVICE_SUBJECT = "echo";
+    private static final String SORT_SERVICE_SUBJECT = "sort";
 
     @Test
     public void testService() throws Exception {
@@ -54,8 +59,8 @@ public class ServiceTests extends JetStreamTestBase {
                 // construction
                 Dispatcher dShared = serviceNc1.createDispatcher(); // services can share dispatchers if the user wants to
 
-                StatsDataSupplier sds = new TestStatsDataSupplier();
-                StatsDataDecoder sdd = new TestStatsDataDecoder();
+                Supplier<StatsData> sds = new TestStatsDataSupplier();
+                Function<String, StatsData> sdd = new TestStatsDataDecoder();
 
                 Service echoService1 = echoServiceCreator(serviceNc1, new EchoHandler(serviceNc1))
                     .userServiceDispatcher(dShared)
@@ -85,8 +90,8 @@ public class ServiceTests extends JetStreamTestBase {
                 // service request execution
                 int requestCount = 10;
                 for (int x = 0; x < requestCount; x++) {
-                    verifyServiceExecution(clientNc, ECHO_SERVICE);
-                    verifyServiceExecution(clientNc, SORT_SERVICE);
+                    verifyServiceExecution(clientNc, ECHO_SERVICE_NAME, ECHO_SERVICE_SUBJECT);
+                    verifyServiceExecution(clientNc, SORT_SERVICE_NAME, SORT_SERVICE_SUBJECT);
                 }
 
                 Info echoInfo = echoService1.getInfo();
@@ -103,16 +108,17 @@ public class ServiceTests extends JetStreamTestBase {
                     Ping p = (Ping)o;
                     if (expectedInfo != null) {
                         assertEquals(expectedInfo.getName(), p.getName());
+                        assertEquals(expectedInfo.getVersion(), p.getVersion());
                     }
                     return p.getServiceId();
                 };
                 verifyDiscovery(null, discovery.ping(), pingValidator, echoServiceId1, sortServiceId1, echoServiceId2, sortServiceId2);
-                verifyDiscovery(echoInfo, discovery.ping(ECHO_SERVICE), pingValidator, echoServiceId1, echoServiceId2);
-                verifyDiscovery(sortInfo, discovery.ping(SORT_SERVICE), pingValidator, sortServiceId1, sortServiceId2);
-                verifyDiscovery(echoInfo, discovery.ping(ECHO_SERVICE, echoServiceId1), pingValidator, echoServiceId1);
-                verifyDiscovery(sortInfo, discovery.ping(SORT_SERVICE, sortServiceId1), pingValidator, sortServiceId1);
-                verifyDiscovery(echoInfo, discovery.ping(ECHO_SERVICE, echoServiceId2), pingValidator, echoServiceId2);
-                verifyDiscovery(sortInfo, discovery.ping(SORT_SERVICE, sortServiceId2), pingValidator, sortServiceId2);
+                verifyDiscovery(echoInfo, discovery.ping(ECHO_SERVICE_NAME), pingValidator, echoServiceId1, echoServiceId2);
+                verifyDiscovery(sortInfo, discovery.ping(SORT_SERVICE_NAME), pingValidator, sortServiceId1, sortServiceId2);
+                verifyDiscovery(echoInfo, discovery.ping(ECHO_SERVICE_NAME, echoServiceId1), pingValidator, echoServiceId1);
+                verifyDiscovery(sortInfo, discovery.ping(SORT_SERVICE_NAME, sortServiceId1), pingValidator, sortServiceId1);
+                verifyDiscovery(echoInfo, discovery.ping(ECHO_SERVICE_NAME, echoServiceId2), pingValidator, echoServiceId2);
+                verifyDiscovery(sortInfo, discovery.ping(SORT_SERVICE_NAME, sortServiceId2), pingValidator, sortServiceId2);
 
                 // info discovery
                 InfoVerifier infoValidator = (expectedInfo, o) -> {
@@ -127,12 +133,12 @@ public class ServiceTests extends JetStreamTestBase {
                     return i.getServiceId();
                 };
                 verifyDiscovery(null, discovery.info(), infoValidator, echoServiceId1, sortServiceId1, echoServiceId2, sortServiceId2);
-                verifyDiscovery(echoInfo, discovery.info(ECHO_SERVICE), infoValidator, echoServiceId1, echoServiceId2);
-                verifyDiscovery(sortInfo, discovery.info(SORT_SERVICE), infoValidator, sortServiceId1, sortServiceId2);
-                verifyDiscovery(echoInfo, discovery.info(ECHO_SERVICE, echoServiceId1), infoValidator, echoServiceId1);
-                verifyDiscovery(sortInfo, discovery.info(SORT_SERVICE, sortServiceId1), infoValidator, sortServiceId1);
-                verifyDiscovery(echoInfo, discovery.info(ECHO_SERVICE, echoServiceId2), infoValidator, echoServiceId2);
-                verifyDiscovery(sortInfo, discovery.info(SORT_SERVICE, sortServiceId2), infoValidator, sortServiceId2);
+                verifyDiscovery(echoInfo, discovery.info(ECHO_SERVICE_NAME), infoValidator, echoServiceId1, echoServiceId2);
+                verifyDiscovery(sortInfo, discovery.info(SORT_SERVICE_NAME), infoValidator, sortServiceId1, sortServiceId2);
+                verifyDiscovery(echoInfo, discovery.info(ECHO_SERVICE_NAME, echoServiceId1), infoValidator, echoServiceId1);
+                verifyDiscovery(sortInfo, discovery.info(SORT_SERVICE_NAME, sortServiceId1), infoValidator, sortServiceId1);
+                verifyDiscovery(echoInfo, discovery.info(ECHO_SERVICE_NAME, echoServiceId2), infoValidator, echoServiceId2);
+                verifyDiscovery(sortInfo, discovery.info(SORT_SERVICE_NAME, sortServiceId2), infoValidator, sortServiceId2);
 
                 // schema discovery
                 SchemaInfoVerifier schemaValidator = (expectedSchemaInfo, o) -> {
@@ -147,12 +153,12 @@ public class ServiceTests extends JetStreamTestBase {
                     return si.getServiceId();
                 };
                 verifyDiscovery(null, discovery.schema(), schemaValidator, echoServiceId1, sortServiceId1, echoServiceId2, sortServiceId2);
-                verifyDiscovery(echoSchemaInfo, discovery.schema(ECHO_SERVICE), schemaValidator, echoServiceId1, echoServiceId2);
-                verifyDiscovery(sortSchemaInfo, discovery.schema(SORT_SERVICE), schemaValidator, sortServiceId1, sortServiceId2);
-                verifyDiscovery(echoSchemaInfo, discovery.schema(ECHO_SERVICE, echoServiceId1), schemaValidator, echoServiceId1);
-                verifyDiscovery(sortSchemaInfo, discovery.schema(SORT_SERVICE, sortServiceId1), schemaValidator, sortServiceId1);
-                verifyDiscovery(echoSchemaInfo, discovery.schema(ECHO_SERVICE, echoServiceId2), schemaValidator, echoServiceId2);
-                verifyDiscovery(sortSchemaInfo, discovery.schema(SORT_SERVICE, sortServiceId2), schemaValidator, sortServiceId2);
+                verifyDiscovery(echoSchemaInfo, discovery.schema(ECHO_SERVICE_NAME), schemaValidator, echoServiceId1, echoServiceId2);
+                verifyDiscovery(sortSchemaInfo, discovery.schema(SORT_SERVICE_NAME), schemaValidator, sortServiceId1, sortServiceId2);
+                verifyDiscovery(echoSchemaInfo, discovery.schema(ECHO_SERVICE_NAME, echoServiceId1), schemaValidator, echoServiceId1);
+                verifyDiscovery(sortSchemaInfo, discovery.schema(SORT_SERVICE_NAME, sortServiceId1), schemaValidator, sortServiceId1);
+                verifyDiscovery(echoSchemaInfo, discovery.schema(ECHO_SERVICE_NAME, echoServiceId2), schemaValidator, echoServiceId2);
+                verifyDiscovery(sortSchemaInfo, discovery.schema(SORT_SERVICE_NAME, sortServiceId2), schemaValidator, sortServiceId2);
 
                 // stats discovery
                 discovery = new Discovery(clientNc); // coverage for the simple constructor
@@ -163,8 +169,7 @@ public class ServiceTests extends JetStreamTestBase {
                 long requestsEcho = 0;
                 long requestsSort = 0;
                 for (Stats stats : srList) {
-                    assertEquals(stats.getName(), stats.getName());
-                    if (stats.getName().equals(ECHO_SERVICE)) {
+                    if (stats.getName().equals(ECHO_SERVICE_NAME)) {
                         responseEcho++;
                         requestsEcho += stats.getNumRequests();
                         assertNotNull(stats.getData());
@@ -181,7 +186,7 @@ public class ServiceTests extends JetStreamTestBase {
                 assertEquals(requestCount, requestsSort);
 
                 // stats one specific instance so I can also test reset
-                Stats sr = discovery.stats(ECHO_SERVICE, echoServiceId1);
+                Stats sr = discovery.stats(ECHO_SERVICE_NAME, echoServiceId1);
                 assertEquals(echoServiceId1, sr.getServiceId());
                 assertEquals(echoInfo.getVersion(), sr.getVersion());
 
@@ -190,14 +195,14 @@ public class ServiceTests extends JetStreamTestBase {
                 sr = echoService1.getStats();
                 assertEquals(0, sr.getNumRequests());
                 assertEquals(0, sr.getNumErrors());
-                assertEquals(0, sr.getTotalProcessingTime());
+                assertEquals(0, sr.getProcessingTime());
                 assertEquals(0, sr.getAverageProcessingTime());
                 assertNull(sr.getData());
 
-                sr = discovery.stats(ECHO_SERVICE, echoServiceId1);
+                sr = discovery.stats(ECHO_SERVICE_NAME, echoServiceId1);
                 assertEquals(0, sr.getNumRequests());
                 assertEquals(0, sr.getNumErrors());
-                assertEquals(0, sr.getTotalProcessingTime());
+                assertEquals(0, sr.getProcessingTime());
                 assertEquals(0, sr.getAverageProcessingTime());
 
                 // shutdown
@@ -240,8 +245,8 @@ public class ServiceTests extends JetStreamTestBase {
     private static ServiceBuilder echoServiceCreator(Connection nc, MessageHandler handler) {
         return new ServiceBuilder()
             .connection(nc)
-            .name(ECHO_SERVICE)
-            .subject(ECHO_SERVICE)
+            .name(ECHO_SERVICE_NAME)
+            .subject(ECHO_SERVICE_SUBJECT)
             .description("An Echo Service")
             .version("0.0.1")
             .schemaRequest("echo schema request string/url")
@@ -252,8 +257,8 @@ public class ServiceTests extends JetStreamTestBase {
     private static ServiceBuilder sortServiceCreator(Connection nc, MessageHandler handler) {
         return new ServiceBuilder()
             .connection(nc)
-            .name(SORT_SERVICE)
-            .subject(SORT_SERVICE)
+            .name(SORT_SERVICE_NAME)
+            .subject(SORT_SERVICE_SUBJECT)
             .description("A Sort Service")
             .version("0.0.2")
             .schemaRequest("sort schema request string/url")
@@ -297,13 +302,13 @@ public class ServiceTests extends JetStreamTestBase {
         }
     }
 
-    private static void verifyServiceExecution(Connection nc, String serviceName) {
+    private static void verifyServiceExecution(Connection nc, String serviceName, String serviceSubject) {
         try {
             String request = Long.toHexString(System.currentTimeMillis()) + Long.toHexString(System.nanoTime()); // just some random text
-            CompletableFuture<Message> future = nc.request(serviceName, request.getBytes());
+            CompletableFuture<Message> future = nc.request(serviceSubject, request.getBytes());
             Message m = future.get();
             String response = new String(m.getData());
-            String expected = serviceName.equals(ECHO_SERVICE) ? echo(request) : sort(request);
+            String expected = serviceName.equals(ECHO_SERVICE_NAME) ? echo(request) : sort(request);
             assertEquals(expected, response);
         }
         catch (Exception e) {
@@ -360,13 +365,13 @@ public class ServiceTests extends JetStreamTestBase {
             Service devexService = new ServiceBuilder()
                 .connection(nc)
                 .name("HandlerExceptionService")
-                .subject("HandlerExceptionService")
+                .subject("hesSubject")
                 .version("0.0.1")
                 .serviceMessageHandler( m-> { throw new RuntimeException("handler-problem"); })
                 .build();
             devexService.startService();
 
-            CompletableFuture<Message> future = nc.request("HandlerExceptionService", null);
+            CompletableFuture<Message> future = nc.request("hesSubject", null);
             Message m = future.get();
             assertEquals("handler-problem", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
             assertEquals("500", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
@@ -384,6 +389,10 @@ public class ServiceTests extends JetStreamTestBase {
 
             assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).version(null).build());
             assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).version(EMPTY).build());
+
+            echoServiceCreator(nc, m -> {}).name(PLAIN);
+            echoServiceCreator(nc, m -> {}).name(HAS_DASH);
+            echoServiceCreator(nc, m -> {}).name(HAS_UNDER);
 
             assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(null).build());
             assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(EMPTY).build());
@@ -412,7 +421,7 @@ public class ServiceTests extends JetStreamTestBase {
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Test
     public void testApiCoverage() {
-        new Ping("id", "name").toString();
+        new Ping("id", "name", "version").toString();
         new Schema("request", "response").toString();
         new Info("id", "name", "description", "version", "subject").toString();
         assertNull(Schema.optionalInstance("{}"));
@@ -465,7 +474,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertNull(sr2.getSchema());
 
         TestStatsDataDecoder sdd = new TestStatsDataDecoder();
-        String statsJson = "{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"num_requests\":1,\"num_errors\":2,\"last_error\":\"npe\",\"total_processing_time\":3,\"average_processing_time\":4,\"data\":{\"id\":\"user id\",\"last_error\":\"user last error\"}}";
+        String statsJson = "{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"num_requests\":1,\"num_errors\":2,\"last_error\":\"npe\",\"processing_time\":3,\"average_processing_time\":4,\"data\":{\"id\":\"user id\",\"last_error\":\"user last error\"},\"started\":\"2022-12-20T13:37:18.568000000Z\"}";
         Stats stats1 = new Stats(statsJson, sdd);
         Stats stats2 = new Stats(stats1.toJson(), sdd);
         assertEquals("ServiceName", stats1.getName());
@@ -480,8 +489,8 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(2, stats2.getNumErrors());
         assertEquals("npe", stats1.getLastError());
         assertEquals("npe", stats2.getLastError());
-        assertEquals(3, stats1.getTotalProcessingTime());
-        assertEquals(3, stats2.getTotalProcessingTime());
+        assertEquals(3, stats1.getProcessingTime());
+        assertEquals(3, stats2.getProcessingTime());
         assertEquals(4, stats1.getAverageProcessingTime());
         assertEquals(4, stats2.getAverageProcessingTime());
         assertTrue(stats1.getData() instanceof TestStatsData);
@@ -492,9 +501,12 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals("user id", data2.id);
         assertEquals("user last error", data1.lastError);
         assertEquals("user last error", data2.lastError);
+        ZonedDateTime zdt = DateTimeUtils.parseDateTime("2022-12-20T13:37:18.568Z");
+        assertEquals(zdt, stats1.getStarted());
+        assertEquals(zdt, stats2.getStarted());
     }
 
-    static class TestStatsData implements JsonSerializable {
+    static class TestStatsData implements StatsData {
         // using id and  last_error as field names to ensure that the manual parsing works
         public String id;
         public String lastError;
@@ -523,16 +535,16 @@ public class ServiceTests extends JetStreamTestBase {
         }
     }
 
-    static class TestStatsDataSupplier implements StatsDataSupplier {
+    static class TestStatsDataSupplier implements Supplier<StatsData> {
         @Override
-        public JsonSerializable get() {
+        public StatsData get() {
             return new TestStatsData("" + hashCode(), "blah error [" + System.currentTimeMillis() + "]");
         }
     }
 
-    static class TestStatsDataDecoder implements StatsDataDecoder {
+    static class TestStatsDataDecoder implements Function<String, StatsData> {
         @Override
-        public JsonSerializable decode(String json) {
+        public StatsData apply(String json) {
             TestStatsData esd = new TestStatsData(json);
             return nullOrEmpty(esd.lastError) ? null : esd;
         }

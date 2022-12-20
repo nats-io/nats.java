@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static io.nats.client.NUID.nextGlobal;
 import static io.nats.service.ServiceUtil.*;
@@ -108,18 +109,18 @@ public class Discovery {
     // stats
     // ----------------------------------------------------------------------------------------------------
     public List<Stats> stats() {
-        return stats(null, (StatsDataDecoder)null);
+        return stats(null, (Function<String, StatsData>)null);
     }
 
-    public List<Stats> stats(StatsDataDecoder statsDataDecoder) {
+    public List<Stats> stats(Function<String, StatsData> statsDataDecoder) {
         return stats(null, statsDataDecoder);
     }
 
     public List<Stats> stats(String serviceName) {
-        return stats(serviceName, (StatsDataDecoder)null);
+        return stats(serviceName, (Function<String, StatsData>)null);
     }
 
-    public List<Stats> stats(String serviceName, StatsDataDecoder statsDataDecoder) {
+    public List<Stats> stats(String serviceName, Function<String, StatsData> statsDataDecoder) {
         List<Stats> list = new ArrayList<>();
         discoverMany(STATS, serviceName, json -> {
             list.add(new Stats(json, statsDataDecoder));
@@ -131,7 +132,7 @@ public class Discovery {
         return stats(serviceName, serviceId, null);
     }
 
-    public Stats stats(String serviceName, String serviceId, StatsDataDecoder statsDataDecoder) {
+    public Stats stats(String serviceName, String serviceId, Function<String, StatsData> statsDataDecoder) {
         String json = discoverOne(STATS, serviceName, serviceId);
         return json == null ? null : new Stats(json, statsDataDecoder);
     }

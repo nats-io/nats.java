@@ -13,11 +13,14 @@
 
 package io.nats.service;
 
+import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 
+import java.time.ZonedDateTime;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
@@ -33,9 +36,10 @@ public class Stats implements JsonSerializable {
     private final AtomicLong numRequests;
     private final AtomicLong numErrors;
     private final AtomicReference<String> lastError;
-    private final AtomicLong totalProcessingTime;
+    private final AtomicLong processingTime;
     private final AtomicLong averageProcessingTime;
-    private JsonSerializable data;
+    private StatsData data;
+    private ZonedDateTime started;
 
     public Stats(String serviceId, String name, String version) {
         this.serviceId = serviceId;
@@ -44,30 +48,32 @@ public class Stats implements JsonSerializable {
         this.numRequests = new AtomicLong();
         this.numErrors = new AtomicLong();
         this.lastError = new AtomicReference<>();
-        this.totalProcessingTime = new AtomicLong();
+        this.processingTime = new AtomicLong();
         this.averageProcessingTime = new AtomicLong();
+        started = DateTimeUtils.gmtNow();
     }
 
-    public Stats copy(StatsDataDecoder decoder) {
+    public Stats copy(Function<String, StatsData> decoder) {
         Stats copy = new Stats(serviceId, name, version);
         copy.numRequests.set(numRequests.get());
         copy.numErrors.set(numErrors.get());
         copy.lastError.set(lastError.get());
-        copy.totalProcessingTime.set(totalProcessingTime.get());
+        copy.processingTime.set(processingTime.get());
         copy.averageProcessingTime.set(averageProcessingTime.get());
         if (data != null && decoder != null) {
-            copy.data = decoder.decode(data.toJson());
+            copy.data = decoder.apply(data.toJson());
         }
+        copy.started = DateTimeUtils.toGmt(started);
         return copy;
     }
 
-    public Stats(String json, StatsDataDecoder decoder) {
+    public Stats(String json, Function<String, StatsData> decoder) {
         // handle the data first just in the off chance that the data has a duplicate
         // field name to the stats. This is because we don't have a proper parse, but it works fine.
         String dataJson = JsonUtils.getJsonObject(DATA, json, null);
         if (dataJson != null) {
             if (decoder != null) {
-                data = decoder.decode(dataJson);
+                data = decoder.apply(dataJson);
             }
             JsonUtils.removeObject(json, DATA);
         }
@@ -78,17 +84,19 @@ public class Stats implements JsonSerializable {
         numRequests = new AtomicLong(JsonUtils.readLong(json, NUM_REQUESTS_RE, 0));
         numErrors = new AtomicLong(JsonUtils.readLong(json, NUM_ERRORS_RE, 0));
         lastError = new AtomicReference<>(JsonUtils.readString(json, LAST_ERROR_RE));
-        totalProcessingTime = new AtomicLong(JsonUtils.readLong(json, TOTAL_PROCESSING_TIME_RE, 0));
+        processingTime = new AtomicLong(JsonUtils.readLong(json, PROCESSING_TIME_RE, 0));
         averageProcessingTime = new AtomicLong(JsonUtils.readLong(json, AVERAGE_PROCESSING_TIME_RE, 0));
+        started = JsonUtils.readDate(json, STARTED_RE);
     }
 
     public void reset() {
         numRequests.set(0);
         numErrors.set(0);
         lastError.set(null);
-        totalProcessingTime.set(0);
+        processingTime.set(0);
         averageProcessingTime.set(0);
         data = null;
+        started = DateTimeUtils.gmtNow();
     }
 
     @Override
@@ -100,9 +108,12 @@ public class Stats implements JsonSerializable {
         JsonUtils.addField(sb, NUM_REQUESTS, numRequests.get());
         JsonUtils.addField(sb, NUM_ERRORS, numErrors.get());
         JsonUtils.addField(sb, LAST_ERROR, lastError.get());
-        JsonUtils.addField(sb, TOTAL_PROCESSING_TIME, totalProcessingTime.get());
+        JsonUtils.addField(sb, PROCESSING_TIME, processingTime.get());
         JsonUtils.addField(sb, AVERAGE_PROCESSING_TIME, averageProcessingTime.get());
-        JsonUtils.addField(sb, DATA, data);
+        if (data != null) {
+            JsonUtils.addRawJson(sb, DATA, data.toJson());
+        }
+        JsonUtils.addField(sb, STARTED, started);
         return endJson(sb).toString();
     }
 
@@ -142,16 +153,20 @@ public class Stats implements JsonSerializable {
         return lastError.get();
     }
 
-    public long getTotalProcessingTime() {
-        return totalProcessingTime.get();
+    public long getProcessingTime() {
+        return processingTime.get();
     }
 
     public long getAverageProcessingTime() {
         return averageProcessingTime.get();
     }
 
-    public JsonSerializable getData() {
+    public StatsData getData() {
         return data;
+    }
+
+    public ZonedDateTime getStarted() {
+        return started;
     }
 
     public long incrementNumRequests() {
@@ -167,14 +182,14 @@ public class Stats implements JsonSerializable {
     }
 
     public long addTotalProcessingTime(long elapsed) {
-        return this.totalProcessingTime.addAndGet(elapsed);
+        return this.processingTime.addAndGet(elapsed);
     }
 
     public void setAverageProcessingTime(long averageProcessingTime) {
         this.averageProcessingTime.set(averageProcessingTime);
     }
 
-    public void setData(JsonSerializable data) {
+    public void setData(StatsData data) {
         this.data = data;
     }
 

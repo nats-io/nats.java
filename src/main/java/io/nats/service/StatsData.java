@@ -13,11 +13,9 @@
 
 package io.nats.service;
 
-import io.nats.client.support.JsonSerializable;
-
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public interface StatsDataDecoder {
-    JsonSerializable decode(String json);
+public interface StatsData {
+    String toJson();
 }

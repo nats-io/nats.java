@@ -26,15 +26,15 @@ import static io.nats.client.support.JsonUtils.endJson;
 public class Info implements JsonSerializable {
     private final String serviceId;
     private final String name;
-    private final String description;
     private final String version;
+    private final String description;
     private final String subject;
 
-    public Info(String serviceId, String name, String description, String version, String subject) {
+    public Info(String serviceId, String name, String version, String description, String subject) {
         this.serviceId = serviceId;
         this.name = name;
-        this.description = description;
         this.version = version;
+        this.description = description;
         this.subject = subject;
     }
 

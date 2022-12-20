@@ -5,6 +5,8 @@ import io.nats.client.Dispatcher;
 import io.nats.client.MessageHandler;
 
 import java.time.Duration;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static io.nats.client.support.Validator.required;
 import static io.nats.client.support.Validator.validateIsRestrictedTerm;
@@ -21,8 +23,8 @@ public class ServiceBuilder {
     MessageHandler serviceMessageHandler;
     Dispatcher dUserDiscovery;
     Dispatcher dUserService;
-    StatsDataSupplier statsDataSupplier;
-    StatsDataDecoder statsDataDecoder;
+    Supplier<StatsData> statsDataSupplier;
+    Function<String, StatsData> statsDataDecoder;
     Duration drainTimeout = DEFAULT_DRAIN_TIMEOUT;
 
     public ServiceBuilder connection(Connection conn) {
@@ -75,7 +77,7 @@ public class ServiceBuilder {
         return this;
     }
 
-    public ServiceBuilder statsDataHandlers(StatsDataSupplier statsDataSupplier, StatsDataDecoder statsDataDecoder) {
+    public ServiceBuilder statsDataHandlers(Supplier<StatsData> statsDataSupplier, Function<String, StatsData> statsDataDecoder) {
         this.statsDataSupplier = statsDataSupplier;
         this.statsDataDecoder = statsDataDecoder;
         return this;

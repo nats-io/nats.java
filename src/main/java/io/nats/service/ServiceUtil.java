@@ -17,13 +17,13 @@ public class ServiceUtil {
     public static final long DEFAULT_DISCOVERY_MAX_TIME_MILLIS = 5000;
     public static final int DEFAULT_DISCOVERY_MAX_RESULTS = 10;
 
-    public static String toDiscoverySubject(String baseSubject, String optionalServiceNameSegment, String optionalServiceIdSegment) {
+    public static String toDiscoverySubject(String discoverySubject, String optionalServiceNameSegment, String optionalServiceIdSegment) {
         if (nullOrEmpty(optionalServiceIdSegment)) {
             if (nullOrEmpty(optionalServiceNameSegment)) {
-                return DEFAULT_SERVICE_PREFIX + baseSubject;
+                return DEFAULT_SERVICE_PREFIX + discoverySubject;
             }
-            return DEFAULT_SERVICE_PREFIX + baseSubject + "." + optionalServiceNameSegment;
+            return DEFAULT_SERVICE_PREFIX + discoverySubject + "." + optionalServiceNameSegment;
         }
-        return DEFAULT_SERVICE_PREFIX + baseSubject + "." + optionalServiceNameSegment + "." + optionalServiceIdSegment;
+        return DEFAULT_SERVICE_PREFIX + discoverySubject + "." + optionalServiceNameSegment + "." + optionalServiceIdSegment;
     }
 }

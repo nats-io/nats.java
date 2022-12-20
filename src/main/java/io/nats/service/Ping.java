@@ -26,15 +26,18 @@ import static io.nats.client.support.JsonUtils.endJson;
 public class Ping implements JsonSerializable {
     private final String serviceId;
     private final String name;
+    private final String version;
 
-    public Ping(String serviceId, String name) {
+    public Ping(String serviceId, String name, String version) {
         this.serviceId = serviceId;
         this.name = name;
+        this.version = version;
     }
 
     public Ping(String json) {
         name = JsonUtils.readString(json, NAME_RE);
         serviceId = JsonUtils.readString(json, ID_RE);
+        version = JsonUtils.readString(json, VERSION_RE);
     }
 
     @Override
@@ -42,6 +45,7 @@ public class Ping implements JsonSerializable {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, ID, serviceId);
+        JsonUtils.addField(sb, VERSION, version);
         return endJson(sb).toString();
     }
 
@@ -59,6 +63,14 @@ public class Ping implements JsonSerializable {
      */
     public String getServiceId() {
         return serviceId;
+    }
+
+    /**
+     * Version of the service
+     * @return the version
+     */
+    public String getVersion() {
+        return version;
     }
 
     @Override

@@ -15,6 +15,7 @@ package io.nats.service;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
+import io.nats.client.support.JsonSerializable;
 import io.nats.service.context.Context;
 import io.nats.service.context.DiscoveryContext;
 import io.nats.service.context.ServiceContext;
@@ -25,6 +26,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static io.nats.service.ServiceUtil.*;
 
@@ -34,7 +37,7 @@ import static io.nats.service.ServiceUtil.*;
 public class Service {
     private final Connection conn;
     private final String id;
-    private final StatsDataDecoder statsDataDecoder;
+    private final Function<String, StatsData> statsDataDecoder;
     private final Duration drainTimeout;
 
     private final Info info;
@@ -50,7 +53,7 @@ public class Service {
         conn = builder.conn;
         statsDataDecoder = builder.statsDataDecoder;
         drainTimeout = builder.drainTimeout;
-        info = new Info(id, builder.name, builder.description, builder.version, builder.subject);
+        info = new Info(id, builder.name, builder.version, builder.description, builder.subject);
         schemaInfo = new SchemaInfo(id, builder.name, builder.version, builder.schemaRequest, builder.schemaResponse);
 
         // User may provide 0 or more dispatchers, just use theirs when provided else use one we make
@@ -64,9 +67,9 @@ public class Service {
         serviceContext = new ServiceContext(conn, info.getSubject(), dService, internalService, stats, builder.serviceMessageHandler);
 
         discoveryContexts = new ArrayList<>();
-        addDiscoveryContexts(PING, new Ping(id, info.getName()).serialize(), dDiscovery, internalDiscovery);
-        addDiscoveryContexts(INFO, info.serialize(), dDiscovery, internalDiscovery);
-        addDiscoveryContexts(SCHEMA, schemaInfo.serialize(), dDiscovery, internalDiscovery);
+        addDiscoveryContexts(PING, new Ping(id, builder.name, builder.version), dDiscovery, internalDiscovery);
+        addDiscoveryContexts(INFO, info, dDiscovery, internalDiscovery);
+        addDiscoveryContexts(SCHEMA, schemaInfo, dDiscovery, internalDiscovery);
         addStatsContexts(dDiscovery, internalDiscovery, stats, builder.statsDataSupplier);
 
         stopLock = new Object();
@@ -176,13 +179,13 @@ public class Service {
         return serviceContext.getStats().copy(statsDataDecoder);
     }
 
-    private void addDiscoveryContexts(String action, byte[] response, Dispatcher dispatcher, boolean internalDispatcher) {
-        discoveryContexts.add(new DiscoveryContext(conn, action, null, null, response, dispatcher, internalDispatcher));
-        discoveryContexts.add(new DiscoveryContext(conn, action, info.getName(), null, response, dispatcher, internalDispatcher));
-        discoveryContexts.add(new DiscoveryContext(conn, action, info.getName(), id, response, dispatcher, internalDispatcher));
+    private void addDiscoveryContexts(String action, JsonSerializable js, Dispatcher dispatcher, boolean internalDispatcher) {
+        discoveryContexts.add(new DiscoveryContext(conn, action, null, null, js, dispatcher, internalDispatcher));
+        discoveryContexts.add(new DiscoveryContext(conn, action, info.getName(), null, js, dispatcher, internalDispatcher));
+        discoveryContexts.add(new DiscoveryContext(conn, action, info.getName(), id, js, dispatcher, internalDispatcher));
     }
 
-    private void addStatsContexts(Dispatcher dispatcher, boolean internalDispatcher, Stats stats, StatsDataSupplier sds) {
+    private void addStatsContexts(Dispatcher dispatcher, boolean internalDispatcher, Stats stats, Supplier<StatsData> sds) {
         discoveryContexts.add(new StatsContext(conn, null, null, dispatcher, internalDispatcher, stats, sds));
         discoveryContexts.add(new StatsContext(conn, info.getName(), null, dispatcher, internalDispatcher, stats, sds));
         discoveryContexts.add(new StatsContext(conn, info.getName(), id, dispatcher, internalDispatcher, stats, sds));

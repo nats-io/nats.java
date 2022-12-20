@@ -6,6 +6,9 @@ import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.service.Stats;
 
+/**
+ * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ */
 public class ServiceContext extends Context {
 
     private final MessageHandler serviceMessageHandler;

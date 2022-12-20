@@ -144,6 +144,7 @@ public interface ApiConstants {
     String OPTIONS           = "options";
     String PLACEMENT         = "placement";
     String PORT              = "port";
+    String PROCESSING_TIME   = "processing_time";
     String PROTO             = "proto";
     String PURGED            = "purged";
     String PUSH_BOUND        = "push_bound";
@@ -165,6 +166,7 @@ public interface ApiConstants {
     String SOURCE            = "source";
     String SOURCES           = "sources";
     String SRC               = "src";
+    String STARTED           = "started";
     String STATE             = "state";
     String STATS             = "stats";
     String STORAGE           = "storage";
@@ -183,7 +185,6 @@ public interface ApiConstants {
     String TIME              = "time";
     String TLS               = "tls_required";
     String TOTAL             = "total";
-    String TOTAL_PROCESSING_TIME = "total_processing_time";
     String TYPE              = "type";
     String VERSION           = "version";
 
@@ -304,6 +305,7 @@ public interface ApiConstants {
     Pattern SERVER_NAME_RE        = string_pattern(SERVER_NAME);
     Pattern SIZE_RE               = integer_pattern(SIZE);
     Pattern SRC_RE                = string_pattern(SRC);
+    Pattern STARTED_RE            = string_pattern(STARTED);
     Pattern STORAGE_RE            = integer_pattern(STORAGE);
     Pattern STORAGE_MAX_STREAM_BYTES_RE = integer_pattern(STORAGE_MAX_STREAM_BYTES);
     Pattern STORAGE_TYPE_RE       = string_pattern(STORAGE);
@@ -317,7 +319,7 @@ public interface ApiConstants {
     Pattern TIME_RE               = string_pattern(TIME);
     Pattern TLS_RE                = boolean_pattern(TLS);
     Pattern TOTAL_RE              = integer_pattern(TOTAL);
-    Pattern TOTAL_PROCESSING_TIME_RE = integer_pattern(TOTAL_PROCESSING_TIME);
+    Pattern PROCESSING_TIME_RE    = integer_pattern(PROCESSING_TIME);
     Pattern TYPE_RE               = string_pattern(TYPE);
     Pattern VERSION_RE            = string_pattern(VERSION);
 }

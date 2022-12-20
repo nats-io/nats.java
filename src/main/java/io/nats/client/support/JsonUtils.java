@@ -375,6 +375,22 @@ public abstract class JsonUtils {
      * Appends a json field to a string builder.
      * @param sb string builder
      * @param fname fieldname
+     * @param json raw json
+     */
+    public static void addRawJson(StringBuilder sb, String fname, String json) {
+        if (json != null && json.length() > 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON);
+            sb.append(json);
+            sb.append(COMMA);
+        }
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
      * @param value field value
      */
     public static void addField(StringBuilder sb, String fname, String value) {

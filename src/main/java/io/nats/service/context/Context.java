@@ -8,15 +8,18 @@ import io.nats.service.ServiceMessage;
 import io.nats.service.ServiceUtil;
 import io.nats.service.Stats;
 
+/**
+ * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ */
 public abstract class Context {
     protected final Connection conn;
     protected final Stats stats;
-    private final String subject;
-    private final Dispatcher dispatcher;
-    private final boolean isInternalDispatcher;
-    private final boolean recordStats;
-    private final String qGroup;
-    private Subscription sub;
+    protected final String subject;
+    protected final Dispatcher dispatcher;
+    protected final boolean isInternalDispatcher;
+    protected final boolean recordStats;
+    protected final String qGroup;
+    protected Subscription sub;
 
     public Context(Connection conn, String subject, Dispatcher dispatcher, boolean isInternalDispatcher, Stats stats, boolean isServiceContext) {
         this.conn = conn;
