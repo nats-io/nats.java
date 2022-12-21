@@ -8,8 +8,7 @@ import java.time.Duration;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static io.nats.client.support.Validator.required;
-import static io.nats.client.support.Validator.validateIsRestrictedTerm;
+import static io.nats.client.support.Validator.*;
 import static io.nats.service.ServiceUtil.DEFAULT_DRAIN_TIMEOUT;
 
 public class ServiceBuilder {
@@ -92,7 +91,7 @@ public class ServiceBuilder {
         required(conn, "Connection");
         required(serviceMessageHandler, "Service Message Handler");
         validateIsRestrictedTerm(name, "Name", true);
-        required(version, "Version");
+        validateSemVer(version, "Version", true);
         if ((statsDataSupplier != null && statsDataDecoder == null)
             || (statsDataSupplier == null && statsDataDecoder != null)) {
             throw new IllegalArgumentException("You must provide neither or both the stats data supplier and decoder");

@@ -398,4 +398,87 @@ public class ValidatorTests {
         NatsJetStreamClientError err = new NatsJetStreamClientError("TEST", 999999, "desc");
         assertEquals("[TEST-999999] desc", err.message());
     }
+
+    @Test
+    public void testSemver() {
+        String label = "Version";
+        validateSemVer("0.0.4", label, true);
+        validateSemVer("1.2.3", label, true);
+        validateSemVer("10.20.30", label, true);
+        validateSemVer("1.1.2-prerelease+meta", label, true);
+        validateSemVer("1.1.2+meta", label, true);
+        validateSemVer("1.1.2+meta-valid", label, true);
+        validateSemVer("1.0.0-alpha", label, true);
+        validateSemVer("1.0.0-beta", label, true);
+        validateSemVer("1.0.0-alpha.beta", label, true);
+        validateSemVer("1.0.0-alpha.beta.1", label, true);
+        validateSemVer("1.0.0-alpha.1", label, true);
+        validateSemVer("1.0.0-alpha0.valid", label, true);
+        validateSemVer("1.0.0-alpha.0valid", label, true);
+        validateSemVer("1.0.0-alpha-a.b-c-somethinglong+build.1-aef.1-its-okay", label, true);
+        validateSemVer("1.0.0-rc.1+build.1", label, true);
+        validateSemVer("2.0.0-rc.1+build.123", label, true);
+        validateSemVer("1.2.3-beta", label, true);
+        validateSemVer("10.2.3-DEV-SNAPSHOT", label, true);
+        validateSemVer("1.2.3-SNAPSHOT-123", label, true);
+        validateSemVer("1.0.0", label, true);
+        validateSemVer("2.0.0", label, true);
+        validateSemVer("1.1.7", label, true);
+        validateSemVer("2.0.0+build.1848", label, true);
+        validateSemVer("2.0.1-alpha.1227", label, true);
+        validateSemVer("1.0.0-alpha+beta", label, true);
+        validateSemVer("1.2.3----RC-SNAPSHOT.12.9.1--.12+788", label, true);
+        validateSemVer("1.2.3----R-S.12.9.1--.12+meta", label, true);
+        validateSemVer("1.2.3----RC-SNAPSHOT.12.9.1--.12", label, true);
+        validateSemVer("1.0.0+0.build.1-rc.10000aaa-kk-0.1", label, true);
+        validateSemVer("99999999999999999999999.999999999999999999.99999999999999999", label, true);
+        validateSemVer("1.0.0-0A.is.legal", label, true);
+
+        assertNull(validateSemVer(null, label, false));
+        assertNull(validateSemVer("", label, false));
+        
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer(null, label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("", label, true));
+
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2.3-0123", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2.3-0123.0123", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.1.2+.123", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("+invalid", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("-invalid", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("-invalid+invalid", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("-invalid.01", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha.beta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha.beta.1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha.1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha+beta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha_beta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha.", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha..", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("beta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha_beta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("-alpha.", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha..", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha..1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha...1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha....1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha.....1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha......1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha.......1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("01.1.1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.01.1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.1.01", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2.3.DEV", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2-SNAPSHOT", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2.31.2.3----RC-SNAPSHOT.12.09.1--..12+788", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2-RC-SNAPSHOT", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("-1.0.3-gamma+b7718", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("+justmeta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("9.8.7+meta+meta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("9.8.7-whatever+meta+meta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("99999999999999999999999.999999999999999999.99999999999999999----RC-SNAPSHOT.12.09.1--------------------------------..12", label, true));
+    }
 }

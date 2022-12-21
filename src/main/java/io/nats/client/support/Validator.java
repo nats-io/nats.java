@@ -15,6 +15,7 @@ package io.nats.client.support;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.regex.Pattern;
 
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamConstants.MAX_HISTORY_PER_KEY;
@@ -498,5 +499,20 @@ public abstract class Validator {
 
     public static String ensureEndsWithDot(String s) {
         return s == null || s.endsWith(DOT) ? s : s + DOT;
+    }
+
+    static final Pattern SEMVER_PATTERN = Pattern.compile("^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$");
+
+    public static String validateSemVer(String s, String label, boolean required) {
+        return _validate(s, required, label, () -> {
+            if (!isSemVer(s)) {
+                throw new IllegalArgumentException(label + " must be a valid SemVer");
+            }
+            return s;
+        });
+    }
+
+    public static boolean isSemVer(String s) {
+        return SEMVER_PATTERN.matcher(s).find();
     }
 }
