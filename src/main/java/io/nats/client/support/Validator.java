@@ -15,6 +15,7 @@ package io.nats.client.support;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.regex.Pattern;
 
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamConstants.MAX_HISTORY_PER_KEY;
@@ -106,6 +107,12 @@ public abstract class Validator {
         return s;
     }
 
+    public static void required(Object o, String label) {
+        if (o == null) {
+            throw new IllegalArgumentException(label + " cannot be null or empty.");
+        }
+    }
+
     public static String _validate(String s, boolean required, String label, Check check) {
         if (emptyAsNull(s) == null) {
             if (required) {
@@ -162,13 +169,17 @@ public abstract class Validator {
         });
     }
 
-    public static String validateBucketName(String s, boolean required) {
-        return _validate(s, required, "Bucket Name", () -> {
+    public static String validateIsRestrictedTerm(String s, String label, boolean required) {
+        return _validate(s, required, label, () -> {
             if (notRestrictedTerm(s)) {
-                throw new IllegalArgumentException("Bucket Name must only contain A-Z, a-z, 0-9, `-` or `_` [" + s + "]");
+                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `-` or `_` [" + s + "]");
             }
             return s;
         });
+    }
+
+    public static String validateBucketName(String s, boolean required) {
+        return validateIsRestrictedTerm(s, "Bucket Name", required);
     }
 
     public static String validateWildcardKvKey(String s, String label, boolean required) {
@@ -488,5 +499,20 @@ public abstract class Validator {
 
     public static String ensureEndsWithDot(String s) {
         return s == null || s.endsWith(DOT) ? s : s + DOT;
+    }
+
+    static final Pattern SEMVER_PATTERN = Pattern.compile("^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$");
+
+    public static String validateSemVer(String s, String label, boolean required) {
+        return _validate(s, required, label, () -> {
+            if (!isSemVer(s)) {
+                throw new IllegalArgumentException(label + " must be a valid SemVer");
+            }
+            return s;
+        });
+    }
+
+    public static boolean isSemVer(String s) {
+        return SEMVER_PATTERN.matcher(s).find();
     }
 }
