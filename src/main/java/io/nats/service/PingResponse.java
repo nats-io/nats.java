@@ -24,20 +24,20 @@ import static io.nats.client.support.JsonUtils.endJson;
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class Ping implements JsonSerializable {
+public class PingResponse implements JsonSerializable {
     public static final String TYPE = "io.nats.micro.v1.ping_response";
 
     private final String serviceId;
     private final String name;
     private final String version;
 
-    public Ping(String serviceId, String name, String version) {
+    public PingResponse(String serviceId, String name, String version) {
         this.serviceId = serviceId;
         this.name = name;
         this.version = version;
     }
 
-    public Ping(String json) {
+    public PingResponse(String json) {
         name = JsonUtils.readString(json, NAME_RE);
         serviceId = JsonUtils.readString(json, ID_RE);
         version = JsonUtils.readString(json, VERSION_RE);

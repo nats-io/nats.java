@@ -24,7 +24,7 @@ import static io.nats.client.support.JsonUtils.endJson;
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class Info implements JsonSerializable {
+public class InfoResponse implements JsonSerializable {
     public static final String TYPE = "io.nats.micro.v1.info_response";
 
     private final String serviceId;
@@ -33,7 +33,7 @@ public class Info implements JsonSerializable {
     private final String description;
     private final String subject;
 
-    public Info(String serviceId, String name, String version, String description, String subject) {
+    public InfoResponse(String serviceId, String name, String version, String description, String subject) {
         this.serviceId = serviceId;
         this.name = name;
         this.version = version;
@@ -41,7 +41,7 @@ public class Info implements JsonSerializable {
         this.subject = subject;
     }
 
-    public Info(String json) {
+    public InfoResponse(String json) {
         name = JsonUtils.readString(json, NAME_RE);
         serviceId = JsonUtils.readString(json, ID_RE);
         description = JsonUtils.readString(json, DESCRIPTION_RE);

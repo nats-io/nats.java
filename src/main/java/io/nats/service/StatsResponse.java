@@ -30,7 +30,7 @@ import static io.nats.client.support.JsonUtils.endJson;
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class Stats implements JsonSerializable {
+public class StatsResponse implements JsonSerializable {
     public static final String TYPE = "io.nats.micro.v1.stats_response";
 
     private final String serviceId;
@@ -44,7 +44,7 @@ public class Stats implements JsonSerializable {
     private StatsData data;
     private ZonedDateTime started;
 
-    public Stats(String serviceId, String name, String version) {
+    public StatsResponse(String serviceId, String name, String version) {
         this.serviceId = serviceId;
         this.name = name;
         this.version = version;
@@ -56,8 +56,8 @@ public class Stats implements JsonSerializable {
         started = DateTimeUtils.gmtNow();
     }
 
-    public Stats copy(Function<String, StatsData> decoder) {
-        Stats copy = new Stats(serviceId, name, version);
+    public StatsResponse copy(Function<String, StatsData> decoder) {
+        StatsResponse copy = new StatsResponse(serviceId, name, version);
         copy.numRequests.set(numRequests.get());
         copy.numErrors.set(numErrors.get());
         copy.lastError.set(lastError.get());
@@ -70,7 +70,7 @@ public class Stats implements JsonSerializable {
         return copy;
     }
 
-    public Stats(String json, Function<String, StatsData> decoder) {
+    public StatsResponse(String json, Function<String, StatsData> decoder) {
         // handle the data first just in the off chance that the data has a duplicate
         // field name to the stats. This is because we don't have a proper parse, but it works fine.
         String dataJson = JsonUtils.getJsonObject(DATA, json, null);

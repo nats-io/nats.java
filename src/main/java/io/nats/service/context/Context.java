@@ -6,14 +6,14 @@ import io.nats.client.Message;
 import io.nats.client.Subscription;
 import io.nats.service.ServiceMessage;
 import io.nats.service.ServiceUtil;
-import io.nats.service.Stats;
+import io.nats.service.StatsResponse;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public abstract class Context {
     protected final Connection conn;
-    protected final Stats stats;
+    protected final StatsResponse statsResponse;
     protected final String subject;
     protected final Dispatcher dispatcher;
     protected final boolean isInternalDispatcher;
@@ -21,12 +21,12 @@ public abstract class Context {
     protected final String qGroup;
     protected Subscription sub;
 
-    public Context(Connection conn, String subject, Dispatcher dispatcher, boolean isInternalDispatcher, Stats stats, boolean isServiceContext) {
+    public Context(Connection conn, String subject, Dispatcher dispatcher, boolean isInternalDispatcher, StatsResponse statsResponse, boolean isServiceContext) {
         this.conn = conn;
         this.subject = subject;
         this.dispatcher = dispatcher;
         this.isInternalDispatcher = isInternalDispatcher;
-        this.stats = stats;
+        this.statsResponse = statsResponse;
         recordStats = isServiceContext;
         qGroup = isServiceContext ? ServiceUtil.QGROUP : null;
     }
@@ -40,23 +40,23 @@ public abstract class Context {
     protected abstract void subOnMessage(Message msg) throws InterruptedException;
 
     public void onMessage(Message msg) throws InterruptedException {
-        long requestNo = recordStats ? stats.incrementNumRequests() : -1;
+        long requestNo = recordStats ? statsResponse.incrementNumRequests() : -1;
         long start = 0;
         try {
             start = System.nanoTime();
             subOnMessage(msg);
         } catch (Throwable t) {
             if (recordStats) {
-                stats.incrementNumErrors();
-                stats.setLastError(t.toString());
+                statsResponse.incrementNumErrors();
+                statsResponse.setLastError(t.toString());
             }
             try {
                 ServiceMessage.replyStandardError(conn, msg, t.getMessage(), 500);
             } catch (Exception ignore) {}
         } finally {
             if (recordStats) {
-                long total = stats.addTotalProcessingTime(System.nanoTime() - start);
-                stats.setAverageProcessingTime(total / requestNo);
+                long total = statsResponse.addTotalProcessingTime(System.nanoTime() - start);
+                statsResponse.setAverageProcessingTime(total / requestNo);
             }
         }
     }
@@ -78,8 +78,8 @@ public abstract class Context {
         return isInternalDispatcher;
     }
 
-    public Stats getStats() {
-        return stats;
+    public StatsResponse getStats() {
+        return statsResponse;
     }
 
     public Subscription getSub() {

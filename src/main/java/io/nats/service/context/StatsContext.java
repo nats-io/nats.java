@@ -3,8 +3,8 @@ package io.nats.service.context;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Message;
-import io.nats.service.Stats;
 import io.nats.service.StatsData;
+import io.nats.service.StatsResponse;
 
 import java.util.function.Supplier;
 
@@ -20,17 +20,17 @@ public class StatsContext extends Context {
 
     public StatsContext(Connection conn, String serviceName, String serviceId,
                         Dispatcher dispatcher, boolean internalDispatcher,
-                        Stats stats, Supplier<StatsData> sds) {
+                        StatsResponse statsResponse, Supplier<StatsData> sds) {
         super(conn, toDiscoverySubject(STATS, serviceName, serviceId),
-            dispatcher, internalDispatcher, stats, false);
+            dispatcher, internalDispatcher, statsResponse, false);
         this.sds = sds;
     }
 
     @Override
     protected void subOnMessage(Message msg) throws InterruptedException {
         if (sds != null) {
-            stats.setData(sds.get());
+            statsResponse.setData(sds.get());
         }
-        conn.publish(msg.getReplyTo(), stats.serialize());
+        conn.publish(msg.getReplyTo(), statsResponse.serialize());
     }
 }

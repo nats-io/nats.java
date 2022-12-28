@@ -110,40 +110,40 @@ public class ServiceExample {
             // ----------------------------------------------------------------------------------------------------
             // ping discover variations
             // ----------------------------------------------------------------------------------------------------
-            List<Ping> pings = discovery.ping();
-            printDiscovery("Ping", "[All]", pings);
+            List<PingResponse> pingResponses = discovery.ping();
+            printDiscovery("Ping", "[All]", pingResponses);
 
-            pings = discovery.ping(ECHO_SERVICE_NAME);
-            printDiscovery("Ping", ECHO_SERVICE_NAME, pings);
+            pingResponses = discovery.ping(ECHO_SERVICE_NAME);
+            printDiscovery("Ping", ECHO_SERVICE_NAME, pingResponses);
 
-            String echoId = pings.get(0).getServiceId();
-            Ping ping = discovery.ping(ECHO_SERVICE_NAME, echoId);
-            printDiscovery("Ping", ECHO_SERVICE_NAME, echoId, ping);
+            String echoId = pingResponses.get(0).getServiceId();
+            PingResponse pingResponse = discovery.ping(ECHO_SERVICE_NAME, echoId);
+            printDiscovery("Ping", ECHO_SERVICE_NAME, echoId, pingResponse);
 
-            pings = discovery.ping(SORT_SERVICE_NAME);
-            printDiscovery("Ping", SORT_SERVICE_NAME, pings);
+            pingResponses = discovery.ping(SORT_SERVICE_NAME);
+            printDiscovery("Ping", SORT_SERVICE_NAME, pingResponses);
 
-            String sortId = pings.get(0).getServiceId();
-            ping = discovery.ping(SORT_SERVICE_NAME, sortId);
-            printDiscovery("Ping", SORT_SERVICE_NAME, sortId, ping);
+            String sortId = pingResponses.get(0).getServiceId();
+            pingResponse = discovery.ping(SORT_SERVICE_NAME, sortId);
+            printDiscovery("Ping", SORT_SERVICE_NAME, sortId, pingResponse);
 
             // ----------------------------------------------------------------------------------------------------
             // info discover variations
             // ----------------------------------------------------------------------------------------------------
-            List<Info> infos = discovery.info();
-            printDiscovery("Info", "[All]", infos);
+            List<InfoResponse> infoResponses = discovery.info();
+            printDiscovery("Info", "[All]", infoResponses);
 
-            infos = discovery.info(ECHO_SERVICE_NAME);
-            printDiscovery("Info", ECHO_SERVICE_NAME, infos);
+            infoResponses = discovery.info(ECHO_SERVICE_NAME);
+            printDiscovery("Info", ECHO_SERVICE_NAME, infoResponses);
 
-            Info info = discovery.info(ECHO_SERVICE_NAME, echoId);
-            printDiscovery("Info", ECHO_SERVICE_NAME, echoId, info);
+            InfoResponse infoResponse = discovery.info(ECHO_SERVICE_NAME, echoId);
+            printDiscovery("Info", ECHO_SERVICE_NAME, echoId, infoResponse);
 
-            infos = discovery.info(SORT_SERVICE_NAME);
-            printDiscovery("Info", SORT_SERVICE_NAME, infos);
+            infoResponses = discovery.info(SORT_SERVICE_NAME);
+            printDiscovery("Info", SORT_SERVICE_NAME, infoResponses);
 
-            info = discovery.info(SORT_SERVICE_NAME, sortId);
-            printDiscovery("Info", SORT_SERVICE_NAME, sortId, info);
+            infoResponse = discovery.info(SORT_SERVICE_NAME, sortId);
+            printDiscovery("Info", SORT_SERVICE_NAME, sortId, infoResponse);
 
             // ----------------------------------------------------------------------------------------------------
             // schema discover variations
@@ -166,14 +166,14 @@ public class ServiceExample {
             // ----------------------------------------------------------------------------------------------------
             // stats discover variations
             // ----------------------------------------------------------------------------------------------------
-            List<Stats> statsList = discovery.stats(sdd);
-            printDiscovery("Stats", "[All]", statsList);
+            List<StatsResponse> statsResponseList = discovery.stats(sdd);
+            printDiscovery("Stats", "[All]", statsResponseList);
 
-            statsList = discovery.stats(ECHO_SERVICE_NAME);
-            printDiscovery("Stats", ECHO_SERVICE_NAME, statsList); // will show echo without data decoder
+            statsResponseList = discovery.stats(ECHO_SERVICE_NAME);
+            printDiscovery("Stats", ECHO_SERVICE_NAME, statsResponseList); // will show echo without data decoder
 
-            statsList = discovery.stats(SORT_SERVICE_NAME);
-            printDiscovery("Stats", SORT_SERVICE_NAME, statsList);
+            statsResponseList = discovery.stats(SORT_SERVICE_NAME);
+            printDiscovery("Stats", SORT_SERVICE_NAME, statsResponseList);
 
             // ----------------------------------------------------------------------------------------------------
             // stop the service

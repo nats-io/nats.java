@@ -48,41 +48,41 @@ public class Discovery {
     // ----------------------------------------------------------------------------------------------------
     // ping
     // ----------------------------------------------------------------------------------------------------
-    public List<Ping> ping() {
+    public List<PingResponse> ping() {
         return ping(null);
     }
 
-    public List<Ping> ping(String serviceName) {
-        List<Ping> list = new ArrayList<>();
+    public List<PingResponse> ping(String serviceName) {
+        List<PingResponse> list = new ArrayList<>();
         discoverMany(PING, serviceName, json -> {
-            list.add(new Ping(json));
+            list.add(new PingResponse(json));
         });
         return list;
     }
 
-    public Ping ping(String serviceName, String serviceId) {
+    public PingResponse ping(String serviceName, String serviceId) {
         String json = discoverOne(PING, serviceName, serviceId);
-        return json == null ? null : new Ping(json);
+        return json == null ? null : new PingResponse(json);
     }
 
     // ----------------------------------------------------------------------------------------------------
     // info
     // ----------------------------------------------------------------------------------------------------
-    public List<Info> info() {
+    public List<InfoResponse> info() {
         return info(null);
     }
 
-    public List<Info> info(String serviceName) {
-        List<Info> list = new ArrayList<>();
+    public List<InfoResponse> info(String serviceName) {
+        List<InfoResponse> list = new ArrayList<>();
         discoverMany(INFO, serviceName, json -> {
-            list.add(new Info(json));
+            list.add(new InfoResponse(json));
         });
         return list;
     }
 
-    public Info info(String serviceName, String serviceId) {
+    public InfoResponse info(String serviceName, String serviceId) {
         String json = discoverOne(INFO, serviceName, serviceId);
-        return json == null ? null : new Info(json);
+        return json == null ? null : new InfoResponse(json);
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -108,33 +108,33 @@ public class Discovery {
     // ----------------------------------------------------------------------------------------------------
     // stats
     // ----------------------------------------------------------------------------------------------------
-    public List<Stats> stats() {
+    public List<StatsResponse> stats() {
         return stats(null, (Function<String, StatsData>)null);
     }
 
-    public List<Stats> stats(Function<String, StatsData> statsDataDecoder) {
+    public List<StatsResponse> stats(Function<String, StatsData> statsDataDecoder) {
         return stats(null, statsDataDecoder);
     }
 
-    public List<Stats> stats(String serviceName) {
+    public List<StatsResponse> stats(String serviceName) {
         return stats(serviceName, (Function<String, StatsData>)null);
     }
 
-    public List<Stats> stats(String serviceName, Function<String, StatsData> statsDataDecoder) {
-        List<Stats> list = new ArrayList<>();
+    public List<StatsResponse> stats(String serviceName, Function<String, StatsData> statsDataDecoder) {
+        List<StatsResponse> list = new ArrayList<>();
         discoverMany(STATS, serviceName, json -> {
-            list.add(new Stats(json, statsDataDecoder));
+            list.add(new StatsResponse(json, statsDataDecoder));
         });
         return list;
     }
 
-    public Stats stats(String serviceName, String serviceId) {
+    public StatsResponse stats(String serviceName, String serviceId) {
         return stats(serviceName, serviceId, null);
     }
 
-    public Stats stats(String serviceName, String serviceId, Function<String, StatsData> statsDataDecoder) {
+    public StatsResponse stats(String serviceName, String serviceId, Function<String, StatsData> statsDataDecoder) {
         String json = discoverOne(STATS, serviceName, serviceId);
-        return json == null ? null : new Stats(json, statsDataDecoder);
+        return json == null ? null : new StatsResponse(json, statsDataDecoder);
     }
 
     // ----------------------------------------------------------------------------------------------------
