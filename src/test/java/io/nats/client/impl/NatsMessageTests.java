@@ -184,7 +184,6 @@ public class NatsMessageTests {
 
     @Test
     public void miscCoverage() {
-        //noinspection deprecation
         NatsMessage m = NatsMessage.builder()
                 .subject("test").replyTo("reply").utf8mode(true)
                 .data("data", StandardCharsets.US_ASCII)
@@ -260,8 +259,7 @@ public class NatsMessageTests {
         assertNull(scm.protocolBab);
         assertEquals(-1, scm.getControlLineLength());
 
-        // coverage
-        //noinspection deprecation
+        // coverage coverage coverage
         NatsMessage nmCov = new NatsMessage("sub", "reply", null, true);
         assertTrue(nmCov.isUtf8mode());
 
@@ -321,7 +319,7 @@ public class NatsMessageTests {
         h.add("key", "value");
 
         return NatsMessage.builder()
-                .subject("test").replyTo("reply").headers(h)
+                .subject("test").replyTo("reply").headers(h).utf8mode(true)
                 .data("data", StandardCharsets.US_ASCII)
                 .build();
     }
