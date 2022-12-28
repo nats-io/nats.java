@@ -13,6 +13,7 @@
 
 package io.nats.service;
 
+import io.nats.client.support.ApiConstants;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
@@ -29,7 +30,9 @@ import static io.nats.client.support.JsonUtils.endJson;
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class Stats implements JsonSerializable {
+public class StatsResponse implements JsonSerializable {
+    public static final String TYPE = "io.nats.micro.v1.stats_response";
+
     private final String serviceId;
     private final String name;
     private final String version;
@@ -41,7 +44,7 @@ public class Stats implements JsonSerializable {
     private StatsData data;
     private ZonedDateTime started;
 
-    public Stats(String serviceId, String name, String version) {
+    public StatsResponse(String serviceId, String name, String version) {
         this.serviceId = serviceId;
         this.name = name;
         this.version = version;
@@ -53,8 +56,8 @@ public class Stats implements JsonSerializable {
         started = DateTimeUtils.gmtNow();
     }
 
-    public Stats copy(Function<String, StatsData> decoder) {
-        Stats copy = new Stats(serviceId, name, version);
+    public StatsResponse copy(Function<String, StatsData> decoder) {
+        StatsResponse copy = new StatsResponse(serviceId, name, version);
         copy.numRequests.set(numRequests.get());
         copy.numErrors.set(numErrors.get());
         copy.lastError.set(lastError.get());
@@ -67,7 +70,7 @@ public class Stats implements JsonSerializable {
         return copy;
     }
 
-    public Stats(String json, Function<String, StatsData> decoder) {
+    public StatsResponse(String json, Function<String, StatsData> decoder) {
         // handle the data first just in the off chance that the data has a duplicate
         // field name to the stats. This is because we don't have a proper parse, but it works fine.
         String dataJson = JsonUtils.getJsonObject(DATA, json, null);
@@ -103,6 +106,7 @@ public class Stats implements JsonSerializable {
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
+        JsonUtils.addField(sb, ApiConstants.TYPE, TYPE);
         JsonUtils.addField(sb, ID, serviceId);
         JsonUtils.addField(sb, VERSION, version);
         JsonUtils.addField(sb, NUM_REQUESTS, numRequests.get());
@@ -123,6 +127,14 @@ public class Stats implements JsonSerializable {
      */
     public String getName() {
         return name;
+    }
+
+    /**
+     * The type of this. Always {@value #TYPE}
+     * @return the type string
+     */
+    public String getType() {
+        return TYPE;
     }
 
     /**

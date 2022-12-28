@@ -40,8 +40,8 @@ public class Service {
     private final Function<String, StatsData> statsDataDecoder;
     private final Duration drainTimeout;
 
-    private final Info info;
-    private final SchemaInfo schemaInfo;
+    private final InfoResponse infoResponse;
+    private final SchemaResponse schemaResponse;
     private final List<Context> discoveryContexts;
     private final Context serviceContext;
 
@@ -53,8 +53,8 @@ public class Service {
         conn = builder.conn;
         statsDataDecoder = builder.statsDataDecoder;
         drainTimeout = builder.drainTimeout;
-        info = new Info(id, builder.name, builder.version, builder.description, builder.subject);
-        schemaInfo = new SchemaInfo(id, builder.name, builder.version, builder.schemaRequest, builder.schemaResponse);
+        infoResponse = new InfoResponse(id, builder.name, builder.version, builder.description, builder.subject);
+        schemaResponse = new SchemaResponse(id, builder.name, builder.version, builder.schemaRequest, builder.schemaResponse);
 
         // User may provide 0 or more dispatchers, just use theirs when provided else use one we make
         boolean internalDiscovery = builder.dUserDiscovery == null;
@@ -63,14 +63,14 @@ public class Service {
         Dispatcher dService = internalService ? conn.createDispatcher() : builder.dUserService;
 
         // do the service first in case the server feels like rejecting the subject
-        Stats stats = new Stats(id, builder.name, builder.version);
-        serviceContext = new ServiceContext(conn, info.getSubject(), dService, internalService, stats, builder.serviceMessageHandler);
+        StatsResponse statsResponse = new StatsResponse(id, builder.name, builder.version);
+        serviceContext = new ServiceContext(conn, infoResponse.getSubject(), dService, internalService, statsResponse, builder.serviceMessageHandler);
 
         discoveryContexts = new ArrayList<>();
-        addDiscoveryContexts(PING, new Ping(id, builder.name, builder.version), dDiscovery, internalDiscovery);
-        addDiscoveryContexts(INFO, info, dDiscovery, internalDiscovery);
-        addDiscoveryContexts(SCHEMA, schemaInfo, dDiscovery, internalDiscovery);
-        addStatsContexts(dDiscovery, internalDiscovery, stats, builder.statsDataSupplier);
+        addDiscoveryContexts(PING, new PingResponse(id, builder.name, builder.version), dDiscovery, internalDiscovery);
+        addDiscoveryContexts(INFO, infoResponse, dDiscovery, internalDiscovery);
+        addDiscoveryContexts(SCHEMA, schemaResponse, dDiscovery, internalDiscovery);
+        addStatsContexts(dDiscovery, internalDiscovery, statsResponse, builder.statsDataSupplier);
 
         stopLock = new Object();
     }
@@ -86,7 +86,7 @@ public class Service {
 
     @Override
     public String toString() {
-        return "Service" + info.toJson();
+        return "Service" + infoResponse.toJson();
     }
 
     public void stop() {
@@ -164,30 +164,30 @@ public class Service {
     }
 
     public String getId() {
-        return info.getServiceId();
+        return infoResponse.getServiceId();
     }
 
-    public Info getInfo() {
-        return info;
+    public InfoResponse getInfo() {
+        return infoResponse;
     }
 
-    public SchemaInfo getSchemaInfo() {
-        return schemaInfo;
+    public SchemaResponse getSchemaResponse() {
+        return schemaResponse;
     }
 
-    public Stats getStats() {
+    public StatsResponse getStats() {
         return serviceContext.getStats().copy(statsDataDecoder);
     }
 
     private void addDiscoveryContexts(String action, JsonSerializable js, Dispatcher dispatcher, boolean internalDispatcher) {
         discoveryContexts.add(new DiscoveryContext(conn, action, null, null, js, dispatcher, internalDispatcher));
-        discoveryContexts.add(new DiscoveryContext(conn, action, info.getName(), null, js, dispatcher, internalDispatcher));
-        discoveryContexts.add(new DiscoveryContext(conn, action, info.getName(), id, js, dispatcher, internalDispatcher));
+        discoveryContexts.add(new DiscoveryContext(conn, action, infoResponse.getName(), null, js, dispatcher, internalDispatcher));
+        discoveryContexts.add(new DiscoveryContext(conn, action, infoResponse.getName(), id, js, dispatcher, internalDispatcher));
     }
 
-    private void addStatsContexts(Dispatcher dispatcher, boolean internalDispatcher, Stats stats, Supplier<StatsData> sds) {
-        discoveryContexts.add(new StatsContext(conn, null, null, dispatcher, internalDispatcher, stats, sds));
-        discoveryContexts.add(new StatsContext(conn, info.getName(), null, dispatcher, internalDispatcher, stats, sds));
-        discoveryContexts.add(new StatsContext(conn, info.getName(), id, dispatcher, internalDispatcher, stats, sds));
+    private void addStatsContexts(Dispatcher dispatcher, boolean internalDispatcher, StatsResponse statsResponse, Supplier<StatsData> sds) {
+        discoveryContexts.add(new StatsContext(conn, null, null, dispatcher, internalDispatcher, statsResponse, sds));
+        discoveryContexts.add(new StatsContext(conn, infoResponse.getName(), null, dispatcher, internalDispatcher, statsResponse, sds));
+        discoveryContexts.add(new StatsContext(conn, infoResponse.getName(), id, dispatcher, internalDispatcher, statsResponse, sds));
     }
 }
