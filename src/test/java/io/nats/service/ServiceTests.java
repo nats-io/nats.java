@@ -96,8 +96,8 @@ public class ServiceTests extends JetStreamTestBase {
 
                 Info echoInfo = echoService1.getInfo();
                 Info sortInfo = sortService1.getInfo();
-                SchemaInfo echoSchemaInfo = echoService1.getSchemaInfo();
-                SchemaInfo sortSchemaInfo = sortService1.getSchemaInfo();
+                SchemaResponse echoSchemaResponse = echoService1.getSchemaInfo();
+                SchemaResponse sortSchemaResponse = sortService1.getSchemaInfo();
 
                 // discovery - wait at most 500 millis for responses, 5 total responses max
                 Discovery discovery = new Discovery(clientNc, 500, 5);
@@ -108,6 +108,7 @@ public class ServiceTests extends JetStreamTestBase {
                     Ping p = (Ping)o;
                     if (expectedInfo != null) {
                         assertEquals(expectedInfo.getName(), p.getName());
+                        assertEquals(Ping.TYPE, p.getType());
                         assertEquals(expectedInfo.getVersion(), p.getVersion());
                     }
                     return p.getServiceId();
@@ -126,6 +127,7 @@ public class ServiceTests extends JetStreamTestBase {
                     Info i = (Info)o;
                     if (expectedInfo != null) {
                         assertEquals(expectedInfo.getName(), i.getName());
+                        assertEquals(Info.TYPE, i.getType());
                         assertEquals(expectedInfo.getDescription(), i.getDescription());
                         assertEquals(expectedInfo.getVersion(), i.getVersion());
                         assertEquals(expectedInfo.getSubject(), i.getSubject());
@@ -141,24 +143,25 @@ public class ServiceTests extends JetStreamTestBase {
                 verifyDiscovery(sortInfo, discovery.info(SORT_SERVICE_NAME, sortServiceId2), infoValidator, sortServiceId2);
 
                 // schema discovery
-                SchemaInfoVerifier schemaValidator = (expectedSchemaInfo, o) -> {
-                    assertTrue(o instanceof SchemaInfo);
-                    SchemaInfo si = (SchemaInfo)o;
-                    if (expectedSchemaInfo != null) {
-                        assertEquals(expectedSchemaInfo.getName(), si.getName());
-                        assertEquals(expectedSchemaInfo.getVersion(), si.getVersion());
-                        assertEquals(expectedSchemaInfo.getSchema().getRequest(), si.getSchema().getRequest());
-                        assertEquals(expectedSchemaInfo.getSchema().getResponse(), si.getSchema().getResponse());
+                SchemaInfoVerifier schemaValidator = (expectedSchemaResponse, o) -> {
+                    assertTrue(o instanceof SchemaResponse);
+                    SchemaResponse sr = (SchemaResponse)o;
+                    if (expectedSchemaResponse != null) {
+                        assertEquals(SchemaResponse.TYPE, sr.getType());
+                        assertEquals(expectedSchemaResponse.getName(), sr.getName());
+                        assertEquals(expectedSchemaResponse.getVersion(), sr.getVersion());
+                        assertEquals(expectedSchemaResponse.getSchema().getRequest(), sr.getSchema().getRequest());
+                        assertEquals(expectedSchemaResponse.getSchema().getResponse(), sr.getSchema().getResponse());
                     }
-                    return si.getServiceId();
+                    return sr.getServiceId();
                 };
                 verifyDiscovery(null, discovery.schema(), schemaValidator, echoServiceId1, sortServiceId1, echoServiceId2, sortServiceId2);
-                verifyDiscovery(echoSchemaInfo, discovery.schema(ECHO_SERVICE_NAME), schemaValidator, echoServiceId1, echoServiceId2);
-                verifyDiscovery(sortSchemaInfo, discovery.schema(SORT_SERVICE_NAME), schemaValidator, sortServiceId1, sortServiceId2);
-                verifyDiscovery(echoSchemaInfo, discovery.schema(ECHO_SERVICE_NAME, echoServiceId1), schemaValidator, echoServiceId1);
-                verifyDiscovery(sortSchemaInfo, discovery.schema(SORT_SERVICE_NAME, sortServiceId1), schemaValidator, sortServiceId1);
-                verifyDiscovery(echoSchemaInfo, discovery.schema(ECHO_SERVICE_NAME, echoServiceId2), schemaValidator, echoServiceId2);
-                verifyDiscovery(sortSchemaInfo, discovery.schema(SORT_SERVICE_NAME, sortServiceId2), schemaValidator, sortServiceId2);
+                verifyDiscovery(echoSchemaResponse, discovery.schema(ECHO_SERVICE_NAME), schemaValidator, echoServiceId1, echoServiceId2);
+                verifyDiscovery(sortSchemaResponse, discovery.schema(SORT_SERVICE_NAME), schemaValidator, sortServiceId1, sortServiceId2);
+                verifyDiscovery(echoSchemaResponse, discovery.schema(ECHO_SERVICE_NAME, echoServiceId1), schemaValidator, echoServiceId1);
+                verifyDiscovery(sortSchemaResponse, discovery.schema(SORT_SERVICE_NAME, sortServiceId1), schemaValidator, sortServiceId1);
+                verifyDiscovery(echoSchemaResponse, discovery.schema(ECHO_SERVICE_NAME, echoServiceId2), schemaValidator, echoServiceId2);
+                verifyDiscovery(sortSchemaResponse, discovery.schema(SORT_SERVICE_NAME, sortServiceId2), schemaValidator, sortServiceId2);
 
                 // stats discovery
                 discovery = new Discovery(clientNc); // coverage for the simple constructor
@@ -179,6 +182,7 @@ public class ServiceTests extends JetStreamTestBase {
                         responseSort++;
                         requestsSort += stats.getNumRequests();
                     }
+                    assertEquals(Stats.TYPE, stats.getType());
                 }
                 assertEquals(2, responseEcho);
                 assertEquals(2, responseSort);
@@ -271,15 +275,15 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     interface SchemaInfoVerifier {
-        String verify(SchemaInfo expectedSchemaInfo, Object o);
+        String verify(SchemaResponse expectedSchemaResponse, Object o);
     }
 
     private static void verifyDiscovery(Info expectedInfo, Object object, InfoVerifier iv, String... expectedIds) {
         verifyDiscovery(expectedInfo, Collections.singletonList(object), iv, expectedIds);
     }
 
-    private static void verifyDiscovery(SchemaInfo expectedSchemaInfo, Object object, SchemaInfoVerifier siv, String... expectedIds) {
-        verifyDiscovery(expectedSchemaInfo, Collections.singletonList(object), siv, expectedIds);
+    private static void verifyDiscovery(SchemaResponse expectedSchemaResponse, Object object, SchemaInfoVerifier siv, String... expectedIds) {
+        verifyDiscovery(expectedSchemaResponse, Collections.singletonList(object), siv, expectedIds);
     }
 
     @SuppressWarnings("rawtypes")
@@ -293,11 +297,11 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @SuppressWarnings("rawtypes")
-    private static void verifyDiscovery(SchemaInfo expectedSchemaInfo, List objects, SchemaInfoVerifier siv, String... expectedIds) {
+    private static void verifyDiscovery(SchemaResponse expectedSchemaResponse, List objects, SchemaInfoVerifier siv, String... expectedIds) {
         List<String> expectedList = Arrays.asList(expectedIds);
         assertEquals(expectedList.size(), objects.size());
         for (Object o : objects) {
-            String id = siv.verify(expectedSchemaInfo, o);
+            String id = siv.verify(expectedSchemaResponse, o);
             assertTrue(expectedList.contains(id));
         }
     }
@@ -449,8 +453,8 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(ir1.getVersion(), ir2.getVersion());
         assertEquals(ir1.getSubject(), ir2.getSubject());
 
-        SchemaInfo sr1 = new SchemaInfo("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"schema\":{\"request\":\"rqst\",\"response\":\"rspns\"}}");
-        SchemaInfo sr2 = new SchemaInfo(sr1.toJson());
+        SchemaResponse sr1 = new SchemaResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"schema\":{\"request\":\"rqst\",\"response\":\"rspns\"}}");
+        SchemaResponse sr2 = new SchemaResponse(sr1.toJson());
         assertEquals("ServiceName", sr1.getName());
         assertEquals("serviceId", sr1.getServiceId());
         assertEquals("0.0.1", sr1.getVersion());
@@ -462,8 +466,8 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(sr1.getSchema().getRequest(), sr2.getSchema().getRequest());
         assertEquals(sr1.getSchema().getResponse(), sr2.getSchema().getResponse());
 
-        sr1 = new SchemaInfo("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\"}");
-        sr2 = new SchemaInfo(sr1.toJson());
+        sr1 = new SchemaResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\"}");
+        sr2 = new SchemaResponse(sr1.toJson());
         assertEquals("ServiceName", sr1.getName());
         assertEquals("serviceId", sr1.getServiceId());
         assertEquals("0.0.1", sr1.getVersion());

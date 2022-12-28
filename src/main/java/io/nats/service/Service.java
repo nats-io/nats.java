@@ -41,7 +41,7 @@ public class Service {
     private final Duration drainTimeout;
 
     private final Info info;
-    private final SchemaInfo schemaInfo;
+    private final SchemaResponse schemaResponse;
     private final List<Context> discoveryContexts;
     private final Context serviceContext;
 
@@ -54,7 +54,7 @@ public class Service {
         statsDataDecoder = builder.statsDataDecoder;
         drainTimeout = builder.drainTimeout;
         info = new Info(id, builder.name, builder.version, builder.description, builder.subject);
-        schemaInfo = new SchemaInfo(id, builder.name, builder.version, builder.schemaRequest, builder.schemaResponse);
+        schemaResponse = new SchemaResponse(id, builder.name, builder.version, builder.schemaRequest, builder.schemaResponse);
 
         // User may provide 0 or more dispatchers, just use theirs when provided else use one we make
         boolean internalDiscovery = builder.dUserDiscovery == null;
@@ -69,7 +69,7 @@ public class Service {
         discoveryContexts = new ArrayList<>();
         addDiscoveryContexts(PING, new Ping(id, builder.name, builder.version), dDiscovery, internalDiscovery);
         addDiscoveryContexts(INFO, info, dDiscovery, internalDiscovery);
-        addDiscoveryContexts(SCHEMA, schemaInfo, dDiscovery, internalDiscovery);
+        addDiscoveryContexts(SCHEMA, schemaResponse, dDiscovery, internalDiscovery);
         addStatsContexts(dDiscovery, internalDiscovery, stats, builder.statsDataSupplier);
 
         stopLock = new Object();
@@ -171,8 +171,8 @@ public class Service {
         return info;
     }
 
-    public SchemaInfo getSchemaInfo() {
-        return schemaInfo;
+    public SchemaResponse getSchemaInfo() {
+        return schemaResponse;
     }
 
     public Stats getStats() {

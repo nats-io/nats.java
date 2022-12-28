@@ -13,6 +13,7 @@
 
 package io.nats.service;
 
+import io.nats.client.support.ApiConstants;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 
@@ -23,13 +24,15 @@ import static io.nats.client.support.Validator.nullOrEmpty;
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class SchemaInfo implements JsonSerializable {
+public class SchemaResponse implements JsonSerializable {
+    public static final String TYPE = "io.nats.micro.v1.schema_response";
+
     private final String serviceId;
     private final String name;
     private final String version;
     private final Schema schema;
 
-    public SchemaInfo(String serviceId, String name, String version, String schemaRequest, String schemaResponse) {
+    public SchemaResponse(String serviceId, String name, String version, String schemaRequest, String schemaResponse) {
         this.serviceId = serviceId;
         this.name = name;
         this.version = version;
@@ -41,7 +44,7 @@ public class SchemaInfo implements JsonSerializable {
         }
     }
 
-    public SchemaInfo(String json) {
+    public SchemaResponse(String json) {
         name = JsonUtils.readString(json, NAME_RE);
         serviceId = JsonUtils.readString(json, ID_RE);
         version = JsonUtils.readString(json, VERSION_RE);
@@ -52,6 +55,7 @@ public class SchemaInfo implements JsonSerializable {
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
+        JsonUtils.addField(sb, ApiConstants.TYPE, TYPE);
         JsonUtils.addField(sb, ID, serviceId);
         JsonUtils.addField(sb, VERSION, version);
         addField(sb, SCHEMA, schema);
@@ -64,6 +68,14 @@ public class SchemaInfo implements JsonSerializable {
      */
     public String getName() {
         return name;
+    }
+
+    /**
+     * The type of this. Always {@value #TYPE}
+     * @return the type string
+     */
+    public String getType() {
+        return TYPE;
     }
 
     /**

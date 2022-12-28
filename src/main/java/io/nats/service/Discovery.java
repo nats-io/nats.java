@@ -88,21 +88,21 @@ public class Discovery {
     // ----------------------------------------------------------------------------------------------------
     // schema
     // ----------------------------------------------------------------------------------------------------
-    public List<SchemaInfo> schema() {
+    public List<SchemaResponse> schema() {
         return schema(null);
     }
 
-    public List<SchemaInfo> schema(String serviceName) {
-        List<SchemaInfo> list = new ArrayList<>();
+    public List<SchemaResponse> schema(String serviceName) {
+        List<SchemaResponse> list = new ArrayList<>();
         discoverMany(SCHEMA, serviceName, json -> {
-            list.add(new SchemaInfo(json));
+            list.add(new SchemaResponse(json));
         });
         return list;
     }
 
-    public SchemaInfo schema(String serviceName, String serviceId) {
+    public SchemaResponse schema(String serviceName, String serviceId) {
         String json = discoverOne(SCHEMA, serviceName, serviceId);
-        return json == null ? null : new SchemaInfo(json);
+        return json == null ? null : new SchemaResponse(json);
     }
 
     // ----------------------------------------------------------------------------------------------------

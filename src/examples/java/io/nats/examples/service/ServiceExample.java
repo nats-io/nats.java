@@ -148,20 +148,20 @@ public class ServiceExample {
             // ----------------------------------------------------------------------------------------------------
             // schema discover variations
             // ----------------------------------------------------------------------------------------------------
-            List<SchemaInfo> schemaInfos = discovery.schema();
-            printDiscovery("Schema", "[All]", schemaInfos);
+            List<SchemaResponse> schemaResponses = discovery.schema();
+            printDiscovery("Schema", "[All]", schemaResponses);
 
-            schemaInfos = discovery.schema(ECHO_SERVICE_NAME);
-            printDiscovery("Schema", ECHO_SERVICE_NAME, schemaInfos);
+            schemaResponses = discovery.schema(ECHO_SERVICE_NAME);
+            printDiscovery("Schema", ECHO_SERVICE_NAME, schemaResponses);
 
-            SchemaInfo schemaInfo = discovery.schema(ECHO_SERVICE_NAME, echoId);
-            printDiscovery("Schema", ECHO_SERVICE_NAME, echoId, schemaInfo);
+            SchemaResponse schemaResponse = discovery.schema(ECHO_SERVICE_NAME, echoId);
+            printDiscovery("Schema", ECHO_SERVICE_NAME, echoId, schemaResponse);
 
-            schemaInfos = discovery.schema(SORT_SERVICE_NAME);
-            printDiscovery("Schema", SORT_SERVICE_NAME, schemaInfos);
+            schemaResponses = discovery.schema(SORT_SERVICE_NAME);
+            printDiscovery("Schema", SORT_SERVICE_NAME, schemaResponses);
 
-            schemaInfo = discovery.schema(SORT_SERVICE_NAME, sortId);
-            printDiscovery("Schema", SORT_SERVICE_NAME, sortId, schemaInfo);
+            schemaResponse = discovery.schema(SORT_SERVICE_NAME, sortId);
+            printDiscovery("Schema", SORT_SERVICE_NAME, sortId, schemaResponse);
 
             // ----------------------------------------------------------------------------------------------------
             // stats discover variations
