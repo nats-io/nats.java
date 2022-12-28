@@ -13,39 +13,52 @@
 
 package io.nats.service;
 
+import io.nats.client.support.ApiConstants;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class Ping implements JsonSerializable {
+public class SchemaResponse implements JsonSerializable {
+    public static final String TYPE = "io.nats.micro.v1.schema_response";
+
     private final String serviceId;
     private final String name;
     private final String version;
+    private final Schema schema;
 
-    public Ping(String serviceId, String name, String version) {
+    public SchemaResponse(String serviceId, String name, String version, String schemaRequest, String schemaResponse) {
         this.serviceId = serviceId;
         this.name = name;
         this.version = version;
+        if (nullOrEmpty(schemaRequest) && nullOrEmpty(schemaResponse)) {
+            this.schema = null;
+        }
+        else {
+            this.schema = new Schema(schemaRequest, schemaResponse);
+        }
     }
 
-    public Ping(String json) {
+    public SchemaResponse(String json) {
         name = JsonUtils.readString(json, NAME_RE);
         serviceId = JsonUtils.readString(json, ID_RE);
         version = JsonUtils.readString(json, VERSION_RE);
+        schema = Schema.optionalInstance(json);
     }
 
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
+        JsonUtils.addField(sb, ApiConstants.TYPE, TYPE);
         JsonUtils.addField(sb, ID, serviceId);
         JsonUtils.addField(sb, VERSION, version);
+        addField(sb, SCHEMA, schema);
         return endJson(sb).toString();
     }
 
@@ -58,6 +71,14 @@ public class Ping implements JsonSerializable {
     }
 
     /**
+     * The type of this. Always {@value #TYPE}
+     * @return the type string
+     */
+    public String getType() {
+        return TYPE;
+    }
+
+    /**
      * The unique ID of the service reporting the status
      * @return the service id
      */
@@ -66,11 +87,15 @@ public class Ping implements JsonSerializable {
     }
 
     /**
-     * Version of the service
+     * Version of the schema
      * @return the version
      */
     public String getVersion() {
         return version;
+    }
+
+    public Schema getSchema() {
+        return schema;
     }
 
     @Override
