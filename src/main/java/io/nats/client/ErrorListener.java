@@ -99,6 +99,15 @@ public interface ErrorListener {
      */
     default void unhandledStatus(Connection conn, JetStreamSubscription sub, Status status) {}
 
+    /**
+     * Called by the connection when a status is received during a pull but is handled.
+     *
+     * @param conn The connection that had the issue
+     * @param sub the JetStreamSubscription that this occurred on
+     * @param status the status
+     */
+    default void handledPullStatus(Connection conn, JetStreamSubscription sub, Status status) {}
+
     enum FlowControlSource { FLOW_CONTROL, HEARTBEAT }
 
     /**

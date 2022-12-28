@@ -96,6 +96,14 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      * {@inheritDoc}
      */
     @Override
+    public void handledPullStatus(Connection conn, JetStreamSubscription sub, Status status) {
+        LOGGER.warning(() -> supplyMessage("handledPullStatus", conn, null, sub, "Status:", status));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String id, FlowControlSource source) {
         LOGGER.info(() -> supplyMessage("flowControlProcessed", conn, null, sub, "FlowControlSource:", source));
     }

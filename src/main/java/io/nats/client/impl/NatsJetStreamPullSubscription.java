@@ -50,6 +50,10 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pull(PullRequestOptions pullRequestOptions) {
+        if (pullRequestOptions.getIdleHeartbeat() != null && pullRequestOptions.getIdleHeartbeat().toMillis() > 0)
+        {
+
+        }
         String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
         connection.publish(publishSubject, getSubject(), pullRequestOptions.serialize());
         connection.lenientFlushBuffer();

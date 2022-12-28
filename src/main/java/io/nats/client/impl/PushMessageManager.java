@@ -22,9 +22,6 @@ import io.nats.client.support.Status;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
@@ -32,167 +29,48 @@ class PushMessageManager extends MessageManager {
 
     protected static final List<Integer> PUSH_KNOWN_STATUS_CODES = Collections.singletonList(409);
 
-    protected static final int THRESHOLD = 3;
-
-    protected final NatsConnection conn;
-
     protected final NatsJetStream js;
     protected final String stream;
-    protected final ConsumerConfiguration serverCC;
-    protected final NatsDispatcher dispatcher;
+    protected final ConsumerConfiguration originalCc;
 
-    protected final boolean syncMode;
     protected final boolean queueMode;
-    protected final boolean hb;
     protected final boolean fc;
 
-    protected final long idleHeartbeatSetting;
-    protected final long alarmPeriodSetting;
-
     protected String lastFcSubject;
-    protected long lastStreamSeq;
-    protected long lastConsumerSeq;
-
-    protected final AtomicLong lastMsgReceived;
-    protected HeartbeatTimer heartbeatTimer;
 
     PushMessageManager(NatsConnection conn,
                        NatsJetStream js,
                        String stream,
                        SubscribeOptions so,
-                       ConsumerConfiguration serverCC,
+                       ConsumerConfiguration originalCc,
                        boolean queueMode,
                        NatsDispatcher dispatcher)
     {
-        this.conn = conn;
+        super(conn, dispatcher);
         this.js = js;
         this.stream = stream;
-        this.serverCC = serverCC;
-        this.dispatcher = dispatcher;
-        this.syncMode = dispatcher == null;
+        this.originalCc = originalCc;
         this.queueMode = queueMode;
-        lastStreamSeq = -1;
-        lastConsumerSeq = -1;
-        lastMsgReceived = new AtomicLong(System.currentTimeMillis());
 
         if (queueMode) {
-            hb = false;
             fc = false;
-            idleHeartbeatSetting = 0;
-            alarmPeriodSetting = 0;
         }
         else {
-            idleHeartbeatSetting = serverCC.getIdleHeartbeat() == null ? 0 : serverCC.getIdleHeartbeat().toMillis();
-            if (idleHeartbeatSetting <= 0) {
-                alarmPeriodSetting = 0;
-                hb = false;
-            }
-            else {
-                long mat = so.getMessageAlarmTime();
-                if (mat < idleHeartbeatSetting) {
-                    alarmPeriodSetting = idleHeartbeatSetting * THRESHOLD;
-                }
-                else {
-                    alarmPeriodSetting = mat;
-                }
-                hb = true;
-            }
-            fc = hb && serverCC.isFlowControl(); // can't have fc w/o heartbeat
+            initIdleHeartbeat(originalCc.getIdleHeartbeat(), so.getMessageAlarmTime());
+            fc = hb && originalCc.isFlowControl(); // can't have fc w/o heartbeat
         }
     }
 
-    @Override
-    void startup(NatsJetStreamSubscription sub) {
-        super.startup(sub);
-        if (hb) {
-            sub.setBeforeQueueProcessor(this::beforeQueueProcessor);
-            heartbeatTimer = new HeartbeatTimer();
-        }
-    }
+    boolean isQueueMode()       { return queueMode; }
+    boolean isFc()              { return fc; }
+    String getLastFcSubject()   { return lastFcSubject; }
 
-    @Override
-    void shutdown() {
-        if (heartbeatTimer != null) {
-            heartbeatTimer.shutdown();
-            heartbeatTimer = null;
-        }
-        super.shutdown();
-    }
-
-    protected void handleHeartbeatError() {
-        conn.executeCallback((c, el) -> el.heartbeatAlarm(c, sub, lastStreamSeq, lastConsumerSeq));
-    }
-
-    class HeartbeatTimer {
-        Timer timer;
-        boolean alive = true;
-
-        class HeartbeatTimerTask extends TimerTask {
-            @Override
-            public void run() {
-                long sinceLast = System.currentTimeMillis() - lastMsgReceived.get();
-                if (sinceLast > alarmPeriodSetting) {
-                    handleHeartbeatError();
-                }
-                restart();
-            }
-        }
-
-        public HeartbeatTimer() {
-            restart();
-        }
-
-        synchronized void restart() {
-            cancel();
-            if (alive) {
-                timer = new Timer();
-                timer.schedule(new HeartbeatTimerTask(), alarmPeriodSetting);
-            }
-        }
-
-        synchronized public void shutdown() {
-            alive = false;
-            cancel();
-        }
-
-        private void cancel() {
-            if (timer != null) {
-                timer.cancel();
-                timer.purge();
-                timer = null;
-            }
-        }
-    }
-
-    boolean isSyncMode() { return syncMode; }
-    boolean isQueueMode() { return queueMode; }
-    boolean isFc() { return fc; }
-    boolean isHb() { return hb; }
-
-    long getIdleHeartbeatSetting() { return idleHeartbeatSetting; }
-    long getAlarmPeriodSetting() { return alarmPeriodSetting; }
-
-    String getLastFcSubject() { return lastFcSubject; }
-    long getLastStreamSequence() { return lastStreamSeq; }
-    long getLastConsumerSequence() { return lastConsumerSeq; }
-    long getLastMsgReceived() { return lastMsgReceived.get(); }
-
-    NatsMessage beforeQueueProcessor(NatsMessage msg) {
-        lastMsgReceived.set(System.currentTimeMillis());
-        if (msg.isStatusMessage()
-            && msg.getStatus().isHeartbeat()
-            && extractFcSubject(msg) == null)
-        {
-            return null;
-        }
-        return msg;
-    }
-
-    protected boolean subManage(Message msg) {
+    protected boolean pushSubManage(Message msg) {
         return false;
     }
 
-    boolean manage(Message msg) {
+    @Override
+    protected boolean manage(Message msg) {
         if (!sub.getSID().equals(msg.getSID())) {
             return true;
         }
@@ -224,18 +102,11 @@ class PushMessageManager extends MessageManager {
             return true;
         }
 
-        if (subManage(msg)) {
-            return true;
-        }
-
-        // JS Message
-        lastStreamSeq = msg.metaData().streamSequence();
-        lastConsumerSeq = msg.metaData().consumerSequence();
-
-        return false;
+        return pushSubManage(msg) || super.manage(msg);
     }
 
-    String extractFcSubject(Message msg) {
+    @Override
+    protected String extractFcSubject(Message msg) {
         return msg.getHeaders() == null ? null : msg.getHeaders().getFirst(CONSUMER_STALLED_HDR);
     }
 

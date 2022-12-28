@@ -77,19 +77,43 @@ public class Status {
                 '}';
     }
 
-    private boolean isStatus(int code, String text) {
-        return this.code == code && message.equals(text);
-    }
-
     public boolean isFlowControl() {
-        return isStatus(FLOW_OR_HEARTBEAT_STATUS_CODE, FLOW_CONTROL_TEXT);
+        return code == FLOW_OR_HEARTBEAT_STATUS_CODE && message.equals(FLOW_CONTROL_TEXT);
     }
 
     public boolean isHeartbeat() {
-        return isStatus(FLOW_OR_HEARTBEAT_STATUS_CODE, HEARTBEAT_TEXT);
+        return code == FLOW_OR_HEARTBEAT_STATUS_CODE && message.equals(HEARTBEAT_TEXT);
     }
 
     public boolean isNoResponders() {
-        return isStatus(NO_RESPONDERS_CODE, NO_RESPONDERS_TEXT);
+        return code == NO_RESPONDERS_CODE && message.equals(NO_RESPONDERS_TEXT);
+    }
+
+    public boolean isExceededMaxWaiting() {
+        return code == 409 && message.equals("Exceeded MaxWaiting");
+    }
+
+    public boolean isMessageSizeExceedsMaxBytes() {
+        return code == 409 && message.equals("Message Size Exceeds MaxBytes");
+    }
+
+    public boolean isConsumerDeleted() {
+        return code == 409 && message.equals("Consumer Deleted");
+    }
+
+    public boolean isConsumerIsPushBased() {
+        return code == 409 && message.equals("Consumer is push based");
+    }
+
+    public boolean isExceededMaxRequestBatch() {
+        return code == 409 && message.startsWith("Exceeded MaxRequestBatch");
+    }
+
+    public boolean isExceededMaxRequestExpires() {
+        return code == 409 && message.startsWith("Exceeded MaxRequestExpires");
+    }
+
+    public boolean isExceededMaxRequestMaxBytes() {
+        return code == 409 && message.startsWith("Exceeded MaxRequestMaxBytes");
     }
 }

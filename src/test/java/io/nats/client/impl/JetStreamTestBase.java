@@ -74,8 +74,6 @@ public class JetStreamTestBase extends TestBase {
         return new NatsMessage.InternalMessageFactory(sid, "subj", replyTo, 0, false).getMessage();
     } 
 
-    static class NoopMessageManager extends MessageManager {}
-
     // ----------------------------------------------------------------------------------------------------
     // Management
     // ----------------------------------------------------------------------------------------------------

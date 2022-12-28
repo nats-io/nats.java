@@ -20,6 +20,8 @@ import org.junit.jupiter.api.function.Executable;
 import org.opentest4j.AssertionFailedError;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
@@ -369,6 +371,24 @@ public class TestBase {
         System.out.println(sb.toString());
     }
 
+
+    static class DummyOut extends OutputStream {
+        @Override
+        public void write(byte[] b) throws IOException {
+        }
+
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+        }
+
+        @Override
+        public void write(int b) throws IOException {
+        }
+    }
+
+    public static void hideSystemErr() {
+        System.setErr(new PrintStream(new DummyOut()));
+    }
     // ----------------------------------------------------------------------------------------------------
     // flush
     // ----------------------------------------------------------------------------------------------------

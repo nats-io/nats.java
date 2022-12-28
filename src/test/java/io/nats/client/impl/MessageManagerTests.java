@@ -80,7 +80,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     public void test_status_handle_pull() throws Exception {
         runInJsServer(nc -> {
             NatsJetStreamSubscription sub = genericSub(nc);
-            PullMessageManager manager = new PullMessageManager();
+            PullMessageManager manager = new PullMessageManager((NatsConnection)nc, null);
             manager.startup(sub);
             String sid = sub.getSID();
             assertFalse(manager.manage(getTestJsMessage(1, sid)));
@@ -409,8 +409,6 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     static class MmtEl implements ErrorListener {
         JetStreamSubscription sub;
-        long lastStreamSequence = -1;
-        long lastConsumerSequence = -1;
         long expectedConsumerSeq = -1;
         long receivedConsumerSeq = -1;
         Status status;
@@ -475,6 +473,10 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     static class TestMessageManager extends MessageManager {
+        public TestMessageManager() {
+            super(null, null);
+        }
+
         NatsJetStreamSubscription getSub() { return sub; }
     }
 
@@ -484,7 +486,6 @@ public class MessageManagerTests extends JetStreamTestBase {
         NatsJetStreamSubscription sub =
             new NatsJetStreamSubscription(mockSid(), "sub", null, null, null, null, "stream", "con", tmm);
         tmm.startup(sub);
-        assertFalse(tmm.manage(null));
         assertSame(sub, tmm.getSub());
         tmm.shutdown();
     }

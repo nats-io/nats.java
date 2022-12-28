@@ -211,7 +211,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     }
 
     interface PullMessageManagerFactory {
-        MessageManager createPullMessageManager();
+        MessageManager createPullMessageManager(NatsConnection conn, NatsDispatcher dispatcher);
     }
 
     PushMessageManagerFactory PUSH_MESSAGE_MANAGER_FACTORY = null;
@@ -386,7 +386,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         // 6. create the subscription. lambda needs final or effectively final vars
         NatsJetStreamSubscription sub;
         if (isPullMode) {
-            final MessageManager manager = PULL_MESSAGE_MANAGER_FACTORY.createPullMessageManager();
+            final MessageManager manager = PULL_MESSAGE_MANAGER_FACTORY.createPullMessageManager(conn, dispatcher);
             final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
                 -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, this, fnlStream, settledConsumerName, manager);
             sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);

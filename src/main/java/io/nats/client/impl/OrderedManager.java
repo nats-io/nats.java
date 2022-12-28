@@ -28,7 +28,7 @@ class OrderedManager extends PushMessageManager {
     }
 
     @Override
-    protected boolean subManage(Message msg) {
+    protected boolean pushSubManage(Message msg) {
         long receivedConsumerSeq = msg.metaData().consumerSequence();
         if (expectedConsumerSeq != receivedConsumerSeq) {
             handleErrorCondition();
@@ -48,7 +48,7 @@ class OrderedManager extends PushMessageManager {
             expectedConsumerSeq = 1; // consumer always starts with consumer sequence 1
 
             // 1. shutdown the manager, for instance stops heartbeat timers
-            sub.manager.shutdown();
+            shutdown();
 
             // 2. re-subscribe. This means kill the sub then make a new one
             //    New sub needs a new deliverSubject
@@ -57,7 +57,7 @@ class OrderedManager extends PushMessageManager {
 
             // 3. make a new consumer using the same deliver subject but
             //    with a new starting point
-            ConsumerConfiguration userCC = ConsumerConfiguration.builder(serverCC)
+            ConsumerConfiguration userCC = ConsumerConfiguration.builder(originalCc)
                 .deliverPolicy(DeliverPolicy.ByStartSequence)
                 .deliverSubject(newDeliverSubject)
                 .startSequence(Math.max(1, lastStreamSeq + 1))
@@ -66,7 +66,7 @@ class OrderedManager extends PushMessageManager {
             js._createConsumerUnsubscribeOnException(stream, userCC, sub);
 
             // 4. restart the manager.
-            sub.manager.startup(sub);
+            startup(sub);
         }
         catch (Exception e) {
             IllegalStateException ise = new IllegalStateException("Ordered subscription fatal error.", e);

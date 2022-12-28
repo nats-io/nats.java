@@ -669,22 +669,38 @@ public class JetStreamPullTests extends JetStreamTestBase {
         assertFalse(pro.isNoWait());
     }
 
+    static class PullStatusTrackerMessageManager extends PullMessageManager {
+        public PullStatusTrackerMessageManager(NatsConnection conn, NatsDispatcher dispatcher) {
+            super(conn, dispatcher);
+        }
+
+        int countExceededMaxWaiting = 0;
+
+        @Override
+        protected boolean manage(Message msg) {
+            if (msg.isStatusMessage() && msg.getStatus().isExceededMaxWaiting()) {
+                countExceededMaxWaiting++;
+            }
+            return super.manage(msg);
+        }
+    }
+
     @Test
-    public void testMaxPullRequests() throws Exception {
+    public void testMaxWaitingPullRequests() throws Exception {
+        hideSystemErr();
         runInJsServer(true, nc -> {
             createDefaultTestStream(nc);
             JetStream js = nc.jetStream();
-            ((NatsJetStream)js).PULL_MESSAGE_MANAGER_FACTORY = NoopMessageManager::new;
+            PullStatusTrackerMessageManager pstmm = new PullStatusTrackerMessageManager((NatsConnection)nc, null);
+            ((NatsJetStream)js).PULL_MESSAGE_MANAGER_FACTORY = (c, d) -> pstmm;
 
             PullSubscribeOptions plso = ConsumerConfiguration.builder().maxPullWaiting(1).buildPullSubscribeOptions();
             JetStreamSubscription sub = js.subscribe(SUBJECT, plso);
+            sub.pull(1);
+            sub.pull(1);
             js.publish(SUBJECT, new byte[0]);
-            sub.pull(1);
-            sub.pull(1);
-            sub.pull(1);
-            System.out.println(sub.nextMessage(1000));
-            System.out.println(sub.nextMessage(1000));
-            System.out.println(sub.nextMessage(1000));
+            sub.nextMessage(1000);
+            assertEquals(1, pstmm.countExceededMaxWaiting);
         });
     }
 }

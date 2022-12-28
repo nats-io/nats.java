@@ -26,8 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static io.nats.client.utils.TestBase.standardCloseConnection;
-import static io.nats.client.utils.TestBase.standardConnection;
+import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ErrorListenerTests {
@@ -128,8 +127,9 @@ public class ErrorListenerTests {
     @Test
     public void testErrorOnNoAuth() throws Exception {
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
-        TestHandler handler = new TestHandler();
+        TestHandler handler = new TestHandler(false);
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
+            sleep(100); // give the server time to get ready, otherwise sometimes this test flaps
             // See config file for user/pass
             Options options = new Options.Builder().
                     server(ts.getURI())

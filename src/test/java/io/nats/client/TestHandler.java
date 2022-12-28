@@ -73,10 +73,10 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         this.exceptionCount.incrementAndGet();
 
         if( exp != null && this.printExceptions){
-            System.out.println("Current time - "+System.currentTimeMillis());
+            // System.out.println("Current time - "+System.currentTimeMillis());
             exp.printStackTrace();
             Statistics stats = conn.getStatistics();
-            System.out.println("Sent "+stats.getOutMsgs()+"/"+stats.getOutBytes()+" - Received "+stats.getInMsgs()+"/"+stats.getInBytes());
+            // System.out.println("Sent "+stats.getOutMsgs()+"/"+stats.getOutBytes()+" - Received "+stats.getInMsgs()+"/"+stats.getInBytes());
         }
     }
 

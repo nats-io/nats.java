@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.JetStreamStatusException;
 import io.nats.client.Message;
+import io.nats.client.support.Status;
 
 import java.util.Arrays;
 import java.util.List;
@@ -23,13 +24,24 @@ class PullMessageManager extends MessageManager {
 
     private static final List<Integer> PULL_KNOWN_STATUS_CODES = Arrays.asList(404, 408, 409);
 
-    boolean manage(Message msg) {
+    public PullMessageManager(NatsConnection conn, NatsDispatcher dispatcher) {
+        super(conn, dispatcher);
+    }
+
+    @Override
+    protected boolean manage(Message msg) {
         if (msg.isStatusMessage()) {
-            if ( !PULL_KNOWN_STATUS_CODES.contains(msg.getStatus().getCode()) ) {
-                throw new JetStreamStatusException(sub, msg.getStatus());
+            Status status = msg.getStatus();
+            if ( !PULL_KNOWN_STATUS_CODES.contains(status.getCode()) ) {
+                // If this status is unknown to us, always use the error handler.
+                // If it's a sync call, also throw an exception
+                conn.executeCallback((c, el) -> el.unhandledStatus(c, sub, status));
+                if (syncMode) {
+                    throw new JetStreamStatusException(sub, status);
+                }
             }
             return true;
         }
-        return false;
+        return super.manage(msg);
     }
 }

@@ -15,16 +15,149 @@ package io.nats.client.impl;
 
 import io.nats.client.Message;
 
-abstract class MessageManager {
-    protected NatsJetStreamSubscription sub;
+import java.time.Duration;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicLong;
 
-    boolean manage(Message msg) {
-        return false;
+abstract class MessageManager {
+    protected static final int THRESHOLD = 3;
+
+    protected final NatsConnection conn;
+    protected final NatsDispatcher dispatcher;
+    protected final boolean syncMode;
+
+    protected NatsJetStreamSubscription sub;
+    protected boolean hb;
+    protected long idleHeartbeatSetting;
+    protected long alarmPeriodSetting;
+
+    protected long lastStreamSeq;
+    protected long lastConsumerSeq;
+
+    protected final AtomicLong lastMsgReceived;
+    protected HeartbeatTimer heartbeatTimer;
+
+    public MessageManager(NatsConnection conn, NatsDispatcher dispatcher) {
+        this.conn = conn;
+        this.dispatcher = dispatcher;
+        syncMode = dispatcher == null;
+        hb = false;
+        idleHeartbeatSetting = 0;
+        alarmPeriodSetting = 0;
+        lastStreamSeq = -1;
+        lastConsumerSeq = -1;
+        lastMsgReceived = new AtomicLong(System.currentTimeMillis());
     }
+
+    protected void initIdleHeartbeat(Duration configIdleHeartbeat, long configMessageAlarmTime) {
+        initIdleHeartbeat(configIdleHeartbeat == null ? 0 : configIdleHeartbeat.toMillis(), configMessageAlarmTime);
+    }
+
+    protected void initIdleHeartbeat(long configIdleHeartbeat, long configMessageAlarmTime) {
+        idleHeartbeatSetting = configIdleHeartbeat;
+        if (idleHeartbeatSetting <= 0) {
+            alarmPeriodSetting = 0;
+            hb = false;
+        }
+        else {
+            if (configMessageAlarmTime < idleHeartbeatSetting) {
+                alarmPeriodSetting = idleHeartbeatSetting * THRESHOLD;
+            }
+            else {
+                alarmPeriodSetting = configMessageAlarmTime;
+            }
+            hb = true;
+        }
+    }
+
+    boolean isSyncMode()            { return syncMode; }
+    boolean isHb()                  { return hb; }
+    long getIdleHeartbeatSetting()  { return idleHeartbeatSetting; }
+    long getAlarmPeriodSetting()    { return alarmPeriodSetting; }
+    long getLastStreamSequence()    { return lastStreamSeq; }
+    long getLastConsumerSequence()  { return lastConsumerSeq; }
+    long getLastMsgReceived()       { return lastMsgReceived.get(); }
 
     void startup(NatsJetStreamSubscription sub) {
         this.sub = sub;
+        if (hb) {
+            sub.setBeforeQueueProcessor(this::beforeQueueProcessor);
+            heartbeatTimer = new HeartbeatTimer();
+        }
     }
 
-    void shutdown() {}
+    void shutdown() {
+        if (heartbeatTimer != null) {
+            heartbeatTimer.shutdown();
+            heartbeatTimer = null;
+        }
+    }
+
+    protected boolean manage(Message msg) {
+        lastStreamSeq = msg.metaData().streamSequence();
+        lastConsumerSeq = msg.metaData().consumerSequence();
+        return false;
+    }
+
+    protected String extractFcSubject(Message msg) {
+        return null;
+    }
+
+    protected NatsMessage beforeQueueProcessor(NatsMessage msg) {
+        lastMsgReceived.set(System.currentTimeMillis());
+        if (msg.isStatusMessage()
+            && msg.getStatus().isHeartbeat()
+            && extractFcSubject(msg) == null)
+        {
+            return null;
+        }
+        return msg;
+    }
+
+
+    protected void handleHeartbeatError() {
+        conn.executeCallback((c, el) -> el.heartbeatAlarm(c, sub, lastStreamSeq, lastConsumerSeq));
+    }
+
+    protected class HeartbeatTimer {
+        Timer timer;
+        boolean alive = true;
+
+        class HeartbeatTimerTask extends TimerTask {
+            @Override
+            public void run() {
+                long sinceLast = System.currentTimeMillis() - lastMsgReceived.get();
+                if (sinceLast > alarmPeriodSetting) {
+                    handleHeartbeatError();
+                }
+                restart();
+            }
+        }
+
+        public HeartbeatTimer() {
+            restart();
+        }
+
+        synchronized void restart() {
+            cancel();
+            if (alive) {
+                timer = new Timer();
+                timer.schedule(new HeartbeatTimerTask(), alarmPeriodSetting);
+            }
+        }
+
+        synchronized public void shutdown() {
+            alive = false;
+            cancel();
+        }
+
+        private void cancel() {
+            if (timer != null) {
+                timer.cancel();
+                timer.purge();
+                timer = null;
+            }
+        }
+    }
 }

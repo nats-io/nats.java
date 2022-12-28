@@ -39,7 +39,7 @@ public class JetStreamOrderedConsumerTests extends JetStreamTestBase {
         }
 
         @Override
-        NatsMessage beforeQueueProcessor(NatsMessage msg) {
+        protected NatsMessage beforeQueueProcessor(NatsMessage msg) {
             msg = super.beforeQueueProcessor(msg);
             if (msg != null && msg.isJetStream()) {
                 long ss = msg.metaData().streamSequence();
@@ -177,7 +177,7 @@ public class JetStreamOrderedConsumerTests extends JetStreamTestBase {
         }
 
         @Override
-        NatsMessage beforeQueueProcessor(NatsMessage msg) {
+        protected NatsMessage beforeQueueProcessor(NatsMessage msg) {
             if (skip.decrementAndGet() < 0) {
                 return null;
             }
