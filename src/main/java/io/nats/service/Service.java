@@ -171,7 +171,7 @@ public class Service {
         return info;
     }
 
-    public SchemaResponse getSchemaInfo() {
+    public SchemaResponse getSchemaResponse() {
         return schemaResponse;
     }
 

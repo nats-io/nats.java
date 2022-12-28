@@ -96,8 +96,8 @@ public class ServiceTests extends JetStreamTestBase {
 
                 Info echoInfo = echoService1.getInfo();
                 Info sortInfo = sortService1.getInfo();
-                SchemaResponse echoSchemaResponse = echoService1.getSchemaInfo();
-                SchemaResponse sortSchemaResponse = sortService1.getSchemaInfo();
+                SchemaResponse echoSchemaResponse = echoService1.getSchemaResponse();
+                SchemaResponse sortSchemaResponse = sortService1.getSchemaResponse();
 
                 // discovery - wait at most 500 millis for responses, 5 total responses max
                 Discovery discovery = new Discovery(clientNc, 500, 5);
