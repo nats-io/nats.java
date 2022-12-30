@@ -687,7 +687,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testMaxWaitingPullRequests() throws Exception {
-        hideSystemErr();
         runInJsServer(true, nc -> {
             createDefaultTestStream(nc);
             JetStream js = nc.jetStream();

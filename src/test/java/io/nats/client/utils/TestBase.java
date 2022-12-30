@@ -21,7 +21,6 @@ import org.opentest4j.AssertionFailedError;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
@@ -386,9 +385,6 @@ public class TestBase {
         }
     }
 
-    public static void hideSystemErr() {
-        System.setErr(new PrintStream(new DummyOut()));
-    }
     // ----------------------------------------------------------------------------------------------------
     // flush
     // ----------------------------------------------------------------------------------------------------
