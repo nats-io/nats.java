@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class NatsMessageTests {
     @Test
     public void testSizeOnProtocolMessage() {
-        NatsMessage msg = new NatsMessage.ProtocolMessage("PING");
+        NatsMessage msg = new ProtocolMessage("PING");
         assertEquals(msg.getProtocolBytes().length + 2, msg.getSizeInBytes(), "Size is set, with CRLF");
         assertEquals("PING".getBytes(StandardCharsets.UTF_8).length + 2, msg.getSizeInBytes(), "Size is correct");
         assertTrue(msg.toString().endsWith("PING")); // toString COVERAGE
@@ -245,37 +245,27 @@ public class NatsMessageTests {
         assertNotNull(m.getHeaders());
 
         m.headers = null; // we can do this because we have package access
-        m.dirty = true; // for later tests, also is true b/c we nerfed the headers
         assertFalse(m.hasHeaders());
         assertNull(m.getHeaders());
         assertNotNull(m.toString()); // COVERAGE
         assertNotNull(m.getOrCreateHeaders());
 
-        NatsMessage.ProtocolMessage pm = new NatsMessage.ProtocolMessage((byte[])null);
+        ProtocolMessage pm = new ProtocolMessage((byte[])null);
         assertNotNull(pm.protocolBab);
         assertEquals(0, pm.protocolBab.length());
 
-        NatsMessage.InternalMessage scm = new NatsMessage.InternalMessage() {};
+        IncomingMessage scm = new IncomingMessage() {};
         assertNull(scm.protocolBab);
-        assertEquals(-1, scm.getControlLineLength());
+        assertThrows(IllegalStateException.class, scm::getProtocolBytes);
+        assertThrows(IllegalStateException.class, scm::getProtocolBab);
+        assertThrows(IllegalStateException.class, scm::getControlLineLength);
 
         // coverage coverage coverage
+        //noinspection deprecation
         NatsMessage nmCov = new NatsMessage("sub", "reply", null, true);
         assertTrue(nmCov.isUtf8mode());
 
-        nmCov.dirty = false;
-        nmCov.calculateIfDirty();
-
-        nmCov.dirty = false;
-        nmCov.headers = new Headers().add("foo", "bar");
-        nmCov.calculateIfDirty();
-
-        nmCov.dirty = false;
-        nmCov.headers = new Headers().add("foo", "bar");
-        nmCov.headers.getSerialized();
-        nmCov.calculateIfDirty();
-
-        assertTrue(nmCov.toDetailString().contains("HPUB sub reply 21 21"));
+        assertTrue(nmCov.toDetailString().contains("PUB sub reply 0"));
         assertTrue(nmCov.toDetailString().contains("next=No"));
 
         nmCov.protocolBab = null;
@@ -300,8 +290,8 @@ public class NatsMessageTests {
     public void testFactoryProducesStatusMessage() {
         IncomingHeadersProcessor incomingHeadersProcessor =
                 new IncomingHeadersProcessor("NATS/1.0 503 No Responders\r\n".getBytes());
-        NatsMessage.InternalMessageFactory factory =
-                new NatsMessage.InternalMessageFactory("sid", "subj", "replyTo", 0, false);
+        IncomingMessageFactory factory =
+                new IncomingMessageFactory("sid", "subj", "replyTo", 0, false);
         factory.setHeaders(incomingHeadersProcessor);
         factory.setData(null); // coverage
 
@@ -310,7 +300,7 @@ public class NatsMessageTests {
         assertNotNull(m.getStatus());
         assertEquals(503, m.getStatus().getCode());
         assertNotNull(m.getStatus().toString());
-        NatsMessage.StatusMessage sm = (NatsMessage.StatusMessage)m;
+        StatusMessage sm = (StatusMessage)m;
         assertNotNull(sm.toString());
     }
 

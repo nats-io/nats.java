@@ -17,8 +17,13 @@ import nats.io.NatsRunnerUtils;
 import nats.io.NatsServerRunner;
 
 import java.io.IOException;
+import java.util.logging.Level;
 
 public class NatsTestServer extends NatsServerRunner {
+    static {
+        NatsServerRunner.setLoggingLevel(Level.SEVERE);
+    }
+
     public NatsTestServer() throws IOException {
         super();
     }
