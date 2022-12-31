@@ -31,7 +31,7 @@ class IncomingMessageFactory {
     private byte[] data;
     private Headers headers;
     private Status status;
-    private int headerLen = 0;
+    private int headerLen;
 
     // Create an incoming message for a subscriber
     // Doesn't check control line size, since the server sent us the message
@@ -41,7 +41,6 @@ class IncomingMessageFactory {
         this.replyTo = replyTo;
         this.protocolLineLength = protocolLength;
         this.utf8mode = utf8mode;
-        // headers and data are set later and sizes are calculated during those setters
     }
 
     void setHeaders(IncomingHeadersProcessor ihp) {
@@ -65,13 +64,13 @@ class IncomingMessageFactory {
         else {
             message = new IncomingMessage(data);
         }
-        message.sid = this.sid;
-        message.subject = this.subject;
-        message.replyTo = this.replyTo;
-        message.headers = this.headers;
-        message.utf8mode = this.utf8mode;
-        message.headerLen = this.headerLen;
-        message.sizeInBytes = protocolLineLength + message.headerLen + message.dataLen + 4; // Two CRLFs
+        message.sid = sid;
+        message.subject = subject;
+        message.replyTo = replyTo;
+        message.headers = headers;
+        message.headerLen = headerLen;
+        message.utf8mode = utf8mode;
+        message.sizeInBytes = protocolLineLength + headerLen + message.dataLen + 4; // Two CRLFs
         return message;
     }
 }
