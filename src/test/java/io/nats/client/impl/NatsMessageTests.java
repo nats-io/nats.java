@@ -257,7 +257,6 @@ public class NatsMessageTests {
         IncomingMessage scm = new IncomingMessage() {};
         assertNull(scm.protocolBab);
         assertThrows(IllegalStateException.class, scm::getProtocolBytes);
-        assertThrows(IllegalStateException.class, scm::getProtocolBab);
         assertThrows(IllegalStateException.class, scm::getControlLineLength);
 
         // coverage coverage coverage

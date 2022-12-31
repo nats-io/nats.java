@@ -13,19 +13,16 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.support.ByteArrayBuilder;
-
 public class IncomingMessage extends NatsMessage {
     IncomingMessage() {}
+
+    IncomingMessage(byte[] data) {
+        super(data);
+    }
 
     @Override
     byte[] getProtocolBytes() {
         throw new IllegalStateException("getProtocolBytes not supported for this type of message.");
-    }
-
-    @Override
-    ByteArrayBuilder getProtocolBab() {
-        throw new IllegalStateException("getProtocolBab not supported for this type of message.");
     }
 
     @Override

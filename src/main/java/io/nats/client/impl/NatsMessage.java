@@ -42,7 +42,6 @@ public class NatsMessage implements Message {
 
     // incoming specific : subject, replyTo, data and these fields
     protected String sid;
-    protected int protocolLineLength;
     protected int controlLineLength;
 
     // protocol specific : just this field
@@ -50,8 +49,8 @@ public class NatsMessage implements Message {
 
     // housekeeping
     protected int sizeInBytes = -1;
-    protected int hdrLen = 0;
-    protected int dataLen = 0;
+    protected int headerLen = 0;
+    protected int dataLen;
 
     protected NatsSubscription subscription;
 
@@ -63,11 +62,12 @@ public class NatsMessage implements Message {
     // Constructors - Prefer to use Builder
     // ----------------------------------------------------------------------------------------------------
     protected NatsMessage() {
-        initData(EMPTY_BODY);
+        this((byte[])null);
     }
 
     protected NatsMessage(byte[] data) {
-        initData(data);
+        this.data = data == null ? EMPTY_BODY : data;
+        dataLen = this.data.length;
     }
 
     @Deprecated // Plans are to remove allowing utf8-mode
@@ -76,27 +76,18 @@ public class NatsMessage implements Message {
         this.utf8mode = utf8mode;
     }
 
-    public NatsMessage(String subject, String replyTo, byte[] data) {
-        this(subject, replyTo, null, data);
-    }
-
-    public NatsMessage(Message message) {
-        initData(message.getData());
-        this.subject = message.getSubject();
-        this.replyTo = message.getReplyTo();
-        this.headers = message.getHeaders();
-        this.utf8mode = message.isUtf8mode();
-        finishConstruct();
-    }
-
     @Deprecated // Plans are to remove allowing utf8-mode
     public NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
         this(subject, replyTo, headers, data);
         this.utf8mode = utf8mode;
     }
 
+    public NatsMessage(String subject, String replyTo, byte[] data) {
+        this(subject, replyTo, null, data);
+    }
+
     public NatsMessage(String subject, String replyTo, Headers headers, byte[] data) {
-        initData(data);
+        this(data);
         this.subject = validateSubject(subject, true);
         this.replyTo = validateReplyTo(replyTo, false);
         this.headers = headers;
@@ -104,28 +95,32 @@ public class NatsMessage implements Message {
         finishConstruct();
     }
 
-    protected void initData(byte[] data) {
-        this.data = data == null ? EMPTY_BODY : data;
-        dataLen = this.data.length;
+    public NatsMessage(Message message) {
+        this(message.getData());
+        this.subject = message.getSubject();
+        this.replyTo = message.getReplyTo();
+        this.headers = message.getHeaders();
+        this.utf8mode = message.isUtf8mode();
+        finishConstruct();
     }
 
     protected void finishConstruct() {
         int replyToLen = replyTo == null ? 0 : replyTo.length();
 
         if (headers != null && !headers.isEmpty()) {
-            hdrLen = headers.serializedLength();
+            headerLen = headers.serializedLength();
         }
         else {
-            hdrLen = 0;
+            headerLen = 0;
         }
-        int hdrAndDataLen = hdrLen + dataLen;
+        int headerAndDataLen = headerLen + dataLen;
 
         // initialize the builder with a reasonable length, preventing resize in 99.9% of the cases
-        // 32 for misc + subject length doubled in case of utf8 mode + replyToLen + totLen (hdrLen + dataLen)
-        ByteArrayBuilder bab = new ByteArrayBuilder(32 + (subject.length() * 2) + replyToLen + hdrAndDataLen);
+        // 32 for misc + subject length doubled in case of utf8 mode + replyToLen + totLen (headerLen + dataLen)
+        ByteArrayBuilder bab = new ByteArrayBuilder(32 + (subject.length() * 2) + replyToLen + headerAndDataLen);
 
         // protocol come first
-        if (hdrLen > 0) {
+        if (headerLen > 0) {
             bab.append(HPUB_SP_BYTES, 0, HPUB_SP_BYTES_LEN);
         }
         else {
@@ -141,16 +136,16 @@ public class NatsMessage implements Message {
         }
 
         // header length if there are headers
-        if (hdrLen > 0) {
-            bab.append(Integer.toString(hdrLen).getBytes(US_ASCII)).append(SP);
+        if (headerLen > 0) {
+            bab.append(Integer.toString(headerLen).getBytes(US_ASCII)).append(SP);
         }
 
         // payload length
-        bab.append(Integer.toString(hdrAndDataLen).getBytes(US_ASCII));
+        bab.append(Integer.toString(headerAndDataLen).getBytes(US_ASCII));
 
         protocolBab = bab;
-        controlLineLength = protocolBab.length() + 2; // One CRLF
-        sizeInBytes = protocolBab.length() + hdrAndDataLen + 4; // Two CRLFs
+        controlLineLength = protocolBab.length() + 2; // One CRLF. This is just how controlLineLength is defined.
+        sizeInBytes = controlLineLength + headerAndDataLen + 2; // The 2nd CRLFs
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -166,10 +161,6 @@ public class NatsMessage implements Message {
 
     byte[] getProtocolBytes() {
         return protocolBab.toByteArray();
-    }
-
-    ByteArrayBuilder getProtocolBab() {
-        return protocolBab;
     }
 
     int getControlLineLength() {
@@ -387,10 +378,9 @@ public class NatsMessage implements Message {
                 "\n  utf8mode=" + utf8mode +
                 "\n  headers=" + headersToString() +
                 "\n  sid='" + sid + '\'' +
-                "\n  protocolLineLength=" + protocolLineLength +
                 "\n  protocolBytes=" + protocolBytesToString() +
                 "\n  sizeInBytes=" + sizeInBytes +
-                "\n  hdrLen=" + hdrLen +
+                "\n  headerLen=" + headerLen +
                 "\n  dataLen=" + dataLen +
                 "\n  subscription=" + subscription +
                 "\n  next=" + nextToString();

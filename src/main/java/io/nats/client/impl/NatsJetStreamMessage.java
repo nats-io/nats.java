@@ -26,7 +26,9 @@ class NatsJetStreamMessage extends IncomingMessage {
 
     private NatsJetStreamMetaData jsMetaData = null;
 
-    NatsJetStreamMessage() {}
+    NatsJetStreamMessage(byte[] data) {
+        super(data);
+    }
 
     /**
      * {@inheritDoc}

@@ -23,7 +23,7 @@ class ProtocolMessage extends NatsMessage {
 
     ProtocolMessage(ByteArrayBuilder babProtocol) {
         protocolBab = babProtocol;
-        sizeInBytes = controlLineLength = protocolBab.length() + 2; // CRLF
+        sizeInBytes = controlLineLength = protocolBab.length() + 2; // CRLF, protocol doesn't have data
     }
 
     ProtocolMessage(byte[] protocol) {

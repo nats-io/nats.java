@@ -31,9 +31,7 @@ class IncomingMessageFactory {
     private byte[] data;
     private Headers headers;
     private Status status;
-    private int hdrLen = 0;
-    private int dataLen = 0;
-    private int totLen = 0;
+    private int headerLen = 0;
 
     // Create an incoming message for a subscriber
     // Doesn't check control line size, since the server sent us the message
@@ -49,14 +47,11 @@ class IncomingMessageFactory {
     void setHeaders(IncomingHeadersProcessor ihp) {
         headers = ihp.getHeaders();
         status = ihp.getStatus();
-        hdrLen = ihp.getSerializedLength();
-        totLen = hdrLen + dataLen;
+        headerLen = ihp.getSerializedLength();
     }
 
     void setData(byte[] data) {
         this.data = data;
-        dataLen = data == null ? 0 : data.length;
-        totLen = hdrLen + dataLen;
     }
 
     NatsMessage getMessage() {
@@ -65,21 +60,18 @@ class IncomingMessageFactory {
             message = new StatusMessage(status);
         }
         else if (replyTo != null && replyTo.startsWith(JS_ACK_SUBJECT_PREFIX)) {
-            message = new NatsJetStreamMessage();
+            message = new NatsJetStreamMessage(data);
         }
         else {
-            message = new IncomingMessage();
+            message = new IncomingMessage(data);
         }
-        message.initData(data);
         message.sid = this.sid;
         message.subject = this.subject;
         message.replyTo = this.replyTo;
-        message.protocolLineLength = this.protocolLineLength;
         message.headers = this.headers;
         message.utf8mode = this.utf8mode;
-        message.hdrLen = this.hdrLen;
-        message.dataLen = this.dataLen;
-        message.sizeInBytes = protocolLineLength + hdrLen + dataLen + 4; // Two CRLFs
+        message.headerLen = this.headerLen;
+        message.sizeInBytes = protocolLineLength + message.headerLen + message.dataLen + 4; // Two CRLFs
         return message;
     }
 }
