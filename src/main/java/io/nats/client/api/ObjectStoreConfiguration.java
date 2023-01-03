@@ -58,7 +58,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
      * @return an Object Store configuration Builder
      */
     public static ObjectStoreConfiguration.Builder builder() {
-        return new ObjectStoreConfiguration.Builder();
+        return new ObjectStoreConfiguration.Builder((ObjectStoreConfiguration)null);
     }
 
     /**
@@ -67,7 +67,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
      * @return an Object Store configuration Builder
      */
     public static ObjectStoreConfiguration.Builder builder(String name) {
-        return new ObjectStoreConfiguration.Builder().name(name);
+        return new ObjectStoreConfiguration.Builder(name);
     }
 
     /**
@@ -87,7 +87,6 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
      *
      */
     public static class Builder {
-
         String name;
         StreamConfiguration.Builder scBuilder;
 
@@ -95,7 +94,12 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * Default Builder
          */
         public Builder() {
-            this(null);
+            this((ObjectStoreConfiguration)null);
+        }
+
+        public Builder(String name) {
+            this((ObjectStoreConfiguration)null);
+            name(name);
         }
 
         /**

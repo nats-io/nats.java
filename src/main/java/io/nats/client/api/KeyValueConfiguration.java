@@ -88,7 +88,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
      * @return a KeyValueConfiguration Builder
      */
     public static Builder builder() {
-        return new Builder();
+        return new Builder((KeyValueConfiguration)null);
     }
 
 
@@ -98,7 +98,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
      * @return a KeyValueConfiguration Builder
      */
     public static Builder builder(String name) {
-        return new Builder().name(name);
+        return new Builder(name);
     }
 
     /**
@@ -118,17 +118,24 @@ public class KeyValueConfiguration extends FeatureConfiguration {
      *
      */
     public static class Builder {
-
         String name;
-        StreamConfiguration.Builder scBuilder;
         Mirror mirror;
-        List<Source> sources = new ArrayList<>();
+        final List<Source> sources = new ArrayList<>();
+        final StreamConfiguration.Builder scBuilder;
 
         /**
          * Default Builder
          */
         public Builder() {
-            this(null);
+            this((KeyValueConfiguration)null);
+        }
+
+        /**
+         * Default Builder
+         */
+        public Builder(String name) {
+            this((KeyValueConfiguration)null);
+            name(name);
         }
 
         /**
