@@ -85,16 +85,26 @@ public class KeyValueConfiguration extends FeatureConfiguration {
 
     /**
      * Creates a builder for the Key Value Configuration.
-     * @return a key value configuration builder
+     * @return a KeyValueConfiguration Builder
      */
     public static Builder builder() {
         return new Builder();
     }
 
+
+    /**
+     * Creates a builder for the Key Value Configuration.
+     * @param name the name of the key value bucket
+     * @return a KeyValueConfiguration Builder
+     */
+    public static Builder builder(String name) {
+        return new Builder().name(name);
+    }
+
     /**
      * Creates a builder to copy the key value configuration.
      * @param kvc an existing KeyValueConfiguration
-     * @return a KeyValueConfiguration builder
+     * @return a KeyValueConfiguration Builder
      */
     public static Builder builder(KeyValueConfiguration kvc) {
         return new Builder(kvc);
@@ -143,7 +153,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @return the builder
          */
         public Builder name(String name) {
-            this.name = name;
+            this.name = validateBucketName(name, true);
             return this;
         }
 
@@ -213,7 +223,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @return Builder
          */
         public Builder replicas(int replicas) {
-            scBuilder.replicas(Math.max(replicas, 1));
+            scBuilder.replicas(replicas);
             return this;
         }
 
@@ -312,7 +322,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @return the KeyValueConfiguration.
          */
         public KeyValueConfiguration build() {
-            name = validateBucketName(name, true);
+            name = required(name, "name");
             scBuilder.name(toStreamName(name))
                 .allowRollup(true)
                 .allowDirect(true) // by design
