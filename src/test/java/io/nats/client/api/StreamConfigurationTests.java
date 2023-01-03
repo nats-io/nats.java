@@ -183,6 +183,27 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testConstructionInvalidsCoverage() {
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().name(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxConsumers(0));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxConsumers(-2));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMessages(0));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMessages(-2));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMessagesPerSubject(0));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMessagesPerSubject(-2));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxBytes(0));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxBytes(-2));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxAge(Duration.ofNanos(-1)));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxAge(-1));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMsgSize(0));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMsgSize(-2));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().replicas(0));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().replicas(6));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().duplicateWindow(Duration.ofNanos(-1)));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().duplicateWindow(-1));
+    }
+
+    @Test
     public void testSourceBase() {
         StreamConfiguration sc = getTestConfiguration();
         Mirror m = sc.getMirror();

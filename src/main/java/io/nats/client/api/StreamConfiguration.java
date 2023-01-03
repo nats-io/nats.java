@@ -692,6 +692,7 @@ public class StreamConfiguration implements JsonSerializable {
 
         /**
          * Sets the number of replicas a message must be stored on in the StreamConfiguration.
+         * Must be 1 to 5 inclusive
          * @param replicas the number of replicas to store this message on
          * @return Builder
          */
@@ -732,7 +733,7 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Sets the duplicate checking window in the the StreamConfiguration.  A Duration.Zero
+         * Sets the duplicate checking window in the StreamConfiguration.  A Duration.Zero
          * disables duplicate checking.  Duplicate checking is disabled by default.
          * @param window duration to hold message ids for duplicate checking.
          * @return Builder
@@ -743,7 +744,7 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Sets the duplicate checking window in the the StreamConfiguration.  A Duration.Zero
+         * Sets the duplicate checking window in the StreamConfiguration.  A Duration.Zero
          * disables duplicate checking.  Duplicate checking is disabled by default.
          * @param windowMillis duration to hold message ids for duplicate checking.
          * @return Builder

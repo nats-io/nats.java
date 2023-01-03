@@ -105,11 +105,9 @@ public class ValidatorTests {
     @Test
     public void testValidateMaxHistory() {
         assertEquals(1, validateMaxHistory(1));
-        assertEquals(1, validateMaxHistory(0));
-        assertEquals(1, validateMaxHistory(-1));
-        assertEquals(1, validateMaxHistory(-2));
         assertEquals(64, validateMaxHistory(64));
-        //noinspection ResultOfMethodCallIgnored
+        assertThrows(IllegalArgumentException.class, () -> validateMaxHistory(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxHistory(-1));
         assertThrows(IllegalArgumentException.class, () -> validateMaxHistory(65));
     }
 

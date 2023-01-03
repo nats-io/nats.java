@@ -85,16 +85,26 @@ public class KeyValueConfiguration extends FeatureConfiguration {
 
     /**
      * Creates a builder for the Key Value Configuration.
-     * @return a key value configuration builder
+     * @return a KeyValueConfiguration Builder
      */
     public static Builder builder() {
-        return new Builder();
+        return new Builder((KeyValueConfiguration)null);
+    }
+
+
+    /**
+     * Creates a builder for the Key Value Configuration.
+     * @param name the name of the key value bucket
+     * @return a KeyValueConfiguration Builder
+     */
+    public static Builder builder(String name) {
+        return new Builder(name);
     }
 
     /**
      * Creates a builder to copy the key value configuration.
      * @param kvc an existing KeyValueConfiguration
-     * @return a KeyValueConfiguration builder
+     * @return a KeyValueConfiguration Builder
      */
     public static Builder builder(KeyValueConfiguration kvc) {
         return new Builder(kvc);
@@ -108,17 +118,25 @@ public class KeyValueConfiguration extends FeatureConfiguration {
      *
      */
     public static class Builder {
-
         String name;
-        StreamConfiguration.Builder scBuilder;
         Mirror mirror;
-        List<Source> sources = new ArrayList<>();
+        final List<Source> sources = new ArrayList<>();
+        final StreamConfiguration.Builder scBuilder;
 
         /**
          * Default Builder
          */
         public Builder() {
-            this(null);
+            this((KeyValueConfiguration)null);
+        }
+
+        /**
+         * Builder accepting the key value bucket name.
+         * @param name name of the key value bucket.
+         */
+        public Builder(String name) {
+            this((KeyValueConfiguration)null);
+            name(name);
         }
 
         /**
@@ -138,12 +156,12 @@ public class KeyValueConfiguration extends FeatureConfiguration {
         }
 
         /**
-         * Sets the name of the store.
-         * @param name name of the store.
+         * Sets the name of the key value bucket.
+         * @param name name of the key value bucket.
          * @return the builder
          */
         public Builder name(String name) {
-            this.name = name;
+            this.name = validateBucketName(name, true);
             return this;
         }
 
@@ -213,7 +231,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @return Builder
          */
         public Builder replicas(int replicas) {
-            scBuilder.replicas(Math.max(replicas, 1));
+            scBuilder.replicas(replicas);
             return this;
         }
 
@@ -312,7 +330,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @return the KeyValueConfiguration.
          */
         public KeyValueConfiguration build() {
-            name = validateBucketName(name, true);
+            name = required(name, "name");
             scBuilder.name(toStreamName(name))
                 .allowRollup(true)
                 .allowDirect(true) // by design

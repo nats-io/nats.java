@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
+import static io.nats.client.support.NatsConstants.EMPTY;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class KeyValueConfigurationTests extends JetStreamTestBase {
@@ -70,5 +71,34 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
         assertTrue(kvc.getRepublish().isHeadersOnly());
 
         assertTrue(kvc.toString().contains("bucketName"));
+    }
+
+    @Test
+    public void testConstructionInvalidsCoverage() {
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().build());
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(null));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(HAS_PRINTABLE));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(HAS_DOT));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(HAS_STAR));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(HAS_GT));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder(HAS_FWD_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder(HAS_BACK_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder(HAS_EQUALS));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder(HAS_TIC));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().maxHistoryPerKey(0));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().maxHistoryPerKey(-1));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().maxHistoryPerKey(65));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().maxBucketSize(0));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().maxBucketSize(-2));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().maxValueSize(0));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().maxValueSize(-2));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().ttl(Duration.ofNanos(-1)));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().replicas(0));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().replicas(6));
     }
 }
