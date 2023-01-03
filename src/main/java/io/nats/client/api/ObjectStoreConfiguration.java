@@ -55,7 +55,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
 
     /**
      * Creates a builder for the Object Store Configuration.
-     * @return an Object Store configuration Builder
+     * @return an ObjectStoreConfiguration Builder
      */
     public static ObjectStoreConfiguration.Builder builder() {
         return new ObjectStoreConfiguration.Builder((ObjectStoreConfiguration)null);
@@ -64,7 +64,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
     /**
      * Creates a builder for the Object Store Configuration.
      * @param name the name of the object store bucket
-     * @return an Object Store configuration Builder
+     * @return an ObjectStoreConfiguration Builder
      */
     public static ObjectStoreConfiguration.Builder builder(String name) {
         return new ObjectStoreConfiguration.Builder(name);
@@ -97,6 +97,10 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
             this((ObjectStoreConfiguration)null);
         }
 
+        /**
+         * Builder accepting the object store bucket name.
+         * @param name name of the store.
+         */
         public Builder(String name) {
             this((ObjectStoreConfiguration)null);
             name(name);

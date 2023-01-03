@@ -131,7 +131,8 @@ public class KeyValueConfiguration extends FeatureConfiguration {
         }
 
         /**
-         * Default Builder
+         * Builder accepting the key value bucket name.
+         * @param name name of the key value bucket.
          */
         public Builder(String name) {
             this((KeyValueConfiguration)null);
@@ -155,8 +156,8 @@ public class KeyValueConfiguration extends FeatureConfiguration {
         }
 
         /**
-         * Sets the name of the store.
-         * @param name name of the store.
+         * Sets the name of the key value bucket.
+         * @param name name of the key value bucket.
          * @return the builder
          */
         public Builder name(String name) {
