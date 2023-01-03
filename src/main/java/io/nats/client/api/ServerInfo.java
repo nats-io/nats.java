@@ -141,12 +141,27 @@ public class ServerInfo {
         try {
             String[] v = vString.replaceAll("v", "").replaceAll("-", ".").split("\\Q.\\E");
             int at = vString.indexOf("-");
-            return "" + (Integer.parseInt(v[0]) * 10000) + (Integer.parseInt(v[1]) * 100) + Integer.parseInt(v[2])
-                    + (at == -1 ? "~" : vString.substring(at));
+            String cv = pad(v[0]) + pad(v[1]) + pad(v[2])
+                    + (at == -1 ? "~" : vString.substring(at).toLowerCase());
+            return cv;
         }
         catch (NumberFormatException nfe) {
             return "";
         }
+    }
+
+    private static String pad(String vcomp) {
+        int x = Integer.parseInt(vcomp);
+        if (x < 10) {
+            return "000" + x;
+        }
+        if (x < 100) {
+            return "00" + x;
+        }
+        if (x < 1000) {
+            return "0" + x;
+        }
+        return "" + x;
     }
 
     public boolean isNewerVersionThan(String vTarget) {
