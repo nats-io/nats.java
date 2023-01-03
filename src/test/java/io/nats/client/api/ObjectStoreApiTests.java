@@ -22,6 +22,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -315,5 +316,29 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
             assertNotNull(info.toString()); // coverage
             assertTrue(info.hashCode() != 0); // coverage
         }
+    }
+
+    @Test
+    public void testConstructionInvalidsCoverage() {
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().build());
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(null));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(HAS_PRINTABLE));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(HAS_DOT));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(HAS_STAR));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(HAS_GT));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder(HAS_FWD_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder(HAS_BACK_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder(HAS_EQUALS));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder(HAS_TIC));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().maxBucketSize(0));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().maxBucketSize(-2));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().ttl(Duration.ofNanos(-1)));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().replicas(0));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().replicas(6));
     }
 }
