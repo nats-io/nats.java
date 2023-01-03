@@ -17,8 +17,7 @@ import io.nats.client.support.NatsObjectStoreUtil;
 import java.time.Duration;
 
 import static io.nats.client.support.NatsObjectStoreUtil.*;
-import static io.nats.client.support.Validator.validateBucketName;
-import static io.nats.client.support.Validator.validateMaxBucketBytes;
+import static io.nats.client.support.Validator.*;
 
 /**
  * The ObjectStoreStatus class contains information about an object store.
@@ -54,20 +53,27 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
             '}';
     }
 
+    /**
+     * Creates a builder for the Object Store Configuration.
+     * @return an ObjectStoreConfiguration Builder
+     */
+    public static ObjectStoreConfiguration.Builder builder() {
+        return new ObjectStoreConfiguration.Builder((ObjectStoreConfiguration)null);
+    }
 
     /**
      * Creates a builder for the Object Store Configuration.
      * @param name the name of the object store bucket
-     * @return an Object Store configuration builder
+     * @return an ObjectStoreConfiguration Builder
      */
     public static ObjectStoreConfiguration.Builder builder(String name) {
-        return new ObjectStoreConfiguration.Builder().name(name);
+        return new ObjectStoreConfiguration.Builder(name);
     }
 
     /**
      * Creates a builder to copy the Object Store configuration.
      * @param osc an existing ObjectStoreConfiguration
-     * @return an ObjectStoreConfiguration builder
+     * @return an ObjectStoreConfiguration Builder
      */
     public static ObjectStoreConfiguration.Builder builder(ObjectStoreConfiguration osc) {
         return new ObjectStoreConfiguration.Builder(osc);
@@ -81,7 +87,6 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
      *
      */
     public static class Builder {
-
         String name;
         StreamConfiguration.Builder scBuilder;
 
@@ -89,7 +94,16 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * Default Builder
          */
         public Builder() {
-            this(null);
+            this((ObjectStoreConfiguration)null);
+        }
+
+        /**
+         * Builder accepting the object store bucket name.
+         * @param name name of the store.
+         */
+        public Builder(String name) {
+            this((ObjectStoreConfiguration)null);
+            name(name);
         }
 
         /**
@@ -112,7 +126,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @param name name of the store.
          * @return the builder
          */
-        public ObjectStoreConfiguration.Builder name(String name) {
+        public Builder name(String name) {
             this.name = validateBucketName(name, true);
             return this;
         }
@@ -122,7 +136,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @param description description of the store.
          * @return the builder
          */
-        public ObjectStoreConfiguration.Builder description(String description) {
+        public Builder description(String description) {
             scBuilder.description(description);
             return this;
         }
@@ -132,7 +146,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @param maxBucketSize the maximum number of bytes
          * @return Builder
          */
-        public ObjectStoreConfiguration.Builder maxBucketSize(long maxBucketSize) {
+        public Builder maxBucketSize(long maxBucketSize) {
             scBuilder.maxBytes(validateMaxBucketBytes(maxBucketSize));
             return this;
         }
@@ -142,7 +156,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @param ttl the maximum age
          * @return Builder
          */
-        public ObjectStoreConfiguration.Builder ttl(Duration ttl) {
+        public Builder ttl(Duration ttl) {
             scBuilder.maxAge(ttl);
             return this;
         }
@@ -152,7 +166,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @param storageType the storage type
          * @return Builder
          */
-        public ObjectStoreConfiguration.Builder storageType(StorageType storageType) {
+        public Builder storageType(StorageType storageType) {
             scBuilder.storageType(storageType);
             return this;
         }
@@ -162,8 +176,8 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @param replicas the number of replicas
          * @return Builder
          */
-        public ObjectStoreConfiguration.Builder replicas(int replicas) {
-            scBuilder.replicas(Math.max(replicas, 1));
+        public Builder replicas(int replicas) {
+            scBuilder.replicas(replicas);
             return this;
         }
 
@@ -172,7 +186,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @param placement the placement directive object
          * @return Builder
          */
-        public ObjectStoreConfiguration.Builder placement(Placement placement) {
+        public Builder placement(Placement placement) {
             scBuilder.placement(placement);
             return this;
         }
@@ -182,7 +196,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @return the ObjectStoreConfiguration.
          */
         public ObjectStoreConfiguration build() {
-            name = validateBucketName(name, true);
+            name = required(name, "name");
             scBuilder.name(toStreamName(name))
                 .subjects(toMetaStreamSubject(name), toChunkStreamSubject(name))
                 .allowRollup(true)

@@ -140,13 +140,30 @@ public class ServerInfo {
     private String getComparableVersion(String vString) {
         try {
             String[] v = vString.replaceAll("v", "").replaceAll("-", ".").split("\\Q.\\E");
-            int at = vString.indexOf("-");
-            return "" + (Integer.parseInt(v[0]) * 10000) + (Integer.parseInt(v[1]) * 100) + Integer.parseInt(v[2])
-                    + (at == -1 ? "~" : vString.substring(at));
+            return padded(v[0]) + padded(v[1]) + padded(v[2]) + normalExtra(vString);
         }
         catch (NumberFormatException nfe) {
             return "";
         }
+    }
+
+    private static String padded(String vcomp) {
+        int x = Integer.parseInt(vcomp);
+        if (x < 10) {
+            return "000" + x;
+        }
+        if (x < 100) {
+            return "00" + x;
+        }
+        if (x < 1000) {
+            return "0" + x;
+        }
+        return "" + x;
+    }
+
+    private static String normalExtra(String vString) {
+        int at = vString.indexOf("-");
+        return at == -1 ? "~" : vString.substring(at).toLowerCase();
     }
 
     public boolean isNewerVersionThan(String vTarget) {

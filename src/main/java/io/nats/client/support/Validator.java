@@ -213,11 +213,8 @@ public abstract class Validator {
     }
 
     public static int validateMaxHistory(int max) {
-        if (max < 2) {
-            return 1;
-        }
-        if (max > MAX_HISTORY_PER_KEY) {
-            throw new IllegalArgumentException("Max History Per Key cannot be more than " + MAX_HISTORY_PER_KEY);
+        if (max < 1 || max > MAX_HISTORY_PER_KEY) {
+            throw new IllegalArgumentException("Max History must be from 1 to " + MAX_HISTORY_PER_KEY + " inclusive.");
         }
         return max;
     }
