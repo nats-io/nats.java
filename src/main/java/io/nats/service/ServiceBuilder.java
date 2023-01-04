@@ -5,6 +5,8 @@ import io.nats.client.Dispatcher;
 import io.nats.client.MessageHandler;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -16,15 +18,16 @@ public class ServiceBuilder {
     String name;
     String description;
     String version;
-    String subject;
+    String rootSubject;
     String schemaRequest;
     String schemaResponse;
-    MessageHandler serviceMessageHandler;
+    MessageHandler rootMessageHandler;
     Dispatcher dUserDiscovery;
     Dispatcher dUserService;
     Supplier<StatsData> statsDataSupplier;
     Function<String, StatsData> statsDataDecoder;
     Duration drainTimeout = DEFAULT_DRAIN_TIMEOUT;
+    Map<String, MessageHandler> endpointMap = new HashMap<>();
 
     public ServiceBuilder connection(Connection conn) {
         this.conn = conn;
@@ -32,7 +35,7 @@ public class ServiceBuilder {
     }
 
     public ServiceBuilder name(String name) {
-        this.name = name;
+        this.name = validateIsRestrictedTerm(name, "Name", true);
         return this;
     }
 
@@ -42,12 +45,24 @@ public class ServiceBuilder {
     }
 
     public ServiceBuilder version(String version) {
-        this.version = version;
+        this.version = validateSemVer(version, "Version", true);
         return this;
     }
 
-    public ServiceBuilder subject(String subject) {
-        this.subject = subject;
+    public ServiceBuilder rootSubject(String rootSubject) {
+        this.rootSubject = rootSubject;
+        return this;
+    }
+
+    public ServiceBuilder rootMessageHandler(MessageHandler rootMessageHandler) {
+        this.rootMessageHandler = rootMessageHandler;
+        return this;
+    }
+
+    public ServiceBuilder endpoint(String endpoint, MessageHandler endPointHandler) {
+        endpointMap.put(
+            validateIsRestrictedTerm(endpoint, "Endpoint", true),
+            (MessageHandler)validateNotNull(endPointHandler, "Endpoint Handler"));
         return this;
     }
 
@@ -58,11 +73,6 @@ public class ServiceBuilder {
 
     public ServiceBuilder schemaResponse(String schemaResponse) {
         this.schemaResponse = schemaResponse;
-        return this;
-    }
-
-    public ServiceBuilder serviceMessageHandler(MessageHandler userMessageHandler) {
-        this.serviceMessageHandler = userMessageHandler;
         return this;
     }
 
@@ -89,12 +99,20 @@ public class ServiceBuilder {
 
     public Service build() {
         required(conn, "Connection");
-        required(serviceMessageHandler, "Service Message Handler");
-        validateIsRestrictedTerm(name, "Name", true);
-        validateSemVer(version, "Version", true);
+        required(name, "Name");
+        required(rootSubject, "Root Subject");
+        required(version, "Version");
+
+        if (endpointMap.size() == 0) {
+            required(rootMessageHandler, "Root Message Handler");
+        }
+        else if (rootMessageHandler != null){
+            throw new IllegalArgumentException("Root Message Handler is not allowed when there are endpoints.");
+        }
+
         if ((statsDataSupplier != null && statsDataDecoder == null)
             || (statsDataSupplier == null && statsDataDecoder != null)) {
-            throw new IllegalArgumentException("You must provide neither or both the stats data supplier and decoder");
+            throw new IllegalArgumentException("You must provide both or neither the stats data supplier and decoder");
         }
         return new Service(this);
     }

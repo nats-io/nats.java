@@ -35,7 +35,9 @@ public class ServiceExample {
     public static final String ECHO_SERVICE_NAME = "EchoService";
     public static final String SORT_SERVICE_NAME = "SortService";
     public static final String ECHO_SERVICE_SUBJECT = "echo";
-    public static final String SORT_SERVICE_SUBJECT = "sort";
+    public static final String SORT_SERVICE_ROOT_SUBJECT = "sort";
+    public static final String SORT_SERVICE_ASCENDING_SUBJECT = "ascending";
+    public static final String SORT_SERVICE_DESCENDING_SUBJECT = "descending";
 
     public static void main(String[] args) throws IOException {
 
@@ -49,45 +51,56 @@ public class ServiceExample {
 
         try (Connection nc = Nats.connect(options)) {
             // create the services
-            Service serviceEcho = new ServiceBuilder()
+            ServiceBuilder serviceBuilderEcho = new ServiceBuilder()
                 .connection(nc)
                 .name(ECHO_SERVICE_NAME)
-                .subject(ECHO_SERVICE_SUBJECT)
+                .rootSubject(ECHO_SERVICE_SUBJECT)
                 .description("An Echo Service")
                 .version("0.0.1")
                 .schemaRequest("echo schema request string/url")
                 .schemaResponse("echo schema response string/url")
                 .statsDataHandlers(sds, sdd)
-                .serviceMessageHandler(msg -> ServiceMessage.reply(nc, msg, "Echo " + new String(msg.getData())))
-                .build();
+                .rootMessageHandler(msg -> ServiceMessage.reply(nc, msg, "Echo " + new String(msg.getData())));
+
+            Service serviceEcho = serviceBuilderEcho.build();;
+            Service serviceAnotherEcho = serviceBuilderEcho.build();
 
             System.out.println(getFormatted(serviceEcho));
+            System.out.println("\n" + getFormatted(serviceAnotherEcho));
 
-            ServiceBuilder serviceBuilderSort = new ServiceBuilder()
+            Service serviceSort = new ServiceBuilder()
                 .connection(nc)
                 .name(SORT_SERVICE_NAME)
-                .subject(SORT_SERVICE_SUBJECT)
+                .rootSubject(SORT_SERVICE_ROOT_SUBJECT)
                 .description("A Sort Service")
                 .version("0.0.2")
                 .schemaRequest("sort schema request string/url")
                 .schemaResponse("sort schema response string/url")
-                .serviceMessageHandler(msg -> {
+                .endpoint(SORT_SERVICE_ASCENDING_SUBJECT, msg -> {
                     byte[] data = msg.getData();
                     Arrays.sort(data);
-                    ServiceMessage.reply(nc, msg, "Sort " + new String(data));
-                });
+                    ServiceMessage.reply(nc, msg, "Sort Ascending " + new String(data));
+                })
+                .endpoint(SORT_SERVICE_DESCENDING_SUBJECT, msg -> {
+                    byte[] data = msg.getData();
+                    Arrays.sort(data);
+                    int len = data.length;
+                    byte[] reverse = new byte[len];
+                    for (int x = 0; x < len; x++) {
+                        reverse[x] = data[len - x - 1];
+                    }
+                    ServiceMessage.reply(nc, msg, "Sort Descending " + new String(reverse));
+                })
+                .build();
 
-            Service serviceSort = serviceBuilderSort.build();
-            Service serviceAnotherSort = serviceBuilderSort.build();
             System.out.println("\n" + getFormatted(serviceSort));
-            System.out.println("\n" + getFormatted(serviceAnotherSort));
 
             // ----------------------------------------------------------------------------------------------------
             // Start the services
             // ----------------------------------------------------------------------------------------------------
             CompletableFuture<Boolean> doneEcho = serviceEcho.startService();
+            CompletableFuture<Boolean> doneAnotherEcho = serviceAnotherEcho.startService();
             CompletableFuture<Boolean> doneSort = serviceSort.startService();
-            CompletableFuture<Boolean> doneAnotherSort = serviceAnotherSort.startService();
 
             // ----------------------------------------------------------------------------------------------------
             // Call the services
@@ -97,10 +110,15 @@ public class ServiceExample {
             String response = new String(reply.get().getData());
             System.out.println("\nCalled " + ECHO_SERVICE_SUBJECT + " with [" + request + "] Received [" + response + "]");
 
-            request = randomText();
-            reply = nc.request(SORT_SERVICE_SUBJECT, request.getBytes());
+            String subject = SORT_SERVICE_ROOT_SUBJECT + "." + SORT_SERVICE_ASCENDING_SUBJECT;
+            reply = nc.request(subject, request.getBytes());
             response = new String(reply.get().getData());
-            System.out.println("Called " + SORT_SERVICE_SUBJECT + " with [" + request + "] Received [" + response + "]");
+            System.out.println("Called " + subject + " with [" + request + "] Received [" + response + "]");
+
+            subject = SORT_SERVICE_ROOT_SUBJECT + "." + SORT_SERVICE_DESCENDING_SUBJECT;
+            reply = nc.request(subject, request.getBytes());
+            response = new String(reply.get().getData());
+            System.out.println("Called " + subject + " with [" + request + "] Received [" + response + "]");
 
             // ----------------------------------------------------------------------------------------------------
             // discovery
@@ -180,10 +198,10 @@ public class ServiceExample {
             // ----------------------------------------------------------------------------------------------------
             serviceEcho.stop();
             serviceSort.stop();
-            serviceAnotherSort.stop();
+            serviceAnotherEcho.stop();
             System.out.println("\nEcho service done ? " + doneEcho.get(1, TimeUnit.SECONDS));
+            System.out.println("Another Echo Service done ? " + doneAnotherEcho.get(1, TimeUnit.SECONDS));
             System.out.println("Sort Service done ? " + doneSort.get(1, TimeUnit.SECONDS));
-            System.out.println("Another Sort Service done ? " + doneAnotherSort.get(1, TimeUnit.SECONDS));
 
         }
         catch (Exception e) {
