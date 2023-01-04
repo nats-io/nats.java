@@ -40,21 +40,21 @@ class ListRequestEngine extends ApiResponse<ListRequestEngine> {
         if (hasError()) {
             throw new JetStreamApiException(this);
         }
-        total = JsonUtils.readInt(json, TOTAL_RE, Integer.MAX_VALUE);
+        total = JsonUtils.readInt(json, TOTAL_RE, -1);
         limit = JsonUtils.readInt(json, LIMIT_RE, 0);
         lastOffset = JsonUtils.readInt(json, OFFSET_RE, 0);
     }
 
     boolean hasMore() {
-        return total > (lastOffset + limit);
+        return total > nextOffset();
+    }
+
+    private byte[] noFilterJson() {
+        return (OFFSET_JSON_START + nextOffset() + "}").getBytes(StandardCharsets.US_ASCII);
     }
 
     byte[] internalNextJson() {
         return hasMore() ? noFilterJson() : null;
-    }
-
-    byte[] noFilterJson() {
-        return (OFFSET_JSON_START + (lastOffset + limit) + "}").getBytes(StandardCharsets.US_ASCII);
     }
 
     byte[] internalNextJson(String fieldName, String filter) {
@@ -62,10 +62,14 @@ class ListRequestEngine extends ApiResponse<ListRequestEngine> {
             if (filter == null) {
                 return noFilterJson();
             }
-            return (OFFSET_JSON_START + (lastOffset + limit)
+            return (OFFSET_JSON_START + nextOffset()
                     + ",\"" + fieldName + "\":\"" + filter + "\"}").getBytes(StandardCharsets.US_ASCII);
         }
         return null;
+    }
+
+    int nextOffset() {
+        return lastOffset + limit;
     }
 
     List<String> getObjectList(String objectName) {

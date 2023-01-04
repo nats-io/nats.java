@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.RandomUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -23,6 +24,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
+import static io.nats.client.api.ConsumerConfiguration.*;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -103,6 +105,8 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testJetStreamSubscribe() throws Exception {
         runInJsServer(nc -> {
+            boolean atLeast290 = ((NatsConnection)nc).getInfo().isSameOrNewerThanVersion("2.9.0");
+
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
@@ -142,6 +146,77 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             js.subscribe(SUBJECT, dispatcher, mh -> {}, false);
             js.subscribe(SUBJECT, dispatcher, mh -> {}, false, null);
             js.subscribe(SUBJECT, QUEUE, dispatcher, mh -> {}, false, null);
+
+            // bind with w/o subject
+            jsm.addOrUpdateConsumer(STREAM,
+                builder()
+                    .durable(durable(101))
+                    .deliverSubject(deliver(101))
+                    .build());
+
+            PushSubscribeOptions psoBind = PushSubscribeOptions.bind(STREAM, durable(101));
+            unsubscribeEnsureNotBound(js.subscribe(null, psoBind));
+            unsubscribeEnsureNotBound(js.subscribe("", psoBind));
+            JetStreamSubscription sub = js.subscribe(null, dispatcher, mh -> {}, false, psoBind);
+            unsubscribeEnsureNotBound(dispatcher, sub);
+            js.subscribe("", dispatcher, mh -> {}, false, psoBind);
+
+            jsm.addOrUpdateConsumer(STREAM,
+                builder()
+                    .durable(durable(102))
+                    .deliverSubject(deliver(102))
+                    .deliverGroup(queue(102))
+                    .build());
+
+            psoBind = PushSubscribeOptions.bind(STREAM, durable(102));
+            unsubscribeEnsureNotBound(js.subscribe(null, queue(102), psoBind));
+            unsubscribeEnsureNotBound(js.subscribe("", queue(102), psoBind));
+            sub = js.subscribe(null, queue(102), dispatcher, mh -> {}, false, psoBind);
+            unsubscribeEnsureNotBound(dispatcher, sub);
+            js.subscribe("", queue(102), dispatcher, mh -> {}, false, psoBind);
+
+            // test 2.9.0
+            if (atLeast290) {
+                ConsumerConfiguration cc = builder().name(name(1)).build();
+                pso = PushSubscribeOptions.builder().configuration(cc).build();
+                sub = js.subscribe(SUBJECT, pso);
+                m = sub.nextMessage(DEFAULT_TIMEOUT);
+                assertNotNull(m);
+                assertEquals(DATA, new String(m.getData()));
+                ConsumerInfo ci = sub.getConsumerInfo();
+                assertEquals(name(1), ci.getName());
+                assertEquals(name(1), ci.getConsumerConfiguration().getName());
+                assertNull(ci.getConsumerConfiguration().getDurable());
+
+                cc = builder().durable(durable(1)).build();
+                pso = PushSubscribeOptions.builder().configuration(cc).build();
+                sub = js.subscribe(SUBJECT, pso);
+                m = sub.nextMessage(DEFAULT_TIMEOUT);
+                assertNotNull(m);
+                assertEquals(DATA, new String(m.getData()));
+                ci = sub.getConsumerInfo();
+                assertEquals(durable(1), ci.getName());
+                assertEquals(durable(1), ci.getConsumerConfiguration().getName());
+                assertEquals(durable(1), ci.getConsumerConfiguration().getDurable());
+
+                cc = builder().durable(name(2)).name(name(2)).build();
+                pso = PushSubscribeOptions.builder().configuration(cc).build();
+                sub = js.subscribe(SUBJECT, pso);
+                m = sub.nextMessage(DEFAULT_TIMEOUT);
+                assertNotNull(m);
+                assertEquals(DATA, new String(m.getData()));
+                ci = sub.getConsumerInfo();
+                assertEquals(name(2), ci.getName());
+                assertEquals(name(2), ci.getConsumerConfiguration().getName());
+                assertEquals(name(2), ci.getConsumerConfiguration().getDurable());
+
+                // test opt out
+                JetStreamOptions jso = JetStreamOptions.builder().optOut290ConsumerCreate(true).build();
+                JetStream jsOptOut = nc.jetStream(jso);
+                ConsumerConfiguration ccOptOut = builder().name(name(99)).build();
+                PushSubscribeOptions psoOptOut = PushSubscribeOptions.builder().configuration(ccOptOut).build();
+                assertClientError(JsConsumerCreate290NotAvailable, () -> jsOptOut.subscribe(SUBJECT, psoOptOut));
+            }
         });
     }
 
@@ -206,7 +281,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             jsPublish(js, subjectB, 1);
 
             // subscribe to the wildcard
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().ackPolicy(AckPolicy.None).build();
+            ConsumerConfiguration cc = builder().ackPolicy(AckPolicy.None).build();
             PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
             JetStreamSubscription sub = js.subscribe(subjectWild, pso);
             nc.flush(Duration.ofSeconds(1));
@@ -225,7 +300,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertEquals(4, m.metaData().streamSequence());
 
             // subscribe to A
-            cc = ConsumerConfiguration.builder().filterSubject(subjectA).ackPolicy(AckPolicy.None).build();
+            cc = builder().filterSubject(subjectA).ackPolicy(AckPolicy.None).build();
             pso = PushSubscribeOptions.builder().configuration(cc).build();
             sub = js.subscribe(subjectWild, pso);
             nc.flush(Duration.ofSeconds(1));
@@ -240,7 +315,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertNull(m);
 
             // subscribe to B
-            cc = ConsumerConfiguration.builder().filterSubject(subjectB).ackPolicy(AckPolicy.None).build();
+            cc = builder().filterSubject(subjectB).ackPolicy(AckPolicy.None).build();
             pso = PushSubscribeOptions.builder().configuration(cc).build();
             sub = js.subscribe(subjectWild, pso);
             nc.flush(Duration.ofSeconds(1));
@@ -253,61 +328,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertEquals(4, m.metaData().streamSequence());
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertNull(m);
-        });
-    }
-
-    @Test
-    public void testFilterSubjectDurable() throws Exception {
-        runInJsServer(nc -> {
-            // Create our JetStream context.
-            JetStream js = nc.jetStream();
-
-            String subjectWild = SUBJECT + ".*";
-            String subjectA = SUBJECT + ".A";
-            String subjectB = SUBJECT + ".B";
-
-            // create the stream.
-            createMemoryStream(nc, STREAM, subjectWild);
-
-            jsPublish(js, subjectA, 1);
-            jsPublish(js, subjectB, 1);
-            jsPublish(js, subjectA, 1);
-            jsPublish(js, subjectB, 1);
-
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().filterSubject(subjectA).ackPolicy(AckPolicy.None).build();
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(DURABLE).configuration(cc).build();
-            JetStreamSubscription sub = js.subscribe(subjectWild, pso);
-            nc.flush(Duration.ofSeconds(1));
-
-            Message m = sub.nextMessage(Duration.ofSeconds(1));
-            assertEquals(subjectA, m.getSubject());
-            assertEquals(1, m.metaData().streamSequence());
-            m = sub.nextMessage(Duration.ofSeconds(1));
-            assertEquals(3, m.metaData().streamSequence());
-            sub.unsubscribe();
-
-            jsPublish(js, subjectA, 1);
-            jsPublish(js, subjectB, 1);
-            jsPublish(js, subjectA, 1);
-            jsPublish(js, subjectB, 1);
-
-            sub = js.subscribe(subjectWild, pso);
-            nc.flush(Duration.ofSeconds(1));
-
-            m = sub.nextMessage(Duration.ofSeconds(1));
-            assertEquals(subjectA, m.getSubject());
-            assertEquals(5, m.metaData().streamSequence());
-            m = sub.nextMessage(Duration.ofSeconds(1));
-            assertEquals(7, m.metaData().streamSequence());
-            sub.unsubscribe();
-
-            ConsumerConfiguration cc1 = ConsumerConfiguration.builder().filterSubject(subjectWild).build();
-            PushSubscribeOptions pso1 = PushSubscribeOptions.builder().durable(DURABLE).configuration(cc1).build();
-            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subjectWild, pso1));
-
-            ConsumerConfiguration cc2 = ConsumerConfiguration.builder().filterSubject(subjectB).build();
-            PushSubscribeOptions pso2 = PushSubscribeOptions.builder().durable(DURABLE).configuration(cc2).build();
-            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subjectWild, pso2));
         });
     }
 
@@ -396,7 +416,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertNotNull(m);
             assertEquals(data(1), new String(m.getData()));
             m.ack();
-            s.unsubscribe();
+            unsubscribeEnsureNotBound(s);
 
             jsPublish(js, SUBJECT, 2, 1);
             pso = PushSubscribeOptions.builder()
@@ -409,7 +429,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertNotNull(m);
             assertEquals(data(2), new String(m.getData()));
             m.ack();
-            s.unsubscribe();
+            unsubscribeEnsureNotBound(s);
 
             jsPublish(js, SUBJECT, 3, 1);
             pso = PushSubscribeOptions.bind(STREAM, DURABLE);
@@ -449,7 +469,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertNotNull(m);
             assertEquals(data(1), new String(m.getData()));
             m.ack();
-            s.unsubscribe();
+            unsubscribeEnsureNotBound(s);
 
             jsPublish(js, SUBJECT, 2, 1);
             pso = PullSubscribeOptions.builder()
@@ -463,7 +483,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertNotNull(m);
             assertEquals(data(2), new String(m.getData()));
             m.ack();
-            s.unsubscribe();
+            unsubscribeEnsureNotBound(s);
 
             jsPublish(js, SUBJECT, 3, 1);
             pso = PullSubscribeOptions.bind(STREAM, DURABLE);
@@ -493,6 +513,92 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testFilterMismatchErrors() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = nc.jetStream();
+
+            // single subject
+            createMemoryStream(jsm, STREAM, SUBJECT);
+
+            // will work as SubscribeSubject equals Filter Subject
+            subscribeOk(js, jsm, SUBJECT, SUBJECT);
+            subscribeOk(js, jsm, ">", ">");
+            subscribeOk(js, jsm, "*", "*");
+
+            // will work as SubscribeSubject != empty Filter Subject,
+            // b/c Stream has exactly 1 subject and is a match.
+            subscribeOk(js, jsm, "", SUBJECT);
+
+            // will work as SubscribeSubject != Filter Subject of '>'
+            // b/c Stream has exactly 1 subject and is a match.
+            subscribeOk(js, jsm, ">", SUBJECT);
+
+            // will not work
+            subscribeEx(js, jsm, "*", SUBJECT);
+
+            // multiple subjects no wildcards
+            jsm.deleteStream(STREAM);
+            createMemoryStream(jsm, STREAM, SUBJECT, subject(2));
+
+            // will work as SubscribeSubject equals Filter Subject
+            subscribeOk(js, jsm, SUBJECT, SUBJECT);
+            subscribeOk(js, jsm, ">", ">");
+            subscribeOk(js, jsm, "*", "*");
+
+            // will not work because stream has more than 1 subject
+            subscribeEx(js, jsm, "", SUBJECT);
+            subscribeEx(js, jsm, ">", SUBJECT);
+            subscribeEx(js, jsm, "*", SUBJECT);
+
+            // multiple subjects via '>'
+            jsm.deleteStream(STREAM);
+            createMemoryStream(jsm, STREAM, SUBJECT_GT);
+
+            // will work, exact matches
+            subscribeOk(js, jsm, subjectDot("1"), subjectDot("1"));
+            subscribeOk(js, jsm, ">", ">");
+
+            // will not work because mismatch / stream has more than 1 subject
+            subscribeEx(js, jsm, "", subjectDot("1"));
+            subscribeEx(js, jsm, ">", subjectDot("1"));
+            subscribeEx(js, jsm, SUBJECT_GT, subjectDot("1"));
+
+            // multiple subjects via '*'
+            jsm.deleteStream(STREAM);
+            createMemoryStream(jsm, STREAM, SUBJECT_STAR);
+
+            // will work, exact matches
+            subscribeOk(js, jsm, subjectDot("1"), subjectDot("1"));
+            subscribeOk(js, jsm, ">", ">");
+
+            // will not work because mismatch / stream has more than 1 subject
+            subscribeEx(js, jsm, "", subjectDot("1"));
+            subscribeEx(js, jsm, ">", subjectDot("1"));
+            subscribeEx(js, jsm, SUBJECT_STAR, subjectDot("1"));
+        });
+    }
+
+    private void subscribeOk(JetStream js, JetStreamManagement jsm, String fs, String ss) throws IOException, JetStreamApiException {
+        int i = RandomUtils.PRAND.nextInt(); // just want a unique number
+        setupConsumer(jsm, i, fs);
+        unsubscribeEnsureNotBound(js.subscribe(ss, builder().durable(durable(i)).buildPushSubscribeOptions()));
+    }
+
+    private void subscribeEx(JetStream js, JetStreamManagement jsm, String fs, String ss) throws IOException, JetStreamApiException {
+        int i = RandomUtils.PRAND.nextInt(); // just want a unique number
+        setupConsumer(jsm, i, fs);
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+            () -> js.subscribe(ss, builder().durable(durable(i)).buildPushSubscribeOptions()));
+        assertTrue(iae.getMessage().contains(JsSubSubjectDoesNotMatchFilter.id()));
+    }
+
+    private void setupConsumer(JetStreamManagement jsm, int i, String fs) throws IOException, JetStreamApiException {
+        jsm.addOrUpdateConsumer(STREAM,
+            builder().deliverSubject(deliver(i)).durable(durable(i)).filterSubject(fs).build());
+    }
+
+    @Test
     public void testBindDurableDeliverSubject() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -502,14 +608,14 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             createDefaultTestStream(jsm);
 
             // create a durable push subscriber - has deliver subject
-            ConsumerConfiguration ccDurPush = ConsumerConfiguration.builder()
+            ConsumerConfiguration ccDurPush = builder()
                     .durable(durable(1))
                     .deliverSubject(deliver(1))
                     .build();
             jsm.addOrUpdateConsumer(STREAM, ccDurPush);
 
             // create a durable pull subscriber - notice no deliver subject
-            ConsumerConfiguration ccDurPull = ConsumerConfiguration.builder()
+            ConsumerConfiguration ccDurPull = builder()
                     .durable(durable(2))
                     .build();
             jsm.addOrUpdateConsumer(STREAM, ccDurPull);
@@ -528,7 +634,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             // this one is okay
             JetStreamSubscription sub = js.subscribe(SUBJECT, PullSubscribeOptions.builder().durable(durable(2)).build());
-            sub.unsubscribe(); // so I can re-use the durable
+            unsubscribeEnsureNotBound(sub); // so I can re-use the durable
 
             // try to push subscribe against a pull durable
             iae = assertThrows(IllegalArgumentException.class,
@@ -541,12 +647,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                     () -> js.subscribe(SUBJECT, PushSubscribeOptions.bind(STREAM, durable(2)))
             );
             assertTrue(iae.getMessage().contains(JsSubConsumerAlreadyConfiguredAsPull.id()));
-
-            // try to push subscribe but mismatch the deliver subject
-            ConsumerConfiguration ccMis = ConsumerConfiguration.builder().deliverSubject("not-match").build();
-            PushSubscribeOptions psoMis = PushSubscribeOptions.builder().durable(durable(1)).configuration(ccMis).build();
-            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, psoMis));
-            assertTrue(iae.getMessage().contains(JsSubExistingDeliverSubjectMismatch.id()));
 
             // this one is okay
             js.subscribe(SUBJECT, PushSubscribeOptions.builder().durable(durable(1)).build());
@@ -562,7 +662,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             createDefaultTestStream(jsm);
 
             // test with config in issue 105
-            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+            ConsumerConfiguration cc = builder()
                 .description("desc")
                 .ackPolicy(AckPolicy.Explicit)
                 .deliverPolicy(DeliverPolicy.All)
@@ -571,6 +671,8 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .durable(durable(1))
                 .maxAckPending(65000)
                 .maxDeliver(5)
+                .maxBatch(10)
+                .maxBytes(11)
                 .replayPolicy(ReplayPolicy.Instant)
                 .build();
             jsm.addOrUpdateConsumer(STREAM, cc);
@@ -579,12 +681,14 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             js.subscribe(SUBJECT, queue(1), pushOpts); // should not throw an error
 
             // testing numerics
-            cc = ConsumerConfiguration.builder()
+            cc = builder()
                 .deliverPolicy(DeliverPolicy.ByStartSequence)
                 .deliverSubject(deliver(21))
                 .durable(durable(21))
                 .startSequence(42)
                 .maxDeliver(43)
+                .maxBatch(47)
+                .maxBytes(48)
                 .rateLimit(44)
                 .maxAckPending(45)
                 .build();
@@ -593,7 +697,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             pushOpts = PushSubscribeOptions.bind(STREAM, durable(21));
             js.subscribe(SUBJECT, pushOpts); // should not throw an error
 
-            cc = ConsumerConfiguration.builder()
+            cc = builder()
                 .durable(durable(22))
                 .maxPullWaiting(46)
                 .build();
@@ -603,7 +707,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             js.subscribe(SUBJECT, pullOpts); // should not throw an error
 
             // testing DateTime
-            cc = ConsumerConfiguration.builder()
+            cc = builder()
                 .deliverPolicy(DeliverPolicy.ByStartTime)
                 .deliverSubject(deliver(3))
                 .durable(durable(3))
@@ -615,11 +719,13 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             js.subscribe(SUBJECT, pushOpts); // should not throw an error
 
             // testing boolean and duration
-            cc = ConsumerConfiguration.builder()
+            cc = builder()
                 .deliverSubject(deliver(4))
                 .durable(durable(4))
                 .flowControl(1000)
                 .headersOnly(true)
+                .maxExpires(30000)
+                .inactiveThreshold(40000)
                 .ackWait(2000)
                 .build();
             jsm.addOrUpdateConsumer(STREAM, cc);
@@ -628,7 +734,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             js.subscribe(SUBJECT, pushOpts); // should not throw an error
 
             // testing enums
-            cc = ConsumerConfiguration.builder()
+            cc = builder()
                 .deliverSubject(deliver(5))
                 .durable(durable(5))
                 .deliverPolicy(DeliverPolicy.Last)
@@ -643,86 +749,107 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testConsumerCannotBeModified() throws Exception {
+    public void testSubscribeDurableConsumerMustMatch() throws Exception {
         runInJsServer(nc -> {
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createDefaultTestStream(jsm);
 
-            ConsumerConfiguration.Builder builder = durBuilder();
-            nc.jetStreamManagement().addOrUpdateConsumer(STREAM, builder.build());
+            // push
+            nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pushDurableBuilder().build());
 
-            ccbmEx(js, durBuilder().deliverPolicy(DeliverPolicy.Last));
-            ccbmEx(js, durBuilder().deliverPolicy(DeliverPolicy.New));
-            ccbmEx(js, durBuilder().ackPolicy(AckPolicy.None));
-            ccbmEx(js, durBuilder().ackPolicy(AckPolicy.All));
-            ccbmEx(js, durBuilder().replayPolicy(ReplayPolicy.Original));
+            changeExPush(js, pushDurableBuilder().deliverPolicy(DeliverPolicy.Last), "deliverPolicy");
+            changeExPush(js, pushDurableBuilder().deliverPolicy(DeliverPolicy.New), "deliverPolicy");
+            changeExPush(js, pushDurableBuilder().ackPolicy(AckPolicy.None), "ackPolicy");
+            changeExPush(js, pushDurableBuilder().ackPolicy(AckPolicy.All), "ackPolicy");
+            changeExPush(js, pushDurableBuilder().replayPolicy(ReplayPolicy.Original), "replayPolicy");
 
-            ccbmEx(js, durBuilder().startTime(ZonedDateTime.now()));
-            ccbmEx(js, durBuilder().ackWait(Duration.ofMillis(1)));
-            ccbmEx(js, durBuilder().description("x"));
-            ccbmEx(js, durBuilder().sampleFrequency("x"));
-            ccbmEx(js, durBuilder().idleHeartbeat(Duration.ofMillis(1000)));
+            changeExPush(js, pushDurableBuilder().flowControl(10000), "flowControl");
+            changeExPush(js, pushDurableBuilder().headersOnly(true), "headersOnly");
 
-            ccbmEx(js, durBuilder().startSequence(5));
-            ccbmEx(js, durBuilder().maxDeliver(5));
-            ccbmEx(js, durBuilder().rateLimit(5));
-            ccbmEx(js, durBuilder().maxAckPending(5));
+            changeExPush(js, pushDurableBuilder().startTime(ZonedDateTime.now()), "startTime");
+            changeExPush(js, pushDurableBuilder().ackWait(Duration.ofMillis(1)), "ackWait");
+            changeExPush(js, pushDurableBuilder().description("x"), "description");
+            changeExPush(js, pushDurableBuilder().sampleFrequency("x"), "sampleFrequency");
+            changeExPush(js, pushDurableBuilder().idleHeartbeat(Duration.ofMillis(1000)), "idleHeartbeat");
+            changeExPush(js, pushDurableBuilder().maxExpires(Duration.ofMillis(1000)), "maxExpires");
+            changeExPush(js, pushDurableBuilder().inactiveThreshold(Duration.ofMillis(1000)), "inactiveThreshold");
 
-            ccbmOk(js, durBuilder().startSequence(0));
-            ccbmOk(js, durBuilder().startSequence(-1));
-            ccbmOk(js, durBuilder().maxDeliver(0));
-            ccbmOk(js, durBuilder().maxDeliver(-1));
-            ccbmOk(js, durBuilder().rateLimit(0));
-            ccbmOk(js, durBuilder().rateLimit(-1));
-            ccbmOk(js, durBuilder().maxAckPending(20000)); // 20000 is the default
-            ccbmOk(js, durBuilder().maxPullWaiting(0));
+            // value
+            changeExPush(js, pushDurableBuilder().maxDeliver(MAX_DELIVER_MIN), "maxDeliver");
+            changeExPush(js, pushDurableBuilder().maxAckPending(0), "maxAckPending");
+            changeExPush(js, pushDurableBuilder().ackWait(0), "ackWait");
 
-            ConsumerConfiguration.Builder builder2 = ConsumerConfiguration.builder().durable(durable(2));
-            nc.jetStreamManagement().addOrUpdateConsumer(STREAM, builder2.build());
-            ccbmExPull(js, builder2.maxPullWaiting(999));
-            ccbmOkPull(js, builder2.maxPullWaiting(512)); // 512 is the default
+            // value unsigned
+            changeExPush(js, pushDurableBuilder().startSequence(1), "startSequence");
+            changeExPush(js, pushDurableBuilder().rateLimit(1), "rateLimit");
 
-            jsm.deleteConsumer(STREAM, DURABLE);
+            // unset doesn't fail because the server provides a value equal to the unset
+            changeOkPush(js, pushDurableBuilder().maxDeliver(INTEGER_UNSET));
 
-            builder = durBuilder()
-                .startSequence(5)
-                .maxDeliver(6)
-                .rateLimit(7)
-                .maxAckPending(8)
-                .deliverPolicy(DeliverPolicy.ByStartSequence);
+            // unset doesn't fail because the server does not provide a value
+            // negatives are considered the unset
+            changeOkPush(js, pushDurableBuilder().startSequence(ULONG_UNSET));
+            changeOkPush(js, pushDurableBuilder().startSequence(-1));
+            changeOkPush(js, pushDurableBuilder().rateLimit(ULONG_UNSET));
+            changeOkPush(js, pushDurableBuilder().rateLimit(-1));
 
-            jsm.addOrUpdateConsumer(STREAM, builder.build());
-            ccbmEx(js, builder.startSequence(55));
-            ccbmEx(js, builder.maxDeliver(66));
-            ccbmEx(js, builder.rateLimit(77));
-            ccbmEx(js, builder.maxAckPending(88));
+            // unset fail b/c the server does set a value that is not equal to the unset or the minimum
+            changeExPush(js, pushDurableBuilder().maxAckPending(LONG_UNSET), "maxAckPending");
+            changeExPush(js, pushDurableBuilder().maxAckPending(0), "maxAckPending");
+            changeExPush(js, pushDurableBuilder().ackWait(LONG_UNSET), "ackWait");
+            changeExPush(js, pushDurableBuilder().ackWait(0), "ackWait");
+
+            // pull
+            nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pullDurableBuilder().build());
+
+            // value
+            changeExPull(js, pullDurableBuilder().maxPullWaiting(0), "maxPullWaiting");
+            changeExPull(js, pullDurableBuilder().maxBatch(0), "maxBatch");
+            changeExPull(js, pullDurableBuilder().maxBytes(0), "maxBytes");
+
+            // unsets fail b/c the server does set a value
+            changeExPull(js, pullDurableBuilder().maxPullWaiting(-1), "maxPullWaiting");
+
+            // unset
+            changeOkPull(js, pullDurableBuilder().maxBatch(-1));
+            changeOkPull(js, pullDurableBuilder().maxBytes(-1));
         });
     }
 
-    private void ccbmOk(JetStream js, ConsumerConfiguration.Builder builder) throws IOException, JetStreamApiException {
-        js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()).unsubscribe();
+    private void changeOkPush(JetStream js, Builder builder) throws IOException, JetStreamApiException {
+        unsubscribeEnsureNotBound(js.subscribe(SUBJECT, builder.buildPushSubscribeOptions()));
     }
 
-    private void ccbmOkPull(JetStream js, ConsumerConfiguration.Builder builder) throws IOException, JetStreamApiException {
-        js.subscribe(SUBJECT, PullSubscribeOptions.builder().configuration(builder.build()).build()).unsubscribe();
+    private void changeOkPull(JetStream js, Builder builder) throws IOException, JetStreamApiException {
+        unsubscribeEnsureNotBound(js.subscribe(SUBJECT, builder.buildPullSubscribeOptions()));
     }
 
-    private void ccbmEx(JetStream js, ConsumerConfiguration.Builder builder) {
+    private void changeExPush(JetStream js, Builder builder, String changedField) {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()));
-        assertTrue(iae.getMessage().contains(JsSubExistingConsumerCannotBeModified.id()));
+        _changeEx(iae, changedField);
     }
 
-    private void ccbmExPull(JetStream js, ConsumerConfiguration.Builder builder) {
+    private void changeExPull(JetStream js, Builder builder, String changedField) {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> js.subscribe(SUBJECT, PullSubscribeOptions.builder().configuration(builder.build()).build()));
-        assertTrue(iae.getMessage().contains(JsSubExistingConsumerCannotBeModified.id()));
+        _changeEx(iae, changedField);
     }
 
-    private ConsumerConfiguration.Builder durBuilder() {
-        return ConsumerConfiguration.builder().durable(DURABLE).deliverSubject(DELIVER);
+    private void _changeEx(IllegalArgumentException iae, String changedField) {
+        String iaeMessage = iae.getMessage();
+        assertTrue(iaeMessage.contains(JsSubExistingConsumerCannotBeModified.id()));
+        assertTrue(iaeMessage.contains(changedField));
+    }
+
+    private Builder pushDurableBuilder() {
+        return builder().durable(PUSH_DURABLE).deliverSubject(DELIVER);
+    }
+
+    private Builder pullDurableBuilder() {
+        return builder().durable(PULL_DURABLE);
     }
 
     @Test
@@ -783,20 +910,30 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             createDefaultTestStream(nc);
 
             // general pull push validation
-            ConsumerConfiguration ccCantHave = ConsumerConfiguration.builder().durable("pulldur").deliverGroup("cantHave").build();
+            ConsumerConfiguration ccCantHave = builder().durable("pulldur").deliverGroup("cantHave").build();
             PullSubscribeOptions pullCantHaveDlvrGrp = PullSubscribeOptions.builder().configuration(ccCantHave).build();
             IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pullCantHaveDlvrGrp));
             assertTrue(iae.getMessage().contains(JsSubPullCantHaveDeliverGroup.id()));
 
-            ccCantHave = ConsumerConfiguration.builder().durable("pulldur").deliverSubject("cantHave").build();
+            ccCantHave = builder().durable("pulldur").deliverSubject("cantHave").build();
             PullSubscribeOptions pullCantHaveDlvrSub = PullSubscribeOptions.builder().configuration(ccCantHave).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pullCantHaveDlvrSub));
             assertTrue(iae.getMessage().contains(JsSubPullCantHaveDeliverSubject.id()));
 
-            ccCantHave = ConsumerConfiguration.builder().maxPullWaiting(1L).build();
+            ccCantHave = builder().maxPullWaiting(1L).build();
             PushSubscribeOptions pushCantHaveMpw = PushSubscribeOptions.builder().configuration(ccCantHave).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushCantHaveMpw));
             assertTrue(iae.getMessage().contains(JsSubPushCantHaveMaxPullWaiting.id()));
+
+            ccCantHave = builder().maxBatch(1L).build();
+            PushSubscribeOptions pushCantHaveMb = PushSubscribeOptions.builder().configuration(ccCantHave).build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushCantHaveMb));
+            assertTrue(iae.getMessage().contains(JsSubPushCantHaveMaxBatch.id()));
+
+            ccCantHave = builder().maxBytes(1L).build();
+            PushSubscribeOptions pushCantHaveMby = PushSubscribeOptions.builder().configuration(ccCantHave).build();
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, pushCantHaveMby));
+            assertTrue(iae.getMessage().contains(JsSubPushCantHaveMaxBytes.id()));
 
             // create some consumers
             PushSubscribeOptions psoDurNoQ = PushSubscribeOptions.builder().durable("durNoQ").build();
@@ -828,8 +965,8 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertTrue(iae.getMessage().contains(JsSubExistingQueueDoesNotMatchRequestedQueue.id()));
 
             // flow control heartbeat push / pull
-            ConsumerConfiguration ccFc = ConsumerConfiguration.builder().durable("ccFcDur").flowControl(1000).build();
-            ConsumerConfiguration ccHb = ConsumerConfiguration.builder().durable("ccHbDur").idleHeartbeat(1000).build();
+            ConsumerConfiguration ccFc = builder().durable("ccFcDur").flowControl(1000).build();
+            ConsumerConfiguration ccHb = builder().durable("ccHbDur").idleHeartbeat(1000).build();
 
             PullSubscribeOptions psoPullCcFc = PullSubscribeOptions.builder().configuration(ccFc).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, psoPullCcFc));
@@ -841,11 +978,11 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             PushSubscribeOptions psoPushCcFc = PushSubscribeOptions.builder().configuration(ccFc).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, "cantHaveQ", psoPushCcFc));
-            assertTrue(iae.getMessage().contains(JsSubFcHbHbNotValidQueue.id()));
+            assertTrue(iae.getMessage().contains(JsSubFcHbNotValidQueue.id()));
 
             PushSubscribeOptions psoPushCcHb = PushSubscribeOptions.builder().configuration(ccHb).build();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, "cantHaveQ", psoPushCcHb));
-            assertTrue(iae.getMessage().contains(JsSubFcHbHbNotValidQueue.id()));
+            assertTrue(iae.getMessage().contains(JsSubFcHbNotValidQueue.id()));
         });
     }
 }

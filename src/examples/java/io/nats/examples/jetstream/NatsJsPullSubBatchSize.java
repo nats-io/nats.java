@@ -14,6 +14,7 @@
 package io.nats.examples.jetstream;
 
 import io.nats.client.*;
+import io.nats.client.api.ConsumerInfo;
 import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
 
@@ -43,7 +44,7 @@ public class NatsJsPullSubBatchSize {
         ExampleArgs exArgs = ExampleArgs.builder("Pull Subscription using primitive Batch Size", args, usageString)
                 .defaultStream("pull-stream")
                 .defaultSubject("pull-subject")
-                .defaultDurable("pull-durable")
+//                .defaultDurable("pull-durable") // DURABLE IS OPTIONAL SINCE server V2.7.0
                 .defaultMsgCount(15)
                 .build();
 
@@ -60,14 +61,22 @@ public class NatsJsPullSubBatchSize {
             // start publishing the messages, don't wait for them to finish, simulating an outside producer
             publishInBackground(js, exArgs.subject, "pull-message", exArgs.msgCount);
 
-            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            // Build our subscription options.
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                .durable(exArgs.durable) // required
+                .durable(exArgs.durable)
                 .build();
 
             // subscribe
             JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);
             nc.flush(Duration.ofSeconds(1));
+
+            ConsumerInfo ci = sub.getConsumerInfo();
+            if (exArgs.durable == null) {
+                System.out.println("Server should have assigned an ephemeral consumer name -> " + ci.getName());
+            }
+            else {
+                System.out.println("Server consumer is named -> " + ci.getName());
+            }
 
             int red = 0;
             while (red < exArgs.msgCount) {

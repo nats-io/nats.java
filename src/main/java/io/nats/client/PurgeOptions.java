@@ -88,8 +88,8 @@ public class PurgeOptions implements JsonSerializable {
 
     public static class Builder {
         private String subject;
-        private long seq;
-        private long keep;
+        private long seq = -1;
+        private long keep = -1;
 
         /**
          * Set the subject to filter the purge. Wildcards allowed.
@@ -121,6 +121,10 @@ public class PurgeOptions implements JsonSerializable {
             return this;
         }
 
+        /**
+         * Build the PurgeOptions
+         * @return the built PurgeOptions
+         */
         public PurgeOptions build() {
             validateSubject(subject, false);
 

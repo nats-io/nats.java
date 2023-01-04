@@ -587,4 +587,14 @@ public class NKeyTests {
         assertNotEquals(key, NKey.createServer(null));
         assertNotEquals(key, NKey.createAccount(null));
     }
+
+    @Test
+    public void testClear() throws Exception {
+        assertThrows(IllegalArgumentException.class, () -> {
+            NKey key = NKey.createServer(null);
+            key.clear();
+            key.getPrivateKey();
+
+        }, "Invalid encoding");
+    }
 }

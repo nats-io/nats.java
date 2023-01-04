@@ -254,13 +254,16 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
             assertThrows(JetStreamApiException.class, () -> js.publish(subject(22), dataBytes(999), poLss));
 
-            // 0 has NO meaning to expectedLastSequence
+            // 0 has meaning
             createMemoryStream(jsm, stream(3), subject(33));
             PublishOptions poLs = PublishOptions.builder().expectedLastSequence(0).build();
             pa = js.publish(subject(33), dataBytes(331), poLs);
             assertPublishAck(pa, stream(3), 1);
-            pa = js.publish(subject(33), dataBytes(332), poLs);
-            assertPublishAck(pa, stream(3), 2);
+
+            createMemoryStream(jsm, stream(4), subject(44));
+            poLs = PublishOptions.builder().expectedLastSubjectSequence(0).build();
+            pa = js.publish(subject(44), dataBytes(441), poLs);
+            assertPublishAck(pa, stream(4), 1);
         });
     }
 

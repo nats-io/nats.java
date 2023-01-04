@@ -1,6 +1,56 @@
 {
-  "memory": 1,
-  "storage": 2,
-  "streams": 3,
-  "consumers": 4
+  "type": "io.nats.jetstream.api.v1.account_info_response",
+  "memory": 101,
+  "storage": 102,
+  "streams": 103,
+  "consumers": 104,
+  "limits": {
+    "max_memory": 201,
+    "max_storage": 202,
+    "max_streams": 203,
+    "max_consumers": 204,
+    "max_ack_pending": 205,
+    "memory_max_stream_bytes": 206,
+    "storage_max_stream_bytes": 207,
+    "max_bytes_required": true
+  },
+  "domain": "ngs",
+  "api": {
+    "total": 301,
+    "errors": 302
+  },
+  "tiers": {
+    "R1": {
+      "memory": 401,
+      "storage": 402,
+      "streams": 403,
+      "consumers": 404,
+      "limits": {
+        "max_memory": 501,
+        "max_storage": 502,
+        "max_streams": 503,
+        "max_consumers": 504,
+        "max_ack_pending": 505,
+        "memory_max_stream_bytes": 506,
+        "storage_max_stream_bytes": 507,
+        "max_bytes_required": true
+      }
+    },
+    "R3": {
+      "memory": 601,
+      "storage": 602,
+      "streams": 603,
+      "consumers": 604,
+      "limits": {
+        "max_memory": 701,
+        "max_storage": 702,
+        "max_streams": 703,
+        "max_consumers": 704,
+        "max_ack_pending": 705,
+        "memory_max_stream_bytes": 706,
+        "storage_max_stream_bytes": 707,
+        "max_bytes_required": true
+      }
+    }
+  }
 }

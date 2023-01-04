@@ -25,25 +25,63 @@ import static org.junit.jupiter.api.Assertions.*;
 public class JetStreamOptionsTests extends TestBase {
 
     @Test
-    public void testAffirmative() {
+    public void testBuilder() {
+        // default
         JetStreamOptions jso = JetStreamOptions.defaultOptions();
-        assertEquals(DEFAULT_API_PREFIX, jso.getPrefix());
         assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
-
-        jso = JetStreamOptions.builder()
-                .prefix("pre")
-                .requestTimeout(Duration.ofSeconds(42))
-                .build();
-        assertEquals("pre.", jso.getPrefix());
-        assertEquals(Duration.ofSeconds(42), jso.getRequestTimeout());
+        assertEquals(DEFAULT_API_PREFIX, jso.getPrefix());
+        assertTrue(jso.isDefaultPrefix());
         assertFalse(jso.isPublishNoAck());
+        assertFalse(jso.isOptOut290ConsumerCreate());
 
+        // default copy
+        jso = JetStreamOptions.builder(jso).build();
+        assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
+        assertEquals(DEFAULT_API_PREFIX, jso.getPrefix());
+        assertTrue(jso.isDefaultPrefix());
+        assertFalse(jso.isPublishNoAck());
+        assertFalse(jso.isOptOut290ConsumerCreate());
+
+        // affirmative
         jso = JetStreamOptions.builder()
-                .prefix("pre.")
-                .publishNoAck(true)
-                .build();
+            .prefix("pre")
+            .requestTimeout(Duration.ofSeconds(42))
+            .publishNoAck(true)
+            .optOut290ConsumerCreate(true)
+            .build();
+        assertEquals(Duration.ofSeconds(42), jso.getRequestTimeout());
         assertEquals("pre.", jso.getPrefix());
+        assertFalse(jso.isDefaultPrefix());
         assertTrue(jso.isPublishNoAck());
+        assertTrue(jso.isOptOut290ConsumerCreate());
+
+        // affirmative copy
+        jso = JetStreamOptions.builder(jso).build();
+        assertEquals(Duration.ofSeconds(42), jso.getRequestTimeout());
+        assertEquals("pre.", jso.getPrefix());
+        assertFalse(jso.isDefaultPrefix());
+        assertTrue(jso.isPublishNoAck());
+        assertTrue(jso.isOptOut290ConsumerCreate());
+
+        // variations / coverage
+        jso = JetStreamOptions.builder()
+            .prefix("pre.")
+            .publishNoAck(false)
+            .optOut290ConsumerCreate(false)
+            .build();
+        assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
+        assertEquals("pre.", jso.getPrefix());
+        assertFalse(jso.isDefaultPrefix());
+        assertFalse(jso.isPublishNoAck());
+        assertFalse(jso.isOptOut290ConsumerCreate());
+
+        // variations / coverage copy
+        jso = JetStreamOptions.builder(jso).build();
+        assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
+        assertEquals("pre.", jso.getPrefix());
+        assertFalse(jso.isDefaultPrefix());
+        assertFalse(jso.isPublishNoAck());
+        assertFalse(jso.isOptOut290ConsumerCreate());
     }
 
     @Test
@@ -119,7 +157,7 @@ public class JetStreamOptionsTests extends TestBase {
     private void assertValidDomain(String domain) {
         JetStreamOptions jso = JetStreamOptions.builder().domain(domain).build();
         String prefixWithDot = domain.endsWith(DOT) ? domain : domain + DOT;
-        String expected = PREFIX_DOLLAR_JS_DOT + prefixWithDot + PREFIX_API_DOT;
+        String expected = PREFIX_DOLLAR_JS_DOT + prefixWithDot + PREFIX_API + DOT;
         assertEquals(expected, jso.getPrefix());
     }
 

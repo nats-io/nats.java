@@ -455,6 +455,34 @@ public class MessageQueueTests {
     }
 
     @Test
+    public void testSizeInBytesWithData() throws InterruptedException {
+        MessageQueue q = new MessageQueue(true);
+
+        String subject = "subj";
+        String replyTo = "reply";
+        Headers h = new Headers().add("Content-Type", "text/plain");
+        NatsMessage msg1 = new NatsMessage(subject, null, h, new byte[8]);
+        NatsMessage msg2 = new NatsMessage(subject, null, h, new byte[16]);
+        NatsMessage msg3 = new NatsMessage(subject, replyTo, h, new byte[16]);
+        long expected = 0;
+
+        assertEquals(64, msg1.getSizeInBytes());
+        assertEquals(72, msg2.getSizeInBytes());
+        assertEquals(78, msg3.getSizeInBytes());
+
+        q.push(msg1);    expected += msg1.getSizeInBytes();
+        assertEquals(expected, q.sizeInBytes());
+        q.push(msg2);    expected += msg2.getSizeInBytes();
+        assertEquals(expected, q.sizeInBytes());
+        q.push(msg3);    expected += msg3.getSizeInBytes();
+        assertEquals(expected, q.sizeInBytes());
+        q.popNow();      expected -= msg1.getSizeInBytes();
+        assertEquals(expected, q.sizeInBytes());
+        q.accumulate(1000,100, null); expected = 0;
+        assertEquals(expected, q.sizeInBytes());
+    }
+
+    @Test
     public void testFilterTail() throws InterruptedException, UnsupportedEncodingException {
         MessageQueue q = new MessageQueue(true);
         NatsMessage msg1 = new ProtocolMessage(ONE);

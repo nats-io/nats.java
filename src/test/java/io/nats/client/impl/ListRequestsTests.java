@@ -17,7 +17,6 @@ import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -39,7 +38,7 @@ public class ListRequestsTests extends JetStreamTestBase {
         ConsumerInfo ci = clr.getConsumers().get(0);
         assertEquals("stream-1", ci.getStreamName());
         assertEquals("cname1", ci.getName());
-        Assertions.assertEquals(DateTimeUtils.parseDateTime("2021-01-20T23:41:08.579594Z"), ci.getCreationTime());
+        assertEquals(DateTimeUtils.parseDateTime("2021-01-20T23:41:08.579594Z"), ci.getCreationTime());
         assertEquals(5, ci.getNumAckPending());
         assertEquals(6, ci.getRedelivered());
         assertEquals(7, ci.getNumWaiting());
@@ -58,9 +57,21 @@ public class ListRequestsTests extends JetStreamTestBase {
         assertEquals(1, sp.getConsumerSequence());
         assertEquals(2, sp.getStreamSequence());
 
+        //noinspection CastCanBeRemovedNarrowingVariableType
+        SequenceInfo sinfo = (SequenceInfo)sp;
+        assertEquals(1, sinfo.getConsumerSequence());
+        assertEquals(2, sinfo.getStreamSequence());
+        assertEquals(DateTimeUtils.parseDateTime("2022-06-29T19:33:21.163377Z"), sinfo.getLastActive());
+
         sp = ci.getAckFloor();
         assertEquals(3, sp.getConsumerSequence());
         assertEquals(4, sp.getStreamSequence());
+
+        //noinspection CastCanBeRemovedNarrowingVariableType
+        sinfo = (SequenceInfo)sp;
+        assertEquals(3, sinfo.getConsumerSequence());
+        assertEquals(4, sinfo.getStreamSequence());
+        assertEquals(DateTimeUtils.parseDateTime("2022-06-29T20:33:21.163377Z"), sinfo.getLastActive());
 
         clr = new ConsumerListReader();
         clr.process(getDataMessage(EMPTY_JSON));

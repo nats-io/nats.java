@@ -154,11 +154,11 @@ public class SubscriberTests {
             assertEquals(sub, msg.getSubscription());
             assertNull(msg.getReplyTo());
             assertEquals(16, msg.getData().length);
-            msg = sub.nextMessage(Duration.ofMillis(100));
+            msg = sub.nextMessage(100); // coverage for nextMessage(millis)
             assertNotNull(msg);
             msg = sub.nextMessage(Duration.ofMillis(100));
             assertNotNull(msg);
-            msg = sub.nextMessage(Duration.ofMillis(100));
+            msg = sub.nextMessage(100); // coverage for nextMessage(millis)
             assertNull(msg);
         }
     }

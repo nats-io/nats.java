@@ -15,34 +15,40 @@ package io.nats.client.utils;
 
 import io.nats.client.*;
 import io.nats.client.impl.NatsMessage;
+import io.nats.client.support.NatsJetStreamClientError;
+import org.junit.jupiter.api.function.Executable;
 import org.opentest4j.AssertionFailedError;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 import static io.nats.client.support.NatsConstants.DOT;
+import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_ARGUMENT;
+import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_STATE;
 import static io.nats.examples.ExampleUtils.uniqueEnough;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestBase {
 
-    public static final String PLAIN         = "plain";
-    public static final String HAS_SPACE     = "has space";
-    public static final String HAS_PRINTABLE = "has-print!able";
-    public static final String HAS_DOT       = "has.dot";
-    public static final String HAS_STAR      = "has*star";
-    public static final String HAS_GT        = "has>gt";
-    public static final String HAS_DASH      = "has-dash";
-    public static final String HAS_UNDER     = "has_under";
-    public static final String HAS_DOLLAR    = "has$dollar";
-    public static final String HAS_LOW       = "has\tlower\rthan\nspace";
-    public static final String HAS_127       = "has" + (char)127 + "127";
-    public static final String HAS_FWD_SLASH = "has/fwd/slash";
-    public static final String HAS_EQUALS    = "has=equals";
-    public static final String HAS_TIC       = "has`tic";
+    public static final String PLAIN          = "plain";
+    public static final String HAS_SPACE      = "has space";
+    public static final String HAS_PRINTABLE  = "has-print!able";
+    public static final String HAS_DOT        = "has.dot";
+    public static final String HAS_STAR       = "has*star";
+    public static final String HAS_GT         = "has>gt";
+    public static final String HAS_DASH       = "has-dash";
+    public static final String HAS_UNDER      = "has_under";
+    public static final String HAS_DOLLAR     = "has$dollar";
+    public static final String HAS_LOW        = "has\tlower\rthan\nspace";
+    public static final String HAS_127        = "has" + (char)127 + "127";
+    public static final String HAS_FWD_SLASH  = "has/fwd/slash";
+    public static final String HAS_BACK_SLASH = "has\\back\\slash";
+    public static final String HAS_EQUALS     = "has=equals";
+    public static final String HAS_TIC        = "has`tic";
 
     public static final long STANDARD_CONNECTION_WAIT_MS = 5000;
     public static final long STANDARD_FLUSH_TIMEOUT_MS = 2000;
@@ -55,6 +61,10 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     public interface InServerTest {
         void test(Connection nc) throws Exception;
+    }
+
+    public interface TwoServerTest {
+        void test(Connection nc1, Connection nc2) throws Exception;
     }
 
     public static void runInServer(InServerTest inServerTest) throws Exception {
@@ -85,7 +95,14 @@ public class TestBase {
         try (NatsTestServer ts = new NatsTestServer(debug, jetstream);
              Connection nc = standardConnection(ts.getURI()))
         {
-            inServerTest.test(nc);
+            try {
+                inServerTest.test(nc);
+            }
+            finally {
+                if (jetstream) {
+                    cleanupJs(nc);
+                }
+            }
         }
     }
 
@@ -93,7 +110,14 @@ public class TestBase {
         try (NatsTestServer ts = new NatsTestServer(debug, jetstream);
              Connection nc = standardConnection(builder.server(ts.getURI()).build()))
         {
-            inServerTest.test(nc);
+            try {
+                inServerTest.test(nc);
+            }
+            finally {
+                if (jetstream) {
+                    cleanupJs(nc);
+                }
+            }
         }
     }
 
@@ -107,6 +131,58 @@ public class TestBase {
         }
     }
 
+    public static void runInJsHubLeaf(TwoServerTest twoServerTest) throws Exception {
+        int hubPort = NatsTestServer.nextPort();
+        int hubLeafPort = NatsTestServer.nextPort();
+        int leafPort = NatsTestServer.nextPort();
+
+        String[] hubInserts = new String[] {
+            "server_name: HUB",
+            "jetstream {",
+            "    domain: HUB",
+            "}",
+            "leafnodes {",
+            "  listen = 127.0.0.1:" + hubLeafPort,
+            "}"
+        };
+
+        String[] leafInserts = new String[] {
+            "server_name: LEAF",
+            "jetstream {",
+            "    domain: LEAF",
+            "}",
+            "leafnodes {",
+            "  remotes = [ { url: \"leaf://127.0.0.1:" + hubLeafPort + "\" } ]",
+            "}"
+        };
+
+        try (NatsTestServer hub = new NatsTestServer(hubPort, false, true, null, hubInserts, null);
+             Connection nchub = standardConnection(hub.getURI());
+             NatsTestServer leaf = new NatsTestServer(leafPort, false, true, null, leafInserts, null);
+             Connection ncleaf = standardConnection(leaf.getURI())
+        ) {
+            try {
+                twoServerTest.test(nchub, ncleaf);
+            }
+            finally {
+                cleanupJs(nchub);
+                cleanupJs(ncleaf);
+            }
+        }
+    }
+
+    private static void cleanupJs(Connection c)
+    {
+        try {
+            JetStreamManagement jsm = c.jetStreamManagement();
+            List<String> streams = jsm.getStreamNames();
+            for (String s : streams)
+            {
+                jsm.deleteStream(s);
+            }
+        } catch (Exception ignore) {}
+    }
+
     // ----------------------------------------------------------------------------------------------------
     // data makers
     // ----------------------------------------------------------------------------------------------------
@@ -118,9 +194,13 @@ public class TestBase {
     public static final String SUBJECT_GT = SUBJECT + ".>";
     public static final String QUEUE = "queue";
     public static final String DURABLE = "durable";
+    public static final String NAME = "name";
+    public static final String PUSH_DURABLE = "push-" + DURABLE;
+    public static final String PULL_DURABLE = "pull-" + DURABLE;
     public static final String DELIVER = "deliver";
     public static final String MESSAGE_ID = "mid";
     public static final String BUCKET = "bucket";
+    public static final String KEY = "key";
     public static final String DATA = "data";
 
     public static String stream(int seq) {
@@ -155,12 +235,20 @@ public class TestBase {
         return DURABLE + "-" + vary + "-" + seq;
     }
 
+    public static String name(int seq) {
+        return NAME + "-" + seq;
+    }
+
     public static String deliver(int seq) {
         return DELIVER + "-" + seq;
     }
 
     public static String bucket(int seq) {
         return BUCKET + "-" + seq;
+    }
+
+    public static String key(int seq) {
+        return KEY + "-" + seq;
     }
 
     public static String messageId(int seq) {
@@ -258,6 +346,27 @@ public class TestBase {
 
     public static void park(Duration d) {
         try { LockSupport.parkNanos(d.toNanos()); } catch (Exception ignored) { /* ignored */ }
+    }
+
+    public static void debugPrintln(Object... debug) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(System.currentTimeMillis());
+        sb.append(" [");
+        sb.append(Thread.currentThread().getName());
+        sb.append(",");
+        sb.append(Thread.currentThread().getPriority());
+        sb.append("] ");
+        boolean flag = true;
+        for (Object o : debug) {
+            if (flag) {
+                flag = false;
+            }
+            else {
+                sb.append(" | ");
+            }
+            sb.append(o);
+        }
+        System.out.println(sb.toString());
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -358,5 +467,19 @@ public class TestBase {
 
     private static String expectingMessage(Connection conn, Connection.Status expecting) {
         return "Failed expecting Connection Status " + expecting.name() + " but was " + conn.getStatus();
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // Subscription or test macros
+    // ----------------------------------------------------------------------------------------------------
+    public void assertClientError(NatsJetStreamClientError error, Executable executable) {
+        Exception e = assertThrows(Exception.class, executable);
+        assertTrue(e.getMessage().contains(error.id()));
+        if (error.getKind() == KIND_ILLEGAL_ARGUMENT) {
+            assertTrue(e instanceof IllegalArgumentException);
+        }
+        else if (error.getKind() == KIND_ILLEGAL_STATE) {
+            assertTrue(e instanceof IllegalStateException);
+        }
     }
 }

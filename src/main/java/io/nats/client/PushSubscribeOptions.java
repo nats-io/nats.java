@@ -17,12 +17,13 @@ import static io.nats.client.support.Validator.emptyAsNull;
 
 /**
  * The PushSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
- * Options are set using the {@link PullSubscribeOptions.Builder} or static helper methods.
+ * Options are set using the {@link PushSubscribeOptions.Builder} or static helper methods.
  */
 public class PushSubscribeOptions extends SubscribeOptions {
 
-    private PushSubscribeOptions(Builder builder, String deliverSubject, String deliverGroup) {
-        super(builder, false, deliverSubject, deliverGroup);
+    private PushSubscribeOptions(Builder builder, boolean ordered, String deliverSubject, String deliverGroup,
+                                 long pendingMessageLimit, long pendingByteLimit) {
+        super(builder, false, ordered, deliverSubject, deliverGroup, pendingMessageLimit, pendingByteLimit);
     }
 
     /**
@@ -92,11 +93,24 @@ public class PushSubscribeOptions extends SubscribeOptions {
      */
     public static class Builder
             extends SubscribeOptions.Builder<Builder, PushSubscribeOptions> {
+        private boolean ordered;
         private String deliverSubject;
         private String deliverGroup;
+        private long pendingMessageLimit = Consumer.DEFAULT_MAX_MESSAGES;
+        private long pendingByteLimit = Consumer.DEFAULT_MAX_BYTES;
 
         @Override
         protected Builder getThis() {
+            return this;
+        }
+
+        /**
+         * Set the ordered consumer flag
+         * @param ordered flag indicating whether this subscription should be ordered
+         * @return the builder.
+         */
+        public Builder ordered(boolean ordered) {
+            this.ordered = ordered;
             return this;
         }
 
@@ -123,12 +137,35 @@ public class PushSubscribeOptions extends SubscribeOptions {
         }
 
         /**
+         * Set the maximum number of messages that non-dispatched push subscriptions can hold
+         * in the internal (pending) message queue. Defaults to 512 * 1024  (Consumer.DEFAULT_MAX_MESSAGES)
+         * @param pendingMessageLimit the number of messages.
+         * @return the builder
+         */
+        public Builder pendingMessageLimit(long pendingMessageLimit) {
+            this.pendingMessageLimit = pendingMessageLimit;
+            return this;
+        }
+
+        /**
+         * Set the maximum number of bytes that non-dispatched push subscriptions can hold
+         * in the internal (pending) message queue. Defaults to 64 * 1024 * 1024 (Consumer.DEFAULT_MAX_BYTES)
+         * @param pendingByteLimit the number of bytes.
+         * @return the builder
+         */
+        public Builder pendingByteLimit(long pendingByteLimit) {
+            this.pendingByteLimit = pendingByteLimit;
+            return this;
+        }
+
+        /**
          * Builds the push subscribe options.
          * @return push subscribe options
          */
         @Override
         public PushSubscribeOptions build() {
-            return new PushSubscribeOptions(this, deliverSubject, deliverGroup);
+            return new PushSubscribeOptions(this, ordered, deliverSubject, deliverGroup,
+                pendingMessageLimit, pendingByteLimit);
         }
     }
 }

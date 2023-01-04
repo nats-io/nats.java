@@ -16,6 +16,7 @@ package io.nats.client;
 import io.nats.client.api.ServerInfo;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -184,6 +185,18 @@ public interface Connection extends AutoCloseable {
      * Send a request. The returned future will be completed when the
      * response comes back.
      *
+     * @param subject the subject for the service that will handle the request
+     * @param body the content of the message
+     * @param timeout the time to wait for a response
+     * @return a Future for the response, which may be cancelled on error or timed out
+     */
+    CompletableFuture<Message> requestWithTimeout(String subject, byte[] body, Duration timeout);
+
+
+    /**
+     * Send a request. The returned future will be completed when the
+     * response comes back.
+     *
      * <p>The Message object allows you to set a replyTo, but in requests,
      * the replyTo is reserved for internal use as the address for the
      * server to respond to the client with the consumer's reply.</p>
@@ -193,6 +206,20 @@ public interface Connection extends AutoCloseable {
      */
     CompletableFuture<Message> request(Message message);
 
+    /**
+     * Send a request. The returned future will be completed when the
+     * response comes back.
+     *
+     * <p>The Message object allows you to set a replyTo, but in requests,
+     * the replyTo is reserved for internal use as the address for the
+     * server to respond to the client with the consumer's reply.</p>
+     *
+     * @param message the message
+     * @param timeout the time to wait for a response
+     * @return a Future for the response, which may be cancelled on error or timed out
+     */
+    CompletableFuture<Message> requestWithTimeout(Message message, Duration timeout);
+    
     /**
      * Send a request and returns the reply or null. This version of request is equivalent
      * to calling get on the future returned from {@link #request(String, byte[]) request()} with
@@ -393,11 +420,21 @@ public interface Connection extends AutoCloseable {
      * @return the url used for the current connection, or null if disconnected
      */
     String getConnectedUrl();
-    
+
+    /**
+     * @return the InetAddress of client as known by the NATS server, otherwise null.
+     */
+    InetAddress getClientInetAddress();
+
     /**
      * @return the error text from the last error sent by the server to this client
      */
     String getLastError();
+
+    /**
+     * Clear the last error from the server
+     */
+    void clearLastError();
 
     /**
      * @return a new inbox subject, can be used for directed replies from
@@ -412,6 +449,13 @@ public interface Connection extends AutoCloseable {
      * @throws IllegalStateException the connection is not connected
      */
     void flushBuffer() throws IOException;
+
+    /**
+     * Calculates the round trip time between this client and the server.
+     * @return the RTT as a duration
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    Duration RTT() throws IOException;
 
     /**
      * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
@@ -451,26 +495,23 @@ public interface Connection extends AutoCloseable {
 
     /**
      * Gets a context for working with an Key Value bucket
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param bucket the bucket
+     * @param bucketName the bucket name
      * @return a KeyValue instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
-    KeyValue keyValue(String bucket) throws IOException;
+    KeyValue keyValue(String bucketName) throws IOException;
 
     /**
      * Gets a context for working with an Key Value bucket
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param bucket the bucket
-     * @param options JetStream options.
+     * @param bucketName the bucket name
+     * @param options KeyValue options.
      * @return a KeyValue instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
-    KeyValue keyValue(String bucket, JetStreamOptions options) throws IOException;
+    KeyValue keyValue(String bucketName, KeyValueOptions options) throws IOException;
 
     /**
      * Gets a context for managing Key Value buckets
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @return a KeyValueManagement instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
@@ -478,11 +519,45 @@ public interface Connection extends AutoCloseable {
 
     /**
      * Gets a context for managing Key Value buckets
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
-     * @param options JetStream options.
+     * @param options KeyValue options.
      * @return a KeyValueManagement instance.
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
+     * @throws IOException various IO exception such as timeout or interruption
      */
-    KeyValueManagement keyValueManagement(JetStreamOptions options) throws IOException;
+    KeyValueManagement keyValueManagement(KeyValueOptions options) throws IOException;
+
+    /**
+     * Gets a context for working with an Object Store.
+     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
+     * @param bucketName the bucket name
+     * @return an ObjectStore instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    ObjectStore objectStore(String bucketName) throws IOException;
+
+    /**
+     * Gets a context for working with an Object Store.
+     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
+     * @param bucketName the bucket name
+     * @param options ObjectStore options.
+     * @return an ObjectStore instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    ObjectStore objectStore(String bucketName, ObjectStoreOptions options) throws IOException;
+
+    /**
+     * Gets a context for managing Object Stores
+     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
+     * @return an ObjectStoreManagement instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    ObjectStoreManagement objectStoreManagement() throws IOException;
+
+    /**
+     * Gets a context for managing Object Stores
+     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
+     * @param options ObjectStore options.
+     * @return a ObjectStoreManagement instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    ObjectStoreManagement objectStoreManagement(ObjectStoreOptions options) throws IOException;
 }

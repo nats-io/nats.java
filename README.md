@@ -24,22 +24,29 @@ Version 2.5.0 adds some back pressure to publish calls to alleviate issues when 
 
 Previous versions are still available in the repo.
 
-### Versions 2.11.6 and server versions
+### Version 2.16.0 Consumer Create
 
-Version 2.11.6 is the last java-nats version which is supported to work with server v2.3.4 and earlier.
-It will not be officially supported to work with servers after v2.3.4, but _should be fine_ if you don't use
-the queue behavior advertised in example code `NatsJsPushSubQueueDurable.java` and provided with java-nats 2.11.5. 
-The example does not work correctly against server versions after server v2.3.4 
-due to a significant change made to correct _queue_ behavior that was considered wrong.
+This release by default will use a new JetStream consumer create API when interacting with nats-server version 2.9.0 or higher. 
+This changes the subjects used by the client to create consumers, which might in some cases require changes in access and import/export configuration.
+The developer can opt out of using this feature by using a custom JetStreamOptions and using it when creating
+JetStream, Key Value and Object Store regular and management contexts.
 
-If you want to take advantage of the fixes and features provided in the server after v2.3.4, 
-you __must__ upgrade to the release version 2.12.0 or later.
+```java
+JetStreamOptions jso = JetStreamOptions.builder().optOut290ConsumerCreate(true).build();
+
+JetStream js = connection.jetStream(jso);
+JetStreamManagement jsm = connection.jetStreamManagement(jso);
+KeyValue kv = connection.keyValue("bucket", KeyValueOptions.builder(jso).build());
+KeyValueManagement kvm = connection.keyValueManagement(KeyValueOptions.builder(jso).build());
+ObjectStore os = connection.objectStore("bucket", ObjectStoreOptions.builder(jso).build());
+ObjectStoreManagement osm = connection.objectStoreManagement(ObjectStoreOptions.builder(jso).build());
+```
 
 ### SSL/TLS Performance
 
 After recent tests we realized that TLS performance is lower than we would like. After researching the problem and possible solutions we came to a few conclusions:
 
-* TLS performance for the native JDK has not be historically great
+* TLS performance for the native JDK has not been historically great
 * TLS performance is better in JDK12 than JDK8
 * A small fix to the library in 2.5.1 allows the use of https://github.com/google/conscrypt and https://github.com/wildfly/wildfly-openssl, conscrypt provides the best performance in our tests
 * TLS still comes at a price (1gb/s vs 4gb/s in some tests), but using the JNI libraries can result in a 10x boost in our testing
@@ -73,13 +80,15 @@ to improve security.*
 
 ## Installation
 
-The java-nats client is provided in a single jar file, with a single external dependency for the encryption in NKey support. See [Building From Source](#building-from-source) for details on building the library.
+The java-nats client is provided in a single jar file, with a single external dependency for the encryption in NKey support. 
+See [Building From Source](#building-from-source) for details on building the library.
+Replace `{major.minor.patch}` with the correct version in the examples.
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.13.1/jnats-2.13.1.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.13.1/jnats-2.13.1.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.5/jnats-2.16.5.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.3/jnats-2.16.5.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.13.1/jnats-2.13.1-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.13.1/jnats-2.13.1-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.5/jnats-2.16.5-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.5/jnats-2.16.5-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
@@ -89,7 +98,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.13.1'
+    implementation 'io.nats:jnats:{major.minor.patch}'
 }
 ```
 
@@ -115,7 +124,7 @@ repositories {
 }
 
 dependencies {
-   implementation 'io.nats:jnats:2.13.1-SNAPSHOT'
+   implementation 'io.nats:jnats:{major.minor.patch}-SNAPSHOT'
 }
 ```
 
@@ -127,7 +136,7 @@ The NATS client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.13.1</version>
+    <version>{major.minor.patch}</version>
 </dependency>
 ```
 
@@ -161,7 +170,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.13.1-SNAPSHOT</version>
+    <version>{major.minor.patch}-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -212,7 +221,7 @@ There are four different ways to connect using the Java library:
 5. Connect with authentication handler:
 
     ```java
-    AuthHandler authHandler = Nats.credentials(System.getenv("NATS_CREDS")
+    AuthHandler authHandler = Nats.credentials(System.getenv("NATS_CREDS"));
     Connection nc = Nats.connect("nats://myhost:4222", authHandler);
     ```
 
@@ -299,7 +308,7 @@ from both streams and directly from other NATS producers.
 After establishing a connection as described above, create a JetStream Context.
    
    ```java
-   JetStream js = nc.JetStream();
+   JetStream js = nc.jetStream();
    ```
 
 You can pass options to configure the JetStream client, although the defaults should
@@ -536,29 +545,75 @@ messages, one for each message the previous batch was short. You can just ignore
 See `NatsJsPullSubExpire.java` and `NatsJsPullSubExpireUseCases.java`
 in the JetStream examples for detailed and runnable examples.
 
-### Subscription Creation
+### Ordered Push Subscription Option
 
-Subscription creation has many checks to make sure that a valid, operable subscription can be made.
+You can now set a Push Subscription option called "Ordered". 
+When you set this flag, library will take over creation of the consumer and create a subscription that guarantees the order of messages.
+This consumer will use flow control with a default heartbeat of 5 seconds. Messages will not require acks as the Ack Policy will be set to No Ack.
+When creating the subscription, there are some restrictions for the consumer configuration settings.
 
-| Name | Group | Code | Description |
-| --- | --- | --- | --- |
-| JsPullSubCantHaveDeliverGroup | SUB | 90001 | Pull subscriptions can't have a deliver group. |
-| JsPullSubCantHaveDeliverSubject | SUB | 90002 | Pull subscriptions can't have a deliver subject. |
-| JsPushSubCantHaveMaxPullWaiting | SUB | 90003 | Push subscriptions cannot supply max pull waiting. |
-| JsQueueDeliverGroupMismatch | SUB | 90004 | Queue / deliver group mismatch. |
-| JsFcHbNotValidPull | SUB | 90005 | Flow Control and/or heartbeat is not valid with a pull subscription. |
-| JsFcHbHbNotValidQueue | SUB | 90006 | Flow Control and/or heartbeat is not valid in queue mode. |
-| JsNoMatchingStreamForSubject | SUB | 90007 | No matching streams for subject. |
-| JsConsumerAlreadyConfiguredAsPush | SUB | 90008 | Consumer is already configured as a push consumer. |
-| JsConsumerAlreadyConfiguredAsPull | SUB | 90009 | Consumer is already configured as a pull consumer. |
-| JsExistingDeliverSubjectMismatch | SUB | 90010 | Existing consumer deliver subject does not match requested deliver subject. |
-| JsSubjectDoesNotMatchFilter | SUB | 90011 | Subject does not match consumer configuration filter. |
-| JsConsumerAlreadyBound | SUB | 90012 | Consumer is already bound to a subscription. |
-| JsExistingConsumerNotQueue | SUB | 90013 | Existing consumer is not configured as a queue / deliver group. |
-| JsExistingConsumerIsQueue | SUB | 90014 | Existing consumer  is configured as a queue / deliver group. |
-| JsExistingQueueDoesNotMatchRequestedQueue | SUB | 90015 | Existing consumer deliver group does not match requested queue / deliver group. |
-| JsExistingConsumerCannotBeModified | SUB | 90016 | Existing consumer cannot be modified. |
-| JsConsumerNotFoundRequiredInBind | SUB | 90017 | Consumer not found, required in bind mode. |
+- Ack policy must be AckPolicy.None (or left un-set). maxAckPending will be ignored.
+- Deliver Group (aka Queue) cannot be used
+- You cannot set a durable consumer name
+- You cannot set the deliver subject
+- max deliver can only be set to 1 (or left un-set)  
+- The idle heartbeat cannot be less than 5 seconds. Flow control will automatically be used.
+
+You can however set the deliver policy which will be used to start the subscription. 
+
+### Client Error Messages
+
+In addition to some generic validation messages for values in builders, there are also additional grouped and numbered client error messages:
+* Subscription building and creation
+* Consumer creation
+* Object Store operations
+
+| Name                                         | Group | Code  | Description                                                                                         |
+|----------------------------------------------|-------|-------|-----------------------------------------------------------------------------------------------------|
+| JsSoDurableMismatch                          | SO    | 90101 | Builder durable must match the consumer configuration durable if both are provided.                 |
+| JsSoDeliverGroupMismatch                     | SO    | 90102 | Builder deliver group must match the consumer configuration deliver group if both are provided.     |
+| JsSoDeliverSubjectMismatch                   | SO    | 90103 | Builder deliver subject must match the consumer configuration deliver subject if both are provided. |
+| JsSoOrderedNotAllowedWithBind                | SO    | 90104 | Bind is not allowed with an ordered consumer.                                                       |
+| JsSoOrderedNotAllowedWithDeliverGroup        | SO    | 90105 | Deliver group is not allowed with an ordered consumer.                                              |
+| JsSoOrderedNotAllowedWithDurable             | SO    | 90106 | Durable is not allowed with an ordered consumer.                                                    |
+| JsSoOrderedNotAllowedWithDeliverSubject      | SO    | 90107 | Deliver subject is not allowed with an ordered consumer.                                            |
+| JsSoOrderedRequiresAckPolicyNone             | SO    | 90108 | Ordered consumer requires Ack Policy None.                                                          |
+| JsSoOrderedRequiresMaxDeliver                | SO    | 90109 | Max deliver is limited to 1 with an ordered consumer.                                               |
+| JsSoNameMismatch                             | SO    | 90110 | Builder name must match the consumer configuration name if both are provided.                       |
+| JsSoOrderedMemStorageNotSuppliedOrTrue       | SO    | 90111 | Mem Storage must be true if supplied.                                                               |
+| JsSoOrderedReplicasNotSuppliedOrOne          | SO    | 90112 | Replicas must be 1 if supplied.                                                                     |
+| JsSubPullCantHaveDeliverGroup                | SUB   | 90001 | Pull subscriptions can't have a deliver group.                                                      |
+| JsSubPullCantHaveDeliverSubject              | SUB   | 90002 | Pull subscriptions can't have a deliver subject.                                                    |
+| JsSubPushCantHaveMaxPullWaiting              | SUB   | 90003 | Push subscriptions cannot supply max pull waiting.                                                  |
+| JsSubQueueDeliverGroupMismatch               | SUB   | 90004 | Queue / deliver group mismatch.                                                                     |
+| JsSubFcHbNotValidPull                        | SUB   | 90005 | Flow Control and/or heartbeat is not valid with a pull subscription.                                |
+| JsSubFcHbNotValidQueue                       | SUB   | 90006 | Flow Control and/or heartbeat is not valid in queue mode.                                           |
+| JsSubNoMatchingStreamForSubject              | SUB   | 90007 | No matching streams for subject.                                                                    |
+| JsSubConsumerAlreadyConfiguredAsPush         | SUB   | 90008 | Consumer is already configured as a push consumer.                                                  |
+| JsSubConsumerAlreadyConfiguredAsPull         | SUB   | 90009 | Consumer is already configured as a pull consumer.                                                  |
+| _removed_                                    | SUB   | 90010 |                                                                                                     |
+| JsSubSubjectDoesNotMatchFilter               | SUB   | 90011 | Subject does not match consumer configuration filter.                                               |
+| JsSubConsumerAlreadyBound                    | SUB   | 90012 | Consumer is already bound to a subscription.                                                        |
+| JsSubExistingConsumerNotQueue                | SUB   | 90013 | Existing consumer is not configured as a queue / deliver group.                                     |
+| JsSubExistingConsumerIsQueue                 | SUB   | 90014 | Existing consumer  is configured as a queue / deliver group.                                        |
+| JsSubExistingQueueDoesNotMatchRequestedQueue | SUB   | 90015 | Existing consumer deliver group does not match requested queue / deliver group.                     |
+| JsSubExistingConsumerCannotBeModified        | SUB   | 90016 | Existing consumer cannot be modified.                                                               |
+| JsSubConsumerNotFoundRequiredInBind          | SUB   | 90017 | Consumer not found, required in bind mode.                                                          |
+| JsSubOrderedNotAllowOnQueues                 | SUB   | 90018 | Ordered consumer not allowed on queues.                                                             |
+| JsSubPushCantHaveMaxBatch                    | SUB   | 90019 | Push subscriptions cannot supply max batch.                                                         |
+| JsSubPushCantHaveMaxBytes                    | SUB   | 90020 | Push subscriptions cannot supply max bytes.                                                         |
+| JsSubPushAsyncCantSetPending                 | SUB   | 90021 | Pending limits must be set directly on the dispatcher.                                              |
+| JsConsumerCreate290NotAvailable              | CON   | 90301 | Name field not valid when v2.9.0 consumer create api is not available.                              |
+| JsConsumerNameDurableMismatch                | CON   | 90302 | Name must match durable if both are supplied.                                                       |
+| OsObjectNotFound                             | OS    | 90201 | The object was not found.                                                                           |
+| OsObjectIsDeleted                            | OS    | 90202 | The object is deleted.                                                                              |
+| OsObjectAlreadyExists                        | OS    | 90203 | An object with that name already exists.                                                            |
+| OsCantLinkToLink                             | OS    | 90204 | A link cannot link to another link.                                                                 |
+| OsGetDigestMismatch                          | OS    | 90205 | Digest does not match meta data.                                                                    |
+| OsGetChunksMismatch                          | OS    | 90206 | Number of chunks does not match meta data.                                                          |
+| OsGetSizeMismatch                            | OS    | 90207 | Total size does not match meta data.                                                                |
+| OsGetLinkToBucket                            | OS    | 90208 | Cannot get object, it is a link to a bucket.                                                        |
+| OsLinkNotAllowOnPut                          | OS    | 90209 | Link not allowed in metadata when putting an object.                                                |
 
 ### Message Acknowledgements
 

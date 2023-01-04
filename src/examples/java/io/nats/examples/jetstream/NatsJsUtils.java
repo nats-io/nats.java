@@ -69,7 +69,28 @@ public class NatsJsUtils {
         }
     }
 
-    public static StreamInfo createStream(JetStreamManagement jsm, String streamName, StorageType storageType, String[] subjects) throws IOException, JetStreamApiException {
+    public static StreamInfo createOrReplaceStream(JetStreamManagement jsm, String streamName, StorageType storageType, String... subjects) throws IOException, JetStreamApiException {
+        try {
+            jsm.deleteStream(streamName);
+        }
+        catch (Exception ignore) {}
+        // Create a stream, here will use a file storage type, and one subject,
+        // the passed subject.
+        StreamConfiguration sc = StreamConfiguration.builder()
+            .name(streamName)
+            .storageType(storageType)
+            .subjects(subjects)
+            .build();
+
+        // Add or use an existing stream.
+        StreamInfo si = jsm.addStream(sc);
+        System.out.printf("Created stream '%s' with subject(s) %s\n",
+            streamName, si.getConfiguration().getSubjects());
+
+        return si;
+    }
+
+    public static StreamInfo createStream(JetStreamManagement jsm, String streamName, StorageType storageType, String... subjects) throws IOException, JetStreamApiException {
         // Create a stream, here will use a file storage type, and one subject,
         // the passed subject.
         StreamConfiguration sc = StreamConfiguration.builder()
@@ -150,35 +171,88 @@ public class NatsJsUtils {
     // PUBLISH
     // ----------------------------------------------------------------------------------------------------
     public static void publish(Connection nc, String subject, int count) throws IOException, JetStreamApiException {
-        publish(nc.jetStream(), subject, "data", count, false);
+        publish(nc.jetStream(), subject, "data", count, -1, false);
     }
 
     public static void publish(JetStream js, String subject, int count) throws IOException, JetStreamApiException {
-        publish(js, subject, "data", count, false);
+        publish(js, subject, "data", count, -1, false);
     }
 
     public static void publish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
-        publish(js, subject, prefix, count, true);
+        publish(js, subject, prefix, count, -1, true);
     }
 
     public static void publish(JetStream js, String subject, String prefix, int count, boolean verbose) throws IOException, JetStreamApiException {
+        publish(js, subject, prefix, count, -1, verbose);
+    }
+
+    public static void publish(JetStream js, String subject, String prefix, int count, int msgSize, boolean verbose) throws IOException, JetStreamApiException {
         if (verbose) {
             System.out.print("Publish ->");
         }
         for (int x = 1; x <= count; x++) {
-            String data = prefix + x;
-            if (verbose) {
-                System.out.print(" " + data);
-            }
-            Message msg = NatsMessage.builder()
+            byte[] data = makeData(prefix, msgSize, verbose, x);
+            Message msg =
+                NatsMessage.builder()
                     .subject(subject)
-                    .data(data.getBytes(StandardCharsets.US_ASCII))
+                    .data(data)
                     .build();
             js.publish(msg);
         }
         if (verbose) {
             System.out.println(" <-");
         }
+    }
+
+    public static byte[] makeData(String prefix, int msgSize, boolean verbose, int x) {
+        String text = prefix + "#" + x + "#";
+        if (verbose) {
+            System.out.print(" " + text);
+        }
+
+        byte[] data = text.getBytes(StandardCharsets.US_ASCII);
+        if (msgSize > data.length) {
+            byte[] larger = new byte[msgSize];
+            System.arraycopy(data, 0, larger, 0, data.length);
+            data = larger;
+        }
+        return data;
+    }
+
+    public static long extractId(String data) {
+        int at1 = data.indexOf("#");
+        if (at1 == -1) {
+            return -1;
+        }
+        int at2 = data.indexOf("#", at1 + 1);
+        if (at2 == -1) {
+            return -1;
+        }
+        return Long.parseLong(data.substring(at1 + 1, at2));
+    }
+
+    public static long extractId(byte[] data) {
+        int at1 = -1;
+        int at2 = -1;
+        for (int x = 0; x < data.length; x++) {
+            if (data[x] == (byte)'#') {
+               if (at1 == -1) {
+                   at1 = x;
+               }
+               else {
+                   at2 = x;
+                   break;
+               }
+            }
+        }
+        if (at1 == -1 || at2 == -1) {
+            return -1;
+        }
+        return Long.parseLong(new String(data, at1 + 1, at2 - at1 - 1));
+    }
+
+    public static long extractId(Message m) {
+        return extractId(m.getData());
     }
 
     public static void publishInBackground(JetStream js, String subject, String prefix, int count) {

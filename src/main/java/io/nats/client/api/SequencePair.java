@@ -23,8 +23,8 @@ import static io.nats.client.support.ApiConstants.STREAM_SEQ_RE;
  * stream.
  */
 public class SequencePair {
-    private final long consumerSeq;
-    private final long streamSeq;
+    protected final long consumerSeq;
+    protected final long streamSeq;
 
     SequencePair(String json) {
         consumerSeq = JsonUtils.readLong(json, CONSUMER_SEQ_RE, 0);
@@ -47,13 +47,5 @@ public class SequencePair {
      */
     public long getStreamSequence() {
         return streamSeq;
-    }
-
-    @Override
-    public String toString() {
-        return "SequencePair{" +
-                "consumerSeq=" + consumerSeq +
-                ", streamSeq=" + streamSeq +
-                '}';
     }
 }

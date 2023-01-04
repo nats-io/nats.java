@@ -18,8 +18,12 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import static io.nats.client.support.ApiConstants.DELETED_DETAILS;
+import static io.nats.client.support.ApiConstants.SUBJECTS_FILTER;
 import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static io.nats.client.support.JsonUtils.printFormatted;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
@@ -27,10 +31,10 @@ import static io.nats.client.utils.TestBase.getDataMessage;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamInfoTests {
+    static String json = dataAsString("StreamInfo.json");
 
     @Test
     public void testStreamInfo() {
-        String json = dataAsString("StreamInfo.json");
         StreamInfo si = new StreamInfo(getDataMessage(json));
         validateStreamInfo(si);
         printFormatted(si); // COVERAGE
@@ -69,9 +73,42 @@ public class StreamInfoTests {
         assertEquals(14, ss.getLastSequence());
 
         assertEquals(15, ss.getConsumerCount());
+        assertEquals(3, ss.getSubjectCount());
+        assertEquals(3, ss.getSubjects().size());
+
+        Map<String, Subject> map = new HashMap<>();
+        for (Subject su : ss.getSubjects()) {
+            map.put(su.getName(), su);
+        }
+
+        Subject s = map.get("sub0");
+        assertNotNull(s);
+        assertEquals(1, s.getCount());
+
+        s = map.get("sub1");
+        assertNotNull(s);
+        assertEquals(2, s.getCount());
+
+        s = map.get("x.foo");
+        assertNotNull(s);
+        assertEquals(3, s.getCount());
+
+        assertEquals(6, ss.getDeletedCount());
+        assertEquals(6, ss.getDeleted().size());
+        for (long x = 91; x <= 96; x++) {
+            assertTrue(ss.getDeleted().contains(x));
+        }
+
+        LostStreamData lost = ss.getLostStreamData();
+        assertNotNull(lost);
+        assertEquals(3, lost.getMessages().size());
+        for (long x = 101; x <= 103; x++) {
+            assertTrue(lost.getMessages().contains(x));
+        }
+        assertEquals(104, lost.getBytes());
 
         assertEquals(DateTimeUtils.parseDateTime("0001-01-01T00:00:00Z"), ss.getFirstTime());
-        assertEquals(DateTimeUtils.parseDateTime("0001-01-01T00:00:00Z"), ss.getLastTime());
+        assertEquals(DateTimeUtils.parseDateTime("0002-01-01T00:00:00Z"), ss.getLastTime());
 
         Placement pl = si.getConfiguration().getPlacement();
         assertNotNull(pl);
@@ -129,7 +166,39 @@ public class StreamInfoTests {
     @Test
     public void testToString() {
         // COVERAGE
-        String json = dataAsString("StreamInfo.json");
         assertNotNull(new StreamInfo(json).toString());
+    }
+
+    @Test
+    public void testStreamInfoOptionsCoverage() {
+        StreamInfoOptions opts = StreamInfoOptions.filterSubjects("sub");
+        String json = opts.toJson();
+        assertTrue(json.contains(SUBJECTS_FILTER));
+        assertTrue(json.contains("sub"));
+        assertFalse(json.contains(DELETED_DETAILS));
+
+        opts = StreamInfoOptions.allSubjects();
+        json = opts.toJson();
+        assertTrue(json.contains(SUBJECTS_FILTER));
+        assertTrue(json.contains(">"));
+        assertFalse(json.contains(DELETED_DETAILS));
+
+        opts = StreamInfoOptions.deletedDetails();
+        json = opts.toJson();
+        assertTrue(json.contains(DELETED_DETAILS));
+        assertTrue(json.contains("true"));
+        assertFalse(json.contains(SUBJECTS_FILTER));
+    }
+
+    @Test
+    public void testSubjectCoverage() {
+        List<Subject> list = Subject.getList("{}");
+        assertTrue(list.isEmpty());
+
+        list = Subject.getList(null);
+        assertTrue(list.isEmpty());
+
+        list = Subject.getList("{\"sub0\": 1, \"sub1\": 2,\"x.foo\": 3}");
+        assertEquals(3, list.size());
     }
 }

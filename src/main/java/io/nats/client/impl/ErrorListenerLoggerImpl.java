@@ -31,11 +31,11 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
                 sb.append(", Connection: ").append(conn.getServerInfo().getClientId());
             }
         }
-        if (consumer instanceof NatsSubscription) {
-            sb.append(", Consumer: ").append(((NatsSubscription)consumer).getSID());
+        if (consumer != null) {
+            sb.append(", Consumer: ").append(consumer.hashCode());
         }
-        if (sub instanceof NatsSubscription) {
-            sb.append(", Subscription: ").append(sub.getSID());
+        if (sub != null) {
+            sb.append(", Subscription: ").append(sub.hashCode());
         }
         for (int x = 0; x < pairs.length; x++) {
             sb.append(", ").append(pairs[x]).append(pairs[++x]);

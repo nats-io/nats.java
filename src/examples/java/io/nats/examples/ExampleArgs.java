@@ -26,6 +26,7 @@ public class ExampleArgs {
     public String queue;
     public String message;
     public int msgCount = Integer.MIN_VALUE;
+    public int msgSize = Integer.MIN_VALUE;
     private boolean msgCountUnlimitedFlag;
     public int subCount = Integer.MIN_VALUE;
     public String stream;
@@ -36,6 +37,8 @@ public class ExampleArgs {
     public int pullSize = Integer.MIN_VALUE;
     public Headers headers;
     public boolean containedUnknown = false;
+    public String bucket;
+    public String description;
 
     public boolean hasHeaders() {
         return headers != null && headers.size() > 0;
@@ -138,11 +141,20 @@ public class ExampleArgs {
             case "-mcnt":
                 msgCount = Integer.parseInt(value);
                 break;
+            case "-msize":
+                msgSize = Integer.parseInt(value);
+                break;
             case "-scnt":
                 subCount = Integer.parseInt(value);
                 break;
             case "-dur":
                 durable = value;
+                break;
+            case "-buk":
+                bucket = value;
+                break;
+            case "-desc":
+                description = value;
                 break;
             case "-deliver":
                 deliverSubject = value;
@@ -171,6 +183,8 @@ public class ExampleArgs {
         _banner("server", server);
         _banner("stream", stream);
         _banner("subject", subject);
+        _banner("bucket", bucket);
+        _banner("description", description);
         _banner("queue", queue);
         _banner("message", message);
         _banner("mirror", mirror);
@@ -178,6 +192,7 @@ public class ExampleArgs {
         _banner("durable", durable);
         _banner("deliver", deliverSubject);
         _banner("msgCount", msgCount, msgCountUnlimitedFlag);
+        _banner("msgSize", msgSize);
         _banner("subCount", subCount);
         _banner("pullSize", pullSize);
         _banner("Headers", headers == null || headers.size() == 0 ? Integer.MIN_VALUE : headers.size());
@@ -246,6 +261,11 @@ public class ExampleArgs {
             return this;
         }
 
+        public Builder defaultMsgSize(int msgSize) {
+            ea.msgSize = msgSize;
+            return this;
+        }
+
         public Builder defaultSubCount(int subCount) {
             ea.subCount = subCount;
             return this;
@@ -263,6 +283,16 @@ public class ExampleArgs {
 
         public Builder defaultDurable(String durable) {
             ea.durable = durable;
+            return this;
+        }
+
+        public Builder defaultBucket(String bucket) {
+            ea.bucket = bucket;
+            return this;
+        }
+
+        public Builder defaultDescription(String description) {
+            ea.description = description;
             return this;
         }
 

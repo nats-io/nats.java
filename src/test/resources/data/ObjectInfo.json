@@ -1,0 +1,21 @@
+{
+  "name": "object-name",
+  "description": "object-desc",
+  "headers": {
+    "key-1": ["data-1"],
+    "key-2": ["data-21", "data-22"]
+  },
+  "options": {
+    "link": {
+      "bucket": "link-to-bucket",
+      "name": "link-to-name"
+    },
+    "max_chunk_size": 8196
+  },
+  "bucket": "bucket",
+  "nuid": "nuidnuidnuid",
+  "size": 344000,
+  "chunks": 42,
+  "digest": "SHA-256=abcdefghijklmnopqrstuvwxyz=",
+  "deleted": true
+}

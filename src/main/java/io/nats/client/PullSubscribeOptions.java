@@ -15,12 +15,12 @@ package io.nats.client;
 
 /**
  * The PullSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
- * Options are set using the {@link Builder} or static helper methods.
+ * Options are set using the {@link PullSubscribeOptions.Builder} or static helper methods.
  */
 public class PullSubscribeOptions extends SubscribeOptions {
 
     private PullSubscribeOptions(Builder builder) {
-        super(builder, true, null, null);
+        super(builder, true, false, null, null, -1, -1);
     }
 
     /**

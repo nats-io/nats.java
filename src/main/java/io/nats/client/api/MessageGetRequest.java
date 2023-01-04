@@ -15,34 +15,93 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 
-import static io.nats.client.support.ApiConstants.LAST_BY_SUBJECT;
-import static io.nats.client.support.ApiConstants.SEQ;
+import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
 
 /**
- * Object used to make a request for special message get requests
+ * Object used to make a request for special message get requests.
  */
 public class MessageGetRequest implements JsonSerializable {
     private final long sequence;
     private final String lastBySubject;
+    private final String nextBySubject;
 
+    public static MessageGetRequest forSequence(long sequence) {
+        return new MessageGetRequest(sequence, null, null);
+    }
+
+    public static MessageGetRequest lastForSubject(String subject) {
+        return new MessageGetRequest(-1, subject, null);
+    }
+
+    public static MessageGetRequest firstForSubject(String subject) {
+        return new MessageGetRequest(-1, null, subject);
+    }
+
+    public static MessageGetRequest nextForSubject(long sequence, String subject) {
+        return new MessageGetRequest(sequence, null, subject);
+    }
+
+    /**
+     * @deprecated use static method forSequence with .serialize instead
+     */
+    @Deprecated
     public static byte[] seqBytes(long sequence) {
-        return new MessageGetRequest(sequence).serialize();
+        return forSequence(sequence).serialize();
     }
 
-    public static byte[] lastBySubjectBytes(String lastBySubject) {
-        return new MessageGetRequest(lastBySubject).serialize();
+    /**
+     * @deprecated use static method lastForSubject with .serialize instead
+     */
+    @Deprecated
+    public static byte[] lastBySubjectBytes(String subject) {
+        return lastForSubject(subject).serialize();
     }
 
+    /**
+     * @deprecated use static method forSequence instead
+     */
+    @Deprecated
     public MessageGetRequest(long sequence) {
-        this.sequence = sequence;
-        this.lastBySubject = null;
-
+        this(sequence, null, null);
     }
 
+    /**
+     * @deprecated use static method lastForSubject instead
+     */
+    @Deprecated
     public MessageGetRequest(String lastBySubject) {
-        this.sequence = -1;
+        this(-1, lastBySubject, null);
+    }
+
+    private MessageGetRequest(long sequence, String lastBySubject, String nextBySubject) {
+        this.sequence = sequence;
         this.lastBySubject = lastBySubject;
+        this.nextBySubject = nextBySubject;
+    }
+
+    public long getSequence() {
+        return sequence;
+    }
+
+    public String getLastBySubject() {
+        return lastBySubject;
+    }
+
+    public String getNextBySubject() {
+        return nextBySubject;
+    }
+
+    public boolean isSequenceOnly() {
+        return sequence > 0 && nextBySubject == null;
+    }
+
+    public boolean isLastBySubject() {
+        return lastBySubject != null;
+    }
+
+    public boolean isNextBySubject() {
+        return nextBySubject != null;
     }
 
     @Override
@@ -50,6 +109,7 @@ public class MessageGetRequest implements JsonSerializable {
         StringBuilder sb = beginJson();
         addField(sb, SEQ, sequence);
         addField(sb, LAST_BY_SUBJECT, lastBySubject);
+        addField(sb, NEXT_BY_SUBJECT, nextBySubject);
         return endJson(sb).toString();
     }
 }

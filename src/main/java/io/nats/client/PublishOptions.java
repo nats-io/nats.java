@@ -123,7 +123,7 @@ public class PublishOptions {
     }
 
     /**
-     * Creates a builder for the publish options.
+     * Creates a builder for the options.
      * @return the builder.s
      */
     public static Builder builder() {
@@ -167,12 +167,12 @@ public class PublishOptions {
         }
 
         /**
-         * Sets the stream name for publishing.  The default is undefined.
+         * Sets the stream name for publishing. The default is undefined.
          * @param stream The name of the stream.
          * @return Builder
          */
         public Builder stream(String stream) {
-            this.stream = validateStreamName(emptyOrNullAs(stream, UNSET_STREAM), false);
+            this.stream = validateStreamName(stream, false);
             return this;
         }
 
@@ -188,13 +188,13 @@ public class PublishOptions {
         }
 
         /**
-         * Sets the expected stream of the publish. If the
+         * Sets the expected stream for the publish. If the
          * stream does not match the server will not save the message.
          * @param stream expected stream
          * @return builder
          */
         public Builder expectedStream(String stream) {
-            expectedStream = validateStreamName(emptyOrNullAs(stream, UNSET_STREAM), false);
+            expectedStream = validateStreamName(stream, false);
             return this;
         }
 

@@ -249,21 +249,21 @@ public interface JetStream {
      */
     CompletableFuture<PublishAck> publishAsync(Message message, PublishOptions options);
 
-   /**
-    * Create a synchronous subscription to the specified subject with default options.
-    *
-    * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration)}
-    * method to read messages for this subscription.
-    *
-    * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
-    * information about creating an asynchronous subscription with callbacks.
-    *
-    * @param subject the subject to subscribe to
-    * @return The subscription
-    * @throws IOException covers various communication issues with the NATS
-    *         server such as timeout or interruption
-    * @throws JetStreamApiException the request had an error related to the data
-     */    
+    /**
+     * Create a synchronous subscription to the specified subject with default options.
+     *
+     * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration)}
+     * method to read messages for this subscription.
+     *
+     * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
+     * information about creating an asynchronous subscription with callbacks.
+     *
+     * @param subject the subject to subscribe to
+     * @return The subscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
     JetStreamSubscription subscribe(String subject) throws IOException, JetStreamApiException;
 
     /**

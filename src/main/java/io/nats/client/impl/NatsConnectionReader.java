@@ -275,7 +275,7 @@ class NatsConnectionReader implements Runnable {
                 int possible = maxPos - this.bufferPosition;
                 int want = msgHeaders.length - msgHeadersPosition;
 
-                // Grab all we can, until we get the neccessary number of bytes
+                // Grab all we can, until we get the necessary number of bytes
                 if (want > 0 && want <= possible) {
                     System.arraycopy(this.buffer, this.bufferPosition, this.msgHeaders, this.msgHeadersPosition, want);
                     msgHeadersPosition += want;
@@ -364,8 +364,7 @@ class NatsConnectionReader implements Runnable {
             this.msgLinePosition++;
 
             if (c == SP || c == TAB) {
-                String slice = new String(this.msgLineChars, start, this.msgLinePosition - start -1); //don't grab the space, avoid an intermediate char sequence
-                return slice;
+                return new String(this.msgLineChars, start, this.msgLinePosition - start -1); //don't grab the space, avoid an intermediate char sequence
             }
         }
 
@@ -485,10 +484,10 @@ class NatsConnectionReader implements Runnable {
                     break;
                 case OP_HMSG:
                     int hProtocolLength = this.msgLinePosition; //This is just after the last character
-                    int hProtocolLineLength = hProtocolLength + 4; // 5 for the "HMSG "
+                    int hProtocolLineLength = hProtocolLength + 5; // 5 for the "HMSG "
 
                     if (this.utf8Mode) {
-                        hProtocolLineLength = protocolBuffer.remaining() + 4;
+                        hProtocolLineLength = protocolBuffer.remaining() + 5;
 
                         CharBuffer buff = StandardCharsets.UTF_8.decode(protocolBuffer);
                         hProtocolLength = buff.remaining();
