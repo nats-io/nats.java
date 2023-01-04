@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.service.ServiceUtil.*;
 
 /**
@@ -43,7 +44,7 @@ public class Service {
     private final InfoResponse infoResponse;
     private final SchemaResponse schemaResponse;
     private final List<Context> discoveryContexts;
-    private final Context serviceContext;
+    private final List<Context> serviceContexts;
 
     private final Object stopLock;
     private CompletableFuture<Boolean> doneFuture;
@@ -53,7 +54,7 @@ public class Service {
         conn = builder.conn;
         statsDataDecoder = builder.statsDataDecoder;
         drainTimeout = builder.drainTimeout;
-        infoResponse = new InfoResponse(id, builder.name, builder.version, builder.description, builder.subject);
+        infoResponse = new InfoResponse(id, builder.name, builder.version, builder.description, builder.rootSubject);
         schemaResponse = new SchemaResponse(id, builder.name, builder.version, builder.schemaRequest, builder.schemaResponse);
 
         // User may provide 0 or more dispatchers, just use theirs when provided else use one we make
@@ -63,8 +64,17 @@ public class Service {
         Dispatcher dService = internalService ? conn.createDispatcher() : builder.dUserService;
 
         // do the service first in case the server feels like rejecting the subject
+        serviceContexts = new ArrayList<>();
         StatsResponse statsResponse = new StatsResponse(id, builder.name, builder.version);
-        serviceContext = new ServiceContext(conn, infoResponse.getSubject(), dService, internalService, statsResponse, builder.serviceMessageHandler);
+        if (builder.endpointMap.size() == 0) {
+            serviceContexts.add(new ServiceContext(conn, infoResponse.getSubject(), dService, internalService, statsResponse, builder.rootMessageHandler));
+        }
+        else {
+            for (String endpoint : builder.endpointMap.keySet()) {
+                String eSubject = infoResponse.getSubject() + DOT + endpoint;
+                serviceContexts.add(new ServiceContext(conn, eSubject, dService, internalService, statsResponse, builder.endpointMap.get(endpoint)));
+            }
+        }
 
         discoveryContexts = new ArrayList<>();
         addDiscoveryContexts(PING, new PingResponse(id, builder.name, builder.version), dDiscovery, internalDiscovery);
@@ -77,7 +87,9 @@ public class Service {
 
     public CompletableFuture<Boolean> startService() {
         doneFuture = new CompletableFuture<>();
-        serviceContext.start();
+        for (Context ctx : serviceContexts) {
+            ctx.start();
+        }
         for (Context ctx : discoveryContexts) {
             ctx.start();
         }
@@ -109,7 +121,9 @@ public class Service {
                 if (drain) {
                     List<CompletableFuture<Boolean>> futures = new ArrayList<>();
 
-                    drain(serviceContext, internals, futures);
+                    for (Context c : serviceContexts) {
+                        drain(c, internals, futures);
+                    }
 
                     for (Context c : discoveryContexts) {
                         drain(c, internals, futures);
@@ -160,7 +174,7 @@ public class Service {
     }
 
     public void reset() {
-        serviceContext.getStats().reset();
+        serviceContexts.get(0).getStats().reset();
     }
 
     public String getId() {
@@ -176,7 +190,7 @@ public class Service {
     }
 
     public StatsResponse getStats() {
-        return serviceContext.getStats().copy(statsDataDecoder);
+        return serviceContexts.get(0).getStats().copy(statsDataDecoder);
     }
 
     private void addDiscoveryContexts(String action, JsonSerializable js, Dispatcher dispatcher, boolean internalDispatcher) {

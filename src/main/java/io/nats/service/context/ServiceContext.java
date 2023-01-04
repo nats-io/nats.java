@@ -11,17 +11,17 @@ import io.nats.service.StatsResponse;
  */
 public class ServiceContext extends Context {
 
-    private final MessageHandler serviceMessageHandler;
+    private final MessageHandler messageHandler;
 
     public ServiceContext(Connection conn, String subject,
                           Dispatcher dispatcher, boolean internalDispatcher,
-                          StatsResponse statsResponse, MessageHandler serviceMessageHandler) {
+                          StatsResponse statsResponse, MessageHandler messageHandler) {
         super(conn, subject, dispatcher, internalDispatcher, statsResponse, true);
-        this.serviceMessageHandler = serviceMessageHandler;
+        this.messageHandler = messageHandler;
     }
 
     @Override
     protected void subOnMessage(Message msg) throws InterruptedException {
-        serviceMessageHandler.onMessage(msg);
+        messageHandler.onMessage(msg);
     }
 }

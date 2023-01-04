@@ -39,6 +39,7 @@ import static io.nats.client.support.ApiConstants.LAST_ERROR;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readString;
+import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.Validator.nullOrEmpty;
 import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR;
@@ -51,6 +52,8 @@ public class ServiceTests extends JetStreamTestBase {
     private static final String SORT_SERVICE_NAME = "SortService";
     private static final String ECHO_SERVICE_SUBJECT = "echo";
     private static final String SORT_SERVICE_SUBJECT = "sort";
+    private static final String SORT_SERVICE_ASCENDING_SUBJECT = "ascending";
+    private static final String SORT_SERVICE_DESCENDING_SUBJECT = "descending";
 
     @Test
     public void testService() throws Exception {
@@ -94,8 +97,8 @@ public class ServiceTests extends JetStreamTestBase {
                 // service request execution
                 int requestCount = 10;
                 for (int x = 0; x < requestCount; x++) {
-                    verifyServiceExecution(clientNc, ECHO_SERVICE_NAME, ECHO_SERVICE_SUBJECT);
-                    verifyServiceExecution(clientNc, SORT_SERVICE_NAME, SORT_SERVICE_SUBJECT);
+                    verifyServiceExecution(clientNc, ECHO_SERVICE_SUBJECT);
+                    verifyServiceExecution(clientNc, SORT_SERVICE_SUBJECT);
                 }
 
                 InfoResponse echoInfoResponse = echoService1.getInfo();
@@ -254,24 +257,24 @@ public class ServiceTests extends JetStreamTestBase {
         return new ServiceBuilder()
             .connection(nc)
             .name(ECHO_SERVICE_NAME)
-            .subject(ECHO_SERVICE_SUBJECT)
+            .rootSubject(ECHO_SERVICE_SUBJECT)
             .description("An Echo Service")
             .version("0.0.1")
             .schemaRequest("echo schema request string/url")
             .schemaResponse("echo schema response string/url")
-            .serviceMessageHandler(handler);
+            .rootMessageHandler(handler);
     }
 
     private static ServiceBuilder sortServiceCreator(Connection nc, MessageHandler handler) {
         return new ServiceBuilder()
             .connection(nc)
             .name(SORT_SERVICE_NAME)
-            .subject(SORT_SERVICE_SUBJECT)
+            .rootSubject(SORT_SERVICE_SUBJECT)
             .description("A Sort Service")
             .version("0.0.2")
             .schemaRequest("sort schema request string/url")
             .schemaResponse("sort schema response string/url")
-            .serviceMessageHandler(handler);
+            .rootMessageHandler(handler);
     }
 
     interface InfoVerifier {
@@ -310,13 +313,25 @@ public class ServiceTests extends JetStreamTestBase {
         }
     }
 
-    private static void verifyServiceExecution(Connection nc, String serviceName, String serviceSubject) {
+    private static void verifyServiceExecution(Connection nc, String serviceSubject) {
         try {
             String request = Long.toHexString(System.currentTimeMillis()) + Long.toHexString(System.nanoTime()); // just some random text
             CompletableFuture<Message> future = nc.request(serviceSubject, request.getBytes());
             Message m = future.get();
             String response = new String(m.getData());
-            String expected = serviceName.equals(ECHO_SERVICE_NAME) ? echo(request) : sort(request);
+            String expected;
+            switch (serviceSubject) {
+                case SORT_SERVICE_SUBJECT:
+                case SORT_SERVICE_SUBJECT + DOT + SORT_SERVICE_ASCENDING_SUBJECT:
+                    expected = sortAscending(request);
+                    break;
+                case SORT_SERVICE_SUBJECT + DOT + SORT_SERVICE_DESCENDING_SUBJECT:
+                    expected = sortDescending(request);
+                    break;
+                case ECHO_SERVICE_SUBJECT:
+                default:
+                    expected = echo(request);
+            }
             assertEquals(expected, response);
         }
         catch (Exception e) {
@@ -346,7 +361,7 @@ public class ServiceTests extends JetStreamTestBase {
 
         @Override
         public void onMessage(Message msg) throws InterruptedException {
-            ServiceMessage.reply(conn, msg, sort(msg.getData()), new Headers().put("handlerId", Integer.toString(hashCode())));
+            ServiceMessage.reply(conn, msg, sortAscending(msg.getData()), new Headers().put("handlerId", Integer.toString(hashCode())));
         }
     }
 
@@ -358,13 +373,51 @@ public class ServiceTests extends JetStreamTestBase {
         return echo(new String(data));
     }
 
-    private static String sort(byte[] data) {
+    private static String sortAscending(byte[] data) {
         Arrays.sort(data);
-        return "Sort " + new String(data);
+        return "Sort Ascending " + new String(data);
     }
 
-    private static String sort(String data) {
-        return sort(data.getBytes(StandardCharsets.UTF_8));
+    private static String sortAscending(String data) {
+        return sortAscending(data.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String sortDescending(byte[] data) {
+        Arrays.sort(data);
+        int len = data.length;
+        byte[] reverse = new byte[len];
+        for (int x = 0; x < len; x++) {
+            reverse[x] = data[len - x - 1];
+        }
+        return "Sort Descending " + new String(reverse);
+    }
+
+    private static String sortDescending(String data) {
+        return sortDescending(data.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Test
+    public void testMultipleEndpoints() throws Exception {
+        runInServer(nc -> {
+            Service sortService = new ServiceBuilder()
+                .connection(nc)
+                .name(SORT_SERVICE_NAME)
+                .rootSubject(SORT_SERVICE_SUBJECT)
+                .description("A Sort Service")
+                .version("0.0.2")
+                .schemaRequest("sort schema request string/url")
+                .schemaResponse("sort schema response string/url")
+                .endpoint(SORT_SERVICE_ASCENDING_SUBJECT, msg -> ServiceMessage.reply(nc, msg, sortAscending(msg.getData())))
+                .endpoint(SORT_SERVICE_DESCENDING_SUBJECT, msg -> ServiceMessage.reply(nc, msg, sortDescending(msg.getData())))
+                .build();
+            sortService.startService();
+            sleep(200);
+
+            verifyServiceExecution(nc, SORT_SERVICE_SUBJECT + DOT + SORT_SERVICE_ASCENDING_SUBJECT);
+            verifyServiceExecution(nc, SORT_SERVICE_SUBJECT + DOT + SORT_SERVICE_DESCENDING_SUBJECT);
+
+            sortService.stop(false);
+        });
     }
 
     @Test
@@ -373,9 +426,9 @@ public class ServiceTests extends JetStreamTestBase {
             Service devexService = new ServiceBuilder()
                 .connection(nc)
                 .name("HandlerExceptionService")
-                .subject("hesSubject")
+                .rootSubject("hesSubject")
                 .version("0.0.1")
-                .serviceMessageHandler( m-> { throw new RuntimeException("handler-problem"); })
+                .rootMessageHandler(m-> { throw new RuntimeException("handler-problem"); })
                 .build();
             devexService.startService();
 
