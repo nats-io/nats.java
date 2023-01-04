@@ -75,6 +75,10 @@ public class NatsTestServer extends NatsServerRunner {
         return NatsRunnerUtils.getLocalhostUri(schema, getPort());
     }
 
+    public static String getNatsLocalhostUri(int port) {
+        return NatsRunnerUtils.getNatsLocalhostUri(port);
+    }
+
     public static String getLocalhostUri(String schema, int port) {
         return NatsRunnerUtils.getLocalhostUri(schema, port);
     }
