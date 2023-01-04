@@ -35,13 +35,12 @@ java {
 repositories {
     mavenCentral()
     maven { url "https://oss.sonatype.org/content/repositories/releases/" }
-    mavenLocal()
 }
 
 dependencies {
     implementation 'net.i2p.crypto:eddsa:0.3.0'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
-    testImplementation 'io.nats:jnats-server-runner:1.0.13'
+    testImplementation 'io.nats:jnats-server-runner:1.0.14'
 }
 
 sourceSets {
