@@ -17,7 +17,6 @@ import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
 import io.nats.client.utils.RunProxy;
-
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -39,7 +38,7 @@ public class WebsocketConnectTests {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/ws.conf", false)) {
             Options options = new Options.Builder().
-                                server(ts.getURI("ws")).
+                                server(ts.getLocalhostUri("ws")).
                                 maxReconnects(0).
                                 build();
             try (Connection connection = standardConnection(options)) {
@@ -67,7 +66,7 @@ public class WebsocketConnectTests {
                                     // Ideally we could validate that this header was sent to NATS server 
                                     req.getHeaders().add("X-Ignored", "VALUE");
                                 }).
-                                server(ts.getURI("wss")).
+                                server(ts.getLocalhostUri("wss")).
                                 maxReconnects(0).
                                 sslContext(ctx).
                                 build();
@@ -94,7 +93,7 @@ public class WebsocketConnectTests {
 
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/ws.conf", false)) {
             Options options = new Options.Builder()
-                .server(ts.getURI("ws"))
+                .server(ts.getLocalhostUri("ws"))
                 .maxReconnects(0)
                 .proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress("localhost", proxy.getPort())))
                 .build();
@@ -119,7 +118,7 @@ public class WebsocketConnectTests {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/wss.conf", false)) {
             SSLContext ctx = TestSSLUtils.createTestSSLContext();
             Options options = new Options.Builder().
-                                server(ts.getURI("wss")).
+                                server(ts.getLocalhostUri("wss")).
                                 maxReconnects(0).
                                 sslContext(ctx).
                                 build();
@@ -146,7 +145,7 @@ public class WebsocketConnectTests {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/wssverify.conf", false)) {
             SSLContext ctx = TestSSLUtils.createTestSSLContext();
             Options options = new Options.Builder().
-                                server(ts.getURI("wss")).
+                                server(ts.getLocalhostUri("wss")).
                                 maxReconnects(0).
                                 sslContext(ctx).
                                 build();
@@ -158,7 +157,7 @@ public class WebsocketConnectTests {
     public void testOpenTLSConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/wss.conf", false)) {
             Options options = new Options.Builder().
-                                server(ts.getURI("wss")).
+                                server(ts.getLocalhostUri("wss")).
                                 maxReconnects(0).
                                 opentls().
                                 build();
@@ -211,7 +210,7 @@ public class WebsocketConnectTests {
             SSLContext ctx = TestSSLUtils.createTestSSLContext();
             int msgCount = 100;
             Options options = new Options.Builder().
-                                server(ts.getURI("wss")).
+                                server(ts.getLocalhostUri("wss")).
                                 maxReconnects(0).
                                 sslContext(ctx).
                                 build();
@@ -233,7 +232,7 @@ public class WebsocketConnectTests {
     }
 
     @Test
-    public void testTLSOnReconnect() throws InterruptedException, Exception {
+    public void testTLSOnReconnect() throws Exception {
         Connection nc = null;
         TestHandler handler = new TestHandler();
         int port = NatsTestServer.nextPort();
@@ -243,8 +242,8 @@ public class WebsocketConnectTests {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/wssverify.conf", port, false)) {
             SSLContext ctx = TestSSLUtils.createTestSSLContext();
             Options options = new Options.Builder().
-                    server(ts.getURI("wss")).
-                    server(NatsTestServer.getURIForPort("wss", newPort)).
+                    server(ts.getLocalhostUri("wss")).
+                    server(NatsTestServer.getLocalhostUri("wss", newPort)).
                     maxReconnects(-1).
                     sslContext(ctx).
                     connectionListener(handler).
@@ -271,7 +270,7 @@ public class WebsocketConnectTests {
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/wssverify.conf", false)) {
                 SSLContext ctx = TestSSLUtils.createTestSSLContext();
                 Options options = new Options.Builder().
-                                    server(ts.getURI("wss")).
+                                    server(ts.getLocalhostUri("wss")).
                                     maxReconnects(0).
                                     dataPortType(CloseOnUpgradeAttempt.class.getCanonicalName()).
                                     sslContext(ctx).
@@ -286,7 +285,7 @@ public class WebsocketConnectTests {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/wssverify.conf", false)) {
                 Options options = new Options.Builder().
-                                    server(ts.getURI("ws")).
+                                    server(ts.getLocalhostUri("ws")).
                                     maxReconnects(0).
                                     build();
                 Nats.connect(options);
@@ -300,7 +299,7 @@ public class WebsocketConnectTests {
             try (NatsTestServer ts = new NatsTestServer()) {
                 SSLContext ctx = TestSSLUtils.createTestSSLContext();
                 Options options = new Options.Builder().
-                                    server(ts.getURI("wss")).
+                                    server(ts.getLocalhostUri("wss")).
                                     maxReconnects(0).
                                     sslContext(ctx).
                                     build();
@@ -315,7 +314,7 @@ public class WebsocketConnectTests {
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/wssverify.conf", false)) {
                 SSLContext ctx = TestSSLUtils.createEmptySSLContext();
                 Options options = new Options.Builder().
-                                    server(ts.getURI("wss")).
+                                    server(ts.getLocalhostUri("wss")).
                                     maxReconnects(0).
                                     sslContext(ctx).
                                     build();

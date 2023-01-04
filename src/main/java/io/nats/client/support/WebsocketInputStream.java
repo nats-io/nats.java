@@ -1,4 +1,4 @@
-// Copyright 2021 The NATS Authors
+// Copyright 2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -13,10 +13,10 @@
 
 package io.nats.client.support;
 
+import io.nats.client.support.WebsocketFrameHeader.OpCode;
+
 import java.io.IOException;
 import java.io.InputStream;
-
-import io.nats.client.support.WebsocketFrameHeader.OpCode;
 
 public class WebsocketInputStream extends InputStream {
     private byte[] buffer = new byte[WebsocketFrameHeader.MAX_FRAME_HEADER_SIZE];

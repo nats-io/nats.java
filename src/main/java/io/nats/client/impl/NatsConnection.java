@@ -42,7 +42,6 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static io.nats.client.Options.isWebsocket;
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.Validator.validateNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -528,6 +527,14 @@ class NatsConnection implements Connection {
         }
     }
 
+    public static boolean isWebsocket(String serverURI) {
+        if (null == serverURI) {
+            return false;
+        }
+        String lower = serverURI.toLowerCase();
+        return lower.startsWith("ws://") || lower.startsWith("wss://");
+    }
+
     // Called from reader/writer thread
     void handleCommunicationIssue(Exception io) {
         // If we are connecting or disconnecting, note exception and leave
@@ -844,8 +851,6 @@ class NatsConnection implements Connection {
         if (sub.getNatsDispatcher() != null) {
             sub.getNatsDispatcher().remove(sub);
         }
-
-        sub.invalidate(); // TODO SFF DO I need to call invalidate?
     }
 
     void unsubscribe(NatsSubscription sub, int after) {
@@ -1066,7 +1071,8 @@ class NatsConnection implements Connection {
         String responseInbox = oldStyle ? createInbox() : createResponseInbox(this.mainInbox);
         String responseToken = getResponseToken(responseInbox);
         NatsRequestCompletableFuture future =
-            new NatsRequestCompletableFuture(cancelOn503, futureTimeout == null ? options.getRequestCleanupInterval() : futureTimeout);
+            new NatsRequestCompletableFuture(cancelOn503,
+                futureTimeout == null ? options.getRequestCleanupInterval() : futureTimeout);
 
         if (!oldStyle) {
             responsesAwaiting.put(responseToken, future);

@@ -214,7 +214,7 @@ public class TLSConnectTests {
             SSLContext ctx = TestSSLUtils.createTestSSLContext();
             Options options = new Options.Builder().
                     server(ts.getURI()).
-                    server(NatsTestServer.getURIForPort("nats", newPort)).
+                    server(NatsTestServer.getLocalhostUri("nats", newPort)).
                     maxReconnects(-1).
                     sslContext(ctx).
                     connectionListener(handler).

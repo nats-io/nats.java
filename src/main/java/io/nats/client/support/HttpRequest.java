@@ -1,4 +1,4 @@
-// Copyright 2021 The NATS Authors
+// Copyright 2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -11,9 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.client.support;
 
 import io.nats.client.impl.Headers;
+
+import java.util.List;
+
+import static io.nats.client.support.NatsConstants.CRLF;
 
 /**
  * Encapsulate an HttpRequest, in Java 11 we could use this class:
@@ -25,7 +29,7 @@ public class HttpRequest {
     private String method = "GET";
     private String uri = "/";
     private String version = "1.0";
-    private Headers headers = new Headers();
+    private final Headers headers = new Headers();
 
     /**
      * @return the attached http headers, defaults to GET
@@ -103,8 +107,7 @@ public class HttpRequest {
     }
 
     /**
-     * @return the textual representation of the HTTP request line + headers (no
-     *         body)
+     * @return the textual representation of the HTTP request line + headers (no body)
      */
     @Override
     public String toString() {
@@ -114,16 +117,17 @@ public class HttpRequest {
         sb.append(uri);
         sb.append(" HTTP/");
         sb.append(version);
-        sb.append("\r\n");
-        headers.forEach((key, values) -> {
-            values.stream().forEach(value -> {
+        sb.append(CRLF);
+        for (String key : headers.keySet()) {
+            List<String> values = headers.get(key);
+            for (String value : values) {
                 sb.append(key);
                 sb.append(": ");
                 sb.append(value);
-                sb.append("\r\n");
-            });
-        });
-        sb.append("\r\n");
+                sb.append(CRLF);
+            }
+        }
+        sb.append(CRLF);
         return sb.toString();
     }
 }

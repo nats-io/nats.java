@@ -13,11 +13,12 @@
 
 package io.nats.client;
 
-import static org.junit.jupiter.api.Assertions.*;
-
+import io.nats.client.impl.Headers;
+import io.nats.client.support.HttpRequest;
 import org.junit.jupiter.api.Test;
 
-import io.nats.client.impl.Headers;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class HttpRequestTests {
     @Test

@@ -16,6 +16,7 @@ package io.nats.client;
 import io.nats.client.impl.DataPort;
 import io.nats.client.impl.ErrorListenerLoggerImpl;
 import io.nats.client.impl.SocketDataPort;
+import io.nats.client.support.HttpRequest;
 import io.nats.client.support.SSLUtils;
 
 import javax.net.ssl.SSLContext;
@@ -1896,18 +1897,6 @@ public class Options {
      */
     public boolean isDiscardMessagesWhenOutgoingQueueFull() {
         return discardMessagesWhenOutgoingQueueFull;
-    }
-
-    public static boolean isWebsocket(String serverURI) {
-        if (null == serverURI) {
-            return false;
-        }
-        String lower = serverURI.toLowerCase();
-        if (!lower.startsWith("ws")) {
-            return false;
-        }
-        String part = lower.substring(2, 6);
-        return part.equals("s://") || part.equals("://");
     }
 
     /**
