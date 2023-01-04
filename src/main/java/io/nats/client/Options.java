@@ -1483,19 +1483,22 @@ public class Options {
             if (serverURIs.size() == 0) {
                 server(DEFAULT_URL);
             }
-            else if (sslContext == null) {
-                for (URI serverURI : serverURIs) {
-                    if (TLS_PROTOCOL.equals(serverURI.getScheme())) {
-                        try {
-                            this.sslContext = SSLContext.getDefault();
-                        } catch (NoSuchAlgorithmException e) {
-                            throw new IllegalStateException("Unable to create default SSL context", e);
-                        }
-                        break;
-                    }
-                    else if (OPENTLS_PROTOCOL.equals(serverURI.getScheme())) {
-                        this.sslContext = SSLUtils.createOpenTLSContext();
-                        break;
+            else if (sslContext == null) { // see if we need to provide one
+                for (int i = 0; sslContext == null && i < serverURIs.size(); i++) {
+                    URI serverURI = serverURIs.get(i);
+                    String scheme = "" + serverURI.getScheme(); // scheme might be null
+                    switch (scheme) {
+                        case TLS_PROTOCOL:
+                        case SECURE_WEBSOCKET_PROTOCOL:
+                            try {
+                                this.sslContext = SSLContext.getDefault();
+                            } catch (NoSuchAlgorithmException e) {
+                                throw new IllegalStateException("Unable to create default SSL context", e);
+                            }
+                            break;
+                        case OPENTLS_PROTOCOL:
+                            this.sslContext = SSLUtils.createOpenTLSContext();
+                            break;
                     }
                 }
             }
