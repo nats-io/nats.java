@@ -29,7 +29,6 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Stream;
 
 import static io.nats.client.support.Encoding.uriDecode;
 import static io.nats.client.support.NatsConstants.*;
@@ -879,7 +878,7 @@ public class Options {
                 if (s != null && !s.isEmpty()) {
                     try {
                         String unprocessed = s.trim();
-                        this.serverURIs.add(Options.parseURIForServer(unprocessed));
+                        this.serverURIs.add(Options.parseURIForServer(unprocessed, false));
                         this.unprocessedServers.add(unprocessed);
                     } catch (URISyntaxException e) {
                         throw new IllegalArgumentException("Bad server URL: " + s, e);
