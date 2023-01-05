@@ -30,12 +30,13 @@ class ProtocolMessage extends NatsMessage {
         this(protocol == null ? EMPTY_BAB : new ByteArrayBuilder(protocol));
     }
 
-    ProtocolMessage(String asciiProtocol) {
-        this(new ByteArrayBuilder().append(asciiProtocol));
-    }
-
     @Override
     boolean isProtocol() {
         return true;
+    }
+
+    ProtocolMessage(ProtocolMessage pm) {
+        protocolBab = pm.protocolBab;
+        sizeInBytes = pm.sizeInBytes;
     }
 }

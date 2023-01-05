@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class NatsMessageTests {
     @Test
     public void testSizeOnProtocolMessage() {
-        NatsMessage msg = new ProtocolMessage("PING");
+        NatsMessage msg = new ProtocolMessage("PING".getBytes());
         assertEquals(msg.getProtocolBytes().length + 2, msg.getSizeInBytes(), "Size is set, with CRLF");
         assertEquals("PING".getBytes(StandardCharsets.UTF_8).length + 2, msg.getSizeInBytes(), "Size is correct");
         assertTrue(msg.toString().endsWith("PING")); // toString COVERAGE
