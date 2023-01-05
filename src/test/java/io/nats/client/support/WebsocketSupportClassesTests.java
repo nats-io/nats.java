@@ -13,18 +13,11 @@
 
 package io.nats.client.support;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.UncheckedIOException;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketAddress;
-import java.net.SocketException;
+import io.nats.client.NatsTestServer;
+import org.junit.jupiter.api.Test;
+
+import java.io.*;
+import java.net.*;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -34,20 +27,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static io.nats.client.support.WebsocketFrameHeader.OpCode;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.jupiter.api.Assertions.*;
 
-public class WebsocketTests {
+public class WebsocketSupportClassesTests {
     private int[] testSizes = new int[] { 1, 2, 3, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1432, // WebsocketOutputStream
                                                                                                 // buffer threshold,
                                                                                                 // will fragment after
