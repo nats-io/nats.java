@@ -43,6 +43,7 @@ public class Service {
 
     private final InfoResponse infoResponse;
     private final SchemaResponse schemaResponse;
+    private final StatsResponse statsResponse;
     private final List<Context> discoveryContexts;
     private final List<Context> serviceContexts;
 
@@ -65,7 +66,7 @@ public class Service {
 
         // do the service first in case the server feels like rejecting the subject
         serviceContexts = new ArrayList<>();
-        StatsResponse statsResponse = new StatsResponse(id, builder.name, builder.version);
+        statsResponse = new StatsResponse(id, builder.name, builder.version);
         if (builder.endpointMap.size() == 0) {
             serviceContexts.add(new ServiceContext(conn, infoResponse.getSubject(), dService, internalService, statsResponse, builder.rootMessageHandler));
         }
@@ -93,6 +94,7 @@ public class Service {
         for (Context ctx : discoveryContexts) {
             ctx.start();
         }
+        statsResponse.start();
         return doneFuture;
     }
 

@@ -53,7 +53,6 @@ public class StatsResponse implements JsonSerializable {
         this.lastError = new AtomicReference<>();
         this.processingTime = new AtomicLong();
         this.averageProcessingTime = new AtomicLong();
-        started = DateTimeUtils.gmtNow();
     }
 
     public StatsResponse copy(Function<String, StatsData> decoder) {
@@ -92,7 +91,11 @@ public class StatsResponse implements JsonSerializable {
         started = JsonUtils.readDate(json, STARTED_RE);
     }
 
-    public void reset() {
+    void start() {
+        started = DateTimeUtils.gmtNow();
+    }
+
+    void reset() {
         numRequests.set(0);
         numErrors.set(0);
         lastError.set(null);
