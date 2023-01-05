@@ -1300,8 +1300,9 @@ class NatsConnection implements Connection {
     // But it is safe to share the data bytes and the size since those fields are just being read
     // This constructor "ProtocolMessage(ProtocolMessage pm)" shares the data and size
     // reducing allocation of data for something that is often created and used
-    static final ProtocolMessage PING_PROTO = new ProtocolMessage(OP_PING_BYTES);
-    static final ProtocolMessage PONG_PROTO = new ProtocolMessage(OP_PONG_BYTES);
+    // These static instances are the once that are used for copying, sendPing and sendPong
+    private static final ProtocolMessage PING_PROTO = new ProtocolMessage(OP_PING_BYTES);
+    private static final ProtocolMessage PONG_PROTO = new ProtocolMessage(OP_PONG_BYTES);
 
     void sendPong() {
         queueInternalOutgoing(new ProtocolMessage(PONG_PROTO));
