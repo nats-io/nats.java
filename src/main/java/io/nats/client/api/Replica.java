@@ -21,7 +21,7 @@ import java.util.List;
 public class Replica extends PeerInfo {
 
     static List<Replica> optionalListOf(List<JsonValue> arrayOfReplicas) {
-        if (arrayOfReplicas == null) {
+        if (arrayOfReplicas == null || arrayOfReplicas.size() == 0) {
             return null;
         }
 

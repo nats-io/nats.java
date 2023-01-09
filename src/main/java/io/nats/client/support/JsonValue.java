@@ -9,11 +9,17 @@ import java.util.*;
 import static io.nats.client.support.JsonUtils.*;
 
 public class JsonValue implements JsonSerializable {
+
+    private static final char COMMA = ',';
+    private static final String NULL_STR = "null";
+    private static final String QUOTE = "\"";
+    private static final String EMPTY_STRING = "";
+
     public enum Type {
-        OBJECT, ARRAY, STRING, BOOL, NULL, INTEGER, LONG, DOUBLE, FLOAT, BIG_DECIMAL, BIG_INTEGER;
+        STRING, BOOL, OBJECT, ARRAY, INTEGER, LONG, DOUBLE, FLOAT, BIG_DECIMAL, BIG_INTEGER, NULL;
     }
 
-    public static final JsonValue NULL = new JsonValue(Type.NULL, null, null, null, null, null);
+    public static final JsonValue NULL = new JsonValue();
     public static final JsonValue EMPTY_OBJECT = new JsonValue(new HashMap<>());
     public static final JsonValue EMPTY_ARRAY = new JsonValue(new ArrayList<>());
 
@@ -33,76 +39,119 @@ public class JsonValue implements JsonSerializable {
 
     public final Type type;
 
-    public JsonValue(String object) {
-        this(Type.STRING, object, null, null, object, null);
+    public JsonValue() {
+        this(null, null, null, null, null, null, null, null, null, null);
     }
 
-    public JsonValue(Boolean object) {
-        this(Type.BOOL, object, null, null, null, object);
+    public JsonValue(String string) {
+        this(null, string, null, null, null, null, null, null, null, null);
+    }
+
+    public JsonValue(Boolean bool) {
+        this(null, null, bool, null, null, null, null, null, null, null);
     }
 
     public JsonValue(Map<String, JsonValue> map) {
-        this(Type.OBJECT, map, map, null, null, null);
-    }
-
-    public JsonValue(List<JsonValue> array) {
-        this(Type.ARRAY, array, null, array, null, null);
+        this(map, null, null, null, null, null, null, null, null, null);
     }
 
     public JsonValue(int i) {
-        this(Type.INTEGER, i, i, null, null, null, null, null);
+        this(null, null, null, i, null, null, null, null, null, null);
     }
 
     public JsonValue(long l) {
-        this(Type.LONG, l, null, l, null, null, null, null);
+        this(null, null, null, null, l, null, null, null, null, null);
     }
 
     public JsonValue(double d) {
-        this(Type.DOUBLE, d, null, null, d, null, null, null);
+        this(null, null, null, null, null, d, null, null, null, null);
     }
 
     public JsonValue(float f) {
-        this(Type.FLOAT, f, null, null, null, f, null, null);
+        this(null, null, null, null, null, null, f, null, null, null);
     }
 
     public JsonValue(BigDecimal bd) {
-        this(Type.BIG_DECIMAL, bd, null, null, null, null, bd, null);
+        this(null, null, null, null, null, null, null, bd, null, null);
     }
 
     public JsonValue(BigInteger bi) {
-        this(Type.BIG_INTEGER, bi, null, null, null, null, null, bi);
+        this(null, null, null, null, null, null, null, null, bi, null);
     }
 
-    private JsonValue(Type type, Object object, Map<String, JsonValue> map, List<JsonValue> array, String string, Boolean bool) {
-        this.type = type;
-        this.object = object;
+    public JsonValue(List<JsonValue> list) {
+        this(null, null, null, null, null, null, null, null, null, list);
+    }
+
+    public JsonValue(JsonValue... values) {
+        this(null, null, null, null, null, null, null, null, null,
+            values == null ? null : Arrays.asList(values));
+    }
+
+    private JsonValue(Map<String, JsonValue> map, String string, Boolean bool, Integer i, Long l, Double d, Float f, BigDecimal bd, BigInteger bi, List<JsonValue> array) {
         this.map = map;
         this.array = array;
         this.string = string;
         this.bool = bool;
-        number = null;
-        i = null;
-        l = null;
-        d = null;
-        f = null;
-        bd = null;
-        bi = null;
-    }
-
-    private JsonValue(Type type, Number number, Integer i, Long l, Double d, Float f, BigDecimal bd, BigInteger bi) {
-        this.type = type;
-        object = number;
-        map = null;
-        array = null;
-        string = null;
-        bool = null;
-        this.number = number;
         this.i = i;
         this.l = l;
         this.d = d;
         this.f = f;
         this.bd = bd;
         this.bi = bi;
+        if (i != null) {
+            this.type = Type.INTEGER;
+            number = i;
+            object = number;
+        }
+        else if (l != null) {
+            this.type = Type.LONG;
+            number = l;
+            object = number;
+        }
+        else if (d != null) {
+            this.type = Type.DOUBLE;
+            number = this.d;
+            object = number;
+        }
+        else if (f != null) {
+            this.type = Type.FLOAT;
+            number = this.f;
+            object = number;
+        }
+        else if (bd != null) {
+            this.type = Type.BIG_DECIMAL;
+            number = this.bd;
+            object = number;
+        }
+        else if (bi != null) {
+            this.type = Type.BIG_INTEGER;
+            number = this.bi;
+            object = number;
+        }
+        else {
+            number = null;
+            if (map != null) {
+                this.type = Type.OBJECT;
+                object = map;
+            }
+            else if (string != null) {
+                this.type = Type.STRING;
+                object = string;
+            }
+            else if (bool != null) {
+                this.type = Type.BOOL;
+                object = bool;
+            }
+            else if (array != null) {
+                this.type = Type.ARRAY;
+                object = array;
+            }
+            else {
+                this.type = Type.NULL;
+                object = null;
+            }
+        }
     }
 
     @Override
@@ -110,21 +159,26 @@ public class JsonValue implements JsonSerializable {
         return toJson();
     }
 
-    @SuppressWarnings("DataFlowIssue")
     @Override
     public String toJson() {
         switch (type) {
-            case STRING:    return toJson(string);
-            case BOOL:      return toJson(bool);
-            case NULL:      return "null";
-            case OBJECT:    return toJson(map);
-            case ARRAY:     return toJson(array);
-            default:        return object.toString();
+            case STRING:      return toJson(string);
+            case BOOL:        return toJson(bool);
+            case NULL:        return NULL_STR;
+            case OBJECT:      return toJson(map);
+            case ARRAY:       return toJson(array);
+            case INTEGER:     return i.toString();
+            case LONG:        return l.toString();
+            case DOUBLE:      return d.toString();
+            case FLOAT:       return f.toString();
+            case BIG_DECIMAL: return bd.toString();
+            case BIG_INTEGER: return bi.toString();
         }
+        return EMPTY_STRING;
     }
 
     public static String toJson(String s) {
-        return "\"" + Encoding.jsonEncode(s) + "\"";
+        return QUOTE + Encoding.jsonEncode(s) + QUOTE;
     }
 
     public static String toJson(boolean b) {
@@ -139,18 +193,34 @@ public class JsonValue implements JsonSerializable {
         return endJson(sbo).toString();
     }
 
-    public static String toJson(List<JsonValue> array) {
+    public static String toJson(List<JsonValue> list) {
         StringBuilder sba = beginArray();
-        for (JsonValue v : array) {
+        for (JsonValue v : list) {
             sba.append(v.toJson());
-            sba.append(',');
+            sba.append(COMMA);
         }
         return endArray(sba).toString();
     }
 
+    public static String toJson(JsonValue[] array) {
+        StringBuilder sba = beginArray();
+        for (JsonValue v : array) {
+            sba.append(v.toJson());
+            sba.append(COMMA);
+        }
+        return endArray(sba).toString();
+    }
+
+    public String asString() {
+        if (string == null) {
+            return object == null ? NULL_STR : object.toString();
+        }
+        return string;
+    }
+
     public Boolean asBool() {
         if (bool == null) {
-            throw new IllegalArgumentException("JsonValue cannot be represented as a boolean.");
+            return Boolean.parseBoolean(asString());
         }
         return bool;
     }
@@ -158,7 +228,7 @@ public class JsonValue implements JsonSerializable {
     public int asInteger() {
         if (i == null) {
             if (number == null) {
-                throw new IllegalArgumentException("JsonValue cannot be represented as an int.");
+                return Integer.parseInt(asString());
             }
             return number.intValue();
         }
@@ -168,7 +238,7 @@ public class JsonValue implements JsonSerializable {
     public long asLong() {
         if (l == null) {
             if (number == null) {
-                throw new IllegalArgumentException("JsonValue cannot be represented as a long.");
+                return Long.parseLong(asString());
             }
             return number.longValue();
         }
@@ -178,7 +248,7 @@ public class JsonValue implements JsonSerializable {
     public double asDouble() {
         if (d == null) {
             if (number == null) {
-                throw new IllegalArgumentException("JsonValue cannot be represented as a double.");
+                return Double.parseDouble(asString());
             }
             return number.doubleValue();
         }
@@ -188,7 +258,7 @@ public class JsonValue implements JsonSerializable {
     public float asFloat() {
         if (f == null) {
             if (number == null) {
-                throw new IllegalArgumentException("JsonValue cannot be represented as a float.");
+                return Float.parseFloat(asString());
             }
             return number.floatValue();
         }
@@ -197,14 +267,20 @@ public class JsonValue implements JsonSerializable {
 
     public BigDecimal asBigDecimal() {
         if (bd == null) {
-            throw new IllegalArgumentException("JsonValue cannot be represented as a BigDecimal.");
+            if (number == null) {
+                return new BigDecimal(asString());
+            }
+            return new BigDecimal(number.toString());
         }
         return bd;
     }
 
     public BigInteger asBigInteger() {
         if (bi == null) {
-            throw new IllegalArgumentException("JsonValue cannot be represented as a BigInteger.");
+            if (number == null) {
+                return new BigInteger(asString());
+            }
+            return new BigInteger(number.toString());
         }
         return bi;
     }
@@ -227,6 +303,17 @@ public class JsonValue implements JsonSerializable {
         }
         JsonValue v = map.get(key);
         return v == null || v.map == null || v.map.size() == 0 ? null : v.map;
+    }
+
+    public JsonValue[] getMappedArrayAsArray(String key) {
+        if (map == null) {
+            return null;
+        }
+        JsonValue v = map.get(key);
+        if (v == null || v.array == null || v.array.size() == 0) {
+            return null;
+        }
+        return v.array.toArray(new JsonValue[0]);
     }
 
     public List<JsonValue> getMappedArray(String key) {
@@ -260,7 +347,7 @@ public class JsonValue implements JsonSerializable {
 
     public ZonedDateTime getMappedDate(String key) {
         String s = getMappedString(key);
-        return s == null ? null : DateTimeUtils.parseDateTime(s);
+        return s == null ? null : DateTimeUtils.parseDateTimeThrowParseError(s);
     }
 
     public Integer getMappedInteger(String key) {
@@ -285,12 +372,12 @@ public class JsonValue implements JsonSerializable {
 
     public boolean getMappedBoolean(String key) {
         JsonValue v = map == null ? null : map.get(key);
-        return v != null && v.asBool();
+        return v != null && v.type == Type.BOOL ? v.bool : false;
     }
 
     public Boolean getMappedBoolean(String key, Boolean dflt) {
         JsonValue v = map == null ? null : map.get(key);
-        return v == null ? dflt : v.asBool();
+        return v != null && v.type == Type.BOOL ? v.bool : dflt;
     }
 
     public Duration getMappedNanos(String key) {
@@ -303,17 +390,7 @@ public class JsonValue implements JsonSerializable {
         return d == null ? dflt : d;
     }
 
-    public Duration getMappedDuration(String key) {
-        JsonValue v = map == null ? null : map.get(key);
-        return v == null ? null : Duration.ofNanos(v.asLong());
-    }
-
-    public Duration getMappedDuration(String key, Duration dflt) {
-        JsonValue v = map == null ? null : map.get(key);
-        return v == null ? dflt : Duration.ofNanos(v.asLong());
-    }
-
-    public List<Duration> getMappedDurationList(String key) {
+    public List<Duration> getMappedNanosList(String key) {
         List<Duration> list = new ArrayList<>();
         JsonValue v = map == null ? null : map.get(key);
         if (v != null && v.array != null) {
@@ -337,13 +414,14 @@ public class JsonValue implements JsonSerializable {
         if (!Objects.equals(array, jsonValue.array)) return false;
         if (!Objects.equals(string, jsonValue.string)) return false;
         if (!Objects.equals(bool, jsonValue.bool)) return false;
-        if (!Objects.equals(number, jsonValue.number)) return false;
-        if (!Objects.equals(i, jsonValue.i)) return false;
-        if (!Objects.equals(l, jsonValue.l)) return false;
-        if (!Objects.equals(d, jsonValue.d)) return false;
-        if (!Objects.equals(f, jsonValue.f)) return false;
-        if (!Objects.equals(bd, jsonValue.bd)) return false;
-        return Objects.equals(bi, jsonValue.bi);
+        return Objects.equals(number, jsonValue.number);
+//        if (!Objects.equals(number, jsonValue.number)) return false;
+//        if (!Objects.equals(i, jsonValue.i)) return false;
+//        if (!Objects.equals(l, jsonValue.l)) return false;
+//        if (!Objects.equals(d, jsonValue.d)) return false;
+//        if (!Objects.equals(f, jsonValue.f)) return false;
+//        if (!Objects.equals(bd, jsonValue.bd)) return false;
+//        return Objects.equals(bi, jsonValue.bi);
     }
 
     @Override
@@ -354,13 +432,13 @@ public class JsonValue implements JsonSerializable {
         result = 31 * result + (string != null ? string.hashCode() : 0);
         result = 31 * result + (bool != null ? bool.hashCode() : 0);
         result = 31 * result + (number != null ? number.hashCode() : 0);
-        result = 31 * result + (i != null ? i.hashCode() : 0);
-        result = 31 * result + (l != null ? l.hashCode() : 0);
-        result = 31 * result + (d != null ? d.hashCode() : 0);
-        result = 31 * result + (f != null ? f.hashCode() : 0);
-        result = 31 * result + (bd != null ? bd.hashCode() : 0);
-        result = 31 * result + (bi != null ? bi.hashCode() : 0);
-        result = 31 * result + (type != null ? type.hashCode() : 0);
+//        result = 31 * result + (i != null ? i.hashCode() : 0);
+//        result = 31 * result + (l != null ? l.hashCode() : 0);
+//        result = 31 * result + (d != null ? d.hashCode() : 0);
+//        result = 31 * result + (f != null ? f.hashCode() : 0);
+//        result = 31 * result + (bd != null ? bd.hashCode() : 0);
+//        result = 31 * result + (bi != null ? bi.hashCode() : 0);
+//        result = 31 * result + (type != null ? type.hashCode() : 0);
         return result;
     }
 }

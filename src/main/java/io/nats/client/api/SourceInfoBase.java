@@ -52,7 +52,7 @@ abstract class SourceInfoBase {
      * @return the time
      */
     public Duration getActive() {
-        return vSourceInfo.getMappedDuration(ACTIVE, Duration.ZERO);
+        return vSourceInfo.getMappedNanos(ACTIVE, Duration.ZERO);
     }
 
     /**

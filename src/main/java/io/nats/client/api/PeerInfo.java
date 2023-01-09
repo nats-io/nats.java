@@ -43,7 +43,7 @@ public class PeerInfo {
     }
 
     public Duration getActive() {
-        return vPeerInfo.getMappedDuration(ACTIVE, Duration.ZERO);
+        return vPeerInfo.getMappedNanos(ACTIVE, Duration.ZERO);
     }
 
     public long getLag() {

@@ -150,7 +150,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         headersOnly = v.getMappedBoolean(HEADERS_ONLY, null);
         memStorage = v.getMappedBoolean(MEM_STORAGE, null);
 
-        backoff = v.getMappedDurationList(BACKOFF);
+        backoff = v.getMappedNanosList(BACKOFF);
     }
 
     // For the builder

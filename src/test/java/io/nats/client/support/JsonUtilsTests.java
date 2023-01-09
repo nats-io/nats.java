@@ -362,7 +362,7 @@ public final class JsonUtilsTests {
         _testEncodeDecode("b4\\tafter", "b4\tafter", null);
 
         _testEncodeDecode("b4\\u0000after", "b4" + (char) 0 + "after", null);
-        _testEncodeDecode("b4\\u001fafter", "b4" + (char) 0x1f + "after", "b4\\u001Fafter");
+        _testEncodeDecode("b4\\u001fafter", "b4" + (char) 0x1f + "after", "b4\\u001fafter");
         _testEncodeDecode("b4\\u0020after", "b4 after", "b4 after");
         _testEncodeDecode("b4\\u0022after", "b4\"after", "b4\\\"after");
         _testEncodeDecode("b4\\u0027after", "b4'after", "b4'after");

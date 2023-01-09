@@ -17,6 +17,9 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.DateTimeException;
+import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,10 +39,6 @@ public final class JsonParserTests {
         List<String> decodeds = new ArrayList<>();
         Map<String, JsonValue> oMap = new HashMap<>();
         List<JsonValue> oList = new ArrayList<>();
-        Map<String, JsonValue> rootMap = new HashMap<>();
-        rootMap.put("map", new JsonValue(oMap));
-        rootMap.put("list", new JsonValue(oList));
-        JsonValue root = new JsonValue(rootMap);
 
         addField(key(x++), "b4\\after", oMap, oList, encodeds, decodeds);
         addField(key(x++), "b4/after", oMap, oList, encodeds, decodeds);
@@ -75,19 +74,30 @@ public final class JsonParserTests {
         addField(key(x++), HAS_EQUALS, oMap, oList, encodeds, decodeds);
         addField(key(x++), HAS_TIC, oMap, oList, encodeds, decodeds);
 
+        Map<String, JsonValue> rootMap = new HashMap<>();
+        rootMap.put("map", new JsonValue(oMap));
+        rootMap.put("list", new JsonValue(oList));
+        rootMap.put("array", new JsonValue(oList.toArray(new JsonValue[0])));
+        JsonValue root = new JsonValue(rootMap);
+
         JsonValue clone = JsonParser.parse(root.toJson());
         List<JsonValue> mappedList = clone.getMappedArray("list");
+        JsonValue[] mappedArray = clone.getMappedArrayAsArray("array");
         Map<String, JsonValue> mappedMap = clone.getMappedMap("map");
-        int y = -1;
-        for (JsonValue v : oList) {
-            String key = key(++y);
-            assertTrue(mappedList.contains(v));
+        for (int i = 0; i < oList.size(); i++) {
+            JsonValue v = oList.get(i);
+            String key = key(i);
+            JsonValue lv = mappedList.get(i);
+            JsonValue av = mappedArray[i];
             JsonValue mv = mappedMap.get(key);
+            assertNotNull(lv);
+            assertNotNull(av);
             assertNotNull(mv);
+            assertEquals(v, lv);
+            assertEquals(v, av);
             assertEquals(v, mv);
-            assertEquals(decodeds.get(y), v.string);
-            String vJson = v.toJson();
-            assertEquals(vJson, "\"" + encodeds.get(y) + "\"");
+            assertEquals(decodeds.get(i), v.string);
+            assertEquals(v.toJson(), "\"" + encodeds.get(i) + "\"");
         }
     }
 
@@ -125,6 +135,10 @@ public final class JsonParserTests {
         oMap.put("doubleKey2", new JsonValue(Double.MIN_VALUE));
         oMap.put("floatKey1", new JsonValue(Float.MAX_VALUE));
         oMap.put("floatKey2", new JsonValue(Float.MIN_VALUE));
+        oMap.put("bigDecimalKey1", new JsonValue(new BigDecimal("9223372036854775807.123")));
+        oMap.put("bigDecimalKey2", new JsonValue(new BigDecimal("-9223372036854775808.123")));
+        oMap.put("bigIntegerKey1", new JsonValue(new BigInteger("9223372036854775807")));
+        oMap.put("bigIntegerKey2", new JsonValue(new BigInteger("-9223372036854775808")));
 
         validateMapTypes(oMap, true, oMap);
 
@@ -132,23 +146,22 @@ public final class JsonParserTests {
         JsonValue parsed = JsonParser.parse(JsonValue.toJson(oMap));
         assertNotNull(parsed.map);
         assertEquals(oMap.size() - 1, parsed.map.size());
+        validateMapTypes(parsed.map, false, oMap);
 
         // keep nulls
         parsed = JsonParser.parse(JsonValue.toJson(oMap), true);
         assertNotNull(parsed.map);
         assertEquals(oMap.size(), parsed.map.size());
-        System.out.println("\n2 " + JsonValue.toJson(parsed.map));
-        validateMapTypes(parsed.map, false, oMap);
+        validateMapTypes(parsed.map, true, oMap);
     }
 
-    private static void validateMapTypes(Map<String, JsonValue> map, boolean flag, Map<String, JsonValue> oMap) {
+    private static void validateMapTypes(Map<String, JsonValue> map, boolean checkNull, Map<String, JsonValue> oMap) {
         assertEquals(JsonValue.Type.BOOL, map.get("trueKey1").type);
         assertEquals(JsonValue.Type.BOOL, map.get("trueKey2").type);
         assertEquals(JsonValue.Type.BOOL, map.get("falseKey1").type);
         assertEquals(JsonValue.Type.BOOL, map.get("falseKey2").type);
         assertEquals(JsonValue.Type.STRING, map.get("stringKey").type);
         assertEquals(JsonValue.Type.STRING, map.get("escapeStringKey").type);
-        assertEquals(JsonValue.Type.NULL, map.get("nullKey").type);
         assertEquals(JsonValue.Type.INTEGER, map.get("intKey1").type);
         assertEquals(JsonValue.Type.INTEGER, map.get("intKey2").type);
         assertEquals(JsonValue.Type.LONG, map.get("longKey1").type);
@@ -160,7 +173,6 @@ public final class JsonParserTests {
         assertNotNull(map.get("falseKey2").bool);
         assertNotNull(map.get("stringKey").string);
         assertNotNull(map.get("escapeStringKey").string);
-        assertNull(map.get("nullKey").object);
         assertNotNull(map.get("intKey1").i);
         assertNotNull(map.get("intKey2").i);
         assertNotNull(map.get("longKey1").l);
@@ -172,30 +184,42 @@ public final class JsonParserTests {
         assertEquals(oMap.get("falseKey2"), map.get("falseKey2"));
         assertEquals(oMap.get("stringKey"), map.get("stringKey"));
         assertEquals(oMap.get("escapeStringKey"), map.get("escapeStringKey"));
-        assertEquals(oMap.get("nullKey"), map.get("nullKey"));
-
         assertEquals(oMap.get("intKey1"), map.get("intKey1"));
         assertEquals(oMap.get("intKey2"), map.get("intKey2"));
         assertEquals(oMap.get("longKey1"), map.get("longKey1"));
         assertEquals(oMap.get("longKey2"), map.get("longKey2"));
-        assertEquals(oMap.get("zzzzzzzzzz"), map.get("zzzzzzzz"));
 
-        if (flag) {
-            assertEquals(JsonValue.Type.DOUBLE, map.get("doubleKey1").type);
-            assertEquals(JsonValue.Type.DOUBLE, map.get("doubleKey2").type);
-            assertEquals(JsonValue.Type.FLOAT, map.get("floatKey1").type);
-            assertEquals(JsonValue.Type.FLOAT, map.get("floatKey2").type);
-
-            assertNotNull(map.get("doubleKey1").d);
-            assertNotNull(map.get("doubleKey2").d);
-            assertNotNull(map.get("floatKey1").f);
-            assertNotNull(map.get("floatKey2").f);
-
-            assertEquals(oMap.get("doubleKey1"), map.get("doubleKey1"));
-            assertEquals(oMap.get("doubleKey2"), map.get("doubleKey2"));
-            assertEquals(oMap.get("floatKey1"), map.get("floatKey1"));
-            assertEquals(oMap.get("floatKey2"), map.get("floatKey2"));
+        if (checkNull) {
+            assertEquals(JsonValue.Type.NULL, map.get("nullKey").type);
+            assertNull(map.get("nullKey").object);
+            assertEquals(oMap.get("nullKey"), map.get("nullKey"));
         }
+
+        assertNotNull(oMap.get("intKey1").number);
+        assertNotNull(oMap.get("intKey2").number);
+        assertNotNull(oMap.get("longKey1").number);
+        assertNotNull(oMap.get("longKey2").number);
+        assertNotNull(oMap.get("doubleKey1").number);
+        assertNotNull(oMap.get("doubleKey2").number);
+        assertNotNull(oMap.get("floatKey1").number);
+        assertNotNull(oMap.get("floatKey2").number);
+        assertNotNull(oMap.get("bigDecimalKey1").number);
+        assertNotNull(oMap.get("bigDecimalKey2").number);
+        assertNotNull(oMap.get("bigIntegerKey1").number);
+        assertNotNull(oMap.get("bigIntegerKey2").number);
+
+        assertEquals(oMap.get("intKey1").asInteger(), map.get("intKey1").asInteger());
+        assertEquals(oMap.get("intKey2").asInteger(), map.get("intKey2").asInteger());
+        assertEquals(oMap.get("longKey1").asLong(), map.get("longKey1").asLong());
+        assertEquals(oMap.get("longKey2").asLong(), map.get("longKey2").asLong());
+        assertEquals(oMap.get("doubleKey1").asDouble(), map.get("doubleKey1").asDouble());
+        assertEquals(oMap.get("doubleKey2").asDouble(), map.get("doubleKey2").asDouble());
+        assertEquals(oMap.get("floatKey1").asFloat(), map.get("floatKey1").asFloat());
+        assertEquals(oMap.get("floatKey2").asFloat(), map.get("floatKey2").asFloat());
+        assertEquals(oMap.get("bigDecimalKey1").asBigDecimal(), map.get("bigDecimalKey1").asBigDecimal());
+        assertEquals(oMap.get("bigDecimalKey2").asBigDecimal(), map.get("bigDecimalKey2").asBigDecimal());
+        assertEquals(oMap.get("bigIntegerKey1").asBigInteger(), map.get("bigIntegerKey1").asBigInteger());
+        assertEquals(oMap.get("bigIntegerKey2").asBigInteger(), map.get("bigIntegerKey2").asBigInteger());
     }
 
     @Test
@@ -206,11 +230,186 @@ public final class JsonParserTests {
         list.add(JsonValue.NULL);
         list.add(JsonValue.EMPTY_OBJECT);
         list.add(JsonValue.EMPTY_ARRAY);
+
+        JsonValue parsed = JsonParser.parse(JsonValue.toJson(list));
+        assertNotNull(parsed.array);
+        assertEquals(list.size(), parsed.array.size());
+        List<JsonValue> array = parsed.array;
+        for (int i = 0; i < array.size(); i++) {
+            JsonValue v = array.get(i);
+            JsonValue p = parsed.array.get(i);
+            assertEquals(v.object, p.object);
+            assertTrue(list.contains(v));
+        }
+
+        list.clear();
         list.add(new JsonValue(1));
         list.add(new JsonValue(Long.MAX_VALUE));
         list.add(new JsonValue(Double.MAX_VALUE));
         list.add(new JsonValue(Float.MAX_VALUE));
         list.add(new JsonValue(new BigDecimal(Double.toString(Double.MAX_VALUE))));
-        list.add(new JsonValue(new BigInteger(Integer.toString(Integer.MAX_VALUE))));
+        list.add(new JsonValue(new BigInteger(Long.toString(Long.MAX_VALUE))));
+
+        parsed = JsonParser.parse(JsonValue.toJson(list));
+        assertNotNull(parsed.array);
+        assertEquals(list.size(), parsed.array.size());
+        array = parsed.array;
+        for (int i = 0; i < array.size(); i++) {
+            JsonValue v = array.get(i);
+            JsonValue p = parsed.array.get(i);
+            assertEquals(v.object, p.object);
+            assertEquals(v.number, p.number);
+        }
+    }
+
+    @Test
+    public void testNull() {
+        assertEquals(JsonValue.Type.NULL, JsonValue.NULL.type);
+        assertNull(JsonValue.NULL.object);
+        assertNull(JsonValue.NULL.map);
+        assertNull(JsonValue.NULL.array);
+        assertNull(JsonValue.NULL.string);
+        assertNull(JsonValue.NULL.bool);
+        assertNull(JsonValue.NULL.number);
+        assertNull(JsonValue.NULL.i);
+        assertNull(JsonValue.NULL.l);
+        assertNull(JsonValue.NULL.d);
+        assertNull(JsonValue.NULL.f);
+        assertNull(JsonValue.NULL.bd);
+        assertNull(JsonValue.NULL.bi);
+        assertEquals(JsonValue.NULL, new JsonValue((String)null));
+        assertEquals(JsonValue.NULL, new JsonValue((Boolean) null));
+        assertEquals(JsonValue.NULL, new JsonValue((Map<String, JsonValue>)null));
+        assertEquals(JsonValue.NULL, new JsonValue((List<JsonValue>)null));
+        assertEquals(JsonValue.NULL, new JsonValue((JsonValue[])null));
+        assertEquals(JsonValue.NULL, new JsonValue((BigDecimal)null));
+        assertEquals(JsonValue.NULL, new JsonValue((BigInteger) null));
+    }
+
+    @Test
+    public void testAs() {
+        JsonValue v = JsonValue.NULL;
+        assertEquals("null", v.asString());
+        validateAsNotNumber(v);
+
+        v = JsonValue.EMPTY_OBJECT;
+        assertEquals("{}", v.asString());
+        validateAsNotNumber(v);
+
+        v = JsonValue.EMPTY_ARRAY;
+        assertEquals("[]", v.asString());
+        validateAsNotNumber(v);
+
+        validateAsNumber(new JsonValue(Integer.MAX_VALUE));
+        validateAsNumber(new JsonValue(Integer.MIN_VALUE));
+        validateAsNumber(new JsonValue(Long.MAX_VALUE));
+        validateAsNumber(new JsonValue(Long.MIN_VALUE));
+        validateAsNumber(new JsonValue(Double.MAX_VALUE));
+        validateAsNumber(new JsonValue(Double.MIN_VALUE));
+        validateAsNumber(new JsonValue(Float.MAX_VALUE));
+        validateAsNumber(new JsonValue(Float.MIN_VALUE));
+        validateAsNumber(new JsonValue(new BigDecimal("9223372036854775807.123")));
+        validateAsNumber(new JsonValue(new BigDecimal("-9223372036854775808.123")));
+        validateAsNumber(new JsonValue(new BigInteger("9223372036854775807")));
+        validateAsNumber(new JsonValue(new BigInteger("-9223372036854775808")));
+    }
+
+    private static void validateAsNotNumber(JsonValue v) {
+        assertFalse(v.asBool());
+        assertThrows(NumberFormatException.class, v::asInteger);
+        assertThrows(NumberFormatException.class, v::asLong);
+        assertThrows(NumberFormatException.class, v::asDouble);
+        assertThrows(NumberFormatException.class, v::asFloat);
+        assertThrows(NumberFormatException.class, v::asBigDecimal);
+        assertThrows(NumberFormatException.class, v::asBigInteger);
+    }
+
+    private static void validateAsNumber(JsonValue v) {
+        assertFalse(v.asBool());
+        v.asInteger();
+        v.asLong();
+        v.asDouble();
+        v.asFloat();
+        v.asBigDecimal();
+        if (v.type == JsonValue.Type.INTEGER || v.type == JsonValue.Type.LONG || v.type == JsonValue.Type.BIG_INTEGER) {
+            v.asBigInteger();
+        }
+    }
+
+    @Test
+    public void testGetMapped() {
+        ZonedDateTime zdt = DateTimeUtils.gmtNow();
+        Duration dur = Duration.ofNanos(4273);
+        Duration dur2 = Duration.ofNanos(7342);
+
+        JsonValue v = new JsonValue(new HashMap<>());
+        v.map.put("bool", new JsonValue(Boolean.TRUE));
+        v.map.put("string", new JsonValue("hello"));
+        v.map.put("int", new JsonValue(Integer.MAX_VALUE));
+        v.map.put("long", new JsonValue(Long.MAX_VALUE));
+        v.map.put("date", new JsonValue(DateTimeUtils.toRfc3339(zdt)));
+        v.map.put("dur", new JsonValue(dur.toNanos()));
+        v.map.put("strings", new JsonValue(new JsonValue("s1"), new JsonValue("s2")));
+        v.map.put("durs", new JsonValue(new JsonValue(dur.toNanos()), new JsonValue(dur2.toNanos())));
+
+        assertNotNull(v.getMappedObject("string"));
+        assertNull(v.getMappedObject("x"));
+        assertEquals(JsonValue.EMPTY_OBJECT, v.getMappedObjectOrEmpty("x"));
+
+        assertTrue(v.getMappedBoolean("bool"));
+        assertTrue(v.getMappedBoolean("bool", false));
+        assertFalse(v.getMappedBoolean("x"));
+        assertFalse(v.getMappedBoolean("x", false));
+        assertTrue(v.getMappedBoolean("x", true));
+
+        assertEquals("hello", v.getMappedString("string"));
+        assertEquals("hello", v.getMappedString("string", null));
+        assertNull(v.getMappedString("x"));
+        assertNull(v.getMappedString("x", null));
+        assertEquals("default", v.getMappedString("x", "default"));
+
+        assertEquals(zdt, v.getMappedDate("date"));
+        assertNull(v.getMappedDate("x"));
+        assertThrows(DateTimeException.class, () -> v.getMappedDate("string"));
+
+        assertEquals(dur, v.getMappedNanos("dur"));
+        assertEquals(dur, v.getMappedNanos("dur", null));
+        assertNull(v.getMappedNanos("x"));
+        assertNull(v.getMappedNanos("x", null));
+        assertEquals(dur2, v.getMappedNanos("x", dur2));
+
+        assertEquals(Integer.MAX_VALUE, v.getMappedInteger("int"));
+        assertEquals(Integer.MAX_VALUE, v.getMappedInteger("int", Integer.MIN_VALUE));
+        assertNull(v.getMappedInteger("x"));
+        assertEquals(Integer.MIN_VALUE, v.getMappedInteger("x", Integer.MIN_VALUE));
+        assertThrows(NumberFormatException.class, () -> v.getMappedInteger("string"));
+
+        assertEquals(Long.MAX_VALUE, v.getMappedLong("long"));
+        assertEquals(Long.MAX_VALUE, v.getMappedLong("long", Long.MIN_VALUE));
+        assertNull(v.getMappedLong("x"));
+        assertEquals(Long.MIN_VALUE, v.getMappedLong("x", Long.MIN_VALUE));
+        assertThrows(NumberFormatException.class, () -> v.getMappedLong("string"));
+
+        // these aren't maps
+        JsonValue jvn = new JsonValue(1);
+        JsonValue jvs = new JsonValue("s");
+        JsonValue jvb = new JsonValue(true);
+        JsonValue[] notMaps = new JsonValue[] {JsonValue.NULL, JsonValue.EMPTY_ARRAY, jvn, jvs, jvb};
+
+        for (JsonValue vv : notMaps) {
+            assertNull(vv.getMappedObject("na"));
+            assertEquals(JsonValue.EMPTY_OBJECT, vv.getMappedObjectOrEmpty("na"));
+            assertNull(vv.getMappedDate("na"));
+            assertNull(vv.getMappedInteger("na"));
+            assertEquals(-1, vv.getMappedInteger("na", -1));
+            assertNull(vv.getMappedLong("na"));
+            assertEquals(-2, vv.getMappedLong("na", -2));
+            assertFalse(vv.getMappedBoolean("na"));
+            assertNull(vv.getMappedBoolean("na", null));
+            assertTrue(vv.getMappedBoolean("na", true));
+            assertFalse(vv.getMappedBoolean("na", false));
+            assertNull(vv.getMappedNanos("na"));
+            assertEquals(Duration.ZERO, vv.getMappedNanos("na", Duration.ZERO));
+        }
     }
 }

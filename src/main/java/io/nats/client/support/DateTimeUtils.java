@@ -54,12 +54,20 @@ public abstract class DateTimeUtils {
      * @return a Zoned Date time.
      */
     public static ZonedDateTime parseDateTime(String dateTime) {
+        return parseDateTime(dateTime, DEFAULT_TIME);
+    }
+
+    public static ZonedDateTime parseDateTime(String dateTime, ZonedDateTime dflt) {
         try {
             return toGmt(ZonedDateTime.parse(dateTime));
         }
         catch (DateTimeParseException s) {
-            return DEFAULT_TIME;
+            return dflt;
         }
+    }
+
+    public static ZonedDateTime parseDateTimeThrowParseError(String dateTime) {
+        return toGmt(ZonedDateTime.parse(dateTime));
     }
 
     public static ZonedDateTime fromNow(long millis) {

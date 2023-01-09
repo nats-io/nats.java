@@ -162,7 +162,7 @@ public class StreamInfoTests {
 
         //noinspection ConstantValue
         assertNull(Replica.optionalListOf(null));
-        assertNull(Replica.optionalListOf(JsonValue.NULL.getMappedArray("notfound")));
+        assertNull(Replica.optionalListOf(JsonValue.EMPTY_ARRAY.array));
     }
 
     @Test
