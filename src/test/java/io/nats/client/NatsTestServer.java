@@ -1,4 +1,4 @@
-// Copyright 2015-2020 The NATS Authors
+// Copyright 2015-2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -17,8 +17,13 @@ import nats.io.NatsRunnerUtils;
 import nats.io.NatsServerRunner;
 
 import java.io.IOException;
+import java.util.logging.Level;
 
 public class NatsTestServer extends NatsServerRunner {
+    static {
+        NatsServerRunner.setLoggingLevel(Level.SEVERE);
+    }
+
     public NatsTestServer() throws IOException {
         super();
     }
@@ -71,7 +76,15 @@ public class NatsTestServer extends NatsServerRunner {
         return NatsRunnerUtils.nextPort();
     }
 
-    public static String getURIForPort(int port) {
-        return NatsRunnerUtils.getURIForPort(port);
+    public String getLocalhostUri(String schema) {
+        return NatsRunnerUtils.getLocalhostUri(schema, getPort());
+    }
+
+    public static String getNatsLocalhostUri(int port) {
+        return NatsRunnerUtils.getNatsLocalhostUri(port);
+    }
+
+    public static String getLocalhostUri(String schema, int port) {
+        return NatsRunnerUtils.getLocalhostUri(schema, port);
     }
 }

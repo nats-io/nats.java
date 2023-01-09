@@ -13,7 +13,6 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.impl.NatsMessage.ProtocolMessage;
 import org.junit.jupiter.api.Test;
 
 import java.io.UnsupportedEncodingException;

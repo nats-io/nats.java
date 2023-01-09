@@ -366,7 +366,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     private NatsMessage getFlowControl(int replyToId, String sid) {
-        NatsMessage.InternalMessageFactory imf = new NatsMessage.InternalMessageFactory(sid, "subj", getFcSubject(replyToId), 0, false);
+        IncomingMessageFactory imf = new IncomingMessageFactory(sid, "subj", getFcSubject(replyToId), 0, false);
         imf.setHeaders(new IncomingHeadersProcessor(("NATS/1.0 " + FLOW_OR_HEARTBEAT_STATUS_CODE + " " + FLOW_CONTROL_TEXT + "\r\n").getBytes()));
         return imf.getMessage();
     }
@@ -376,14 +376,14 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     private NatsMessage getFcHeartbeat(int replyToId, String sid) {
-        NatsMessage.InternalMessageFactory imf = new NatsMessage.InternalMessageFactory(sid, "subj", null, 0, false);
+        IncomingMessageFactory imf = new IncomingMessageFactory(sid, "subj", null, 0, false);
         String s = "NATS/1.0 " + FLOW_OR_HEARTBEAT_STATUS_CODE + " " + HEARTBEAT_TEXT + "\r\n" + CONSUMER_STALLED_HDR + ":" + getFcSubject(replyToId) + "\r\n\r\n";
         imf.setHeaders(new IncomingHeadersProcessor(s.getBytes()));
         return imf.getMessage();
     }
 
     private NatsMessage getHeartbeat(String sid) {
-        NatsMessage.InternalMessageFactory imf = new NatsMessage.InternalMessageFactory(mockSid(), "subj", null, 0, false);
+        IncomingMessageFactory imf = new IncomingMessageFactory(mockSid(), "subj", null, 0, false);
         String s = "NATS/1.0 " + FLOW_OR_HEARTBEAT_STATUS_CODE + " " + HEARTBEAT_TEXT + "\r\n";
         imf.setHeaders(new IncomingHeadersProcessor(s.getBytes()));
         return imf.getMessage();
@@ -402,7 +402,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     private NatsMessage getStatus(int code, String message, String sid) {
-        NatsMessage.InternalMessageFactory imf = new NatsMessage.InternalMessageFactory(sid, "subj", null, 0, false);
+        IncomingMessageFactory imf = new IncomingMessageFactory(sid, "subj", null, 0, false);
         imf.setHeaders(new IncomingHeadersProcessor(("NATS/1.0 " + code + " " + message + "\r\n").getBytes()));
         return imf.getMessage();
     }
