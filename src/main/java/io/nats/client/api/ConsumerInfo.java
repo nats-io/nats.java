@@ -14,7 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.Message;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonParser;
 
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
@@ -45,31 +45,39 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
     }
 
     public ConsumerInfo(String json) {
-        super(json);
+        super(JsonParser.parse(json));
+        if (hasError()) {
+            stream = null;
+            name = null;
+            configuration = null;
+            created = null;
+            delivered = null;
+            ackFloor = null;
+            numPending = -1;
+            numWaiting = -1;
+            numAckPending = -1;
+            numRedelivered = -1;
+            clusterInfo = null;
+            pushBound = false;
+        }
+        else {
+            this.configuration = new ConsumerConfiguration(jv.getMappedObjectOrEmpty(CONFIG));
 
-        String jsonObject = JsonUtils.getJsonObject(CONFIG, json);
-        this.configuration = new ConsumerConfiguration(jsonObject);
+            stream = jv.getMappedString(STREAM_NAME);
+            name = jv.getMappedString(NAME);
+            created = jv.getMappedDate(CREATED);
 
-        // both config and the base have a name field
-        JsonUtils.removeObject(json, CONFIG);
+            delivered = new SequenceInfo(jv.getMappedObjectOrEmpty(DELIVERED));
+            ackFloor = new SequenceInfo(jv.getMappedObjectOrEmpty(ACK_FLOOR));
 
-        stream = JsonUtils.readString(json, STREAM_NAME_RE);
-        name = JsonUtils.readString(json, NAME_RE);
-        created = JsonUtils.readDate(json, CREATED_RE);
+            numAckPending = jv.getMappedLong(NUM_ACK_PENDING, 0);
+            numRedelivered = jv.getMappedLong(NUM_REDELIVERED, 0);
+            numPending = jv.getMappedLong(NUM_PENDING, 0);
+            numWaiting = jv.getMappedLong(NUM_WAITING, 0);
 
-        jsonObject = JsonUtils.getJsonObject(DELIVERED, json);
-        this.delivered = new SequenceInfo(jsonObject);
-
-        jsonObject = JsonUtils.getJsonObject(ACK_FLOOR, json);
-        this.ackFloor = new SequenceInfo(jsonObject);
-
-        numAckPending = JsonUtils.readLong(json, NUM_ACK_PENDING_RE, 0);
-        numRedelivered = JsonUtils.readLong(json, NUM_REDELIVERED_RE, 0);
-        numPending = JsonUtils.readLong(json, NUM_PENDING_RE, 0);
-        numWaiting = JsonUtils.readLong(json, NUM_WAITING_RE, 0);
-
-        clusterInfo = ClusterInfo.optionalInstance(json);
-        pushBound = JsonUtils.readBoolean(json, PUSH_BOUND_RE);
+            clusterInfo = ClusterInfo.optionalInstance(jv.getMappedObject(CLUSTER));
+            pushBound = jv.getMappedBoolean(PUSH_BOUND);
+        }
     }
     
     public ConsumerConfiguration getConsumerConfiguration() {

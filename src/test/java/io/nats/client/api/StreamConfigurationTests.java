@@ -16,6 +16,8 @@ package io.nats.client.api;
 import io.nats.client.JetStreamManagement;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
@@ -102,7 +104,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         List<Source> sources = new ArrayList<>(testSc.getSources());
         sources.add(null);
-        Source copy = new Source(sources.get(0).toJson());
+        Source copy = new Source(JsonParser.parse(sources.get(0).toJson()));
         sources.add(copy);
         validate(builder.addSources(sources).build(), false);
 
@@ -127,10 +129,10 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         List<String> lines = ResourceUtils.dataAsLines("MirrorsSources.json");
         for (String l1 : lines) {
             if (l1.startsWith("{")) {
-                Mirror m1 = new Mirror(l1);
+                Mirror m1 = new Mirror(JsonParser.parse(l1));
                 assertEquals(m1, m1);
                 assertEquals(m1, Mirror.builder(m1).build());
-                Source s1 = new Source(l1);
+                Source s1 = new Source(JsonParser.parse(l1));
                 assertEquals(s1, s1);
                 assertEquals(s1, Source.builder(s1).build());
                 //this provides testing coverage
@@ -139,8 +141,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 assertNotEquals(m1, new Object());
                 for (String l2 : lines) {
                     if (l2.startsWith("{")) {
-                        Mirror m2 = new Mirror(l2);
-                        Source s2 = new Source(l2);
+                        Mirror m2 = new Mirror(JsonParser.parse(l2));
+                        Source s2 = new Source(JsonParser.parse(l2));
                         if (l1.equals(l2)) {
                             assertEquals(m1, m2);
                             assertEquals(s1, s2);
@@ -208,14 +210,14 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         StreamConfiguration sc = getTestConfiguration();
         Mirror m = sc.getMirror();
 
-        String json = m.toJson();
-        Source s1 = new Source(json);
-        Source s2 = new Source(json);
+        JsonValue v = JsonParser.parse(m.toJson());
+        Source s1 = new Source(v);
+        Source s2 = new Source(v);
         assertEquals(s1, s2);
         assertNotEquals(s1, null);
         assertNotEquals(s1, new Object());
-        Mirror m1 = new Mirror(json);
-        Mirror m2 = new Mirror(json);
+        Mirror m1 = new Mirror(v);
+        Mirror m2 = new Mirror(v);
         assertEquals(m1, m2);
         assertNotEquals(m1, null);
         assertNotEquals(m1, new Object());

@@ -15,6 +15,7 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
@@ -31,9 +32,18 @@ public class External implements JsonSerializable {
         return objJson == null ? null : new External(objJson);
     }
 
+    static External optionalInstance(JsonValue vExternal) {
+        return vExternal == null ? null : new External(vExternal);
+    }
+
     External(String json) {
         api = JsonUtils.readString(json, API_RE);
         deliver = JsonUtils.readString(json, DELIVER_RE);
+    }
+
+    External(JsonValue vExternal) {
+        api = vExternal.getMappedString(API);
+        deliver = vExternal.getMappedString(DELIVER);
     }
 
     /**

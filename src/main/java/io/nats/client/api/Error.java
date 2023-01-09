@@ -13,7 +13,7 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 import io.nats.client.support.Status;
 
 import static io.nats.client.support.ApiConstants.*;
@@ -25,25 +25,21 @@ public class Error {
 
     public static final int NOT_SET = -1;
 
-    private final String json;
     private final int code;
     private final int apiErrorCode;
     private final String desc;
 
-    static Error optionalInstance(String json) {
-        String errorJson = JsonUtils.getJsonObject(ERROR, json, null);
-        return errorJson == null ? null : new Error(errorJson);
+    static Error optionalInstance(JsonValue vError) {
+        return vError == null ? null : new Error(vError);
     }
 
-    Error(String json) {
-        this.json = json;
-        code = JsonUtils.readInt(json, CODE_RE, NOT_SET);
-        apiErrorCode = JsonUtils.readInt(json, ERR_CODE_RE, NOT_SET);
-        desc = JsonUtils.readStringMayHaveQuotes(json, DESCRIPTION, "Unknown JetStream Error");
+    Error(JsonValue v) {
+        code = v.getMappedInteger(CODE, NOT_SET);
+        apiErrorCode = v.getMappedInteger(ERR_CODE, NOT_SET);
+        desc = v.getMappedString(DESCRIPTION, "Unknown JetStream Error");
     }
 
     Error(int code, int apiErrorCode, String desc) {
-        this.json = null;
         this.code = code;
         this.apiErrorCode = apiErrorCode;
         this.desc = desc;

@@ -13,58 +13,40 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.time.Duration;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.normalize;
 
 public class PeerInfo {
-    private final String name;
-    private final boolean current;
-    private final boolean offline;
-    private final Duration active;
-    private final long lag;
-    private final String objectName;
 
-    PeerInfo(String objectName, String json) {
-        name = JsonUtils.readString(json, NAME_RE);
-        current = JsonUtils.readBoolean(json, CURRENT_RE);
-        offline = JsonUtils.readBoolean(json, OFFLINE_RE);
-        active = JsonUtils.readNanos(json, ACTIVE_RE, Duration.ZERO);
-        lag = JsonUtils.readLong(json, LAG_RE, 0);
-        this.objectName = normalize(objectName);
+    private final JsonValue vPeerInfo;
+
+    PeerInfo(JsonValue vPeerInfo) {
+        if (vPeerInfo == null) {
+            throw new IllegalArgumentException("Cannot construct PeerInfo without a value.");
+        }
+        this.vPeerInfo = vPeerInfo;
     }
 
     public String getName() {
-        return name;
+        return vPeerInfo.getMappedString(NAME);
     }
 
     public boolean isCurrent() {
-        return current;
+        return vPeerInfo.getMappedBoolean(CURRENT);
     }
 
     public boolean isOffline() {
-        return offline;
+        return vPeerInfo.getMappedBoolean(OFFLINE);
     }
 
     public Duration getActive() {
-        return active;
+        return vPeerInfo.getMappedDuration(ACTIVE, Duration.ZERO);
     }
 
     public long getLag() {
-        return lag;
-    }
-
-    @Override
-    public String toString() {
-        return objectName + "{" +
-                "name='" + name + '\'' +
-                ", current=" + current +
-                ", offline=" + offline +
-                ", active=" + active +
-                ", lag=" + lag +
-                '}';
+        return vPeerInfo.getMappedLong(LAG, 0);
     }
 }

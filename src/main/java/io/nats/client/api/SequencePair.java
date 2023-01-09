@@ -13,10 +13,10 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
-import static io.nats.client.support.ApiConstants.CONSUMER_SEQ_RE;
-import static io.nats.client.support.ApiConstants.STREAM_SEQ_RE;
+import static io.nats.client.support.ApiConstants.CONSUMER_SEQ;
+import static io.nats.client.support.ApiConstants.STREAM_SEQ;
 
 /**
  * This class holds the sequence numbers for a consumer and
@@ -26,9 +26,9 @@ public class SequencePair {
     protected final long consumerSeq;
     protected final long streamSeq;
 
-    SequencePair(String json) {
-        consumerSeq = JsonUtils.readLong(json, CONSUMER_SEQ_RE, 0);
-        streamSeq = JsonUtils.readLong(json, STREAM_SEQ_RE, 0);
+    SequencePair(JsonValue v) {
+        consumerSeq = v.getMappedLong(CONSUMER_SEQ, 0);
+        streamSeq = v.getMappedLong(STREAM_SEQ, 0);
     }
 
     /**

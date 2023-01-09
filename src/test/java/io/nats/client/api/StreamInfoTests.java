@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonValue;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -159,8 +160,9 @@ public class StreamInfoTests {
         assertNull(si.getMirrorInfo());
         assertNull(si.getSourceInfos());
 
-        List<Replica> replicas = Replica.optionalListOf(EMPTY_JSON);
-        assertNull(replicas);
+        //noinspection ConstantValue
+        assertNull(Replica.optionalListOf(null));
+        assertNull(Replica.optionalListOf(JsonValue.NULL.getMappedArray("notfound")));
     }
 
     @Test

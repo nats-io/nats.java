@@ -15,15 +15,12 @@ package io.nats.client.api;
 
 import io.nats.client.PullSubscribeOptions;
 import io.nats.client.PushSubscribeOptions;
-import io.nats.client.support.ApiConstants;
-import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.*;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
@@ -118,43 +115,42 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     // for the response from the server
     ConsumerConfiguration(String json) {
-        Matcher m = DELIVER_POLICY_RE.matcher(json);
-        deliverPolicy = m.find() ? DeliverPolicy.get(m.group(1)) : null;
+        this(JsonParser.parse(json));
+    }
 
-        m = ACK_POLICY_RE.matcher(json);
-        ackPolicy = m.find() ? AckPolicy.get(m.group(1)) : null;
+    ConsumerConfiguration(JsonValue v) {
+        deliverPolicy = DeliverPolicy.get(v.getMappedString(DELIVER_POLICY));
+        ackPolicy = AckPolicy.get(v.getMappedString(ACK_POLICY));
+        replayPolicy = ReplayPolicy.get(v.getMappedString(REPLAY_POLICY));
 
-        m = REPLAY_POLICY_RE.matcher(json);
-        replayPolicy = m.find() ? ReplayPolicy.get(m.group(1)) : null;
+        description = v.getMappedString(DESCRIPTION);
+        durable = v.getMappedString(DURABLE_NAME);
+        name = v.getMappedString(NAME);
+        deliverSubject = v.getMappedString(DELIVER_SUBJECT);
+        deliverGroup = v.getMappedString(DELIVER_GROUP);
+        filterSubject = v.getMappedString(FILTER_SUBJECT);
+        sampleFrequency = v.getMappedString(SAMPLE_FREQ);
 
-        description = JsonUtils.readString(json, DESCRIPTION_RE);
-        durable = JsonUtils.readString(json, DURABLE_NAME_RE);
-        name = JsonUtils.readString(json, NAME_RE);
-        deliverSubject = JsonUtils.readString(json, DELIVER_SUBJECT_RE);
-        deliverGroup = JsonUtils.readString(json, DELIVER_GROUP_RE);
-        filterSubject = JsonUtils.readString(json, FILTER_SUBJECT_RE);
-        sampleFrequency = JsonUtils.readString(json, SAMPLE_FREQ_RE);
+        startTime = v.getMappedDate(OPT_START_TIME);
+        ackWait = v.getMappedNanos(ACK_WAIT);
+        idleHeartbeat = v.getMappedNanos(IDLE_HEARTBEAT);
+        maxExpires = v.getMappedNanos(MAX_EXPIRES);
+        inactiveThreshold = v.getMappedNanos(INACTIVE_THRESHOLD);
 
-        startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
-        ackWait = JsonUtils.readNanos(json, ACK_WAIT_RE);
-        idleHeartbeat = JsonUtils.readNanos(json, IDLE_HEARTBEAT_RE);
-        maxExpires = JsonUtils.readNanos(json, MAX_EXPIRES_RE);
-        inactiveThreshold = JsonUtils.readNanos(json, INACTIVE_THRESHOLD_RE);
+        startSeq = v.getMappedLong(OPT_START_SEQ);
+        maxDeliver = v.getMappedLong(MAX_DELIVER);
+        rateLimit = v.getMappedLong(RATE_LIMIT_BPS);
+        maxAckPending = v.getMappedLong(MAX_ACK_PENDING);
+        maxPullWaiting = v.getMappedLong(MAX_WAITING);
+        maxBatch = v.getMappedLong(MAX_BATCH);
+        maxBytes = v.getMappedLong(MAX_BYTES);
+        numReplicas = v.getMappedInteger(NUM_REPLICAS);
 
-        startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE);
-        maxDeliver = JsonUtils.readLong(json, MAX_DELIVER_RE);
-        rateLimit = JsonUtils.readLong(json, RATE_LIMIT_BPS_RE);
-        maxAckPending = JsonUtils.readLong(json, MAX_ACK_PENDING_RE);
-        maxPullWaiting = JsonUtils.readLong(json, MAX_WAITING_RE);
-        maxBatch = JsonUtils.readLong(json, MAX_BATCH_RE);
-        maxBytes = JsonUtils.readLong(json, MAX_BYTES_RE);
-        numReplicas = JsonUtils.readInteger(json, NUM_REPLICAS_RE);
+        flowControl = v.getMappedBoolean(FLOW_CONTROL, null);
+        headersOnly = v.getMappedBoolean(HEADERS_ONLY, null);
+        memStorage = v.getMappedBoolean(MEM_STORAGE, null);
 
-        flowControl = JsonUtils.readBoolean(json, FLOW_CONTROL_RE, null);
-        headersOnly = JsonUtils.readBoolean(json, HEADERS_ONLY_RE, null);
-        memStorage = JsonUtils.readBoolean(json, MEM_STORAGE_RE, null);
-
-        backoff = JsonUtils.getDurationList(BACKOFF, json);
+        backoff = v.getMappedDurationList(BACKOFF);
     }
 
     // For the builder

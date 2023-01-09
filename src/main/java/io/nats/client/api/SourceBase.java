@@ -15,6 +15,7 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.time.ZonedDateTime;
 
@@ -30,12 +31,12 @@ abstract class SourceBase implements JsonSerializable {
     private final External external;
     private final String objectName;
 
-    SourceBase(String objectName, String json) {
-        name = JsonUtils.readString(json, NAME_RE);
-        startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, 0);
-        startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
-        filterSubject = JsonUtils.readString(json, FILTER_SUBJECT_RE);
-        external = External.optionalInstance(json);
+    SourceBase(String objectName, JsonValue v) {
+        name = v.getMappedString(NAME);
+        startSeq = v.getMappedLong(OPT_START_SEQ, 0);
+        startTime = v.getMappedDate(OPT_START_TIME);
+        filterSubject = v.getMappedString(FILTER_SUBJECT);
+        external = External.optionalInstance(v.getMappedObject(EXTERNAL));
         this.objectName = normalize(objectName);
     }
 

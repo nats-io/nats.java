@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.JetStreamApiException;
+import io.nats.client.support.JsonParseException;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -40,7 +41,7 @@ public class PublishAckTests {
 
     @Test
     public void testThrowsOnGarbage() {
-        assertThrows(IOException.class, () -> {
+        assertThrows(JsonParseException.class, () -> {
             new PublishAck(getDataMessage("notjson"));
        });
     }
@@ -62,15 +63,12 @@ public class PublishAckTests {
 
     @Test
     public void testInvalidResponse() {
-        String json1 = "+OK {" +
-                        "\"missing_stream\":\"test\"" + "," +
-                        "\"missing_seq\":\"0\"" +
-                       "}";
-
-        IOException ioe = assertThrows(IOException.class, () -> new PublishAck(getDataMessage(json1)));
+        IOException ioe = assertThrows(IOException.class,
+            () -> new PublishAck(getDataMessage("{\"stream\":\"no sequence\"}")));
         assertEquals("Invalid JetStream ack.", ioe.getMessage());
 
-        String json2 = "{\"stream\":\"test\", \"duplicate\" : true }";
-        ioe = assertThrows(IOException.class, () -> new PublishAck(getDataMessage(json2)));
+        ioe = assertThrows(IOException.class,
+            () -> new PublishAck(getDataMessage("{\"seq\":1}")));
+        assertEquals("Invalid JetStream ack.", ioe.getMessage());
     }
 }

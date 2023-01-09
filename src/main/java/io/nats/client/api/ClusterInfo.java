@@ -13,7 +13,7 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.util.List;
 
@@ -27,15 +27,14 @@ public class ClusterInfo {
     private final String leader;
     private final List<Replica> replicas;
 
-    static ClusterInfo optionalInstance(String fullJson) {
-        String objJson = JsonUtils.getJsonObject(CLUSTER, fullJson, null);
-        return objJson == null ? null : new ClusterInfo(objJson);
+    static ClusterInfo optionalInstance(JsonValue v) {
+        return v == null ? null : new ClusterInfo(v);
     }
 
-    ClusterInfo(String json) {
-        name = JsonUtils.readString(json, NAME_RE);
-        leader = JsonUtils.readString(json, LEADER_RE);
-        replicas = Replica.optionalListOf(json);
+    ClusterInfo(JsonValue v) {
+        name = v.getMappedString(NAME);
+        leader = v.getMappedString(LEADER);
+        replicas = Replica.optionalListOf(v.getMappedArray(REPLICAS));
     }
 
     public String getName() {

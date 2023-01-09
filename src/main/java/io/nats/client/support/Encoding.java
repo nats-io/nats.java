@@ -165,7 +165,11 @@ public abstract class Encoding {
         return sb.toString();
     }
 
-    public static void jsonEncode(StringBuilder sb, String s) {
+    public static String jsonEncode(String s) {
+        return jsonEncode(new StringBuilder(), s).toString();
+    }
+
+    public static StringBuilder jsonEncode(StringBuilder sb, String s) {
         int len = s.length();
         for (int x = 0; x < len; x++) {
             char ch = s.charAt(x);
@@ -193,7 +197,7 @@ public abstract class Encoding {
                     break;
                 default:
                     if (ch < ' ') {
-                        sb.append(String.format("\\u%04X", (int) ch));
+                        sb.append(String.format("\\u%04x", (int) ch));
                     }
                     else {
                         sb.append(ch);
@@ -201,6 +205,7 @@ public abstract class Encoding {
                     break;
             }
         }
+        return sb;
     }
 
     public static String uriDecode(String source) {

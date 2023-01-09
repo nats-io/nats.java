@@ -14,7 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 import io.nats.client.support.Validator;
 
 import static io.nats.client.support.ApiConstants.*;
@@ -28,19 +28,16 @@ public class Republish implements JsonSerializable {
     private final String destination;
     private final boolean headersOnly;
 
-    static Republish optionalInstance(String fullJson) {
-        String objJson = JsonUtils.getJsonObject(REPUBLISH, fullJson, null);
-        return objJson == null ? null : new Republish(objJson);
-    }
-
-    Republish(String json) {
-        source = JsonUtils.readString(json, SRC_RE);
-        destination = JsonUtils.readString(json, DEST_RE);
-        headersOnly = JsonUtils.readBoolean(json, HEADERS_ONLY_RE);
+    static Republish optionalInstance(JsonValue vRepublish) {
+        return vRepublish == null ? null :
+            new Republish(
+                vRepublish.getMappedString(SRC),
+                vRepublish.getMappedString(DEST),
+                vRepublish.getMappedBoolean(HEADERS_ONLY));
     }
 
     /**
-     * Construct a republish object
+     * Construct a 'republish' object
      * @param source the Published Subject-matching filter
      * @param destination the RePublish Subject template
      * @param headersOnly Whether to RePublish only headers (no body)

@@ -134,22 +134,22 @@ public final class JsonUtilsTests {
     public void testAddFields() {
         StringBuilder sb = new StringBuilder();
 
-        addField(sb, "n/a", (String)null);
+        addField(sb, "n/a", (String) null);
         assertEquals(0, sb.length());
 
         addField(sb, "n/a", "");
         assertEquals(0, sb.length());
 
-        addStrings(sb, "n/a", (String[])null);
+        addStrings(sb, "n/a", (String[]) null);
         assertEquals(0, sb.length());
 
         addStrings(sb, "n/a", new String[0]);
         assertEquals(0, sb.length());
 
-        addStrings(sb, "n/a", (List<String>)null);
+        addStrings(sb, "n/a", (List<String>) null);
         assertEquals(0, sb.length());
 
-        addField(sb, "n/a", (JsonSerializable)null);
+        addField(sb, "n/a", (JsonSerializable) null);
         assertEquals(0, sb.length());
 
         addJsons(sb, "n/a", new ArrayList<>());
@@ -164,7 +164,7 @@ public final class JsonUtilsTests {
         addDurations(sb, "n/a", new ArrayList<>());
         assertEquals(0, sb.length());
 
-        addField(sb, "n/a", (Boolean)null);
+        addField(sb, "n/a", (Boolean) null);
         assertEquals(0, sb.length());
 
         addFldWhenTrue(sb, "n/a", null);
@@ -173,10 +173,10 @@ public final class JsonUtilsTests {
         addFldWhenTrue(sb, "n/a", false);
         assertEquals(0, sb.length());
 
-        addField(sb, "n/a", (Integer)null);
+        addField(sb, "n/a", (Integer) null);
         assertEquals(0, sb.length());
 
-        addField(sb, "n/a", (Long)null);
+        addField(sb, "n/a", (Long) null);
         assertEquals(0, sb.length());
 
         //noinspection UnnecessaryBoxing
@@ -204,10 +204,10 @@ public final class JsonUtilsTests {
         addField(sb, "bfalse", false);
         assertEquals(87, sb.length());
 
-        addFieldWhenGtZero(sb, "intnull", (Integer)null);
+        addFieldWhenGtZero(sb, "intnull", (Integer) null);
         assertEquals(87, sb.length());
 
-        addFieldWhenGtZero(sb, "longnull", (Long)null);
+        addFieldWhenGtZero(sb, "longnull", (Long) null);
         assertEquals(87, sb.length());
 
         //noinspection UnnecessaryBoxing
@@ -224,7 +224,7 @@ public final class JsonUtilsTests {
         addFieldWhenGtZero(sb, "longgt0", 1L);
         assertEquals(110, sb.length());
 
-        addField(sb, "null-header", (Headers)null);
+        addField(sb, "null-header", (Headers) null);
         assertEquals(110, sb.length());
 
         addField(sb, "null-header", new Headers());
@@ -241,7 +241,7 @@ public final class JsonUtilsTests {
         StringBuilder sb = beginJson();
 
         String[] s1 = new String[]{"one"};
-        String[] s2 = new String[]{"two","too"};
+        String[] s2 = new String[]{"two", "too"};
         List<String> l1 = Arrays.asList(s1);
         List<String> l2 = Arrays.asList(s2);
         addStrings(sb, "a1", s1);
@@ -352,17 +352,17 @@ public final class JsonUtilsTests {
 
     @Test
     public void testEncodeDecode() {
-        _testEncodeDecode("b4\\\\after",    "b4\\after", null); // a single slash with a meaningless letter after it
-        _testEncodeDecode("b4\\\\tafter",    "b4\\tafter", null); // a single slash with a char that can be part of an escape
+        _testEncodeDecode("b4\\\\after", "b4\\after", null); // a single slash with a meaningless letter after it
+        _testEncodeDecode("b4\\\\tafter", "b4\\tafter", null); // a single slash with a char that can be part of an escape
 
-        _testEncodeDecode("b4\\bafter",     "b4\bafter", null);
-        _testEncodeDecode("b4\\fafter",     "b4\fafter", null);
-        _testEncodeDecode("b4\\nafter",     "b4\nafter", null);
-        _testEncodeDecode("b4\\rafter",     "b4\rafter", null);
-        _testEncodeDecode("b4\\tafter",     "b4\tafter", null);
+        _testEncodeDecode("b4\\bafter", "b4\bafter", null);
+        _testEncodeDecode("b4\\fafter", "b4\fafter", null);
+        _testEncodeDecode("b4\\nafter", "b4\nafter", null);
+        _testEncodeDecode("b4\\rafter", "b4\rafter", null);
+        _testEncodeDecode("b4\\tafter", "b4\tafter", null);
 
-        _testEncodeDecode("b4\\u0000after", "b4" + (char)0 + "after", null);
-        _testEncodeDecode("b4\\u001fafter", "b4" + (char)0x1f + "after", "b4\\u001Fafter");
+        _testEncodeDecode("b4\\u0000after", "b4" + (char) 0 + "after", null);
+        _testEncodeDecode("b4\\u001fafter", "b4" + (char) 0x1f + "after", "b4\\u001Fafter");
         _testEncodeDecode("b4\\u0020after", "b4 after", "b4 after");
         _testEncodeDecode("b4\\u0022after", "b4\"after", "b4\\\"after");
         _testEncodeDecode("b4\\u0027after", "b4'after", "b4'after");
@@ -373,24 +373,22 @@ public final class JsonUtilsTests {
         _testEncodeDecode("b4\\u003eafter", "b4>after", "b4>after");
         _testEncodeDecode("b4\\u003Eafter", "b4>after", "b4>after");
         _testEncodeDecode("b4\\u0060after", "b4`after", "b4`after");
-        _testEncodeDecode("b4\\xafter",     "b4xafter", "b4xafter"); // unknown escape
-        _testEncodeDecode("b4\\",           "b4\\", "b4\\\\"); // last char is \
+        _testEncodeDecode("b4\\xafter", "b4xafter", "b4xafter"); // unknown escape
+        _testEncodeDecode("b4\\", "b4\\", "b4\\\\"); // last char is \
 
         List<String> utfs = dataAsLines("utf8-only-no-ws-test-strings.txt");
         for (String u : utfs) {
             String uu = "b4\\b\\f\\n\\r\\t" + u + "after";
-            _testEncodeDecode(jsonDecode(uu), "b4\b\f\n\r\t" + u + "after", uu);
+            _testEncodeDecode(uu, "b4\b\f\n\r\t" + u + "after", uu);
         }
     }
 
-    private void _testEncodeDecode(String input, String targetDecode, String targetEncode) {
-        String decoded = jsonDecode(input);
+    private void _testEncodeDecode(String encodedInput, String targetDecode, String targetEncode) {
+        String decoded = jsonDecode(encodedInput);
         assertEquals(targetDecode, decoded);
-        StringBuilder sb = new StringBuilder();
-        jsonEncode(sb, decoded);
-        String encoded = sb.toString();
+        String encoded = jsonEncode(new StringBuilder(), decoded).toString();
         if (targetEncode == null) {
-            assertEquals(input, encoded);
+            assertEquals(encodedInput, encoded);
         }
         else {
             assertEquals(targetEncode, encoded);

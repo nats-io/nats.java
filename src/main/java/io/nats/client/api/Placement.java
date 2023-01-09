@@ -14,13 +14,14 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 import io.nats.client.support.Validator;
 
 import java.util.Arrays;
 import java.util.List;
 
-import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.ApiConstants.CLUSTER;
+import static io.nats.client.support.ApiConstants.TAGS;
 import static io.nats.client.support.JsonUtils.*;
 
 /**
@@ -30,14 +31,11 @@ public class Placement implements JsonSerializable {
     private final String cluster;
     private final List<String> tags;
 
-    static Placement optionalInstance(String fullJson) {
-        String objJson = JsonUtils.getJsonObject(PLACEMENT, fullJson, null);
-        return objJson == null ? null : new Placement(objJson);
-    }
-
-    Placement(String json) {
-        cluster = JsonUtils.readString(json, CLUSTER_RE);
-        tags = JsonUtils.getStringList(TAGS, json);
+    static Placement optionalInstance(JsonValue vPlacement) {
+        return vPlacement == null ? null :
+            new Placement(
+                vPlacement.getMappedString(CLUSTER),
+                vPlacement.getMappedStringList(TAGS));
     }
 
     /**

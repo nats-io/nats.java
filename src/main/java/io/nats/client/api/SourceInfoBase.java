@@ -13,56 +13,72 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.time.Duration;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonUtils.objectString;
 
 abstract class SourceInfoBase {
-    private final String name;
-    private final long lag;
-    private final Duration active;
-    private final Error error;
-    private final String objectName;
+    protected JsonValue vSourceInfo;
+    protected final External external;
+    protected final Error error;
 
-    SourceInfoBase(String json, String objectName) {
-        name = readString(json, NAME_RE);
-        lag = JsonUtils.readLong(json, LAG_RE, 0);
-        active = JsonUtils.readNanos(json, ACTIVE_RE, Duration.ZERO);
-        error = Error.optionalInstance(json);
-        this.objectName = normalize(objectName);
+    SourceInfoBase(JsonValue vSourceInfo) {
+        this.vSourceInfo = vSourceInfo;
+        external = External.optionalInstance(vSourceInfo.getMappedObject(EXTERNAL));
+        error = Error.optionalInstance(vSourceInfo.getMappedObject(ERROR));
     }
 
     /**
      * The name of the Stream being replicated
-     *
      * @return the name
      */
     public String getName() {
-        return name;
+        return vSourceInfo.getMappedString(NAME);
     }
 
+    /**
+     * How many uncommitted operations this peer is behind the leader
+     * @return the lag
+     */
     public long getLag() {
-        return lag;
+        return vSourceInfo.getMappedLong(LAG, 0);
     }
 
+    /**
+     * Time since this peer was last seen
+     * @return the time
+     */
     public Duration getActive() {
-        return active;
+        return vSourceInfo.getMappedDuration(ACTIVE, Duration.ZERO);
     }
 
+    /**
+     * Configuration referencing a stream source in another account or JetStream domain
+     * @return the external
+     */
+    public External getExternal() {
+        return external;
+    }
+
+    /**
+     * The last error
+     * @return the error
+     */
     public Error getError() {
         return error;
     }
 
     @Override
     public String toString() {
-        return objectName + "{" +
-                "name='" + name + '\'' +
-                ", lag=" + lag +
-                ", active=" + active +
-                ", " + objectString("error", error) +
-                '}';
+        return "Mirror{" +
+            "name='" + getName() + '\'' +
+            ", lag=" + getLag() +
+            ", active=" + getActive() +
+            ", " + objectString("external", external) +
+            ", " + objectString("error", error) +
+            '}';
     }
 }

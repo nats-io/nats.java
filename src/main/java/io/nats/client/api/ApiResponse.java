@@ -15,10 +15,12 @@ package io.nats.client.api;
 
 import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
 
 import static io.nats.client.api.Error.NOT_SET;
-import static io.nats.client.support.ApiConstants.TYPE_RE;
+import static io.nats.client.support.ApiConstants.ERROR;
+import static io.nats.client.support.ApiConstants.TYPE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public abstract class ApiResponse<T> {
@@ -26,22 +28,33 @@ public abstract class ApiResponse<T> {
     public static final String NO_TYPE = "io.nats.jetstream.api.v1.no_type";
 
     protected final String json;
+    protected final JsonValue jv;
 
     private final String type;
     private final Error error;
 
     public ApiResponse(Message msg) {
-        this(new String(msg.getData(), UTF_8));
+        this(null, new String(msg.getData(), UTF_8), true);
     }
 
     public ApiResponse(String json) {
-        this.json = json;
-        error = json == null ? null : Error.optionalInstance(json);
-        type = json == null ? NO_TYPE : JsonUtils.readString(json, TYPE_RE, NO_TYPE);
+        this(null, json, true);
+    }
+
+    public ApiResponse(JsonValue jsonValue) {
+        this(jsonValue, null, false);
+    }
+
+    private ApiResponse(JsonValue jsonValue, String jsn, boolean saveJson) {
+        json = saveJson ? jsn : null;
+        jv = jsonValue == null ? (jsn == null ? null : JsonParser.parse(jsn)) : jsonValue;
+        error = jv == null ? null : Error.optionalInstance(jv.getMappedObject(ERROR));
+        type = jv == null ? NO_TYPE : this.jv.getMappedString(TYPE, NO_TYPE);
     }
 
     public ApiResponse() {
         json = null;
+        jv = null;
         error = null;
         type = NO_TYPE;
     }

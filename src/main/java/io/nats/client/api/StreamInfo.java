@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.Message;
+import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonUtils;
 
 import java.nio.charset.StandardCharsets;
@@ -40,13 +41,23 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
     }
 
     public StreamInfo(String json) {
-        super(json);
-        created = JsonUtils.readDate(json, CREATED_RE);
-        config = StreamConfiguration.instance(JsonUtils.getJsonObject(CONFIG, json));
-        state = new StreamState(JsonUtils.getJsonObject(STATE, json));
-        clusterInfo = ClusterInfo.optionalInstance(json);
-        mirrorInfo = MirrorInfo.optionalInstance(json);
-        sourceInfos = SourceInfo.optionalListOf(json);
+        super(JsonParser.parse(json));
+        if (hasError()) {
+            created = null;
+            config = null;
+            state = null;
+            clusterInfo = null;
+            mirrorInfo = null;
+            sourceInfos = null;
+        }
+        else {
+            created = jv.getMappedDate(CREATED);
+            config = StreamConfiguration.instance(JsonUtils.getJsonObject(CONFIG, json));
+            state = new StreamState(JsonUtils.getJsonObject(STATE, json));
+            clusterInfo = ClusterInfo.optionalInstance(jv.getMappedObject(CLUSTER));
+            mirrorInfo = MirrorInfo.optionalInstance(jv.getMappedObject(MIRROR));
+            sourceInfos = SourceInfo.optionalListOf(jv.getMappedArray(SOURCES));
+        }
     }
     
     /**

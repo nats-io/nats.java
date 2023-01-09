@@ -37,8 +37,10 @@ public abstract class JsonUtils {
     public static final String EMPTY_JSON = "{}";
 
     private static final String STRING_RE  = "\"(.+?)\"";
+    private static final String STRING_2_RE = "((\\[[^\\}]+)?\\{s*[^\\}\\{]{3,}?:.*\\}([^\\{]+\\])?)";
     private static final String BOOLEAN_RE =  "(true|false)";
     private static final String INTEGER_RE =  "(-?\\d+)";
+    private static final String JSON_NUMBER_RE =  "-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?";
     private static final String STRING_ARRAY_RE = "\\[\\s*(\".+?\")\\s*\\]";
     private static final String NUMBER_ARRAY_RE = "\\[\\s*(.+?)\\s*\\]";
     private static final String BEFORE_FIELD_RE = "\"";
@@ -118,6 +120,11 @@ public abstract class JsonUtils {
 
     public static String getJsonObject(String objectName, String json, String dflt) {
         int[] indexes = getBracketIndexes(objectName, json, '{', '}', 0);
+        return indexes == null ? dflt : json.substring(indexes[0], indexes[1] + 1);
+    }
+
+    public static String getJsonArray(String objectName, String json, String dflt) {
+        int[] indexes = getBracketIndexes(objectName, json, '[', ']', 0);
         return indexes == null ? dflt : json.substring(indexes[0], indexes[1] + 1);
     }
 
@@ -347,17 +354,32 @@ public abstract class JsonUtils {
         return new StringBuilder("{");
     }
 
+    public static StringBuilder beginArray() {
+        return new StringBuilder("[");
+    }
+
     public static StringBuilder beginJsonPrefixed(String prefix) {
         return prefix == null ? beginJson()
                 : new StringBuilder(prefix).append(NatsConstants.SPACE).append('{');
     }
 
     public static StringBuilder endJson(StringBuilder sb) {
-        if (sb.charAt(sb.length() - 1) == ',') {
-            // remove the trailing ','
-            sb.setLength(sb.length() - 1);
+        int lastIndex = sb.length() - 1;
+        if (sb.charAt(lastIndex) == ',') {
+            sb.setCharAt(lastIndex, '}');
+            return sb;
         }
         sb.append("}");
+        return sb;
+    }
+
+    public static StringBuilder endArray(StringBuilder sb) {
+        int lastIndex = sb.length() - 1;
+        if (sb.charAt(lastIndex) == ',') {
+            sb.setCharAt(lastIndex, ']');
+            return sb;
+        }
+        sb.append("]");
         return sb;
     }
 

@@ -13,7 +13,7 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import static io.nats.client.support.ApiConstants.MIRROR;
 
@@ -23,13 +23,12 @@ import static io.nats.client.support.ApiConstants.MIRROR;
  */
 public class Mirror extends SourceBase {
 
-    static Mirror optionalInstance(String fullJson) {
-        String objJson = JsonUtils.getJsonObject(MIRROR, fullJson, null);
-        return objJson == null ? null : new Mirror(objJson);
+    static Mirror optionalInstance(JsonValue vMirror) {
+        return vMirror == null ? null : new Mirror(vMirror);
     }
 
-    Mirror(String json) {
-        super(MIRROR, json);
+    Mirror(JsonValue vMirror) {
+        super(MIRROR, vMirror);
     }
 
     Mirror(Builder b) {

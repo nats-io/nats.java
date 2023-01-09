@@ -66,7 +66,7 @@ public class ConsumerConfigurationTests extends TestBase {
 
         assertNotNull(ccr.getConfig());
 
-        String json = ccr.toJson();
+        String json = ccr.getConfig().toJson();
         c = new ConsumerConfiguration(json);
         assertAsBuilt(c, zdt);
 

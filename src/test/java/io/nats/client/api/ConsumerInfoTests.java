@@ -26,6 +26,16 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ConsumerInfoTests {
 
     @Test
+    public void testTime() {
+        String json = dataAsString("ConsumerInfo.json");
+        long start = System.currentTimeMillis();
+        for (int x = 0; x < 1_000_000; x++) {
+            new ConsumerInfo(json);
+        }
+        System.out.println(System.currentTimeMillis() - start);
+    }
+
+    @Test
     public void testConsumerInfo() {
         String json = dataAsString("ConsumerInfo.json");
         ConsumerInfo ci = new ConsumerInfo(json);
