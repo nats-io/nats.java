@@ -21,6 +21,7 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -145,13 +146,13 @@ public class WebSocket extends Socket {
             switch (ch) {
             case -1:
                 // Premature EOF (everything should be terminated with \n)
-                return new String(buffer, 0, offset);
+                return new String(buffer, 0, offset, StandardCharsets.ISO_8859_1);
             case '\n':
                 // Found \n, remove \r if it is there:
                 return new String(
                     buffer,
                     0,
-                    '\r' == lastCh ? offset - 1 : offset);
+                    '\r' == lastCh ? offset - 1 : offset, StandardCharsets.ISO_8859_1);
             }
             // Line length exceeded:
             if (offset >= buffer.length) {

@@ -546,7 +546,6 @@ public class Options {
     private final ExecutorService executor;
     private final ServerListProvider serverListProvider;
 
-    // TODO SFF What is this
     private final List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
     private final Proxy proxy;
 
