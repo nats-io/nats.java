@@ -14,7 +14,6 @@
 package io.nats.client.impl;
 
 import io.nats.client.Connection;
-import io.nats.client.impl.NatsMessage.InternalMessage;
 
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
@@ -23,11 +22,13 @@ import static io.nats.client.impl.AckType.*;
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 import static io.nats.client.support.Validator.validateDurationRequired;
 
-class NatsJetStreamMessage extends InternalMessage {
+class NatsJetStreamMessage extends IncomingMessage {
 
     private NatsJetStreamMetaData jsMetaData = null;
 
-    NatsJetStreamMessage() {}
+    NatsJetStreamMessage(byte[] data) {
+        super(data);
+    }
 
     /**
      * {@inheritDoc}
