@@ -67,11 +67,11 @@ public class JetStreamTestBase extends TestBase {
     }
 
     public NatsMessage getTestMessage(String replyTo) {
-        return new NatsMessage.InternalMessageFactory(mockSid(), "subj", replyTo, 0, false).getMessage();
+        return new IncomingMessageFactory(mockSid(), "subj", replyTo, 0, false).getMessage();
     }
 
     public NatsMessage getTestMessage(String replyTo, String sid) {
-        return new NatsMessage.InternalMessageFactory(sid, "subj", replyTo, 0, false).getMessage();
+        return new IncomingMessageFactory(sid, "subj", replyTo, 0, false).getMessage();
     } 
 
     static class NoopMessageManager extends MessageManager {}

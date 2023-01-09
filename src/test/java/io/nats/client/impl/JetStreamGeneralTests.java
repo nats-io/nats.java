@@ -888,7 +888,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testGetJetStreamValidatedConnectionCoverage() {
-        NatsJetStreamMessage njsm = new NatsJetStreamMessage();
+        NatsJetStreamMessage njsm = new NatsJetStreamMessage(null);
 
         IllegalStateException ise = assertThrows(IllegalStateException.class, njsm::getJetStreamValidatedConnection);
         assertTrue(ise.getMessage().contains("subscription"));
