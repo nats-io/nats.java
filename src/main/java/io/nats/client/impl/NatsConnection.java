@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
-import io.nats.client.impl.NatsMessage.ProtocolMessage;
 import io.nats.client.support.ByteArrayBuilder;
 import io.nats.client.support.NatsRequestCompletableFuture;
 import io.nats.client.support.Validator;
@@ -1286,9 +1285,9 @@ class NatsConnection implements Connection {
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
-            queueInternalOutgoing(new ProtocolMessage(OP_PING_BYTES));
+            queueInternalOutgoing(new ProtocolMessage(PING_PROTO));
         } else {
-            queueOutgoing(new ProtocolMessage(OP_PING_BYTES));
+            queueOutgoing(new ProtocolMessage(PING_PROTO));
         }
 
         this.needPing.set(true);
@@ -1296,8 +1295,17 @@ class NatsConnection implements Connection {
         return pongFuture;
     }
 
+    // This is a minor speed / memory enhancement.
+    // We can't reuse the same instance of any NatsMessage b/c of the "NatsMessage next" state
+    // But it is safe to share the data bytes and the size since those fields are just being read
+    // This constructor "ProtocolMessage(ProtocolMessage pm)" shares the data and size
+    // reducing allocation of data for something that is often created and used
+    // These static instances are the once that are used for copying, sendPing and sendPong
+    private static final ProtocolMessage PING_PROTO = new ProtocolMessage(OP_PING_BYTES);
+    private static final ProtocolMessage PONG_PROTO = new ProtocolMessage(OP_PONG_BYTES);
+
     void sendPong() {
-        queueInternalOutgoing(new ProtocolMessage(OP_PONG_BYTES));
+        queueInternalOutgoing(new ProtocolMessage(PONG_PROTO));
     }
 
     // Called by the reader
