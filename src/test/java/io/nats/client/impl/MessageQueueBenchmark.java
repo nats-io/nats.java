@@ -29,7 +29,7 @@ public class MessageQueueBenchmark {
 
         MessageQueue warm = new MessageQueue(false);
         for (int j = 0; j < msgCount; j++) {
-            msgs[j] = new NatsMessage.ProtocolMessage(warmBytes);
+            msgs[j] = new ProtocolMessage(warmBytes);
             warm.push(msgs[j]);
         }
 

@@ -561,7 +561,7 @@ public class HeadersTests {
         if (msg != null) {
             assertEquals(msg, status.getMessage());
         }
-        NatsMessage.InternalMessageFactory imf = new NatsMessage.InternalMessageFactory("sid", "sub", "rt", 0, false);
+        IncomingMessageFactory imf = new IncomingMessageFactory("sid", "sub", "rt", 0, false);
         imf.setHeaders(ihp);
         assertTrue(imf.getMessage().isStatusMessage());
         return ihp;
