@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
@@ -302,17 +303,33 @@ public final class JsonUtilsTests {
     @Test
     public void testInteger() {
         Pattern RE = buildPattern("num", FieldType.jsonInteger);
+        Pattern MISSING_RE = buildPattern("x", FieldType.jsonInteger);
         assertEquals(-1, readInt("\"num\":-1", RE, 0));
         assertEquals(12345678, readInt("\"num\":12345678", RE, 0));
         assertEquals(2147483647, readInt("\"num\":2147483647", RE, 0));
+        assertEquals(-1, readInt("\"num\":12345678", MISSING_RE, -1));
+
+        assertEquals(12345678, readInteger("\"num\":12345678", RE));
+        assertNull(readInteger("\"num\":12345678", MISSING_RE));
+
+        AtomicInteger atomic = new AtomicInteger();
+        readInt("\"num\":12345678", RE, atomic::set);
+        assertEquals(12345678, atomic.get());
+
+        atomic.set(0);
+        readInt("\"num\":12345678", MISSING_RE, atomic::set);
+        assertEquals(0, atomic.get());
     }
 
     @Test
     public void testLong() {
         Pattern RE = buildPattern("num", FieldType.jsonInteger);
+        Pattern MISSING_RE = buildPattern("x", FieldType.jsonInteger);
         assertEquals(-1, readLong("\"num\":-1", RE, 0));
         assertEquals(12345678, readLong("\"num\":12345678", RE, 0));
         assertEquals(9223372036854775807L, readLong("\"num\":9223372036854775807", RE, 0));
+        assertNull(readLong("\"num\":12345678", MISSING_RE));
+        assertEquals(-1, readLong("\"num\":12345678", MISSING_RE, -1));
 
         AtomicLong al = new AtomicLong();
         readLong("\"num\":999", RE, al::set);
@@ -339,7 +356,7 @@ public final class JsonUtilsTests {
     }
 
     @Test
-    public void testReads() {
+    public void testBoolean() {
         String json = "\"yes\": true, \"no\": false";
         Pattern YES_RE = buildPattern("yes", FieldType.jsonBoolean);
         Pattern NO_RE = buildPattern("no", FieldType.jsonBoolean);
@@ -348,6 +365,11 @@ public final class JsonUtilsTests {
         assertTrue(readBoolean(json, YES_RE));
         assertFalse(readBoolean(json, NO_RE));
         assertFalse((readBoolean(json, MISSING_RE)));
+
+        assertTrue(readBoolean(json, YES_RE, false));
+        assertFalse(readBoolean(json, NO_RE, true));
+        assertTrue(readBoolean(json, MISSING_RE, true));
+        assertFalse(readBoolean(json, MISSING_RE, false));
     }
 
     @Test
@@ -375,6 +397,7 @@ public final class JsonUtilsTests {
         _testEncodeDecode("b4\\u0060after", "b4`after", "b4`after");
         _testEncodeDecode("b4\\xafter", "b4xafter", "b4xafter"); // unknown escape
         _testEncodeDecode("b4\\", "b4\\", "b4\\\\"); // last char is \
+        _testEncodeDecode("b4\\/after", "b4/after", null);
 
         List<String> utfs = dataAsLines("utf8-only-no-ws-test-strings.txt");
         for (String u : utfs) {

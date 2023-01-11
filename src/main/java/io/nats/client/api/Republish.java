@@ -19,6 +19,8 @@ import io.nats.client.support.Validator;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.getMappedBoolean;
+import static io.nats.client.support.JsonValueUtils.getMappedString;
 
 /**
  * Republish directives to consider
@@ -31,9 +33,9 @@ public class Republish implements JsonSerializable {
     static Republish optionalInstance(JsonValue vRepublish) {
         return vRepublish == null ? null :
             new Republish(
-                vRepublish.getMappedString(SRC),
-                vRepublish.getMappedString(DEST),
-                vRepublish.getMappedBoolean(HEADERS_ONLY));
+                getMappedString(vRepublish, SRC),
+                getMappedString(vRepublish, DEST),
+                getMappedBoolean(vRepublish, HEADERS_ONLY));
     }
 
     /**

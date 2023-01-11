@@ -25,6 +25,7 @@ import java.util.List;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.NatsJetStreamClientError.JsConsumerNameDurableMismatch;
 import static io.nats.client.support.Validator.*;
 
@@ -119,38 +120,38 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     ConsumerConfiguration(JsonValue v) {
-        deliverPolicy = DeliverPolicy.get(v.getMappedString(DELIVER_POLICY));
-        ackPolicy = AckPolicy.get(v.getMappedString(ACK_POLICY));
-        replayPolicy = ReplayPolicy.get(v.getMappedString(REPLAY_POLICY));
+        deliverPolicy = DeliverPolicy.get(getMappedString(v, DELIVER_POLICY));
+        ackPolicy = AckPolicy.get(getMappedString(v, ACK_POLICY));
+        replayPolicy = ReplayPolicy.get(getMappedString(v, REPLAY_POLICY));
 
-        description = v.getMappedString(DESCRIPTION);
-        durable = v.getMappedString(DURABLE_NAME);
-        name = v.getMappedString(NAME);
-        deliverSubject = v.getMappedString(DELIVER_SUBJECT);
-        deliverGroup = v.getMappedString(DELIVER_GROUP);
-        filterSubject = v.getMappedString(FILTER_SUBJECT);
-        sampleFrequency = v.getMappedString(SAMPLE_FREQ);
+        description = getMappedString(v, DESCRIPTION);
+        durable = getMappedString(v, DURABLE_NAME);
+        name = getMappedString(v, NAME);
+        deliverSubject = getMappedString(v, DELIVER_SUBJECT);
+        deliverGroup = getMappedString(v, DELIVER_GROUP);
+        filterSubject = getMappedString(v, FILTER_SUBJECT);
+        sampleFrequency = getMappedString(v, SAMPLE_FREQ);
 
-        startTime = v.getMappedDate(OPT_START_TIME);
-        ackWait = v.getMappedNanos(ACK_WAIT);
-        idleHeartbeat = v.getMappedNanos(IDLE_HEARTBEAT);
-        maxExpires = v.getMappedNanos(MAX_EXPIRES);
-        inactiveThreshold = v.getMappedNanos(INACTIVE_THRESHOLD);
+        startTime = getMappedDate(v, OPT_START_TIME);
+        ackWait = getMappedNanos(v, ACK_WAIT);
+        idleHeartbeat = getMappedNanos(v, IDLE_HEARTBEAT);
+        maxExpires = getMappedNanos(v, MAX_EXPIRES);
+        inactiveThreshold = getMappedNanos(v, INACTIVE_THRESHOLD);
 
-        startSeq = v.getMappedLong(OPT_START_SEQ);
-        maxDeliver = v.getMappedLong(MAX_DELIVER);
-        rateLimit = v.getMappedLong(RATE_LIMIT_BPS);
-        maxAckPending = v.getMappedLong(MAX_ACK_PENDING);
-        maxPullWaiting = v.getMappedLong(MAX_WAITING);
-        maxBatch = v.getMappedLong(MAX_BATCH);
-        maxBytes = v.getMappedLong(MAX_BYTES);
-        numReplicas = v.getMappedInteger(NUM_REPLICAS);
+        startSeq = getMappedLong(v, OPT_START_SEQ);
+        maxDeliver = getMappedLong(v, MAX_DELIVER);
+        rateLimit = getMappedLong(v, RATE_LIMIT_BPS);
+        maxAckPending = getMappedLong(v, MAX_ACK_PENDING);
+        maxPullWaiting = getMappedLong(v, MAX_WAITING);
+        maxBatch = getMappedLong(v, MAX_BATCH);
+        maxBytes = getMappedLong(v, MAX_BYTES);
+        numReplicas = getMappedInteger(v, NUM_REPLICAS);
 
-        flowControl = v.getMappedBoolean(FLOW_CONTROL, null);
-        headersOnly = v.getMappedBoolean(HEADERS_ONLY, null);
-        memStorage = v.getMappedBoolean(MEM_STORAGE, null);
+        flowControl = getMappedBoolean(v, FLOW_CONTROL, null);
+        headersOnly = getMappedBoolean(v, HEADERS_ONLY, null);
+        memStorage = getMappedBoolean(v, MEM_STORAGE, null);
 
-        backoff = v.getMappedNanosList(BACKOFF);
+        backoff = getMappedNanosList(v, BACKOFF);
     }
 
     // For the builder

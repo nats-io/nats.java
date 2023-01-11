@@ -1,3 +1,16 @@
+// Copyright 2023 The NATS Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package io.nats.client.support;
 
 import java.math.BigDecimal;
@@ -38,25 +51,23 @@ public class JsonParser {
     }
 
     private JsonValue nextValue() throws JsonParseException {
-        try {
-            char c = peekToken();
-            if (c == '"') {
-                nextToken();
-                return new JsonValue(nextString());
-            }
-            if (c == '{') {
-                nextToken();
-                return new JsonValue(nextObject());
-            }
-            if (c == '[') {
-                nextToken();
-                return new JsonValue(nextArray());
-            }
-            return nextPrimitiveValue();
+        char c = peekToken();
+        if (c == 0) {
+            throw new JsonParseException("Unexpected end of data.");
         }
-        catch (Exception e) {
-            throw new JsonParseException("Unable to parse.", e);
+        if (c == '"') {
+            nextToken();
+            return new JsonValue(nextString());
         }
+        if (c == '{') {
+            nextToken();
+            return new JsonValue(nextObject());
+        }
+        if (c == '[') {
+            nextToken();
+            return new JsonValue(nextArray());
+        }
+        return nextPrimitiveValue();
     }
 
     private List<JsonValue> nextArray() throws JsonParseException {
@@ -64,14 +75,14 @@ public class JsonParser {
         char p = peekToken();
         while (p != ']') {
             if (p == ',') {
-                nextToken();
+                nextToken(); // advance past the peek
             }
             else {
                 list.add(nextValue());
             }
             p = peekToken();
         }
-        nextToken();
+        nextToken(); // advance past the peek
         return list;
     }
 
@@ -92,7 +103,12 @@ public class JsonParser {
         if ("null".equalsIgnoreCase(string)) {
             return JsonValue.NULL;
         }
-        return asNumber(string);
+        try {
+            return asNumber(string);
+        }
+        catch (Exception e) {
+            throw new JsonParseException("Invalid value.");
+        }
     }
 
     // next object assumes you have already seen the starting {
@@ -118,7 +134,7 @@ public class JsonParser {
 
             c = nextToken();
             if (c != ':') {
-                throw new JsonParseException("Expected a ':' after a key");
+                throw new JsonParseException("Expected a ':' after a key.");
             }
 
             JsonValue value = nextValue();
@@ -129,14 +145,13 @@ public class JsonParser {
             switch (nextToken()) {
                 case ',':
                     if (peekToken() == '}') {
-                        // dangling comma
-                        return map;
+                        return map; // dangling comma
                     }
                     break;
                 case '}':
                     return map;
                 default:
-                    throw new JsonParseException("Expected a ',' or '}'");
+                    throw new JsonParseException("Expected a ',' or '}'.");
             }
         }
     }
@@ -153,7 +168,12 @@ public class JsonParser {
 
     private char nextChar() {
         previous = current;
-        current = json.charAt(idx++);
+        if (idx == len) {
+            current = 0;
+        }
+        else {
+            current = json.charAt(idx++);
+        }
         next = 0;
         nextIdx = -1;
         return current;
@@ -162,6 +182,7 @@ public class JsonParser {
     private char peekToken() {
         if (nextIdx == -1) {
             nextIdx = idx;
+            next = 0;
             while (nextIdx < len) {
                 char c = json.charAt(nextIdx++);
                 switch (c) {
@@ -186,7 +207,7 @@ public class JsonParser {
                 case 0:
                 case '\n':
                 case '\r':
-                    throw new JsonParseException("Unterminated string");
+                    throw new JsonParseException("Unterminated string.");
                 case '\\':
                     c = nextChar();
                     switch (c) {
@@ -232,14 +253,15 @@ public class JsonParser {
         for (int x = 0; x < 4; x++) {
             a[x] = nextToken();
             if (a[x] == 0) {
-                throw new JsonParseException("Illegal escape");
+                throw new JsonParseException("Illegal escape.");
             }
         }
         try {
             int code = Integer.parseInt("" + a[0] + a[1] + a[2] + a[3], 16);
             return Character.toChars(code);
-        } catch (RuntimeException e) {
-            throw new JsonParseException("Illegal escape", e);
+        }
+        catch (RuntimeException e) {
+            throw new JsonParseException("Illegal escape.", e);
         }
     }
 

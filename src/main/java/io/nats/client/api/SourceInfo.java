@@ -23,12 +23,12 @@ import java.util.List;
  */
 public class SourceInfo extends SourceInfoBase {
 
-    static List<SourceInfo> optionalListOf(List<JsonValue> arrayOfSource) {
-        if (arrayOfSource == null) {
+    static List<SourceInfo> optionalListOf(JsonValue vSourceInfos) {
+        if (vSourceInfos == null || vSourceInfos.array == null) {
             return null;
         }
         List<SourceInfo> list = new ArrayList<>();
-        for (JsonValue jv : arrayOfSource) {
+        for (JsonValue jv : vSourceInfos.array) {
             list.add(new SourceInfo(jv));
         }
         return list;

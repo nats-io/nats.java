@@ -22,6 +22,7 @@ import java.time.ZonedDateTime;
 import static io.nats.client.JetStreamOptions.convertDomainToPrefix;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.*;
 
 abstract class SourceBase implements JsonSerializable {
     private final String name;
@@ -32,11 +33,11 @@ abstract class SourceBase implements JsonSerializable {
     private final String objectName;
 
     SourceBase(String objectName, JsonValue v) {
-        name = v.getMappedString(NAME);
-        startSeq = v.getMappedLong(OPT_START_SEQ, 0);
-        startTime = v.getMappedDate(OPT_START_TIME);
-        filterSubject = v.getMappedString(FILTER_SUBJECT);
-        external = External.optionalInstance(v.getMappedObject(EXTERNAL));
+        name = getMappedString(v, NAME);
+        startSeq = getMappedLong(v, OPT_START_SEQ, 0);
+        startTime = getMappedDate(v, OPT_START_TIME);
+        filterSubject = getMappedString(v, FILTER_SUBJECT);
+        external = External.optionalInstance(getMappedValue(v, EXTERNAL));
         this.objectName = normalize(objectName);
     }
 

@@ -24,13 +24,13 @@ import static io.nats.client.support.ApiConstants.SOURCE;
  * Source Information
  */
 public class Source extends SourceBase {
-    static List<Source> optionalListOf(List<JsonValue> arrayOfSources) {
-        if (arrayOfSources == null) {
+    static List<Source> optionalListOf(JsonValue vSources) {
+        if (vSources == null || vSources.array == null || vSources.array.size() == 0) {
             return null;
         }
 
         List<Source> list = new ArrayList<>();
-        for (JsonValue jv : arrayOfSources) {
+        for (JsonValue jv : vSources.array) {
             list.add(new Source(jv));
         }
         return list;

@@ -18,35 +18,44 @@ import io.nats.client.support.JsonValue;
 import java.time.Duration;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonValueUtils.*;
 
 public class PeerInfo {
 
-    private final JsonValue vPeerInfo;
+    private final String name;
+    private final boolean current;
+    private final boolean offline;
+    private final Duration active;
+    private final long lag;
 
     PeerInfo(JsonValue vPeerInfo) {
         if (vPeerInfo == null) {
             throw new IllegalArgumentException("Cannot construct PeerInfo without a value.");
         }
-        this.vPeerInfo = vPeerInfo;
+        name = getMappedString(vPeerInfo, NAME);
+        current = getMappedBoolean(vPeerInfo, CURRENT);
+        offline = getMappedBoolean(vPeerInfo, OFFLINE);
+        active = getMappedNanos(vPeerInfo, ACTIVE, Duration.ZERO);
+        lag = getMappedLong(vPeerInfo, LAG, 0);
     }
 
     public String getName() {
-        return vPeerInfo.getMappedString(NAME);
+        return name;
     }
 
     public boolean isCurrent() {
-        return vPeerInfo.getMappedBoolean(CURRENT);
+        return current;
     }
 
     public boolean isOffline() {
-        return vPeerInfo.getMappedBoolean(OFFLINE);
+        return offline;
     }
 
     public Duration getActive() {
-        return vPeerInfo.getMappedNanos(ACTIVE, Duration.ZERO);
+        return active;
     }
 
     public long getLag() {
-        return vPeerInfo.getMappedLong(LAG, 0);
+        return lag;
     }
 }

@@ -123,11 +123,6 @@ public abstract class JsonUtils {
         return indexes == null ? dflt : json.substring(indexes[0], indexes[1] + 1);
     }
 
-    public static String getJsonArray(String objectName, String json, String dflt) {
-        int[] indexes = getBracketIndexes(objectName, json, '[', ']', 0);
-        return indexes == null ? dflt : json.substring(indexes[0], indexes[1] + 1);
-    }
-
     public static String removeObject(String json, String objectName) {
         int[] indexes = getBracketIndexes(objectName, json, '{', '}', 0);
         if (indexes != null) {

@@ -21,6 +21,7 @@ import java.time.ZonedDateTime;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.objectString;
+import static io.nats.client.support.JsonValueUtils.*;
 
 /**
  * The ConsumerInfo class returns information about a JetStream consumer.
@@ -61,22 +62,22 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
             pushBound = false;
         }
         else {
-            this.configuration = new ConsumerConfiguration(jv.getMappedObjectOrEmpty(CONFIG));
+            this.configuration = new ConsumerConfiguration(getMappedObjectOrEmpty(jv, CONFIG));
 
-            stream = jv.getMappedString(STREAM_NAME);
-            name = jv.getMappedString(NAME);
-            created = jv.getMappedDate(CREATED);
+            stream = getMappedString(jv, STREAM_NAME);
+            name = getMappedString(jv, NAME);
+            created = getMappedDate(jv, CREATED);
 
-            delivered = new SequenceInfo(jv.getMappedObjectOrEmpty(DELIVERED));
-            ackFloor = new SequenceInfo(jv.getMappedObjectOrEmpty(ACK_FLOOR));
+            delivered = new SequenceInfo(getMappedObjectOrEmpty(jv, DELIVERED));
+            ackFloor = new SequenceInfo(getMappedObjectOrEmpty(jv, ACK_FLOOR));
 
-            numAckPending = jv.getMappedLong(NUM_ACK_PENDING, 0);
-            numRedelivered = jv.getMappedLong(NUM_REDELIVERED, 0);
-            numPending = jv.getMappedLong(NUM_PENDING, 0);
-            numWaiting = jv.getMappedLong(NUM_WAITING, 0);
+            numAckPending = getMappedLong(jv, NUM_ACK_PENDING, 0);
+            numRedelivered = getMappedLong(jv, NUM_REDELIVERED, 0);
+            numPending = getMappedLong(jv, NUM_PENDING, 0);
+            numWaiting = getMappedLong(jv, NUM_WAITING, 0);
 
-            clusterInfo = ClusterInfo.optionalInstance(jv.getMappedObject(CLUSTER));
-            pushBound = jv.getMappedBoolean(PUSH_BOUND);
+            clusterInfo = ClusterInfo.optionalInstance(getMappedValue(jv, CLUSTER));
+            pushBound = getMappedBoolean(jv, PUSH_BOUND);
         }
     }
     

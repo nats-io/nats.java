@@ -19,16 +19,21 @@ import java.time.Duration;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.objectString;
+import static io.nats.client.support.JsonValueUtils.*;
 
 abstract class SourceInfoBase {
-    protected JsonValue vSourceInfo;
+    protected final String name;
+    protected final long lag;
+    protected final Duration active;
     protected final External external;
     protected final Error error;
 
     SourceInfoBase(JsonValue vSourceInfo) {
-        this.vSourceInfo = vSourceInfo;
-        external = External.optionalInstance(vSourceInfo.getMappedObject(EXTERNAL));
-        error = Error.optionalInstance(vSourceInfo.getMappedObject(ERROR));
+        name = getMappedString(vSourceInfo, NAME);
+        lag = getMappedLong(vSourceInfo, LAG, 0);
+        active = getMappedNanos(vSourceInfo, ACTIVE, Duration.ZERO);
+        external = External.optionalInstance(getMappedValue(vSourceInfo, EXTERNAL));
+        error = Error.optionalInstance(getMappedValue(vSourceInfo, ERROR));
     }
 
     /**
@@ -36,7 +41,7 @@ abstract class SourceInfoBase {
      * @return the name
      */
     public String getName() {
-        return vSourceInfo.getMappedString(NAME);
+        return name;
     }
 
     /**
@@ -44,7 +49,7 @@ abstract class SourceInfoBase {
      * @return the lag
      */
     public long getLag() {
-        return vSourceInfo.getMappedLong(LAG, 0);
+        return lag;
     }
 
     /**
@@ -52,7 +57,7 @@ abstract class SourceInfoBase {
      * @return the time
      */
     public Duration getActive() {
-        return vSourceInfo.getMappedNanos(ACTIVE, Duration.ZERO);
+        return active;
     }
 
     /**

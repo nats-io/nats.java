@@ -21,6 +21,8 @@ import io.nats.client.support.JsonValue;
 import static io.nats.client.api.Error.NOT_SET;
 import static io.nats.client.support.ApiConstants.ERROR;
 import static io.nats.client.support.ApiConstants.TYPE;
+import static io.nats.client.support.JsonValueUtils.getMappedString;
+import static io.nats.client.support.JsonValueUtils.getMappedValue;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public abstract class ApiResponse<T> {
@@ -48,8 +50,8 @@ public abstract class ApiResponse<T> {
     private ApiResponse(JsonValue jsonValue, String jsn, boolean saveJson) {
         json = saveJson ? jsn : null;
         jv = jsonValue == null ? (jsn == null ? null : JsonParser.parse(jsn)) : jsonValue;
-        error = jv == null ? null : Error.optionalInstance(jv.getMappedObject(ERROR));
-        type = jv == null ? NO_TYPE : this.jv.getMappedString(TYPE, NO_TYPE);
+        error = jv == null ? null : Error.optionalInstance(getMappedValue(jv, ERROR));
+        type = jv == null ? NO_TYPE : getMappedString(jv, TYPE, NO_TYPE);
     }
 
     public ApiResponse() {

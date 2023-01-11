@@ -19,6 +19,7 @@ import io.nats.client.support.JsonValue;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.getMappedString;
 
 /**
  * External configuration referencing a stream source in another account
@@ -42,8 +43,8 @@ public class External implements JsonSerializable {
     }
 
     External(JsonValue vExternal) {
-        api = vExternal.getMappedString(API);
-        deliver = vExternal.getMappedString(DELIVER);
+        api = getMappedString(vExternal, API);
+        deliver = getMappedString(vExternal, DELIVER);
     }
 
     /**

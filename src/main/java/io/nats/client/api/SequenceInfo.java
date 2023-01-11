@@ -18,6 +18,7 @@ import io.nats.client.support.JsonValue;
 import java.time.ZonedDateTime;
 
 import static io.nats.client.support.ApiConstants.LAST_ACTIVE;
+import static io.nats.client.support.JsonValueUtils.getMappedDate;
 
 /**
  * This class holds the sequence numbers for a consumer and
@@ -29,7 +30,7 @@ public class SequenceInfo extends SequencePair {
 
     SequenceInfo(JsonValue v) {
         super(v);
-        lastActive = v.getMappedDate(LAST_ACTIVE);
+        lastActive = getMappedDate(v, LAST_ACTIVE);
     }
 
     /**

@@ -1,27 +1,36 @@
+// Copyright 2023 The NATS Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package io.nats.client.support;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.time.Duration;
-import java.time.ZonedDateTime;
 import java.util.*;
 
-import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.NULL_STR;
+import static io.nats.client.support.JsonValueUtils.valueString;
 
 public class JsonValue implements JsonSerializable {
-
-    private static final char COMMA = ',';
-    private static final String NULL_STR = "null";
-    private static final String QUOTE = "\"";
-    private static final String EMPTY_STRING = "";
 
     public enum Type {
         STRING, BOOL, OBJECT, ARRAY, INTEGER, LONG, DOUBLE, FLOAT, BIG_DECIMAL, BIG_INTEGER, NULL;
     }
 
     public static final JsonValue NULL = new JsonValue();
-    public static final JsonValue EMPTY_OBJECT = new JsonValue(new HashMap<>());
-    public static final JsonValue EMPTY_ARRAY = new JsonValue(new ArrayList<>());
+    public static final JsonValue TRUE = new JsonValue(true);
+    public static final JsonValue FALSE = new JsonValue(false);
+    public static final JsonValue EMPTY_OBJECT = new JsonValue(Collections.unmodifiableMap(new HashMap<>()));
+    public static final JsonValue EMPTY_ARRAY = new JsonValue(Collections.unmodifiableList(new ArrayList<>()));
 
     public final Object object;
     public final Map<String, JsonValue> map;
@@ -162,53 +171,18 @@ public class JsonValue implements JsonSerializable {
     @Override
     public String toJson() {
         switch (type) {
-            case STRING:      return toJson(string);
-            case BOOL:        return toJson(bool);
-            case NULL:        return NULL_STR;
-            case OBJECT:      return toJson(map);
-            case ARRAY:       return toJson(array);
+            case STRING:      return valueString(string);
+            case BOOL:        return valueString(bool);
+            case OBJECT:      return valueString(map);
+            case ARRAY:       return valueString(array);
             case INTEGER:     return i.toString();
             case LONG:        return l.toString();
             case DOUBLE:      return d.toString();
             case FLOAT:       return f.toString();
             case BIG_DECIMAL: return bd.toString();
             case BIG_INTEGER: return bi.toString();
+            default:          return NULL_STR;
         }
-        return EMPTY_STRING;
-    }
-
-    public static String toJson(String s) {
-        return QUOTE + Encoding.jsonEncode(s) + QUOTE;
-    }
-
-    public static String toJson(boolean b) {
-        return Boolean.toString(b).toLowerCase();
-    }
-
-    public static String toJson(Map<String, JsonValue> map) {
-        StringBuilder sbo = beginJson();
-        for (String key : map.keySet()) {
-            addField(sbo, key, map.get(key));
-        }
-        return endJson(sbo).toString();
-    }
-
-    public static String toJson(List<JsonValue> list) {
-        StringBuilder sba = beginArray();
-        for (JsonValue v : list) {
-            sba.append(v.toJson());
-            sba.append(COMMA);
-        }
-        return endArray(sba).toString();
-    }
-
-    public static String toJson(JsonValue[] array) {
-        StringBuilder sba = beginArray();
-        for (JsonValue v : array) {
-            sba.append(v.toJson());
-            sba.append(COMMA);
-        }
-        return endArray(sba).toString();
     }
 
     public String asString() {
@@ -236,13 +210,10 @@ public class JsonValue implements JsonSerializable {
     }
 
     public long asLong() {
-        if (l == null) {
-            if (number == null) {
-                return Long.parseLong(asString());
-            }
-            return number.longValue();
-        }
-        return l;
+        if (l != null) { return l; }
+        if (i != null) { return i; }
+        if (number != null) { return number.longValue(); }
+        return Long.parseLong(asString());
     }
 
     public double asDouble() {
@@ -285,122 +256,6 @@ public class JsonValue implements JsonSerializable {
         return bi;
     }
 
-    public JsonValue getMappedObject(String key) {
-        return map == null ? null : map.get(key);
-    }
-
-    public JsonValue getMappedObjectOrEmpty(String key) {
-        if (map == null) {
-            return EMPTY_OBJECT;
-        }
-        JsonValue v = map.get(key);
-        return v == null ? EMPTY_OBJECT : v;
-    }
-
-    public Map<String, JsonValue> getMappedMap(String key) {
-        if (map == null) {
-            return null;
-        }
-        JsonValue v = map.get(key);
-        return v == null || v.map == null || v.map.size() == 0 ? null : v.map;
-    }
-
-    public JsonValue[] getMappedArrayAsArray(String key) {
-        if (map == null) {
-            return null;
-        }
-        JsonValue v = map.get(key);
-        if (v == null || v.array == null || v.array.size() == 0) {
-            return null;
-        }
-        return v.array.toArray(new JsonValue[0]);
-    }
-
-    public List<JsonValue> getMappedArray(String key) {
-        if (map == null) {
-            return null;
-        }
-        JsonValue v = map.get(key);
-        return v == null || v.array == null || v.array.size() == 0 ? null : v.array;
-    }
-
-    public String getMappedString(String key) {
-        JsonValue v = map == null ? null : map.get(key);
-        return v == null ? null : v.string;
-    }
-
-    public String getMappedString(String key, String dflt) {
-        JsonValue v = map == null ? null : map.get(key);
-        return v == null ? dflt : v.string;
-    }
-
-    public List<String> getMappedStringList(String key) {
-        List<String> list = new ArrayList<>();
-        JsonValue v = map == null ? null : map.get(key);
-        if (v != null && v.array != null) {
-            for (JsonValue jv : v.array) {
-                list.add(jv.string);
-            }
-        }
-        return list;
-    }
-
-    public ZonedDateTime getMappedDate(String key) {
-        String s = getMappedString(key);
-        return s == null ? null : DateTimeUtils.parseDateTimeThrowParseError(s);
-    }
-
-    public Integer getMappedInteger(String key) {
-        JsonValue v = map == null ? null : map.get(key);
-        return v == null ? null : v.asInteger();
-    }
-
-    public int getMappedInteger(String key, int dflt) {
-        JsonValue v = map == null ? null : map.get(key);
-        return v == null ? dflt : v.asInteger();
-    }
-
-    public Long getMappedLong(String key) {
-        JsonValue v = map == null ? null : map.get(key);
-        return v == null ? null : v.asLong();
-    }
-
-    public long getMappedLong(String key, long dflt) {
-        JsonValue v = map == null ? null : map.get(key);
-        return v == null ? dflt : v.asLong();
-    }
-
-    public boolean getMappedBoolean(String key) {
-        JsonValue v = map == null ? null : map.get(key);
-        return v != null && v.type == Type.BOOL ? v.bool : false;
-    }
-
-    public Boolean getMappedBoolean(String key, Boolean dflt) {
-        JsonValue v = map == null ? null : map.get(key);
-        return v != null && v.type == Type.BOOL ? v.bool : dflt;
-    }
-
-    public Duration getMappedNanos(String key) {
-        Long l = getMappedLong(key);
-        return l == null ? null : Duration.ofNanos((l));
-    }
-
-    public Duration getMappedNanos(String key, Duration dflt) {
-        Duration d = getMappedNanos(key);
-        return d == null ? dflt : d;
-    }
-
-    public List<Duration> getMappedNanosList(String key) {
-        List<Duration> list = new ArrayList<>();
-        JsonValue v = map == null ? null : map.get(key);
-        if (v != null && v.array != null) {
-            for (JsonValue jv : v.array) {
-                list.add(Duration.ofNanos(jv.asLong()));
-            }
-        }
-        return list;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -409,36 +264,31 @@ public class JsonValue implements JsonSerializable {
         JsonValue jsonValue = (JsonValue) o;
 
         if (type != jsonValue.type) return false;
-        if (!Objects.equals(object, jsonValue.object)) return false;
         if (!Objects.equals(map, jsonValue.map)) return false;
         if (!Objects.equals(array, jsonValue.array)) return false;
         if (!Objects.equals(string, jsonValue.string)) return false;
         if (!Objects.equals(bool, jsonValue.bool)) return false;
-        return Objects.equals(number, jsonValue.number);
-//        if (!Objects.equals(number, jsonValue.number)) return false;
-//        if (!Objects.equals(i, jsonValue.i)) return false;
-//        if (!Objects.equals(l, jsonValue.l)) return false;
-//        if (!Objects.equals(d, jsonValue.d)) return false;
-//        if (!Objects.equals(f, jsonValue.f)) return false;
-//        if (!Objects.equals(bd, jsonValue.bd)) return false;
-//        return Objects.equals(bi, jsonValue.bi);
+        if (!Objects.equals(i, jsonValue.i)) return false;
+        if (!Objects.equals(l, jsonValue.l)) return false;
+        if (!Objects.equals(d, jsonValue.d)) return false;
+        if (!Objects.equals(f, jsonValue.f)) return false;
+        if (!Objects.equals(bd, jsonValue.bd)) return false;
+        return Objects.equals(bi, jsonValue.bi);
     }
 
     @Override
     public int hashCode() {
-        int result = object != null ? object.hashCode() : 0;
-        result = 31 * result + (map != null ? map.hashCode() : 0);
+        int result = map != null ? map.hashCode() : 0;
         result = 31 * result + (array != null ? array.hashCode() : 0);
         result = 31 * result + (string != null ? string.hashCode() : 0);
         result = 31 * result + (bool != null ? bool.hashCode() : 0);
-        result = 31 * result + (number != null ? number.hashCode() : 0);
-//        result = 31 * result + (i != null ? i.hashCode() : 0);
-//        result = 31 * result + (l != null ? l.hashCode() : 0);
-//        result = 31 * result + (d != null ? d.hashCode() : 0);
-//        result = 31 * result + (f != null ? f.hashCode() : 0);
-//        result = 31 * result + (bd != null ? bd.hashCode() : 0);
-//        result = 31 * result + (bi != null ? bi.hashCode() : 0);
-//        result = 31 * result + (type != null ? type.hashCode() : 0);
+        result = 31 * result + (i != null ? i.hashCode() : 0);
+        result = 31 * result + (l != null ? l.hashCode() : 0);
+        result = 31 * result + (d != null ? d.hashCode() : 0);
+        result = 31 * result + (f != null ? f.hashCode() : 0);
+        result = 31 * result + (bd != null ? bd.hashCode() : 0);
+        result = 31 * result + (bi != null ? bi.hashCode() : 0);
+        result = 31 * result + (type != null ? type.hashCode() : 0);
         return result;
     }
 }

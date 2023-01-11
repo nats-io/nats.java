@@ -195,6 +195,9 @@ public abstract class Encoding {
                 case '\t':
                     sb.append("\\t");
                     break;
+                case '/':
+                    sb.append("\\/");
+                    break;
                 default:
                     if (ch < ' ') {
                         sb.append(String.format("\\u%04x", (int) ch));

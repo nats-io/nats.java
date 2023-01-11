@@ -23,6 +23,8 @@ import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.objectString;
+import static io.nats.client.support.JsonValueUtils.getMappedDate;
+import static io.nats.client.support.JsonValueUtils.getMappedValue;
 
 /**
  * The StreamInfo class contains information about a JetStream stream.
@@ -51,12 +53,12 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
             sourceInfos = null;
         }
         else {
-            created = jv.getMappedDate(CREATED);
+            created = getMappedDate(jv, CREATED);
             config = StreamConfiguration.instance(JsonUtils.getJsonObject(CONFIG, json));
             state = new StreamState(JsonUtils.getJsonObject(STATE, json));
-            clusterInfo = ClusterInfo.optionalInstance(jv.getMappedObject(CLUSTER));
-            mirrorInfo = MirrorInfo.optionalInstance(jv.getMappedObject(MIRROR));
-            sourceInfos = SourceInfo.optionalListOf(jv.getMappedArray(SOURCES));
+            clusterInfo = ClusterInfo.optionalInstance(getMappedValue(jv, CLUSTER));
+            mirrorInfo = MirrorInfo.optionalInstance(getMappedValue(jv, MIRROR));
+            sourceInfos = SourceInfo.optionalListOf(getMappedValue(jv, SOURCES));
         }
     }
     

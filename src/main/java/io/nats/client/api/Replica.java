@@ -20,13 +20,13 @@ import java.util.List;
 
 public class Replica extends PeerInfo {
 
-    static List<Replica> optionalListOf(List<JsonValue> arrayOfReplicas) {
-        if (arrayOfReplicas == null || arrayOfReplicas.size() == 0) {
+    static List<Replica> optionalListOf(JsonValue vReplicas) {
+        if (vReplicas == null || vReplicas.array == null || vReplicas.array.size() == 0) {
             return null;
         }
 
         List<Replica> list = new ArrayList<>();
-        for (JsonValue jv : arrayOfReplicas) {
+        for (JsonValue jv : vReplicas.array) {
             list.add(new Replica(jv));
         }
         return list;

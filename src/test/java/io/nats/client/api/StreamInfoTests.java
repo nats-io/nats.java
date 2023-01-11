@@ -160,9 +160,9 @@ public class StreamInfoTests {
         assertNull(si.getMirrorInfo());
         assertNull(si.getSourceInfos());
 
-        //noinspection ConstantValue
         assertNull(Replica.optionalListOf(null));
-        assertNull(Replica.optionalListOf(JsonValue.EMPTY_ARRAY.array));
+        assertNull(Replica.optionalListOf(JsonValue.NULL));
+        assertNull(Replica.optionalListOf(JsonValue.EMPTY_ARRAY));
     }
 
     @Test

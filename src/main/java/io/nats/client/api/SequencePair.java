@@ -17,6 +17,7 @@ import io.nats.client.support.JsonValue;
 
 import static io.nats.client.support.ApiConstants.CONSUMER_SEQ;
 import static io.nats.client.support.ApiConstants.STREAM_SEQ;
+import static io.nats.client.support.JsonValueUtils.getMappedLong;
 
 /**
  * This class holds the sequence numbers for a consumer and
@@ -27,8 +28,8 @@ public class SequencePair {
     protected final long streamSeq;
 
     SequencePair(JsonValue v) {
-        consumerSeq = v.getMappedLong(CONSUMER_SEQ, 0);
-        streamSeq = v.getMappedLong(STREAM_SEQ, 0);
+        consumerSeq = getMappedLong(v, CONSUMER_SEQ, 0);
+        streamSeq = getMappedLong(v, STREAM_SEQ, 0);
     }
 
     /**

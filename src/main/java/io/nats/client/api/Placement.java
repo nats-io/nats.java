@@ -15,6 +15,7 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 import io.nats.client.support.Validator;
 
 import java.util.Arrays;
@@ -34,8 +35,8 @@ public class Placement implements JsonSerializable {
     static Placement optionalInstance(JsonValue vPlacement) {
         return vPlacement == null ? null :
             new Placement(
-                vPlacement.getMappedString(CLUSTER),
-                vPlacement.getMappedStringList(TAGS));
+                JsonValueUtils.getMappedString(vPlacement, CLUSTER),
+                JsonValueUtils.getMappedStringList(vPlacement, TAGS));
     }
 
     /**

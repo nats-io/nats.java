@@ -26,6 +26,7 @@ import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.Validator.*;
 
 /**
@@ -70,33 +71,33 @@ public class StreamConfiguration implements JsonSerializable {
 
     static StreamConfiguration instance(JsonValue v) {
         Builder builder = new Builder();
-        builder.retentionPolicy(RetentionPolicy.get(v.getMappedString(RETENTION)));
-        builder.storageType(StorageType.get(v.getMappedString(STORAGE)));
-        builder.discardPolicy(DiscardPolicy.get(v.getMappedString(DISCARD)));
-        builder.name(v.getMappedString(NAME));
-        builder.description(v.getMappedString(DESCRIPTION));
-        builder.maxConsumers(v.getMappedLong(MAX_CONSUMERS, -1));
-        builder.maxMessages(v.getMappedLong(MAX_MSGS, -1));
-        builder.maxMessagesPerSubject(v.getMappedLong(MAX_MSGS_PER_SUB, -1));
-        builder.maxBytes(v.getMappedLong(MAX_BYTES, -1));
-        builder.maxAge(v.getMappedNanos(MAX_AGE));
-        builder.maxMsgSize(v.getMappedLong(MAX_MSG_SIZE, -1));
-        builder.replicas(v.getMappedInteger(NUM_REPLICAS, 1));
-        builder.noAck(v.getMappedBoolean(NO_ACK));
-        builder.templateOwner(v.getMappedString(TEMPLATE_OWNER));
-        builder.duplicateWindow(v.getMappedNanos(DUPLICATE_WINDOW));
-        builder.subjects(v.getMappedStringList(SUBJECTS));
-        builder.placement(Placement.optionalInstance(v.getMappedObject(PLACEMENT)));
-        builder.republish(Republish.optionalInstance(v.getMappedObject(REPUBLISH)));
-        builder.mirror(Mirror.optionalInstance(v.getMappedObject(MIRROR)));
-        builder.sources(Source.optionalListOf(v.getMappedArray(SOURCES)));
-        builder.sealed(v.getMappedBoolean(SEALED));
-        builder.allowRollup(v.getMappedBoolean(ALLOW_ROLLUP_HDRS));
-        builder.allowDirect(v.getMappedBoolean(ALLOW_DIRECT));
-        builder.mirrorDirect(v.getMappedBoolean(MIRROR_DIRECT));
-        builder.denyDelete(v.getMappedBoolean(DENY_DELETE));
-        builder.denyPurge(v.getMappedBoolean(DENY_PURGE));
-        builder.discardNewPerSubject(v.getMappedBoolean(DISCARD_NEW_PER_SUBJECT));
+        builder.retentionPolicy(RetentionPolicy.get(getMappedString(v, RETENTION)));
+        builder.storageType(StorageType.get(getMappedString(v, STORAGE)));
+        builder.discardPolicy(DiscardPolicy.get(getMappedString(v, DISCARD)));
+        builder.name(getMappedString(v, NAME));
+        builder.description(getMappedString(v, DESCRIPTION));
+        builder.maxConsumers(getMappedLong(v, MAX_CONSUMERS, -1));
+        builder.maxMessages(getMappedLong(v, MAX_MSGS, -1));
+        builder.maxMessagesPerSubject(getMappedLong(v, MAX_MSGS_PER_SUB, -1));
+        builder.maxBytes(getMappedLong(v, MAX_BYTES, -1));
+        builder.maxAge(getMappedNanos(v, MAX_AGE));
+        builder.maxMsgSize(getMappedLong(v, MAX_MSG_SIZE, -1));
+        builder.replicas(getMappedInteger(v, NUM_REPLICAS, 1));
+        builder.noAck(getMappedBoolean(v, NO_ACK));
+        builder.templateOwner(getMappedString(v, TEMPLATE_OWNER));
+        builder.duplicateWindow(getMappedNanos(v, DUPLICATE_WINDOW));
+        builder.subjects(getMappedStringList(v, SUBJECTS));
+        builder.placement(Placement.optionalInstance(getMappedValue(v, PLACEMENT)));
+        builder.republish(Republish.optionalInstance(getMappedValue(v, REPUBLISH)));
+        builder.mirror(Mirror.optionalInstance(getMappedValue(v, MIRROR)));
+        builder.sources(Source.optionalListOf(getMappedValue(v, SOURCES)));
+        builder.sealed(getMappedBoolean(v, SEALED));
+        builder.allowRollup(getMappedBoolean(v, ALLOW_ROLLUP_HDRS));
+        builder.allowDirect(getMappedBoolean(v, ALLOW_DIRECT));
+        builder.mirrorDirect(getMappedBoolean(v, MIRROR_DIRECT));
+        builder.denyDelete(getMappedBoolean(v, DENY_DELETE));
+        builder.denyPurge(getMappedBoolean(v, DENY_PURGE));
+        builder.discardNewPerSubject(getMappedBoolean(v, DISCARD_NEW_PER_SUBJECT));
 
         return builder.build();
     }

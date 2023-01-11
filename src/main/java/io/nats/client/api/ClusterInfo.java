@@ -18,6 +18,8 @@ import io.nats.client.support.JsonValue;
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonValueUtils.getMappedString;
+import static io.nats.client.support.JsonValueUtils.getMappedValue;
 
 /**
  * Information about the cluster a stream is part of.
@@ -32,9 +34,9 @@ public class ClusterInfo {
     }
 
     ClusterInfo(JsonValue v) {
-        name = v.getMappedString(NAME);
-        leader = v.getMappedString(LEADER);
-        replicas = Replica.optionalListOf(v.getMappedArray(REPLICAS));
+        name = getMappedString(v, NAME);
+        leader = getMappedString(v, LEADER);
+        replicas = Replica.optionalListOf(getMappedValue(v, REPLICAS));
     }
 
     public String getName() {
