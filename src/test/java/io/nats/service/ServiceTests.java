@@ -17,7 +17,9 @@ import io.nats.client.*;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -32,9 +34,11 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static io.nats.client.impl.NatsPackageScopeWorkarounds.getDispatchers;
-import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.ApiConstants.ID;
+import static io.nats.client.support.ApiConstants.LAST_ERROR;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.Validator.nullOrEmpty;
 import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR;
@@ -428,20 +432,20 @@ public class ServiceTests extends JetStreamTestBase {
         new PingResponse("id", "name", "version").toString();
         new Schema("request", "response").toString();
         new InfoResponse("id", "name", "description", "version", "subject").toString();
-        assertNull(Schema.optionalInstance("{}"));
+        assertNull(Schema.optionalInstance(null));
     }
 
     @Test
     public void testApiJsonInOut() {
-        PingResponse pr1 = new PingResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\"}");
-        PingResponse pr2 = new PingResponse(pr1.toJson());
+        PingResponse pr1 = new PingResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\"}".getBytes());
+        PingResponse pr2 = new PingResponse(pr1.toJson().getBytes());
         assertEquals("ServiceName", pr1.getName());
         assertEquals("serviceId", pr1.getServiceId());
         assertEquals(pr1.getName(), pr2.getName());
         assertEquals(pr1.getServiceId(), pr2.getServiceId());
 
-        InfoResponse ir1 = new InfoResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"description\":\"desc\",\"version\":\"0.0.1\",\"subject\":\"ServiceSubject\"}");
-        InfoResponse ir2 = new InfoResponse(ir1.toJson());
+        InfoResponse ir1 = new InfoResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"description\":\"desc\",\"version\":\"0.0.1\",\"subject\":\"ServiceSubject\"}".getBytes());
+        InfoResponse ir2 = new InfoResponse(ir1.toJson().getBytes());
         assertEquals("ServiceName", ir1.getName());
         assertEquals("serviceId", ir1.getServiceId());
         assertEquals("desc", ir1.getDescription());
@@ -453,8 +457,8 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(ir1.getVersion(), ir2.getVersion());
         assertEquals(ir1.getSubject(), ir2.getSubject());
 
-        SchemaResponse sr1 = new SchemaResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"schema\":{\"request\":\"rqst\",\"response\":\"rspns\"}}");
-        SchemaResponse sr2 = new SchemaResponse(sr1.toJson());
+        SchemaResponse sr1 = new SchemaResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"schema\":{\"request\":\"rqst\",\"response\":\"rspns\"}}".getBytes());
+        SchemaResponse sr2 = new SchemaResponse(sr1.toJson().getBytes());
         assertEquals("ServiceName", sr1.getName());
         assertEquals("serviceId", sr1.getServiceId());
         assertEquals("0.0.1", sr1.getVersion());
@@ -466,8 +470,8 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(sr1.getSchema().getRequest(), sr2.getSchema().getRequest());
         assertEquals(sr1.getSchema().getResponse(), sr2.getSchema().getResponse());
 
-        sr1 = new SchemaResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\"}");
-        sr2 = new SchemaResponse(sr1.toJson());
+        sr1 = new SchemaResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\"}".getBytes());
+        sr2 = new SchemaResponse(sr1.toJson().getBytes());
         assertEquals("ServiceName", sr1.getName());
         assertEquals("serviceId", sr1.getServiceId());
         assertEquals("0.0.1", sr1.getVersion());
@@ -479,8 +483,8 @@ public class ServiceTests extends JetStreamTestBase {
 
         TestStatsDataDecoder sdd = new TestStatsDataDecoder();
         String statsJson = "{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"version\":\"0.0.1\",\"num_requests\":1,\"num_errors\":2,\"last_error\":\"npe\",\"processing_time\":3,\"average_processing_time\":4,\"data\":{\"id\":\"user id\",\"last_error\":\"user last error\"},\"started\":\"2022-12-20T13:37:18.568000000Z\"}";
-        StatsResponse statsResponse1 = new StatsResponse(statsJson, sdd);
-        StatsResponse statsResponse2 = new StatsResponse(statsResponse1.toJson(), sdd);
+        StatsResponse statsResponse1 = new StatsResponse(statsJson.getBytes(), sdd);
+        StatsResponse statsResponse2 = new StatsResponse(statsResponse1.toJson().getBytes(), sdd);
         assertEquals("ServiceName", statsResponse1.getName());
         assertEquals("serviceId", statsResponse1.getServiceId());
         assertEquals("0.0.1", statsResponse1.getVersion());
@@ -521,8 +525,9 @@ public class ServiceTests extends JetStreamTestBase {
         }
 
         public TestStatsData(String json) {
-            this.id = JsonUtils.readString(json, ID_RE);
-            this.lastError = JsonUtils.readString(json, LAST_ERROR_RE);
+            JsonValue jv = JsonParser.parse(json);
+            this.id = readString(jv, ID);
+            this.lastError = readString(jv, LAST_ERROR);
         }
 
         @Override

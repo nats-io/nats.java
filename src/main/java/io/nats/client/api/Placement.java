@@ -15,7 +15,6 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
-import io.nats.client.support.JsonValueUtils;
 import io.nats.client.support.Validator;
 
 import java.util.Arrays;
@@ -24,6 +23,8 @@ import java.util.List;
 import static io.nats.client.support.ApiConstants.CLUSTER;
 import static io.nats.client.support.ApiConstants.TAGS;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.readOptionalStringList;
+import static io.nats.client.support.JsonValueUtils.readString;
 
 /**
  * Placement directives to consider when placing replicas of a stream
@@ -33,10 +34,12 @@ public class Placement implements JsonSerializable {
     private final List<String> tags;
 
     static Placement optionalInstance(JsonValue vPlacement) {
-        return vPlacement == null ? null :
-            new Placement(
-                JsonValueUtils.getMappedString(vPlacement, CLUSTER),
-                JsonValueUtils.getMappedStringList(vPlacement, TAGS));
+        return vPlacement == null ? null : new Placement(vPlacement);
+    }
+
+    Placement(JsonValue vPlacement) {
+        this.cluster = readString(vPlacement, CLUSTER);
+        this.tags = readOptionalStringList(vPlacement, TAGS);
     }
 
     /**

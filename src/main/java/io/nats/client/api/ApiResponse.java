@@ -21,41 +21,42 @@ import io.nats.client.support.JsonValue;
 import static io.nats.client.api.Error.NOT_SET;
 import static io.nats.client.support.ApiConstants.ERROR;
 import static io.nats.client.support.ApiConstants.TYPE;
-import static io.nats.client.support.JsonValueUtils.getMappedString;
-import static io.nats.client.support.JsonValueUtils.getMappedValue;
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static io.nats.client.support.JsonValueUtils.readString;
+import static io.nats.client.support.JsonValueUtils.readValue;
 
 public abstract class ApiResponse<T> {
 
     public static final String NO_TYPE = "io.nats.jetstream.api.v1.no_type";
 
-    protected final String json;
     protected final JsonValue jv;
 
     private final String type;
     private final Error error;
 
     public ApiResponse(Message msg) {
-        this(null, new String(msg.getData(), UTF_8), true);
-    }
-
-    public ApiResponse(String json) {
-        this(null, json, true);
+        this(msg == null ? null : JsonParser.parse(msg.getData()));
     }
 
     public ApiResponse(JsonValue jsonValue) {
-        this(jsonValue, null, false);
-    }
-
-    private ApiResponse(JsonValue jsonValue, String jsn, boolean saveJson) {
-        json = saveJson ? jsn : null;
-        jv = jsonValue == null ? (jsn == null ? null : JsonParser.parse(jsn)) : jsonValue;
-        error = jv == null ? null : Error.optionalInstance(getMappedValue(jv, ERROR));
-        type = jv == null ? NO_TYPE : getMappedString(jv, TYPE, NO_TYPE);
+        jv = jsonValue;
+        if (jv == null) {
+            error = null;
+            type = null;
+        }
+        else {
+            error = Error.optionalInstance(readValue(jv, ERROR));
+            String temp = readString(jv, TYPE);
+            if (temp == null) {
+                type = NO_TYPE;
+            }
+            else {
+                type = temp;
+                jv.map.remove(TYPE); // just so it's not in the toString, it's very long and the object name will be there
+            }
+        }
     }
 
     public ApiResponse() {
-        json = null;
         jv = null;
         error = null;
         type = NO_TYPE;
@@ -67,6 +68,10 @@ public abstract class ApiResponse<T> {
             throw new JetStreamApiException(this);
         }
         return (T)this;
+    }
+
+    public JsonValue getJv() {
+        return jv;
     }
 
     public boolean hasError() {
@@ -95,5 +100,12 @@ public abstract class ApiResponse<T> {
 
     public Error getErrorObject() {
         return error;
+    }
+
+    @Override
+    public String toString() {
+        return jv == null
+            ? "\"" + getClass().getSimpleName() + "\":null"
+            : jv.toString(getClass());
     }
 }

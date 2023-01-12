@@ -16,13 +16,15 @@ package io.nats.client.api;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 
 import java.time.ZonedDateTime;
 
 import static io.nats.client.JetStreamOptions.convertDomainToPrefix;
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.JsonValueUtils.*;
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonValueUtils.readValue;
 
 abstract class SourceBase implements JsonSerializable {
     private final String name;
@@ -30,30 +32,26 @@ abstract class SourceBase implements JsonSerializable {
     private final ZonedDateTime startTime;
     private final String filterSubject;
     private final External external;
-    private final String objectName;
 
-    SourceBase(String objectName, JsonValue v) {
-        name = getMappedString(v, NAME);
-        startSeq = getMappedLong(v, OPT_START_SEQ, 0);
-        startTime = getMappedDate(v, OPT_START_TIME);
-        filterSubject = getMappedString(v, FILTER_SUBJECT);
-        external = External.optionalInstance(getMappedValue(v, EXTERNAL));
-        this.objectName = normalize(objectName);
+    SourceBase(JsonValue jv) {
+        name = JsonValueUtils.readString(jv, NAME);
+        startSeq = JsonValueUtils.readLong(jv, OPT_START_SEQ, 0);
+        startTime = JsonValueUtils.readDate(jv, OPT_START_TIME);
+        filterSubject = JsonValueUtils.readString(jv, FILTER_SUBJECT);
+        external = External.optionalInstance(readValue(jv, EXTERNAL));
     }
 
     @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
-    SourceBase(String objectName, SourceBaseBuilder b) {
+    SourceBase(SourceBaseBuilder b) {
         this.name = b.name;
         this.startSeq = b.startSeq;
         this.startTime = b.startTime;
         this.filterSubject = b.filterSubject;
         this.external = b.external;
-        this.objectName = normalize(objectName);
     }
 
     /**
      * Returns a JSON representation of this mirror
-     *
      * @return json mirror json string
      */
     public String toJson() {
@@ -102,13 +100,7 @@ abstract class SourceBase implements JsonSerializable {
 
     @Override
     public String toString() {
-        return objectName + "{" +
-                "name='" + name + '\'' +
-                ", startSeq=" + startSeq +
-                ", startTime=" + startTime +
-                ", filterSubject='" + filterSubject + '\'' +
-                ", " + objectString("external", external) +
-                '}';
+        return JsonUtils.toKey(getClass()) + toJson();
     }
 
     public abstract static class SourceBaseBuilder<T> {
@@ -179,8 +171,7 @@ abstract class SourceBase implements JsonSerializable {
         if (startTime != null ? !startTime.equals(that.startTime) : that.startTime != null) return false;
         if (filterSubject != null ? !filterSubject.equals(that.filterSubject) : that.filterSubject != null)
             return false;
-        if (external != null ? !external.equals(that.external) : that.external != null) return false;
-        return objectName.equals(that.objectName);
+        return external != null ? external.equals(that.external) : that.external == null;
     }
 
     @Override
@@ -190,7 +181,6 @@ abstract class SourceBase implements JsonSerializable {
         result = 31 * result + (startTime != null ? startTime.hashCode() : 0);
         result = 31 * result + (filterSubject != null ? filterSubject.hashCode() : 0);
         result = 31 * result + (external != null ? external.hashCode() : 0);
-        result = 31 * result + objectName.hashCode();
         return result;
     }
 }

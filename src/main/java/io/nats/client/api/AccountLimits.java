@@ -13,9 +13,11 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonValueUtils.readBoolean;
 
 /**
  * Represents the JetStream Account Limits
@@ -31,15 +33,15 @@ public class AccountLimits {
     private final long storageMaxStreamBytes;
     private final boolean maxBytesRequired;
 
-    AccountLimits(String json) {
-        this.maxMemory = JsonUtils.readLong(json, MAX_MEMORY_RE, 0);
-        this.maxStorage = JsonUtils.readLong(json, MAX_STORAGE_RE, 0);
-        this.maxStreams = JsonUtils.readLong(json, MAX_STREAMS_RE, 0);
-        this.maxConsumers = JsonUtils.readLong(json, MAX_CONSUMERS_RE, 0);
-        this.maxAckPending = JsonUtils.readLong(json, MAX_ACK_PENDING_RE, 0);
-        this.memoryMaxStreamBytes = JsonUtils.readLong(json, MEMORY_MAX_STREAM_BYTES_RE, 0);
-        this.storageMaxStreamBytes = JsonUtils.readLong(json, STORAGE_MAX_STREAM_BYTES_RE, 0);
-        this.maxBytesRequired = JsonUtils.readBoolean(json, MAX_BYTES_REQUIRED_RE);
+    AccountLimits(JsonValue vAccountLimits) {
+        this.maxMemory = JsonValueUtils.readLong(vAccountLimits, MAX_MEMORY, 0);
+        this.maxStorage = JsonValueUtils.readLong(vAccountLimits, MAX_STORAGE, 0);
+        this.maxStreams = JsonValueUtils.readLong(vAccountLimits, MAX_STREAMS, 0);
+        this.maxConsumers = JsonValueUtils.readLong(vAccountLimits, MAX_CONSUMERS, 0);
+        this.maxAckPending = JsonValueUtils.readLong(vAccountLimits, MAX_ACK_PENDING, 0);
+        this.memoryMaxStreamBytes = JsonValueUtils.readLong(vAccountLimits, MEMORY_MAX_STREAM_BYTES, 0);
+        this.storageMaxStreamBytes = JsonValueUtils.readLong(vAccountLimits, STORAGE_MAX_STREAM_BYTES, 0);
+        this.maxBytesRequired = readBoolean(vAccountLimits, MAX_BYTES_REQUIRED);
     }
 
     /**
@@ -104,19 +106,5 @@ public class AccountLimits {
      */
     public boolean isMaxBytesRequired() {
         return maxBytesRequired;
-    }
-
-    @Override
-    public String toString() {
-        return "AccountLimits{" +
-            "maxMemory=" + maxMemory +
-            ", maxStorage=" + maxStorage +
-            ", maxStreams=" + maxStreams +
-            ", maxConsumers=" + maxConsumers +
-            ", maxAckPending=" + maxAckPending +
-            ", memoryMaxStreamBytes=" + memoryMaxStreamBytes +
-            ", storageMaxStreamBytes=" + storageMaxStreamBytes +
-            ", maxBytesRequired=" + maxBytesRequired +
-            '}';
     }
 }

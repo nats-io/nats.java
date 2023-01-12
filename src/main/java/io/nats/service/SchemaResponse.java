@@ -14,11 +14,14 @@
 package io.nats.service;
 
 import io.nats.client.support.ApiConstants;
+import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.readString;
+import static io.nats.client.support.JsonValueUtils.readValue;
 import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
@@ -44,20 +47,21 @@ public class SchemaResponse implements JsonSerializable {
         }
     }
 
-    public SchemaResponse(String json) {
-        name = JsonUtils.readString(json, NAME_RE);
-        serviceId = JsonUtils.readString(json, ID_RE);
-        version = JsonUtils.readString(json, VERSION_RE);
-        schema = Schema.optionalInstance(json);
+    public SchemaResponse(byte[] jsonBytes) {
+        JsonValue jv = JsonParser.parse(jsonBytes);
+        name = readString(jv, NAME);
+        serviceId = readString(jv, ID);
+        version = readString(jv, VERSION);
+        schema = Schema.optionalInstance(readValue(jv, SCHEMA));
     }
 
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, ApiConstants.TYPE, TYPE);
-        JsonUtils.addField(sb, ID, serviceId);
-        JsonUtils.addField(sb, VERSION, version);
+        addField(sb, NAME, name);
+        addField(sb, ApiConstants.TYPE, TYPE);
+        addField(sb, ID, serviceId);
+        addField(sb, VERSION, version);
         addField(sb, SCHEMA, schema);
         return endJson(sb).toString();
     }

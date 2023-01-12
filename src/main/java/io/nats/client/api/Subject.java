@@ -13,22 +13,25 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+
+import static io.nats.client.support.JsonValueUtils.getLong;
 
 public class Subject implements Comparable<Subject> {
     private final String name;
     private final long count;
 
-    static List<Subject> getList(String json) {
+    static List<Subject> listOf(JsonValue vSubjects) {
         List<Subject> list = new ArrayList<>();
-        if (json != null) {
-            Map<String, Long> map = JsonUtils.getMapOfLongs(json);
-            for (String subject : map.keySet()) {
-                list.add(new Subject(subject, map.get(subject)));
+        if (vSubjects != null && vSubjects.map != null) {
+            for (String subject : vSubjects.map.keySet()) {
+                Long count = getLong(vSubjects.map.get(subject));
+                if (count != null) {
+                    list.add(new Subject(subject, count));
+                }
             }
         }
         return list;

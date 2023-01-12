@@ -32,6 +32,7 @@ import static io.nats.client.support.JsonUtils.*;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
+@SuppressWarnings("deprecation")
 public final class JsonUtilsTests {
     @Test
     public void testRegex() {
@@ -385,6 +386,8 @@ public final class JsonUtilsTests {
         assertEquals(0, getMapOfObjects("\"bad\": ").size());
         assertEquals(0, getMapOfLists("\"bad\": ").size());
         assertEquals("\"field\": ", removeObject("\"field\": ", "notfound"));
+
+        printFormatted(JsonParser.parse(dataAsString("StreamInfo.json")));
     }
 
     @Test

@@ -29,32 +29,49 @@ public class PeerInfo {
     private final long lag;
 
     PeerInfo(JsonValue vPeerInfo) {
-        if (vPeerInfo == null) {
-            throw new IllegalArgumentException("Cannot construct PeerInfo without a value.");
-        }
-        name = getMappedString(vPeerInfo, NAME);
-        current = getMappedBoolean(vPeerInfo, CURRENT);
-        offline = getMappedBoolean(vPeerInfo, OFFLINE);
-        active = getMappedNanos(vPeerInfo, ACTIVE, Duration.ZERO);
-        lag = getMappedLong(vPeerInfo, LAG, 0);
+        name = readString(vPeerInfo, NAME);
+        current = readBoolean(vPeerInfo, CURRENT);
+        offline = readBoolean(vPeerInfo, OFFLINE);
+        active = readNanos(vPeerInfo, ACTIVE, Duration.ZERO);
+        lag = readLong(vPeerInfo, LAG, 0);
     }
 
+    /**
+     * The server name of the peer
+     * @return the name
+     */
     public String getName() {
         return name;
     }
 
+    /**
+     * Indicates if the server is up-to-date and synchronised
+     * @return if is current
+     */
     public boolean isCurrent() {
         return current;
     }
 
+    /**
+     * Indicates the node is considered offline by the group
+     * @return if is offline
+     */
     public boolean isOffline() {
         return offline;
     }
 
+    /**
+     * Time since this peer was last seen
+     * @return the active time
+     */
     public Duration getActive() {
         return active;
     }
 
+    /**
+     * How many uncommitted operations this peer is behind the leader
+     * @return the lag
+     */
     public long getLag() {
         return lag;
     }

@@ -13,12 +13,13 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.time.ZonedDateTime;
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonValueUtils.*;
 
 public class StreamState {
     private final long msgs;
@@ -34,19 +35,19 @@ public class StreamState {
     private final List<Long> deletedStreamSequences;
     private final LostStreamData lostStreamData;
 
-    StreamState(String json) {
-        msgs = JsonUtils.readLong(json, MESSAGES_RE, 0);
-        bytes = JsonUtils.readLong(json, BYTES_RE, 0);
-        firstSeq = JsonUtils.readLong(json, FIRST_SEQ_RE, 0);
-        lastSeq = JsonUtils.readLong(json, LAST_SEQ_RE, 0);
-        consumerCount = JsonUtils.readLong(json, CONSUMER_COUNT_RE, 0);
-        firstTime = JsonUtils.readDate(json, FIRST_TS_RE);
-        lastTime = JsonUtils.readDate(json, LAST_TS_RE);
-        subjectCount = JsonUtils.readLong(json, NUM_SUBJECTS_RE, 0);
-        deletedCount = JsonUtils.readLong(json, NUM_DELETED_RE, 0);
-        subjects = Subject.getList(JsonUtils.getJsonObject(SUBJECTS, json));
-        deletedStreamSequences = JsonUtils.getLongList(DELETED, json);
-        lostStreamData = LostStreamData.optionalInstance(json);
+    StreamState(JsonValue vStreamState) {
+        msgs = readLong(vStreamState, MESSAGES, 0);
+        bytes = readLong(vStreamState, BYTES, 0);
+        firstSeq = readLong(vStreamState, FIRST_SEQ, 0);
+        lastSeq = readLong(vStreamState, LAST_SEQ, 0);
+        consumerCount = readLong(vStreamState, CONSUMER_COUNT, 0);
+        firstTime = readDate(vStreamState, FIRST_TS);
+        lastTime = readDate(vStreamState, LAST_TS);
+        subjectCount = readLong(vStreamState, NUM_SUBJECTS, 0);
+        deletedCount = readLong(vStreamState, NUM_DELETED, 0);
+        subjects = Subject.listOf(readValue(vStreamState, SUBJECTS));
+        deletedStreamSequences = readLongList(vStreamState, DELETED);
+        lostStreamData = LostStreamData.optionalInstance(readValue(vStreamState, LOST));
     }
 
     /**

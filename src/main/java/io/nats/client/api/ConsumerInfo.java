@@ -15,12 +15,11 @@ package io.nats.client.api;
 
 import io.nats.client.Message;
 import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
 
-import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.objectString;
 import static io.nats.client.support.JsonValueUtils.*;
 
 /**
@@ -42,45 +41,29 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
     private final boolean pushBound;
 
     public ConsumerInfo(Message msg) {
-        this(new String(msg.getData(), StandardCharsets.UTF_8));
+        this(JsonParser.parse(msg.getData()));
     }
 
-    public ConsumerInfo(String json) {
-        super(JsonParser.parse(json));
-        if (hasError()) {
-            stream = null;
-            name = null;
-            configuration = null;
-            created = null;
-            delivered = null;
-            ackFloor = null;
-            numPending = -1;
-            numWaiting = -1;
-            numAckPending = -1;
-            numRedelivered = -1;
-            clusterInfo = null;
-            pushBound = false;
-        }
-        else {
-            this.configuration = new ConsumerConfiguration(getMappedObjectOrEmpty(jv, CONFIG));
+    public ConsumerInfo(JsonValue vConsumerInfo) {
+        super(vConsumerInfo);
+        this.configuration = new ConsumerConfiguration(readObject(jv, CONFIG));
 
-            stream = getMappedString(jv, STREAM_NAME);
-            name = getMappedString(jv, NAME);
-            created = getMappedDate(jv, CREATED);
+        stream = readString(jv, STREAM_NAME);
+        name = readString(jv, NAME);
+        created = readDate(jv, CREATED);
 
-            delivered = new SequenceInfo(getMappedObjectOrEmpty(jv, DELIVERED));
-            ackFloor = new SequenceInfo(getMappedObjectOrEmpty(jv, ACK_FLOOR));
+        delivered = new SequenceInfo(readObject(jv, DELIVERED));
+        ackFloor = new SequenceInfo(readObject(jv, ACK_FLOOR));
 
-            numAckPending = getMappedLong(jv, NUM_ACK_PENDING, 0);
-            numRedelivered = getMappedLong(jv, NUM_REDELIVERED, 0);
-            numPending = getMappedLong(jv, NUM_PENDING, 0);
-            numWaiting = getMappedLong(jv, NUM_WAITING, 0);
+        numAckPending = readLong(jv, NUM_ACK_PENDING, 0);
+        numRedelivered = readLong(jv, NUM_REDELIVERED, 0);
+        numPending = readLong(jv, NUM_PENDING, 0);
+        numWaiting = readLong(jv, NUM_WAITING, 0);
 
-            clusterInfo = ClusterInfo.optionalInstance(getMappedValue(jv, CLUSTER));
-            pushBound = getMappedBoolean(jv, PUSH_BOUND);
-        }
+        clusterInfo = ClusterInfo.optionalInstance(readValue(jv, CLUSTER));
+        pushBound = readBoolean(jv, PUSH_BOUND);
     }
-    
+
     public ConsumerConfiguration getConsumerConfiguration() {
         return configuration;
     }
@@ -131,23 +114,5 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
 
     public long getCalculatedPending() {
         return numPending + delivered.getConsumerSequence();
-    }
-
-    @Override
-    public String toString() {
-        return "ConsumerInfo{" +
-                "stream='" + stream + '\'' +
-                ", name='" + name + '\'' +
-                ", numPending=" + numPending +
-                ", numWaiting=" + numWaiting +
-                ", numAckPending=" + numAckPending +
-                ", numRedelivered=" + numRedelivered +
-                ", pushBound=" + pushBound +
-                ", created=" + created +
-                ", " + objectString("delivered", delivered) +
-                ", " + objectString("ackFloor", ackFloor) +
-                ", " + objectString("configuration", configuration) +
-                ", " + objectString("cluster", clusterInfo) +
-                '}';
     }
 }

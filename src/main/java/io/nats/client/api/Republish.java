@@ -19,8 +19,8 @@ import io.nats.client.support.Validator;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.JsonValueUtils.getMappedBoolean;
-import static io.nats.client.support.JsonValueUtils.getMappedString;
+import static io.nats.client.support.JsonValueUtils.readBoolean;
+import static io.nats.client.support.JsonValueUtils.readString;
 
 /**
  * Republish directives to consider
@@ -31,11 +31,13 @@ public class Republish implements JsonSerializable {
     private final boolean headersOnly;
 
     static Republish optionalInstance(JsonValue vRepublish) {
-        return vRepublish == null ? null :
-            new Republish(
-                getMappedString(vRepublish, SRC),
-                getMappedString(vRepublish, DEST),
-                getMappedBoolean(vRepublish, HEADERS_ONLY));
+        return vRepublish == null ? null : new Republish(vRepublish);
+    }
+
+    Republish(JsonValue vRepublish) {
+        source = readString(vRepublish, SRC);
+        destination = readString(vRepublish, DEST);
+        headersOnly = readBoolean(vRepublish, HEADERS_ONLY);
     }
 
     /**
@@ -50,14 +52,26 @@ public class Republish implements JsonSerializable {
         this.headersOnly = headersOnly;
     }
 
+    /**
+     * Get source, the Published Subject-matching filter
+     * @return the source
+     */
     public String getSource() {
         return source;
     }
 
+    /**
+     * Get destination, the RePublish Subject template
+     * @return the destination
+     */
     public String getDestination() {
         return destination;
     }
 
+    /**
+     * Get headersOnly, Whether to RePublish only headers (no body)
+     * @return headersOnly
+     */
     public boolean isHeadersOnly() {
         return headersOnly;
     }

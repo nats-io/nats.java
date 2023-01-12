@@ -14,13 +14,14 @@
 package io.nats.client.api;
 
 import io.nats.client.Message;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.objectString;
+import static io.nats.client.support.JsonValueUtils.readObject;
+import static io.nats.client.support.JsonValueUtils.readString;
 
 /**
  * The JetStream Account Statistics
@@ -28,22 +29,22 @@ import static io.nats.client.support.JsonUtils.objectString;
 public class AccountStatistics
         extends ApiResponse<AccountStatistics> {
 
-    private final AccountTier rollup;
+    private final AccountTier rollupTier;
     private final String domain;
     private final ApiStats api;
     private final Map<String, AccountTier> tiers;
 
     public AccountStatistics(Message msg) {
         super(msg);
-        rollup = new AccountTier(json);
-        domain = JsonUtils.readString(json, DOMAIN_RE);
-        api = new ApiStats(JsonUtils.getJsonObject(API, json));
-
-        String tiersJson = JsonUtils.getJsonObject(TIERS, json);
-        Map<String, String> jsonByKey = JsonUtils.getMapOfObjects(tiersJson);
+        rollupTier = new AccountTier(jv);
+        domain = readString(jv, DOMAIN);
+        api = new ApiStats(readObject(jv, API));
         tiers = new HashMap<>();
-        for (String key : jsonByKey.keySet()) {
-            tiers.put(key, new AccountTier(jsonByKey.get(key)));
+        JsonValue vTiers = readObject(jv, TIERS);
+        if (vTiers.map != null) {
+            for (String key : vTiers.map.keySet()) {
+                tiers.put(key, new AccountTier(vTiers.map.get(key)));
+            }
         }
     }
 
@@ -53,7 +54,7 @@ public class AccountStatistics
      * @return bytes
      */
     public long getMemory() {
-        return rollup.getMemory();
+        return rollupTier.getMemory();
     }
 
     /**
@@ -62,7 +63,7 @@ public class AccountStatistics
      * @return bytes
      */
     public long getStorage() {
-        return rollup.getStorage();
+        return rollupTier.getStorage();
     }
 
     /**
@@ -71,7 +72,7 @@ public class AccountStatistics
      * @return stream maximum count
      */
     public long getStreams() {
-        return rollup.getStreams();
+        return rollupTier.getStreams();
     }
 
     /**
@@ -80,7 +81,7 @@ public class AccountStatistics
      * @return consumer maximum count
      */
     public long getConsumers() {
-        return rollup.getConsumers();
+        return rollupTier.getConsumers();
     }
 
     /**
@@ -90,7 +91,7 @@ public class AccountStatistics
      * @return the AccountLimits object
      */
     public AccountLimits getLimits() {
-        return rollup.getLimits();
+        return rollupTier.getLimits();
     }
 
     /**
@@ -115,19 +116,5 @@ public class AccountStatistics
      */
     public Map<String, AccountTier> getTiers() {
         return tiers;
-    }
-
-    @Override
-    public String toString() {
-        return "AccountStatsImpl{" +
-            "memory=" + rollup.getMemory() +
-            ", storage=" + rollup.getStorage() +
-            ", streams=" + rollup.getStreams() +
-            ", consumers=" + rollup.getConsumers() +
-            ", " + objectString("limits", rollup.getLimits()) +
-            ", domain=" + domain +
-            ", " + objectString("api", api) +
-            ", tiers=" + tiers.keySet() +
-            '}';
     }
 }

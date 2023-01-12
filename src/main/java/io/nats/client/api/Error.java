@@ -14,11 +14,10 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 import io.nats.client.support.Status;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonValueUtils.getMappedInteger;
-import static io.nats.client.support.JsonValueUtils.getMappedString;
 
 /**
  * Error returned from an api request.
@@ -36,9 +35,9 @@ public class Error {
     }
 
     Error(JsonValue v) {
-        code = getMappedInteger(v, CODE, NOT_SET);
-        apiErrorCode = getMappedInteger(v, ERR_CODE, NOT_SET);
-        desc = getMappedString(v, DESCRIPTION, "Unknown JetStream Error");
+        code = JsonValueUtils.readInteger(v, CODE, NOT_SET);
+        apiErrorCode = JsonValueUtils.readInteger(v, ERR_CODE, NOT_SET);
+        desc = JsonValueUtils.readString(v, DESCRIPTION, "Unknown JetStream Error");
     }
 
     Error(int code, int apiErrorCode, String desc) {

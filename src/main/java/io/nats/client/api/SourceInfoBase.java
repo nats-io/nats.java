@@ -29,11 +29,11 @@ abstract class SourceInfoBase {
     protected final Error error;
 
     SourceInfoBase(JsonValue vSourceInfo) {
-        name = getMappedString(vSourceInfo, NAME);
-        lag = getMappedLong(vSourceInfo, LAG, 0);
-        active = getMappedNanos(vSourceInfo, ACTIVE, Duration.ZERO);
-        external = External.optionalInstance(getMappedValue(vSourceInfo, EXTERNAL));
-        error = Error.optionalInstance(getMappedValue(vSourceInfo, ERROR));
+        name = readString(vSourceInfo, NAME);
+        lag = readLong(vSourceInfo, LAG, 0);
+        active = readNanos(vSourceInfo, ACTIVE, Duration.ZERO);
+        external = External.optionalInstance(readValue(vSourceInfo, EXTERNAL));
+        error = Error.optionalInstance(readValue(vSourceInfo, ERROR));
     }
 
     /**

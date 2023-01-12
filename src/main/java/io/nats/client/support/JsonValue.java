@@ -17,14 +17,17 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.*;
 
-import static io.nats.client.support.JsonValueUtils.NULL_STR;
-import static io.nats.client.support.JsonValueUtils.valueString;
+import static io.nats.client.support.JsonUtils.*;
 
 public class JsonValue implements JsonSerializable {
 
     public enum Type {
         STRING, BOOL, OBJECT, ARRAY, INTEGER, LONG, DOUBLE, FLOAT, BIG_DECIMAL, BIG_INTEGER, NULL;
     }
+
+    private static final char QUOTE = '"';
+    private static final char COMMA = ',';
+    private static final String NULL_STR = "null";
 
     public static final JsonValue NULL = new JsonValue();
     public static final JsonValue TRUE = new JsonValue(true);
@@ -163,6 +166,14 @@ public class JsonValue implements JsonSerializable {
         }
     }
 
+    public String toString(Class<?> c) {
+        return toString(c.getSimpleName());
+    }
+
+    public String toString(String key) {
+        return "\"" + key + "\":" + toJson();
+    }
+
     @Override
     public String toString() {
         return toJson();
@@ -185,75 +196,29 @@ public class JsonValue implements JsonSerializable {
         }
     }
 
-    public String asString() {
-        if (string == null) {
-            return object == null ? NULL_STR : object.toString();
-        }
-        return string;
+    private String valueString(String s) {
+        return QUOTE + Encoding.jsonEncode(s) + QUOTE;
     }
 
-    public Boolean asBool() {
-        if (bool == null) {
-            return Boolean.parseBoolean(asString());
-        }
-        return bool;
+    private String valueString(boolean b) {
+        return Boolean.toString(b).toLowerCase();
     }
 
-    public int asInteger() {
-        if (i == null) {
-            if (number == null) {
-                return Integer.parseInt(asString());
-            }
-            return number.intValue();
+    private String valueString(Map<String, JsonValue> map) {
+        StringBuilder sbo = beginJson();
+        for (String key : map.keySet()) {
+            addField(sbo, key, map.get(key));
         }
-        return i;
+        return endJson(sbo).toString();
     }
 
-    public long asLong() {
-        if (l != null) { return l; }
-        if (i != null) { return i; }
-        if (number != null) { return number.longValue(); }
-        return Long.parseLong(asString());
-    }
-
-    public double asDouble() {
-        if (d == null) {
-            if (number == null) {
-                return Double.parseDouble(asString());
-            }
-            return number.doubleValue();
+    private String valueString(List<JsonValue> list) {
+        StringBuilder sba = beginArray();
+        for (JsonValue v : list) {
+            sba.append(v.toJson());
+            sba.append(COMMA);
         }
-        return d;
-    }
-
-    public float asFloat() {
-        if (f == null) {
-            if (number == null) {
-                return Float.parseFloat(asString());
-            }
-            return number.floatValue();
-        }
-        return f;
-    }
-
-    public BigDecimal asBigDecimal() {
-        if (bd == null) {
-            if (number == null) {
-                return new BigDecimal(asString());
-            }
-            return new BigDecimal(number.toString());
-        }
-        return bd;
-    }
-
-    public BigInteger asBigInteger() {
-        if (bi == null) {
-            if (number == null) {
-                return new BigInteger(asString());
-            }
-            return new BigInteger(number.toString());
-        }
-        return bi;
+        return endArray(sba).toString();
     }
 
     @Override

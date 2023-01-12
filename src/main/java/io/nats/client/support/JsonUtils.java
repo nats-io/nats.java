@@ -32,15 +32,14 @@ import static io.nats.client.support.NatsConstants.COLON;
 
 /**
  * Internal json parsing helpers.
+ * Read helpers deprecated Prefer using the {@link JsonParser}
  */
 public abstract class JsonUtils {
     public static final String EMPTY_JSON = "{}";
 
     private static final String STRING_RE  = "\"(.+?)\"";
-    private static final String STRING_2_RE = "((\\[[^\\}]+)?\\{s*[^\\}\\{]{3,}?:.*\\}([^\\{]+\\])?)";
     private static final String BOOLEAN_RE =  "(true|false)";
     private static final String INTEGER_RE =  "(-?\\d+)";
-    private static final String JSON_NUMBER_RE =  "-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?";
     private static final String STRING_ARRAY_RE = "\\[\\s*(\".+?\")\\s*\\]";
     private static final String NUMBER_ARRAY_RE = "\\[\\s*(.+?)\\s*\\]";
     private static final String BEFORE_FIELD_RE = "\"";
@@ -56,295 +55,9 @@ public abstract class JsonUtils {
 
     private JsonUtils() {} /* ensures cannot be constructed */
 
-    public enum FieldType {
-        jsonString(STRING_RE),
-        jsonBoolean(BOOLEAN_RE),
-        jsonInteger(INTEGER_RE),
-        jsonNumber(INTEGER_RE),
-        jsonStringArray(STRING_ARRAY_RE);
-
-        final String re;
-        FieldType(String re) {
-            this.re = re;
-        }
-    }
-
-    public static Pattern string_pattern(String field) {
-        return buildPattern(field, STRING_RE);
-    }
-
-    @Deprecated
-    public static Pattern number_pattern(String field) {
-        return integer_pattern(field);
-    }
-
-    public static Pattern integer_pattern(String field) {
-        return buildPattern(field, INTEGER_RE);
-    }
-
-    public static Pattern boolean_pattern(String field) {
-        return buildPattern(field, BOOLEAN_RE);
-    }
-
-    public static Pattern string_array_pattern(String field) {
-        return buildPattern(field, STRING_ARRAY_RE);
-    }
-
-    public static Pattern number_array_pattern(String field) {
-        return buildPattern(field, NUMBER_ARRAY_RE);
-    }
-
-    /**
-     * Builds a json parsing pattern
-     * @param fieldName name of the field
-     * @param type type of the field.
-     * @return pattern.
-     */
-    public static Pattern buildPattern(String fieldName, FieldType type) {
-        return buildPattern(fieldName, type.re);
-    }
-
-    public static Pattern buildPattern(String fieldName, String typeRE) {
-        return Pattern.compile(BEFORE_FIELD_RE + fieldName + AFTER_FIELD_RE + typeRE, Pattern.CASE_INSENSITIVE);
-    }
-
-    /**
-     * Extract a JSON object string by object name. Returns empty object '{}' if not found.
-     * @param objectName object name
-     * @param json source json
-     * @return object json string
-     */
-    public static String getJsonObject(String objectName, String json) {
-        return getJsonObject(objectName, json, EMPTY_JSON);
-    }
-
-    public static String getJsonObject(String objectName, String json, String dflt) {
-        int[] indexes = getBracketIndexes(objectName, json, '{', '}', 0);
-        return indexes == null ? dflt : json.substring(indexes[0], indexes[1] + 1);
-    }
-
-    public static String removeObject(String json, String objectName) {
-        int[] indexes = getBracketIndexes(objectName, json, '{', '}', 0);
-        if (indexes != null) {
-            // remove the entire object replacing it with a dummy field b/c getBracketIndexes doesn't consider
-            // if there is or isn't another object after it, so I don't have to worry about it being/not being the last object
-            json = json.substring(0, indexes[0]) + "\"rmvd" + objectName.hashCode() + "\":\"\"" + json.substring(indexes[1] + 1);
-        }
-        return json;
-    }
-
-    /**
-     * Extract a list JSON object strings for list object name. Returns empty list '{}' if not found.
-     * Assumes that there are no brackets '{' or '}' in the actual data.
-     * @param objectName list object name
-     * @param json source json
-     * @return object json string
-     */
-    public static List<String> getObjectList(String objectName, String json) {
-        List<String> items = new ArrayList<>();
-        int[] indexes = getBracketIndexes(objectName, json, '[', ']', -1);
-        if (indexes != null) {
-            StringBuilder item = new StringBuilder();
-            int depth = 0;
-            for (int x = indexes[0] + 1; x < indexes[1]; x++) {
-                char c = json.charAt(x);
-                if (c == '{') {
-                    item.append(c);
-                    depth++;
-                } else if (c == '}') {
-                    item.append(c);
-                    if (--depth == 0) {
-                        items.add(item.toString());
-                        item.setLength(0);
-                    }
-                } else if (depth > 0) {
-                    item.append(c);
-                }
-            }
-        }
-        return items;
-    }
-
-    private static int[] getBracketIndexes(String objectName, String json, char start, char end, int fromIndex) {
-        int[] result = new int[] {-1, -1};
-        int objStart = json.indexOf(Q + objectName + Q, fromIndex);
-        if (objStart != -1) {
-            int startIx;
-            if (fromIndex != -1) {
-                int colonMark = json.indexOf(COLON, objStart) + 1;
-                startIx = json.indexOf(start, colonMark);
-                for (int x = colonMark; x < startIx; x++) {
-                    char c = json.charAt(x);
-                    if (!Character.isWhitespace(c)) {
-                        return getBracketIndexes(objectName, json, start, end, colonMark);
-                    }
-                }
-            }
-            else {
-                startIx = json.indexOf(start, objStart);
-            }
-            int depth = 1;
-            for (int x = startIx + 1; x < json.length(); x++) {
-                char c = json.charAt(x);
-                if (c == start) {
-                    depth++;
-                }
-                else if (c == end) {
-                    if (--depth == 0) {
-                        result[0] = startIx;
-                        result[1] = x;
-                        return result;
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Get a map of objects
-     * @param json the json
-     * @return the map of json object strings by key
-     */
-    public static Map<String, String> getMapOfObjects(String json) {
-        Map<String, String> map = new HashMap<>();
-        int s1 = json.indexOf('"');
-        while (s1 != -1) {
-            int s2 = json.indexOf('"', s1 + 1);
-            String key = json.substring(s1 + 1, s2).trim();
-            int[] indexes = getBracketIndexes(key, json, '{', '}', s1);
-            if (indexes != null) {
-                map.put(key, json.substring(indexes[0], indexes[1] + 1));
-                s1 = json.indexOf('"', indexes[1]);
-            }
-            else {
-                s1 = -1;
-            }
-        }
-
-        return map;
-    }
-
-    /**
-     * Get a map of objects
-     * @param json the json
-     * @return the map of json object strings by key
-     */
-    public static Map<String, List<String>> getMapOfLists(String json) {
-        Map<String, List<String>> map = new HashMap<>();
-        int s1 = json.indexOf('"');
-        while (s1 != -1) {
-            int s2 = json.indexOf('"', s1 + 1);
-            String key = json.substring(s1 + 1, s2).trim();
-            int[] indexes = getBracketIndexes(key, json, '[', ']', s1);
-            if (indexes != null) {
-                map.put(key, toList(json.substring(indexes[0] + 1, indexes[1])));
-                s1 = json.indexOf('"', indexes[1]);
-            }
-            else {
-                s1 = -1;
-            }
-        }
-
-        return map;
-    }
-
-    /**
-     * Get a map of longs
-     * @param json the json
-     * @return the map of longs by key
-     */
-    public static Map<String, Long> getMapOfLongs(String json) {
-        Map<String, Long> map = new HashMap<>();
-        int s1 = json.indexOf('"');
-        while (s1 != -1) {
-            int s2 = json.indexOf('"', s1 + 1);
-            int c1 = json.indexOf(':', s2);
-            int c2 = json.indexOf(',', s2);
-            if (c2 == -1) {
-                c2 = json.indexOf('}', s2);
-            }
-            String key = json.substring(s1 + 1, s2).trim();
-            long count = JsonUtils.safeParseLong(json.substring(c1 + 1, c2).trim(), 0);
-            map.put(key, count);
-            s1 = json.indexOf('"', c2);
-        }
-        return map;
-    }
-
-    /**
-     * Extract a list strings for list object name. Returns empty array if not found.
-     * Assumes that there are no brackets '{' or '}' in the actual data.
-     * @param objectName object name
-     * @param json source json
-     * @return a string list, empty if no values are found.
-     */
-    public static List<String> getStringList(String objectName, String json) {
-        String flat = json.replaceAll("\r", "").replaceAll("\n", "");
-        Matcher m = string_array_pattern(objectName).matcher(flat);
-        if (m.find()) {
-            String arrayString = m.group(1);
-            return toList(arrayString);
-        }
-        return new ArrayList<>();
-    }
-
-    private static List<String> toList(String arrayString) {
-        List<String> list = new ArrayList<>();
-        String[] raw = arrayString.split(",");
-        for (String s : raw) {
-            String cleaned = s.trim().replace("\"", "");
-            if (cleaned.length() > 0) {
-                list.add(jsonDecode(cleaned));
-            }
-        }
-        return list;
-    }
-
-    /**
-     * Extract a list longs for list object name. Returns empty array if not found.
-     * @param objectName object name
-     * @param json source json
-     * @return a long list, empty if no values are found.
-     */
-    public static List<Long> getLongList(String objectName, String json) {
-        String flat = json.replaceAll("\r", "").replaceAll("\n", "");
-        List<Long> list = new ArrayList<>();
-        Matcher m = number_array_pattern(objectName).matcher(flat);
-        if (m.find()) {
-            String arrayString = m.group(1);
-            String[] raw = arrayString.split(",");
-
-            for (String s : raw) {
-                list.add(safeParseLong(s.trim()));
-            }
-        }
-        return list;
-    }
-
-    /**
-     * Extract a list durations for list object name. Returns empty array if not found.
-     * @param objectName object name
-     * @param json source json
-     * @return a duration list, empty if no values are found.
-     */
-    public static List<Duration> getDurationList(String objectName, String json) {
-        List<Long> longs = getLongList(objectName, json);
-        List<Duration> list = new ArrayList<>(longs.size());
-        for (Long l : longs) {
-            list.add(Duration.ofNanos(l));
-        }
-        return list;
-    }
-
-    public static byte[] simpleMessageBody(String name, Number value) {
-        return (OPENQ + name + QCOLON + value + CLOSE).getBytes();
-    }
-
-    public static byte[] simpleMessageBody(String name, String value) {
-        return (OPENQ + name + QCOLONQ + value + Q + CLOSE).getBytes();
-    }
-
+    // ----------------------------------------------------------------------------------------------------
+    // BUILD A STRING OF JSON
+    // ----------------------------------------------------------------------------------------------------
     public static StringBuilder beginJson() {
         return new StringBuilder("{");
     }
@@ -355,7 +68,7 @@ public abstract class JsonUtils {
 
     public static StringBuilder beginJsonPrefixed(String prefix) {
         return prefix == null ? beginJson()
-                : new StringBuilder(prefix).append(NatsConstants.SPACE).append('{');
+            : new StringBuilder(prefix).append(NatsConstants.SPACE).append('{');
     }
 
     public static StringBuilder endJson(StringBuilder sb) {
@@ -635,7 +348,7 @@ public abstract class JsonUtils {
             sb.append(Q);
             jsonEncode(sb, fname);
             sb.append(QCOLONQ)
-                    .append(DateTimeUtils.toRfc3339(zonedDateTime)).append(QCOMMA);
+                .append(DateTimeUtils.toRfc3339(zonedDateTime)).append(QCOMMA);
         }
     }
 
@@ -652,15 +365,440 @@ public abstract class JsonUtils {
         }
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // PRINT UTILS
+    // ----------------------------------------------------------------------------------------------------
+    @Deprecated
+    public static String normalize(String s) {
+        return Character.toString(s.charAt(0)).toUpperCase() + s.substring(1).toLowerCase();
+    }
+
+    public static String toKey(Class<?> c) {
+        return "\"" + c.getSimpleName() + "\":";
+    }
+
+    public static String objectString(String name, Object o) {
+        if (o == null) {
+            return name + "=null";
+        }
+        if (o instanceof SequenceInfo) {
+            return o.toString().replace("SequenceInfo", name);
+        }
+        return o.toString();
+    }
+
+    private static final String INDENT = "                                        ";
+    private static String indent(int level) {
+        return level == 0 ? "" : INDENT.substring(0, level * 4);
+    }
+
+    /**
+     * This isn't perfect but good enough for debugging
+     * @param o the object
+     * @return the formatted string
+     */
+    public static String getFormatted(Object o) {
+        StringBuilder sb = new StringBuilder();
+        int level = 0;
+        int arrayLevel = 0;
+        boolean lastWasClose = false;
+        boolean indentNext = true;
+        String indent = "";
+        String s = o.toString();
+        for (int x = 0; x < s.length(); x++) {
+            char c = s.charAt(x);
+            if (c == '{') {
+                if (arrayLevel > 0 && lastWasClose) {
+                    sb.append(indent);
+                }
+                sb.append(c).append('\n');
+                indent = indent(++level);
+                indentNext = true;
+                lastWasClose = false;
+            }
+            else if (c == '}') {
+                indent = indent(--level);
+                sb.append('\n').append(indent).append(c);
+                lastWasClose = true;
+            }
+            else if (c == ',') {
+                sb.append(",\n");
+                indentNext = true;
+            }
+            else {
+                if (c == '[') {
+                    arrayLevel++;
+                }
+                else if (c == ']') {
+                    arrayLevel--;
+                }
+                if (indentNext) {
+                    if (c != ' ') {
+                        sb.append(indent).append(c);
+                        indentNext = false;
+                    }
+                }
+                else {
+                    sb.append(c);
+                }
+                lastWasClose = lastWasClose && Character.isWhitespace(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    public static void printFormatted(Object o) {
+        System.out.println(getFormatted(o));
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // SAFE NUMBER PARSING HELPERS
+    // ----------------------------------------------------------------------------------------------------
+    public static Long safeParseLong(String s) {
+        try {
+            return Long.parseLong(s);
+        }
+        catch (Exception e1) {
+            try {
+                return Long.parseUnsignedLong(s);
+            }
+            catch (Exception e2) {
+                return null;
+            }
+        }
+    }
+
+    public static long safeParseLong(String s, long dflt) {
+        Long l = safeParseLong(s);
+        return l == null ? dflt : l;
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // REGEX READING OF JSON. DEPRECATED PREFER USING THE JsonParser
+    // ----------------------------------------------------------------------------------------------------
+    @Deprecated
+    public enum FieldType {
+        jsonString(STRING_RE),
+        jsonBoolean(BOOLEAN_RE),
+        jsonInteger(INTEGER_RE),
+        jsonNumber(INTEGER_RE),
+        jsonStringArray(STRING_ARRAY_RE);
+
+        final String re;
+        FieldType(String re) {
+            this.re = re;
+        }
+    }
+
+    @Deprecated
+    public static Pattern string_pattern(String field) {
+        return buildPattern(field, STRING_RE);
+    }
+
+    @Deprecated
+    public static Pattern number_pattern(String field) {
+        return integer_pattern(field);
+    }
+
+    @Deprecated
+    public static Pattern integer_pattern(String field) {
+        return buildPattern(field, INTEGER_RE);
+    }
+
+    @Deprecated
+    public static Pattern boolean_pattern(String field) {
+        return buildPattern(field, BOOLEAN_RE);
+    }
+
+    @Deprecated
+    public static Pattern string_array_pattern(String field) {
+        return buildPattern(field, STRING_ARRAY_RE);
+    }
+
+    @Deprecated
+    public static Pattern number_array_pattern(String field) {
+        return buildPattern(field, NUMBER_ARRAY_RE);
+    }
+
+    /**
+     * Builds a json parsing pattern
+     * @param fieldName name of the field
+     * @param type type of the field.
+     * @return pattern.
+     */
+    @Deprecated
+    public static Pattern buildPattern(String fieldName, FieldType type) {
+        return buildPattern(fieldName, type.re);
+    }
+
+    @Deprecated
+    public static Pattern buildPattern(String fieldName, String typeRE) {
+        return Pattern.compile(BEFORE_FIELD_RE + fieldName + AFTER_FIELD_RE + typeRE, Pattern.CASE_INSENSITIVE);
+    }
+
+    /**
+     * Extract a JSON object string by object name. Returns empty object '{}' if not found.
+     * @param objectName object name
+     * @param json source json
+     * @return object json string
+     */
+    @Deprecated
+    public static String getJsonObject(String objectName, String json) {
+        return getJsonObject(objectName, json, EMPTY_JSON);
+    }
+
+    @Deprecated
+    public static String getJsonObject(String objectName, String json, String dflt) {
+        int[] indexes = getBracketIndexes(objectName, json, '{', '}', 0);
+        return indexes == null ? dflt : json.substring(indexes[0], indexes[1] + 1);
+    }
+
+    @Deprecated
+    public static String removeObject(String json, String objectName) {
+        int[] indexes = getBracketIndexes(objectName, json, '{', '}', 0);
+        if (indexes != null) {
+            // remove the entire object replacing it with a dummy field b/c getBracketIndexes doesn't consider
+            // if there is or isn't another object after it, so I don't have to worry about it being/not being the last object
+            json = json.substring(0, indexes[0]) + "\"rmvd" + objectName.hashCode() + "\":\"\"" + json.substring(indexes[1] + 1);
+        }
+        return json;
+    }
+
+    /**
+     * Extract a list JSON object strings for list object name. Returns empty list '{}' if not found.
+     * Assumes that there are no brackets '{' or '}' in the actual data.
+     * @param objectName list object name
+     * @param json source json
+     * @return object json string
+     */
+    @Deprecated
+    public static List<String> getObjectList(String objectName, String json) {
+        List<String> items = new ArrayList<>();
+        int[] indexes = getBracketIndexes(objectName, json, '[', ']', -1);
+        if (indexes != null) {
+            StringBuilder item = new StringBuilder();
+            int depth = 0;
+            for (int x = indexes[0] + 1; x < indexes[1]; x++) {
+                char c = json.charAt(x);
+                if (c == '{') {
+                    item.append(c);
+                    depth++;
+                } else if (c == '}') {
+                    item.append(c);
+                    if (--depth == 0) {
+                        items.add(item.toString());
+                        item.setLength(0);
+                    }
+                } else if (depth > 0) {
+                    item.append(c);
+                }
+            }
+        }
+        return items;
+    }
+
+    private static int[] getBracketIndexes(String objectName, String json, char start, char end, int fromIndex) {
+        int[] result = new int[] {-1, -1};
+        int objStart = json.indexOf(Q + objectName + Q, fromIndex);
+        if (objStart != -1) {
+            int startIx;
+            if (fromIndex != -1) {
+                int colonMark = json.indexOf(COLON, objStart) + 1;
+                startIx = json.indexOf(start, colonMark);
+                for (int x = colonMark; x < startIx; x++) {
+                    char c = json.charAt(x);
+                    if (!Character.isWhitespace(c)) {
+                        return getBracketIndexes(objectName, json, start, end, colonMark);
+                    }
+                }
+            }
+            else {
+                startIx = json.indexOf(start, objStart);
+            }
+            int depth = 1;
+            for (int x = startIx + 1; x < json.length(); x++) {
+                char c = json.charAt(x);
+                if (c == start) {
+                    depth++;
+                }
+                else if (c == end) {
+                    if (--depth == 0) {
+                        result[0] = startIx;
+                        result[1] = x;
+                        return result;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get a map of objects
+     * @param json the json
+     * @return the map of json object strings by key
+     */
+    @Deprecated
+    public static Map<String, String> getMapOfObjects(String json) {
+        Map<String, String> map = new HashMap<>();
+        int s1 = json.indexOf('"');
+        while (s1 != -1) {
+            int s2 = json.indexOf('"', s1 + 1);
+            String key = json.substring(s1 + 1, s2).trim();
+            int[] indexes = getBracketIndexes(key, json, '{', '}', s1);
+            if (indexes != null) {
+                map.put(key, json.substring(indexes[0], indexes[1] + 1));
+                s1 = json.indexOf('"', indexes[1]);
+            }
+            else {
+                s1 = -1;
+            }
+        }
+
+        return map;
+    }
+
+    /**
+     * Get a map of objects
+     * @param json the json
+     * @return the map of json object strings by key
+     */
+    @Deprecated
+    public static Map<String, List<String>> getMapOfLists(String json) {
+        Map<String, List<String>> map = new HashMap<>();
+        int s1 = json.indexOf('"');
+        while (s1 != -1) {
+            int s2 = json.indexOf('"', s1 + 1);
+            String key = json.substring(s1 + 1, s2).trim();
+            int[] indexes = getBracketIndexes(key, json, '[', ']', s1);
+            if (indexes != null) {
+                map.put(key, toList(json.substring(indexes[0] + 1, indexes[1])));
+                s1 = json.indexOf('"', indexes[1]);
+            }
+            else {
+                s1 = -1;
+            }
+        }
+
+        return map;
+    }
+
+    /**
+     * Get a map of longs
+     * @param json the json
+     * @return the map of longs by key
+     */
+    @Deprecated
+    public static Map<String, Long> getMapOfLongs(String json) {
+        Map<String, Long> map = new HashMap<>();
+        int s1 = json.indexOf('"');
+        while (s1 != -1) {
+            int s2 = json.indexOf('"', s1 + 1);
+            int c1 = json.indexOf(':', s2);
+            int c2 = json.indexOf(',', s2);
+            if (c2 == -1) {
+                c2 = json.indexOf('}', s2);
+            }
+            String key = json.substring(s1 + 1, s2).trim();
+            long count = safeParseLong(json.substring(c1 + 1, c2).trim(), 0);
+            map.put(key, count);
+            s1 = json.indexOf('"', c2);
+        }
+        return map;
+    }
+
+    /**
+     * Extract a list strings for list object name. Returns empty array if not found.
+     * Assumes that there are no brackets '{' or '}' in the actual data.
+     * @deprecated Prefer using the {@link JsonParser}
+     * @param objectName object name
+     * @param json source json
+     * @return a string list, empty if no values are found.
+     */
+    @Deprecated
+    public static List<String> getStringList(String objectName, String json) {
+        String flat = json.replaceAll("\r", "").replaceAll("\n", "");
+        Matcher m = string_array_pattern(objectName).matcher(flat);
+        if (m.find()) {
+            String arrayString = m.group(1);
+            return toList(arrayString);
+        }
+        return new ArrayList<>();
+    }
+
+    private static List<String> toList(String arrayString) {
+        List<String> list = new ArrayList<>();
+        String[] raw = arrayString.split(",");
+        for (String s : raw) {
+            String cleaned = s.trim().replace("\"", "");
+            if (cleaned.length() > 0) {
+                list.add(jsonDecode(cleaned));
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Extract a list longs for list object name. Returns empty array if not found.
+     * @deprecated Prefer using the {@link JsonParser}
+     * @param objectName object name
+     * @param json source json
+     * @return a long list, empty if no values are found.
+     */
+    @Deprecated
+    public static List<Long> getLongList(String objectName, String json) {
+        String flat = json.replaceAll("\r", "").replaceAll("\n", "");
+        List<Long> list = new ArrayList<>();
+        Matcher m = number_array_pattern(objectName).matcher(flat);
+        if (m.find()) {
+            String arrayString = m.group(1);
+            String[] raw = arrayString.split(",");
+
+            for (String s : raw) {
+                list.add(safeParseLong(s.trim()));
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Extract a list durations for list object name. Returns empty array if not found.
+     * @param objectName object name
+     * @param json source json
+     * @return a duration list, empty if no values are found.
+     */
+    @Deprecated
+    public static List<Duration> getDurationList(String objectName, String json) {
+        List<Long> longs = getLongList(objectName, json);
+        List<Duration> list = new ArrayList<>(longs.size());
+        for (Long l : longs) {
+            list.add(Duration.ofNanos(l));
+        }
+        return list;
+    }
+
+    @Deprecated
+    public static byte[] simpleMessageBody(String name, Number value) {
+        return (OPENQ + name + QCOLON + value + CLOSE).getBytes();
+    }
+
+    @Deprecated
+    public static byte[] simpleMessageBody(String name, String value) {
+        return (OPENQ + name + QCOLONQ + value + Q + CLOSE).getBytes();
+    }
+
+    @Deprecated
     public static String readString(String json, Pattern pattern) {
         return readString(json, pattern, null);
     }
 
+    @Deprecated
     public static String readString(String json, Pattern pattern, String dflt) {
         Matcher m = pattern.matcher(json);
         return m.find() ? jsonDecode(m.group(1)) : dflt;
     }
 
+    @Deprecated
     public static String readStringMayHaveQuotes(String json, String field, String dflt) {
         String jfield = "\"" + field + "\"";
         int at = json.indexOf(jfield);
@@ -691,22 +829,26 @@ public abstract class JsonUtils {
         return dflt;
     }
 
+    @Deprecated
     public static byte[] readBytes(String json, Pattern pattern) {
         String s = readString(json, pattern, null);
         return s == null ? null : s.getBytes(StandardCharsets.US_ASCII);
     }
 
+    @Deprecated
     public static byte[] readBase64(String json, Pattern pattern) {
         Matcher m = pattern.matcher(json);
         String b64 = m.find() ? m.group(1) : null;
         return b64 == null ? null : Base64.getDecoder().decode(b64);
     }
 
+    @Deprecated
     public static boolean readBoolean(String json, Pattern pattern) {
         Matcher m = pattern.matcher(json);
         return m.find() && Boolean.parseBoolean(m.group(1));
     }
 
+    @Deprecated
     public static Boolean readBoolean(String json, Pattern pattern, Boolean dflt) {
         Matcher m = pattern.matcher(json);
         if (m.find()) {
@@ -715,16 +857,19 @@ public abstract class JsonUtils {
         return dflt;
     }
 
+    @Deprecated
     public static Integer readInteger(String json, Pattern pattern) {
         Matcher m = pattern.matcher(json);
         return m.find() ? Integer.parseInt(m.group(1)) : null;
     }
 
+    @Deprecated
     public static int readInt(String json, Pattern pattern, int dflt) {
         Matcher m = pattern.matcher(json);
         return m.find() ? Integer.parseInt(m.group(1)) : dflt;
     }
 
+    @Deprecated
     public static void readInt(String json, Pattern pattern, IntConsumer c) {
         Matcher m = pattern.matcher(json);
         if (m.find()) {
@@ -732,16 +877,19 @@ public abstract class JsonUtils {
         }
     }
 
+    @Deprecated
     public static Long readLong(String json, Pattern pattern) {
         Matcher m = pattern.matcher(json);
         return m.find() ? safeParseLong(m.group(1)) : null;
     }
 
+    @Deprecated
     public static long readLong(String json, Pattern pattern, long dflt) {
         Matcher m = pattern.matcher(json);
         return m.find() ? safeParseLong(m.group(1), dflt) : dflt;
     }
 
+    @Deprecated
     public static void readLong(String json, Pattern pattern, LongConsumer c) {
         Matcher m = pattern.matcher(json);
         if (m.find()) {
@@ -752,119 +900,29 @@ public abstract class JsonUtils {
         }
     }
 
-    public static Long safeParseLong(String s) {
-        try {
-            return Long.parseLong(s);
-        }
-        catch (Exception e1) {
-            try {
-                return Long.parseUnsignedLong(s);
-            }
-            catch (Exception e2) {
-                return null;
-            }
-        }
-    }
-
-    public static long safeParseLong(String s, long dflt) {
-        Long l = safeParseLong(s);
-        return l == null ? dflt : l;
-    }
-
+    @Deprecated
     public static ZonedDateTime readDate(String json, Pattern pattern) {
         Matcher m = pattern.matcher(json);
         return m.find() ? DateTimeUtils.parseDateTime(m.group(1)) : null;
     }
 
+    @Deprecated
     public static Duration readNanos(String json, Pattern pattern) {
         Matcher m = pattern.matcher(json);
         return m.find() ? Duration.ofNanos(Long.parseLong(m.group(1))) : null;
     }
 
+    @Deprecated
     public static Duration readNanos(String json, Pattern pattern, Duration dflt) {
         Matcher m = pattern.matcher(json);
         return m.find() ? Duration.ofNanos(Long.parseLong(m.group(1))) : dflt;
     }
 
+    @Deprecated
     public static void readNanos(String json, Pattern pattern, Consumer<Duration> c) {
         Matcher m = pattern.matcher(json);
         if (m.find()) {
             c.accept(Duration.ofNanos(Long.parseLong(m.group(1))));
         }
-    }
-
-    public static String normalize(String s) {
-        return Character.toString(s.charAt(0)).toUpperCase() + s.substring(1).toLowerCase();
-    }
-
-    public static String objectString(String name, Object o) {
-        if (o == null) {
-            return name + "=null";
-        }
-        if (o instanceof SequenceInfo) {
-            return o.toString().replace("SequenceInfo", name);
-        }
-        return o.toString();
-    }
-
-    // ----------------------------------------------------------------------------------------------------
-    // PRINT UTILS
-    // ----------------------------------------------------------------------------------------------------
-
-    private static final String INDENT = "                                ";
-    private static String indent(int level) {
-        return level == 0 ? "" : INDENT.substring(0, level * 4);
-    }
-
-    public static String getFormatted(Object o) {
-        StringBuilder sb = new StringBuilder();
-        int level = 0;
-        int arrayLevel = 0;
-        boolean lastWasClose = false;
-        boolean indentNext = true;
-        String s = o.toString();
-        for (int x = 0; x < s.length(); x++) {
-            char c = s.charAt(x);
-            if (c == '{') {
-                if (arrayLevel > 0 && lastWasClose) {
-                    sb.append(indent(level));
-                }
-                sb.append(c).append('\n');
-                ++level;
-                indentNext = true;
-                lastWasClose = false;
-            }
-            else if (c == '}') {
-                sb.append('\n').append(indent(--level)).append(c);
-                lastWasClose = true;
-            }
-            else if (c == ',') {
-                sb.append('\n');
-                indentNext = true;
-            }
-            else {
-                if (c == '[') {
-                    arrayLevel++;
-                }
-                else if (c == ']') {
-                    arrayLevel--;
-                }
-                if (indentNext) {
-                    if (c != ' ') {
-                        sb.append(indent(level)).append(c);
-                        indentNext = false;
-                    }
-                }
-                else {
-                    sb.append(c);
-                }
-                lastWasClose = lastWasClose && Character.isWhitespace(c);
-            }
-        }
-        return sb.toString();
-    }
-
-    public static void printFormatted(Object o) {
-        System.out.println(getFormatted(o));
     }
 }

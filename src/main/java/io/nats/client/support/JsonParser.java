@@ -15,6 +15,7 @@ package io.nats.client.support;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -23,11 +24,35 @@ import java.util.Map;
 public class JsonParser {
 
     public static JsonValue parse(String json) throws JsonParseException {
-        return json == null ? null : new JsonParser(json, false).nextValue();
+        return new JsonParser(json, false, 0).parse();
+    }
+
+    public static JsonValue parse(String json, int startIndex) throws JsonParseException {
+        return new JsonParser(json, false, startIndex).parse();
     }
 
     public static JsonValue parse(String json, boolean keepNulls) throws JsonParseException {
-        return json == null ? null : new JsonParser(json, keepNulls).nextValue();
+        return new JsonParser(json, keepNulls, 0).parse();
+    }
+
+    public static JsonValue parse(String json, boolean keepNulls, int startIndex) throws JsonParseException {
+        return new JsonParser(json, keepNulls, startIndex).parse();
+    }
+
+    public static JsonValue parse(byte[] json) throws JsonParseException {
+        return new JsonParser(new String(json, StandardCharsets.UTF_8), false, 0).parse();
+    }
+
+    public static JsonValue parse(byte[] json, int startIndex) throws JsonParseException {
+        return new JsonParser(new String(json, StandardCharsets.UTF_8), false, startIndex).parse();
+    }
+
+    public static JsonValue parse(byte[] json, boolean keepNulls) throws JsonParseException {
+        return new JsonParser(new String(json, StandardCharsets.UTF_8), keepNulls, 0).parse();
+    }
+
+    public static JsonValue parse(byte[] json, boolean keepNulls, int startIndex) throws JsonParseException {
+        return new JsonParser(new String(json, StandardCharsets.UTF_8), keepNulls, startIndex).parse();
     }
 
     private final String json;
@@ -39,15 +64,26 @@ public class JsonParser {
     private char current;
     private char next;
 
-    private JsonParser(String json, boolean keepNulls) {
+    public JsonParser(String json, boolean keepNulls, int startIndex) {
         this.json = json;
         this.keepNulls = keepNulls;
-        len = json.length();
-        idx = 0;
+        len = json == null ? 0 : json.length();
+        idx = startIndex;
+        if (startIndex < 0) {
+            throw new IllegalArgumentException("Invalid start index.");
+        }
         nextIdx = -1;
         previous = 0;
         current = 0;
         next = 0;
+    }
+
+    public JsonValue parse() throws JsonParseException {
+        char c = peekToken();
+        if (c == 0) {
+            return JsonValue.NULL;
+        }
+        return nextValue();
     }
 
     private JsonValue nextValue() throws JsonParseException {
@@ -241,6 +277,9 @@ public class JsonParser {
                     break;
                 default:
                     if (c == '"') {
+                        if (sb.toString().equals("subjects")) {
+                            int x = 0;
+                        }
                         return sb.toString();
                     }
                     sb.append(c);

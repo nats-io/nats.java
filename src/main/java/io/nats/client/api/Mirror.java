@@ -15,8 +15,6 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonValue;
 
-import static io.nats.client.support.ApiConstants.MIRROR;
-
 /**
  * Mirror Information. Maintains a 1:1 mirror of another stream with name matching this property.
  * When a mirror is configured subjects and sources must be empty.
@@ -28,11 +26,11 @@ public class Mirror extends SourceBase {
     }
 
     Mirror(JsonValue vMirror) {
-        super(MIRROR, vMirror);
+        super(vMirror);
     }
 
     Mirror(Builder b) {
-        super(MIRROR, b);
+        super(b);
     }
 
     public static Builder builder() {

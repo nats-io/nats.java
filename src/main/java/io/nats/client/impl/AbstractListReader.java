@@ -15,35 +15,31 @@ package io.nats.client.impl;
 
 import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
+import io.nats.client.support.JsonValue;
 
 import java.util.List;
 
+import static io.nats.client.support.JsonValueUtils.readArray;
+
 abstract class AbstractListReader {
 
-    enum ListType {OBJECTS, STRINGS}
-
     private final String objectName;
-    private final ListType listType;
     private final String filterFieldName;
     protected ListRequestEngine engine;
 
     void process(Message msg) throws JetStreamApiException {
         engine = new ListRequestEngine(msg);
-        List<String> list = listType == ListType.OBJECTS
-                ? engine.getObjectList(objectName)
-                : engine.getStringList(objectName);
-        processItems(list);
+        processItems(readArray(engine.getJv(), objectName));
     }
 
-    abstract void processItems(List<String> items);
+    abstract void processItems(List<JsonValue> items);
 
-    AbstractListReader(String objectName, ListType listType) {
-        this(objectName, listType, null);
+    AbstractListReader(String objectName) {
+        this(objectName, null);
     }
 
-    AbstractListReader(String objectName, ListType listType, String filterFieldName) {
+    AbstractListReader(String objectName, String filterFieldName) {
         this.objectName = objectName;
-        this.listType = listType;
         this.filterFieldName = filterFieldName;
         engine = new ListRequestEngine();
     }

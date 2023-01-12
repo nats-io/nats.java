@@ -19,6 +19,7 @@ import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
 import io.nats.client.utils.ResourceUtils;
+import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -28,7 +29,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamConfigurationTests extends JetStreamTestBase {
@@ -158,12 +158,12 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         lines = ResourceUtils.dataAsLines("ExternalJson.txt");
         for (String l1 : lines) {
-            External e1 = new External(l1);
+            External e1 = new External(JsonParser.parse(l1));
             assertEquals(e1, e1);
             assertNotEquals(e1, null);
             assertNotEquals(e1, new Object());
             for (String l2 : lines) {
-                External e2 = new External(l2);
+                External e2 = new External(JsonParser.parse(l2));
                 if (l1.equals(l2)) {
                     assertEquals(e1, e2);
                 }
@@ -243,7 +243,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertNotEqualsEqualsHashcode(s1, m1, sb.filterSubject(m.getFilterSubject()), mb.filterSubject(m.getFilterSubject()));
 
         assertNotEqualsEqualsHashcode(s1, m1, sb.external(null), mb.external(null));
-        assertNotEqualsEqualsHashcode(s1, m1, sb.external(new External(EMPTY_JSON)), mb.external(new External(EMPTY_JSON)));
+        assertNotEqualsEqualsHashcode(s1, m1, sb.external(new External(JsonValue.NULL)), mb.external(new External(JsonValue.NULL)));
 
         sb.external(m.getExternal());
         mb.external(m.getExternal());
@@ -487,5 +487,12 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         e = External.builder().build();
         assertNull(e.getApi());
         assertNull(e.getDeliver());
+    }
+
+    @Test
+    public void equalsContract() {
+        // really testing SourceBase
+        EqualsVerifier.simple().forClass(Mirror.class).verify();
+        EqualsVerifier.simple().forClass(Source.class).verify();
     }
 }

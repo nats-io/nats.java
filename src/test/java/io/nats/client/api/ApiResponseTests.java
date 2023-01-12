@@ -38,6 +38,7 @@ public class ApiResponseTests {
         TestApiResponse jsApiResp = new TestApiResponse(dataAsString("ConsumerInfo.json"));
         assertFalse(jsApiResp.hasError());
         assertNull(jsApiResp.getError());
+        assertNotNull(new TestApiResponse().toString());
     }
 
     @Test

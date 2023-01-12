@@ -14,34 +14,25 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 
-import java.util.ArrayList;
 import java.util.List;
-
-import static io.nats.client.support.ApiConstants.SOURCE;
 
 /**
  * Source Information
  */
 public class Source extends SourceBase {
-    static List<Source> optionalListOf(JsonValue vSources) {
-        if (vSources == null || vSources.array == null || vSources.array.size() == 0) {
-            return null;
-        }
 
-        List<Source> list = new ArrayList<>();
-        for (JsonValue jv : vSources.array) {
-            list.add(new Source(jv));
-        }
-        return list;
+    static List<Source> optionalListOf(JsonValue vSources) {
+        return JsonValueUtils.optionalListOf(vSources, Source::new);
     }
 
     Source(JsonValue vSource) {
-        super(SOURCE, vSource);
+        super(vSource);
     }
 
     Source(Builder b) {
-        super(SOURCE, b);
+        super(b);
     }
 
     public static Builder builder() {

@@ -120,38 +120,38 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     ConsumerConfiguration(JsonValue v) {
-        deliverPolicy = DeliverPolicy.get(getMappedString(v, DELIVER_POLICY));
-        ackPolicy = AckPolicy.get(getMappedString(v, ACK_POLICY));
-        replayPolicy = ReplayPolicy.get(getMappedString(v, REPLAY_POLICY));
+        deliverPolicy = DeliverPolicy.get(readString(v, DELIVER_POLICY));
+        ackPolicy = AckPolicy.get(readString(v, ACK_POLICY));
+        replayPolicy = ReplayPolicy.get(readString(v, REPLAY_POLICY));
 
-        description = getMappedString(v, DESCRIPTION);
-        durable = getMappedString(v, DURABLE_NAME);
-        name = getMappedString(v, NAME);
-        deliverSubject = getMappedString(v, DELIVER_SUBJECT);
-        deliverGroup = getMappedString(v, DELIVER_GROUP);
-        filterSubject = getMappedString(v, FILTER_SUBJECT);
-        sampleFrequency = getMappedString(v, SAMPLE_FREQ);
+        description = readString(v, DESCRIPTION);
+        durable = readString(v, DURABLE_NAME);
+        name = readString(v, NAME);
+        deliverSubject = readString(v, DELIVER_SUBJECT);
+        deliverGroup = readString(v, DELIVER_GROUP);
+        filterSubject = readString(v, FILTER_SUBJECT);
+        sampleFrequency = readString(v, SAMPLE_FREQ);
 
-        startTime = getMappedDate(v, OPT_START_TIME);
-        ackWait = getMappedNanos(v, ACK_WAIT);
-        idleHeartbeat = getMappedNanos(v, IDLE_HEARTBEAT);
-        maxExpires = getMappedNanos(v, MAX_EXPIRES);
-        inactiveThreshold = getMappedNanos(v, INACTIVE_THRESHOLD);
+        startTime = readDate(v, OPT_START_TIME);
+        ackWait = readNanos(v, ACK_WAIT);
+        idleHeartbeat = readNanos(v, IDLE_HEARTBEAT);
+        maxExpires = readNanos(v, MAX_EXPIRES);
+        inactiveThreshold = readNanos(v, INACTIVE_THRESHOLD);
 
-        startSeq = getMappedLong(v, OPT_START_SEQ);
-        maxDeliver = getMappedLong(v, MAX_DELIVER);
-        rateLimit = getMappedLong(v, RATE_LIMIT_BPS);
-        maxAckPending = getMappedLong(v, MAX_ACK_PENDING);
-        maxPullWaiting = getMappedLong(v, MAX_WAITING);
-        maxBatch = getMappedLong(v, MAX_BATCH);
-        maxBytes = getMappedLong(v, MAX_BYTES);
-        numReplicas = getMappedInteger(v, NUM_REPLICAS);
+        startSeq = readLong(v, OPT_START_SEQ);
+        maxDeliver = readLong(v, MAX_DELIVER);
+        rateLimit = readLong(v, RATE_LIMIT_BPS);
+        maxAckPending = readLong(v, MAX_ACK_PENDING);
+        maxPullWaiting = readLong(v, MAX_WAITING);
+        maxBatch = readLong(v, MAX_BATCH);
+        maxBytes = readLong(v, MAX_BYTES);
+        numReplicas = readInteger(v, NUM_REPLICAS);
 
-        flowControl = getMappedBoolean(v, FLOW_CONTROL, null);
-        headersOnly = getMappedBoolean(v, HEADERS_ONLY, null);
-        memStorage = getMappedBoolean(v, MEM_STORAGE, null);
+        flowControl = readBoolean(v, FLOW_CONTROL, null);
+        headersOnly = readBoolean(v, HEADERS_ONLY, null);
+        memStorage = readBoolean(v, MEM_STORAGE, null);
 
-        backoff = getMappedNanosList(v, BACKOFF);
+        backoff = readNanosList(v, BACKOFF);
     }
 
     // For the builder

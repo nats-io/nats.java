@@ -14,8 +14,8 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -24,14 +24,7 @@ import java.util.List;
 public class SourceInfo extends SourceInfoBase {
 
     static List<SourceInfo> optionalListOf(JsonValue vSourceInfos) {
-        if (vSourceInfos == null || vSourceInfos.array == null) {
-            return null;
-        }
-        List<SourceInfo> list = new ArrayList<>();
-        for (JsonValue jv : vSourceInfos.array) {
-            list.add(new SourceInfo(jv));
-        }
-        return list;
+        return JsonValueUtils.optionalListOf(vSourceInfos, SourceInfo::new);
     }
 
     SourceInfo(JsonValue vSourceInfo) {
