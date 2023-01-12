@@ -14,9 +14,9 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonValue;
-import io.nats.client.support.JsonValueUtils;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readObject;
 
 /**
@@ -31,10 +31,10 @@ public class AccountTier {
     private final AccountLimits limits;
 
     AccountTier(JsonValue vAccountTier) {
-        memory = JsonValueUtils.readInteger(vAccountTier, MEMORY, 0);
-        storage = JsonValueUtils.readInteger(vAccountTier, STORAGE, 0);
-        streams = JsonValueUtils.readInteger(vAccountTier, STREAMS, 0);
-        consumers = JsonValueUtils.readInteger(vAccountTier, CONSUMERS, 0);
+        memory = readInteger(vAccountTier, MEMORY, 0);
+        storage = readInteger(vAccountTier, STORAGE, 0);
+        streams = readInteger(vAccountTier, STREAMS, 0);
+        consumers = readInteger(vAccountTier, CONSUMERS, 0);
         limits = new AccountLimits(readObject(vAccountTier, LIMITS));
     }
 

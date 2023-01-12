@@ -14,10 +14,10 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonValue;
-import io.nats.client.support.JsonValueUtils;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonValueUtils.readBoolean;
+import static io.nats.client.support.JsonValueUtils.readLong;
 
 /**
  * Represents the JetStream Account Limits
@@ -34,13 +34,13 @@ public class AccountLimits {
     private final boolean maxBytesRequired;
 
     AccountLimits(JsonValue vAccountLimits) {
-        this.maxMemory = JsonValueUtils.readLong(vAccountLimits, MAX_MEMORY, 0);
-        this.maxStorage = JsonValueUtils.readLong(vAccountLimits, MAX_STORAGE, 0);
-        this.maxStreams = JsonValueUtils.readLong(vAccountLimits, MAX_STREAMS, 0);
-        this.maxConsumers = JsonValueUtils.readLong(vAccountLimits, MAX_CONSUMERS, 0);
-        this.maxAckPending = JsonValueUtils.readLong(vAccountLimits, MAX_ACK_PENDING, 0);
-        this.memoryMaxStreamBytes = JsonValueUtils.readLong(vAccountLimits, MEMORY_MAX_STREAM_BYTES, 0);
-        this.storageMaxStreamBytes = JsonValueUtils.readLong(vAccountLimits, STORAGE_MAX_STREAM_BYTES, 0);
+        this.maxMemory = readLong(vAccountLimits, MAX_MEMORY, 0);
+        this.maxStorage = readLong(vAccountLimits, MAX_STORAGE, 0);
+        this.maxStreams = readLong(vAccountLimits, MAX_STREAMS, 0);
+        this.maxConsumers = readLong(vAccountLimits, MAX_CONSUMERS, 0);
+        this.maxAckPending = readLong(vAccountLimits, MAX_ACK_PENDING, 0);
+        this.memoryMaxStreamBytes = readLong(vAccountLimits, MEMORY_MAX_STREAM_BYTES, 0);
+        this.storageMaxStreamBytes = readLong(vAccountLimits, STORAGE_MAX_STREAM_BYTES, 0);
         this.maxBytesRequired = readBoolean(vAccountLimits, MAX_BYTES_REQUIRED);
     }
 

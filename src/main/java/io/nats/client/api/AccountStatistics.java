@@ -39,8 +39,8 @@ public class AccountStatistics
         rollupTier = new AccountTier(jv);
         domain = readString(jv, DOMAIN);
         api = new ApiStats(readObject(jv, API));
-        tiers = new HashMap<>();
         JsonValue vTiers = readObject(jv, TIERS);
+        tiers = new HashMap<>();
         if (vTiers.map != null) {
             for (String key : vTiers.map.keySet()) {
                 tiers.put(key, new AccountTier(vTiers.map.get(key)));
