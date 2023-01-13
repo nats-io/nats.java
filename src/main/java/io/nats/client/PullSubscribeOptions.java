@@ -13,25 +13,27 @@
 
 package io.nats.client;
 
-import io.nats.client.api.ConsumerConfiguration;
-
 /**
  * The PullSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
- * Options are created using the constructors or a {@link Builder}.
+ * Options are set using the {@link PullSubscribeOptions.Builder} or static helper methods.
  */
 public class PullSubscribeOptions extends SubscribeOptions {
 
-    private PullSubscribeOptions(String stream, String durable, boolean bindMode, ConsumerConfiguration consumerConfig) {
-        super(stream, durable, null, bindMode, true, consumerConfig);
+    private PullSubscribeOptions(Builder builder) {
+        super(builder, true, false, null, null, -1, -1);
     }
 
+    /**
+     * Macro to start a PullSubscribeOptions builder
+     * @return push subscribe options builder
+     */
     public static Builder builder() {
         return new Builder();
     }
 
     /**
      * Create PullSubscribeOptions where you are binding to
-     * a specific stream, specific durable and are using direct mode
+     * a specific stream, specific durable and are using bind mode
      * @param stream the stream name to bind to
      * @param durable the durable name
      * @return push subscribe options
@@ -58,7 +60,7 @@ public class PullSubscribeOptions extends SubscribeOptions {
          */
         @Override
         public PullSubscribeOptions build() {
-            return new PullSubscribeOptions(stream, durable, isBind, consumerConfig);
+            return new PullSubscribeOptions(this);
         }
     }
 }

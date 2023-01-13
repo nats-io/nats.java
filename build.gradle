@@ -1,3 +1,4 @@
+import aQute.bnd.gradle.Bundle
 import org.gradle.internal.os.OperatingSystem
 
 plugins {
@@ -12,19 +13,16 @@ plugins {
     id 'signing'
 }
 
-import aQute.bnd.gradle.Bundle
-
-// Update version here
-// ** IMPORTANT ** BE SURE TO UPDATE THESE FILES WITH THE LATEST VERSION **
-// src/main/java/io/nats/client/Nats.java
-// src/main/java/io/nats/client/package-info.java
-// CHANGELOG.md
-def jarVersion = "2.11.6"
+def jarVersion = "2.16.6"
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
+def bs = System.getenv("BRANCH_SNAPSHOT")
+def snap = bs == null || bs.equals("") ? "-SNAPSHOT" : "." + bs + "-SNAPSHOT"
+
+println "snap is " + snap
 
 // version is the variable the build actually uses.
-version = isRelease ? jarVersion : jarVersion + "-SNAPSHOT"
+version = isRelease ? jarVersion : jarVersion + snap
 
 archivesBaseName = 'jnats'
 group = 'io.nats'
@@ -35,13 +33,14 @@ java {
 }
 
 repositories {
-    jcenter()
+    mavenCentral()
+    maven { url "https://oss.sonatype.org/content/repositories/releases/" }
 }
 
 dependencies {
     implementation 'net.i2p.crypto:eddsa:0.3.0'
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.7.0'
-    testImplementation 'io.nats:jnats-server-runner:1.0.7'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
+    testImplementation 'io.nats:jnats-server-runner:1.0.14'
 }
 
 sourceSets {
@@ -69,9 +68,7 @@ jar {
     bnd (['Implementation-Title': 'Java Nats',
           'Implementation-Version': jarVersion,
           'Implementation-Vendor': 'nats.io',
-          "Import-Package": "!net.i2p.crypto.eddsa.math",
-          "Import-Package": "net.i2p*",
-          "Import-Package": "io.nats*"]
+          "Import-Package": "!net.i2p.crypto.eddsa.math"]
     )
     exclude("io/nats/examples/**")
 }
@@ -95,8 +92,10 @@ javadoc {
     options.overview = 'src/main/javadoc/overview.html' // relative to source root
     source = sourceSets.main.allJava
     title = "NATS.IO Java API"
-    excludes = ['io/nats/client/impl', 'io/nats/examples',
-                "io/nats/client/api/ConsumerCreateRequest.java"
+    excludes = ['io/nats/client/impl',
+                'io/nats/examples',
+                "io/nats/client/api/ConsumerCreateRequest.java",
+                "io/nats/client/api/MessageGetRequest.java"
     ]
     classpath = sourceSets.main.runtimeClasspath
     doLast {

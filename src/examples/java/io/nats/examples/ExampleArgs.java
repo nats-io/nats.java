@@ -16,34 +16,43 @@ package io.nats.examples;
 import io.nats.client.Options;
 import io.nats.client.impl.Headers;
 
-import static io.nats.examples.ExampleUtils.uniqueEnough;
-
 public class ExampleArgs {
 
     public enum Trail {MESSAGE, COUNT, QUEUE_AND_COUNT}
 
+    private String title;
     public String server = Options.DEFAULT_URL;
     public String subject;
     public String queue;
     public String message;
-    public int msgCount = -1;
-    public int subCount = -1;
-    public String stream = null;
-    public String mirror = null;
-    public String consumer = null;
-    public String durable = null;
-    public String deliver = null;
-    public int pullSize = 0;
+    public int msgCount = Integer.MIN_VALUE;
+    public int msgSize = Integer.MIN_VALUE;
+    private boolean msgCountUnlimitedFlag;
+    public int subCount = Integer.MIN_VALUE;
+    public String stream;
+    public String mirror;
+    public String consumer;
+    public String durable;
+    public String deliverSubject;
+    public int pullSize = Integer.MIN_VALUE;
     public Headers headers;
-    public String user = null;
-    public String pass = null;
     public boolean containedUnknown = false;
+    public String bucket;
+    public String description;
 
     public boolean hasHeaders() {
         return headers != null && headers.size() > 0;
     }
 
+    private ExampleArgs(String title) {
+        this.title = title;
+    }
+
     public ExampleArgs(String[] args, Trail trail, String usageString) {
+        parse(args, trail, usageString);
+    }
+
+    public void parse(String[] args, Trail trail, String usageString) {
         try {
             if (args != null) {
                 String lastKey = null;
@@ -51,7 +60,7 @@ public class ExampleArgs {
                     String arg = args[x];
                     if (arg.startsWith("-")) {
                         if (++x >= args.length) {
-                            usage(usageString);
+                            usageThenExit(usageString);
                         }
                         handleKeyedArg(arg, args[x]);
                         lastKey = arg;
@@ -67,10 +76,9 @@ public class ExampleArgs {
                     }
                 }
             }
-        }
-        catch (RuntimeException e) {
+        } catch (RuntimeException e) {
             System.err.println("Exception while processing command line arguments: " + e + "\n");
-            usage(usageString);
+            usageThenExit(usageString);
         }
     }
 
@@ -133,20 +141,23 @@ public class ExampleArgs {
             case "-mcnt":
                 msgCount = Integer.parseInt(value);
                 break;
+            case "-msize":
+                msgSize = Integer.parseInt(value);
+                break;
             case "-scnt":
                 subCount = Integer.parseInt(value);
                 break;
             case "-dur":
                 durable = value;
                 break;
-            case "-dlvr":
-                deliver = value;
+            case "-buk":
+                bucket = value;
                 break;
-            case "-user":
-                user = value;
+            case "-desc":
+                description = value;
                 break;
-            case "-pass":
-                pass = value;
+            case "-deliver":
+                deliverSubject = value;
                 break;
             case "-r":
                 if (headers == null) {
@@ -161,169 +172,151 @@ public class ExampleArgs {
         }
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public void displayBanner() {
+        if (title == null) {
+            System.out.println("\nExample");
+        }
+        else {
+            System.out.format("\n%s Example\n", title);
+        }
+
+        _banner("server", server);
+        _banner("stream", stream);
+        _banner("subject", subject);
+        _banner("bucket", bucket);
+        _banner("description", description);
+        _banner("queue", queue);
+        _banner("message", message);
+        _banner("mirror", mirror);
+        _banner("consumer", consumer);
+        _banner("durable", durable);
+        _banner("deliver", deliverSubject);
+        _banner("msgCount", msgCount, msgCountUnlimitedFlag);
+        _banner("msgSize", msgSize);
+        _banner("subCount", subCount);
+        _banner("pullSize", pullSize);
+        _banner("Headers", headers == null || headers.size() == 0 ? Integer.MIN_VALUE : headers.size());
+        System.out.println();
+    }
+
+    private void _banner(String label, String value) {
+        if (value != null) {
+            System.out.format("  %s: %s\n", label, value);
+        }
+    }
+
+    private void _banner(String label, int value) {
+        _banner(label, value, false);
+    }
+
+    private void _banner(String label, int value, boolean unlimited)
+    {
+        if (unlimited && (value == Integer.MAX_VALUE || value < 1)) {
+            System.out.format("  %s: Unlimited\n", label);
+        }
+        else if (value > Integer.MIN_VALUE) {
+            System.out.format("  %s: %s\n", label, value);
+        }
+    }
+
+    public static Builder builder(String title, String[] args, String usage) {
+        return new Builder(title, args, usage);
     }
 
     public static class Builder {
-        private String subjectDefault;
-        private String queueDefault;
-        private String messageDefault;
-        private int msgCountDefault = -1;
-        public int subCountDefault = -1;
-        private String streamDefault = null;
-        private String mirrorDefault = null;
-        private String consumerDefault = null;
-        private String durableDefault = null;
-        private String deliverDefault = null;
-        private int pullSizeDefault = 0;
-        private String userDefault = null;
-        private String passDefault = null;
-        private boolean uniqueify = false;
+
+        private final ExampleArgs ea;
+        private final String[] args;
+        private final String usage;
+
+        public Builder(String title, String[] args, String usage)
+        {
+            ea = new ExampleArgs(title);
+            this.args = args;
+            this.usage = usage;
+        }
 
         public Builder defaultSubject(String subject) {
-            this.subjectDefault = subject;
+            ea.subject = subject;
             return this;
         }
 
         public Builder defaultQueue(String queue) {
-            this.queueDefault = queue;
+            ea.queue = queue;
             return this;
         }
 
         public Builder defaultMessage(String message) {
-            this.messageDefault = message;
+            ea.message = message;
             return this;
         }
 
         public Builder defaultMsgCount(int msgCount) {
-            this.msgCountDefault = msgCount;
+            return defaultMsgCount(msgCount, false);
+        }
+
+        public Builder defaultMsgCount(int msgCount, boolean unlimitedFlag) {
+            ea.msgCount = msgCount;
+            ea.msgCountUnlimitedFlag = unlimitedFlag;
+            return this;
+        }
+
+        public Builder defaultMsgSize(int msgSize) {
+            ea.msgSize = msgSize;
             return this;
         }
 
         public Builder defaultSubCount(int subCount) {
-            this.subCountDefault = subCount;
+            ea.subCount = subCount;
             return this;
         }
 
         public Builder defaultStream(String stream) {
-            this.streamDefault = stream;
+            ea.stream = stream;
             return this;
         }
 
         public Builder defaultMirror(String mirror) {
-            this.mirrorDefault = mirror;
-            return this;
-        }
-
-        public Builder defaultConsumer(String consumer) {
-            this.consumerDefault = consumer;
+            ea.mirror = mirror;
             return this;
         }
 
         public Builder defaultDurable(String durable) {
-            this.durableDefault = durable;
+            ea.durable = durable;
             return this;
         }
 
-        public Builder defaultDeliver(String deliver) {
-            this.deliverDefault = deliver;
+        public Builder defaultBucket(String bucket) {
+            ea.bucket = bucket;
             return this;
         }
 
-        public Builder defaultUser(String user) {
-            this.userDefault = user;
+        public Builder defaultDescription(String description) {
+            ea.description = description;
             return this;
         }
 
-        public Builder defaultPass(String pass) {
-            this.passDefault = pass;
+        public Builder defaultDeliverSubject(String deliver) {
+            ea.deliverSubject = deliver;
             return this;
         }
 
         public Builder defaultPullSize(int pullSize) {
-            this.pullSizeDefault = pullSize;
+            ea.pullSize = pullSize;
             return this;
         }
 
-        public Builder uniqueify() {
-            uniqueify = true;
-            return this;
-        }
-
-        public ExampleArgs build(String[] args, String usageString) {
-            ExampleArgs ea = new ExampleArgs(args, null, usageString);
-            if (ea.containedUnknown && usageString != null) {
-                usage(usageString);
+        public ExampleArgs build() {
+            ea.parse(args, null, usage);
+            if (ea.containedUnknown && usage != null) {
+                usageThenExit(usage);
             }
-            if (ea.subject == null) {
-                ea.subject = subjectDefault;
-            }
-            if (ea.queue == null) {
-                ea.queue = queueDefault;
-            }
-            if (ea.message == null) {
-                ea.message = messageDefault;
-            }
-            if (ea.msgCount == -1) {
-                ea.msgCount = msgCountDefault;
-            }
-            if (ea.subCount == -1) {
-                ea.subCount = subCountDefault;
-            }
-            if (ea.stream == null) {
-                ea.stream = streamDefault;
-            }
-            if (ea.mirror == null) {
-                ea.mirror = mirrorDefault;
-            }
-            if (ea.consumer == null) {
-                ea.consumer = consumerDefault;
-            }
-            if (ea.durable == null) {
-                ea.durable = durableDefault;
-            }
-            if (ea.deliver == null) {
-                ea.deliver = deliverDefault;
-            }
-            if (ea.user == null) {
-                ea.user = userDefault;
-            }
-            if (ea.pass == null) {
-                ea.pass = passDefault;
-            }
-            if (ea.pullSize == 0) {
-                ea.pullSize = pullSizeDefault;
-            }
-            if (uniqueify) {
-                String u = "-" + uniqueEnough();
-                if (ea.stream != null) {
-                    ea.stream += u;
-                }
-                if (ea.mirror != null) {
-                    ea.mirror += u;
-                }
-                if (ea.subject != null) {
-                    ea.subject += u;
-                }
-                if (ea.queue != null) {
-                    ea.queue += u;
-                }
-                if (ea.consumer != null) {
-                    ea.consumer += u;
-                }
-                if (ea.durable != null) {
-                    ea.durable += u;
-                }
-                if (ea.deliver != null) {
-                    ea.deliver += u;
-                }
-            }
+            ea.displayBanner();
             return ea;
         }
     }
 
-    private static void usage(String usageString) {
+    private static void usageThenExit(String usageString) {
         if (usageString != null) {
             System.out.println(usageString);
         }

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: NATS - Java Client Discussions
+    url: https://github.com/nats-io/nats.java/discussions
+    about: Please ask usage questions here.
+  - name: NATS Slack
+    url: https://slack.nats.io
+    about: Our Slack server is for community discussion.

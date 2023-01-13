@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.AckType;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.NatsJetStreamMetaData;
 import io.nats.client.support.Status;
@@ -93,6 +94,12 @@ public interface Message {
 	NatsJetStreamMetaData metaData();
 
 	/**
+	 * the last ack that was done with this message
+	 * @return the last ack or null
+	 */
+	AckType lastAck();
+
+	/**
 	 * ack acknowledges a JetStream messages received from a Consumer, indicating the message
 	 * should not be received again later.
 	 */
@@ -112,6 +119,20 @@ public interface Message {
 	 * is not completely processed and should be sent again later.
 	 */
 	void nak();
+
+	/**
+	 * nak acknowledges a JetStream message has been received but indicates that the message
+	 * is not completely processed and should be sent again later, after at least the delay amount.
+	 * @param nakDelay tell the server how long to delay before processing the ack
+	 */
+	void nakWithDelay(Duration nakDelay);
+
+	/**
+	 * nak acknowledges a JetStream message has been received but indicates that the message
+	 * is not completely processed and should be sent again later, after at least the delay amount.
+	 * @param nakDelayMillis tell the server how long to delay before processing the ack
+	 */
+	void nakWithDelay(long nakDelayMillis);
 
 	/**
 	 * term prevents this message from every being delivered regardless of maxDeliverCount.

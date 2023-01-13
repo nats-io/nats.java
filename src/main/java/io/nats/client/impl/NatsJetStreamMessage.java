@@ -14,45 +14,88 @@
 package io.nats.client.impl;
 
 import io.nats.client.Connection;
-import io.nats.client.impl.NatsMessage.InternalMessage;
 
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.impl.AckType.*;
+import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 import static io.nats.client.support.Validator.validateDurationRequired;
 
-class NatsJetStreamMessage extends InternalMessage {
+class NatsJetStreamMessage extends IncomingMessage {
 
     private NatsJetStreamMetaData jsMetaData = null;
 
-    NatsJetStreamMessage() {}
+    NatsJetStreamMessage(byte[] data) {
+        super(data);
+    }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void ack() {
-        ackReply(AckAck);
+        ackReply(AckAck, -1);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void ackSync(Duration d) throws InterruptedException, TimeoutException {
-        ackReplySync(AckAck, validateDurationRequired(d));
+        if (ackHasntBeenTermed()) {
+            validateDurationRequired(d);
+            Connection nc = getJetStreamValidatedConnection();
+            if (nc.request(replyTo, AckAck.bytes, d) == null) {
+                throw new TimeoutException("Ack response timed out.");
+            }
+            lastAck = AckAck;
+        }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void nak() {
-        ackReply(AckNak);
+        ackReply(AckNak, -1);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void nakWithDelay(Duration nakDelay) {
+        ackReply(AckNak, nakDelay.toNanos());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void nakWithDelay(long nakDelayMillis) {
+        ackReply(AckNak, nakDelayMillis * NANOS_PER_MILLI);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void inProgress() {
-        ackReply(AckProgress);
+        ackReply(AckProgress, -1);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void term() {
-        ackReply(AckTerm);
+        ackReply(AckTerm, -1);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public NatsJetStreamMetaData metaData() {
         if (this.jsMetaData == null) {
@@ -61,36 +104,25 @@ class NatsJetStreamMessage extends InternalMessage {
         return this.jsMetaData;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean isJetStream() {
         return true; // NatsJetStreamMessage will never be created unless it's actually a JetStream Message
     }
 
-    private void ackReply(AckType ackType) {
-        Connection nc = getJetStreamValidatedConnection();
-// SFF 2021-02-25 Future ackNext() behavior
-//        if (ackType == AckNext) {
-//            byte[] bytes = ((NatsJetStreamSubscription) subscription).getPrefixedPullJson(AckNext.text);
-//            nc.publish(replyTo, bytes);
-//        }
-//        else {
-//            nc.publish(replyTo, ackType.bytes);
-//        }
-        nc.publish(replyTo, ackType.bytes);
-    }
-
-    private void ackReplySync(AckType ackType, Duration dur) throws InterruptedException, TimeoutException {
-        Connection nc = getJetStreamValidatedConnection();
-        if (nc.request(replyTo, ackType.bytes, dur) == null) {
-            throw new TimeoutException("Ack response timed out.");
+    private void ackReply(AckType ackType, long delayNanos) {
+        if (ackHasntBeenTermed()) {
+            Connection nc = getJetStreamValidatedConnection();
+            nc.publish(replyTo, ackType.bodyBytes(delayNanos));
+            lastAck = ackType;
         }
     }
 
-// SFF 2021-02-25 Future ackNext() behavior
-//    private boolean isPullMode() {
-//        return subscription instanceof NatsJetStreamSubscription
-//                && ((NatsJetStreamSubscription) subscription).isPullMode();
-//    }
+    private boolean ackHasntBeenTermed() {
+        return lastAck == null || !lastAck.terminal;
+    }
 
     Connection getJetStreamValidatedConnection() {
         if (getSubscription() == null) {

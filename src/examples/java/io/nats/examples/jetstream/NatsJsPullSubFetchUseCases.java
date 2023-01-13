@@ -31,38 +31,39 @@ import static io.nats.examples.jetstream.NatsJsUtils.*;
  */
 public class NatsJsPullSubFetchUseCases {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPullSubFetchUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]"
-                    + "\n\nDefault Values:"
-                    + "\n   [-strm stream]     fetch-uc-ack-stream"
-                    + "\n   [-sub subject]     fetch-uc-ack-subject"
-                    + "\n   [-dur durable]     fetch-uc-ack-durable"
-                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
-                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
-                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
+        "\nUsage: java -cp <classpath> NatsJsPullSubFetchUseCases [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
+            + "\n\nDefault Values:"
+            + "\n   [-strm] fetch-uc-stream"
+            + "\n   [-sub]  fetch-uc-subject"
+            + "\n   [-dur]  fetch-uc-durable"
+            + "\n   [-mcnt] 15"
+            + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+            + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+            + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+            + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("fetch-uc-ack-stream")
-                .defaultSubject("fetch-uc-ack-subject")
-                .defaultDurable("fetch-uc-ack-durable")
-                //.uniqueify() // uncomment to be able to re-run without re-starting server
-                .build(args, usageString);
+        ExampleArgs exArgs = ExampleArgs.builder("Pull Subscription using macro Fetch, Use Cases", args, usageString)
+                .defaultStream("fetch-uc-stream")
+                .defaultSubject("fetch-uc-subject")
+                .defaultDurable("fetch-uc-durable")
+                .build();
         
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
+            // Create a JetStreamManagement context.
+            JetStreamManagement jsm = nc.jetStreamManagement();
 
-            createStreamThrowWhenExists(nc, exArgs.stream, exArgs.subject);
+            // Use the utility to create a stream stored in memory.
+            createStreamExitWhenExists(jsm, exArgs.stream, exArgs.subject);
 
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // Build our consumer configuration and subscription options.
             // make sure the ack wait is sufficient to handle the reading and processing of the batch.
-            // Durable is REQUIRED for pull based subscriptions
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                     .ackWait(Duration.ofMillis(2500))
                     .build();
-
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                     .durable(exArgs.durable) // required
                     .configuration(cc)
@@ -153,6 +154,9 @@ public class NatsJsPullSubFetchUseCases {
             System.out.println("We should have received 10 message, we received: " + messages.size());
 
             System.out.println("----------\n");
+
+            // delete the stream since we are done with it.
+            jsm.deleteStream(exArgs.stream);
         }
         catch (Exception e) {
             e.printStackTrace();

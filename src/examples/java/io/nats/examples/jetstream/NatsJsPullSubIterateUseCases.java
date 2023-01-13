@@ -27,45 +27,45 @@ import static io.nats.examples.jetstream.NatsJsUtils.*;
 
 /**
  * This example will demonstrate miscellaneous uses cases of a pull subscription of:
- * iterate pull: <code>iterate(int batchSize, Duration maxWait)</code>,
+ * iterate pull: <code>iterate(int batchSize, Duration or millis maxWait)</code>,
  * no manual handling of null or status.
  */
 public class NatsJsPullSubIterateUseCases {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPullSubIterateUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]"
-                    + "\n\nDefault Values:"
-                    + "\n   [-strm stream]     iterate-uc-ack-stream"
-                    + "\n   [-sub subject]     iterate-uc-ack-subject"
-                    + "\n   [-dur durable]     iterate-uc-ack-durable"
-                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
-                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
-                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
+        "\nUsage: java -cp <classpath> NatsJsPullSubIterateUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]"
+            + "\n\nDefault Values:"
+            + "\n   [-strm] iterate-uc-stream"
+            + "\n   [-sub]  iterate-uc-subject"
+            + "\n   [-dur]  iterate-uc-durable"
+            + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+            + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+            + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+            + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("iterate-uc-ack-stream")
-                .defaultSubject("iterate-uc-ack-subject")
-                .defaultDurable("iterate-uc-ack-durable")
-                //.uniqueify() // uncomment to be able to re-run without re-starting server
-                .build(args, usageString);
+        ExampleArgs exArgs = ExampleArgs.builder("Pull Subscription using macro Iterate, Use Cases", args, usageString)
+                .defaultStream("iterate-uc-stream")
+                .defaultSubject("iterate-uc-subject")
+                .defaultDurable("iterate-uc-durable")
+                .build();
         
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
+            // Create a JetStreamManagement context.
+            JetStreamManagement jsm = nc.jetStreamManagement();
 
-            createStreamThrowWhenExists(nc, exArgs.stream, exArgs.subject);
+            // Use the utility to create a stream stored in memory.
+            createStreamExitWhenExists(jsm, exArgs.stream, exArgs.subject);
 
-            // Create our JetStream context to receive JetStream messages.
+            // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // Build our consumer configuration and subscription options.
             // make sure the ack wait is sufficient to handle the reading and processing of the batch.
-            // Durable is REQUIRED for pull based subscriptions
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                     .ackWait(Duration.ofMillis(2500))
                     .build();
-
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                    .durable(exArgs.durable) // required
+                    .durable(exArgs.durable)
                     .configuration(cc)
                     .build();
 
@@ -154,6 +154,9 @@ public class NatsJsPullSubIterateUseCases {
             System.out.println("We should have received 10 message, we received: " + messages.size());
 
             System.out.println("----------\n");
+
+            // delete the stream since we are done with it.
+            jsm.deleteStream(exArgs.stream);
         }
         catch (Exception e) {
             e.printStackTrace();

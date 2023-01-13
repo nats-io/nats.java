@@ -24,6 +24,9 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static io.nats.examples.jetstream.NatsJsUtils.printConsumerInfo;
@@ -31,12 +34,47 @@ import static io.nats.examples.jetstream.NatsJsUtils.printStreamInfo;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamTestBase extends TestBase {
-    public static final String JS_REPLY_TO = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000";
-    public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(500);
+    public static final String TestMetaV0 = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000";
+    public static final String TestMetaV1 = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000.4";
+    public static final String TestMetaV2 = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.4";
+    public static final String TestMetaVFuture = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.4.dont.care.how.many.more";
+    public static final String InvalidMetaNoAck = "$JS.nope.test-stream.test-consumer.1.2.3.1605139610113260000";
+    public static final String InvalidMetaLt8Tokens = "$JS.ACK.less-than.8-tokens.1.2.3";
+    public static final String InvalidMeta10Tokens = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000";
+    public static final String InvalidMetaData = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.not-a-number";
 
-    public NatsMessage getJsMessage(String replyTo) {
-        return new NatsMessage.InternalMessageFactory("sid", "subj", replyTo, 0, false).getMessage();
+    public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(1000);
+
+    private static final AtomicInteger MOCK_SID_HOLDER = new AtomicInteger(4273);
+    public static String mockSid() {
+        return "" + MOCK_SID_HOLDER.incrementAndGet();
     }
+
+    public NatsMessage getTestNatsMessage() {
+        return getTestMessage("replyTo", mockSid());
+    }
+
+    public NatsMessage getTestJsMessage() {
+        return getTestMessage(TestMetaV2, mockSid());
+    }
+
+    public NatsMessage getTestJsMessage(long seq) {
+        return getTestJsMessage(seq, mockSid());
+    }
+
+    public NatsMessage getTestJsMessage(long seq, String sid) {
+        return getTestMessage("$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1." + seq + "." + seq + ".1605139610113260000.4", sid);
+    }
+
+    public NatsMessage getTestMessage(String replyTo) {
+        return new IncomingMessageFactory(mockSid(), "subj", replyTo, 0, false).getMessage();
+    }
+
+    public NatsMessage getTestMessage(String replyTo, String sid) {
+        return new IncomingMessageFactory(sid, "subj", replyTo, 0, false).getMessage();
+    } 
+
+    static class NoopMessageManager extends MessageManager {}
 
     // ----------------------------------------------------------------------------------------------------
     // Management
@@ -57,11 +95,11 @@ public class JetStreamTestBase extends TestBase {
         return createMemoryStream(nc.jetStreamManagement(), streamName, subjects);
     }
 
-    public static StreamInfo createTestStream(Connection nc) throws IOException, JetStreamApiException {
+    public static StreamInfo createDefaultTestStream(Connection nc) throws IOException, JetStreamApiException {
         return createMemoryStream(nc, STREAM, SUBJECT);
     }
 
-    public static StreamInfo createTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
+    public static StreamInfo createDefaultTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
         return createMemoryStream(jsm, STREAM, SUBJECT);
     }
 
@@ -81,7 +119,12 @@ public class JetStreamTestBase extends TestBase {
     // Publish / Read
     // ----------------------------------------------------------------------------------------------------
     public static void jsPublish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
-        for (int x = 1; x <= count; x++) {
+        jsPublish(js, subject, prefix, 1, count);
+    }
+
+    public static void jsPublish(JetStream js, String subject, String prefix, int startId, int count) throws IOException, JetStreamApiException {
+        int end = startId + count - 1;
+        for (int x = startId; x <= end; x++) {
             String data = prefix + x;
             js.publish(NatsMessage.builder()
                     .subject(subject)
@@ -109,21 +152,37 @@ public class JetStreamTestBase extends TestBase {
         jsPublish(nc.jetStream(), subject, startId, count);
     }
 
-    public static PublishAck jsPublish(JetStream js) throws IOException, JetStreamApiException {
+    public static PublishAck jsPublish(JetStream js, String subject, String data) throws IOException, JetStreamApiException {
         Message msg = NatsMessage.builder()
-                .subject(SUBJECT)
-                .data(DATA.getBytes(StandardCharsets.US_ASCII))
-                .build();
+            .subject(subject)
+            .data(data.getBytes(StandardCharsets.US_ASCII))
+            .build();
         return js.publish(msg);
     }
 
+    public static PublishAck jsPublish(JetStream js) throws IOException, JetStreamApiException {
+        return jsPublish(js, SUBJECT, DATA);
+    }
+
     public static List<Message> readMessagesAck(JetStreamSubscription sub) throws InterruptedException {
-        return readMessagesAck(sub, false);
+        return readMessagesAck(sub, false, Duration.ofSeconds(1), -1);
     }
 
     public static List<Message> readMessagesAck(JetStreamSubscription sub, boolean noisy) throws InterruptedException {
+        return readMessagesAck(sub, noisy, Duration.ofSeconds(1), -1);
+    }
+
+    public static List<Message> readMessagesAck(JetStreamSubscription sub, Duration timeout) throws InterruptedException {
+        return readMessagesAck(sub, false, timeout, -1);
+    }
+
+    public static List<Message> readMessagesAck(JetStreamSubscription sub, Duration timeout, int max) throws InterruptedException {
+        return readMessagesAck(sub, false, timeout, max);
+    }
+
+    public static List<Message> readMessagesAck(JetStreamSubscription sub, boolean noisy, Duration timeout, int max) throws InterruptedException {
         List<Message> messages = new ArrayList<>();
-        Message msg = sub.nextMessage(Duration.ofSeconds(1));
+        Message msg = sub.nextMessage(timeout);
         while (msg != null) {
             messages.add(msg);
             if (msg.isJetStream()) {
@@ -140,15 +199,18 @@ public class JetStreamTestBase extends TestBase {
             else if (noisy) {
                 System.out.println("? " + new String(msg.getData()) + "?");
             }
-            msg = sub.nextMessage(Duration.ofSeconds(1));
+            if (messages.size() == max) {
+                return messages;
+            }
+            msg = sub.nextMessage(timeout);
         }
         return messages;
     }
 
-    public static List<Message> readMessages(Iterator<Message> list) {
+    public static List<Message> readMessages(Iterator<Message> iter) {
         List<Message> messages = new ArrayList<>();
-        while (list.hasNext()) {
-            messages.add(list.next());
+        while (iter.hasNext()) {
+            messages.add(iter.next());
         }
         return messages;
     }
@@ -170,18 +232,19 @@ public class JetStreamTestBase extends TestBase {
     }
 
     public static void assertSubscription(JetStreamSubscription sub, String stream, String consumer, String deliver, boolean isPullMode) {
-        assertEquals(stream, ((NatsJetStreamSubscription)sub).getStream());
+        NatsJetStreamSubscription njssub = (NatsJetStreamSubscription)sub;
+        assertEquals(stream, njssub.getStream());
         if (consumer == null) {
-            assertNotNull(((NatsJetStreamSubscription)sub).getConsumer());
+            assertNotNull(njssub.getConsumerName());
         }
         else {
-            assertEquals(consumer, ((NatsJetStreamSubscription) sub).getConsumer());
+            assertEquals(consumer, njssub.getConsumerName());
         }
         if (deliver != null) {
-            assertEquals(deliver, ((NatsJetStreamSubscription)sub).getDeliverSubject());
+            assertEquals(deliver, njssub.getSubject());
         }
 
-        boolean pm = ((NatsJetStreamSubscription)sub).isPullMode();
+        boolean pm = njssub.isPullMode();
         assertEquals(isPullMode, pm);
 
         // coverage
@@ -283,4 +346,41 @@ public class JetStreamTestBase extends TestBase {
 
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // Subscription or test macros
+    // ----------------------------------------------------------------------------------------------------
+    public static void unsubscribeEnsureNotBound(JetStreamSubscription sub) throws IOException, JetStreamApiException {
+        sub.unsubscribe();
+        ensureNotBound(sub);
+    }
+
+    public static void unsubscribeEnsureNotBound(Dispatcher dispatcher, JetStreamSubscription sub) {
+        dispatcher.unsubscribe(sub);
+    }
+
+    public static void ensureNotBound(JetStreamSubscription sub) throws IOException, JetStreamApiException {
+        ConsumerInfo ci = sub.getConsumerInfo();
+        long start = System.currentTimeMillis();
+        while (ci.isPushBound()) {
+            if (System.currentTimeMillis() - start > 5000) {
+                return; // don't wait forever
+            }
+            sleep(5);
+            ci = sub.getConsumerInfo();
+        }
+    }
+
+    // Flapper fix: For whatever reason 10 seconds isn't enough on slow machines
+    // I've put this in a function so all latch awaits give plenty of time
+    public static void awaitAndAssert(CountDownLatch latch) throws InterruptedException {
+        long start = System.currentTimeMillis();
+        while (latch.getCount() > 0 && System.currentTimeMillis() - start < 30000) {
+            latch.await(1, TimeUnit.SECONDS);
+        }
+        assertEquals(0, latch.getCount());
+    }
+
+    public static Options.Builder optsWithEl(ErrorListener el) {
+        return new Options.Builder().errorListener(el);
+    }
 }

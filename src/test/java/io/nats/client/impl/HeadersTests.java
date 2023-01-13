@@ -356,6 +356,18 @@ public class HeadersTests {
         );
     }
 
+    @Test
+    public void getFirsts() {
+        Headers headers = new Headers();
+        assertNull(headers.getFirst(KEY1));
+        headers.add(KEY1, VAL1);
+        assertEquals(VAL1, headers.getFirst(KEY1));
+        headers.add(KEY1, VAL2);
+        assertEquals(VAL1, headers.getFirst(KEY1));
+        headers.put(KEY1, VAL3);
+        assertEquals(VAL3, headers.getFirst(KEY1));
+    }
+
     private void remove(
             Consumer<Headers> step1RemoveKey1,
             Consumer<Headers> step2RemoveKey1A,
@@ -491,6 +503,28 @@ public class HeadersTests {
     }
 
     @Test
+    public void verifyStatusBooleans() {
+        Status status = new Status(Status.FLOW_OR_HEARTBEAT_STATUS_CODE, Status.FLOW_CONTROL_TEXT);
+        assertTrue(status.isFlowControl());
+        assertFalse(status.isHeartbeat());
+        assertFalse(status.isNoResponders());
+
+        status = new Status(Status.FLOW_OR_HEARTBEAT_STATUS_CODE, Status.HEARTBEAT_TEXT);
+        assertFalse(status.isFlowControl());
+        assertTrue(status.isHeartbeat());
+        assertFalse(status.isNoResponders());
+
+        status = new Status(Status.NO_RESPONDERS_CODE, Status.NO_RESPONDERS_TEXT);
+        assertFalse(status.isFlowControl());
+        assertFalse(status.isHeartbeat());
+        assertTrue(status.isNoResponders());
+
+        // path coverage
+        status = new Status(Status.NO_RESPONDERS_CODE, "not no responders text");
+        assertFalse(status.isNoResponders());
+    }
+
+    @Test
     public void constructHasStatusAndHeaders() {
         IncomingHeadersProcessor ihp = assertValidStatus("NATS/1.0 503\r\nfoo:bar\r\n\r\n", 503, "No Responders Available For Request"); // status made message
         assertValidHeader(ihp, "foo", "bar");
@@ -527,7 +561,7 @@ public class HeadersTests {
         if (msg != null) {
             assertEquals(msg, status.getMessage());
         }
-        NatsMessage.InternalMessageFactory imf = new NatsMessage.InternalMessageFactory("sid", "sub", "rt", 0, false);
+        IncomingMessageFactory imf = new IncomingMessageFactory("sid", "sub", "rt", 0, false);
         imf.setHeaders(ihp);
         assertTrue(imf.getMessage().isStatusMessage());
         return ihp;

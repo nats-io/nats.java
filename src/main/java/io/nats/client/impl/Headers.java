@@ -19,6 +19,7 @@ import java.util.*;
 import java.util.function.BiConsumer;
 
 import static io.nats.client.support.NatsConstants.*;
+import static java.nio.charset.StandardCharsets.US_ASCII;
 
 /**
  * An object that represents a map of keys to a list of values. It does not accept
@@ -60,6 +61,7 @@ public class Headers {
 	 *
 	 * @param key the key
 	 * @param values the values
+	 * @return the Headers object
 	 * @throws IllegalArgumentException if the key is null or empty or contains invalid characters
 	 *         -or- if any value contains invalid characters
 	 */
@@ -76,6 +78,7 @@ public class Headers {
 	 * null values are ignored. If all values are null, the key is not added or updated.
 	 *
 	 * @param key the key
+	 * @return the Headers object
 	 * @throws IllegalArgumentException if the key is null or empty or contains invalid characters
 	 *         -or- if any value contains invalid characters
 	 */
@@ -109,6 +112,7 @@ public class Headers {
 	 *
 	 * @param key the key
 	 * @param values the values
+	 * @return the Headers object
 	 * @throws IllegalArgumentException if the key is null or empty or contains invalid characters
 	 *         -or- if any value contains invalid characters
 	 */
@@ -126,11 +130,26 @@ public class Headers {
 	 *
 	 * @param key the key
 	 * @param values the values
+	 * @return the Headers object
 	 * @throws IllegalArgumentException if the key is null or empty or contains invalid characters
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers put(String key, Collection<String> values) {
 		_put(key, values);
+		return this;
+	}
+
+	/**
+	 * Associates all specified values with their key. If the key was already present
+	 * any existing values are removed and replaced with the new list.
+	 * null values are ignored. If all values are null, the put is ignored
+	 * @param map the map
+	 * @return the Headers object
+	 */
+	public Headers put(Map<String, List<String>> map) {
+		for (String key : map.keySet() ) {
+			put(key, map.get(key));
+		}
 		return this;
 	}
 
@@ -270,6 +289,17 @@ public class Headers {
 	}
 
 	/**
+	 * Returns the first value for the specific (case sensitive) key.
+	 * Will be {@code null} if the key is not found.
+	 *
+	 * @return the first value for the case sensitive key.
+	 */
+	public String getFirst(String key) {
+		List<String> values = valuesMap.get(key);
+		return values == null ? null : values.get(0);
+	}
+
+	/**
 	 * Returns a {@link List} view of the values for the specific (case insensitive) key.
 	 * Will be {@code null} if the key is not found.
 	 *
@@ -328,7 +358,8 @@ public class Headers {
 		return dataLength + NON_DATA_BYTES;
 	}
 
-	private static final int NON_DATA_BYTES = HEADER_VERSION_BYTES_PLUS_CRLF.length + 2;
+	private static final int HVCRLF_BYTES = HEADER_VERSION_BYTES_PLUS_CRLF.length;
+	private static final int NON_DATA_BYTES = HVCRLF_BYTES + 2;
 
 	/**
 	 * Returns the serialized bytes.
@@ -337,11 +368,18 @@ public class Headers {
 	 */
 	public byte[] getSerialized() {
 		if (serialized == null) {
-			serialized = appendSerialized(new ByteArrayBuilder(dataLength + NON_DATA_BYTES)).toByteArray();
+			serialized = new byte[serializedLength()];
+			serializeToArray(0, serialized);
 		}
 		return serialized;
 	}
 
+	/**
+	 * @deprecated
+	 * Appends the serialized bytes to the builder.
+	 * @return the builder
+	 */
+	@Deprecated
 	public ByteArrayBuilder appendSerialized(ByteArrayBuilder bab) {
 		bab.append(HEADER_VERSION_BYTES_PLUS_CRLF);
 		for (String key : valuesMap.keySet()) {
@@ -354,6 +392,40 @@ public class Headers {
 		}
 		bab.append(CRLF_BYTES);
 		return bab;
+	}
+
+	/**
+	 * Write the header to the byte array. Assumes that the caller has
+	 * already validated that the destination array is large enough by using getSerialized()
+	 * @param destPosition the position index in destination byte array to start
+	 * @param dest the byte array to write to
+	 * @return the length of the header
+	 */
+	public int serializeToArray(int destPosition, byte[] dest) {
+		System.arraycopy(HEADER_VERSION_BYTES_PLUS_CRLF, 0, dest, destPosition, HVCRLF_BYTES);
+		destPosition += HVCRLF_BYTES;
+
+		for (Map.Entry<String, List<String>> entry : valuesMap.entrySet()) {
+			List<String> values = entry.getValue();
+			for (String value : values) {
+				byte[] bytes = entry.getKey().getBytes(US_ASCII);
+				System.arraycopy(bytes, 0, dest, destPosition, bytes.length);
+				destPosition += bytes.length;
+
+				dest[destPosition++] = COLON;
+
+				bytes = value.getBytes(US_ASCII);
+				System.arraycopy(bytes, 0, dest, destPosition, bytes.length);
+				destPosition += bytes.length;
+
+				dest[destPosition++] = CR;
+				dest[destPosition++] = LF;
+			}
+		}
+		dest[destPosition++] = CR;
+		dest[destPosition] = LF;
+
+		return serializedLength();
 	}
 
 	/**

@@ -13,7 +13,6 @@
 
 package io.nats.client.api;
 
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,12 +38,16 @@ public class Source extends SourceBase {
         super(SOURCE, json);
     }
 
-    Source(String name, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
-        super(SOURCE, name, startSeq, startTime, filterSubject, external);
+    Source(Builder b) {
+        super(SOURCE, b);
     }
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    public static Builder builder(Source source) {
+        return new Builder(source);
     }
 
     public static class Builder extends SourceBaseBuilder<Builder> {
@@ -53,8 +56,14 @@ public class Source extends SourceBase {
             return this;
         }
 
+        public Builder() {}
+
+        public Builder(Source source) {
+            super(source);
+        }
+
         public Source build() {
-            return new Source(sourceName, startSeq, startTime, filterSubject, external);
+            return new Source(this);
         }
     }
 }

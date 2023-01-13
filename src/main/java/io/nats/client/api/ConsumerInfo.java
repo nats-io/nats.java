@@ -31,12 +31,14 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
     private final String name;
     private final ConsumerConfiguration configuration;
     private final ZonedDateTime created;
-    private final SequencePair delivered;
-    private final SequencePair ackFloor;
+    private final SequenceInfo delivered;
+    private final SequenceInfo ackFloor;
     private final long numPending;
     private final long numWaiting;
     private final long numAckPending;
     private final long numRedelivered;
+    private final ClusterInfo clusterInfo;
+    private final boolean pushBound;
 
     public ConsumerInfo(Message msg) {
         this(new String(msg.getData(), StandardCharsets.UTF_8));
@@ -44,23 +46,30 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
 
     public ConsumerInfo(String json) {
         super(json);
-        stream = JsonUtils.readString(json, STREAM_NAME_RE);
-        name = JsonUtils.readString(json, NAME_RE);
-        created = JsonUtils.readDate(json, CREATED_RE);
 
         String jsonObject = JsonUtils.getJsonObject(CONFIG, json);
         this.configuration = new ConsumerConfiguration(jsonObject);
 
+        // both config and the base have a name field
+        JsonUtils.removeObject(json, CONFIG);
+
+        stream = JsonUtils.readString(json, STREAM_NAME_RE);
+        name = JsonUtils.readString(json, NAME_RE);
+        created = JsonUtils.readDate(json, CREATED_RE);
+
         jsonObject = JsonUtils.getJsonObject(DELIVERED, json);
-        this.delivered = new SequencePair(jsonObject);
+        this.delivered = new SequenceInfo(jsonObject);
 
         jsonObject = JsonUtils.getJsonObject(ACK_FLOOR, json);
-        this.ackFloor = new SequencePair(jsonObject);
+        this.ackFloor = new SequenceInfo(jsonObject);
 
         numAckPending = JsonUtils.readLong(json, NUM_ACK_PENDING_RE, 0);
         numRedelivered = JsonUtils.readLong(json, NUM_REDELIVERED_RE, 0);
         numPending = JsonUtils.readLong(json, NUM_PENDING_RE, 0);
         numWaiting = JsonUtils.readLong(json, NUM_WAITING_RE, 0);
+
+        clusterInfo = ClusterInfo.optionalInstance(json);
+        pushBound = JsonUtils.readBoolean(json, PUSH_BOUND_RE);
     }
     
     public ConsumerConfiguration getConsumerConfiguration() {
@@ -79,11 +88,11 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
         return created;
     }
 
-    public SequencePair getDelivered() {
+    public SequenceInfo getDelivered() {
         return delivered;
     }
 
-    public SequencePair getAckFloor() {
+    public SequenceInfo getAckFloor() {
         return ackFloor;
     }
 
@@ -103,6 +112,18 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
         return numRedelivered;
     }
 
+    public ClusterInfo getClusterInfo() {
+        return clusterInfo;
+    }
+
+    public boolean isPushBound() {
+        return pushBound;
+    }
+
+    public long getCalculatedPending() {
+        return numPending + delivered.getConsumerSequence();
+    }
+
     @Override
     public String toString() {
         return "ConsumerInfo{" +
@@ -112,10 +133,12 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
                 ", numWaiting=" + numWaiting +
                 ", numAckPending=" + numAckPending +
                 ", numRedelivered=" + numRedelivered +
+                ", pushBound=" + pushBound +
                 ", created=" + created +
                 ", " + objectString("delivered", delivered) +
                 ", " + objectString("ackFloor", ackFloor) +
                 ", " + objectString("configuration", configuration) +
+                ", " + objectString("cluster", clusterInfo) +
                 '}';
     }
 }

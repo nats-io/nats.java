@@ -13,34 +13,102 @@
 
 package io.nats.client;
 
+import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
 
+import java.time.Duration;
+
+import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.support.Validator.*;
 
 /**
- * The PushSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
- * Options are created using the constructors or a {@link Builder}.
+ * The SubscribeOptions is the base class for PushSubscribeOptions and PullSubscribeOptions
  */
 public abstract class SubscribeOptions {
 
+    public static final long DEFAULT_ORDERED_HEARTBEAT = 5000;
+
     protected final String stream;
-    protected final boolean isBind;
+    protected final boolean pull;
+    protected final boolean bind;
+    protected final boolean ordered;
+    protected final long messageAlarmTime;
     protected final ConsumerConfiguration consumerConfig;
+    protected final long pendingMessageLimit; // Only applicable for non dispatched (sync) push consumers.
+    protected final long pendingByteLimit; // Only applicable for non dispatched (sync) push consumers.
 
-    protected SubscribeOptions(String stream, String durable, String deliverSubject,
-                               boolean isBind, boolean pull, ConsumerConfiguration cc) {
+    @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
+    protected SubscribeOptions(Builder builder, boolean isPull, boolean isOrdered,
+                               String deliverSubject, String deliverGroup,
+                               long pendingMessageLimit, long pendingByteLimit) {
 
-        this.stream = validateStreamName(stream, isBind); // required when bind mode
+        pull = isPull;
+        bind = builder.bind;
+        ordered = isOrdered;
+        messageAlarmTime = builder.messageAlarmTime;
 
-        durable = durable == null && cc != null ? emptyAsNull(cc.getDurable()) : durable;
-        durable = validateDurable(durable, pull || isBind); // required when pull or bind mode
+        if (ordered && bind) {
+            throw JsSoOrderedNotAllowedWithBind.instance();
+        }
 
-        this.consumerConfig = ConsumerConfiguration.builder(cc)
+        stream = validateStreamName(builder.stream, bind); // required when bind mode
+
+        String durable = validateMustMatchIfBothSupplied(builder.durable, builder.cc == null ? null : builder.cc.getDurable(), JsSoDurableMismatch);
+        durable = validateDurable(durable, bind); // required when bind
+
+        String name = validateMustMatchIfBothSupplied(builder.name, builder.cc == null ? null : builder.cc.getName(), JsSoNameMismatch);
+
+        validateMustMatchIfBothSupplied(name, durable, JsConsumerNameDurableMismatch);
+
+        deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, builder.cc == null ? null : builder.cc.getDeliverGroup(), JsSoDeliverGroupMismatch);
+
+        deliverSubject = validateMustMatchIfBothSupplied(deliverSubject, builder.cc == null ? null : builder.cc.getDeliverSubject(), JsSoDeliverSubjectMismatch);
+
+        this.pendingMessageLimit = pendingMessageLimit;
+        this.pendingByteLimit = pendingByteLimit;
+
+        if (isOrdered) {
+            validateNotSupplied(deliverGroup, JsSoOrderedNotAllowedWithDeliverGroup);
+            validateNotSupplied(durable, JsSoOrderedNotAllowedWithDurable);
+            validateNotSupplied(deliverSubject, JsSoOrderedNotAllowedWithDeliverSubject);
+            long hb = DEFAULT_ORDERED_HEARTBEAT;
+            if (builder.cc != null) {
+                // want to make sure they didn't set it or they didn't set it to something other than none
+                if (builder.cc.ackPolicyWasSet() && builder.cc.getAckPolicy() != AckPolicy.None) {
+                    throw JsSoOrderedRequiresAckPolicyNone.instance();
+                }
+                if (builder.cc.getMaxDeliver() > 1) {
+                    throw JsSoOrderedRequiresMaxDeliver.instance();
+                }
+                if (builder.cc.memStorageWasSet() && !builder.cc.isMemStorage()) {
+                    throw JsSoOrderedMemStorageNotSuppliedOrTrue.instance();
+                }
+                if (builder.cc.numReplicasWasSet() && builder.cc.getNumReplicas() != 1) {
+                    throw JsSoOrderedReplicasNotSuppliedOrOne.instance();
+                }
+                Duration ccHb = builder.cc.getIdleHeartbeat();
+                if (ccHb != null) {
+                    hb = ccHb.toMillis();
+                }
+            }
+            consumerConfig = ConsumerConfiguration.builder(builder.cc)
+                .ackPolicy(AckPolicy.None)
+                .maxDeliver(1)
+                .flowControl(hb)
+                .ackWait(Duration.ofHours(22))
+                .name(name)
+                .memStorage(true)
+                .numReplicas(1)
+                .build();
+        }
+        else {
+            consumerConfig = ConsumerConfiguration.builder(builder.cc)
                 .durable(durable)
                 .deliverSubject(deliverSubject)
+                .deliverGroup(deliverGroup)
+                .name(name)
                 .build();
-
-        this.isBind = isBind;
+        }
     }
 
     /**
@@ -60,11 +128,36 @@ public abstract class SubscribeOptions {
     }
 
     /**
+     * Gets whether this is a pull subscription
+     * @return the pull flag
+     */
+    public boolean isPull() {
+        return pull;
+    }
+
+    /**
      * Gets whether this subscription is expected to bind to an existing stream and durable consumer
-     * @return the direct flag
+     * @return the bind flag
      */
     public boolean isBind() {
-        return isBind;
+        return bind;
+    }
+
+    /**
+     * Gets whether this subscription is expected to ensure messages come in order
+     * @return the ordered flag
+     */
+    public boolean isOrdered() {
+        return ordered;
+    }
+
+    /**
+     * Get the time amount of time allowed to elapse without a heartbeat.
+     * If not set will default to 3 times the idle heartbeat setting
+     * @return the message alarm time
+     */
+    public long getMessageAlarmTime() {
+        return messageAlarmTime;
     }
 
     /**
@@ -75,13 +168,29 @@ public abstract class SubscribeOptions {
         return consumerConfig;
     }
 
+    /**
+     * Gets the pending message limit. Only applicable for non dispatched (sync) push consumers.
+     * @return the message limit
+     */
+    public long getPendingMessageLimit() {
+        return pendingMessageLimit;
+    }
+
+    /**
+     * Gets the pending byte limit. Only applicable for non dispatched (sync) push consumers.
+     * @return the byte limit
+     */
+    public long getPendingByteLimit() {
+        return pendingByteLimit;
+    }
+
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
-                "stream='" + stream + '\'' +
-                "bind=" + isBind +
-                ", " + consumerConfig +
-                '}';
+            "stream='" + stream + '\'' +
+            "bind=" + bind +
+            ", " + consumerConfig +
+            '}';
     }
 
     /**
@@ -89,10 +198,12 @@ public abstract class SubscribeOptions {
      * create a default set of options if no methods are calls.
      */
     protected static abstract class Builder<B, SO> {
-        protected String stream;
-        protected boolean isBind;
-        protected String durable;
-        protected ConsumerConfiguration consumerConfig;
+        String stream;
+        boolean bind;
+        String durable;
+        String name;
+        ConsumerConfiguration cc;
+        long messageAlarmTime = -1;
 
         protected abstract B getThis();
 
@@ -103,28 +214,39 @@ public abstract class SubscribeOptions {
          * @return the builder
          */
         public B stream(String stream) {
-            this.stream = emptyAsNull(stream);
+            this.stream = validateStreamName(stream, false);
             return getThis();
         }
 
         /**
          * Specify the to attach in direct mode
          * @return the builder
-         * @param isBind whether to bind or not
+         * @param bind whether to bind or not
          */
-        public B bind(boolean isBind) {
-            this.isBind = isBind;
+        public B bind(boolean bind) {
+            this.bind = bind;
             return getThis();
         }
 
         /**
-         * Sets the durable consumer name for the subscriber.
+         * Sets the durable name for the consumer.
          * Null or empty clears the field.
          * @param durable the durable name
          * @return the builder
          */
         public B durable(String durable) {
-            this.durable = emptyAsNull(durable);
+            this.durable = validateDurable(durable, false);
+            return getThis();
+        }
+
+        /**
+         * Sets the name of the consumer.
+         * Null or empty clears the field.
+         * @param name name of the consumer.
+         * @return the builder
+         */
+        public B name(String name) {
+            this.name = validateConsumerName(name, false);
             return getThis();
         }
 
@@ -136,7 +258,19 @@ public abstract class SubscribeOptions {
          * @return the builder
          */
         public B configuration(ConsumerConfiguration configuration) {
-            this.consumerConfig = configuration;
+            this.cc = configuration;
+            return getThis();
+        }
+
+        /**
+         * Set the total amount of time to not receive any messages or heartbeats
+         * before calling the ErrorListener heartbeatAlarm
+         *
+         * @param messageAlarmTime the time
+         * @return the builder
+         */
+        public B messageAlarmTime(long messageAlarmTime) {
+            this.messageAlarmTime = messageAlarmTime;
             return getThis();
         }
 

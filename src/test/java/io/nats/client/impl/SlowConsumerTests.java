@@ -52,7 +52,7 @@ public class SlowConsumerTests {
             sub.setPendingLimits(1, -1);
 
             assertEquals(1, sub.getPendingMessageLimit());
-            assertEquals(-1, sub.getPendingByteLimit());
+            assertEquals(0, sub.getPendingByteLimit());
             assertEquals(0, sub.getDroppedCount());
 
             nc.publish("subject", null);
@@ -63,7 +63,7 @@ public class SlowConsumerTests {
 
             assertEquals(3, sub.getDroppedCount());
             assertEquals(1, sub.getPendingMessageCount());
-            assertEquals(17, sub.getPendingByteCount()); // "msg 1 subject 0" + crlf
+            assertEquals(19, sub.getPendingByteCount()); // "msg 1 subject 0" + crlf + crlf
 
             sub.clearDroppedCount();
             
@@ -85,7 +85,7 @@ public class SlowConsumerTests {
             sub.setPendingLimits(-1, 10); // will take the first, not the second
 
             assertEquals(10, sub.getPendingByteLimit());
-            assertEquals(-1, sub.getPendingMessageLimit());
+            assertEquals(0, sub.getPendingMessageLimit());
             assertEquals(0, sub.getDroppedCount());
 
             nc.publish("subject", null);
@@ -94,7 +94,7 @@ public class SlowConsumerTests {
 
             assertEquals(1, sub.getDroppedCount());
             assertEquals(1, sub.getPendingMessageCount());
-            assertEquals(17, sub.getPendingByteCount()); // "msg 1 subject 0" + crlf
+            assertEquals(19, sub.getPendingByteCount()); // "msg 1 subject 0" + crlf + crlf
 
             sub.clearDroppedCount();
             
@@ -122,7 +122,7 @@ public class SlowConsumerTests {
             d.subscribe("subject");
 
             assertEquals(1, d.getPendingMessageLimit());
-            assertEquals(-1, d.getPendingByteLimit());
+            assertEquals(0, d.getPendingByteLimit());
             assertEquals(0, d.getDroppedCount());
 
             nc.publish("subject", null);
@@ -135,7 +135,7 @@ public class SlowConsumerTests {
 
             assertEquals(1, d.getDroppedCount());
             assertEquals(1, d.getPendingMessageCount());
-            assertEquals(17, d.getPendingByteCount()); // "msg 1 subject 0" + crlf
+            assertEquals(19, d.getPendingByteCount()); // "msg 1 subject 0" + crlf + crlf
 
             d.clearDroppedCount();
             
@@ -162,7 +162,7 @@ public class SlowConsumerTests {
             d.setPendingLimits(-1, 10);
             d.subscribe("subject");
 
-            assertEquals(-1, d.getPendingMessageLimit());
+            assertEquals(0, d.getPendingMessageLimit());
             assertEquals(10, d.getPendingByteLimit());
             assertEquals(0, d.getDroppedCount());
 
@@ -176,7 +176,7 @@ public class SlowConsumerTests {
 
             assertEquals(1, d.getDroppedCount());
             assertEquals(1, d.getPendingMessageCount());
-            assertEquals(17, d.getPendingByteCount()); // "msg 1 subject 0" + crlf + crlf
+            assertEquals(19, d.getPendingByteCount()); // "msg 1 subject 0" + crlf + crlf
 
             d.clearDroppedCount();
             

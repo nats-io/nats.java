@@ -16,15 +16,16 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
-import io.nats.client.impl.NatsMessage.ProtocolMessage;
 import io.nats.client.support.ByteArrayBuilder;
 import io.nats.client.support.NatsRequestCompletableFuture;
+import io.nats.client.support.Validator;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -42,6 +43,7 @@ import java.util.regex.Pattern;
 
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.Validator.validateNotNull;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 class NatsConnection implements Connection {
 
@@ -61,7 +63,7 @@ class NatsConnection implements Connection {
 
     private CompletableFuture<DataPort> dataPortFuture;
     private DataPort dataPort;
-    private String currentServerURI;
+    private String currentServer;
     private CompletableFuture<Boolean> reconnectWaiter;
     private final HashMap<String, String> serverAuthErrors;
 
@@ -95,8 +97,7 @@ class NatsConnection implements Connection {
 
     private final ExecutorService executor;
     private final ExecutorService connectExecutor;
-
-    private String currentServer = null;
+    private final boolean advancedTracking;
 
     NatsConnection(Options options) {
         boolean trace = options.isTraceConnection();
@@ -104,7 +105,8 @@ class NatsConnection implements Connection {
 
         this.options = options;
 
-        this.statistics = new NatsStatistics(this.options.isTrackAdvancedStats());
+        advancedTracking = options.isTrackAdvancedStats();
+        this.statistics = new NatsStatistics(advancedTracking);
 
         this.statusLock = new ReentrantLock();
         this.statusChanged = this.statusLock.newCondition();
@@ -143,6 +145,7 @@ class NatsConnection implements Connection {
         this.writer = new NatsConnectionWriter(this);
 
         this.needPing = new AtomicBoolean(true);
+
         timeTrace(trace, "connection object created");
     }
 
@@ -159,7 +162,7 @@ class NatsConnection implements Connection {
 
         timeTrace(trace, "starting connect loop");
 
-        Collection<String> serversToTry = getReconnectServerList();
+        List<String> serversToTry = getServersToTry();
         for (String serverURI : serversToTry) {
             if (isClosed()) {
                 break; // goes to statement after end-connect-server-loop
@@ -174,7 +177,6 @@ class NatsConnection implements Connection {
             tryToConnect(serverURI, System.nanoTime());
 
             if (isConnected()) {
-                this.currentServer = serverURI;
                 break; // goes to statement after end-connect-server-loop
             }
 
@@ -235,7 +237,7 @@ class NatsConnection implements Connection {
                 waitForReconnectTimeout(tries);
             }
 
-            List<String> serversToTry = getReconnectServerList();
+            List<String> serversToTry = getServersToTry();
             for (String server : serversToTry) {
                 if (isClosed()) {
                     break; // goes to statement after end-reconnect-server-loop
@@ -258,7 +260,6 @@ class NatsConnection implements Connection {
 
                 if (isConnected()) {
                     this.statistics.incrementReconnects();
-                    this.currentServer = server;
                     break; // goes to statement after end-reconnect-server-loop
                 }
 
@@ -350,6 +351,8 @@ class NatsConnection implements Connection {
     // will wait for any previous attempt to complete, using the reader.stop and
     // writer.stop
     void tryToConnect(String serverURI, long now) {
+        this.currentServer = null;
+
         try {
             Duration connectTimeout = options.getConnectionTimeout();
             boolean trace = options.isTraceConnection();
@@ -478,7 +481,7 @@ class NatsConnection implements Connection {
                     throw this.exceptionDuringConnectChange;
                 }
 
-                this.currentServerURI = serverURI;
+                this.currentServer = serverURI;
                 this.serverAuthErrors.remove(serverURI); // reset on successful connection
                 updateStatus(Status.CONNECTED); // will signal status change, we also signal in finally
             } finally {
@@ -686,7 +689,7 @@ class NatsConnection implements Connection {
 
     // Should only be called from closeSocket or close
     void closeSocketImpl() {
-        this.currentServerURI = null;
+        this.currentServer = null;
 
         // Signal both to stop.
         final Future<Boolean> readStop = this.reader.stop();
@@ -788,7 +791,7 @@ class NatsConnection implements Connection {
     }
 
     private void checkPayloadSize(byte[] body) {
-        if (body != null && body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
+        if (options.clientSideLimitChecks() && body != null && body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
             throw new IllegalArgumentException(
                     "Message payload size exceed server configuration " + body.length + " vs " + this.getMaxPayload());
         }
@@ -808,7 +811,7 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Subject cannot contain whitespace");
         }
 
-        return createSubscription(subject, null, null, false);
+        return createSubscription(subject, null, null, null);
     }
 
     @Override
@@ -835,19 +838,21 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Queue names cannot contain whitespace");
         }
 
-        return createSubscription(subject, queueName, null, false);
+        return createSubscription(subject, queueName, null, null);
     }
 
     void invalidate(NatsSubscription sub) {
-        CharSequence sid = sub.getSID();
+        remove(sub);
+        sub.invalidate();
+    }
 
+    void remove(NatsSubscription sub) {
+        CharSequence sid = sub.getSID();
         subscribers.remove(sid);
 
         if (sub.getNatsDispatcher() != null) {
             sub.getNatsDispatcher().remove(sub);
         }
-
-        sub.invalidate();
     }
 
     void unsubscribe(NatsSubscription sub, int after) {
@@ -866,18 +871,15 @@ class NatsConnection implements Connection {
         }
 
         if (!isConnected()) {
-            return;// We will setup sub on reconnect or ignore
+            return; // We will set up sub on reconnect or ignore
         }
 
         sendUnsub(sub, after);
     }
 
     void sendUnsub(NatsSubscription sub, int after) {
-        // allocate the proto length + 19 + 10 (sid is a long, 19 bytes max, after is an int 10 bytes max)
-        ByteArrayBuilder bab = new ByteArrayBuilder(OP_UNSUB_SP_LEN + 29)
-                .append(UNSUB_SP_BYTES)
-                .append(sub.getSID());
-
+        ByteArrayBuilder bab =
+            new ByteArrayBuilder().append(UNSUB_SP_BYTES).append(sub.getSID());
         if (after > 0) {
             bab.append(SP).append(after);
         }
@@ -885,7 +887,7 @@ class NatsConnection implements Connection {
     }
 
     // Assumes the null/empty checks were handled elsewhere
-    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, boolean isJetStream) {
+    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, NatsSubscriptionFactory factory) {
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
         } else if (isDraining() && (dispatcher == null || dispatcher != this.inboxDispatcher.get())) {
@@ -893,13 +895,13 @@ class NatsConnection implements Connection {
         }
 
         NatsSubscription sub;
-        long sidL = nextSid.getAndIncrement();
-        String sid = String.valueOf(sidL);
+        String sid = getNextSid();
 
-        if (isJetStream) {
-            sub = new NatsJetStreamSubscription(sid, subject, queueName, this, dispatcher);
-        } else {
+        if (factory == null) {
             sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
+        }
+        else {
+            sub = factory.createNatsSubscription(sid, subject, queueName, this, dispatcher);
         }
         subscribers.put(sid, sub);
 
@@ -907,22 +909,26 @@ class NatsConnection implements Connection {
         return sub;
     }
 
+    String getNextSid() {
+        return Long.toString(nextSid.getAndIncrement());
+    }
+
+    String reSubscribe(NatsSubscription sub, String subject, String queueName) {
+        String sid = getNextSid();
+        sendSubscriptionMessage(sid, subject, queueName, false);
+        subscribers.put(sid, sub);
+        return sid;
+    }
+
     void sendSubscriptionMessage(String sid, String subject, String queueName, boolean treatAsInternal) {
         if (!isConnected()) {
-            return;// We will setup sub on reconnect or ignore
+            return; // We will set up sub on reconnect or ignore
         }
 
-        int subLength = (subject != null) ? subject.length() : 0;
-        int qLength = (queueName != null) ? queueName.length() : 0;
-
-        ByteArrayBuilder bab = new ByteArrayBuilder(OP_SUB_SP_LEN + subLength + qLength)
-                .append(SUB_SP_BYTES)
-                .append(subject, StandardCharsets.UTF_8); // utf-8 just in case
-
+        ByteArrayBuilder bab = new ByteArrayBuilder(UTF_8).append(SUB_SP_BYTES).append(subject);
         if (queueName != null) {
             bab.append(SP).append(queueName);
         }
-
         bab.append(SP).append(sid);
 
         NatsMessage subMsg = new ProtocolMessage(bab);
@@ -987,15 +993,17 @@ class NatsConnection implements Connection {
             responsesAwaiting.remove(token);
         }
 
-        toRemove.clear(); // just reuse this
-        responsesRespondedTo.forEach((key, future) -> {
-            if (future.hasExceededTimeout()) {
-                toRemove.add(key);
-            }
-        });
+        if (advancedTracking) {
+            toRemove.clear(); // just reuse this
+            responsesRespondedTo.forEach((key, future) -> {
+                if (future.hasExceededTimeout()) {
+                    toRemove.add(key);
+                }
+            });
 
-        for (String token : toRemove) {
-            responsesRespondedTo.remove(token);
+            for (String token : toRemove) {
+                responsesRespondedTo.remove(token);
+            }
         }
     }
 
@@ -1022,6 +1030,17 @@ class NatsConnection implements Connection {
     @Override
     public CompletableFuture<Message> request(String subject, byte[] body) {
         return requestFutureInternal(subject, null, body, options.supportUTF8Subjects(), null, true);
+    }
+
+    @Override
+    public CompletableFuture<Message> requestWithTimeout(String subject, byte[] body, Duration timeout) {
+        return requestFutureInternal(subject, null, body, options.supportUTF8Subjects(), timeout, true);
+    }
+
+    @Override
+    public CompletableFuture<Message> requestWithTimeout(Message message, Duration timeout) {
+        validateNotNull(message, "Message");
+        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), timeout, true);
     }
 
     @Override
@@ -1053,7 +1072,8 @@ class NatsConnection implements Connection {
         boolean oldStyle = options.isOldRequestStyle();
         String responseInbox = oldStyle ? createInbox() : createResponseInbox(this.mainInbox);
         String responseToken = getResponseToken(responseInbox);
-        NatsRequestCompletableFuture future = new NatsRequestCompletableFuture(cancelOn503, futureTimeout);
+        NatsRequestCompletableFuture future =
+            new NatsRequestCompletableFuture(cancelOn503, futureTimeout == null ? options.getRequestCleanupInterval() : futureTimeout);
 
         if (!oldStyle) {
             responsesAwaiting.put(responseToken, future);
@@ -1087,7 +1107,9 @@ class NatsConnection implements Connection {
         String key = oldStyle ? msg.getSID() : token;
         NatsRequestCompletableFuture f = responsesAwaiting.remove(key);
         if (f != null) {
-            responsesRespondedTo.put(key, f);
+            if (advancedTracking) {
+                responsesRespondedTo.put(key, f);
+            }
             statistics.decrementOutstandingRequests();
             if (msg.isStatusMessage() && msg.getStatus().getCode() == 503 && f.isCancelOn503()) {
                 f.cancel(true);
@@ -1097,11 +1119,13 @@ class NatsConnection implements Connection {
             }
             statistics.incrementRepliesReceived();
         }
-        else if (responsesRespondedTo.get(key) != null) {
-            statistics.incrementDuplicateRepliesReceived();
-        }
-        else {
-            statistics.incrementOrphanRepliesReceived();
+        else if (!oldStyle && !subject.startsWith(mainInbox)) {
+            if (advancedTracking && responsesRespondedTo.get(key) != null) {
+                statistics.incrementDuplicateRepliesReceived();
+            }
+            else {
+                statistics.incrementOrphanRepliesReceived();
+            }
         }
     }
 
@@ -1146,6 +1170,10 @@ class NatsConnection implements Connection {
     void cleanupDispatcher(NatsDispatcher nd) {
         nd.stop(true);
         this.dispatchers.remove(nd.getId());
+    }
+
+    Map<String, Dispatcher> getDispatchers() {
+        return Collections.unmodifiableMap(dispatchers);
     }
 
     public void flush(Duration timeout) throws TimeoutException, InterruptedException {
@@ -1199,8 +1227,11 @@ class NatsConnection implements Connection {
     void sendConnect(String serverURI) throws IOException {
         try {
             ServerInfo info = this.serverInfo.get();
-            CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
-            ByteArrayBuilder bab = new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit())
+            // This is changed - we used to use info.isAuthRequired(), but are changing it to
+            // better match older versions of the server. It may change again in the future.
+            CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, true, info.getNonce());
+            ByteArrayBuilder bab =
+                new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit(), UTF_8)
                     .append(CONNECT_SP_BYTES).append(connectOptions);
             queueInternalOutgoing(new ProtocolMessage(bab));
         } catch (Exception exp) {
@@ -1214,6 +1245,32 @@ class NatsConnection implements Connection {
 
     CompletableFuture<Boolean> softPing() {
         return this.sendPing(false);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Duration RTT() throws IOException {
+        if (!isConnectedOrConnecting()) {
+            throw new IOException("Must be connected to do RTT.");
+        }
+
+        long timeout = options.getConnectionTimeout().toMillis();
+        CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
+        pongQueue.add(pongFuture);
+        try {
+            long time = System.nanoTime();
+            writer.queueInternalMessage(new ProtocolMessage(OP_PING_BYTES));
+            pongFuture.get(timeout, TimeUnit.MILLISECONDS);
+            return Duration.ofNanos(System.nanoTime() - time);
+        }
+        catch (ExecutionException e) {
+            throw new IOException(e.getCause());
+        }
+        catch (InterruptedException | TimeoutException e) {
+            throw new IOException(e);
+        }
     }
 
     // Send a ping request and push a pong future on the queue.
@@ -1242,13 +1299,12 @@ class NatsConnection implements Connection {
         }
 
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
-        NatsMessage msg = new ProtocolMessage(OP_PING_BYTES);
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
-            queueInternalOutgoing(msg);
+            queueInternalOutgoing(new ProtocolMessage(PING_PROTO));
         } else {
-            queueOutgoing(msg);
+            queueOutgoing(new ProtocolMessage(PING_PROTO));
         }
 
         this.needPing.set(true);
@@ -1256,8 +1312,17 @@ class NatsConnection implements Connection {
         return pongFuture;
     }
 
+    // This is a minor speed / memory enhancement.
+    // We can't reuse the same instance of any NatsMessage b/c of the "NatsMessage next" state
+    // But it is safe to share the data bytes and the size since those fields are just being read
+    // This constructor "ProtocolMessage(ProtocolMessage pm)" shares the data and size
+    // reducing allocation of data for something that is often created and used
+    // These static instances are the once that are used for copying, sendPing and sendPong
+    private static final ProtocolMessage PING_PROTO = new ProtocolMessage(OP_PING_BYTES);
+    private static final ProtocolMessage PONG_PROTO = new ProtocolMessage(OP_PONG_BYTES);
+
     void sendPong() {
-        queueInternalOutgoing( new ProtocolMessage(OP_PONG_BYTES) );
+        queueInternalOutgoing(new ProtocolMessage(PONG_PROTO));
     }
 
     // Called by the reader
@@ -1313,7 +1378,7 @@ class NatsConnection implements Connection {
 
         protocolBuffer.flip();
 
-        String infoJson = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
+        String infoJson = UTF_8.decode(protocolBuffer).toString();
         infoJson = infoJson.trim();
         String[] msg = infoJson.split("\\s");
         String op = msg[0].toUpperCase();
@@ -1343,11 +1408,8 @@ class NatsConnection implements Connection {
         if (msg.getControlLineLength() > this.options.getMaxControlLine()) {
             throw new IllegalArgumentException("Control line is too long");
         }
-        if (!this.writer.queue(msg)) {
-            ErrorListener errorListener = this.options.getErrorListener();
-            if (errorListener != null) {
-                errorListener.messageDiscarded(this, msg);
-            }
+        if (!writer.queue(msg)) {
+            options.getErrorListener().messageDiscarded(this, msg);
         }
     }
 
@@ -1384,7 +1446,15 @@ class NatsConnection implements Connection {
                 }
             } else if (q != null) {
                 c.markNotSlow();
-                q.push(msg);
+
+                // beforeQueueProcessor returns null if the message
+                // does not need to be queued, for instance heartbeats
+                // that are not flow control and are already seen by the
+                // auto status manager
+                msg = sub.getBeforeQueueProcessor().apply(msg);
+                if (msg != null) {
+                    q.push(msg);
+                }
             }
 
         }
@@ -1399,13 +1469,11 @@ class NatsConnection implements Connection {
     }
 
     void processSlowConsumer(Consumer consumer) {
-        ErrorListener handler = this.options.getErrorListener();
-
-        if (handler != null && !this.callbackRunner.isShutdown()) {
+        if (!this.callbackRunner.isShutdown()) {
             try {
                 this.callbackRunner.execute(() -> {
                     try {
-                        handler.slowConsumerDetected(this, consumer);
+                        options.getErrorListener().slowConsumerDetected(this, consumer);
                     } catch (Exception ex) {
                         this.statistics.incrementExceptionCount();
                     }
@@ -1417,15 +1485,13 @@ class NatsConnection implements Connection {
     }
 
     void processException(Exception exp) {
-        ErrorListener handler = this.options.getErrorListener();
-
         this.statistics.incrementExceptionCount();
 
-        if (handler != null && !this.callbackRunner.isShutdown()) {
+        if (!this.callbackRunner.isShutdown()) {
             try {
                 this.callbackRunner.execute(() -> {
                     try {
-                        handler.exceptionOccurred(this, exp);
+                        options.getErrorListener().exceptionOccurred(this, exp);
                     } catch (Exception ex) {
                         this.statistics.incrementExceptionCount();
                     }
@@ -1437,8 +1503,6 @@ class NatsConnection implements Connection {
     }
 
     void processError(String errorText) {
-        ErrorListener handler = this.options.getErrorListener();
-
         this.statistics.incrementErrCount();
 
         this.lastError.set(errorText);
@@ -1450,15 +1514,29 @@ class NatsConnection implements Connection {
             this.serverAuthErrors.put(url, errorText);
         }
 
-        if (handler != null && !this.callbackRunner.isShutdown()) {
+        if (!this.callbackRunner.isShutdown()) {
             try {
                 this.callbackRunner.execute(() -> {
                     try {
-                        handler.errorOccurred(this, errorText);
+                        options.getErrorListener().errorOccurred(this, errorText);
                     } catch (Exception ex) {
                         this.statistics.incrementExceptionCount();
                     }
                 });
+            } catch (RejectedExecutionException re) {
+                // Timing with shutdown, let it go
+            }
+        }
+    }
+
+    interface ErrorListenerCaller {
+        void call(Connection conn, ErrorListener el);
+    }
+
+    void executeCallback(ErrorListenerCaller elc) {
+        if (!this.callbackRunner.isShutdown()) {
+            try {
+                this.callbackRunner.execute(() -> elc.call(this, options.getErrorListener()));
             } catch (RejectedExecutionException re) {
                 // Timing with shutdown, let it go
             }
@@ -1486,6 +1564,16 @@ class NatsConnection implements Connection {
     @Override
     public ServerInfo getServerInfo() {
         return getInfo();
+    }
+
+    @Override
+    public InetAddress getClientInetAddress() {
+        try {
+            return InetAddress.getByName(getInfo().getClientIp());
+        }
+        catch (Exception e) {
+            return null;
+        }
     }
 
     ServerInfo getInfo() {
@@ -1525,22 +1613,83 @@ class NatsConnection implements Connection {
         return info.getMaxPayload();
     }
 
+    /**
+     * Return the list of known server urls, including additional servers discovered
+     * after a connection has been established.
+     *
+     * @return this connection's list of known server URLs
+     */
     public Collection<String> getServers() {
-        return getServersList();
-    }
-
-    private List<String> getServersList() {
+        // This does not use the server list provider because it does what it's doc says
         List<String> servers = new ArrayList<>();
-        addConfiguredServers(servers);
+        addOptionsServers(servers);
         addDiscoveredServers(servers);
         return servers;
     }
 
-    private List<String> getReconnectServerList() {
-        return options.isNoRandomize() ? getServersList() : shuffle(getServersList());
+    // the list is used by the connect/reconnect code
+    protected List<String> getServersToTry() {
+        if (options.getServerListProvider() == null) {
+            // default behavior is to
+            // 1. add the configured servers
+            // 2. optionally add the discovered servers (options default is to get them)
+            // 3. optionally randomize the servers (options default is to randomize)
+            List<String> servers = new ArrayList<>();
+            addOptionsServers(servers);
+            if (!options.isIgnoreDiscoveredServers()) {
+                addDiscoveredServers(servers);
+            }
+            return options.isNoRandomize() ? servers : randomize(servers);
+        }
+
+        // provider behavior
+        // 1. Get the list of configured servers
+        // 2. Get the list of discovered servers
+        // 3. Pass those, the current server and the options to the provider
+        return options.getServerListProvider().getServerList(
+            currentServer, options.getUnprocessedServers(), getDiscoveredConnectUrls());
     }
 
-    private List<String> shuffle(List<String> servers) {
+    protected void addOptionsServers(List<String> servers) {
+        for (URI uri : options.getServers()) {
+            String srv = uri.toString();
+            if (!servers.contains(srv)) {
+                servers.add(srv);
+            }
+        }
+    }
+
+    protected List<String> getDiscoveredConnectUrls() {
+        ServerInfo info = this.serverInfo.get();
+        if (info == null) {
+            return new ArrayList<>();
+        }
+
+        List<String> urls = info.getConnectURLs();
+        if (urls == null) {
+            return new ArrayList<>();
+        }
+
+        return info.getConnectURLs();
+    }
+
+    protected void addDiscoveredServers(List<String> servers) {
+        List<String> urls = getDiscoveredConnectUrls();
+        for (String url : urls) {
+            try {
+                String srv = options.createURIForServer(url).toString();
+                if (!servers.contains(srv)) {
+                    servers.add(srv);
+                }
+            }
+            catch (URISyntaxException e) {
+                // this should never happen since this list comes from the server
+                // if it does... what to do? for now just ignore it, it's no good anyway
+            }
+        }
+    }
+
+    private List<String> randomize(List<String> servers) {
         if (servers.size() > 1) {
             if (currentServer != null) {
                 servers.remove(currentServer);
@@ -1553,36 +1702,9 @@ class NatsConnection implements Connection {
         return servers;
     }
 
-    private void addConfiguredServers(List<String> servers) {
-        // configured servers these uri are already parsed (normalized)
-        options.getServers().forEach(uri -> addNoDupes(servers, uri.toString()));
-    }
-
-    private void addDiscoveredServers(List<String> servers) {
-        ServerInfo info = this.serverInfo.get();
-        if (info != null && info.getConnectURLs() != null) {
-            for (String uri : info.getConnectURLs()) {
-                try {
-                    // call to createURIForServer is to parse (normalize)
-                    addNoDupes(servers, options.createURIForServer(uri).toString());
-                }
-                catch (URISyntaxException e) {
-                    // this should never happen since this list comes from the server
-                    // if it does... what to do? for now just igore it, it's no good anyway
-                }
-            }
-        }
-    }
-
-    private void addNoDupes(List<String> servers, String uri) {
-        if (!servers.contains(uri)) {
-            servers.add(uri);
-        }
-    }
-
     @Override
     public String getConnectedUrl() {
-        return this.currentServerURI;
+        return this.currentServer;
     }
 
     @Override
@@ -1593,6 +1715,11 @@ class NatsConnection implements Connection {
     @Override
     public String getLastError() {
         return this.lastError.get();
+    }
+
+    @Override
+    public void clearLastError() {
+        this.lastError.set("");
     }
 
     ExecutorService getExecutor() {
@@ -1902,28 +2029,116 @@ class NatsConnection implements Connection {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public JetStream jetStream() throws IOException {
         ensureNotClosing();
         return new NatsJetStream(this, null);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public JetStream jetStream(JetStreamOptions options) throws IOException {
         ensureNotClosing();
         return new NatsJetStream(this, options);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public JetStreamManagement jetStreamManagement() throws IOException {
         ensureNotClosing();
         return new NatsJetStreamManagement(this, null);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public JetStreamManagement jetStreamManagement(JetStreamOptions options) throws IOException {
         ensureNotClosing();
         return new NatsJetStreamManagement(this, options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public KeyValue keyValue(String bucketName) throws IOException {
+        Validator.validateBucketName(bucketName, true);
+        ensureNotClosing();
+        return new NatsKeyValue(this, bucketName, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public KeyValue keyValue(String bucketName, KeyValueOptions options) throws IOException {
+        Validator.validateBucketName(bucketName, true);
+        ensureNotClosing();
+        return new NatsKeyValue(this, bucketName, options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public KeyValueManagement keyValueManagement() throws IOException {
+        ensureNotClosing();
+        return new NatsKeyValueManagement(this, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public KeyValueManagement keyValueManagement(KeyValueOptions options) throws IOException {
+        ensureNotClosing();
+        return new NatsKeyValueManagement(this, options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectStore objectStore(String bucketName) throws IOException {
+        Validator.validateBucketName(bucketName, true);
+        ensureNotClosing();
+        return new NatsObjectStore(this, bucketName, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectStore objectStore(String bucketName, ObjectStoreOptions options) throws IOException {
+        Validator.validateBucketName(bucketName, true);
+        ensureNotClosing();
+        return new NatsObjectStore(this, bucketName, options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectStoreManagement objectStoreManagement() throws IOException {
+        ensureNotClosing();
+        return new NatsObjectStoreManagement(this, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ObjectStoreManagement objectStoreManagement(ObjectStoreOptions options) throws IOException {
+        ensureNotClosing();
+        return new NatsObjectStoreManagement(this, options);
     }
 
     private void ensureNotClosing() throws IOException {

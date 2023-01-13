@@ -60,12 +60,14 @@ public interface JetStreamManagement {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @return true if the delete succeeded
+     * @return true if the delete succeeded. Usually throws a JetStreamApiException otherwise
      */
     boolean deleteStream(String streamName) throws IOException, JetStreamApiException;
 
     /**
      * Gets the info for an existing stream.
+     * Does not retrieve any optional data.
+     * See the overloaded version that accepts StreamInfoOptions
      * @param streamName the stream name to use.
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -73,6 +75,18 @@ public interface JetStreamManagement {
      * @return stream information
      */
     StreamInfo getStreamInfo(String streamName) throws IOException, JetStreamApiException;
+
+    /**
+     * Gets the info for an existing stream, and include subject or deleted details
+     * as defined by StreamInfoOptions.
+     * @param streamName the stream name to use.
+     * @param options the stream info options. If null, request will not return any optional data.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @return stream information
+     */
+    StreamInfo getStreamInfo(String streamName, StreamInfoOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Purge stream messages
@@ -83,6 +97,17 @@ public interface JetStreamManagement {
      * @throws JetStreamApiException the request had an error related to the data
      */
     PurgeResponse purgeStream(String streamName) throws IOException, JetStreamApiException;
+
+    /**
+     * Purge messages for a specific subject
+     * @param streamName the stream name to use.
+     * @param options the purge options
+     * @return PurgeResponse the purge response
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    PurgeResponse purgeStream(String streamName, PurgeOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Loads or creates a consumer.
@@ -138,13 +163,24 @@ public interface JetStreamManagement {
     List<ConsumerInfo> getConsumers(String streamName) throws IOException, JetStreamApiException;
 
     /**
-     * Return a list of streams by name
+     * Get the names of all streams.
      * @return The list of names
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
     List<String> getStreamNames() throws IOException, JetStreamApiException;
+
+    /**
+     * Get a list of stream names that have subjects matching the subject filter.
+     * 
+     * @param subjectFilter the subject. Wildcards are allowed.
+     * @return The list of stream names matching the subject filter. May be empty, will not be null.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    List<String> getStreamNames(String subjectFilter) throws IOException, JetStreamApiException;
 
     /**
      * Return a list of StreamInfo objects.
@@ -156,7 +192,17 @@ public interface JetStreamManagement {
     List<StreamInfo> getStreams() throws IOException, JetStreamApiException;
 
     /**
-     * Return an info object about a message
+     * Return a list of StreamInfo objects that have subjects matching the filter.
+     * @param subjectFilter the filter to limit the streams by subjects. Wildcards allowed.
+     * @return The list of StreamInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    List<StreamInfo> getStreams(String subjectFilter) throws IOException, JetStreamApiException;
+
+    /**
+     * Get MessageInfo for the message with the exact sequence in the stream.
      * @param streamName the name of the stream.
      * @param seq the sequence number of the message
      * @return The MessageInfo
@@ -167,7 +213,43 @@ public interface JetStreamManagement {
     MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException;
 
     /**
-     * Deletes a message.
+     * Get MessageInfo for the last message of the subject.
+     * @param streamName the name of the stream.
+     * @param subject the subject to get the last message for.
+     * @return The MessageInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    MessageInfo getLastMessage(String streamName, String subject) throws IOException, JetStreamApiException;
+
+    /**
+     * Get MessageInfo for the first message of the subject.
+     * @param streamName the name of the stream.
+     * @param subject the subject to get the first message for.
+     * @return The MessageInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    MessageInfo getFirstMessage(String streamName, String subject) throws IOException, JetStreamApiException;
+
+    /**
+     * Get MessageInfo for the message of the message sequence
+     * is equal to or greater the requested sequence for the subject.
+     * @param streamName the name of the stream.
+     * @param seq the first possible sequence number of the message
+     * @param subject the subject to get the next message for.
+     * @return The MessageInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    MessageInfo getNextMessage(String streamName, long seq, String subject) throws IOException, JetStreamApiException;
+
+    /**
+     * Deletes a message, overwriting the message data with garbage
+     * This can be considered an expensive (time consuming) operation, but is more secure.
      * @param streamName name of the stream
      * @param seq the sequence number of the message
      * @throws IOException covers various communication issues with the NATS
@@ -176,4 +258,16 @@ public interface JetStreamManagement {
      * @return true if the delete succeeded
      */
     boolean deleteMessage(String streamName, long seq) throws IOException, JetStreamApiException;
+
+    /**
+     * Deletes a message, optionally erasing the content of the message.
+     * @param streamName name of the stream
+     * @param seq the sequence number of the message
+     * @param erase whether to erase the message (overwriting with garbage) or only mark it as erased.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @return true if the delete succeeded
+     */
+    boolean deleteMessage(String streamName, long seq, boolean erase) throws IOException, JetStreamApiException;
 }

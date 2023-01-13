@@ -30,96 +30,9 @@ import java.util.List;
 public class NatsJsUtils {
 
     // ----------------------------------------------------------------------------------------------------
-    // STREAM CREATE / UPDATE / INFO
+    // STREAM INFO / CREATE / UPDATE
     // ----------------------------------------------------------------------------------------------------
-    public static StreamInfo createStream(Connection nc, String stream, String... subjects) throws IOException, JetStreamApiException {
-        return createStream(nc.jetStreamManagement(), stream, StorageType.Memory, subjects);
-    }
-
-    public static StreamInfo createStream(JetStreamManagement jsm, String streamName, String... subjects)
-            throws IOException, JetStreamApiException {
-        return createStream(jsm, streamName, StorageType.Memory, subjects);
-    }
-
-    public static void createStreamThrowWhenExists(Connection nc, String streamName, String subject) throws IOException, JetStreamApiException {
-        createStreamThrowWhenExists(nc.jetStreamManagement(), streamName, subject);
-    }
-
-    public static void createStreamThrowWhenExists(JetStreamManagement jsm, String streamName, String subject) throws IOException, JetStreamApiException {
-        StreamInfo si = NatsJsUtils.getStreamInfo(jsm, streamName);
-        if (si == null) {
-            createStream(jsm, streamName, StorageType.Memory, new String[] {subject});
-        }
-        else {
-            throw new IllegalStateException("Stream already exist, examples require specific data configuration. Change the stream name or restart the server if the stream is a memory stream.");
-        }
-    }
-
-    public static StreamInfo createStream(JetStreamManagement jsm, String streamName, StorageType storageType, String[] subjects) throws IOException, JetStreamApiException {
-        // Create a stream, here will use a file storage type, and one subject,
-        // the passed subject.
-        StreamConfiguration sc = StreamConfiguration.builder()
-                .name(streamName)
-                .storageType(storageType)
-                .subjects(subjects)
-                .build();
-
-        // Add or use an existing stream.
-        StreamInfo si = jsm.addStream(sc);
-        System.out.printf("Created stream %s with subject(s) %s created at %s.\n",
-                streamName, String.join(",", subjects), si.getCreateTime().toLocalTime().toString());
-
-        return si;
-    }
-
-    public static StreamInfo createOrUpdateStream(Connection nc, String stream, String... subjects) throws IOException, JetStreamApiException {
-        return createOrUpdateStream(nc.jetStreamManagement(), stream, StorageType.Memory, subjects);
-    }
-
-    public static StreamInfo createOrUpdateStream(JetStreamManagement jsm, String streamName, String... subjects)
-            throws IOException, JetStreamApiException {
-        return createOrUpdateStream(jsm, streamName, StorageType.Memory, subjects);
-    }
-
-    public static StreamInfo createOrUpdateStream(JetStreamManagement jsm, String streamName, StorageType storageType, String... subjects)
-            throws IOException, JetStreamApiException {
-
-        StreamInfo si = getStreamInfo(jsm, streamName);
-        if (si == null) {
-            return createStream(jsm, streamName, storageType, subjects);
-        }
-
-        // check to see if the configuration has all the subject we want
-        StreamConfiguration sc = si.getConfiguration();
-        boolean needToUpdate = false;
-        List<String> combined = sc.getSubjects();
-        for (String sub : subjects) {
-            if (!combined.contains(sub)) {
-                needToUpdate = true;
-                combined.add(sub);
-            }
-        }
-
-        if (needToUpdate) {
-            sc = StreamConfiguration.builder(sc).subjects(combined).build();
-            si = jsm.updateStream(sc);
-        }
-
-        System.out.printf("Existing stream %s with subject(s) %s created at %s.\n",
-                streamName, si.getConfiguration().getSubjects(), si.getCreateTime().toLocalTime().toString());
-
-        return si;
-    }
-
-    public static boolean streamExists(Connection nc, String streamName) throws IOException, JetStreamApiException {
-        return getStreamInfo(nc.jetStreamManagement(), streamName) != null;
-    }
-
-    public static boolean streamExists(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
-        return getStreamInfo(jsm, streamName) != null;
-    }
-
-    public static StreamInfo getStreamInfo(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
+    public static StreamInfo getStreamInfoOrNullWhenNotExist(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
         try {
             return jsm.getStreamInfo(streamName);
         }
@@ -131,33 +44,158 @@ public class NatsJsUtils {
         }
     }
 
+    public static boolean streamExists(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
+        return getStreamInfoOrNullWhenNotExist(jsm, streamName) != null;
+    }
+
+    public static boolean streamExists(Connection nc, String streamName) throws IOException, JetStreamApiException {
+        return getStreamInfoOrNullWhenNotExist(nc.jetStreamManagement(), streamName) != null;
+    }
+
+    public static void exitIfStreamExists(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
+        if (streamExists(jsm, streamName)) {
+            System.out.println("\nThe example cannot run since the stream '" + streamName + "' already exists.\n" +
+                "It depends on the stream being in a new state. You can either:\n" +
+                "  1) Change the stream name in the example.\n  2) Delete the stream.\n  3) Restart the server if the stream is a memory stream.");
+            System.exit(-1);
+        }
+    }
+
+    public static void exitIfStreamNotExists(Connection nc, String streamName) throws IOException, JetStreamApiException {
+        if (!streamExists(nc, streamName)) {
+            System.out.println("\nThe example cannot run since the stream '" + streamName + "' does not exist.\n" +
+                "It depends on the stream existing and having data.");
+            System.exit(-1);
+        }
+    }
+
+    public static StreamInfo createOrReplaceStream(JetStreamManagement jsm, String streamName, StorageType storageType, String... subjects) throws IOException, JetStreamApiException {
+        try {
+            jsm.deleteStream(streamName);
+        }
+        catch (Exception ignore) {}
+        // Create a stream, here will use a file storage type, and one subject,
+        // the passed subject.
+        StreamConfiguration sc = StreamConfiguration.builder()
+            .name(streamName)
+            .storageType(storageType)
+            .subjects(subjects)
+            .build();
+
+        // Add or use an existing stream.
+        StreamInfo si = jsm.addStream(sc);
+        System.out.printf("Created stream '%s' with subject(s) %s\n",
+            streamName, si.getConfiguration().getSubjects());
+
+        return si;
+    }
+
+    public static StreamInfo createStream(JetStreamManagement jsm, String streamName, StorageType storageType, String... subjects) throws IOException, JetStreamApiException {
+        // Create a stream, here will use a file storage type, and one subject,
+        // the passed subject.
+        StreamConfiguration sc = StreamConfiguration.builder()
+            .name(streamName)
+            .storageType(storageType)
+            .subjects(subjects)
+            .build();
+
+        // Add or use an existing stream.
+        StreamInfo si = jsm.addStream(sc);
+        System.out.printf("Created stream '%s' with subject(s) %s\n",
+            streamName, si.getConfiguration().getSubjects());
+
+        return si;
+    }
+
+    public static StreamInfo createStream(JetStreamManagement jsm, String streamName, String... subjects)
+            throws IOException, JetStreamApiException {
+        return createStream(jsm, streamName, StorageType.Memory, subjects);
+    }
+
+    public static StreamInfo createStream(Connection nc, String stream, String... subjects) throws IOException, JetStreamApiException {
+        return createStream(nc.jetStreamManagement(), stream, StorageType.Memory, subjects);
+    }
+
+    public static StreamInfo createStreamExitWhenExists(Connection nc, String streamName, String... subjects) throws IOException, JetStreamApiException {
+        return createStreamExitWhenExists(nc.jetStreamManagement(), streamName, subjects);
+    }
+
+    public static StreamInfo createStreamExitWhenExists(JetStreamManagement jsm, String streamName, String... subjects) throws IOException, JetStreamApiException {
+        exitIfStreamExists(jsm, streamName);
+        return createStream(jsm, streamName, StorageType.Memory, subjects);
+    }
+
+    public static StreamInfo createStreamOrUpdateSubjects(JetStreamManagement jsm, String streamName, StorageType storageType, String... subjects)
+            throws IOException, JetStreamApiException {
+
+        StreamInfo si = getStreamInfoOrNullWhenNotExist(jsm, streamName);
+        if (si == null) {
+            return createStream(jsm, streamName, storageType, subjects);
+        }
+
+        // check to see if the configuration has all the subject we want
+        StreamConfiguration sc = si.getConfiguration();
+        boolean needToUpdate = false;
+        for (String sub : subjects) {
+            if (!sc.getSubjects().contains(sub)) {
+                needToUpdate = true;
+                sc.getSubjects().add(sub);
+            }
+        }
+
+        if (needToUpdate) {
+            sc = StreamConfiguration.builder(sc).subjects(sc.getSubjects()).build();
+            si = jsm.updateStream(sc);
+            System.out.printf("Existing stream '%s' was updated, has subject(s) %s\n",
+                streamName, si.getConfiguration().getSubjects());
+        }
+        else
+        {
+            System.out.printf("Existing stream '%s' already contained subject(s) %s\n",
+                streamName, si.getConfiguration().getSubjects());
+        }
+
+        return si;
+    }
+
+    public static StreamInfo createStreamOrUpdateSubjects(JetStreamManagement jsm, String streamName, String... subjects)
+        throws IOException, JetStreamApiException {
+        return createStreamOrUpdateSubjects(jsm, streamName, StorageType.Memory, subjects);
+    }
+
+    public static StreamInfo createStreamOrUpdateSubjects(Connection nc, String stream, String... subjects) throws IOException, JetStreamApiException {
+        return createStreamOrUpdateSubjects(nc.jetStreamManagement(), stream, StorageType.Memory, subjects);
+    }
+
     // ----------------------------------------------------------------------------------------------------
     // PUBLISH
     // ----------------------------------------------------------------------------------------------------
     public static void publish(Connection nc, String subject, int count) throws IOException, JetStreamApiException {
-        publish(nc.jetStream(), subject, "data", count, false);
+        publish(nc.jetStream(), subject, "data", count, -1, false);
     }
 
     public static void publish(JetStream js, String subject, int count) throws IOException, JetStreamApiException {
-        publish(js, subject, "data", count, false);
+        publish(js, subject, "data", count, -1, false);
     }
 
     public static void publish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
-        publish(js, subject, prefix, count, true);
+        publish(js, subject, prefix, count, -1, true);
     }
 
     public static void publish(JetStream js, String subject, String prefix, int count, boolean verbose) throws IOException, JetStreamApiException {
+        publish(js, subject, prefix, count, -1, verbose);
+    }
+
+    public static void publish(JetStream js, String subject, String prefix, int count, int msgSize, boolean verbose) throws IOException, JetStreamApiException {
         if (verbose) {
             System.out.print("Publish ->");
         }
         for (int x = 1; x <= count; x++) {
-            String data = prefix + x;
-            if (verbose) {
-                System.out.print(" " + data);
-            }
-            Message msg = NatsMessage.builder()
+            byte[] data = makeData(prefix, msgSize, verbose, x);
+            Message msg =
+                NatsMessage.builder()
                     .subject(subject)
-                    .data(data.getBytes(StandardCharsets.US_ASCII))
+                    .data(data)
                     .build();
             js.publish(msg);
         }
@@ -166,7 +204,58 @@ public class NatsJsUtils {
         }
     }
 
-    public static void publishDontWait(JetStream js, String subject, String prefix, int count) {
+    public static byte[] makeData(String prefix, int msgSize, boolean verbose, int x) {
+        String text = prefix + "#" + x + "#";
+        if (verbose) {
+            System.out.print(" " + text);
+        }
+
+        byte[] data = text.getBytes(StandardCharsets.US_ASCII);
+        if (msgSize > data.length) {
+            byte[] larger = new byte[msgSize];
+            System.arraycopy(data, 0, larger, 0, data.length);
+            data = larger;
+        }
+        return data;
+    }
+
+    public static long extractId(String data) {
+        int at1 = data.indexOf("#");
+        if (at1 == -1) {
+            return -1;
+        }
+        int at2 = data.indexOf("#", at1 + 1);
+        if (at2 == -1) {
+            return -1;
+        }
+        return Long.parseLong(data.substring(at1 + 1, at2));
+    }
+
+    public static long extractId(byte[] data) {
+        int at1 = -1;
+        int at2 = -1;
+        for (int x = 0; x < data.length; x++) {
+            if (data[x] == (byte)'#') {
+               if (at1 == -1) {
+                   at1 = x;
+               }
+               else {
+                   at2 = x;
+                   break;
+               }
+            }
+        }
+        if (at1 == -1 || at2 == -1) {
+            return -1;
+        }
+        return Long.parseLong(new String(data, at1 + 1, at2 - at1 - 1));
+    }
+
+    public static long extractId(Message m) {
+        return extractId(m.getData());
+    }
+
+    public static void publishInBackground(JetStream js, String subject, String prefix, int count) {
         new Thread(() -> {
             try {
                 for (int x = 1; x <= count; x++) {
@@ -175,7 +264,7 @@ public class NatsJsUtils {
                             .subject(subject)
                             .data(data.getBytes(StandardCharsets.US_ASCII))
                             .build();
-                    js.publishAsync(msg);
+                    js.publish(msg);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -200,41 +289,22 @@ public class NatsJsUtils {
     }
 
     public static List<Message> readMessagesAck(JetStreamSubscription sub, boolean verbose, Duration nextMessageTimeout) throws InterruptedException {
+        if (verbose) {
+            System.out.print("Read/Ack ->");
+        }
         List<Message> messages = new ArrayList<>();
         Message msg = sub.nextMessage(nextMessageTimeout);
-        boolean first = true;
         while (msg != null) {
-            if (first) {
-                first = false;
-                if (verbose) {
-                    System.out.print("Read/Ack ->");
-                }
-            }
             messages.add(msg);
-            if (msg.isJetStream()) {
-                msg.ack();
-                if (verbose) {
-                    System.out.print(" " + new String(msg.getData()));
-                }
-            }
-            else if (msg.isStatusMessage()) {
-                if (verbose) {
-                    System.out.print(" !" + msg.getStatus().getCode() + "!");
-                }
-            }
-            else if (verbose) {
-                System.out.print(" ?" + new String(msg.getData()) + "?");
+            msg.ack();
+            if (verbose) {
+                System.out.print(" " + new String(msg.getData()));
             }
             msg = sub.nextMessage(nextMessageTimeout);
         }
 
         if (verbose) {
-            if (first) {
-                System.out.println("No messages available.");
-            }
-            else {
-                System.out.println(" <- ");
-            }
+            System.out.println(messages.size() == 0 ? " No messages available <-" : " <- ");
         }
 
         return messages;
@@ -269,7 +339,7 @@ public class NatsJsUtils {
             s = s.replace(rx1, repl1);
         }
 
-        System.out.println(s + "\n");
+        System.out.println(s);
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -301,9 +371,7 @@ public class NatsJsUtils {
     public static int countJs(List<Message> messages) {
         int count = 0;
         for (Message m : messages) {
-            if (m.isJetStream()) {
-                count++;
-            }
+            count++;
         }
         return count;
     }

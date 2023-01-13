@@ -13,9 +13,11 @@
 
 package io.nats.client.api;
 
+import io.nats.client.support.DateTimeUtils;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.List;
 
 import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
@@ -30,10 +32,26 @@ public class ConsumerInfoTests {
         assertEquals("foo-stream", ci.getStreamName());
         assertEquals("foo-consumer", ci.getName());
 
-        assertEquals(1, ci.getDelivered().getConsumerSequence());
-        assertEquals(2, ci.getDelivered().getStreamSequence());
-        assertEquals(3, ci.getAckFloor().getConsumerSequence());
-        assertEquals(4, ci.getAckFloor().getStreamSequence());
+        SequencePair sp = ci.getDelivered();
+        assertEquals(1, sp.getConsumerSequence());
+        assertEquals(2, sp.getStreamSequence());
+        assertTrue(sp.toString().contains("SequenceInfo")); // coverage
+
+        //noinspection CastCanBeRemovedNarrowingVariableType
+        SequenceInfo sinfo = (SequenceInfo)sp;
+        assertEquals(1, sinfo.getConsumerSequence());
+        assertEquals(2, sinfo.getStreamSequence());
+        assertEquals(DateTimeUtils.parseDateTime("2022-06-29T19:33:21.163377Z"), sinfo.getLastActive());
+
+        sp = ci.getAckFloor();
+        assertEquals(3, sp.getConsumerSequence());
+        assertEquals(4, sp.getStreamSequence());
+
+        //noinspection CastCanBeRemovedNarrowingVariableType
+        sinfo = (SequenceInfo)sp;
+        assertEquals(3, sinfo.getConsumerSequence());
+        assertEquals(4, sinfo.getStreamSequence());
+        assertEquals(DateTimeUtils.parseDateTime("2022-06-29T20:33:21.163377Z"), sinfo.getLastActive());
 
         assertEquals(24, ci.getNumPending());
         assertEquals(42, ci.getNumAckPending());
@@ -47,6 +65,14 @@ public class ConsumerInfoTests {
         assertEquals(Duration.ofSeconds(30), c.getAckWait());
         assertEquals(10, c.getMaxDeliver());
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
+
+        ClusterInfo clusterInfo = ci.getClusterInfo();
+        assertNotNull(clusterInfo);
+        assertEquals("clustername", clusterInfo.getName());
+        assertEquals("clusterleader", clusterInfo.getLeader());
+        List<Replica> reps = clusterInfo.getReplicas();
+        assertNotNull(reps);
+        assertEquals(2, reps.size());
 
         ci = new ConsumerInfo(EMPTY_JSON);
         assertNull(ci.getStreamName());

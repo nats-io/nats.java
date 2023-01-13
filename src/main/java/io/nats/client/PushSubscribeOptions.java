@@ -13,26 +13,33 @@
 
 package io.nats.client;
 
-import io.nats.client.api.ConsumerConfiguration;
-
 import static io.nats.client.support.Validator.emptyAsNull;
 
 /**
  * The PushSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
- * Options are created using the constructors or a {@link Builder}.
+ * Options are set using the {@link PushSubscribeOptions.Builder} or static helper methods.
  */
 public class PushSubscribeOptions extends SubscribeOptions {
 
-    private PushSubscribeOptions(String stream, String durable, String deliverSubject, boolean bindMode, ConsumerConfiguration consumerConfig) {
-        super(stream, durable, deliverSubject, bindMode, false, consumerConfig);
+    private PushSubscribeOptions(Builder builder, boolean ordered, String deliverSubject, String deliverGroup,
+                                 long pendingMessageLimit, long pendingByteLimit) {
+        super(builder, false, ordered, deliverSubject, deliverGroup, pendingMessageLimit, pendingByteLimit);
     }
 
     /**
      * Gets the deliver subject held in the consumer configuration.
-     * @return the Deliver subject
+     * @return the deliver subject
      */
     public String getDeliverSubject() {
         return consumerConfig.getDeliverSubject();
+    }
+
+    /**
+     * Gets the deliver group held in the consumer configuration.
+     * @return the deliver group
+     */
+    public String getDeliverGroup() {
+        return consumerConfig.getDeliverGroup();
     }
 
     /**
@@ -47,7 +54,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
      */
     @Deprecated
     public static PushSubscribeOptions bind(String stream) {
-        return new Builder().stream(stream).build();
+        return stream(stream);
     }
 
     /**
@@ -72,6 +79,10 @@ public class PushSubscribeOptions extends SubscribeOptions {
         return new PushSubscribeOptions.Builder().stream(stream).durable(durable).bind(true).build();
     }
 
+    /**
+     * Macro to start a PushSubscribeOptions builder
+     * @return push subscribe options builder
+     */
     public static Builder builder() {
         return new Builder();
     }
@@ -82,10 +93,24 @@ public class PushSubscribeOptions extends SubscribeOptions {
      */
     public static class Builder
             extends SubscribeOptions.Builder<Builder, PushSubscribeOptions> {
+        private boolean ordered;
         private String deliverSubject;
+        private String deliverGroup;
+        private long pendingMessageLimit = Consumer.DEFAULT_MAX_MESSAGES;
+        private long pendingByteLimit = Consumer.DEFAULT_MAX_BYTES;
 
         @Override
         protected Builder getThis() {
+            return this;
+        }
+
+        /**
+         * Set the ordered consumer flag
+         * @param ordered flag indicating whether this subscription should be ordered
+         * @return the builder.
+         */
+        public Builder ordered(boolean ordered) {
+            this.ordered = ordered;
             return this;
         }
 
@@ -101,12 +126,46 @@ public class PushSubscribeOptions extends SubscribeOptions {
         }
 
         /**
+         * Setting this specifies deliver group. Must match queue is both are supplied.
+         * Null or empty clears the field.
+         * @param deliverGroup the group to queue on
+         * @return the builder.
+         */
+        public Builder deliverGroup(String deliverGroup) {
+            this.deliverGroup = emptyAsNull(deliverGroup);
+            return this;
+        }
+
+        /**
+         * Set the maximum number of messages that non-dispatched push subscriptions can hold
+         * in the internal (pending) message queue. Defaults to 512 * 1024  (Consumer.DEFAULT_MAX_MESSAGES)
+         * @param pendingMessageLimit the number of messages.
+         * @return the builder
+         */
+        public Builder pendingMessageLimit(long pendingMessageLimit) {
+            this.pendingMessageLimit = pendingMessageLimit;
+            return this;
+        }
+
+        /**
+         * Set the maximum number of bytes that non-dispatched push subscriptions can hold
+         * in the internal (pending) message queue. Defaults to 64 * 1024 * 1024 (Consumer.DEFAULT_MAX_BYTES)
+         * @param pendingByteLimit the number of bytes.
+         * @return the builder
+         */
+        public Builder pendingByteLimit(long pendingByteLimit) {
+            this.pendingByteLimit = pendingByteLimit;
+            return this;
+        }
+
+        /**
          * Builds the push subscribe options.
          * @return push subscribe options
          */
         @Override
         public PushSubscribeOptions build() {
-            return new PushSubscribeOptions(stream, durable, deliverSubject, isBind, consumerConfig);
+            return new PushSubscribeOptions(this, ordered, deliverSubject, deliverGroup,
+                pendingMessageLimit, pendingByteLimit);
         }
     }
 }

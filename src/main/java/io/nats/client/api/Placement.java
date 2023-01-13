@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -15,7 +15,9 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.Validator;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
@@ -36,6 +38,16 @@ public class Placement implements JsonSerializable {
     Placement(String json) {
         cluster = JsonUtils.readString(json, CLUSTER_RE);
         tags = JsonUtils.getStringList(TAGS, json);
+    }
+
+    /**
+     * Construct a placement object
+     * @param cluster the cluster name
+     * @param tags the list of tags, may be null
+     */
+    public Placement(String cluster, List<String> tags) {
+        this.cluster = cluster;
+        this.tags = tags == null || tags.size() == 0 ? null : tags;
     }
 
     /**
@@ -67,5 +79,60 @@ public class Placement implements JsonSerializable {
         addField(sb, CLUSTER, cluster);
         addStrings(sb, TAGS, tags);
         return endJson(sb).toString();
+    }
+
+    /**
+     * Creates a builder for a placements object.
+     * @return the builder.
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Placement can be created using a Builder.
+     */
+    public static class Builder {
+        private String cluster;
+        private List<String> tags;
+
+        /**
+         * Set the cluster string.
+         * @param cluster the cluster
+         * @return the builder
+         */
+        public Builder cluster(String cluster) {
+            this.cluster = cluster;
+            return this;
+        }
+
+        /**
+         * Set the tags
+         * @param tags the list of tags
+         * @return the builder
+         */
+        public Builder tags(String... tags) {
+            this.tags = Arrays.asList(tags);
+            return this;
+        }
+
+        /**
+         * Set the tags
+         * @param tags the list of tags
+         * @return the builder
+         */
+        public Builder tags(List<String> tags) {
+            this.tags = tags;
+            return this;
+        }
+
+        /**
+         * Build a Placement object
+         * @return the Placement
+         */
+        public Placement build() {
+            Validator.required(cluster, "Cluster");
+            return new Placement(cluster, tags);
+        }
     }
 }

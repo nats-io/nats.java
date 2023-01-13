@@ -13,6 +13,7 @@
 
 package io.nats.client.api;
 
+import io.nats.client.JetStreamManagement;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.utils.ResourceUtils;
@@ -36,44 +37,84 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testRoundTrip() throws Exception {
+        runInJsServer(nc -> {
+            if (nc.getServerInfo().isNewerVersionThan("2.8.4")) {
+                StreamConfiguration sc = StreamConfiguration.builder(getTestConfiguration())
+                    .mirror(null)
+                    .sources()
+                    .replicas(1)
+                    .templateOwner(null)
+                    .allowRollup(false)
+                    .allowDirect(false)
+                    .mirrorDirect(false)
+                    .sealed(false)
+                    .build();
+                JetStreamManagement jsm = nc.jetStreamManagement();
+                validate(jsm.addStream(sc).getConfiguration(), true);
+            }
+        });
+    }
+
+    @Test
     public void testConstruction() {
         StreamConfiguration testSc = getTestConfiguration();
         // from json
-        validate(testSc);
+        validate(testSc, false);
 
         // test toJson
-        validate(StreamConfiguration.instance(testSc.toJson()));
+        validate(StreamConfiguration.instance(testSc.toJson()), false);
 
         // copy constructor
-        validate(StreamConfiguration.builder(testSc).build());
+        validate(StreamConfiguration.builder(testSc).build(), false);
 
         // builder
         StreamConfiguration.Builder builder = StreamConfiguration.builder()
-                .name(testSc.getName())
-                .subjects(testSc.getSubjects())
-                .retentionPolicy(testSc.getRetentionPolicy())
-                .maxConsumers(testSc.getMaxConsumers())
-                .maxMessages(testSc.getMaxMsgs())
-                .maxBytes(testSc.getMaxBytes())
-                .maxAge(testSc.getMaxAge())
-                .maxMsgSize(testSc.getMaxMsgSize())
-                .storageType(testSc.getStorageType())
-                .replicas(testSc.getReplicas())
-                .noAck(testSc.getNoAck())
-                .templateOwner(testSc.getTemplateOwner())
-                .discardPolicy(testSc.getDiscardPolicy())
-                .duplicateWindow(testSc.getDuplicateWindow())
-                .placement(testSc.getPlacement())
-                .mirror(testSc.getMirror())
-                .sources(testSc.getSources());
-        validate(builder.build());
-        validate(builder.addSources((Source)null).build());
+            .name(testSc.getName())
+            .description(testSc.getDescription())
+            .subjects(testSc.getSubjects())
+            .retentionPolicy(testSc.getRetentionPolicy())
+            .maxConsumers(testSc.getMaxConsumers())
+            .maxMessages(testSc.getMaxMsgs())
+            .maxMessagesPerSubject(testSc.getMaxMsgsPerSubject())
+            .maxBytes(testSc.getMaxBytes())
+            .maxAge(testSc.getMaxAge())
+            .maxMsgSize(testSc.getMaxMsgSize())
+            .storageType(testSc.getStorageType())
+            .replicas(testSc.getReplicas())
+            .noAck(testSc.getNoAck())
+            .templateOwner(testSc.getTemplateOwner())
+            .discardPolicy(testSc.getDiscardPolicy())
+            .duplicateWindow(testSc.getDuplicateWindow())
+            .placement(testSc.getPlacement())
+            .republish(testSc.getRepublish())
+            .mirror(testSc.getMirror())
+            .sources(testSc.getSources())
+            .sealed(testSc.getSealed())
+            .allowRollup(testSc.getAllowRollup())
+            .allowDirect(testSc.getAllowDirect())
+            .mirrorDirect(testSc.getMirrorDirect())
+            .denyDelete(testSc.getDenyDelete())
+            .denyPurge(testSc.getDenyPurge())
+            .discardNewPerSubject(testSc.isDiscardNewPerSubject());
+        validate(builder.build(), false);
+        validate(builder.addSources((Source)null).build(), false);
 
         List<Source> sources = new ArrayList<>(testSc.getSources());
         sources.add(null);
         Source copy = new Source(sources.get(0).toJson());
         sources.add(copy);
-        validate(builder.addSources(sources).build());
+        validate(builder.addSources(sources).build(), false);
+
+        // covering add a single source
+        sources = new ArrayList<>(testSc.getSources());
+        builder.sources(new ArrayList<>()); // clears the sources
+        builder.addSource(null); // coverage
+        for (Source source : sources) {
+            builder.addSource(source);
+        }
+        builder.addSource(sources.get(0));
+        validate(builder.build(), false);
 
         // equals and hashcode coverage
         External external = copy.getExternal();
@@ -83,19 +124,32 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(sources.get(0).getExternal(), external);
         assertEquals(sources.get(0).getExternal().hashCode(), external.hashCode());
 
-        List<String> lines = ResourceUtils.dataAsLines("SourceBaseJson.txt");
+        List<String> lines = ResourceUtils.dataAsLines("MirrorsSources.json");
         for (String l1 : lines) {
-            Mirror m1 = new Mirror(l1);
-            assertEquals(m1, m1);
-            assertNotEquals(m1, null);
-            assertNotEquals(m1, new Object());
-            for (String l2 : lines) {
-                Mirror m2 = new Mirror(l2);
-                if (l1.equals(l2)) {
-                    assertEquals(m1, m2);
-                }
-                else {
-                    assertNotEquals(m1, m2);
+            if (l1.startsWith("{")) {
+                Mirror m1 = new Mirror(l1);
+                assertEquals(m1, m1);
+                assertEquals(m1, Mirror.builder(m1).build());
+                Source s1 = new Source(l1);
+                assertEquals(s1, s1);
+                assertEquals(s1, Source.builder(s1).build());
+                //this provides testing coverage
+                //noinspection ConstantConditions,SimplifiableAssertion
+                assertTrue(!m1.equals(null));
+                assertNotEquals(m1, new Object());
+                for (String l2 : lines) {
+                    if (l2.startsWith("{")) {
+                        Mirror m2 = new Mirror(l2);
+                        Source s2 = new Source(l2);
+                        if (l1.equals(l2)) {
+                            assertEquals(m1, m2);
+                            assertEquals(s1, s2);
+                        }
+                        else {
+                            assertNotEquals(m1, m2);
+                            assertNotEquals(s1, s2);
+                        }
+                    }
                 }
             }
         }
@@ -126,6 +180,27 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertNull(scCov.getName());
         assertEquals(Duration.ofMillis(1111), scCov.getMaxAge());
         assertEquals(Duration.ofMillis(2222), scCov.getDuplicateWindow());
+    }
+
+    @Test
+    public void testConstructionInvalidsCoverage() {
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().name(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxConsumers(0));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxConsumers(-2));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMessages(0));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMessages(-2));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMessagesPerSubject(0));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMessagesPerSubject(-2));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxBytes(0));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxBytes(-2));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxAge(Duration.ofNanos(-1)));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxAge(-1));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMsgSize(0));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMsgSize(-2));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().replicas(0));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().replicas(6));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().duplicateWindow(Duration.ofNanos(-1)));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().duplicateWindow(-1));
     }
 
     @Test
@@ -283,26 +358,26 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(DiscardPolicy.Old, builder.build().getDiscardPolicy());
     }
 
-    private void validate(StreamConfiguration sc) {
+    private void validate(StreamConfiguration sc, boolean serverTest) {
         assertEquals("sname", sc.getName());
-        assertEquals(2, sc.getSubjects().size());
+        assertEquals("blah blah", sc.getDescription());
+        assertEquals(3, sc.getSubjects().size());
         assertEquals("foo", sc.getSubjects().get(0));
         assertEquals("bar", sc.getSubjects().get(1));
+        assertEquals("repub.>", sc.getSubjects().get(2));
 
         assertSame(RetentionPolicy.Interest, sc.getRetentionPolicy());
         assertEquals(730, sc.getMaxConsumers());
         assertEquals(731, sc.getMaxMsgs());
+        assertEquals(741, sc.getMaxMsgsPerSubject());
         assertEquals(732, sc.getMaxBytes());
         assertEquals(731, sc.getMaxMsgs());
         assertEquals(732, sc.getMaxBytes());
-        assertEquals(Duration.ofNanos(42000000000L), sc.getMaxAge());
+        assertEquals(Duration.ofNanos(43000000000L), sc.getMaxAge());
+        assertEquals(Duration.ofNanos(42000000000L), sc.getDuplicateWindow());
         assertEquals(734, sc.getMaxMsgSize());
         assertEquals(StorageType.Memory, sc.getStorageType());
-        assertEquals(5, sc.getReplicas());
-        assertFalse(sc.getNoAck());
-        assertEquals("twnr", sc.getTemplateOwner());
         assertSame(DiscardPolicy.New, sc.getDiscardPolicy());
-        assertEquals(Duration.ofNanos(73000000000L), sc.getDuplicateWindow());
 
         assertNotNull(sc.getPlacement());
         assertEquals("clstr", sc.getPlacement().getCluster());
@@ -310,22 +385,43 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals("tag1", sc.getPlacement().getTags().get(0));
         assertEquals("tag2", sc.getPlacement().getTags().get(1));
 
+        assertNotNull(sc.getRepublish());
+        assertEquals("repub.>", sc.getRepublish().getSource());
+        assertEquals("dest.>", sc.getRepublish().getDestination());
+        assertTrue(sc.getRepublish().isHeadersOnly());
+
         ZonedDateTime zdt = DateTimeUtils.parseDateTime("2020-11-05T19:33:21.163377Z");
 
-        assertNotNull(sc.getMirror());
-        assertEquals("eman", sc.getMirror().getSourceName());
-        assertEquals(736, sc.getMirror().getStartSeq());
-        assertEquals(zdt, sc.getMirror().getStartTime());
-        assertEquals("mfsub", sc.getMirror().getFilterSubject());
+        if (serverTest) {
+            assertEquals(1, sc.getReplicas());
+        }
+        else {
+            assertTrue(sc.getNoAck());
+            assertTrue(sc.getSealed());
+            assertTrue(sc.getDenyDelete());
+            assertTrue(sc.getDenyPurge());
+            assertTrue(sc.isDiscardNewPerSubject());
+            assertTrue(sc.getAllowRollup());
+            assertTrue(sc.getAllowDirect());
+            assertTrue(sc.getMirrorDirect());
 
-        assertNotNull(sc.getMirror().getExternal());
-        assertEquals("apithing", sc.getMirror().getExternal().getApi());
-        assertEquals("dlvrsub", sc.getMirror().getExternal().getDeliver());
+            assertEquals(5, sc.getReplicas());
+            assertEquals("twnr", sc.getTemplateOwner());
+            assertNotNull(sc.getMirror());
+            assertEquals("eman", sc.getMirror().getSourceName());
+            assertEquals(736, sc.getMirror().getStartSeq());
+            assertEquals(zdt, sc.getMirror().getStartTime());
+            assertEquals("mfsub", sc.getMirror().getFilterSubject());
 
-        assertEquals(2, sc.getSources().size());
+            assertNotNull(sc.getMirror().getExternal());
+            assertEquals("apithing", sc.getMirror().getExternal().getApi());
+            assertEquals("dlvrsub", sc.getMirror().getExternal().getDeliver());
 
-        validateSource(sc.getSources().get(0), "s0", 737, "s0sub", "s0api", "s0dlvrsub", zdt);
-        validateSource(sc.getSources().get(1), "s1", 738, "s1sub", "s1api", "s1dlvrsub", zdt);
+            assertEquals(2, sc.getSources().size());
+
+            validateSource(sc.getSources().get(0), "s0", 737, "s0sub", "s0api", "s0dlvrsub", zdt);
+            validateSource(sc.getSources().get(1), "s1", 738, "s1sub", "s1api", "s1dlvrsub", zdt);
+        }
     }
 
     private void validateSource(Source source, String name, long seq, String filter, String api, String deliver, ZonedDateTime zdt) {
@@ -344,5 +440,50 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         // COVERAGE
         String json = ResourceUtils.dataAsString("StreamConfiguration.json");
         assertNotNull(StreamConfiguration.instance(json).toString());
+    }
+
+    @Test
+    public void testPlacement() {
+        assertThrows(IllegalArgumentException.class, () -> Placement.builder().build());
+
+        Placement p = Placement.builder().cluster("cluster").build();
+        assertEquals("cluster", p.getCluster());
+        assertNull(p.getTags());
+
+        p = Placement.builder().cluster("cluster").tags("a", "b").build();
+        assertEquals("cluster", p.getCluster());
+        assertEquals(2, p.getTags().size());
+
+        p = Placement.builder().cluster("cluster").tags(Arrays.asList("a", "b")).build();
+        assertEquals("cluster", p.getCluster());
+        assertEquals(2, p.getTags().size());
+    }
+
+    @Test
+    public void testRepublish() {
+        assertThrows(IllegalArgumentException.class, () -> Republish.builder().build());
+        assertThrows(IllegalArgumentException.class, () -> Republish.builder().source("src.>").build());
+        assertThrows(IllegalArgumentException.class, () -> Republish.builder().destination("dest.>").build());
+
+        Republish p = Republish.builder().source("src.>").destination("dest.>").build();
+        assertEquals("src.>", p.getSource());
+        assertEquals("dest.>", p.getDestination());
+        assertFalse(p.isHeadersOnly());
+
+        p = Republish.builder().source("src.>").destination("dest.>").headersOnly(true).build();
+        assertEquals("src.>", p.getSource());
+        assertEquals("dest.>", p.getDestination());
+        assertTrue(p.isHeadersOnly());
+    }
+
+    @Test
+    public void testExternal() {
+        External e = External.builder().api("api").deliver("deliver").build();
+        assertEquals("api", e.getApi());
+        assertEquals("deliver", e.getDeliver());
+
+        e = External.builder().build();
+        assertNull(e.getApi());
+        assertNull(e.getDeliver());
     }
 }

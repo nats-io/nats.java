@@ -15,8 +15,6 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonUtils;
 
-import java.time.ZonedDateTime;
-
 import static io.nats.client.support.ApiConstants.MIRROR;
 
 /**
@@ -34,12 +32,16 @@ public class Mirror extends SourceBase {
         super(MIRROR, json);
     }
 
-    Mirror(String name, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
-        super(MIRROR, name, startSeq, startTime, filterSubject, external);
+    Mirror(Builder b) {
+        super(MIRROR, b);
     }
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    public static Builder builder(Mirror mirror) {
+        return new Builder(mirror);
     }
 
     public static class Builder extends SourceBaseBuilder<Builder> {
@@ -48,8 +50,14 @@ public class Mirror extends SourceBase {
             return this;
         }
 
+        public Builder() {}
+
+        public Builder(Mirror mirror) {
+            super(mirror);
+        }
+
         public Mirror build() {
-            return new Mirror(sourceName, startSeq, startTime, filterSubject, external);
+            return new Mirror(this);
         }
     }
 }

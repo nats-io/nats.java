@@ -17,10 +17,9 @@ import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
 import io.nats.client.support.JsonUtils;
 
-import java.nio.charset.StandardCharsets;
-
 import static io.nats.client.api.Error.NOT_SET;
 import static io.nats.client.support.ApiConstants.TYPE_RE;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public abstract class ApiResponse<T> {
 
@@ -28,20 +27,23 @@ public abstract class ApiResponse<T> {
 
     protected final String json;
 
-    private String type;
-    private Error error;
+    private final String type;
+    private final Error error;
 
     public ApiResponse(Message msg) {
-        this(new String(msg.getData(), StandardCharsets.UTF_8));
+        this(new String(msg.getData(), UTF_8));
     }
 
     public ApiResponse(String json) {
         this.json = json;
-        error = Error.optionalInstance(json);
+        error = json == null ? null : Error.optionalInstance(json);
+        type = json == null ? NO_TYPE : JsonUtils.readString(json, TYPE_RE, NO_TYPE);
     }
 
     public ApiResponse() {
         json = null;
+        error = null;
+        type = NO_TYPE;
     }
 
     @SuppressWarnings("unchecked")
@@ -57,9 +59,6 @@ public abstract class ApiResponse<T> {
     }
 
     public String getType() {
-        if (type == null) {
-            type = JsonUtils.readString(json, TYPE_RE, NO_TYPE);
-        }
         return type;
     }
 
@@ -76,9 +75,10 @@ public abstract class ApiResponse<T> {
     }
 
     public String getError() {
-        if (hasError()) {
-            return error.toString();
-        }
-        return null;
+        return error == null ? null : error.toString();
+    }
+
+    public Error getErrorObject() {
+        return error;
     }
 }

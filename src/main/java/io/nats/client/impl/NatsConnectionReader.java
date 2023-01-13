@@ -13,7 +13,6 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.impl.NatsMessage.InternalMessageFactory;
 import io.nats.client.support.IncomingHeadersProcessor;
 
 import java.io.IOException;
@@ -46,21 +45,21 @@ class NatsConnectionReader implements Runnable {
     private boolean gotCR;
     
     private String op;
-    private char[] opArray;
+    private final char[] opArray;
     private int opPos;
 
-    private char[] msgLineChars;
+    private final char[] msgLineChars;
     private int msgLinePosition;
 
     private Mode mode;
 
-    private InternalMessageFactory incoming;
+    private IncomingMessageFactory incoming;
     private byte[] msgHeaders;
     private byte[] msgData;
     private int msgHeadersPosition;
     private int msgDataPosition;
 
-    private byte[] buffer;
+    private final byte[] buffer;
     private int bufferPosition;
 
     private Future<Boolean> stopped;
@@ -275,7 +274,7 @@ class NatsConnectionReader implements Runnable {
                 int possible = maxPos - this.bufferPosition;
                 int want = msgHeaders.length - msgHeadersPosition;
 
-                // Grab all we can, until we get the neccessary number of bytes
+                // Grab all we can, until we get the necessary number of bytes
                 if (want > 0 && want <= possible) {
                     System.arraycopy(this.buffer, this.bufferPosition, this.msgHeaders, this.msgHeadersPosition, want);
                     msgHeadersPosition += want;
@@ -364,8 +363,7 @@ class NatsConnectionReader implements Runnable {
             this.msgLinePosition++;
 
             if (c == SP || c == TAB) {
-                String slice = new String(this.msgLineChars, start, this.msgLinePosition - start -1); //don't grab the space, avoid an intermediate char sequence
-                return slice;
+                return new String(this.msgLineChars, start, this.msgLinePosition - start -1); //don't grab the space, avoid an intermediate char sequence
             }
         }
 
@@ -419,7 +417,7 @@ class NatsConnectionReader implements Runnable {
         }
     }
 
-    private static int[] TENS = new int[] { 1, 10, 100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 1_000_000_000};
+    private static final int[] TENS = new int[] { 1, 10, 100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 1_000_000_000};
 
     public static int parseLength(String s) throws NumberFormatException {
         int length = s.length();
@@ -434,7 +432,7 @@ class NatsConnectionReader implements Runnable {
             int d = (c - '0');
 
             if (d>9) {
-                throw new NumberFormatException("Invalid char in message length \'" + c + "\'");
+                throw new NumberFormatException("Invalid char in message length '" + c + "'");
             }
 
             retVal += d * TENS[length - i - 1];
@@ -477,7 +475,7 @@ class NatsConnectionReader implements Runnable {
 
                     int incomingLength = parseLength(lengthChars);
 
-                    this.incoming = new InternalMessageFactory(sid, subject, replyTo, protocolLineLength, utf8Mode);
+                    this.incoming = new IncomingMessageFactory(sid, subject, replyTo, protocolLineLength, utf8Mode);
                     this.mode = Mode.GATHER_DATA;
                     this.msgData = new byte[incomingLength];
                     this.msgDataPosition = 0;
@@ -485,10 +483,10 @@ class NatsConnectionReader implements Runnable {
                     break;
                 case OP_HMSG:
                     int hProtocolLength = this.msgLinePosition; //This is just after the last character
-                    int hProtocolLineLength = hProtocolLength + 4; // 5 for the "HMSG "
+                    int hProtocolLineLength = hProtocolLength + 5; // 5 for the "HMSG "
 
                     if (this.utf8Mode) {
-                        hProtocolLineLength = protocolBuffer.remaining() + 4;
+                        hProtocolLineLength = protocolBuffer.remaining() + 5;
 
                         CharBuffer buff = StandardCharsets.UTF_8.decode(protocolBuffer);
                         hProtocolLength = buff.remaining();
@@ -519,7 +517,7 @@ class NatsConnectionReader implements Runnable {
                         throw new IllegalStateException("Bad HMSG control line, missing required fields");
                     }
 
-                    this.incoming = new InternalMessageFactory(hSid, hSubject, hReplyTo, hProtocolLineLength, utf8Mode);
+                    this.incoming = new IncomingMessageFactory(hSid, hSubject, hReplyTo, hProtocolLineLength, utf8Mode);
                     this.msgHeaders = new byte[hdrLen];
                     this.msgData = new byte[totLen - hdrLen];
                     this.mode = Mode.GATHER_HEADERS;
@@ -533,7 +531,7 @@ class NatsConnectionReader implements Runnable {
                     this.mode = Mode.GATHER_OP;
                     break;
                 case OP_ERR:
-                    String errorText = StandardCharsets.UTF_8.decode(protocolBuffer).toString().replace("\'", "");
+                    String errorText = StandardCharsets.UTF_8.decode(protocolBuffer).toString().replace("'", "");
                     this.connection.processError(errorText);
                     this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;

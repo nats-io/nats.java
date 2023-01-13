@@ -13,9 +13,6 @@
 
 package io.nats.client.api;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Stream storage types.
  */
@@ -34,15 +31,9 @@ public enum StorageType {
         return policy;
     }
 
-    private static final Map<String, StorageType> strEnumHash = new HashMap<>();
-
-    static {
-        for (StorageType env : StorageType.values()) {
-            strEnumHash.put(env.toString(), env);
-        }
-    }
-
     public static StorageType get(String value) {
-        return strEnumHash.get(value);
+        if (File.policy.equalsIgnoreCase(value)) { return File; }
+        if (Memory.policy.equalsIgnoreCase(value)) { return Memory; }
+        return null;
     }
 }

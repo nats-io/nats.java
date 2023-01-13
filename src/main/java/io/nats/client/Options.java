@@ -14,6 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.impl.DataPort;
+import io.nats.client.impl.ErrorListenerLoggerImpl;
 import io.nats.client.impl.SocketDataPort;
 import io.nats.client.support.SSLUtils;
 
@@ -28,6 +29,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.client.support.Encoding.uriDecode;
 import static io.nats.client.support.NatsConstants.*;
 
 /**
@@ -38,16 +40,23 @@ import static io.nats.client.support.NatsConstants.*;
  * starting with the {@link Options.Builder Builder}, since it has a simple list of methods that configure the connection.
  */
 public class Options {
-    // NOTE TO DEVS
-    // To add an option, you have to:
-    // * add property
-    // * add field in builder
-    // * add field in options
-    // * add a chainable method in builder
-    // * add update build
-    // * update constructor that takes properties
-    // * optional default in statics
+    // ----------------------------------------------------------------------------------------------------
+    // NOTE TO DEVS!!! To add an option, you have to address:
+    // ----------------------------------------------------------------------------------------------------
+    // CONSTANTS * optionally add a default value constant
+    // ENVIRONMENT * most of the time add an environment property
+    // CLASS VARIABLES * add a variable to the class
+    // BUILDER VARIABLES * add a variable in builder
+    // BUILD CONSTRUCTOR PROPS * update build props constructor to read new props
+    // BUILDER METHODS * add a chainable method in builder for new variable
+    // BUILD IMPL * update build() implementation if needed
+    // CONSTRUCTOR * update constructor to ensure new variables are set from builder
+    // GETTERS * update getter to be able to retrieve class variable value
+    // ----------------------------------------------------------------------------------------------------
 
+    // ----------------------------------------------------------------------------------------------------
+    // CONSTANTS
+    // ----------------------------------------------------------------------------------------------------
     /**
      * Default server URL.
      *
@@ -215,6 +224,9 @@ public class Options {
      */
     public static final boolean DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL = false;
 
+    // ----------------------------------------------------------------------------------------------------
+    // ENVIRONMENT
+    // ----------------------------------------------------------------------------------------------------
     static final String PFX = "io.nats.client.";
 
     /**
@@ -293,9 +305,13 @@ public class Options {
      */
     public static final String PROP_NO_HEADERS = PFX + "noheaders";
     /**
-     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noHeaders() noHeaders}.
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noNoResponders() noNoResponders}.
      */
     public static final String PROP_NO_NORESPONDERS = PFX + "nonoresponders";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#clientSideLimitChecks() clientSideLimitChecks}.
+     */
+    public static final String PROP_CLIENT_SIDE_LIMIT_CHECKS = PFX + "clientsidelimitchecks";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#connectionName(String)
      * connectionName}.
@@ -467,7 +483,24 @@ public class Options {
      */
     static final String OPTION_NORESPONDERS = "no_responders";
 
-    private final List<URI> servers;
+    /**
+     * Property used to set the whether to ignore discovered servers when connecting
+     */
+    public static final String PROP_IGNORE_DISCOVERED_SERVERS = "ignore_discovered_servers";
+
+    /**
+     * Property used to set class name for ServerListProvider implementation
+     * {@link Builder#serverListProvider(ServerListProvider) serverListProvider}.
+     *
+     * IMPORTANT! ServerListProvider IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
+     */
+    public static final String PROP_SERVERS_LIST_PROVIDER_CLASS = "servers_list_provider_class";
+
+    // ----------------------------------------------------------------------------------------------------
+    // CLASS VARIABLES
+    // ----------------------------------------------------------------------------------------------------
+    private final List<URI> serverURIs;
+    private final List<String> unprocessedServers;
     private final boolean noRandomize;
     private final String connectionName;
     private final boolean verbose;
@@ -492,9 +525,11 @@ public class Options {
     private final boolean noEcho;
     private final boolean noHeaders;
     private final boolean noNoResponders;
+    private final boolean clientSideLimitChecks;
     private final boolean utf8Support;
     private final int maxMessagesInOutgoingQueue;
     private final boolean discardMessagesWhenOutgoingQueueFull;
+    private final boolean ignoreDiscoveredServers;
 
     private final AuthHandler authHandler;
     private final ReconnectDelayHandler reconnectDelayHandler;
@@ -507,6 +542,7 @@ public class Options {
     private final boolean traceConnection;
 
     private final ExecutorService executor;
+    private final ServerListProvider serverListProvider;
 
     static class DefaultThreadFactory implements ThreadFactory {
         String name;
@@ -541,7 +577,11 @@ public class Options {
      */
     public static class Builder {
 
-        private final ArrayList<URI> servers = new ArrayList<>();
+        // ----------------------------------------------------------------------------------------------------
+        // BUILDER VARIABLES
+        // ----------------------------------------------------------------------------------------------------
+        private final List<URI> serverURIs = new ArrayList<>();
+        private final List<String> unprocessedServers = new ArrayList<>();
         private boolean noRandomize = false;
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
         private boolean verbose = false;
@@ -567,10 +607,13 @@ public class Options {
         private boolean noEcho = false;
         private boolean noHeaders = false;
         private boolean noNoResponders = false;
+        private boolean clientSideLimitChecks = true;
         private boolean utf8Support = false;
         private String inboxPrefix = DEFAULT_INBOX_PREFIX;
         private int maxMessagesInOutgoingQueue = DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
+        private boolean ignoreDiscoveredServers = false;
+        private ServerListProvider serverListProvider = null;
 
         private AuthHandler authHandler;
         private ReconnectDelayHandler reconnectDelayHandler;
@@ -590,6 +633,9 @@ public class Options {
         public Builder() {
         }
 
+        // ----------------------------------------------------------------------------------------------------
+        // BUILD CONSTRUCTOR PROPS
+        // ----------------------------------------------------------------------------------------------------
         /**
          * Constructs a new {@code Builder} from a {@link Properties} object.
          * 
@@ -683,6 +729,10 @@ public class Options {
                 this.noNoResponders = Boolean.parseBoolean(props.getProperty(PROP_NO_NORESPONDERS));
             }
 
+            if (props.containsKey(PROP_CLIENT_SIDE_LIMIT_CHECKS)) {
+                this.clientSideLimitChecks = Boolean.parseBoolean(props.getProperty(PROP_CLIENT_SIDE_LIMIT_CHECKS));
+            }
+
             if (props.containsKey(PROP_UTF8_SUBJECTS)) {
                 this.utf8Support = Boolean.parseBoolean(props.getProperty(PROP_UTF8_SUBJECTS));
             }
@@ -772,6 +822,15 @@ public class Options {
                 this.discardMessagesWhenOutgoingQueueFull = Boolean.parseBoolean(props.getProperty(
                         PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, Boolean.toString(DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL)));
             }
+
+            if (props.containsKey(PROP_IGNORE_DISCOVERED_SERVERS)) {
+                this.ignoreDiscoveredServers = Boolean.parseBoolean(props.getProperty(PROP_IGNORE_DISCOVERED_SERVERS));
+            }
+
+            if (props.containsKey(PROP_SERVERS_LIST_PROVIDER_CLASS)) {
+                Object instance = createInstanceOf(props.getProperty(PROP_SERVERS_LIST_PROVIDER_CLASS));
+                this.serverListProvider = (ServerListProvider) instance;
+            }
         }
 
         static Object createInstanceOf(String className) {
@@ -786,6 +845,9 @@ public class Options {
             return instance;
         }
 
+        // ----------------------------------------------------------------------------------------------------
+        // BUILDER METHODS
+        // ----------------------------------------------------------------------------------------------------
         /**
          * Add a server to the list of known servers.
          * 
@@ -794,7 +856,7 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder server(String serverURL) {
-            return this.servers(serverURL.trim().split(","));
+            return servers(serverURL.trim().split(","));
         }
 
         /**
@@ -808,7 +870,9 @@ public class Options {
             for (String s : servers) {
                 if (s != null && !s.isEmpty()) {
                     try {
-                        this.servers.add(Options.parseURIForServer(s.trim()));
+                        String unprocessed = s.trim();
+                        this.serverURIs.add(Options.parseURIForServer(unprocessed));
+                        this.unprocessedServers.add(unprocessed);
                     } catch (URISyntaxException e) {
                         throw new IllegalArgumentException("Bad server URL: " + s, e);
                     }
@@ -828,9 +892,11 @@ public class Options {
         }
 
         /**
-         * Turn off server pool randomization. By default the server will pick
-         * servers from its list randomly on a reconnect. When set to noRandom the server
-         * goes in the order they were configured or provided by a server in a cluster update.
+         * For the default server list provider, turn off server pool randomization.
+         * The default provider will pick servers from its list randomly on a reconnect.
+         * When noRandomize is set to true the default provider supplies a list that
+         * first contains servers as configured and then contains the servers as sent
+         * from the connected server.
          * @return the Builder for chaining
          */
         public Builder noRandomize() {
@@ -865,6 +931,16 @@ public class Options {
          */
         public Builder noNoResponders() {
             this.noNoResponders = true;
+            return this;
+        }
+
+        /**
+         * Set client side limit checks. Default is true
+         * @param checks the checks flag
+         * @return the Builder for chaining
+         */
+        public Builder clientSideLimitChecks(boolean checks) {
+            this.clientSideLimitChecks = checks;
             return this;
         }
 
@@ -1160,13 +1236,13 @@ public class Options {
          * 
          * If the user and password are set in the server URL, they will override these values. However, in a clustering situation,
          * these values can be used as a fallback.
+         *
+         * use the char[] version instead for better security
          * 
          * @param userName a non-empty user name
          * @param password the password, in plain text
          * @return the Builder for chaining
-         * @deprecated use the char[] version instead for better security
          */
-        @Deprecated
         public Builder userInfo(String userName, String password) {
             this.username = userName.toCharArray();
             this.password = password.toCharArray();
@@ -1316,6 +1392,26 @@ public class Options {
         }
 
         /**
+         * Turn off use of discovered servers when connecting / reconnecting. Used in the default server list provider.
+         * @return the Builder for chaining
+         */
+        public Builder ignoreDiscoveredServers() {
+            this.ignoreDiscoveredServers = true;
+            return this;
+        }
+
+        /**
+         * Set the ServerListProvider implementation for connections to use instead of the default bahvior
+         * IMPORTANT! ServerListProvider IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
+         * @param serverListProvider the implementation
+         * @return the Builder for chaining
+         */
+        public Builder serverListProvider(ServerListProvider serverListProvider) {
+            this.serverListProvider = serverListProvider;
+            return this;
+        }
+
+        /**
          * Build an Options object from this Builder.
          * 
          * <p>If the Options builder was not provided with a server, a default one will be included
@@ -1334,16 +1430,18 @@ public class Options {
          * @throws IllegalStateException if there is a conflict in the options, like a token and a user/pass
          */
         public Options build() throws IllegalStateException {
-
+            // ----------------------------------------------------------------------------------------------------
+            // BUILD IMPL
+            // ----------------------------------------------------------------------------------------------------
             if (this.username != null && this.token != null) {
                 throw new IllegalStateException("Options can't have token and username");
             }
             
-            if (servers.size() == 0) {
+            if (serverURIs.size() == 0) {
                 server(DEFAULT_URL);
             }
             else if (sslContext == null) {
-                for (URI serverURI : servers) {
+                for (URI serverURI : serverURIs) {
                     if (TLS_PROTOCOL.equals(serverURI.getScheme())) {
                         try {
                             this.sslContext = SSLContext.getDefault();
@@ -1370,8 +1468,12 @@ public class Options {
         }
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // CONSTRUCTOR
+    // ----------------------------------------------------------------------------------------------------
     private Options(Builder b) {
-        this.servers = b.servers;
+        this.serverURIs = new ArrayList<>(b.serverURIs); // builder servers is a set so no dupes
+        this.unprocessedServers = b.unprocessedServers;  // exactly how the user gave them
         this.noRandomize = b.noRandomize;
         this.connectionName = b.connectionName;
         this.verbose = b.verbose;
@@ -1395,6 +1497,7 @@ public class Options {
         this.noEcho = b.noEcho;
         this.noHeaders = b.noHeaders;
         this.noNoResponders = b.noNoResponders;
+        this.clientSideLimitChecks = b.clientSideLimitChecks;
         this.utf8Support = b.utf8Support;
         this.inboxPrefix = b.inboxPrefix;
         this.traceConnection = b.traceConnection;
@@ -1404,13 +1507,20 @@ public class Options {
         this.authHandler = b.authHandler;
         this.reconnectDelayHandler = b.reconnectDelayHandler;
 
-        this.errorListener = b.errorListener;
+        this.errorListener = b.errorListener == null ? new ErrorListenerLoggerImpl() : b.errorListener;
         this.connectionListener = b.connectionListener;
         this.dataPortType = b.dataPortType;
         this.trackAdvancedStats = b.trackAdvancedStats;
         this.executor = b.executor;
+
+        this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
+
+        this.serverListProvider = b.serverListProvider;
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // GETTERS
+    // ----------------------------------------------------------------------------------------------------
     /**
      * @return the executor, see {@link Builder#executor(ExecutorService) executor()} in the builder doc
      */
@@ -1419,7 +1529,7 @@ public class Options {
     }
 
     /**
-     * @return the error listener, or null, see {@link Builder#errorListener(ErrorListener) errorListener()} in the builder doc
+     * @return the error listener. Will be an instance of ErrorListenerLoggerImpl if not user supplied. See {@link Builder#errorListener(ErrorListener) errorListener()} in the builder doc
      */
     public ErrorListener getErrorListener() {
         return this.errorListener;
@@ -1464,7 +1574,14 @@ public class Options {
      * @return the servers stored in this options, see {@link Builder#servers(String[]) servers()} in the builder doc
      */
     public Collection<URI> getServers() {
-        return servers;
+        return serverURIs;
+    }
+
+    /**
+     * @return the servers as given to the options, since the servers are normalized
+     */
+    public List<String> getUnprocessedServers() {
+        return unprocessedServers;
     }
 
     /**
@@ -1512,10 +1629,17 @@ public class Options {
     }
 
     /**
-     * @return is NoRespnders ignored disabled, see {@link Builder#noNoResponders() noNoResponders()} in the builder doc
+     * @return is NoResponders ignored disabled, see {@link Builder#noNoResponders() noNoResponders()} in the builder doc
      */
     public boolean isNoNoResponders() {
         return noNoResponders;
+    }
+
+    /**
+     * @return clientSideLimitChecks flag, see {@link Builder#clientSideLimitChecks() clientSideLimitChecks()} in the builder doc
+     */
+    public boolean clientSideLimitChecks() {
+        return clientSideLimitChecks;
     }
 
     /**
@@ -1710,6 +1834,23 @@ public class Options {
         return discardMessagesWhenOutgoingQueueFull;
     }
 
+    /**
+     * Get whether to ignore discovered servers
+     * @return the flag
+     */
+    public boolean isIgnoreDiscoveredServers() {
+        return ignoreDiscoveredServers;
+    }
+
+    /**
+     * Get a provided ServerListProvider. If null, a default implementation is used.
+     * IMPORTANT! ServerListProvider IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
+     * @return the ServerListProvider implementation
+     */
+    public ServerListProvider getServerListProvider() {
+        return serverListProvider;
+    }
+
     public URI createURIForServer(String serverURI) throws URISyntaxException {
         return Options.parseURIForServer(serverURI);
     }
@@ -1809,16 +1950,15 @@ public class Options {
             // Values from URI override options
             try {
                 URI uri = this.createURIForServer(serverURI);
-                String userInfo = uri.getUserInfo();
-
+                String userInfo = uri.getRawUserInfo();
                 if (userInfo != null) {
-                    String[] info = userInfo.split(":");
-
-                    if (info.length == 2) {
-                        uriUser = info[0];
-                        uriPass = info[1];
-                    } else {
-                        uriToken = userInfo;
+                    int at = userInfo.indexOf(":");
+                    if (at == -1) {
+                        uriToken = uriDecode(userInfo);
+                    }
+                    else {
+                        uriUser = uriDecode(userInfo.substring(0, at));
+                        uriPass = uriDecode(userInfo.substring(at + 1));
                     }
                 }
             } catch(URISyntaxException e) {

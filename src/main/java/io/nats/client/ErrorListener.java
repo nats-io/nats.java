@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.support.Status;
+
 /**
  * This library groups problems into four categories:
  * <dl>
@@ -38,7 +40,7 @@ public interface ErrorListener {
      * @param conn The connection associated with the error
      * @param error The text of error that has occurred, directly from the server
      */
-    public void errorOccurred(Connection conn, String error);
+    default void errorOccurred(Connection conn, String error) {};
 
     /**
      * Exceptions that occur in the "normal" course of operations are sent to the
@@ -50,7 +52,7 @@ public interface ErrorListener {
      * @param conn The connection associated with the error
      * @param exp The exception that has occurred, and was handled by the library
      */
-    public void exceptionOccurred(Connection conn, Exception exp);
+    default void exceptionOccurred(Connection conn, Exception exp) {};
 
     /**
      * Called by the connection when a &quot;slow&quot; consumer is detected. This call is only made once
@@ -66,7 +68,7 @@ public interface ErrorListener {
      * @param conn The connection associated with the error
      * @param consumer The consumer that is being marked slow
      */
-    public void slowConsumerDetected(Connection conn, Consumer consumer);
+    default void slowConsumerDetected(Connection conn, Consumer consumer) {};
 
     /**
      * Called by the connection when a message is discarded.
@@ -75,4 +77,37 @@ public interface ErrorListener {
      * @param msg The message that is discarded
      */
     default void messageDiscarded(Connection conn, Message msg) {}
+
+    /**
+     * Called when subscription heartbeats are missed according to the configured period and threshold.
+     * The consumer must be configured with an idle heartbeat time.
+     *
+     * @param conn The connection that had the issue
+     * @param sub the JetStreamSubscription that this occurred on
+     * @param lastStreamSequence the last received stream sequence
+     * @param lastConsumerSequence the last received consumer sequence
+     */
+    default void heartbeatAlarm(Connection conn, JetStreamSubscription sub,
+                                long lastStreamSequence, long lastConsumerSequence) {}
+
+    /**
+     * Called by the connection when an unhandled status is received.
+     *
+     * @param conn The connection that had the issue
+     * @param sub the JetStreamSubscription that this occurred on
+     * @param status the status
+     */
+    default void unhandledStatus(Connection conn, JetStreamSubscription sub, Status status) {}
+
+    enum FlowControlSource { FLOW_CONTROL, HEARTBEAT }
+
+    /**
+     * Called by the connection when a flow control is processed.
+     *
+     * @param conn The connection that had the issue
+     * @param sub the JetStreamSubscription that this occurred on
+     * @param subject the flow control subject that was handled
+     * @param source enum indicating flow control handling in response to which type of message
+     */
+    default void flowControlProcessed(Connection conn, JetStreamSubscription sub, String subject, FlowControlSource source) {}
 }

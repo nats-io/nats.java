@@ -15,56 +15,118 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.ConsumerInfo;
-import io.nats.client.support.JsonUtils;
 import io.nats.client.support.NatsJetStreamConstants;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
-import static io.nats.client.support.Validator.validatePullBatchSize;
 
 /**
  * This is a JetStream specific subscription.
  */
 public class NatsJetStreamSubscription extends NatsSubscription implements JetStreamSubscription, NatsJetStreamConstants {
 
-    private NatsJetStream js;
-    private String consumer;
-    private String stream;
-    private String deliver;
-    private boolean isPullMode;
+    public static final String SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL = "Subscription type does not support pull.";
 
-    NatsJetStreamSubscription(String sid, String subject, String queueName, NatsConnection connection,
-            NatsDispatcher dispatcher) {
+    protected final NatsJetStream js;
+
+    protected String stream;
+    protected String consumerName;
+
+    protected MessageManager manager;
+
+    NatsJetStreamSubscription(String sid, String subject, String queueName,
+                              NatsConnection connection, NatsDispatcher dispatcher,
+                              NatsJetStream js,
+                              String stream, String consumer,
+                              MessageManager manager)
+    {
         super(sid, subject, queueName, connection, dispatcher);
-    }
 
-    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, SubscribeOptions subscribeOptions) {
         this.js = js;
-        this.consumer = consumer;
         this.stream = stream;
-        this.deliver = deliver;
-        isPullMode = subscribeOptions instanceof PullSubscribeOptions;
+        this.consumerName = consumer; // might be null, someone will call setConsumerName
+
+        this.manager = manager;
+        manager.startup(this);
     }
 
-    String getConsumer() {
-        return consumer;
+    void setConsumerName(String consumerName) {
+        this.consumerName = consumerName;
+    }
+
+    String getConsumerName() {
+        return consumerName;
     }
 
     String getStream() {
         return stream;
     }
 
-    String getDeliverSubject() {
-        return deliver;
+    boolean isPullMode() {
+        return false;
     }
 
-    boolean isPullMode() {
-        return isPullMode;
+    MessageManager getManager() { return manager; } // internal, for testing
+
+    @Override
+    void invalidate() {
+        manager.shutdown();
+        super.invalidate();
+    }
+
+    @Override
+    public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
+        if (timeout == null || timeout.toMillis() <= 0) {
+            return _nextUnmanagedNullOrLteZero(timeout);
+        }
+
+        return _nextUnmanaged(timeout.toMillis());
+    }
+
+    @Override
+    public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
+        if (timeoutMillis <= 0) {
+            return _nextUnmanagedNullOrLteZero(Duration.ZERO);
+        }
+
+        return _nextUnmanaged(timeoutMillis);
+    }
+
+    protected Message _nextUnmanagedNullOrLteZero(Duration timeout) throws InterruptedException {
+        // timeout null means don't wait at all, timeout <= 0 means wait forever
+        // until we get an actual no (null) message or we get a message
+        // that the managers do not handle
+        Message msg = nextMessageInternal(timeout);
+        while (msg != null && manager.manage(msg)) {
+            msg = nextMessageInternal(timeout);
+        }
+        return msg;
+    }
+
+    protected static final long MIN_MILLIS = 20;
+    protected static final long EXPIRE_LESS_MILLIS = 10;
+
+    protected Message _nextUnmanaged(long timeout) throws InterruptedException {
+
+        // timeout > 0 process as many messages we can in that time period
+        // If we get a message that either manager handles, we try again, but
+        // with a shorter timeout based on what we already used up
+        long elapsed = 0;
+        long start = System.currentTimeMillis();
+        while (elapsed < timeout) {
+            Message msg = nextMessageInternal( Duration.ofMillis(Math.max(MIN_MILLIS, timeout - elapsed)) );
+            if (msg == null) {
+                return null; // normal timeout
+            }
+            if (!manager.manage(msg)) { // not managed means JS Message
+                return msg;
+            }
+            // managed so try again while we have time
+            elapsed = System.currentTimeMillis() - start;
+        }
+        return null;
     }
 
     /**
@@ -72,7 +134,15 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pull(int batchSize) {
-        _pull(batchSize, false, null);
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pull(PullRequestOptions pullRequestOptions) {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
     /**
@@ -80,7 +150,23 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pullNoWait(int batchSize) {
-        _pull(batchSize, true, null);
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pullNoWait(int batchSize, Duration expiresIn) {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pullNoWait(int batchSize, long expiresInMillis) {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
     /**
@@ -88,7 +174,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pullExpiresIn(int batchSize, Duration expiresIn) {
-        _pull(batchSize, false, expiresIn);
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
     /**
@@ -96,44 +182,15 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pullExpiresIn(int batchSize, long expiresInMillis) {
-        _pull(batchSize, false, Duration.ofMillis(expiresInMillis));
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
-
-    private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
-        if (!isPullMode()) {
-            throw new IllegalStateException("Subscription type does not support pull.");
-        }
-
-        int batch = validatePullBatchSize(batchSize);
-        String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
-        connection.publish(publishSubject, getSubject(), getPullJson(batch, noWait, expiresIn));
-        connection.lenientFlushBuffer();
-    }
-
-    byte[] getPullJson(int batch, boolean noWait, Duration expiresIn) {
-        StringBuilder sb = JsonUtils.beginJson();
-        JsonUtils.addField(sb, "batch", batch);
-        JsonUtils.addFldWhenTrue(sb, "no_wait", noWait);
-        JsonUtils.addFieldAsNanos(sb, "expires", expiresIn);
-        return JsonUtils.endJson(sb).toString().getBytes(StandardCharsets.US_ASCII);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
-        return js.lookupConsumerInfo(stream, consumer);
-    }
-
-    private static final Duration SUBSEQUENT_WAITS = Duration.ofMillis(500);
 
     /**
      * {@inheritDoc}
      */
     @Override
     public List<Message> fetch(int batchSize, long maxWaitMillis) {
-        return fetch(batchSize, Duration.ofMillis(maxWaitMillis));
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
     /**
@@ -141,41 +198,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public List<Message> fetch(int batchSize, Duration maxWait) {
-        List<Message> messages = new ArrayList<>(batchSize);
-
-        try {
-            pullNoWait(batchSize);
-            read(batchSize, maxWait, messages);
-            if (messages.size() == 0) {
-                pullExpiresIn(batchSize, maxWait.minusMillis(10));
-                read(batchSize, maxWait, messages);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
-        return messages;
-    }
-
-    private void read(int batchSize, Duration maxWait, List<Message> messages) throws InterruptedException {
-        Message msg = nextMessage(maxWait);
-        while (msg != null) {
-            if (msg.isJetStream()) {
-                messages.add(msg);
-                if (messages.size() == batchSize) {
-                    break;
-                }
-            }
-            msg = nextMessage(SUBSEQUENT_WAITS);
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Iterator<Message> iterate(final int batchSize, long maxWaitMillis) {
-        return iterate(batchSize, Duration.ofMillis(maxWaitMillis));
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
     /**
@@ -183,60 +206,39 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public Iterator<Message> iterate(int batchSize, Duration maxWait) {
-        pullNoWait(batchSize);
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
+    }
 
-        return new Iterator<Message>() {
-            int received = 0;
-            boolean finished = false;
-            boolean stepDown = true;
-            Duration wait = maxWait;
-            Message msg = null;
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Iterator<Message> iterate(final int batchSize, long maxWaitMillis) {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
+    }
 
-            @Override
-            public boolean hasNext() {
-                while (!finished && msg == null) {
-                    try {
-                        msg = nextMessage(wait);
-                        wait = SUBSEQUENT_WAITS;
-                        if (msg == null) {
-                            if (received == 0 && stepDown) {
-                                stepDown = false;
-                                pullExpiresIn(batchSize, maxWait.minusMillis(10));
-                            }
-                            else {
-                                finished = true;
-                            }
-                        }
-                        else if (msg.isJetStream()) {
-                            finished = ++received == batchSize;
-                        }
-                        else {
-                            msg = null;
-                        }
-                    } catch (InterruptedException e) {
-                        msg = null;
-                        finished = true;
-                        Thread.currentThread().interrupt();
-                    }
-                }
-                return msg != null;
-            }
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public JetStreamReader reader(int batchSize, int repullAt) {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
+    }
 
-            @Override
-            public Message next() {
-                Message next = msg;
-                msg = null;
-                return next;
-            }
-        };
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
+        return js.lookupConsumerInfo(stream, consumerName);
     }
 
     @Override
     public String toString() {
         return "NatsJetStreamSubscription{" +
-                "consumer='" + consumer + '\'' +
+                "consumer='" + consumerName + '\'' +
                 ", stream='" + stream + '\'' +
-                ", deliver='" + deliver + '\'' +
+                ", deliver='" + getSubject() + '\'' +
                 ", isPullMode=" + isPullMode() +
                 '}';
     }

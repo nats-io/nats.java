@@ -14,9 +14,11 @@
 package io.nats.client.api;
 
 import io.nats.client.JetStreamApiException;
+import io.nats.client.support.Status;
 import org.junit.jupiter.api.Test;
 
 import static io.nats.client.api.ApiResponse.NO_TYPE;
+import static io.nats.client.api.Error.*;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -26,6 +28,8 @@ public class ApiResponseTests {
         TestApiResponse(String json) {
             super(json);
         }
+
+        public TestApiResponse() { }
     }
 
     @Test
@@ -71,30 +75,28 @@ public class ApiResponseTests {
         jsApiResp = new TestApiResponse(jsons[3]);
         assertTrue(jsApiResp.hasError());
         assertEquals("no_code_response", jsApiResp.getType());
-        assertEquals(Error.NOT_SET, jsApiResp.getErrorCode());
+        assertEquals(NOT_SET, jsApiResp.getErrorCode());
         assertEquals("no code", jsApiResp.getDescription());
         assertEquals("no code", jsApiResp.getError());
         jsApiEx = new JetStreamApiException(jsApiResp);
-        assertEquals(-1, jsApiEx.getErrorCode());
-        assertEquals(-1, jsApiEx.getApiErrorCode());
+        assertEquals(NOT_SET, jsApiEx.getErrorCode());
+        assertEquals(NOT_SET, jsApiEx.getApiErrorCode());
         assertEquals("no code", jsApiEx.getErrorDescription());
 
         jsApiResp = new TestApiResponse(jsons[4]);
         assertTrue(jsApiResp.hasError());
         assertEquals("empty_response", jsApiResp.getType());
-        assertEquals(Error.NOT_SET, jsApiResp.getErrorCode());
+        assertEquals(NOT_SET, jsApiResp.getErrorCode());
         assertEquals("Unknown JetStream Error", jsApiResp.getError());
         jsApiEx = new JetStreamApiException(jsApiResp);
-        assertEquals(-1, jsApiEx.getErrorCode());
-        assertEquals(-1, jsApiEx.getApiErrorCode());
+        assertEquals(NOT_SET, jsApiEx.getErrorCode());
+        assertEquals(NOT_SET, jsApiEx.getApiErrorCode());
 
-        jsApiResp = new TestApiResponse(jsons[5]);
-        assertFalse(jsApiResp.hasError());
-        assertEquals("not_error_response", jsApiResp.getType());
-        jsApiEx = new JetStreamApiException(jsApiResp);
-        assertEquals(-1, jsApiEx.getErrorCode());
-        assertEquals(-1, jsApiEx.getApiErrorCode());
-        assertNull(jsApiEx.getErrorDescription());
+        TestApiResponse notErrorResponse = new TestApiResponse(jsons[5]);
+        assertFalse(notErrorResponse.hasError());
+        assertEquals("not_error_response", notErrorResponse.getType());
+        //noinspection ThrowableNotThrown
+        assertThrows(NullPointerException.class, () -> new JetStreamApiException(notErrorResponse));
 
         jsApiResp = new TestApiResponse(jsons[6]);
         assertTrue(jsApiResp.hasError());
@@ -106,7 +108,8 @@ public class ApiResponseTests {
         assertEquals("code_desc_err_response", jsApiResp.getType());
         assertEquals(500, jsApiResp.getErrorCode());
         assertEquals("the description", jsApiResp.getDescription());
-        assertEquals("the description (500) [12345]", jsApiResp.getError());
+        assertEquals("the description [12345]", jsApiResp.getError());
+        assertEquals(12345, jsApiResp.getApiErrorCode());
         jsApiEx = new JetStreamApiException(jsApiResp);
         assertEquals(500, jsApiEx.getErrorCode());
         assertEquals("the description", jsApiEx.getErrorDescription());
@@ -115,12 +118,28 @@ public class ApiResponseTests {
         jsApiResp = new TestApiResponse(jsons[8]);
         assertTrue(jsApiResp.hasError());
         assertEquals("no-code_desc_err_response", jsApiResp.getType());
-        assertEquals(-1, jsApiResp.getErrorCode());
+        assertEquals(NOT_SET, jsApiResp.getErrorCode());
         assertEquals("the description", jsApiResp.getDescription());
-        assertEquals("the description [12345]", jsApiResp.getError());
+        assertEquals("the description", jsApiResp.getError());
         jsApiEx = new JetStreamApiException(jsApiResp);
-        assertEquals(-1, jsApiEx.getErrorCode());
+        assertEquals(NOT_SET, jsApiEx.getErrorCode());
         assertEquals("the description", jsApiEx.getErrorDescription());
         assertEquals(12345, jsApiEx.getApiErrorCode());
+
+        jsApiResp = new TestApiResponse();
+        assertEquals(NOT_SET, jsApiResp.getErrorCode());
+        assertEquals(NOT_SET, jsApiResp.getApiErrorCode());
+        assertNull(jsApiResp.getDescription());
+    }
+
+    @SuppressWarnings("SimplifiableAssertion")
+    @Test
+    public void testConvert() {
+        assertTrue(JsNoMessageFoundErr == Error.convert(new Status(404, "four-oh-four")));
+        assertTrue(JsBadRequestErr == Error.convert(new Status(408, "four-oh-eight")));
+        Error e = Error.convert(new Status(499, "four-nine-nine"));
+        assertEquals(499, e.getCode());
+        assertEquals(NOT_SET, e.getApiErrorCode());
+        assertEquals("four-nine-nine", e.getDescription());
     }
 }

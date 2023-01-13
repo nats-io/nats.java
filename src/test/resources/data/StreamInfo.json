@@ -32,8 +32,22 @@
     "first_seq": 13,
     "first_ts": "0001-01-01T00:00:00Z",
     "last_seq": 14,
-    "last_ts": "0001-01-01T00:00:00Z",
-    "consumer_count": 15
+    "last_ts": "0002-01-01T00:00:00Z",
+    "consumer_count": 15,
+    "num_subjects": 3,
+    "num_deleted": 6,
+    "subjects": {
+      "sub0": 1,
+      "sub1": 2,
+      "x.foo": 3
+    },
+    "deleted": [91, 92, 93, 94, 95, 96],
+    "lost": {
+      "msgs": [
+        101, 102, 103
+      ],
+      "bytes": 104
+    }
   },
   "cluster": {
     "name": "clustername",

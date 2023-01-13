@@ -34,23 +34,22 @@ public class NatsJsMirrorSubUseCases {
     static final String usageString =
             "\nUsage: java -cp <classpath> NatsJsMirrorSubUseCases [-s server] [-strm stream] [-mir mirror] [-sub subject] [-dur durable]"
                     + "\n\nDefault Values:"
-                    + "\n   [-strm stream] example-stream"
-                    + "\n   [-mir mirror]  example-stream"
-                    + "\n   [-sub subject] example-subject"
-                    + "\n   [-dur durable] example-durable"
+                    + "\n   [-strm] example-stream"
+                    + "\n   [-mir]  example-mirror"
+                    + "\n   [-sub]  example-subject"
+                    + "\n   [-dur]  example-durable"
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
                     + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
                     + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-                    + "\nUse the URL for user/pass/token authentication.\n";
+                    + "\nUse the URL in the -s server parameter for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.builder()
+        ExampleArgs exArgs = ExampleArgs.builder("Mirror Subscription Use Cases", args, usageString)
                 .defaultStream("example-stream")
                 .defaultMirror("example-mirror")
                 .defaultSubject("example-subject")
                 .defaultDurable("example-durable")
-                .uniqueify()
-                .build(args, usageString);
+                .build();
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 

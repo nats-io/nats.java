@@ -35,7 +35,7 @@ public interface Consumer {
     /**
      * The default number of messages a consumer will hold before it starts to drop them.
      */
-    public static final long DEFAULT_MAX_MESSAGES = 64 * 1024;
+    public static final long DEFAULT_MAX_MESSAGES = 512 * 1024;
 
     /**
      * The default number of bytes a consumer will hold before it starts to drop messages.

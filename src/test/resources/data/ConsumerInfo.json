@@ -14,13 +14,35 @@
   },
   "delivered": {
     "consumer_seq": 1,
-    "stream_seq": 2
+    "stream_seq": 2,
+    "last_active": "2022-06-29T19:33:21.163377Z"
   },
   "ack_floor": {
     "consumer_seq": 3,
-    "stream_seq": 4
+    "stream_seq": 4,
+    "last_active": "2022-06-29T20:33:21.163377Z"
   },
   "num_pending": 24,
   "num_ack_pending": 42,
-  "num_redelivered": 42
+  "num_redelivered": 42,
+  "cluster": {
+    "name": "clustername",
+    "leader": "clusterleader",
+    "replicas": [
+      {
+        "name": "name0",
+        "current": true,
+        "offline": true,
+        "active": 230000000000,
+        "lag": 3
+      },
+      {
+        "name": "name1",
+        "current": false,
+        "offline": false,
+        "active": 240000000000,
+        "lag": 4
+      }
+    ]
+  }
 }

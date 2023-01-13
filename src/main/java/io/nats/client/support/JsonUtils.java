@@ -13,21 +13,21 @@
 
 package io.nats.client.support;
 
-import io.nats.client.api.SequencePair;
+import io.nats.client.api.SequenceInfo;
+import io.nats.client.impl.Headers;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.LongConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.nats.client.support.Encoding.jsonDecode;
+import static io.nats.client.support.Encoding.jsonEncode;
 import static io.nats.client.support.NatsConstants.COLON;
 
 /**
@@ -36,10 +36,11 @@ import static io.nats.client.support.NatsConstants.COLON;
 public abstract class JsonUtils {
     public static final String EMPTY_JSON = "{}";
 
-    private static final String STRING_RE  = "\\s*\"(.+?)\"";
-    private static final String BOOLEAN_RE =  "\\s*(true|false)";
-    private static final String INTEGER_RE =  "\\s*(-?\\d+)";
-    private static final String STRING_ARRAY_RE = "\\s*\\[\\s*(\".+?\")\\s*\\]";
+    private static final String STRING_RE  = "\"(.+?)\"";
+    private static final String BOOLEAN_RE =  "(true|false)";
+    private static final String INTEGER_RE =  "(-?\\d+)";
+    private static final String STRING_ARRAY_RE = "\\[\\s*(\".+?\")\\s*\\]";
+    private static final String NUMBER_ARRAY_RE = "\\[\\s*(.+?)\\s*\\]";
     private static final String BEFORE_FIELD_RE = "\"";
     private static final String AFTER_FIELD_RE = "\"\\s*:\\s*";
 
@@ -87,6 +88,10 @@ public abstract class JsonUtils {
         return buildPattern(field, STRING_ARRAY_RE);
     }
 
+    public static Pattern number_array_pattern(String field) {
+        return buildPattern(field, NUMBER_ARRAY_RE);
+    }
+
     /**
      * Builds a json parsing pattern
      * @param fieldName name of the field
@@ -114,6 +119,16 @@ public abstract class JsonUtils {
     public static String getJsonObject(String objectName, String json, String dflt) {
         int[] indexes = getBracketIndexes(objectName, json, '{', '}', 0);
         return indexes == null ? dflt : json.substring(indexes[0], indexes[1] + 1);
+    }
+
+    public static String removeObject(String json, String objectName) {
+        int[] indexes = getBracketIndexes(objectName, json, '{', '}', 0);
+        if (indexes != null) {
+            // remove the entire object replacing it with a dummy field b/c getBracketIndexes doesn't consider
+            // if there is or isn't another object after it, so I don't have to worry about it being/not being the last object
+            json = json.substring(0, indexes[0]) + "\"rmvd" + objectName.hashCode() + "\":\"\"" + json.substring(indexes[1] + 1);
+        }
+        return json;
     }
 
     /**
@@ -185,6 +200,77 @@ public abstract class JsonUtils {
     }
 
     /**
+     * Get a map of objects
+     * @param json the json
+     * @return the map of json object strings by key
+     */
+    public static Map<String, String> getMapOfObjects(String json) {
+        Map<String, String> map = new HashMap<>();
+        int s1 = json.indexOf('"');
+        while (s1 != -1) {
+            int s2 = json.indexOf('"', s1 + 1);
+            String key = json.substring(s1 + 1, s2).trim();
+            int[] indexes = getBracketIndexes(key, json, '{', '}', s1);
+            if (indexes != null) {
+                map.put(key, json.substring(indexes[0], indexes[1] + 1));
+                s1 = json.indexOf('"', indexes[1]);
+            }
+            else {
+                s1 = -1;
+            }
+        }
+
+        return map;
+    }
+
+    /**
+     * Get a map of objects
+     * @param json the json
+     * @return the map of json object strings by key
+     */
+    public static Map<String, List<String>> getMapOfLists(String json) {
+        Map<String, List<String>> map = new HashMap<>();
+        int s1 = json.indexOf('"');
+        while (s1 != -1) {
+            int s2 = json.indexOf('"', s1 + 1);
+            String key = json.substring(s1 + 1, s2).trim();
+            int[] indexes = getBracketIndexes(key, json, '[', ']', s1);
+            if (indexes != null) {
+                map.put(key, toList(json.substring(indexes[0] + 1, indexes[1])));
+                s1 = json.indexOf('"', indexes[1]);
+            }
+            else {
+                s1 = -1;
+            }
+        }
+
+        return map;
+    }
+
+    /**
+     * Get a map of longs
+     * @param json the json
+     * @return the map of longs by key
+     */
+    public static Map<String, Long> getMapOfLongs(String json) {
+        Map<String, Long> map = new HashMap<>();
+        int s1 = json.indexOf('"');
+        while (s1 != -1) {
+            int s2 = json.indexOf('"', s1 + 1);
+            int c1 = json.indexOf(':', s2);
+            int c2 = json.indexOf(',', s2);
+            if (c2 == -1) {
+                c2 = json.indexOf('}', s2);
+            }
+            String key = json.substring(s1 + 1, s2).trim();
+            long count = JsonUtils.safeParseLong(json.substring(c1 + 1, c2).trim(), 0);
+            map.put(key, count);
+            s1 = json.indexOf('"', c2);
+        }
+        return map;
+    }
+
+    /**
      * Extract a list strings for list object name. Returns empty array if not found.
      * Assumes that there are no brackets '{' or '}' in the actual data.
      * @param objectName object name
@@ -193,18 +279,58 @@ public abstract class JsonUtils {
      */
     public static List<String> getStringList(String objectName, String json) {
         String flat = json.replaceAll("\r", "").replaceAll("\n", "");
-        List<String> list = new ArrayList<>();
         Matcher m = string_array_pattern(objectName).matcher(flat);
+        if (m.find()) {
+            String arrayString = m.group(1);
+            return toList(arrayString);
+        }
+        return new ArrayList<>();
+    }
+
+    private static List<String> toList(String arrayString) {
+        List<String> list = new ArrayList<>();
+        String[] raw = arrayString.split(",");
+        for (String s : raw) {
+            String cleaned = s.trim().replace("\"", "");
+            if (cleaned.length() > 0) {
+                list.add(jsonDecode(cleaned));
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Extract a list longs for list object name. Returns empty array if not found.
+     * @param objectName object name
+     * @param json source json
+     * @return a long list, empty if no values are found.
+     */
+    public static List<Long> getLongList(String objectName, String json) {
+        String flat = json.replaceAll("\r", "").replaceAll("\n", "");
+        List<Long> list = new ArrayList<>();
+        Matcher m = number_array_pattern(objectName).matcher(flat);
         if (m.find()) {
             String arrayString = m.group(1);
             String[] raw = arrayString.split(",");
 
             for (String s : raw) {
-                String cleaned = s.trim().replace("\"", "");
-                if (cleaned.length() > 0) {
-                    list.add(decode(cleaned));
-                }
+                list.add(safeParseLong(s.trim()));
             }
+        }
+        return list;
+    }
+
+    /**
+     * Extract a list durations for list object name. Returns empty array if not found.
+     * @param objectName object name
+     * @param json source json
+     * @return a duration list, empty if no values are found.
+     */
+    public static List<Duration> getDurationList(String objectName, String json) {
+        List<Long> longs = getLongList(objectName, json);
+        List<Duration> list = new ArrayList<>(longs.size());
+        for (Long l : longs) {
+            list.add(Duration.ofNanos(l));
         }
         return list;
     }
@@ -227,8 +353,10 @@ public abstract class JsonUtils {
     }
 
     public static StringBuilder endJson(StringBuilder sb) {
-        // remove the trailing ','
-        sb.setLength(sb.length()-1);
+        if (sb.charAt(sb.length() - 1) == ',') {
+            // remove the trailing ','
+            sb.setLength(sb.length() - 1);
+        }
         sb.append("}");
         return sb;
     }
@@ -247,11 +375,15 @@ public abstract class JsonUtils {
      * Appends a json field to a string builder.
      * @param sb string builder
      * @param fname fieldname
-     * @param value field value
+     * @param json raw json
      */
-    public static void addField(StringBuilder sb, String fname, String value) {
-        if (value != null && value.length() > 0) {
-            sb.append(Q).append(fname).append(QCOLONQ).append(value).append(QCOMMA);
+    public static void addRawJson(StringBuilder sb, String fname, String json) {
+        if (json != null && json.length() > 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON);
+            sb.append(json);
+            sb.append(COMMA);
         }
     }
 
@@ -261,8 +393,45 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
-    public static void addField(StringBuilder sb, String fname, boolean value) {
-        sb.append(Q).append(fname).append(QCOLON).append(value ? "true" : "false").append(COMMA);
+    public static void addField(StringBuilder sb, String fname, String value) {
+        if (value != null && value.length() > 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLONQ);
+            jsonEncode(sb, value);
+            sb.append(QCOMMA);
+        }
+    }
+
+    /**
+     * Appends a json field to a string builder. Empty and null string are added as value of empty string
+     * @param sb string builder
+     * @param fname fieldname
+     * @param value field value
+     */
+    public static void addFieldEvenEmpty(StringBuilder sb, String fname, String value) {
+        if (value == null) {
+            value = "";
+        }
+        sb.append(Q);
+        jsonEncode(sb, fname);
+        sb.append(QCOLONQ);
+        jsonEncode(sb, value);
+        sb.append(QCOMMA);
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param value field value
+     */
+    public static void addField(StringBuilder sb, String fname, Boolean value) {
+        if (value != null) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value ? "true" : "false").append(COMMA);
+        }
     }
 
     /**
@@ -283,9 +452,53 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
-    public static void addField(StringBuilder sb, String fname, long value) {
-        if (value >= 0) {
-            sb.append(Q).append(fname).append(QCOLON).append(value).append(COMMA);
+    public static void addField(StringBuilder sb, String fname, Integer value) {
+        if (value != null && value >= 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
+        }
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param value field value
+     */
+    public static void addFieldWhenGtZero(StringBuilder sb, String fname, Integer value) {
+        if (value != null && value > 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
+        }
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param value field value
+     */
+    public static void addField(StringBuilder sb, String fname, Long value) {
+        if (value != null && value >= 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
+        }
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param value field value
+     */
+    public static void addFieldWhenGtZero(StringBuilder sb, String fname, Long value) {
+        if (value != null && value > 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
         }
     }
 
@@ -297,7 +510,9 @@ public abstract class JsonUtils {
      */
     public static void addFieldAsNanos(StringBuilder sb, String fname, Duration value) {
         if (value != null && value != Duration.ZERO) {
-            sb.append(Q).append(fname).append(QCOLON).append(value.toNanos()).append(COMMA);
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value.toNanos()).append(COMMA);
         }
     }
 
@@ -309,8 +524,35 @@ public abstract class JsonUtils {
      */
     public static void addField(StringBuilder sb, String fname, JsonSerializable value) {
         if (value != null) {
-            sb.append(Q).append(fname).append(QCOLON).append(value.toJson()).append(COMMA);
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value.toJson()).append(COMMA);
         }
+    }
+
+    interface ListAdder<T> {
+        void append(StringBuilder sb, T t);
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param <T> the list type
+     * @param sb string builder
+     * @param fname fieldname
+     * @param list value list
+     * @param adder implementation to add value, including it's quotes if required
+     */
+    public static <T> void _addList(StringBuilder sb, String fname, List<T> list, ListAdder<T> adder) {
+        sb.append(Q);
+        jsonEncode(sb, fname);
+        sb.append("\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) {
+                sb.append(COMMA);
+            }
+            adder.append(sb, list.get(i));
+        }
+        sb.append("],");
     }
 
     /**
@@ -320,11 +562,9 @@ public abstract class JsonUtils {
      * @param strArray field value
      */
     public static void addStrings(StringBuilder sb, String fname, String[] strArray) {
-        if (strArray == null || strArray.length == 0) {
-            return;
+        if (strArray != null && strArray.length > 0) {
+            addStrings(sb, fname, Arrays.asList(strArray));
         }
-
-        addStrings(sb, fname, Arrays.asList(strArray));
     }
 
     /**
@@ -334,19 +574,13 @@ public abstract class JsonUtils {
      * @param strings field value
      */
     public static void addStrings(StringBuilder sb, String fname, List<String> strings) {
-        if (strings == null || strings.size() == 0) {
-            return;
+        if (strings != null && strings.size() > 0) {
+            _addList(sb, fname, strings, (sbs, s) -> {
+                sb.append(Q);
+                jsonEncode(sb, s);
+                sb.append(Q);
+            });
         }
-
-        sb.append(Q).append(fname).append("\":[");
-        for (int i = 0; i < strings.size(); i++) {
-            String s = strings.get(i);
-            sb.append(Q).append(s).append(Q);
-            if (i < strings.size()-1) {
-                sb.append(COMMA);
-            }
-        }
-        sb.append("],");
     }
 
     /**
@@ -356,19 +590,21 @@ public abstract class JsonUtils {
      * @param jsons field value
      */
     public static void addJsons(StringBuilder sb, String fname, List<? extends JsonSerializable> jsons) {
-        if (jsons == null || jsons.size() == 0) {
-            return;
+        if (jsons != null && jsons.size() > 0) {
+            _addList(sb, fname, jsons, (sbs, s) -> sbs.append(s.toJson()));
         }
+    }
 
-        sb.append(Q).append(fname).append("\":[");
-        for (int i = 0; i < jsons.size(); i++) {
-            JsonSerializable s = jsons.get(i);
-            sb.append(s.toJson());
-            if (i < jsons.size()-1) {
-                sb.append(COMMA);
-            }
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param durations list of durations
+     */
+    public static void addDurations(StringBuilder sb, String fname, List<Duration> durations) {
+        if (durations != null && durations.size() > 0) {
+            _addList(sb, fname, durations, (sbs, dur) -> sbs.append(dur.toNanos()));
         }
-        sb.append("],");
     }
 
     /**
@@ -379,8 +615,23 @@ public abstract class JsonUtils {
      */
     public static void addField(StringBuilder sb, String fname, ZonedDateTime zonedDateTime) {
         if (zonedDateTime != null) {
-            sb.append(Q).append(fname).append(QCOLONQ)
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLONQ)
                     .append(DateTimeUtils.toRfc3339(zonedDateTime)).append(QCOMMA);
+        }
+    }
+
+    public static void addField(StringBuilder sb, String fname, Headers headers) {
+        if (headers != null && headers.size() > 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append("\":{");
+            for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+                addStrings(sb, entry.getKey(), entry.getValue());
+            }
+            endJson(sb);
+            sb.append(",");
         }
     }
 
@@ -390,7 +641,37 @@ public abstract class JsonUtils {
 
     public static String readString(String json, Pattern pattern, String dflt) {
         Matcher m = pattern.matcher(json);
-        return m.find() ? decode(m.group(1)) : dflt;
+        return m.find() ? jsonDecode(m.group(1)) : dflt;
+    }
+
+    public static String readStringMayHaveQuotes(String json, String field, String dflt) {
+        String jfield = "\"" + field + "\"";
+        int at = json.indexOf(jfield);
+        if (at != -1) {
+            at = json.indexOf('"', at + jfield.length());
+            StringBuilder sb = new StringBuilder();
+            while (true) {
+                char c = json.charAt(++at);
+                if (c == '\\') {
+                    char c2 = json.charAt(++at);
+                    if (c2 == '"') {
+                        sb.append('"');
+                    }
+                    else {
+                        sb.append(c);
+                        sb.append(c2);
+                    }
+                }
+                else if (c == '"') {
+                    break;
+                }
+                else {
+                    sb.append(c);
+                }
+            }
+            return jsonDecode(sb.toString());
+        }
+        return dflt;
     }
 
     public static byte[] readBytes(String json, Pattern pattern) {
@@ -409,6 +690,19 @@ public abstract class JsonUtils {
         return m.find() && Boolean.parseBoolean(m.group(1));
     }
 
+    public static Boolean readBoolean(String json, Pattern pattern, Boolean dflt) {
+        Matcher m = pattern.matcher(json);
+        if (m.find()) {
+            return Boolean.parseBoolean(m.group(1));
+        }
+        return dflt;
+    }
+
+    public static Integer readInteger(String json, Pattern pattern) {
+        Matcher m = pattern.matcher(json);
+        return m.find() ? Integer.parseInt(m.group(1)) : null;
+    }
+
     public static int readInt(String json, Pattern pattern, int dflt) {
         Matcher m = pattern.matcher(json);
         return m.find() ? Integer.parseInt(m.group(1)) : dflt;
@@ -419,6 +713,11 @@ public abstract class JsonUtils {
         if (m.find()) {
             c.accept(Integer.parseInt(m.group(1)));
         }
+    }
+
+    public static Long readLong(String json, Pattern pattern) {
+        Matcher m = pattern.matcher(json);
+        return m.find() ? safeParseLong(m.group(1)) : null;
     }
 
     public static long readLong(String json, Pattern pattern, long dflt) {
@@ -460,6 +759,11 @@ public abstract class JsonUtils {
         return m.find() ? DateTimeUtils.parseDateTime(m.group(1)) : null;
     }
 
+    public static Duration readNanos(String json, Pattern pattern) {
+        Matcher m = pattern.matcher(json);
+        return m.find() ? Duration.ofNanos(Long.parseLong(m.group(1))) : null;
+    }
+
     public static Duration readNanos(String json, Pattern pattern, Duration dflt) {
         Matcher m = pattern.matcher(json);
         return m.find() ? Duration.ofNanos(Long.parseLong(m.group(1))) : dflt;
@@ -472,51 +776,6 @@ public abstract class JsonUtils {
         }
     }
 
-    public static String decode(String s) {
-        int len = s.length();
-        StringBuilder sb = new StringBuilder(len);
-        for (int x = 0; x < len; x++) {
-            char ch = s.charAt(x);
-            if (ch == '\\') {
-                char nextChar = (x == len - 1) ? '\\' : s.charAt(x + 1);
-                switch (nextChar) {
-                    case '\\':
-                        ch = '\\';
-                        break;
-                    case 'b':
-                        ch = '\b';
-                        break;
-                    case 'f':
-                        ch = '\f';
-                        break;
-                    case 'n':
-                        ch = '\n';
-                        break;
-                    case 'r':
-                        ch = '\r';
-                        break;
-                    case 't':
-                        ch = '\t';
-                        break;
-                    // Hex Unicode: u????
-                    case 'u':
-                        if (x >= len - 5) {
-                            ch = 'u';
-                            break;
-                        }
-                        int code = Integer.parseInt(
-                                "" + s.charAt(x + 2) + s.charAt(x + 3) + s.charAt(x + 4) + s.charAt(x + 5), 16);
-                        sb.append(Character.toChars(code));
-                        x += 5;
-                        continue;
-                }
-                x++;
-            }
-            sb.append(ch);
-        }
-        return sb.toString();
-    }
-
     public static String normalize(String s) {
         return Character.toString(s.charAt(0)).toUpperCase() + s.substring(1).toLowerCase();
     }
@@ -525,8 +784,8 @@ public abstract class JsonUtils {
         if (o == null) {
             return name + "=null";
         }
-        if (o instanceof SequencePair) {
-            return o.toString().replace("SequencePair", name);
+        if (o instanceof SequenceInfo) {
+            return o.toString().replace("SequenceInfo", name);
         }
         return o.toString();
     }
@@ -540,37 +799,55 @@ public abstract class JsonUtils {
         return level == 0 ? "" : INDENT.substring(0, level * 4);
     }
 
-    public static void printFormatted(Object o) {
+    public static String getFormatted(Object o) {
+        StringBuilder sb = new StringBuilder();
         int level = 0;
+        int arrayLevel = 0;
+        boolean lastWasClose = false;
         boolean indentNext = true;
         String s = o.toString();
         for (int x = 0; x < s.length(); x++) {
             char c = s.charAt(x);
             if (c == '{') {
-                System.out.print(c + "\n");
+                if (arrayLevel > 0 && lastWasClose) {
+                    sb.append(indent(level));
+                }
+                sb.append(c).append('\n');
                 ++level;
                 indentNext = true;
+                lastWasClose = false;
             }
             else if (c == '}') {
-                System.out.print("\n" + indent(--level) + c);
+                sb.append('\n').append(indent(--level)).append(c);
+                lastWasClose = true;
             }
             else if (c == ',') {
-                System.out.print("\n");
+                sb.append('\n');
                 indentNext = true;
             }
             else {
+                if (c == '[') {
+                    arrayLevel++;
+                }
+                else if (c == ']') {
+                    arrayLevel--;
+                }
                 if (indentNext) {
                     if (c != ' ') {
-                        System.out.print(indent(level) + c);
+                        sb.append(indent(level)).append(c);
                         indentNext = false;
                     }
                 }
                 else {
-                    System.out.print(c);
+                    sb.append(c);
                 }
+                lastWasClose = lastWasClose && Character.isWhitespace(c);
             }
         }
+        return sb.toString();
+    }
 
-        System.out.println();
+    public static void printFormatted(Object o) {
+        System.out.println(getFormatted(o));
     }
 }

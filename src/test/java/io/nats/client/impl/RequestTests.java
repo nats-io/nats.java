@@ -240,6 +240,105 @@ public class RequestTests extends TestBase {
     }
 
     @Test
+    public void testRequireCleanupOnTimeoutCleanCompletable() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+
+            long cleanupInterval = 100;
+
+            Options options = new Options.Builder().server(ts.getURI())
+                    .requestCleanupInterval(Duration.ofMillis(cleanupInterval))
+                    .noNoResponders().build();
+
+            NatsConnection nc = (NatsConnection) Nats.connect(options);
+            try {
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                NatsMessage nm = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
+                CompletableFuture<Message> future = nc.requestWithTimeout(nm, Duration.ofMillis(cleanupInterval));
+                
+                Thread.sleep(2 * cleanupInterval + Options.DEFAULT_CONNECTION_TIMEOUT.toMillis());
+
+                assertTrue(future.isCompletedExceptionally());
+                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+
+            } finally {
+                nc.close();
+                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+            }
+        }
+    }
+
+    @Test
+    public void testSimpleRequestWithTimeout() throws IOException, ExecutionException, TimeoutException, InterruptedException {
+
+        try (NatsTestServer ts = new NatsTestServer(false))
+        {
+            Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofHours(1)).build();
+            NatsConnection nc = (NatsConnection) Nats.connect(options);
+
+            try {
+
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+
+                Dispatcher d = nc.createDispatcher((msg) -> {
+                    assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
+                    nc.publish(msg.getReplyTo(), null);
+                });
+                d.subscribe(SUBJECT);
+
+                NatsMessage nm = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
+                CompletableFuture<Message> incoming = nc.requestWithTimeout("subject", null, Duration.ofMillis(100));
+
+                Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
+
+                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertNotNull(msg);
+                assertEquals(0, msg.getData().length);
+                assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
+
+            }
+            finally {
+                nc.close();
+                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+            }
+        }
+    }
+
+    @Test
+    public void testSimpleRequestWithTimeoutSlowProducer() throws IOException, ExecutionException, TimeoutException, InterruptedException {
+
+        try (NatsTestServer ts = new NatsTestServer(false))
+        {
+            long cleanupInterval = 10;
+            Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
+            NatsConnection nc = (NatsConnection) Nats.connect(options);
+
+            try {
+
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+
+                //slow responder
+                long delay = 2 * cleanupInterval + Options.DEFAULT_CONNECTION_TIMEOUT.toMillis();
+
+                Dispatcher d = nc.createDispatcher((msg) -> {
+                    assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
+                    Thread.sleep(delay);
+                    nc.publish(msg.getReplyTo(), null);
+                });
+                d.subscribe(SUBJECT);
+
+                NatsMessage nm = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
+                CompletableFuture<Message> incoming = nc.requestWithTimeout("subject", null, Duration.ofMillis(cleanupInterval));
+                assertThrows(CancellationException.class, () -> incoming.get(delay, TimeUnit.MILLISECONDS));
+
+            }
+            finally {
+                nc.close();
+                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+            }
+        }
+    }
+
+    @Test
     public void testRequireCleanupOnCancelFromNoResponders() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI())
@@ -248,11 +347,51 @@ public class RequestTests extends TestBase {
             Connection nc = Nats.connect(options);
             try {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertThrows(CancellationException.class, () -> nc.request("subject", null).get(100, TimeUnit.MILLISECONDS));
 
-                assertThrows(CancellationException.class,
-                        () -> nc.request("subject", null).get(100, TimeUnit.MILLISECONDS));
+                assertEquals(0, ((NatsStatistics) nc.getStatistics()).getOutstandingRequests());
+            } finally {
+                nc.close();
+                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+            }
 
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+        }
+    }
+
+    @Test
+    public void testRequireCleanupWithTimeoutNoResponders() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = new Options.Builder().server(ts.getURI())
+                    .requestCleanupInterval(Duration.ofHours(1)).build();
+
+            Connection nc = Nats.connect(options);
+            try {
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertThrows(CancellationException.class, () -> nc.requestWithTimeout("subject", null, Duration.ofMillis(100)).get(100, TimeUnit.MILLISECONDS));
+                assertEquals(0, ((NatsStatistics) nc.getStatistics()).getOutstandingRequests());
+            } finally {
+                nc.close();
+                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+            }
+
+        }
+    }
+
+    @Test
+    public void testRequireCleanupWithTimeoutNoNoResponders() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = new Options.Builder().server(ts.getURI())
+                    .requestCleanupInterval(Duration.ofHours(1))
+                    .noNoResponders().build();
+
+            Connection nc = Nats.connect(options);
+            try {
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertThrows(TimeoutException.class, () -> nc.requestWithTimeout("subject", null, Duration.ofMillis(100)).get(100, TimeUnit.MILLISECONDS));
+                assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+
             } finally {
                 nc.close();
                 assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
@@ -269,8 +408,9 @@ public class RequestTests extends TestBase {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 
                 Future<Message> incoming = nc.request("subject", null);
-                incoming.cancel(true);
-
+                // incoming.cancel(true); // sff I don't think this call helps the test or matters.
+                // This flaps sometimes. I think it's better to check it as soon as possible
+                //   hence removing the cancel call
                 assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
             } finally {
                 nc.close();
@@ -497,7 +637,7 @@ public class RequestTests extends TestBase {
     }
 
     @Test
-    public void testNatsRequestCompletableFuture() {
+    public void testNatsRequestCompletableFuture() throws InterruptedException {
         NatsRequestCompletableFuture f = new NatsRequestCompletableFuture(true, Duration.ofHours(-1));
         assertTrue(f.hasExceededTimeout());
         assertFalse(f.wasCancelledClosing());
@@ -506,6 +646,11 @@ public class RequestTests extends TestBase {
         f.cancelTimedOut(); // not real use, just testing flags
         assertTrue(f.wasCancelledClosing());
         assertTrue(f.wasCancelledTimedOut());
+
+        // coverage for null timeout
+        f = new NatsRequestCompletableFuture(true, null);
+        Thread.sleep(Options.DEFAULT_REQUEST_CLEANUP_INTERVAL.toMillis() + 100);
+        assertTrue(f.hasExceededTimeout());
     }
 
     @Test

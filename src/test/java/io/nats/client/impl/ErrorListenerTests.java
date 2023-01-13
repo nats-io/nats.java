@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.support.Status;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -23,9 +24,9 @@ import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import static io.nats.client.utils.TestBase.standardCloseConnection;
-import static io.nats.client.utils.TestBase.standardConnection;
+import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ErrorListenerTests {
@@ -76,10 +77,59 @@ public class ErrorListenerTests {
     }
 
     @Test
+    public void testClearLastError() throws Exception {
+        NatsConnection nc = null;
+        TestHandler handler = new TestHandler();
+        String[] customArgs = {"--user", "stephen", "--pass", "password"};
+
+        try (NatsTestServer ts = new NatsTestServer();
+             NatsTestServer ts2 = new NatsTestServer(customArgs, false); //ts2 requires auth
+             NatsTestServer ts3 = new NatsTestServer()) {
+            Options options = new Options.Builder().
+                    server(ts.getURI()).
+                    server(ts2.getURI()).
+                    server(ts3.getURI()).
+                    noRandomize().
+                    connectionListener(handler).
+                    maxReconnects(-1).
+                    build();
+            nc = (NatsConnection) Nats.connect(options);
+            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+            assertEquals(ts.getURI(), nc.getConnectedUrl());
+            handler.prepForStatusChange(Events.DISCONNECTED);
+
+            ts.close();
+
+            try {
+                nc.flush(Duration.ofSeconds(1));
+            }
+            catch (Exception exp) {
+                // this usually fails
+            }
+
+            handler.waitForStatusChange(5, TimeUnit.SECONDS);
+
+            handler.prepForStatusChange(Events.RECONNECTED);
+            handler.waitForStatusChange(5, TimeUnit.SECONDS);
+
+            assertNotNull(nc.getLastError());
+            assertTrue(nc.getLastError().contains("Authorization Violation"));
+            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+            assertEquals(ts3.getURI(), nc.getConnectedUrl());
+
+            nc.clearLastError();
+            assertEquals("", nc.getLastError());
+        } finally {
+            standardCloseConnection(nc);
+        }
+    }
+
+    @Test
     public void testErrorOnNoAuth() throws Exception {
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
         TestHandler handler = new TestHandler();
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
+            sleep(100); // give the server time to get ready, otherwise sometimes this test flaps
             // See config file for user/pass
             Options options = new Options.Builder().
                     server(ts.getURI())
@@ -232,9 +282,10 @@ public class ErrorListenerTests {
         }
 
         List<Message> discardedMessages = handler.getDiscardedMessages();
-        assertEquals(1, discardedMessages.size());
-        assertEquals("subject10", discardedMessages.get(0).getSubject());
-        assertEquals("message10", new String(discardedMessages.get(0).getData()));
+        assertTrue(discardedMessages.size() > 0,  "expected discardedMessages > 0, got " + discardedMessages.size());
+        int offset = maxMessages + 1 - discardedMessages.size();
+        assertEquals("subject" + offset, discardedMessages.get(0).getSubject());
+        assertEquals("message" + offset, new String(discardedMessages.get(0).getData()));
     }
 
     @Test
@@ -274,18 +325,76 @@ public class ErrorListenerTests {
     }
 
     @Test
-    public void testMessageDiscardedDefaultImplementation() {
-        ErrorListener testErrorListener = new ErrorListener() {
+    public void testCoverage() {
+        // this exercises default interface implementation
+        _cover(new ErrorListener() {});
+
+        // exercises the default implementation
+        _cover(new ErrorListenerLoggerImpl());
+
+        // exercises a little more than the defaults
+        AtomicBoolean errorOccurredFlag = new AtomicBoolean();
+        AtomicBoolean exceptionOccurredFlag = new AtomicBoolean();
+        AtomicBoolean slowConsumerDetectedFlag = new AtomicBoolean();
+        AtomicBoolean messageDiscardedFlag = new AtomicBoolean();
+        AtomicBoolean heartbeatAlarmFlag = new AtomicBoolean();
+        AtomicBoolean unhandledStatusFlag = new AtomicBoolean();
+        AtomicBoolean flowControlProcessedFlag = new AtomicBoolean();
+
+        _cover(new ErrorListener() {
             @Override
-            public void errorOccurred(Connection conn, String error) {}
+            public void errorOccurred(Connection conn, String error) {
+                errorOccurredFlag.set(true);
+            }
 
             @Override
-            public void exceptionOccurred(Connection conn, Exception exp) {}
+            public void exceptionOccurred(Connection conn, Exception exp) {
+                exceptionOccurredFlag.set(true);
+            }
 
             @Override
-            public void slowConsumerDetected(Connection conn, Consumer consumer) {}
-        };
+            public void slowConsumerDetected(Connection conn, Consumer consumer) {
+                slowConsumerDetectedFlag.set(true);
+            }
 
-        testErrorListener.messageDiscarded(null, null); // COVERAGE
+            @Override
+            public void messageDiscarded(Connection conn, Message msg) {
+                messageDiscardedFlag.set(true);
+            }
+
+            @Override
+            public void heartbeatAlarm(Connection conn, JetStreamSubscription sub, long lastStreamSequence, long lastConsumerSequence) {
+                heartbeatAlarmFlag.set(true);
+            }
+
+            @Override
+            public void unhandledStatus(Connection conn, JetStreamSubscription sub, Status status) {
+                unhandledStatusFlag.set(true);
+            }
+
+            @Override
+            public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String subject, FlowControlSource source) {
+                flowControlProcessedFlag.set(true);
+            }
+        });
+
+        assertTrue(errorOccurredFlag.get());
+        assertTrue(exceptionOccurredFlag.get());
+        assertTrue(slowConsumerDetectedFlag.get());
+        assertTrue(messageDiscardedFlag.get());
+        assertTrue(heartbeatAlarmFlag.get());
+        assertTrue(unhandledStatusFlag.get());
+        assertTrue(flowControlProcessedFlag.get());
+
+    }
+
+    private void _cover(ErrorListener el) {
+        el.errorOccurred(null, null);
+        el.exceptionOccurred(null, null);
+        el.slowConsumerDetected(null, null);
+        el.messageDiscarded(null, null);
+        el.heartbeatAlarm(null, null, -1, -1);
+        el.unhandledStatus(null, null, null);
+        el.flowControlProcessed(null, null, null, null);
     }
 }

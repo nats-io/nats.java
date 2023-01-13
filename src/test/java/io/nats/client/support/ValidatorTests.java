@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import static io.nats.client.support.NatsConstants.EMPTY;
-import static io.nats.client.support.NatsJetStreamConstants.MAX_PULL_SIZE;
 import static io.nats.client.support.Validator.*;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.TestBase.*;
@@ -80,19 +79,11 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidatePullBatchSize() {
-        assertEquals(1, validatePullBatchSize(1));
-        assertEquals(MAX_PULL_SIZE, validatePullBatchSize(MAX_PULL_SIZE));
-        assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(0));
-        assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(-1));
-        assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(MAX_PULL_SIZE + 1));
-    }
-
-    @Test
     public void testValidateMaxConsumers() {
         assertEquals(1, validateMaxConsumers(1));
         assertEquals(-1, validateMaxConsumers(-1));
         assertThrows(IllegalArgumentException.class, () -> validateMaxConsumers(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(-2));
     }
 
     @Test
@@ -100,6 +91,24 @@ public class ValidatorTests {
         assertEquals(1, validateMaxMessages(1));
         assertEquals(-1, validateMaxMessages(-1));
         assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(-2));
+    }
+
+    @Test
+    public void testValidateMaxMessagesPerSubject() {
+        assertEquals(1, validateMaxMessagesPerSubject(1));
+        assertEquals(-1, validateMaxMessagesPerSubject(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessagesPerSubject(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessagesPerSubject(-2));
+    }
+
+    @Test
+    public void testValidateMaxHistory() {
+        assertEquals(1, validateMaxHistory(1));
+        assertEquals(64, validateMaxHistory(64));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxHistory(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxHistory(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxHistory(65));
     }
 
     @Test
@@ -107,6 +116,15 @@ public class ValidatorTests {
         assertEquals(1, validateMaxBytes(1));
         assertEquals(-1, validateMaxBytes(-1));
         assertThrows(IllegalArgumentException.class, () -> validateMaxBytes(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(-2));
+    }
+
+    @Test
+    public void testValidateMaxBucketBytes() {
+        assertEquals(1, validateMaxBucketBytes(1));
+        assertEquals(-1, validateMaxBucketBytes(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxBucketBytes(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(-2));
     }
 
     @Test
@@ -114,6 +132,15 @@ public class ValidatorTests {
         assertEquals(1, validateMaxMessageSize(1));
         assertEquals(-1, validateMaxMessageSize(-1));
         assertThrows(IllegalArgumentException.class, () -> validateMaxMessageSize(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(-2));
+    }
+
+    @Test
+    public void testValidateMaxValueBytes() {
+        assertEquals(1, validateMaxValueSize(1));
+        assertEquals(-1, validateMaxValueSize(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxValueSize(0));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(-2));
     }
 
     @Test
@@ -167,12 +194,104 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateJetStreamPrefix() {
-        assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_STAR));
-        assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_GT));
-        assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_DOLLAR));
-        assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_SPACE));
-        assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_LOW));
+    public void testValidateBucketName() {
+        validateBucketName(PLAIN, true);
+        validateBucketName(PLAIN.toUpperCase(), true);
+        validateBucketName(HAS_DASH, true);
+        validateBucketName(HAS_UNDER, true);
+        validateBucketName("numbers9ok", true);
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(null, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_SPACE, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_DOT, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_STAR, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_GT, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_DOLLAR, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_LOW, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_127, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_FWD_SLASH, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_EQUALS, true));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_TIC, true));
+
+        validateBucketName(PLAIN, false);
+        validateBucketName(PLAIN.toUpperCase(), false);
+        validateBucketName(HAS_DASH, false);
+        validateBucketName(HAS_UNDER, false);
+        validateBucketName("numbers9ok", false);
+        validateBucketName(null, false);
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_SPACE, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_DOT, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_STAR, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_GT, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_DOLLAR, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_LOW, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_127, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_FWD_SLASH, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_EQUALS, false));
+        assertThrows(IllegalArgumentException.class, () -> validateBucketName(HAS_TIC, false));
+    }
+
+    @Test
+    public void testValidateWildcardKeyRequired() {
+        validateKvKeyWildcardAllowedRequired(PLAIN);
+        validateKvKeyWildcardAllowedRequired(PLAIN.toUpperCase());
+        validateKvKeyWildcardAllowedRequired(HAS_DASH);
+        validateKvKeyWildcardAllowedRequired(HAS_UNDER);
+        validateKvKeyWildcardAllowedRequired(HAS_FWD_SLASH);
+        validateKvKeyWildcardAllowedRequired(HAS_EQUALS);
+        validateKvKeyWildcardAllowedRequired(HAS_DOT);
+        validateKvKeyWildcardAllowedRequired(HAS_STAR);
+        validateKvKeyWildcardAllowedRequired(HAS_GT);
+        validateKvKeyWildcardAllowedRequired("numbers9ok");
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(null));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_TIC));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired("colon:isbetween9andA"));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(".starts.with.dot.not.allowed"));
+    }
+
+    @Test
+    public void testValidateNonWildcardKeyRequired() {
+        validateNonWildcardKvKeyRequired(PLAIN);
+        validateNonWildcardKvKeyRequired(PLAIN.toUpperCase());
+        validateNonWildcardKvKeyRequired(HAS_DASH);
+        validateNonWildcardKvKeyRequired(HAS_UNDER);
+        validateNonWildcardKvKeyRequired(HAS_FWD_SLASH);
+        validateNonWildcardKvKeyRequired(HAS_EQUALS);
+        validateNonWildcardKvKeyRequired(HAS_DOT);
+        validateNonWildcardKvKeyRequired("numbers9ok");
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(null));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_STAR));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_GT));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(HAS_TIC));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired("colon:isbetween9andA"));
+        assertThrows(IllegalArgumentException.class, () -> validateNonWildcardKvKeyRequired(".starts.with.dot.not.allowed"));
+    }
+
+    @Test
+    public void testValidateMustMatchIfBothSupplied() {
+        NatsJetStreamClientError err = new NatsJetStreamClientError("TEST", 999999, "desc");
+        assertNull(validateMustMatchIfBothSupplied(null, null, err));
+        assertEquals("y", validateMustMatchIfBothSupplied(null, "y", err));
+        assertEquals("y", validateMustMatchIfBothSupplied("", "y", err));
+        assertEquals("x", validateMustMatchIfBothSupplied("x", null, err));
+        assertEquals("x", validateMustMatchIfBothSupplied("x", " ", err));
+        assertEquals("x", validateMustMatchIfBothSupplied("x", "x", err));
+        assertThrows(IllegalArgumentException.class, () -> validateMustMatchIfBothSupplied("x", "y", err));
+    }
+
+    @Test
+    public void testValidateMaxLength() {
+        validateMaxLength("test", 5, true, "label");
+        validateMaxLength(null, 5, false, "label");
+        assertThrows(IllegalArgumentException.class, () -> validateMaxLength("test", 3, true, "label"));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxLength(null, 5, true, "label"));
     }
 
     @Test
@@ -191,10 +310,25 @@ public class ValidatorTests {
     }
 
     @Test
+    public void testValidateGtZero() {
+        assertEquals(1, validateGtZero(1, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateGtZero(0, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateGtZero(-1, "test"));
+    }
+
+    @Test
     public void testValidateGtZeroOrMinus1() {
         assertEquals(1, validateGtZeroOrMinus1(1, "test"));
         assertEquals(-1, validateGtZeroOrMinus1(-1, "test"));
         assertThrows(IllegalArgumentException.class, () -> validateGtZeroOrMinus1(0, "test"));
+    }
+
+    @Test
+    public void testValidateGtEqMinus1() {
+        assertEquals(1, validateGtEqMinus1(1, "test"));
+        assertEquals(0, validateGtEqMinus1(0, "test"));
+        assertEquals(-1, validateGtEqMinus1(-1, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateGtEqMinus1(-2, "test"));
     }
 
     @Test
@@ -254,5 +388,95 @@ public class ValidatorTests {
 
     private String notAllowedMessage(String s) {
         return "Testing [" + s + "] as not allowed.";
+    }
+
+    @Test
+    public void testNatsJetStreamClientError() {
+        // coverage
+        NatsJetStreamClientError err = new NatsJetStreamClientError("TEST", 999999, "desc");
+        assertEquals("[TEST-999999] desc", err.message());
+    }
+
+    @Test
+    public void testSemver() {
+        String label = "Version";
+        validateSemVer("0.0.4", label, true);
+        validateSemVer("1.2.3", label, true);
+        validateSemVer("10.20.30", label, true);
+        validateSemVer("1.1.2-prerelease+meta", label, true);
+        validateSemVer("1.1.2+meta", label, true);
+        validateSemVer("1.1.2+meta-valid", label, true);
+        validateSemVer("1.0.0-alpha", label, true);
+        validateSemVer("1.0.0-beta", label, true);
+        validateSemVer("1.0.0-alpha.beta", label, true);
+        validateSemVer("1.0.0-alpha.beta.1", label, true);
+        validateSemVer("1.0.0-alpha.1", label, true);
+        validateSemVer("1.0.0-alpha0.valid", label, true);
+        validateSemVer("1.0.0-alpha.0valid", label, true);
+        validateSemVer("1.0.0-alpha-a.b-c-somethinglong+build.1-aef.1-its-okay", label, true);
+        validateSemVer("1.0.0-rc.1+build.1", label, true);
+        validateSemVer("2.0.0-rc.1+build.123", label, true);
+        validateSemVer("1.2.3-beta", label, true);
+        validateSemVer("10.2.3-DEV-SNAPSHOT", label, true);
+        validateSemVer("1.2.3-SNAPSHOT-123", label, true);
+        validateSemVer("1.0.0", label, true);
+        validateSemVer("2.0.0", label, true);
+        validateSemVer("1.1.7", label, true);
+        validateSemVer("2.0.0+build.1848", label, true);
+        validateSemVer("2.0.1-alpha.1227", label, true);
+        validateSemVer("1.0.0-alpha+beta", label, true);
+        validateSemVer("1.2.3----RC-SNAPSHOT.12.9.1--.12+788", label, true);
+        validateSemVer("1.2.3----R-S.12.9.1--.12+meta", label, true);
+        validateSemVer("1.2.3----RC-SNAPSHOT.12.9.1--.12", label, true);
+        validateSemVer("1.0.0+0.build.1-rc.10000aaa-kk-0.1", label, true);
+        validateSemVer("99999999999999999999999.999999999999999999.99999999999999999", label, true);
+        validateSemVer("1.0.0-0A.is.legal", label, true);
+
+        assertNull(validateSemVer(null, label, false));
+        assertNull(validateSemVer("", label, false));
+        
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer(null, label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("", label, true));
+
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2.3-0123", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2.3-0123.0123", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.1.2+.123", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("+invalid", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("-invalid", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("-invalid+invalid", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("-invalid.01", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha.beta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha.beta.1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha.1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha+beta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha_beta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha.", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("alpha..", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("beta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha_beta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("-alpha.", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha..", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha..1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha...1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha....1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha.....1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha......1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.0.0-alpha.......1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("01.1.1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.01.1", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.1.01", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2.3.DEV", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2-SNAPSHOT", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2.31.2.3----RC-SNAPSHOT.12.09.1--..12+788", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("1.2-RC-SNAPSHOT", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("-1.0.3-gamma+b7718", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("+justmeta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("9.8.7+meta+meta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("9.8.7-whatever+meta+meta", label, true));
+        assertThrows(IllegalArgumentException.class, () -> validateSemVer("99999999999999999999999.999999999999999999.99999999999999999----RC-SNAPSHOT.12.09.1--------------------------------..12", label, true));
     }
 }
