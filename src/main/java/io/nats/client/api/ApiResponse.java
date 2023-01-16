@@ -15,8 +15,10 @@ package io.nats.client.api;
 
 import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
+import io.nats.client.support.JsonParseException;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 
 import static io.nats.client.api.Error.NOT_SET;
 import static io.nats.client.support.ApiConstants.ERROR;
@@ -27,6 +29,7 @@ import static io.nats.client.support.JsonValueUtils.readValue;
 public abstract class ApiResponse<T> {
 
     public static final String NO_TYPE = "io.nats.jetstream.api.v1.no_type";
+    public static final String PARSE_ERROR_TYPE = "io.nats.client.api.parse_error";
 
     protected final JsonValue jv;
 
@@ -34,9 +37,31 @@ public abstract class ApiResponse<T> {
     private final Error error;
 
     public ApiResponse(Message msg) {
-        this(msg == null ? null : JsonParser.parse(msg.getData()));
+        this(parseMessage(msg));
     }
 
+    private static JsonValue parseMessage(Message msg) {
+        if (msg == null) {
+            return null;
+        }
+        try {
+            return JsonParser.parse(msg.getData());
+        }
+        catch (JsonParseException e) {
+            return JsonValueUtils.mapBuilder()
+                .put(ERROR, new Error(500, 500, e.getMessage()))
+                .put(TYPE, PARSE_ERROR_TYPE)
+                .getJsonValue();
+        }
+    }
+
+    public static void main(String[] args) {
+        JsonValue jv = JsonValueUtils.mapBuilder()
+            .put(ERROR, new Error(500, 500, "ex ex ex"))
+            .put(TYPE, PARSE_ERROR_TYPE)
+            .getJsonValue();
+        int x = 0;
+    }
     public ApiResponse(JsonValue jsonValue) {
         jv = jsonValue;
         if (jv == null) {

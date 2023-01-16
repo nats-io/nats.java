@@ -17,6 +17,7 @@ import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.MessageHandler;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonUtils;
 import io.nats.service.api.*;
 
 import java.time.Duration;
@@ -28,14 +29,15 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static io.nats.service.ServiceUtil.*;
+import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonUtils.toKey;
+import static io.nats.service.ServiceUtil.toDiscoverySubject;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class Service {
-    private final String id;
-    private final String name;
     private final Connection conn;
     private final Duration drainTimeout;
     private final Map<String, EndpointContext> serviceContexts;
@@ -50,8 +52,7 @@ public class Service {
     private CompletableFuture<Boolean> doneFuture;
 
     Service(ServiceBuilder b) {
-        id = new io.nats.client.NUID().next();
-        name = b.name;
+        String id = new io.nats.client.NUID().next();
         conn = b.conn;
         drainTimeout = b.drainTimeout;
         dInternals = new ArrayList<>();
@@ -95,28 +96,30 @@ public class Service {
         }
 
         discoveryContexts = new ArrayList<>();
-        addDiscoveryContexts(PING, pingResponse, b.pingDispatcher, dTemp);
-        addDiscoveryContexts(INFO, infoResponse, b.infoDispatcher, dTemp);
-        addDiscoveryContexts(SCHEMA, schemaResponse, b.schemaDispatcher, dTemp);
+        addDiscoveryContexts(ServiceUtil.PING, pingResponse, b.pingDispatcher, dTemp);
+        addDiscoveryContexts(ServiceUtil.INFO, infoResponse, b.infoDispatcher, dTemp);
+        addDiscoveryContexts(ServiceUtil.SCHEMA, schemaResponse, b.schemaDispatcher, dTemp);
         addStatsContexts(b.statsDispatcher, dTemp);
     }
 
     private void addDiscoveryContexts(String discoveryName, ServiceResponse sr, Dispatcher dUser, Dispatcher dInternal) {
         final byte[] responseBytes = sr.serialize();
-        MessageHandler handler = msg -> conn.publish(msg.getReplyTo(), responseBytes);
+        MessageHandler handler = msg -> {
+            conn.publish(msg.getReplyTo(), responseBytes);
+        };
         addDiscoveryContexts(discoveryName, dUser, dInternal, handler);
     }
 
     private void addStatsContexts(Dispatcher dUser, Dispatcher dInternal) {
         MessageHandler handler = msg -> conn.publish(msg.getReplyTo(), getStatsResponse().serialize());
-        addDiscoveryContexts(STATS, dUser, dInternal, handler);
+        addDiscoveryContexts(ServiceUtil.STATS, dUser, dInternal, handler);
     }
 
     private void addDiscoveryContexts(String discoveryName, Dispatcher dUser, Dispatcher dInternal, MessageHandler handler) {
         Endpoint[] endpoints = new Endpoint[] {
             new Endpoint(toDiscoverySubject(discoveryName, null, null)),
-            new Endpoint(toDiscoverySubject(discoveryName, name, null)),
-            new Endpoint(toDiscoverySubject(discoveryName, name, id))
+            new Endpoint(toDiscoverySubject(discoveryName, pingResponse.getName(), null)),
+            new Endpoint(toDiscoverySubject(discoveryName, pingResponse.getName(), pingResponse.getId()))
         };
 
         for (Endpoint endpoint : endpoints) {
@@ -144,7 +147,14 @@ public class Service {
 
     @Override
     public String toString() {
-        return "\"ServiceInfo\":" + infoResponse.toJson();
+        StringBuilder sb = JsonUtils.beginJsonPrefixed(toKey(this.getClass()));
+        JsonUtils.addField(sb, ID, pingResponse.getId());
+        JsonUtils.addField(sb, NAME, pingResponse.getName());
+        JsonUtils.addField(sb, VERSION, infoResponse.getVersion());
+        JsonUtils.addField(sb, DESCRIPTION, infoResponse.getDescription());
+        JsonUtils.addField(sb, API_URL, schemaResponse.getApiUrl());
+        JsonUtils.addJsons(sb, ENDPOINTS, schemaResponse.getEndpoints());
+        return endJson(sb).toString();
     }
 
     public void stop() {

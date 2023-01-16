@@ -13,10 +13,7 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonParser;
-import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
-import io.nats.client.support.JsonValue;
+import io.nats.client.support.*;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -71,7 +68,13 @@ public class StreamConfiguration implements JsonSerializable {
 
     // for the response from the server
     static StreamConfiguration instance(String json) {
-        return instance(JsonParser.parse(json));
+        try {
+            return instance(JsonParser.parse(json));
+        } catch (JsonParseException e) {
+            // this means the json from the server is bad, it's not reliable anyway
+            // but the old regex
+            throw new RuntimeException(e);
+        }
     }
 
     static StreamConfiguration instance(JsonValue v) {

@@ -13,22 +13,6 @@
 
 package io.nats.client.support;
 
-import java.nio.charset.StandardCharsets;
-
-public interface JsonSerializable {
-    String toJson();
-
-    default byte[] serialize() {
-        return toJson().getBytes(StandardCharsets.UTF_8);
-    }
-
-    default JsonValue toJsonValue() {
-        try {
-            return JsonParser.parse(toJson());
-        }
-        catch (JsonParseException e) {
-            // if the implementation of toJson produces bad json...
-            throw new RuntimeException(e);
-        }
-    }
+public interface JsonValueable {
+    JsonValue toJsonValue() throws JsonParseException;
 }

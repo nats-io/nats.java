@@ -48,4 +48,12 @@ public class SchemaResponse extends ServiceResponse {
         JsonUtils.addField(sb, API_URL, apiUrl);
         JsonUtils.addJsons(sb, ENDPOINTS, endpoints);
     }
+
+    public String getApiUrl() {
+        return apiUrl;
+    }
+
+    public List<Endpoint> getEndpoints() {
+        return endpoints;
+    }
 }

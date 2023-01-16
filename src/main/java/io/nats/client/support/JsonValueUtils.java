@@ -226,7 +226,15 @@ public abstract class JsonValueUtils {
             return (JsonValue)o;
         }
         if (o instanceof JsonSerializable) {
-            return JsonParser.parse(((JsonSerializable)o).toJson());
+            return ((JsonSerializable)o).toJsonValue();
+        }
+        if (o instanceof Map) {
+            //noinspection unchecked,rawtypes
+            return new JsonValue((Map)o);
+        }
+        if (o instanceof List) {
+            //noinspection unchecked,rawtypes
+            return new JsonValue((List)o);
         }
         if (o instanceof String) {
             return new JsonValue((String)o);
@@ -252,15 +260,45 @@ public abstract class JsonValueUtils {
         if (o instanceof BigInteger) {
             return new JsonValue((BigInteger)o);
         }
-        if (o instanceof Map) {
-            //noinspection unchecked,rawtypes
-            return new JsonValue((Map)o);
-        }
-        if (o instanceof List) {
-            //noinspection unchecked,rawtypes
-            return new JsonValue((List)o);
-        }
         return new JsonValue(o.toString());
     }
 
+    public static MapBuilder mapBuilder() {
+        return new MapBuilder();
+    }
+
+    public static class MapBuilder {
+        public JsonValue jv = new JsonValue(new HashMap<>());
+
+        public MapBuilder put(String s, Object o) {
+            JsonValue vv = JsonValueUtils.toJsonValue(o);
+            if (vv.type != JsonValue.Type.NULL) {
+                jv.map.put(s, vv);
+            }
+            return this;
+        }
+
+        public JsonValue getJsonValue() {
+            return jv;
+        }
+    }
+
+    public static ArrayBuilder arrayBuilder() {
+        return new ArrayBuilder();
+    }
+
+    public static class ArrayBuilder {
+        public JsonValue jv = new JsonValue(new ArrayList<>());
+        public ArrayBuilder add(Object o) {
+            JsonValue vv = JsonValueUtils.toJsonValue(o);
+            if (vv.type != JsonValue.Type.NULL) {
+                jv.array.add(JsonValueUtils.toJsonValue(o));
+            }
+            return this;
+        }
+
+        public JsonValue getJsonValue() {
+            return jv;
+        }
+    }
 }

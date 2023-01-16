@@ -15,6 +15,7 @@ package io.nats.service;
 
 import io.nats.client.Connection;
 import io.nats.client.Message;
+import io.nats.client.StatusException;
 import io.nats.client.Subscription;
 import io.nats.service.api.InfoResponse;
 import io.nats.service.api.PingResponse;
@@ -57,9 +58,7 @@ public class Discovery {
 
     public List<PingResponse> ping(String serviceName) {
         List<PingResponse> list = new ArrayList<>();
-        discoverMany(PING, serviceName, json -> {
-            list.add(new PingResponse(json));
-        });
+        discoverMany(PING, serviceName, jsonBytes -> list.add(new PingResponse(jsonBytes)));
         return list;
     }
 
@@ -77,9 +76,7 @@ public class Discovery {
 
     public List<InfoResponse> info(String serviceName) {
         List<InfoResponse> list = new ArrayList<>();
-        discoverMany(INFO, serviceName, jsonBytes -> {
-            list.add(new InfoResponse(jsonBytes));
-        });
+        discoverMany(INFO, serviceName, jsonBytes -> list.add(new InfoResponse(jsonBytes)));
         return list;
     }
 
@@ -97,9 +94,7 @@ public class Discovery {
 
     public List<SchemaResponse> schema(String serviceName) {
         List<SchemaResponse> list = new ArrayList<>();
-        discoverMany(SCHEMA, serviceName, jsonBytes -> {
-            list.add(new SchemaResponse(jsonBytes));
-        });
+        discoverMany(SCHEMA, serviceName, jsonBytes -> list.add(new SchemaResponse(jsonBytes)));
         return list;
     }
 
@@ -117,9 +112,7 @@ public class Discovery {
 
     public List<StatsResponse> stats(String serviceName) {
         List<StatsResponse> list = new ArrayList<>();
-        discoverMany(STATS, serviceName, jsonBytes -> {
-            list.add(new StatsResponse(jsonBytes));
-        });
+        discoverMany(STATS, serviceName, jsonBytes -> list.add(new StatsResponse(jsonBytes)));
         return list;
     }
 
@@ -163,6 +156,12 @@ public class Discovery {
             while (resultsLeft > 0 && timeLeft > 0) {
                 Message msg = sub.nextMessage(timeLeft);
                 if (msg == null) {
+                    return;
+                }
+                if (msg.isStatusMessage()) {
+                    throw new StatusException(sub, msg.getStatus());
+                }
+                if (msg.getData() == null) {
                     return;
                 }
                 stringConsumer.accept(msg.getData());

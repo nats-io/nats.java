@@ -38,12 +38,12 @@ public abstract class ServiceResponse implements JsonSerializable {
         jv = null;
     }
 
-    public ServiceResponse(ServiceResponse template) {
-        this.type = template.type;
+    public ServiceResponse(String type, ServiceResponse template) {
+        this.type = type;
         this.id = template.id;
         this.name = template.name;
         this.version = template.version;
-        jv = template.jv;
+        jv = null;
     }
 
     public ServiceResponse(String type, byte[] jsonBytes) {
@@ -99,12 +99,12 @@ public abstract class ServiceResponse implements JsonSerializable {
         }
         else {
             sb = JsonUtils.beginJson();
-            JsonUtils.addField(sb, ApiConstants.TYPE, TYPE);
         }
         JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, ID, id);
         JsonUtils.addField(sb, VERSION, version);
         subToJson(sb, forToString);
+        JsonUtils.addField(sb, ApiConstants.TYPE, type);
         return endJson(sb).toString();
     }
 

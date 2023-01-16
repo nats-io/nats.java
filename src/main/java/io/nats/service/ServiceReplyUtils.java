@@ -17,6 +17,7 @@ import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.NatsMessage;
+import io.nats.client.support.JsonSerializable;
 
 import java.nio.charset.StandardCharsets;
 
@@ -34,6 +35,10 @@ public abstract class ServiceReplyUtils {
 
     public static void reply(Connection conn, Message request, String data) {
         conn.publish(request.getReplyTo(), data.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public static void reply(Connection conn, Message request, JsonSerializable js) {
+        conn.publish(request.getReplyTo(), js.serialize());
     }
 
     public static void reply(Connection conn, Message request, byte[] data, Headers headers) {

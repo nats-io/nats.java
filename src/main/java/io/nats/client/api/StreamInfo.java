@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.Message;
+import io.nats.client.support.JsonParseException;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
 
@@ -37,7 +38,15 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
     private final List<SourceInfo> sourceInfos;
 
     public StreamInfo(Message msg) {
-        this(JsonParser.parse(msg.getData()));
+        this(parseMessage(msg));
+    }
+
+    private static JsonValue parseMessage(Message msg) {
+        try {
+            return JsonParser.parse(msg.getData());
+        } catch (JsonParseException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public StreamInfo(JsonValue vStreamInfo) {
