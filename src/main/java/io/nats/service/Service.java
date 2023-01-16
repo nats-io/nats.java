@@ -15,92 +15,136 @@ package io.nats.service;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
-import io.nats.client.support.JsonSerializable;
-import io.nats.service.context.Context;
-import io.nats.service.context.DiscoveryContext;
-import io.nats.service.context.ServiceContext;
-import io.nats.service.context.StatsContext;
+import io.nats.client.MessageHandler;
+import io.nats.client.support.DateTimeUtils;
+import io.nats.service.api.*;
 
 import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
-import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.service.ServiceUtil.*;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class Service {
-    private final Connection conn;
     private final String id;
-    private final Function<String, StatsData> statsDataDecoder;
+    private final String name;
+    private final Connection conn;
     private final Duration drainTimeout;
-
+    private final Map<String, EndpointContext> serviceContexts;
+    private final List<EndpointContext> discoveryContexts;
+    private final List<Dispatcher> dInternals;
+    private final PingResponse pingResponse;
     private final InfoResponse infoResponse;
     private final SchemaResponse schemaResponse;
-    private final StatsResponse statsResponse;
-    private final List<Context> discoveryContexts;
-    private final List<Context> serviceContexts;
 
     private final Object stopLock;
+    private ZonedDateTime started;
     private CompletableFuture<Boolean> doneFuture;
 
-    Service(ServiceBuilder builder) {
+    Service(ServiceBuilder b) {
         id = new io.nats.client.NUID().next();
-        conn = builder.conn;
-        statsDataDecoder = builder.statsDataDecoder;
-        drainTimeout = builder.drainTimeout;
-        infoResponse = new InfoResponse(id, builder.name, builder.version, builder.description, builder.rootSubject);
-        schemaResponse = new SchemaResponse(id, builder.name, builder.version, builder.schemaRequest, builder.schemaResponse);
+        name = b.name;
+        conn = b.conn;
+        drainTimeout = b.drainTimeout;
+        dInternals = new ArrayList<>();
+        stopLock = new Object();
 
-        // User may provide 0 or more dispatchers, just use theirs when provided else use one we make
-        boolean internalDiscovery = builder.dUserDiscovery == null;
-        boolean internalService = builder.dUserService == null;
-        Dispatcher dDiscovery = internalDiscovery ? conn.createDispatcher() : builder.dUserDiscovery;
-        Dispatcher dService = internalService ? conn.createDispatcher() : builder.dUserService;
+        // setup the service contexts
+        // ? do we need an internal dispatcher for any user endpoints
+        // ? also while we are here, we need to collect the endpoints for the SchemaResponse
+        Dispatcher dTemp = null;
+        List<String> infoSubjects = new ArrayList<>();
+        List<Endpoint> schemaEndpoints = new ArrayList<>();
+        serviceContexts = new HashMap<>();
+        for (ServiceEndpoint se : b.serviceEndpoints.values()) {
+            if (se.getDispatcher() == null) {
+                if (dTemp == null) {
+                    dTemp = conn.createDispatcher();
+                }
+                serviceContexts.put(se.getName(), new EndpointContext(conn, dTemp, false, se));
+            }
+            else {
+                serviceContexts.put(se.getName(), new EndpointContext(conn, null, false, se));
+            }
+            infoSubjects.add(se.getSubject());
+            schemaEndpoints.add(se.getEndpoint());
+        }
+        if (dTemp != null) {
+            dInternals.add(dTemp);
+        }
 
-        // do the service first in case the server feels like rejecting the subject
-        serviceContexts = new ArrayList<>();
-        statsResponse = new StatsResponse(id, builder.name, builder.version);
-        if (builder.endpointMap.size() == 0) {
-            serviceContexts.add(new ServiceContext(conn, infoResponse.getSubject(), dService, internalService, statsResponse, builder.rootMessageHandler));
+        // build static responses
+        pingResponse = new PingResponse(id, b.name, b.version);
+        infoResponse = new InfoResponse(id, b.name, b.version, b.description, infoSubjects);
+        schemaResponse = new SchemaResponse(id, b.name, b.version, b.apiUrl, schemaEndpoints);
+
+        if (b.pingDispatcher == null || b.infoDispatcher == null || b.schemaDispatcher == null || b.statsDispatcher == null) {
+            dTemp = conn.createDispatcher();
+            dInternals.add(dTemp);
         }
         else {
-            for (String endpoint : builder.endpointMap.keySet()) {
-                String eSubject = infoResponse.getSubject() + DOT + endpoint;
-                serviceContexts.add(new ServiceContext(conn, eSubject, dService, internalService, statsResponse, builder.endpointMap.get(endpoint)));
-            }
+            dTemp = null;
         }
 
         discoveryContexts = new ArrayList<>();
-        addDiscoveryContexts(PING, new PingResponse(id, builder.name, builder.version), dDiscovery, internalDiscovery);
-        addDiscoveryContexts(INFO, infoResponse, dDiscovery, internalDiscovery);
-        addDiscoveryContexts(SCHEMA, schemaResponse, dDiscovery, internalDiscovery);
-        addStatsContexts(dDiscovery, internalDiscovery, statsResponse, builder.statsDataSupplier);
+        addDiscoveryContexts(PING, pingResponse, b.pingDispatcher, dTemp);
+        addDiscoveryContexts(INFO, infoResponse, b.infoDispatcher, dTemp);
+        addDiscoveryContexts(SCHEMA, schemaResponse, b.schemaDispatcher, dTemp);
+        addStatsContexts(b.statsDispatcher, dTemp);
+    }
 
-        stopLock = new Object();
+    private void addDiscoveryContexts(String discoveryName, ServiceResponse sr, Dispatcher dUser, Dispatcher dInternal) {
+        final byte[] responseBytes = sr.serialize();
+        MessageHandler handler = msg -> conn.publish(msg.getReplyTo(), responseBytes);
+        addDiscoveryContexts(discoveryName, dUser, dInternal, handler);
+    }
+
+    private void addStatsContexts(Dispatcher dUser, Dispatcher dInternal) {
+        MessageHandler handler = msg -> conn.publish(msg.getReplyTo(), getStatsResponse().serialize());
+        addDiscoveryContexts(STATS, dUser, dInternal, handler);
+    }
+
+    private void addDiscoveryContexts(String discoveryName, Dispatcher dUser, Dispatcher dInternal, MessageHandler handler) {
+        Endpoint[] endpoints = new Endpoint[] {
+            new Endpoint(toDiscoverySubject(discoveryName, null, null)),
+            new Endpoint(toDiscoverySubject(discoveryName, name, null)),
+            new Endpoint(toDiscoverySubject(discoveryName, name, id))
+        };
+
+        for (Endpoint endpoint : endpoints) {
+            discoveryContexts.add(
+                new EndpointContext(conn, dInternal, false,
+                    ServiceEndpoint.builder()
+                        .endpoint(endpoint)
+                        .dispatcher(dUser)
+                        .handler(handler)
+                        .build()));
+        }
     }
 
     public CompletableFuture<Boolean> startService() {
         doneFuture = new CompletableFuture<>();
-        for (Context ctx : serviceContexts) {
+        for (EndpointContext ctx : serviceContexts.values()) {
             ctx.start();
         }
-        for (Context ctx : discoveryContexts) {
+        for (EndpointContext ctx : discoveryContexts) {
             ctx.start();
         }
-        statsResponse.start();
+        started = DateTimeUtils.gmtNow();
         return doneFuture;
     }
 
     @Override
     public String toString() {
-        return "Service" + infoResponse.toJson();
+        return "\"ServiceInfo\":" + infoResponse.toJson();
     }
 
     public void stop() {
@@ -118,17 +162,32 @@ public class Service {
     public void stop(boolean drain, Throwable t) {
         synchronized (stopLock) {
             if (!doneFuture.isDone()) {
-                List<Dispatcher> internals = new ArrayList<>();
-
                 if (drain) {
                     List<CompletableFuture<Boolean>> futures = new ArrayList<>();
 
-                    for (Context c : serviceContexts) {
-                        drain(c, internals, futures);
+                    for (Dispatcher d : dInternals) {
+                        try {
+                            futures.add(d.drain(drainTimeout));
+                        }
+                        catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
                     }
 
-                    for (Context c : discoveryContexts) {
-                        drain(c, internals, futures);
+                    for (EndpointContext c : serviceContexts.values()) {
+                        if (!c.isInternalDispatcher()) {
+                            try {
+                                futures.add(c.getSub().drain(drainTimeout));
+                            }
+                            catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
+                        }
+                    }
+
+                    for (EndpointContext c : discoveryContexts) {
+                        if (!c.isInternalDispatcher()) {
+                            try {
+                                futures.add(c.getSub().drain(drainTimeout));
+                            }
+                            catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
+                        }
                     }
 
                     // make sure drain is done before closing dispatcher
@@ -143,8 +202,8 @@ public class Service {
                     }
                 }
 
-                // close all internal dispatchers
-                for (Dispatcher d : internals) {
+                // close internal dispatchers
+                for (Dispatcher d : dInternals) {
                     conn.closeDispatcher(d);
                 }
 
@@ -159,31 +218,28 @@ public class Service {
         }
     }
 
-    private void drain(Context c, List<Dispatcher> internals, List<CompletableFuture<Boolean>> futures) {
-        if (c.isInternalDispatcher()) {
-            internals.add(c.getDispatcher());
-            try {
-                futures.add(c.getDispatcher().drain(drainTimeout));
-            }
-            catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
-        }
-        else {
-            try {
-                futures.add(c.getSub().drain(drainTimeout));
-            }
-            catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
+    public void reset() {
+        for (EndpointContext c : serviceContexts.values()) {
+            c.reset();
         }
     }
 
-    public void reset() {
-        serviceContexts.get(0).getStats().reset();
+    public void reset(String endpointName) {
+        EndpointContext c = serviceContexts.get(endpointName);
+        if (c != null) {
+            c.reset();
+        }
     }
 
     public String getId() {
-        return infoResponse.getServiceId();
+        return pingResponse.getId();
     }
 
-    public InfoResponse getInfo() {
+    public PingResponse getPingResponse() {
+        return pingResponse;
+    }
+
+    public InfoResponse getInfoResponse() {
         return infoResponse;
     }
 
@@ -191,19 +247,16 @@ public class Service {
         return schemaResponse;
     }
 
-    public StatsResponse getStats() {
-        return serviceContexts.get(0).getStats().copy(statsDataDecoder);
+    public StatsResponse getStatsResponse() {
+        List<EndpointStats> endpointStats = new ArrayList<>();
+        for (EndpointContext c : serviceContexts.values()) {
+            endpointStats.add(c.getEndpointStats());
+        }
+        return new StatsResponse(pingResponse, started, endpointStats);
     }
 
-    private void addDiscoveryContexts(String action, JsonSerializable js, Dispatcher dispatcher, boolean internalDispatcher) {
-        discoveryContexts.add(new DiscoveryContext(conn, action, null, null, js, dispatcher, internalDispatcher));
-        discoveryContexts.add(new DiscoveryContext(conn, action, infoResponse.getName(), null, js, dispatcher, internalDispatcher));
-        discoveryContexts.add(new DiscoveryContext(conn, action, infoResponse.getName(), id, js, dispatcher, internalDispatcher));
-    }
-
-    private void addStatsContexts(Dispatcher dispatcher, boolean internalDispatcher, StatsResponse statsResponse, Supplier<StatsData> sds) {
-        discoveryContexts.add(new StatsContext(conn, null, null, dispatcher, internalDispatcher, statsResponse, sds));
-        discoveryContexts.add(new StatsContext(conn, infoResponse.getName(), null, dispatcher, internalDispatcher, statsResponse, sds));
-        discoveryContexts.add(new StatsContext(conn, infoResponse.getName(), id, dispatcher, internalDispatcher, statsResponse, sds));
+    public EndpointStats getEndpointStats(String endpointName) {
+        EndpointContext c = serviceContexts.get(endpointName);
+        return c == null ? null : c.getEndpointStats();
     }
 }

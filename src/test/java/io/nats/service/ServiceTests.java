@@ -18,16 +18,13 @@ import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonParser;
-import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
+import io.nats.service.api.*;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
@@ -36,14 +33,11 @@ import java.util.function.Supplier;
 import static io.nats.client.impl.NatsPackageScopeWorkarounds.getDispatchers;
 import static io.nats.client.support.ApiConstants.ID;
 import static io.nats.client.support.ApiConstants.LAST_ERROR;
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsConstants.EMPTY;
-import static io.nats.client.support.Validator.nullOrEmpty;
-import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR;
-import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR_CODE;
+import static io.nats.service.ServiceReplyUtils.NATS_SERVICE_ERROR;
+import static io.nats.service.ServiceReplyUtils.NATS_SERVICE_ERROR_CODE;
 import static io.nats.service.ServiceUtil.PING;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -101,8 +95,8 @@ public class ServiceTests extends JetStreamTestBase {
                     verifyServiceExecution(clientNc, SORT_SERVICE_SUBJECT);
                 }
 
-                InfoResponse echoInfoResponse = echoService1.getInfo();
-                InfoResponse sortInfoResponse = sortService1.getInfo();
+                InfoResponse echoInfoResponse = echoService1.getInfoResponse();
+                InfoResponse sortInfoResponse = sortService1.getInfoResponse();
                 SchemaResponse echoSchemaResponse = echoService1.getSchemaResponse();
                 SchemaResponse sortSchemaResponse = sortService1.getSchemaResponse();
 
@@ -118,7 +112,7 @@ public class ServiceTests extends JetStreamTestBase {
                         assertEquals(PingResponse.TYPE, p.getType());
                         assertEquals(expectedInfoResponse.getVersion(), p.getVersion());
                     }
-                    return p.getServiceId();
+                    return p.getId();
                 };
                 verifyDiscovery(null, discovery.ping(), pingValidator, echoServiceId1, sortServiceId1, echoServiceId2, sortServiceId2);
                 verifyDiscovery(echoInfoResponse, discovery.ping(ECHO_SERVICE_NAME), pingValidator, echoServiceId1, echoServiceId2);
@@ -139,7 +133,7 @@ public class ServiceTests extends JetStreamTestBase {
                         assertEquals(expectedInfoResponse.getVersion(), i.getVersion());
                         assertEquals(expectedInfoResponse.getSubject(), i.getSubject());
                     }
-                    return i.getServiceId();
+                    return i.getId();
                 };
                 verifyDiscovery(null, discovery.info(), infoValidator, echoServiceId1, sortServiceId1, echoServiceId2, sortServiceId2);
                 verifyDiscovery(echoInfoResponse, discovery.info(ECHO_SERVICE_NAME), infoValidator, echoServiceId1, echoServiceId2);
@@ -348,7 +342,7 @@ public class ServiceTests extends JetStreamTestBase {
 
         @Override
         public void onMessage(Message msg) throws InterruptedException {
-            ServiceMessage.reply(conn, msg, echo(msg.getData()), new Headers().put("handlerId", Integer.toString(hashCode())));
+            ServiceReplyUtils.reply(conn, msg, echo(msg.getData()), new Headers().put("handlerId", Integer.toString(hashCode())));
         }
     }
 
@@ -361,7 +355,7 @@ public class ServiceTests extends JetStreamTestBase {
 
         @Override
         public void onMessage(Message msg) throws InterruptedException {
-            ServiceMessage.reply(conn, msg, sortAscending(msg.getData()), new Headers().put("handlerId", Integer.toString(hashCode())));
+            ServiceReplyUtils.reply(conn, msg, sortAscending(msg.getData()), new Headers().put("handlerId", Integer.toString(hashCode())));
         }
     }
 
@@ -407,8 +401,8 @@ public class ServiceTests extends JetStreamTestBase {
                 .version("0.0.2")
                 .schemaRequest("sort schema request string/url")
                 .schemaResponse("sort schema response string/url")
-                .endpoint(SORT_SERVICE_ASCENDING_SUBJECT, msg -> ServiceMessage.reply(nc, msg, sortAscending(msg.getData())))
-                .endpoint(SORT_SERVICE_DESCENDING_SUBJECT, msg -> ServiceMessage.reply(nc, msg, sortDescending(msg.getData())))
+                .endpoint(SORT_SERVICE_ASCENDING_SUBJECT, msg -> ServiceReplyUtils.reply(nc, msg, sortAscending(msg.getData())))
+                .endpoint(SORT_SERVICE_DESCENDING_SUBJECT, msg -> ServiceReplyUtils.reply(nc, msg, sortDescending(msg.getData())))
                 .build();
             sortService.startService();
             sleep(200);
@@ -483,9 +477,9 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testApiCoverage() {
         new PingResponse("id", "name", "version").toString();
-        new Schema("request", "response").toString();
+        new Endpoint("request", "response").toString();
         new InfoResponse("id", "name", "description", "version", "subject").toString();
-        assertNull(Schema.optionalInstance(null));
+        assertNull(Endpoint.optionalInstance(null));
     }
 
     @Test
@@ -493,19 +487,19 @@ public class ServiceTests extends JetStreamTestBase {
         PingResponse pr1 = new PingResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\"}".getBytes());
         PingResponse pr2 = new PingResponse(pr1.toJson().getBytes());
         assertEquals("ServiceName", pr1.getName());
-        assertEquals("serviceId", pr1.getServiceId());
+        assertEquals("serviceId", pr1.getId());
         assertEquals(pr1.getName(), pr2.getName());
-        assertEquals(pr1.getServiceId(), pr2.getServiceId());
+        assertEquals(pr1.getId(), pr2.getId());
 
         InfoResponse ir1 = new InfoResponse("{\"name\":\"ServiceName\",\"id\":\"serviceId\",\"description\":\"desc\",\"version\":\"0.0.1\",\"subject\":\"ServiceSubject\"}".getBytes());
         InfoResponse ir2 = new InfoResponse(ir1.toJson().getBytes());
         assertEquals("ServiceName", ir1.getName());
-        assertEquals("serviceId", ir1.getServiceId());
+        assertEquals("serviceId", ir1.getId());
         assertEquals("desc", ir1.getDescription());
         assertEquals("0.0.1", ir1.getVersion());
         assertEquals("ServiceSubject", ir1.getSubject());
         assertEquals(ir1.getName(), ir2.getName());
-        assertEquals(ir1.getServiceId(), ir2.getServiceId());
+        assertEquals(ir1.getId(), ir2.getId());
         assertEquals(ir1.getDescription(), ir2.getDescription());
         assertEquals(ir1.getVersion(), ir2.getVersion());
         assertEquals(ir1.getSubject(), ir2.getSubject());
@@ -567,7 +561,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(zdt, statsResponse2.getStarted());
     }
 
-    static class TestStatsData implements StatsData {
+    static class TestStatsData {
         // using id and  last_error as field names to ensure that the manual parsing works
         public String id;
         public String lastError;
@@ -583,32 +577,23 @@ public class ServiceTests extends JetStreamTestBase {
             this.lastError = readString(jv, LAST_ERROR);
         }
 
-        @Override
-        public String toJson() {
-            StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, ID, id);
-            JsonUtils.addField(sb, LAST_ERROR, lastError);
-            return endJson(sb).toString();
+        public JsonValue toJsonValue() {
+            Map<String, JsonValue> map = new HashMap<>();
+            map.put(ID, new JsonValue(id));
+            map.put(LAST_ERROR, new JsonValue(lastError));
+            return new JsonValue(map);
         }
 
         @Override
         public String toString() {
-            return "TestStatsData" + toJson();
+            return toJsonValue().toString(getClass());
         }
     }
 
-    static class TestStatsDataSupplier implements Supplier<StatsData> {
+    static class TestStatsDataSupplier implements Supplier<JsonValue> {
         @Override
-        public StatsData get() {
-            return new TestStatsData("" + hashCode(), "blah error [" + System.currentTimeMillis() + "]");
-        }
-    }
-
-    static class TestStatsDataDecoder implements Function<String, StatsData> {
-        @Override
-        public StatsData apply(String json) {
-            TestStatsData esd = new TestStatsData(json);
-            return nullOrEmpty(esd.lastError) ? null : esd;
+        public JsonValue get() {
+            return new TestStatsData("" + hashCode(), "blah error [" + System.currentTimeMillis() + "]").toJsonValue();
         }
     }
 }

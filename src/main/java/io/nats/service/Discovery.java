@@ -16,12 +16,15 @@ package io.nats.service;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
+import io.nats.service.api.InfoResponse;
+import io.nats.service.api.PingResponse;
+import io.nats.service.api.SchemaResponse;
+import io.nats.service.api.StatsResponse;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import static io.nats.client.NUID.nextGlobal;
 import static io.nats.service.ServiceUtil.*;
@@ -109,32 +112,20 @@ public class Discovery {
     // stats
     // ----------------------------------------------------------------------------------------------------
     public List<StatsResponse> stats() {
-        return stats(null, (Function<String, StatsData>)null);
-    }
-
-    public List<StatsResponse> stats(Function<String, StatsData> statsDataDecoder) {
-        return stats(null, statsDataDecoder);
+        return stats(null);
     }
 
     public List<StatsResponse> stats(String serviceName) {
-        return stats(serviceName, (Function<String, StatsData>)null);
-    }
-
-    public List<StatsResponse> stats(String serviceName, Function<String, StatsData> statsDataDecoder) {
         List<StatsResponse> list = new ArrayList<>();
         discoverMany(STATS, serviceName, jsonBytes -> {
-            list.add(new StatsResponse(jsonBytes, statsDataDecoder));
+            list.add(new StatsResponse(jsonBytes));
         });
         return list;
     }
 
     public StatsResponse stats(String serviceName, String serviceId) {
-        return stats(serviceName, serviceId, null);
-    }
-
-    public StatsResponse stats(String serviceName, String serviceId, Function<String, StatsData> statsDataDecoder) {
         byte[] jsonBytes = discoverOne(STATS, serviceName, serviceId);
-        return jsonBytes == null ? null : new StatsResponse(jsonBytes, statsDataDecoder);
+        return jsonBytes == null ? null : new StatsResponse(jsonBytes);
     }
 
     // ----------------------------------------------------------------------------------------------------

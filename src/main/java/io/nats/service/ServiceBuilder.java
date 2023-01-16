@@ -2,13 +2,10 @@ package io.nats.service;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
-import io.nats.client.MessageHandler;
 
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 import static io.nats.client.support.Validator.*;
 import static io.nats.service.ServiceUtil.DEFAULT_DRAIN_TIMEOUT;
@@ -18,16 +15,13 @@ public class ServiceBuilder {
     String name;
     String description;
     String version;
-    String rootSubject;
-    String schemaRequest;
-    String schemaResponse;
-    MessageHandler rootMessageHandler;
-    Dispatcher dUserDiscovery;
-    Dispatcher dUserService;
-    Supplier<StatsData> statsDataSupplier;
-    Function<String, StatsData> statsDataDecoder;
+    String apiUrl;
+    Map<String, ServiceEndpoint> serviceEndpoints = new HashMap<>();
     Duration drainTimeout = DEFAULT_DRAIN_TIMEOUT;
-    Map<String, MessageHandler> endpointMap = new HashMap<>();
+    Dispatcher pingDispatcher;
+    Dispatcher infoDispatcher;
+    Dispatcher schemaDispatcher;
+    Dispatcher statsDispatcher;
 
     public ServiceBuilder connection(Connection conn) {
         this.conn = conn;
@@ -49,46 +43,13 @@ public class ServiceBuilder {
         return this;
     }
 
-    public ServiceBuilder rootSubject(String rootSubject) {
-        this.rootSubject = rootSubject;
+    public ServiceBuilder apiUrl(String apiUrl) {
+        this.apiUrl = apiUrl;
         return this;
     }
 
-    public ServiceBuilder rootMessageHandler(MessageHandler rootMessageHandler) {
-        this.rootMessageHandler = rootMessageHandler;
-        return this;
-    }
-
-    public ServiceBuilder endpoint(String endpoint, MessageHandler endPointHandler) {
-        endpointMap.put(
-            validateIsRestrictedTerm(endpoint, "Endpoint", true),
-            (MessageHandler)validateNotNull(endPointHandler, "Endpoint Handler"));
-        return this;
-    }
-
-    public ServiceBuilder schemaRequest(String schemaRequest) {
-        this.schemaRequest = schemaRequest;
-        return this;
-    }
-
-    public ServiceBuilder schemaResponse(String schemaResponse) {
-        this.schemaResponse = schemaResponse;
-        return this;
-    }
-
-    public ServiceBuilder userDiscoveryDispatcher(Dispatcher dUserDiscovery) {
-        this.dUserDiscovery = dUserDiscovery;
-        return this;
-    }
-
-    public ServiceBuilder userServiceDispatcher(Dispatcher dUserService) {
-        this.dUserService = dUserService;
-        return this;
-    }
-
-    public ServiceBuilder statsDataHandlers(Supplier<StatsData> statsDataSupplier, Function<String, StatsData> statsDataDecoder) {
-        this.statsDataSupplier = statsDataSupplier;
-        this.statsDataDecoder = statsDataDecoder;
+    public ServiceBuilder addServiceEndpoint(ServiceEndpoint endpoint) {
+        serviceEndpoints.put(endpoint.getName(), endpoint);
         return this;
     }
 
@@ -97,23 +58,31 @@ public class ServiceBuilder {
         return this;
     }
 
+    public ServiceBuilder pingDispatcher(Dispatcher pingDispatcher) {
+        this.pingDispatcher = pingDispatcher;
+        return this;
+    }
+
+    public ServiceBuilder infoDispatcher(Dispatcher infoDispatcher) {
+        this.infoDispatcher = infoDispatcher;
+        return this;
+    }
+
+    public ServiceBuilder schemaDispatcher(Dispatcher schemaDispatcher) {
+        this.schemaDispatcher = schemaDispatcher;
+        return this;
+    }
+
+    public ServiceBuilder statsDispatcher(Dispatcher statsDispatcher) {
+        this.statsDispatcher = statsDispatcher;
+        return this;
+    }
+
     public Service build() {
         required(conn, "Connection");
         required(name, "Name");
-        required(rootSubject, "Root Subject");
         required(version, "Version");
-
-        if (endpointMap.size() == 0) {
-            required(rootMessageHandler, "Root Message Handler");
-        }
-        else if (rootMessageHandler != null){
-            throw new IllegalArgumentException("Root Message Handler is not allowed when there are endpoints.");
-        }
-
-        if ((statsDataSupplier != null && statsDataDecoder == null)
-            || (statsDataSupplier == null && statsDataDecoder != null)) {
-            throw new IllegalArgumentException("You must provide both or neither the stats data supplier and decoder");
-        }
+        required(serviceEndpoints, "Endpoints");
         return new Service(this);
     }
 }

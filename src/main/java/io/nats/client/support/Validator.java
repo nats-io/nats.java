@@ -15,6 +15,8 @@ package io.nats.client.support;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 import static io.nats.client.support.NatsConstants.DOT;
@@ -109,6 +111,18 @@ public abstract class Validator {
 
     public static void required(Object o, String label) {
         if (o == null) {
+            throw new IllegalArgumentException(label + " cannot be null or empty.");
+        }
+    }
+
+    public static void required(List<?> l, String label) {
+        if (l == null || l.isEmpty()) {
+            throw new IllegalArgumentException(label + " cannot be null or empty.");
+        }
+    }
+
+    public static void required(Map<?, ?> m, String label) {
+        if (m == null || m.isEmpty()) {
             throw new IllegalArgumentException(label + " cannot be null or empty.");
         }
     }

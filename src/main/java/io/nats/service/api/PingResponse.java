@@ -11,11 +11,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.service;
+package io.nats.service.api;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public interface StatsData {
-    String toJson();
+public class PingResponse extends ServiceResponse {
+    public static final String TYPE = "io.nats.micro.v1.ping_response";
+
+    public PingResponse(String id, String name, String version) {
+        super(TYPE, id, name, version);
+    }
+
+    public PingResponse(byte[] jsonBytes) {
+        super(TYPE, jsonBytes);
+    }
+
+    @Override
+    protected void subToJson(StringBuilder sb, boolean forToString) {
+        // nothing needed here since ping doesn't have any additional fields
+    }
 }

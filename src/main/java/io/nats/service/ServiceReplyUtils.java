@@ -23,7 +23,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public abstract class ServiceMessage {
+public abstract class ServiceReplyUtils {
 
     public static final String NATS_SERVICE_ERROR = "Nats-Service-Error";
     public static final String NATS_SERVICE_ERROR_CODE = "Nats-Service-Error-Code";

@@ -1,5 +1,7 @@
 package io.nats.service;
 
+import io.nats.client.support.Validator;
+
 import java.time.Duration;
 
 import static io.nats.client.support.Validator.nullOrEmpty;
@@ -17,13 +19,34 @@ public class ServiceUtil {
     public static final long DEFAULT_DISCOVERY_MAX_TIME_MILLIS = 5000;
     public static final int DEFAULT_DISCOVERY_MAX_RESULTS = 10;
 
-    public static String toDiscoverySubject(String discoverySubject, String optionalServiceNameSegment, String optionalServiceIdSegment) {
+    public static String toDiscoverySubject(String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {
         if (nullOrEmpty(optionalServiceIdSegment)) {
             if (nullOrEmpty(optionalServiceNameSegment)) {
-                return DEFAULT_SERVICE_PREFIX + discoverySubject;
+                return DEFAULT_SERVICE_PREFIX + discoveryName;
             }
-            return DEFAULT_SERVICE_PREFIX + discoverySubject + "." + optionalServiceNameSegment;
+            return DEFAULT_SERVICE_PREFIX + discoveryName + "." + optionalServiceNameSegment;
         }
-        return DEFAULT_SERVICE_PREFIX + discoverySubject + "." + optionalServiceNameSegment + "." + optionalServiceIdSegment;
+        return DEFAULT_SERVICE_PREFIX + discoveryName + "." + optionalServiceNameSegment + "." + optionalServiceIdSegment;
+    }
+
+    public static String validateEndpointName(String name) {
+        return _validateEndpointSubject(name, "Endpoint Name");
+    }
+
+    public static String validateEndpointSubject(String name) {
+        return _validateEndpointSubject(name, "Endpoint Subject");
+    }
+
+    public static String _validateEndpointSubject(String name, String label) {
+        Validator.required(name, label);
+        if (name != null) {
+            // TODO ACTUAL VALIDATION
+        }
+        return name;
+    }
+
+    public static String validateGroupName(String name) {
+        // TODO ACTUAL VALIDATION
+        return name;
     }
 }
