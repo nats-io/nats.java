@@ -27,9 +27,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-import static io.nats.client.support.JsonValueUtils.readInteger;
-import static io.nats.client.support.JsonValueUtils.readString;
-
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
@@ -49,7 +46,7 @@ public class ServiceExample {
             .errorListener(new ErrorListener() {})
             .build();
 
-        Supplier<JsonValue> sdsx = new ExampleStatsDataSupplier();
+        Supplier<JsonValue> sds = new ExampleStatsDataSupplier();
 
         try (Connection nc = Nats.connect(options)) {
             // create the services
@@ -241,11 +238,6 @@ public class ServiceExample {
         public ExampleStatsData(String sData, int iData) {
             this.sData = sData;
             this.iData = iData;
-        }
-
-        public ExampleStatsData(JsonValue jv) {
-            this.sData = readString(jv, "sdata");
-            this.iData = readInteger(jv, "idata", -1);
         }
 
         public JsonValue toJsonValue() {
