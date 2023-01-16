@@ -277,9 +277,6 @@ public class JsonParser {
                     break;
                 default:
                     if (c == '"') {
-                        if (sb.toString().equals("subjects")) {
-                            int x = 0;
-                        }
                         return sb.toString();
                     }
                     sb.append(c);
