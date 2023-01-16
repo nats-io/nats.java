@@ -70,12 +70,4 @@ class ListRequestEngine extends ApiResponse<ListRequestEngine> {
     int nextOffset() {
         return lastOffset + limit;
     }
-
-//    List<String> getObjectList(String objectName) {
-//        return read(objectName, json);
-//    }
-//
-//    List<String> getStringList(String objectName) {
-//        return readStringList(jv, objectName);
-//    }
 }

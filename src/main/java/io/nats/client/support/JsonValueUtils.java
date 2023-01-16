@@ -13,16 +13,16 @@
 
 package io.nats.client.support;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
+import java.util.*;
 import java.util.function.Function;
 
 import static io.nats.client.support.JsonValue.EMPTY_ARRAY;
-import static io.nats.client.support.JsonValue.EMPTY_OBJECT;
+import static io.nats.client.support.JsonValue.EMPTY_MAP;
 
 /**
  * Internal json value helpers.
@@ -45,7 +45,7 @@ public abstract class JsonValueUtils {
     }
 
     public static JsonValue readObject(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> v == null ? EMPTY_OBJECT : v);
+        return read(jsonValue, key, v -> v == null ? EMPTY_MAP : v);
     }
 
     public static List<JsonValue> readArray(JsonValue jsonValue, String key) {
@@ -199,4 +199,68 @@ public abstract class JsonValueUtils {
     public static JsonValue instance(Duration d) {
         return new JsonValue(d.toNanos());
     }
+
+    @SuppressWarnings("rawtypes")
+    public static JsonValue instance(Collection list) {
+        JsonValue v = new JsonValue(new ArrayList<>());
+        for (Object o : list) {
+            v.array.add(toJsonValue(o));
+        }
+        return v;
+    }
+
+    @SuppressWarnings("rawtypes")
+    public static JsonValue instance(Map map) {
+        JsonValue v = new JsonValue(new HashMap<>());
+        for (Object key : map.keySet()) {
+            v.map.put(key.toString(), toJsonValue(map.get(key)));
+        }
+        return v;
+    }
+
+    public static JsonValue toJsonValue(Object o) {
+        if (o == null) {
+            return JsonValue.NULL;
+        }
+        if (o instanceof JsonValue) {
+            return (JsonValue)o;
+        }
+        if (o instanceof JsonSerializable) {
+            return JsonParser.parse(((JsonSerializable)o).toJson());
+        }
+        if (o instanceof String) {
+            return new JsonValue((String)o);
+        }
+        if (o instanceof Boolean) {
+            return new JsonValue((Boolean)o);
+        }
+        if (o instanceof Integer) {
+            return new JsonValue((Integer)o);
+        }
+        if (o instanceof Long) {
+            return new JsonValue((Long)o);
+        }
+        if (o instanceof Double) {
+            return new JsonValue((Double)o);
+        }
+        if (o instanceof Float) {
+            return new JsonValue((Float)o);
+        }
+        if (o instanceof BigDecimal) {
+            return new JsonValue((BigDecimal)o);
+        }
+        if (o instanceof BigInteger) {
+            return new JsonValue((BigInteger)o);
+        }
+        if (o instanceof Map) {
+            //noinspection unchecked,rawtypes
+            return new JsonValue((Map)o);
+        }
+        if (o instanceof List) {
+            //noinspection unchecked,rawtypes
+            return new JsonValue((List)o);
+        }
+        return new JsonValue(o.toString());
+    }
+
 }

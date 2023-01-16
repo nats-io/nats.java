@@ -176,7 +176,7 @@ public class StreamInfoTests {
         assertEquals("api18", e.getApi());
         assertEquals("dlvr18", e.getDeliver());
 
-        si = new StreamInfo(JsonValue.EMPTY_OBJECT);
+        si = new StreamInfo(JsonValue.EMPTY_MAP);
         assertNull(si.getCreateTime());
         assertNotNull(si.getStreamState());
         assertNotNull(si.getConfiguration());
@@ -225,7 +225,7 @@ public class StreamInfoTests {
         list = Subject.listOf(JsonValue.NULL);
         assertTrue(list.isEmpty());
 
-        list = Subject.listOf(JsonValue.EMPTY_OBJECT);
+        list = Subject.listOf(JsonValue.EMPTY_MAP);
         assertTrue(list.isEmpty());
 
         list = Subject.listOf(JsonParser.parse("{\"sub0\": 1, \"sub1\": 2,\"x.foo\": 3}"));

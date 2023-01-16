@@ -85,7 +85,7 @@ public class ConsumerInfoTests {
         assertNotNull(reps);
         assertEquals(2, reps.size());
 
-        ci = new ConsumerInfo(JsonValue.EMPTY_OBJECT);
+        ci = new ConsumerInfo(JsonValue.EMPTY_MAP);
         assertNull(ci.getStreamName());
         assertNull(ci.getName());
         assertNull(ci.getCreationTime());
