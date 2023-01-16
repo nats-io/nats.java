@@ -22,7 +22,7 @@ import static io.nats.client.support.JsonUtils.*;
 public class JsonValue implements JsonSerializable {
 
     public enum Type {
-        STRING, BOOL, OBJECT, ARRAY, INTEGER, LONG, DOUBLE, FLOAT, BIG_DECIMAL, BIG_INTEGER, NULL;
+        STRING, BOOL, INTEGER, LONG, DOUBLE, FLOAT, BIG_DECIMAL, BIG_INTEGER, MAP, ARRAY, NULL;
     }
 
     private static final char QUOTE = '"';
@@ -32,75 +32,76 @@ public class JsonValue implements JsonSerializable {
     public static final JsonValue NULL = new JsonValue();
     public static final JsonValue TRUE = new JsonValue(true);
     public static final JsonValue FALSE = new JsonValue(false);
-    public static final JsonValue EMPTY_OBJECT = new JsonValue(Collections.unmodifiableMap(new HashMap<>()));
+    public static final JsonValue EMPTY_MAP = new JsonValue(Collections.unmodifiableMap(new HashMap<>()));
     public static final JsonValue EMPTY_ARRAY = new JsonValue(Collections.unmodifiableList(new ArrayList<>()));
 
-    public final Object object;
-    public final Map<String, JsonValue> map;
-    public final List<JsonValue> array;
     public final String string;
     public final Boolean bool;
-
-    public final Number number;
     public final Integer i;
     public final Long l;
     public final Double d;
     public final Float f;
     public final BigDecimal bd;
     public final BigInteger bi;
-
+    public final Map<String, JsonValue> map;
+    public final List<JsonValue> array;
     public final Type type;
+    public final Object object;
+    public final Number number;
 
     public JsonValue() {
         this(null, null, null, null, null, null, null, null, null, null);
     }
 
     public JsonValue(String string) {
-        this(null, string, null, null, null, null, null, null, null, null);
+        this(string, null, null, null, null, null, null, null, null, null);
+    }
+
+    public JsonValue(char c) {
+        this("" + c, null, null, null, null, null, null, null, null, null);
     }
 
     public JsonValue(Boolean bool) {
-        this(null, null, bool, null, null, null, null, null, null, null);
-    }
-
-    public JsonValue(Map<String, JsonValue> map) {
-        this(map, null, null, null, null, null, null, null, null, null);
+        this(null, bool, null, null, null, null, null, null, null, null);
     }
 
     public JsonValue(int i) {
-        this(null, null, null, i, null, null, null, null, null, null);
+        this(null, null, i, null, null, null, null, null, null, null);
     }
 
     public JsonValue(long l) {
-        this(null, null, null, null, l, null, null, null, null, null);
+        this(null, null, null, l, null, null, null, null, null, null);
     }
 
     public JsonValue(double d) {
-        this(null, null, null, null, null, d, null, null, null, null);
+        this(null, null, null, null, d, null, null, null, null, null);
     }
 
     public JsonValue(float f) {
-        this(null, null, null, null, null, null, f, null, null, null);
+        this(null, null, null, null, null, f, null, null, null, null);
     }
 
     public JsonValue(BigDecimal bd) {
-        this(null, null, null, null, null, null, null, bd, null, null);
+        this(null, null, null, null, null, null, bd, null, null, null);
     }
 
     public JsonValue(BigInteger bi) {
-        this(null, null, null, null, null, null, null, null, bi, null);
+        this(null, null, null, null, null, null, null, bi, null, null);
+    }
+
+    public JsonValue(Map<String, JsonValue> map) {
+        this(null, null, null, null, null, null, null, null, map, null);
     }
 
     public JsonValue(List<JsonValue> list) {
         this(null, null, null, null, null, null, null, null, null, list);
     }
 
-    public JsonValue(JsonValue... values) {
-        this(null, null, null, null, null, null, null, null, null,
-            values == null ? null : Arrays.asList(values));
+    public JsonValue(JsonValue[] values) {
+        this(null, null, null, null, null, null, null, null, null, values == null ? null : Arrays.asList(values));
     }
 
-    private JsonValue(Map<String, JsonValue> map, String string, Boolean bool, Integer i, Long l, Double d, Float f, BigDecimal bd, BigInteger bi, List<JsonValue> array) {
+    private JsonValue(String string, Boolean bool, Integer i, Long l, Double d, Float f, BigDecimal bd, BigInteger bi, Map<String, JsonValue> map, List<JsonValue> array) {
         this.map = map;
         this.array = array;
         this.string = string;
@@ -144,7 +145,7 @@ public class JsonValue implements JsonSerializable {
         else {
             number = null;
             if (map != null) {
-                this.type = Type.OBJECT;
+                this.type = Type.MAP;
                 object = map;
             }
             else if (string != null) {
@@ -171,7 +172,7 @@ public class JsonValue implements JsonSerializable {
     }
 
     public String toString(String key) {
-        return "\"" + key + "\":" + toJson();
+        return QUOTE + key + QUOTE + ":" + toJson();
     }
 
     @Override
@@ -184,7 +185,7 @@ public class JsonValue implements JsonSerializable {
         switch (type) {
             case STRING:      return valueString(string);
             case BOOL:        return valueString(bool);
-            case OBJECT:      return valueString(map);
+            case MAP:      return valueString(map);
             case ARRAY:       return valueString(array);
             case INTEGER:     return i.toString();
             case LONG:        return l.toString();
