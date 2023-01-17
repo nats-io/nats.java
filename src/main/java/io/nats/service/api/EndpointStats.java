@@ -115,6 +115,10 @@ public class EndpointStats implements JsonSerializable {
         return data;
     }
 
+    public ZonedDateTime getStarted() {
+        return started;
+    }
+
     @Override
     public String toString() {
         return toJson();

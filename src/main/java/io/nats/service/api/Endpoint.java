@@ -96,7 +96,6 @@ public class Endpoint implements JsonSerializable {
         return schema;
     }
 
-
     public static Builder builder() {
         return new Builder();
     }
@@ -106,6 +105,21 @@ public class Endpoint implements JsonSerializable {
         private String subject;
         private String schemaRequest;
         private String schemaResponse;
+
+        public Builder endpoint(Endpoint endpoint) {
+            name = endpoint.getName();
+            subject = endpoint.getSubject();
+            Schema s = endpoint.getSchema();
+            if (s == null) {
+                schemaRequest = null;
+                schemaResponse = null;
+            }
+            else {
+                schemaRequest = s.getRequest();
+                schemaResponse = s.getResponse();
+            }
+            return this;
+        }
 
         public Builder name(String name) {
             this.name = name;

@@ -33,20 +33,12 @@ public class ServiceEndpoint {
     protected final Supplier<JsonValue> statsDataSupplier;
     protected final Dispatcher dispatcher;
 
-    private ServiceEndpoint(Builder b) {
+    private ServiceEndpoint(Builder b, Endpoint e) {
         this.group = b.group;
-        this.endpoint = b.endpoint;
+        this.endpoint = e;
         this.handler = b.handler;
         this.statsDataSupplier = b.statsDataSupplier;
         this.dispatcher = b.dispatcher;
-    }
-
-    protected ServiceEndpoint(ServiceEndpoint se) {
-        this.group = se.group;
-        this.endpoint = se.endpoint;
-        this.handler = se.handler;
-        this.statsDataSupplier = se.statsDataSupplier;
-        this.dispatcher = se.dispatcher;
     }
 
     public String getName() {
@@ -86,7 +78,7 @@ public class ServiceEndpoint {
         private MessageHandler handler;
         private Dispatcher dispatcher;
         private Supplier<JsonValue> statsDataSupplier;
-        private Endpoint endpoint;
+        Endpoint.Builder endpointBuilder = Endpoint.builder();
 
         public Builder group(Group group) {
             this.group = group;
@@ -94,7 +86,27 @@ public class ServiceEndpoint {
         }
 
         public Builder endpoint(Endpoint endpoint) {
-            this.endpoint = endpoint;
+            endpointBuilder.endpoint(endpoint);
+            return this;
+        }
+
+        public Builder endpointName(String name) {
+            endpointBuilder.name(name);
+            return this;
+        }
+
+        public Builder endpointSubject(String subject) {
+            endpointBuilder.subject(subject);
+            return this;
+        }
+
+        public Builder endpointSchemaRequest(String schemaRequest) {
+            endpointBuilder.schemaRequest(schemaRequest);
+            return this;
+        }
+
+        public Builder endpointSchemaResponse(String schemaResponse) {
+            endpointBuilder.schemaResponse(schemaResponse);
             return this;
         }
 
@@ -114,9 +126,9 @@ public class ServiceEndpoint {
         }
 
         public ServiceEndpoint build() {
-            Validator.required(endpoint, "Endpoint");
+            Endpoint endpoint = endpointBuilder.build();
             Validator.required(handler, "Message Handler");
-            return new ServiceEndpoint(this);
+            return new ServiceEndpoint(this, endpoint);
         }
     }
 }

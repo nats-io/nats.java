@@ -23,12 +23,6 @@ public interface JsonSerializable {
     }
 
     default JsonValue toJsonValue() {
-        try {
-            return JsonParser.parse(toJson());
-        }
-        catch (JsonParseException e) {
-            // if the implementation of toJson produces bad json...
-            throw new RuntimeException(e);
-        }
+        return JsonParser.parseUnchecked(toJson());
     }
 }

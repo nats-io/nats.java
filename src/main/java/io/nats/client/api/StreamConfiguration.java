@@ -13,7 +13,9 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.*;
+import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -65,17 +67,6 @@ public class StreamConfiguration implements JsonSerializable {
     private final boolean denyDelete;
     private final boolean denyPurge;
     private final boolean discardNewPerSubject;
-
-    // for the response from the server
-    static StreamConfiguration instance(String json) {
-        try {
-            return instance(JsonParser.parse(json));
-        } catch (JsonParseException e) {
-            // this means the json from the server is bad, it's not reliable anyway
-            // but the old regex
-            throw new RuntimeException(e);
-        }
-    }
 
     static StreamConfiguration instance(JsonValue v) {
         Builder builder = new Builder();

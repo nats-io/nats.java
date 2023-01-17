@@ -14,6 +14,7 @@
 package io.nats.examples.service;
 
 import io.nats.client.*;
+import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 import io.nats.service.*;
@@ -50,26 +51,13 @@ public class ServiceExample {
             .build();
 
         try (Connection nc = Nats.connect(options)) {
-            // create the endpoints
+            // endpoints can be created ahead of time
+            // or created directly by the ServiceEndpoint builder.
             Endpoint epEcho = Endpoint.builder()
                 .name(ECHO_ENDPOINT_NAME)
                 .subject(ECHO_ENDPOINT_SUBJECT)
                 .schemaRequest("echo schema request info")   // optional
                 .schemaResponse("echo schema response info") // optional
-                .build();
-
-            Endpoint epSortAscending = Endpoint.builder()
-                .name(SORT_ENDPOINT_ASCENDING_NAME)
-                .subject(SORT_ENDPOINT_ASCENDING_SUBJECT)
-                .schemaRequest("sort ascending schema request info")   // optional
-                .schemaResponse("sort ascending schema response info") // optional
-                .build();
-
-            Endpoint epSortDescending = Endpoint.builder()
-                .name(SORT_ENDPOINT_DESCENDING_NAME)
-                .subject(SORT_ENDPOINT_DESCENDING_SUBJECT)
-                .schemaRequest("sort descending schema request info")   // optional
-                .schemaResponse("sort descending schema response info") // optional
                 .build();
 
             // sort is going to be grouped
@@ -91,13 +79,17 @@ public class ServiceExample {
 
             ServiceEndpoint seSort1A = ServiceEndpoint.builder()
                 .group(sortGroup)
-                .endpoint(epSortAscending)
+                .endpointName(SORT_ENDPOINT_ASCENDING_NAME)
+                .endpointSubject(SORT_ENDPOINT_ASCENDING_SUBJECT)
+                .endpointSchemaRequest("sort ascending schema request info")   // optional
+                .endpointSchemaResponse("sort ascending schema response info") // optional
                 .handler(msg -> handleSortAscending(nc, msg, "S1A"))
                 .build();
 
             ServiceEndpoint seSort1D = ServiceEndpoint.builder()
                 .group(sortGroup)
-                .endpoint(epSortDescending)
+                .endpointName(SORT_ENDPOINT_DESCENDING_NAME)
+                .endpointSubject(SORT_ENDPOINT_DESCENDING_SUBJECT)
                 .handler(msg -> handlerSortDescending(nc, msg, "S1D"))
                 .build();
 
@@ -254,7 +246,7 @@ public class ServiceExample {
         }
     }
 
-    public static class ExampleStatsData {
+    public static class ExampleStatsData implements JsonSerializable {
         public String sData;
         public int iData;
 
@@ -263,6 +255,12 @@ public class ServiceExample {
             this.iData = iData;
         }
 
+        @Override
+        public String toJson() {
+            return toJsonValue().toJson();
+        }
+
+        @Override
         public JsonValue toJsonValue() {
             Map<String, JsonValue> map = new HashMap<>();
             map.put("sdata", new JsonValue(sData));

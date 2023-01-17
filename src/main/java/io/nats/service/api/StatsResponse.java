@@ -14,6 +14,7 @@
 package io.nats.service.api;
 
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -33,13 +34,17 @@ public class StatsResponse extends ServiceResponse {
     private final List<EndpointStats> endpointStats;
 
     public StatsResponse(ServiceResponse template, ZonedDateTime started, List<EndpointStats> endpointStats) {
-        super(TYPE, template.id, template.name, template.version);
+        super(TYPE, template);
         this.started = started;
         this.endpointStats = endpointStats;
     }
 
     public StatsResponse(byte[] jsonBytes) {
-        super(TYPE, jsonBytes);
+        this(parseMessage(jsonBytes));
+    }
+
+    private StatsResponse(JsonValue jv) {
+        super(TYPE, jv);
         endpointStats = EndpointStats.listOf(readValue(jv, ENDPOINTS));
         started = readDate(jv, STARTED);
     }

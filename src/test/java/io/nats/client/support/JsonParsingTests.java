@@ -30,6 +30,7 @@ import java.util.Map;
 import static io.nats.client.support.Encoding.jsonEncode;
 import static io.nats.client.support.JsonParser.Option.KEEP_NULLS;
 import static io.nats.client.support.JsonParser.parse;
+import static io.nats.client.support.JsonParser.parseUnchecked;
 import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.TestBase.*;
@@ -99,7 +100,7 @@ public final class JsonParsingTests {
 
     @SuppressWarnings("UnnecessaryUnicodeEscape")
     @Test
-    public void testJsonValuePrimitives() {
+    public void testJsonValuePrimitives() throws JsonParseException {
         Map<String, JsonValue> oMap = new HashMap<>();
         oMap.put("trueKey1", new JsonValue(true));
         oMap.put("trueKey2", new JsonValue(Boolean.TRUE));
@@ -209,7 +210,7 @@ public final class JsonParsingTests {
     }
 
     @Test
-    public void testArray() {
+    public void testArray() throws JsonParseException {
         List<JsonValue> list = new ArrayList<>();
         list.add(new JsonValue("string"));
         list.add(new JsonValue(true));
@@ -525,74 +526,53 @@ public final class JsonParsingTests {
             .verify();
     }
 
+    private void validateParse(JsonValue expected, String json) throws JsonParseException {
+        char[] ca = json.toCharArray();
+        byte[] ba = json.getBytes();
+
+        assertEquals(expected, parse(json));
+        assertEquals(expected, parse(json, 0));
+        assertEquals(expected, parse(json, KEEP_NULLS));
+        assertEquals(expected, parse(ca));
+        assertEquals(expected, parse(ca, 0));
+        assertEquals(expected, parse(ca, KEEP_NULLS));
+        assertEquals(expected, parse(ba));
+        assertEquals(expected, parse(ba, KEEP_NULLS));
+
+        assertEquals(expected, parseUnchecked(json));
+        assertEquals(expected, parseUnchecked(json, 0));
+        assertEquals(expected, parseUnchecked(json, KEEP_NULLS));
+        assertEquals(expected, parseUnchecked(ca));
+        assertEquals(expected, parseUnchecked(ca, 0));
+        assertEquals(expected, parseUnchecked(ca, KEEP_NULLS));
+        assertEquals(expected, parseUnchecked(ba));
+        assertEquals(expected, parseUnchecked(ba, KEEP_NULLS));
+    }
+
     @Test
-    public void testParsingCoverage() {
-        assertEquals(JsonValue.NULL, parse(""));
-        assertEquals(JsonValue.NULL, parse("", 0));
-        assertEquals(JsonValue.NULL, parse("", KEEP_NULLS));
-        assertEquals(JsonValue.NULL, parse("", 0, KEEP_NULLS));
-        assertEquals(JsonValue.NULL, parse("".getBytes()));
-        assertEquals(JsonValue.NULL, parse("".getBytes(), KEEP_NULLS));
-        assertEquals(JsonValue.EMPTY_MAP, parse("{}"));
-        assertEquals(JsonValue.EMPTY_MAP, parse("{}", 0));
-        assertEquals(JsonValue.EMPTY_MAP, parse("{}", KEEP_NULLS));
-        assertEquals(JsonValue.EMPTY_MAP, parse("{}", 0, KEEP_NULLS));
-        assertEquals(JsonValue.EMPTY_MAP, parse("{}".getBytes()));
-        assertEquals(JsonValue.EMPTY_MAP, parse("{}".getBytes(), KEEP_NULLS));
-        assertEquals(JsonValue.EMPTY_ARRAY, parse("[]"));
-        assertEquals(JsonValue.EMPTY_ARRAY, parse("[]", 0));
-        assertEquals(JsonValue.EMPTY_ARRAY, parse("[]", KEEP_NULLS));
-        assertEquals(JsonValue.EMPTY_ARRAY, parse("[]", 0, KEEP_NULLS));
-        assertEquals(JsonValue.EMPTY_ARRAY, parse("[]".getBytes()));
-        assertEquals(JsonValue.EMPTY_ARRAY, parse("[]".getBytes(), KEEP_NULLS));
+    public void testParsingCoverage() throws JsonParseException {
+        validateParse(JsonValue.NULL, "");
+        validateParse(JsonValue.EMPTY_MAP, "{}");
+        validateParse(JsonValue.EMPTY_ARRAY, "[]");
 
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> parse("{}", -1));
         assertTrue(iae.getMessage().contains("Invalid start index."));
 
-        JsonParseException jpe = assertThrows(JsonParseException.class, () -> parse("{"));
-        assertTrue(jpe.getMessage().contains("Text must end with '}'"));
-
-        jpe = assertThrows(JsonParseException.class, () -> parse("{{"));
-        assertTrue(jpe.getMessage().contains("Cannot directly nest another Object or Array."));
-
-        jpe = assertThrows(JsonParseException.class, () -> parse("{["));
-        assertTrue(jpe.getMessage().contains("Cannot directly nest another Object or Array."));
-
-        jpe = assertThrows(JsonParseException.class, () -> parse("{\"foo\":1 ]"));
-        assertTrue(jpe.getMessage().contains("Expected a ',' or '}'."));
-
-        jpe = assertThrows(JsonParseException.class, () -> parse("{\"foo\" 1"));
-        assertTrue(jpe.getMessage().contains("Expected a ':' after a key."));
-
-        jpe = assertThrows(JsonParseException.class, () -> parse("[\"bad\",")); // missing close
-        assertTrue(jpe.getMessage().contains("Unexpected end of data."));
-
-        jpe = assertThrows(JsonParseException.class, () -> parse("[1Z]")); // bad value
-        assertTrue(jpe.getMessage().contains("Invalid value."));
-
-        jpe = assertThrows(JsonParseException.class, () -> parse("t")); // bad value
-        assertTrue(jpe.getMessage().contains("Invalid value."));
-
-        jpe = assertThrows(JsonParseException.class, () -> parse("f")); // bad value
-        assertTrue(jpe.getMessage().contains("Invalid value."));
-
-        jpe = assertThrows(JsonParseException.class, () -> parse("\"u")); // bad value
-        assertTrue(jpe.getMessage().contains("Unterminated string."));
-
-        jpe = assertThrows(JsonParseException.class, () -> parse("\"u\r")); // bad value
-        assertTrue(jpe.getMessage().contains("Unterminated string."));
-
-        jpe = assertThrows(JsonParseException.class, () -> parse("\"u\n")); // bad value
-        assertTrue(jpe.getMessage().contains("Unterminated string."));
-
-        jpe = assertThrows(JsonParseException.class, () -> parse("\"\\x\"")); // bad value
-        assertTrue(jpe.getMessage().contains("Illegal escape."));
-
-        jpe = assertThrows(JsonParseException.class, () -> parse("\"\\u000")); // bad value
-        assertTrue(jpe.getMessage().contains("Illegal escape."));
-
-        jpe = assertThrows(JsonParseException.class, () -> parse("\"\\uzzzz")); // bad value
-        assertTrue(jpe.getMessage().contains("Illegal escape."));
+        validateThrows("{", "Text must end with '}'");
+        validateThrows("{{", "Cannot directly nest another Object or Array.");
+        validateThrows("{[", "Cannot directly nest another Object or Array.");
+        validateThrows("{\"foo\":1 ]", "Expected a ',' or '}'.");
+        validateThrows("{\"foo\" 1", "Expected a ':' after a key.");
+        validateThrows("[\"bad\",", "Unexpected end of data."); // missing close
+        validateThrows("[1Z]", "Invalid value.");
+        validateThrows("t", "Invalid value.");
+        validateThrows("f", "Invalid value.");
+        validateThrows("\"u", "Unterminated string.");
+        validateThrows("\"u\r", "Unterminated string.");
+        validateThrows("\"u\n", "Unterminated string.");
+        validateThrows("\"\\x\"", "Illegal escape.");
+        validateThrows("\"\\u000", "Illegal escape.");
+        validateThrows("\"\\uzzzz", "Illegal escape.");
 
         JsonValue v = parse("{\"foo\":1,}");
         assertEquals(1, v.map.size());
@@ -615,8 +595,15 @@ public final class JsonParsingTests {
         assertEquals(s, v.string);
     }
 
+    private void validateThrows(String json, String errorText) {
+        JsonParseException jpe = assertThrows(JsonParseException.class, () -> parse(json));
+        assertTrue(jpe.getMessage().contains(errorText));
+        RuntimeException re = assertThrows(RuntimeException.class, () -> parseUnchecked(json));
+        assertTrue(re.getMessage().contains(errorText));
+    }
+
     @Test
-    public void testNumberParsing() {
+    public void testNumberParsing() throws JsonParseException {
         assertEquals(JsonValue.Type.INTEGER, parse("1").type);
         assertEquals(JsonValue.Type.INTEGER, parse(Integer.toString(Integer.MAX_VALUE)).type);
         assertEquals(JsonValue.Type.INTEGER, parse(Integer.toString(Integer.MIN_VALUE)).type);
@@ -642,8 +629,8 @@ public final class JsonParsingTests {
         String str = new BigInteger( Long.toString(Long.MAX_VALUE) ).add( BigInteger.ONE ).toString();
         assertEquals(JsonValue.Type.BIG_INTEGER, parse(str).type);
 
-        JsonParseException e = assertThrows(JsonParseException.class, () -> parse("-0x123"));
-        assertTrue(e.getMessage().contains("Invalid value."));
+        validateThrows("-0x123", "Invalid value.");
+        JsonParseException e;
 
         e = assertThrows(JsonParseException.class, () -> parse("-"));
         assertTrue(e.getMessage().contains("Invalid value."));

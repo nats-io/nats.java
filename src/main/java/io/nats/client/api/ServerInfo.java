@@ -13,12 +13,15 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonParseException;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
 
 import java.util.Arrays;
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonValueUtils.*;
 
 public class ServerInfo {
 
@@ -47,8 +50,13 @@ public class ServerInfo {
             throw new IllegalArgumentException("Invalid Server Info");
         }
 
-        int startIndex = json.indexOf("{");
-        JsonValue jv = JsonParser.parse(json, startIndex);
+        JsonValue jv;
+        try {
+            jv = JsonParser.parse(json, json.indexOf("{"));
+        }
+        catch (JsonParseException e) {
+            throw new IllegalArgumentException("Invalid Server Info Json");
+        }
 
         serverId = readString(jv, SERVER_ID);
         serverName = readString(jv, SERVER_NAME);

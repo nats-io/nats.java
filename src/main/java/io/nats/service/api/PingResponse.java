@@ -24,7 +24,7 @@ public class PingResponse extends ServiceResponse {
     }
 
     public PingResponse(byte[] jsonBytes) {
-        super(TYPE, jsonBytes);
+        super(TYPE, parseMessage(jsonBytes));
     }
 
     @Override

@@ -128,7 +128,7 @@ public final class JsonUtilsTests {
         assertEquals("{", sb.toString());
 
         sb = beginJsonPrefixed("pre");
-        assertEquals("pre {", sb.toString());
+        assertEquals("pre{", sb.toString());
     }
 
     @Test
@@ -398,7 +398,7 @@ public final class JsonUtilsTests {
         assertEquals(0, getMapOfLists("\"bad\": ").size());
         assertEquals("\"field\": ", removeObject("\"field\": ", "notfound"));
 
-        printFormatted(JsonParser.parse(dataAsString("StreamInfo.json")));
+        printFormatted(JsonParser.parseUnchecked(dataAsString("StreamInfo.json")));
     }
 
     @Test

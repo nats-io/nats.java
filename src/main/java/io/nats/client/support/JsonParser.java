@@ -67,6 +67,56 @@ public class JsonParser {
         return new JsonParser(new String(json, StandardCharsets.UTF_8).toCharArray(), 0, options).parse();
     }
 
+    public static JsonValue parseUnchecked(char[] json) {
+        try { return parse(json); }
+        catch (JsonParseException j) { throw new RuntimeException(j); }
+    }
+
+    public static JsonValue parseUnchecked(char[] json, int startIndex) {
+        try { return parse(json, startIndex); }
+        catch (JsonParseException j) { throw new RuntimeException(j); }
+    }
+
+    public static JsonValue parseUnchecked(char[] json, Option... options) {
+        try { return parse(json, options); }
+        catch (JsonParseException j) { throw new RuntimeException(j); }
+    }
+
+    public static JsonValue parseUnchecked(char[] json, int startIndex, Option... options) {
+        try { return parse(json, startIndex, options); }
+        catch (JsonParseException j) { throw new RuntimeException(j); }
+    }
+
+    public static JsonValue parseUnchecked(String json) {
+        try { return parse(json); }
+        catch (JsonParseException j) { throw new RuntimeException(j); }
+    }
+
+    public static JsonValue parseUnchecked(String json, int startIndex) {
+        try { return parse(json, startIndex); }
+        catch (JsonParseException j) { throw new RuntimeException(j); }
+    }
+
+    public static JsonValue parseUnchecked(String json, Option... options) {
+        try { return parse(json, options); }
+        catch (JsonParseException j) { throw new RuntimeException(j); }
+    }
+
+    public static JsonValue parseUnchecked(String json, int startIndex, Option... options) {
+        try { return parse(json, startIndex, options); }
+        catch (JsonParseException j) { throw new RuntimeException(j); }
+    }
+
+    public static JsonValue parseUnchecked(byte[] json) {
+        try { return parse(json); }
+        catch (JsonParseException j) { throw new RuntimeException(j); }
+    }
+
+    public static JsonValue parseUnchecked(byte[] json, Option... options) {
+        try { return parse(json, options); }
+        catch (JsonParseException j) { throw new RuntimeException(j); }
+    }
+
     private final char[] json;
     private final boolean keepNulls;
     private final int len;

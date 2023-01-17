@@ -15,12 +15,8 @@ package io.nats.client.api;
 
 import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
-import io.nats.client.support.JsonParseException;
-import io.nats.client.support.JsonParser;
-import io.nats.client.support.JsonValue;
-import io.nats.client.support.JsonValueUtils;
+import io.nats.client.support.*;
 
-import static io.nats.client.api.Error.NOT_SET;
 import static io.nats.client.support.ApiConstants.ERROR;
 import static io.nats.client.support.ApiConstants.TYPE;
 import static io.nats.client.support.JsonValueUtils.readString;
@@ -40,7 +36,7 @@ public abstract class ApiResponse<T> {
         this(parseMessage(msg));
     }
 
-    private static JsonValue parseMessage(Message msg) {
+    protected static JsonValue parseMessage(Message msg) {
         if (msg == null) {
             return null;
         }
@@ -49,19 +45,12 @@ public abstract class ApiResponse<T> {
         }
         catch (JsonParseException e) {
             return JsonValueUtils.mapBuilder()
-                .put(ERROR, new Error(500, 500, e.getMessage()))
+                .put(ERROR, new Error(500, "Error parsing: " + e.getMessage()))
                 .put(TYPE, PARSE_ERROR_TYPE)
                 .getJsonValue();
         }
     }
 
-    public static void main(String[] args) {
-        JsonValue jv = JsonValueUtils.mapBuilder()
-            .put(ERROR, new Error(500, 500, "ex ex ex"))
-            .put(TYPE, PARSE_ERROR_TYPE)
-            .getJsonValue();
-        int x = 0;
-    }
     public ApiResponse(JsonValue jsonValue) {
         jv = jsonValue;
         if (jv == null) {
@@ -108,11 +97,11 @@ public abstract class ApiResponse<T> {
     }
 
     public int getErrorCode() {
-        return error == null ? NOT_SET : error.getCode();
+        return error == null ? Error.NOT_SET : error.getCode();
     }
 
     public int getApiErrorCode() {
-        return error == null ? NOT_SET : error.getApiErrorCode();
+        return error == null ? Error.NOT_SET : error.getApiErrorCode();
     }
 
     public String getDescription() {
@@ -130,7 +119,7 @@ public abstract class ApiResponse<T> {
     @Override
     public String toString() {
         return jv == null
-            ? "\"" + getClass().getSimpleName() + "\":null"
+            ? JsonUtils.toKey(getClass()) + "\":null"
             : jv.toString(getClass());
     }
 }

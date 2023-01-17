@@ -14,6 +14,7 @@
 package io.nats.service.api;
 
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.util.List;
 
@@ -38,7 +39,11 @@ public class SchemaResponse extends ServiceResponse {
     }
 
     public SchemaResponse(byte[] jsonBytes) {
-        super(TYPE, jsonBytes);
+        this(parseMessage(jsonBytes));
+    }
+
+    private SchemaResponse(JsonValue jv) {
+        super(TYPE, jv);
         apiUrl = readString(jv, API_URL);
         endpoints = Endpoint.listOf(readValue(jv, ENDPOINTS));
     }

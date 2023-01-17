@@ -15,6 +15,8 @@ package io.nats.service.api;
 
 import io.nats.client.support.*;
 
+import java.util.Objects;
+
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonUtils.toKey;
@@ -28,26 +30,22 @@ public abstract class ServiceResponse implements JsonSerializable {
     protected final String name;
     protected final String id;
     protected final String version;
-    protected final JsonValue jv;
 
-    public ServiceResponse(String type, String id, String name, String version) {
+    protected ServiceResponse(String type, String id, String name, String version) {
         this.type = type;
         this.id = id;
         this.name = name;
         this.version = version;
-        jv = null;
     }
 
-    public ServiceResponse(String type, ServiceResponse template) {
+    protected ServiceResponse(String type, ServiceResponse template) {
         this.type = type;
         this.id = template.id;
         this.name = template.name;
         this.version = template.version;
-        jv = null;
     }
 
-    public ServiceResponse(String type, byte[] jsonBytes) {
-        jv = JsonParser.parse(jsonBytes);
+    protected ServiceResponse(String type, JsonValue jv) {
         this.type = type;
         String jvType = readString(jv, TYPE);
         if (!type.equals(jvType)) {
@@ -56,6 +54,15 @@ public abstract class ServiceResponse implements JsonSerializable {
         name = readString(jv, NAME);
         id = readString(jv, ID);
         version = readString(jv, VERSION);
+    }
+
+    protected static JsonValue parseMessage(byte[] bytes) {
+        try {
+            return JsonParser.parse(bytes);
+        }
+        catch (JsonParseException e) {
+            return JsonValue.EMPTY_MAP;
+        }
     }
 
     /**
@@ -116,5 +123,27 @@ public abstract class ServiceResponse implements JsonSerializable {
     @Override
     public String toString() {
         return _toJson(true);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        ServiceResponse that = (ServiceResponse) o;
+
+        if (!Objects.equals(type, that.type)) return false;
+        if (!Objects.equals(name, that.name)) return false;
+        if (!Objects.equals(id, that.id)) return false;
+        return Objects.equals(version, that.version);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = type != null ? type.hashCode() : 0;
+        result = 31 * result + (name != null ? name.hashCode() : 0);
+        result = 31 * result + (id != null ? id.hashCode() : 0);
+        result = 31 * result + (version != null ? version.hashCode() : 0);
+        return result;
     }
 }

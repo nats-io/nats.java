@@ -14,7 +14,6 @@
 package io.nats.client.api;
 
 import io.nats.client.Message;
-import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
 
 import java.time.ZonedDateTime;
@@ -41,7 +40,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
     private final boolean pushBound;
 
     public ConsumerInfo(Message msg) {
-        this(JsonParser.parse(msg.getData()));
+        this(parseMessage(msg));
     }
 
     public ConsumerInfo(JsonValue vConsumerInfo) {

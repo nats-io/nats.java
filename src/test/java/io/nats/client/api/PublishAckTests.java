@@ -14,7 +14,6 @@
 package io.nats.client.api;
 
 import io.nats.client.JetStreamApiException;
-import io.nats.client.support.JsonParseException;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -41,7 +40,7 @@ public class PublishAckTests {
 
     @Test
     public void testThrowsOnGarbage() {
-        assertThrows(JsonParseException.class, () -> {
+        assertThrows(JetStreamApiException.class, () -> {
             new PublishAck(getDataMessage("notjson"));
        });
     }

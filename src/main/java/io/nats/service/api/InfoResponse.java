@@ -13,7 +13,6 @@
 
 package io.nats.service.api;
 
-import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 
@@ -40,8 +39,11 @@ public class InfoResponse extends ServiceResponse {
     }
 
     public InfoResponse(byte[] jsonBytes) {
-        super(TYPE, jsonBytes);
-        JsonValue jv = JsonParser.parse(jsonBytes);
+        this(parseMessage(jsonBytes));
+    }
+
+    private InfoResponse(JsonValue jv) {
+        super(TYPE, jv);
         description = readString(jv, DESCRIPTION);
         subjects = readStringList(jv, SUBJECTS);
     }

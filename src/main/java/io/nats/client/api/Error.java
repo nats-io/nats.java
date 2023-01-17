@@ -37,6 +37,10 @@ public class Error implements JsonSerializable {
         this.jv = jv;
     }
 
+    Error(int code, String desc) {
+        this(code, NOT_SET, desc);
+    }
+
     Error(int code, int apiErrorCode, String desc) {
         jv = JsonValueUtils.mapBuilder()
             .put(CODE, code)
