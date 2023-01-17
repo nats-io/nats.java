@@ -31,6 +31,8 @@ import java.util.function.Supplier;
 
 import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readString;
+import static io.nats.client.support.NatsConstants.DOT;
+import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.service.ServiceUtil.PING;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -358,37 +360,96 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testServiceCreatorValidation() throws Exception {
-//        runInServer(nc -> {
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(null, m -> {}).build());
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, null).version("").build());
-//
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).version(null).build());
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).version(EMPTY).build());
-//
-//            echoServiceCreator(nc, m -> {}).name(PLAIN);
-//            echoServiceCreator(nc, m -> {}).name(HAS_DASH);
-//            echoServiceCreator(nc, m -> {}).name(HAS_UNDER);
-//
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(null).build());
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(EMPTY).build());
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_SPACE).build());
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_PRINTABLE).build());
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_DOT).build());
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_STAR).build());
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_GT).build());
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_DOLLAR).build());
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_LOW).build());
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_127).build());
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_FWD_SLASH).build());
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_BACK_SLASH).build());
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_EQUALS).build());
-//            assertThrows(IllegalArgumentException.class, () -> echoServiceCreator(nc, m -> {}).name(HAS_TIC).build());
-//        });
+    public void testEndpointObjectValidation() {
+        Endpoint e = new Endpoint(PLAIN);
+        assertEquals(PLAIN, e.getName());
+        assertEquals(PLAIN, e.getSubject());
+        assertNull(e.getSchema());
+
+        e = new Endpoint(PLAIN, SUBJECT);
+        assertEquals(PLAIN, e.getName());
+        assertEquals(SUBJECT, e.getSubject());
+        assertNull(e.getSchema());
+
+        e = new Endpoint(PLAIN, SUBJECT, "schema-request", null);
+        assertEquals(PLAIN, e.getName());
+        assertEquals(SUBJECT, e.getSubject());
+        assertEquals("schema-request", e.getSchema().getRequest());
+        assertNull(e.getSchema().getResponse());
+
+        e = new Endpoint(PLAIN, SUBJECT, null, "schema-response");
+        assertEquals(PLAIN, e.getName());
+        assertEquals(SUBJECT, e.getSubject());
+        assertNull(e.getSchema().getRequest());
+        assertEquals("schema-response", e.getSchema().getResponse());
+
+        e = Endpoint.builder()
+            .name(PLAIN).subject(SUBJECT)
+            .schemaRequest("schema-request").schemaResponse("schema-response")
+            .build();
+
+        assertEquals(PLAIN, e.getName());
+        assertEquals(SUBJECT, e.getSubject());
+        assertEquals("schema-request", e.getSchema().getRequest());
+        assertEquals("schema-response", e.getSchema().getResponse());
+
+        // some subject testing
+        e = new Endpoint(PLAIN, "foo.>");
+        assertEquals("foo.>", e.getSubject());
+        e = new Endpoint(PLAIN, "foo.*");
+        assertEquals("foo.*", e.getSubject());
+
+        // many names are bad
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(null));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_PRINTABLE));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_DOT));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_STAR)); // invalid in the middle
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_GT)); // invalid in the middle
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_FWD_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_BACK_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_EQUALS));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_TIC));
+
+        // fewer subjects are bad
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(PLAIN, HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(PLAIN, HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(PLAIN, HAS_127));
+
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(PLAIN, "foo.>.bar")); // gt is not last segment
     }
 
     @Test
-    public void testToDiscoverySubject() {
+    public void testGroup() {
+        Group g1 = new Group(subject(1));
+        Group g2 = new Group(subject(2));
+        assertEquals(subject(1), g1.getName());
+        assertEquals(subject(1), g1.getSubject());
+        assertEquals(subject(2), g2.getName());
+        assertEquals(subject(2), g2.getSubject());
+        g1.appendGroup(g2);
+        assertEquals(subject(1), g1.getName());
+        assertEquals(subject(1) + DOT + subject(2), g1.getSubject());
+        assertEquals(subject(2), g2.getName());
+        assertEquals(subject(2), g2.getSubject());
+
+        g1 = new Group("foo.*");
+        assertEquals("foo.*", g1.getName());
+
+        assertThrows(IllegalArgumentException.class, () -> new Group(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> new Group(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> new Group(HAS_GT)); // invalid in the middle
+        assertThrows(IllegalArgumentException.class, () -> new Group(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> new Group("foo.>")); // gt is last segment
+        assertThrows(IllegalArgumentException.class, () -> new Group("foo.>.bar")); // gt is not last segment
+    }
+
+    @Test
+    public void testUtilToDiscoverySubject() {
         assertEquals("$SRV.PING", ServiceUtil.toDiscoverySubject(PING, null, null));
         assertEquals("$SRV.PING.myservice", ServiceUtil.toDiscoverySubject(PING, "myservice", null));
         assertEquals("$SRV.PING.myservice.123", ServiceUtil.toDiscoverySubject(PING, "myservice", "123"));
@@ -407,21 +468,21 @@ public class ServiceTests extends JetStreamTestBase {
     public void testApiJsonInOut() {
         PingResponse pr1 = new PingResponse("id", "name", "0.0.0");
         PingResponse pr2 = new PingResponse(pr1.toJson().getBytes());
-        validateServiceResponse(pr1);
-        validateServiceResponse(pr2);
+        validateApiInOutServiceResponse(pr1);
+        validateApiInOutServiceResponse(pr2);
 
         InfoResponse ir1 = new InfoResponse("id", "name", "0.0.0", "desc", Arrays.asList("subject1", "subject2"));
         InfoResponse ir2 = new InfoResponse(ir1.toJson().getBytes());
-        validateInfoResponse(ir1);
-        validateInfoResponse(ir2);
+        validateApiInOutInfoResponse(ir1);
+        validateApiInOutInfoResponse(ir2);
 
         List<Endpoint> endpoints = new ArrayList<>();
         endpoints.add(new Endpoint("endName0", "endSubject0", "endSchemaRequest0",  "endSchemaResponse0"));
         endpoints.add(new Endpoint("endName1", "endSubject1", "endSchemaRequest1",  "endSchemaResponse1"));
         SchemaResponse sch1 = new SchemaResponse("id", "name", "0.0.0", "apiUrl", endpoints);
         SchemaResponse sch2 = new SchemaResponse(sch1.toJson().getBytes());
-        validateSchemaResponse(sch1);
-        validateSchemaResponse(sch2);
+        validateApiInOutSchemaResponse(sch1);
+        validateApiInOutSchemaResponse(sch2);
 
         ZonedDateTime serviceStarted = DateTimeUtils.gmtNow();
         ZonedDateTime[] endStarteds = new ZonedDateTime[2];
@@ -436,12 +497,12 @@ public class ServiceTests extends JetStreamTestBase {
 
         StatsResponse stat1 = new StatsResponse(pr1, serviceStarted, statsList);
         StatsResponse stat2 = new StatsResponse(stat1.toJson().getBytes());
-        validateStatsResponse(stat1, serviceStarted, endStarteds, data);
-        validateStatsResponse(stat2, serviceStarted, endStarteds, data);
+        validateApiInOutStatsResponse(stat1, serviceStarted, endStarteds, data);
+        validateApiInOutStatsResponse(stat2, serviceStarted, endStarteds, data);
     }
 
-    private static void validateStatsResponse(StatsResponse stat, ZonedDateTime serviceStarted, ZonedDateTime[] endStarteds, JsonValue[] data) {
-        validateServiceResponse(stat);
+    private static void validateApiInOutStatsResponse(StatsResponse stat, ZonedDateTime serviceStarted, ZonedDateTime[] endStarteds, JsonValue[] data) {
+        validateApiInOutServiceResponse(stat);
         assertEquals(serviceStarted, stat.getStarted());
         assertEquals(2, stat.getEndpointStats().size());
         for (int x = 0; x < 2; x++) {
@@ -458,8 +519,8 @@ public class ServiceTests extends JetStreamTestBase {
         }
     }
 
-    private static void validateSchemaResponse(SchemaResponse r) {
-        validateServiceResponse(r);
+    private static void validateApiInOutSchemaResponse(SchemaResponse r) {
+        validateApiInOutServiceResponse(r);
         assertEquals("apiUrl", r.getApiUrl());
         assertEquals(2, r.getEndpoints().size());
         for (int x = 0; x < 2; x++) {
@@ -471,14 +532,14 @@ public class ServiceTests extends JetStreamTestBase {
         }
     }
 
-    private static void validateInfoResponse(InfoResponse r) {
-        validateServiceResponse(r);
+    private static void validateApiInOutInfoResponse(InfoResponse r) {
+        validateApiInOutServiceResponse(r);
         assertEquals(2, r.getSubjects().size());
         assertTrue(r.getSubjects().contains("subject1"));
         assertTrue(r.getSubjects().contains("subject2"));
     }
 
-    private static void validateServiceResponse(ServiceResponse r) {
+    private static void validateApiInOutServiceResponse(ServiceResponse r) {
         assertEquals("id", r.getId());
         assertEquals("name", r.getName());
         assertEquals("0.0.0", r.getVersion());

@@ -20,8 +20,8 @@ import static io.nats.service.ServiceUtil.validateGroupName;
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class Group {
-    protected final String name;
-    protected Group next;
+    private final String name;
+    private Group next;
 
     public Group(String name) {
         this.name = validateGroupName(name);

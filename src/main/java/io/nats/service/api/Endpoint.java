@@ -13,7 +13,10 @@
 
 package io.nats.service.api;
 
-import io.nats.client.support.*;
+import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 
 import java.util.List;
 
@@ -36,25 +39,10 @@ public class Endpoint implements JsonSerializable {
         return JsonValueUtils.listOf(vEndpoints, Endpoint::new);
     }
 
-    private Endpoint(Builder b) {
-        this(b.name, b.subject,
-            Schema.optionalInstance(b.schemaRequest, b.schemaResponse));
-    }
-
-    protected Endpoint(JsonValue vEndpoint) {
-        name = readString(vEndpoint, NAME);
-        subject = readString(vEndpoint, SUBJECT);
-        schema = Schema.optionalInstance(readValue(vEndpoint, SCHEMA));
-    }
 
     public Endpoint(String name, String subject, Schema schema) {
         this.name = validateEndpointName(name);
-        if (Validator.emptyAsNull(subject) == null) {
-            this.subject = name;
-        }
-        else {
-            this.subject = validateEndpointSubject(subject);
-        }
+        this.subject = validateEndpointSubject(subject, this.name);
         this.schema = schema;
     }
 
@@ -68,6 +56,16 @@ public class Endpoint implements JsonSerializable {
 
     public Endpoint(String name, String subject, String schemaRequest, String schemaResponse) {
         this(name, subject, Schema.optionalInstance(schemaRequest, schemaResponse));
+    }
+
+    protected Endpoint(JsonValue vEndpoint) {
+        name = readString(vEndpoint, NAME);
+        subject = readString(vEndpoint, SUBJECT);
+        schema = Schema.optionalInstance(readValue(vEndpoint, SCHEMA));
+    }
+
+    private Endpoint(Builder b) {
+        this(b.name, b.subject, Schema.optionalInstance(b.schemaRequest, b.schemaResponse));
     }
 
     @Override

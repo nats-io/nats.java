@@ -27,7 +27,29 @@ public abstract class Validator {
     } /* ensures cannot be constructed */
 
     public static String validateSubject(String s, boolean required) {
-        return validatePrintable(s, "Subject", required);
+        return validateSubject(s, "Subject", required, false);
+    }
+
+    public static String validateSubject(String subject, String label, boolean required, boolean cantEndWithGt) {
+        if (emptyAsNull(subject) == null) {
+            if (required) {
+                throw new IllegalArgumentException(label + " cannot be null or empty.");
+            }
+            return null;
+        }
+        String[] segments = subject.split("\\.");
+        for (int x = 0; x < segments.length; x++) {
+            String segment = segments[x];
+            if (segment.equals(">")) {
+                if (cantEndWithGt || x != segments.length - 1) { // if it can end with gt, gt must be last segment
+                    throw new IllegalArgumentException(label + " cannot contain '>'");
+                }
+            }
+            else if (!segment.equals("*") && notPrintable(segment)) {
+                    throw new IllegalArgumentException(label + " must be printable characters only.");
+            }
+        }
+        return subject;
     }
 
     public static String validateReplyTo(String s, boolean required) {

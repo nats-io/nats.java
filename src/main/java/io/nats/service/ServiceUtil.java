@@ -5,6 +5,7 @@ import io.nats.client.support.Validator;
 import java.time.Duration;
 
 import static io.nats.client.support.Validator.nullOrEmpty;
+import static io.nats.client.support.Validator.validateSubject;
 
 public class ServiceUtil {
 
@@ -30,23 +31,15 @@ public class ServiceUtil {
     }
 
     public static String validateEndpointName(String name) {
-        return _validateEndpointSubject(name, "Endpoint Name");
+        return Validator.validateIsRestrictedTerm(name, "Endpoint Name", true);
     }
 
-    public static String validateEndpointSubject(String name) {
-        return _validateEndpointSubject(name, "Endpoint Subject");
-    }
-
-    public static String _validateEndpointSubject(String name, String label) {
-        Validator.required(name, label);
-        if (name != null) {
-            // TODO ACTUAL VALIDATION
-        }
-        return name;
+    public static String validateEndpointSubject(String subject, String dflt) {
+        String valid = validateSubject(subject, "Endpoint Subject", false, false);
+        return valid == null ? dflt : valid;
     }
 
     public static String validateGroupName(String name) {
-        // TODO ACTUAL VALIDATION
-        return name;
+        return validateSubject(name, "Group Name", true, true);
     }
 }
