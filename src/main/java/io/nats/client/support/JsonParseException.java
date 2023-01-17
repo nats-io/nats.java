@@ -1,6 +1,6 @@
 package io.nats.client.support;
 
-public class JsonParseException extends Exception {
+public class JsonParseException extends IOException {
     public JsonParseException(String message) {
         super(message);
     }
