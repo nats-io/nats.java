@@ -39,7 +39,8 @@
     "subjects": {
       "sub0": 1,
       "sub1": 2,
-      "x.foo": 3
+      "x.foo": 3,
+      "hmmm": null
     },
     "deleted": [91, 92, 93, 94, 95, 96],
     "lost": {
@@ -70,20 +71,32 @@
     ]
   },
   "mirror": {
-      "name": "mname",
-      "lag": 16,
-      "active": 160000000000
+    "name": "mname",
+    "lag": 16,
+    "active": 160000000000,
+    "external": {
+      "api": "api16",
+      "deliver": "dlvr16"
+    }
   },
   "sources": [
     {
       "name": "sname17",
       "lag": 17,
-      "active": 170000000000
+      "active": 170000000000,
+      "external": {
+        "api": "api17",
+        "deliver": "dlvr17"
+      }
     },
     {
       "name": "sname18",
       "lag": 18,
-      "active": 180000000000
+      "active": 180000000000,
+      "external": {
+        "api": "api18",
+        "deliver": "dlvr18"
+      }
     }
   ]
 }

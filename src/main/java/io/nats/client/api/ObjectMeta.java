@@ -15,10 +15,13 @@ package io.nats.client.api;
 import io.nats.client.impl.Headers;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 import io.nats.client.support.Validator;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonValueUtils.*;
 
 /**
  * The ObjectMeta is Object Meta is high level information about an object
@@ -38,15 +41,16 @@ public class ObjectMeta implements JsonSerializable {
         objectMetaOptions = b.metaOptionsBuilder.build();
     }
 
-    ObjectMeta(String json) {
-        objectName = JsonUtils.readString(json, NAME_RE);
-        description = JsonUtils.readString(json, DESCRIPTION_RE);
-        String headersJson = JsonUtils.getJsonObject(HEADERS, json);
+    ObjectMeta(JsonValue vObjectMeta) {
+        objectName = readString(vObjectMeta, NAME);
+        description = readString(vObjectMeta, DESCRIPTION);
         headers = new Headers();
-        if (!headersJson.equals(EMPTY_JSON)) {
-            headers.put(JsonUtils.getMapOfLists(headersJson));
+        JsonValue hJv = readObject(vObjectMeta, HEADERS);
+        for (String key : hJv.map.keySet()) {
+            headers.put(key, readStringList(hJv, key));
         }
-        objectMetaOptions = new ObjectMetaOptions(json);
+
+        objectMetaOptions = new ObjectMetaOptions(readObject(vObjectMeta, OPTIONS));
     }
 
     @Override

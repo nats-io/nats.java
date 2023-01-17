@@ -14,15 +14,13 @@ package io.nats.client.api;
 
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
-import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
-import io.nats.client.support.Validator;
+import io.nats.client.support.*;
 
 import java.time.ZonedDateTime;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
 
 /**
  * The ObjectInfo is Object Meta Information plus instance information
@@ -51,29 +49,23 @@ public class ObjectInfo implements JsonSerializable {
     }
 
     public ObjectInfo(MessageInfo mi) {
-        this(new String(mi.getData()), mi.getTime());
+        this(mi.getData(), mi.getTime());
     }
 
     public ObjectInfo(Message m) {
-        this(new String(m.getData()), m.metaData().timestamp());
+        this(m.getData(), m.metaData().timestamp());
     }
 
-    ObjectInfo(String json, ZonedDateTime messageTime) {
-        objectMeta = new ObjectMeta(json);
-
-        // options has already been read by ObjectMeta
-        // We do this (remove the options field) b/c
-        // options has a field called link, link has a field called bucket,
-        // and it will mess up the regex reading of the Object info's bucket field
-        json = removeObject(json, OPTIONS);
-
-        bucket = JsonUtils.readString(json, BUCKET_RE);
-        nuid = JsonUtils.readString(json, NUID_RE);
-        size = JsonUtils.readLong(json, SIZE_RE, 0);
+    ObjectInfo(byte[] jsonBytes, ZonedDateTime messageTime) {
+        JsonValue jv = JsonParser.parse(jsonBytes);
+        objectMeta = new ObjectMeta(jv);
+        bucket = JsonValueUtils.readString(jv, BUCKET);
+        nuid = JsonValueUtils.readString(jv, NUID);
+        size = JsonValueUtils.readLong(jv, SIZE, 0);
         modified = DateTimeUtils.toGmt(messageTime);
-        chunks = JsonUtils.readLong(json, CHUNKS_RE, 0);
-        digest = JsonUtils.readString(json, DIGEST_RE);
-        deleted = JsonUtils.readBoolean(json, DELETED_RE);
+        chunks = JsonValueUtils.readLong(jv, CHUNKS, 0);
+        digest = JsonValueUtils.readString(jv, DIGEST);
+        deleted = JsonValueUtils.readBoolean(jv, DELETED);
     }
 
     @Override

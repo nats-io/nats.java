@@ -61,8 +61,8 @@ public class Discovery {
     }
 
     public PingResponse ping(String serviceName, String serviceId) {
-        String json = discoverOne(PING, serviceName, serviceId);
-        return json == null ? null : new PingResponse(json);
+        byte[] jsonBytes = discoverOne(PING, serviceName, serviceId);
+        return jsonBytes == null ? null : new PingResponse(jsonBytes);
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -74,15 +74,15 @@ public class Discovery {
 
     public List<InfoResponse> info(String serviceName) {
         List<InfoResponse> list = new ArrayList<>();
-        discoverMany(INFO, serviceName, json -> {
-            list.add(new InfoResponse(json));
+        discoverMany(INFO, serviceName, jsonBytes -> {
+            list.add(new InfoResponse(jsonBytes));
         });
         return list;
     }
 
     public InfoResponse info(String serviceName, String serviceId) {
-        String json = discoverOne(INFO, serviceName, serviceId);
-        return json == null ? null : new InfoResponse(json);
+        byte[] jsonBytes = discoverOne(INFO, serviceName, serviceId);
+        return jsonBytes == null ? null : new InfoResponse(jsonBytes);
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -94,15 +94,15 @@ public class Discovery {
 
     public List<SchemaResponse> schema(String serviceName) {
         List<SchemaResponse> list = new ArrayList<>();
-        discoverMany(SCHEMA, serviceName, json -> {
-            list.add(new SchemaResponse(json));
+        discoverMany(SCHEMA, serviceName, jsonBytes -> {
+            list.add(new SchemaResponse(jsonBytes));
         });
         return list;
     }
 
     public SchemaResponse schema(String serviceName, String serviceId) {
-        String json = discoverOne(SCHEMA, serviceName, serviceId);
-        return json == null ? null : new SchemaResponse(json);
+        byte[] jsonBytes = discoverOne(SCHEMA, serviceName, serviceId);
+        return jsonBytes == null ? null : new SchemaResponse(jsonBytes);
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -122,8 +122,8 @@ public class Discovery {
 
     public List<StatsResponse> stats(String serviceName, Function<String, StatsData> statsDataDecoder) {
         List<StatsResponse> list = new ArrayList<>();
-        discoverMany(STATS, serviceName, json -> {
-            list.add(new StatsResponse(json, statsDataDecoder));
+        discoverMany(STATS, serviceName, jsonBytes -> {
+            list.add(new StatsResponse(jsonBytes, statsDataDecoder));
         });
         return list;
     }
@@ -133,26 +133,26 @@ public class Discovery {
     }
 
     public StatsResponse stats(String serviceName, String serviceId, Function<String, StatsData> statsDataDecoder) {
-        String json = discoverOne(STATS, serviceName, serviceId);
-        return json == null ? null : new StatsResponse(json, statsDataDecoder);
+        byte[] jsonBytes = discoverOne(STATS, serviceName, serviceId);
+        return jsonBytes == null ? null : new StatsResponse(jsonBytes, statsDataDecoder);
     }
 
     // ----------------------------------------------------------------------------------------------------
     // workers
     // ----------------------------------------------------------------------------------------------------
-    private String discoverOne(String action, String serviceName, String serviceId) {
+    private byte[] discoverOne(String action, String serviceName, String serviceId) {
         String subject = ServiceUtil.toDiscoverySubject(action, serviceName, serviceId);
         try {
             Message m = conn.request(subject, null, Duration.ofMillis(maxTimeMillis));
             if (m != null) {
-                return new String(m.getData());
+                return m.getData();
             }
         }
         catch (InterruptedException ignore) {}
         return null;
     }
 
-    private void discoverMany(String action, String serviceName, Consumer<String> stringConsumer) {
+    private void discoverMany(String action, String serviceName, Consumer<byte[]> stringConsumer) {
         Subscription sub = null;
         try {
             StringBuilder sb = new StringBuilder(nextGlobal()).append('-').append(action);
@@ -174,7 +174,7 @@ public class Discovery {
                 if (msg == null) {
                     return;
                 }
-                stringConsumer.accept(new String(msg.getData()));
+                stringConsumer.accept(msg.getData());
                 resultsLeft--;
                 // try again while we have time
                 timeLeft = maxTimeMillis - (System.currentTimeMillis() - start);

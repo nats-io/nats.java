@@ -16,12 +16,11 @@ package io.nats.client.impl;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
 import io.nats.client.api.ApiResponse;
-import io.nats.client.support.JsonUtils;
 
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonValueUtils.readInteger;
 
 class ListRequestEngine extends ApiResponse<ListRequestEngine> {
 
@@ -40,9 +39,9 @@ class ListRequestEngine extends ApiResponse<ListRequestEngine> {
         if (hasError()) {
             throw new JetStreamApiException(this);
         }
-        total = JsonUtils.readInt(json, TOTAL_RE, -1);
-        limit = JsonUtils.readInt(json, LIMIT_RE, 0);
-        lastOffset = JsonUtils.readInt(json, OFFSET_RE, 0);
+        total = readInteger(jv, TOTAL, -1);
+        limit = readInteger(jv, LIMIT, 0);
+        lastOffset = readInteger(jv, OFFSET, 0);
     }
 
     boolean hasMore() {
@@ -70,13 +69,5 @@ class ListRequestEngine extends ApiResponse<ListRequestEngine> {
 
     int nextOffset() {
         return lastOffset + limit;
-    }
-
-    List<String> getObjectList(String objectName) {
-        return JsonUtils.getObjectList(objectName, json);
-    }
-
-    List<String> getStringList(String objectName) {
-        return JsonUtils.getStringList(objectName, json);
     }
 }

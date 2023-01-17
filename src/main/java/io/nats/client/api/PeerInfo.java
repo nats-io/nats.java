@@ -13,58 +13,66 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.time.Duration;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.normalize;
+import static io.nats.client.support.JsonValueUtils.*;
 
 public class PeerInfo {
+
     private final String name;
     private final boolean current;
     private final boolean offline;
     private final Duration active;
     private final long lag;
-    private final String objectName;
 
-    PeerInfo(String objectName, String json) {
-        name = JsonUtils.readString(json, NAME_RE);
-        current = JsonUtils.readBoolean(json, CURRENT_RE);
-        offline = JsonUtils.readBoolean(json, OFFLINE_RE);
-        active = JsonUtils.readNanos(json, ACTIVE_RE, Duration.ZERO);
-        lag = JsonUtils.readLong(json, LAG_RE, 0);
-        this.objectName = normalize(objectName);
+    PeerInfo(JsonValue vPeerInfo) {
+        name = readString(vPeerInfo, NAME);
+        current = readBoolean(vPeerInfo, CURRENT);
+        offline = readBoolean(vPeerInfo, OFFLINE);
+        active = readNanos(vPeerInfo, ACTIVE, Duration.ZERO);
+        lag = readLong(vPeerInfo, LAG, 0);
     }
 
+    /**
+     * The server name of the peer
+     * @return the name
+     */
     public String getName() {
         return name;
     }
 
+    /**
+     * Indicates if the server is up-to-date and synchronised
+     * @return if is current
+     */
     public boolean isCurrent() {
         return current;
     }
 
+    /**
+     * Indicates the node is considered offline by the group
+     * @return if is offline
+     */
     public boolean isOffline() {
         return offline;
     }
 
+    /**
+     * Time since this peer was last seen
+     * @return the active time
+     */
     public Duration getActive() {
         return active;
     }
 
+    /**
+     * How many uncommitted operations this peer is behind the leader
+     * @return the lag
+     */
     public long getLag() {
         return lag;
-    }
-
-    @Override
-    public String toString() {
-        return objectName + "{" +
-                "name='" + name + '\'' +
-                ", current=" + current +
-                ", offline=" + offline +
-                ", active=" + active +
-                ", lag=" + lag +
-                '}';
     }
 }

@@ -14,13 +14,13 @@
 package io.nats.client.api;
 
 import io.nats.client.Message;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
 
-import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.objectString;
+import static io.nats.client.support.JsonValueUtils.*;
 
 /**
  * The ConsumerInfo class returns information about a JetStream consumer.
@@ -41,37 +41,29 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
     private final boolean pushBound;
 
     public ConsumerInfo(Message msg) {
-        this(new String(msg.getData(), StandardCharsets.UTF_8));
+        this(JsonParser.parse(msg.getData()));
     }
 
-    public ConsumerInfo(String json) {
-        super(json);
+    public ConsumerInfo(JsonValue vConsumerInfo) {
+        super(vConsumerInfo);
+        this.configuration = new ConsumerConfiguration(readObject(jv, CONFIG));
 
-        String jsonObject = JsonUtils.getJsonObject(CONFIG, json);
-        this.configuration = new ConsumerConfiguration(jsonObject);
+        stream = readString(jv, STREAM_NAME);
+        name = readString(jv, NAME);
+        created = readDate(jv, CREATED);
 
-        // both config and the base have a name field
-        JsonUtils.removeObject(json, CONFIG);
+        delivered = new SequenceInfo(readObject(jv, DELIVERED));
+        ackFloor = new SequenceInfo(readObject(jv, ACK_FLOOR));
 
-        stream = JsonUtils.readString(json, STREAM_NAME_RE);
-        name = JsonUtils.readString(json, NAME_RE);
-        created = JsonUtils.readDate(json, CREATED_RE);
+        numAckPending = readLong(jv, NUM_ACK_PENDING, 0);
+        numRedelivered = readLong(jv, NUM_REDELIVERED, 0);
+        numPending = readLong(jv, NUM_PENDING, 0);
+        numWaiting = readLong(jv, NUM_WAITING, 0);
 
-        jsonObject = JsonUtils.getJsonObject(DELIVERED, json);
-        this.delivered = new SequenceInfo(jsonObject);
-
-        jsonObject = JsonUtils.getJsonObject(ACK_FLOOR, json);
-        this.ackFloor = new SequenceInfo(jsonObject);
-
-        numAckPending = JsonUtils.readLong(json, NUM_ACK_PENDING_RE, 0);
-        numRedelivered = JsonUtils.readLong(json, NUM_REDELIVERED_RE, 0);
-        numPending = JsonUtils.readLong(json, NUM_PENDING_RE, 0);
-        numWaiting = JsonUtils.readLong(json, NUM_WAITING_RE, 0);
-
-        clusterInfo = ClusterInfo.optionalInstance(json);
-        pushBound = JsonUtils.readBoolean(json, PUSH_BOUND_RE);
+        clusterInfo = ClusterInfo.optionalInstance(readValue(jv, CLUSTER));
+        pushBound = readBoolean(jv, PUSH_BOUND);
     }
-    
+
     public ConsumerConfiguration getConsumerConfiguration() {
         return configuration;
     }
@@ -122,23 +114,5 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
 
     public long getCalculatedPending() {
         return numPending + delivered.getConsumerSequence();
-    }
-
-    @Override
-    public String toString() {
-        return "ConsumerInfo{" +
-                "stream='" + stream + '\'' +
-                ", name='" + name + '\'' +
-                ", numPending=" + numPending +
-                ", numWaiting=" + numWaiting +
-                ", numAckPending=" + numAckPending +
-                ", numRedelivered=" + numRedelivered +
-                ", pushBound=" + pushBound +
-                ", created=" + created +
-                ", " + objectString("delivered", delivered) +
-                ", " + objectString("ackFloor", ackFloor) +
-                ", " + objectString("configuration", configuration) +
-                ", " + objectString("cluster", clusterInfo) +
-                '}';
     }
 }

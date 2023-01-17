@@ -18,18 +18,21 @@ import io.nats.client.impl.Headers;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.time.ZonedDateTime;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonUtils.addRawJson;
+import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.NatsJetStreamConstants.*;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * The MessageInfo class contains information about a JetStream message.
  */
 public class MessageInfo extends ApiResponse<MessageInfo> {
 
+    private final boolean direct;
     private final String subject;
     private final long seq;
     private final byte[] data;
@@ -53,12 +56,14 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
      * This signature is public for testing purposes and is not intended to be used externally.
      * @param msg the message
      * @param streamName the stream name if known
-     * @param fromDirect true if the object is being created from a get direct api call instead of the standard get message
+     * @param direct true if the object is being created from a get direct api call instead of the standard get message
      */
-    public MessageInfo(Message msg, String streamName, boolean fromDirect) {
-        super(fromDirect ? null : new String(msg.getData(), UTF_8));
+    public MessageInfo(Message msg, String streamName, boolean direct) {
+        super(direct ? null : msg);
 
-        if (fromDirect) {
+        this.direct = direct;
+
+        if (direct) {
             this.headers = msg.getHeaders();
             this.subject = headers.getFirst(NATS_SUBJECT);
             this.data = msg.getData();
@@ -85,11 +90,12 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
             lastSeq = -1;
         }
         else {
-            subject = JsonUtils.readString(json, SUBJECT_RE);
-            data = JsonUtils.readBase64(json, DATA_RE);
-            seq = JsonUtils.readLong(json, SEQ_RE, 0);
-            time = JsonUtils.readDate(json, TIME_RE);
-            byte[] hdrBytes = JsonUtils.readBase64(json, HDRS_RE);
+            JsonValue mjv = readValue(jv, MESSAGE);
+            subject = readString(mjv, SUBJECT);
+            data = readBase64(mjv, DATA);
+            seq = readLong(mjv, SEQ, 0);
+            time = readDate(mjv, TIME);
+            byte[] hdrBytes = readBase64(mjv, HDRS);
             headers = hdrBytes == null ? null : new IncomingHeadersProcessor(hdrBytes).getHeaders();
             stream = streamName;
             lastSeq = -1;
@@ -154,14 +160,22 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
 
     @Override
     public String toString() {
-        return "MessageInfo{" +
-            "subject='" + subject + '\'' +
-            ", seq=" + seq +
-            ", " + (data == null ? "data=null" : ("data bytes " + data.length)) +
-            ", time=" + time +
-            ", stream=" + stream +
-            (lastSeq < 1 ? "" : ", lastSeq=" + lastSeq) +
-            ", headers=" + headers +
-            '}';
+        StringBuilder sb = JsonUtils.beginJsonPrefixed("\"MessageInfo\":");
+        JsonUtils.addField(sb, "direct", direct);
+        JsonUtils.addField(sb, "error", getError());
+        JsonUtils.addField(sb, SUBJECT, subject);
+        JsonUtils.addField(sb, SEQ, seq);
+        if (data == null) {
+            addRawJson(sb, DATA, "null");
+        }
+        else {
+            JsonUtils.addField(sb, "data_length", data.length);
+        }
+        JsonUtils.addField(sb, TIME, time);
+        JsonUtils.addField(sb, STREAM, stream);
+        JsonUtils.addField(sb, "last_seq", lastSeq);
+        JsonUtils.addField(sb, SUBJECT, subject);
+        JsonUtils.addField(sb, HDRS, headers);
+        return JsonUtils.endJson(sb).toString();
     }
 }

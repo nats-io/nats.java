@@ -13,13 +13,12 @@
 
 package io.nats.service;
 
-import io.nats.client.support.ApiConstants;
-import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.*;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonValueUtils.readString;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
@@ -41,12 +40,13 @@ public class InfoResponse implements JsonSerializable {
         this.subject = subject;
     }
 
-    public InfoResponse(String json) {
-        name = JsonUtils.readString(json, NAME_RE);
-        serviceId = JsonUtils.readString(json, ID_RE);
-        description = JsonUtils.readString(json, DESCRIPTION_RE);
-        version = JsonUtils.readString(json, VERSION_RE);
-        subject = JsonUtils.readString(json, SUBJECT_RE);
+    public InfoResponse(byte[] jsonBytes) {
+        JsonValue jv = JsonParser.parse(jsonBytes);
+        name = readString(jv, NAME);
+        serviceId = readString(jv, ID);
+        description = readString(jv, DESCRIPTION);
+        version = readString(jv, VERSION);
+        subject = readString(jv, SUBJECT);
     }
 
     @Override

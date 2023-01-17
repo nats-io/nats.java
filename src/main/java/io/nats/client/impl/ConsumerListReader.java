@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.api.ConsumerInfo;
+import io.nats.client.support.JsonValue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,14 +26,14 @@ class ConsumerListReader extends AbstractListReader {
     List<ConsumerInfo> consumers;
 
     ConsumerListReader() {
-        super(CONSUMERS, ListType.OBJECTS);
+        super(CONSUMERS);
         consumers = new ArrayList<>();
     }
 
     @Override
-    protected void processItems(List<String> items) {
-        for (String item : items) {
-            consumers.add(new ConsumerInfo(item));
+    protected void processItems(List<JsonValue> items) {
+        for (JsonValue v : items) {
+            consumers.add(new ConsumerInfo(v));
         }
     }
 

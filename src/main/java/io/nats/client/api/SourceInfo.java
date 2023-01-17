@@ -13,28 +13,21 @@
 
 package io.nats.client.api;
 
-import java.util.ArrayList;
-import java.util.List;
+import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 
-import static io.nats.client.support.ApiConstants.SOURCE;
-import static io.nats.client.support.ApiConstants.SOURCES;
-import static io.nats.client.support.JsonUtils.getObjectList;
+import java.util.List;
 
 /**
  * Information about a stream being sourced
  */
 public class SourceInfo extends SourceInfoBase {
 
-    static List<SourceInfo> optionalListOf(String json) {
-        List<String> strObjects = getObjectList(SOURCES, json);
-        List<SourceInfo> list = new ArrayList<>();
-        for (String j : strObjects) {
-            list.add(new SourceInfo(j));
-        }
-        return list.isEmpty() ? null : list;
+    static List<SourceInfo> optionalListOf(JsonValue vSourceInfos) {
+        return JsonValueUtils.optionalListOf(vSourceInfos, SourceInfo::new);
     }
 
-    SourceInfo(String json) {
-        super(json, SOURCE);
+    SourceInfo(JsonValue vSourceInfo) {
+        super(vSourceInfo);
     }
 }

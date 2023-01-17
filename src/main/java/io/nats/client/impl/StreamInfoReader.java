@@ -33,7 +33,7 @@ class StreamInfoReader {
 
     void process(Message msg) throws JetStreamApiException {
         engine = new ListRequestEngine(msg);
-        StreamInfo si = new StreamInfo(new String(msg.getData()));
+        StreamInfo si = new StreamInfo(msg);
         if (streamInfo == null) {
             streamInfo = si;
         }
