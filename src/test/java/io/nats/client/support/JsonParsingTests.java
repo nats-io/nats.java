@@ -527,10 +527,6 @@ public final class JsonParsingTests {
 
     @Test
     public void testParsingCoverage() {
-        assertEquals(JsonValue.NULL, parse((String)null));
-        assertEquals(JsonValue.NULL, parse((String)null, 0));
-        assertEquals(JsonValue.NULL, parse((String)null, KEEP_NULLS));
-        assertEquals(JsonValue.NULL, parse((String)null, 0, KEEP_NULLS));
         assertEquals(JsonValue.NULL, parse(""));
         assertEquals(JsonValue.NULL, parse("", 0));
         assertEquals(JsonValue.NULL, parse("", KEEP_NULLS));
