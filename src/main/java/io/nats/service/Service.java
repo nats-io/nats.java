@@ -15,10 +15,8 @@ package io.nats.service;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
-import io.nats.client.MessageHandler;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonUtils;
-import io.nats.service.api.*;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -70,10 +68,10 @@ public class Service {
                 if (dTemp == null) {
                     dTemp = conn.createDispatcher();
                 }
-                serviceContexts.put(se.getName(), new EndpointContext(conn, dTemp, false, se));
+                serviceContexts.put(se.getName(), new EndpointContext(conn, dTemp, true, se));
             }
             else {
-                serviceContexts.put(se.getName(), new EndpointContext(conn, null, false, se));
+                serviceContexts.put(se.getName(), new EndpointContext(conn, null, true, se));
             }
             infoSubjects.add(se.getSubject());
             schemaEndpoints.add(se.getEndpoint());
@@ -96,40 +94,39 @@ public class Service {
         }
 
         discoveryContexts = new ArrayList<>();
-        addDiscoveryContexts(ServiceUtil.PING, pingResponse, b.pingDispatcher, dTemp);
-        addDiscoveryContexts(ServiceUtil.INFO, infoResponse, b.infoDispatcher, dTemp);
-        addDiscoveryContexts(ServiceUtil.SCHEMA, schemaResponse, b.schemaDispatcher, dTemp);
+        addDiscoveryContexts(ServiceUtil.SRV_PING, pingResponse, b.pingDispatcher, dTemp);
+        addDiscoveryContexts(ServiceUtil.SRV_INFO, infoResponse, b.infoDispatcher, dTemp);
+        addDiscoveryContexts(ServiceUtil.SRV_SCHEMA, schemaResponse, b.schemaDispatcher, dTemp);
         addStatsContexts(b.statsDispatcher, dTemp);
     }
 
     private void addDiscoveryContexts(String discoveryName, ServiceResponse sr, Dispatcher dUser, Dispatcher dInternal) {
         final byte[] responseBytes = sr.serialize();
-        MessageHandler handler = msg -> {
-            conn.publish(msg.getReplyTo(), responseBytes);
-        };
+        ServiceMessageHandler handler = smsg -> smsg.reply(conn, responseBytes);
         addDiscoveryContexts(discoveryName, dUser, dInternal, handler);
     }
 
     private void addStatsContexts(Dispatcher dUser, Dispatcher dInternal) {
-        MessageHandler handler = msg -> conn.publish(msg.getReplyTo(), getStatsResponse().serialize());
-        addDiscoveryContexts(ServiceUtil.STATS, dUser, dInternal, handler);
+        ServiceMessageHandler handler = smsg -> smsg.reply(conn,getStatsResponse().serialize());
+        addDiscoveryContexts(ServiceUtil.SRV_STATS, dUser, dInternal, handler);
     }
 
-    private void addDiscoveryContexts(String discoveryName, Dispatcher dUser, Dispatcher dInternal, MessageHandler handler) {
+    private Endpoint internalEndpoint(String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {
+        String subject = toDiscoverySubject(discoveryName, optionalServiceNameSegment, optionalServiceIdSegment);
+        return new Endpoint(subject, subject, null, false);
+    }
+
+    private void addDiscoveryContexts(String discoveryName, Dispatcher dUser, Dispatcher dInternal, ServiceMessageHandler handler) {
         Endpoint[] endpoints = new Endpoint[] {
-            new Endpoint(toDiscoverySubject(discoveryName, null, null)),
-            new Endpoint(toDiscoverySubject(discoveryName, pingResponse.getName(), null)),
-            new Endpoint(toDiscoverySubject(discoveryName, pingResponse.getName(), pingResponse.getId()))
+            internalEndpoint(discoveryName, null, null),
+            internalEndpoint(discoveryName, pingResponse.getName(), null),
+            internalEndpoint(discoveryName, pingResponse.getName(), pingResponse.getId())
         };
 
         for (Endpoint endpoint : endpoints) {
             discoveryContexts.add(
                 new EndpointContext(conn, dInternal, false,
-                    ServiceEndpoint.builder()
-                        .endpoint(endpoint)
-                        .dispatcher(dUser)
-                        .handler(handler)
-                        .build()));
+                    new ServiceEndpoint(endpoint, handler, dUser)));
         }
     }
 
@@ -183,7 +180,7 @@ public class Service {
                     }
 
                     for (EndpointContext c : serviceContexts.values()) {
-                        if (!c.isInternalDispatcher()) {
+                        if (c.isNotInternalDispatcher()) {
                             try {
                                 futures.add(c.getSub().drain(drainTimeout));
                             }
@@ -192,7 +189,7 @@ public class Service {
                     }
 
                     for (EndpointContext c : discoveryContexts) {
-                        if (!c.isInternalDispatcher()) {
+                        if (c.isNotInternalDispatcher()) {
                             try {
                                 futures.add(c.getSub().drain(drainTimeout));
                             }
@@ -260,7 +257,8 @@ public class Service {
     public StatsResponse getStatsResponse() {
         List<EndpointStats> endpointStats = new ArrayList<>();
         for (EndpointContext c : serviceContexts.values()) {
-            endpointStats.add(c.getEndpointStats());
+            EndpointStats es = c.getEndpointStats();
+            endpointStats.add(es);
         }
         return new StatsResponse(pingResponse, started, endpointStats);
     }

@@ -15,25 +15,26 @@ package io.nats.service;
 
 import io.nats.client.Connection;
 import io.nats.client.Message;
-import io.nats.client.MessageHandler;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
-import io.nats.service.api.*;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsConstants.EMPTY;
-import static io.nats.service.ServiceUtil.PING;
+import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR;
+import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR_CODE;
+import static io.nats.service.ServiceUtil.SRV_PING;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ServiceTests extends JetStreamTestBase {
@@ -294,7 +295,7 @@ public class ServiceTests extends JetStreamTestBase {
 //        }
 //    }
 
-    static class EchoHandler implements MessageHandler {
+    static class EchoHandler implements ServiceMessageHandler {
         Connection conn;
 
         public EchoHandler(Connection conn) {
@@ -302,12 +303,12 @@ public class ServiceTests extends JetStreamTestBase {
         }
 
         @Override
-        public void onMessage(Message msg) throws InterruptedException {
-            ServiceReplyUtils.reply(conn, msg, echo(msg.getData()), new Headers().put("handlerId", Integer.toString(hashCode())));
+        public void onMessage(ServiceMessage smsg) {
+            smsg.reply(conn, echo(smsg.getData()), new Headers().put("handlerId", Integer.toString(hashCode())));
         }
     }
 
-    static class SortHandler implements MessageHandler {
+    static class SortHandler implements ServiceMessageHandler {
         Connection conn;
 
         public SortHandler(Connection conn) {
@@ -315,8 +316,8 @@ public class ServiceTests extends JetStreamTestBase {
         }
 
         @Override
-        public void onMessage(Message msg) throws InterruptedException {
-            ServiceReplyUtils.reply(conn, msg, sort(msg.getData()), new Headers().put("handlerId", Integer.toString(hashCode())));
+        public void onMessage(ServiceMessage smsg) {
+            smsg.reply(conn, sort(smsg.getData()), new Headers().put("handlerId", Integer.toString(hashCode())));
         }
     }
 
@@ -339,24 +340,31 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testHandlerException() throws Exception {
-//        runInServer(nc -> {
-//            Service devexService = new ServiceBuilder()
-//                .connection(nc)
-//                .name("HandlerExceptionService")
-//                .subject("hesSubject")
-//                .version("0.0.1")
-//                .serviceMessageHandler( m-> { throw new RuntimeException("handler-problem"); })
-//                .build();
-//            devexService.startService();
-//
-//            CompletableFuture<Message> future = nc.request("hesSubject", null);
-//            Message m = future.get();
-//            assertEquals("handler-problem", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
-//            assertEquals("500", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
-//            assertEquals(1, devexService.getStats().getNumRequests());
-//            assertEquals(1, devexService.getStats().getNumErrors());
-//            assertEquals("java.lang.RuntimeException: handler-problem", devexService.getStats().getLastError());
-//        });
+        runInServer(nc -> {
+            ServiceEndpoint exServiceEndpoint = ServiceEndpoint.builder()
+                .endpointName("exEndpoint")
+                .endpointSubject("exSubject")
+                .handler(m-> { throw new RuntimeException("handler-problem"); })
+                .build();
+
+            Service exService = new ServiceBuilder()
+                .connection(nc)
+                .name("ExceptionService")
+                .version("0.0.1")
+                .addServiceEndpoint(exServiceEndpoint)
+                .build();
+            exService.startService();
+
+            CompletableFuture<Message> future = nc.request("exSubject", null);
+            Message m = future.get();
+            assertEquals("handler-problem", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertEquals("500", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+            StatsResponse sr = exService.getStatsResponse();
+            EndpointStats es = sr.getEndpointStats().get(0);
+            assertEquals(1, es.getNumRequests());
+            assertEquals(1, es.getNumErrors());
+            assertEquals("java.lang.RuntimeException: handler-problem", es.getLastError());
+        });
     }
 
     @Test
@@ -400,7 +408,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals("foo.*", e.getSubject());
 
         // many names are bad
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(null));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint((String)null));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(EMPTY));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_SPACE));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_PRINTABLE));
@@ -449,9 +457,9 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testUtilToDiscoverySubject() {
-        assertEquals("$SRV.PING", ServiceUtil.toDiscoverySubject(PING, null, null));
-        assertEquals("$SRV.PING.myservice", ServiceUtil.toDiscoverySubject(PING, "myservice", null));
-        assertEquals("$SRV.PING.myservice.123", ServiceUtil.toDiscoverySubject(PING, "myservice", "123"));
+        assertEquals("$SRV.PING", ServiceUtil.toDiscoverySubject(SRV_PING, null, null));
+        assertEquals("$SRV.PING.myservice", ServiceUtil.toDiscoverySubject(SRV_PING, "myservice", null));
+        assertEquals("$SRV.PING.myservice.123", ServiceUtil.toDiscoverySubject(SRV_PING, "myservice", "123"));
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
@@ -491,8 +499,8 @@ public class ServiceTests extends JetStreamTestBase {
         List<EndpointStats> statsList = new ArrayList<>();
         TestStatsDataSupplier tsds = new TestStatsDataSupplier();
         JsonValue[] data = new JsonValue[]{tsds.get(), tsds.get()};
-        statsList.add(new EndpointStats("endName0", "endSubject0", 10, 20, 30, 40, "lastError0", data[0], endStarteds[0]));
-        statsList.add(new EndpointStats("endName1", "endSubject1", 11, 21, 31, 41, "lastError1", data[1], endStarteds[1]));
+        statsList.add(new EndpointStats("endName0", "endSubject0", 1000, 0, 10000, "lastError0", data[0], endStarteds[0]));
+        statsList.add(new EndpointStats("endName1", "endSubject1", 2000, 10, 10000, "lastError1", data[1], endStarteds[1]));
 
         StatsResponse stat1 = new StatsResponse(pr1, serviceStarted, statsList);
         StatsResponse stat2 = new StatsResponse(stat1.toJson().getBytes());
@@ -508,10 +516,13 @@ public class ServiceTests extends JetStreamTestBase {
             EndpointStats e = stat.getEndpointStats().get(x);
             assertEquals("endName" + x, e.getName());
             assertEquals("endSubject" + x, e.getSubject());
-            assertEquals(10 + x, e.getNumRequests());
-            assertEquals(20 + x, e.getNumErrors());
-            assertEquals(30 + x, e.getProcessingTime());
-            assertEquals(40 + x, e.getAverageProcessingTime());
+            long nr = x * 1000 + 1000;
+            long errs = x * 10;
+            long avg = 10000 / nr;
+            assertEquals(nr, e.getNumRequests());
+            assertEquals(errs, e.getNumErrors());
+            assertEquals(10000, e.getProcessingTime());
+            assertEquals(avg, e.getAverageProcessingTime());
             assertEquals("lastError" + x, e.getLastError());
             assertEquals(new TestStatsData(data[x]), new TestStatsData(e.getData()));
             assertEquals(endStarteds[x], e.getStarted());

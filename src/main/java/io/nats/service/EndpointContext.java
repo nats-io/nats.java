@@ -1,9 +1,11 @@
 package io.nats.service;
 
-import io.nats.client.*;
+import io.nats.client.Connection;
+import io.nats.client.Dispatcher;
+import io.nats.client.Message;
+import io.nats.client.Subscription;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonValue;
-import io.nats.service.api.EndpointStats;
 
 import java.time.ZonedDateTime;
 import java.util.concurrent.atomic.AtomicLong;
@@ -14,7 +16,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class EndpointContext {
     protected final Connection conn;
     protected final ServiceEndpoint se;
-    protected final MessageHandler handler;
+    protected final ServiceMessageHandler handler;
     protected final boolean recordStats;
     protected final String qGroup;
 
@@ -28,7 +30,6 @@ public class EndpointContext {
     protected final AtomicLong numRequests;
     protected final AtomicLong numErrors;
     protected final AtomicLong processingTime;
-    protected final AtomicLong averageProcessingTime;
 
     public EndpointContext(Connection conn, Dispatcher internalDispatcher, boolean recordStats, ServiceEndpoint se) {
         this.conn = conn;
@@ -49,7 +50,6 @@ public class EndpointContext {
         numRequests = new AtomicLong();
         numErrors = new AtomicLong();
         processingTime = new AtomicLong();
-        averageProcessingTime = new AtomicLong();
         started = DateTimeUtils.gmtNow();
     }
 
@@ -61,25 +61,25 @@ public class EndpointContext {
     }
 
     public void onMessage(Message msg) throws InterruptedException {
-        long requestNo = recordStats ? incrementNumRequests() : -1;
-        long start = 0;
+        long start = System.nanoTime();
+        ServiceMessage smsg = new ServiceMessage(msg);
         try {
-            start = System.nanoTime();
-            handler.onMessage(msg);
+            if (recordStats) {
+                incrementNumRequests();
+            }
+            handler.onMessage(smsg);
         }
         catch (Throwable t) {
             if (recordStats) {
-                incrementNumErrors();
-                setLastError(t.toString());
+                setError(t);
             }
             try {
-                ServiceReplyUtils.replyStandardError(conn, msg, t.getMessage(), 500);
-            } catch (Exception ignore) {}
+                smsg.replyStandardError(conn, t.getMessage(), 500);
+            } catch (RuntimeException ignore) {}
         }
         finally {
             if (recordStats) {
-                long total = addTotalProcessingTime(System.nanoTime() - start);
-                setAverageProcessingTime(total / requestNo);
+                addProcessingTime(System.nanoTime() - start);
             }
         }
     }
@@ -90,51 +90,40 @@ public class EndpointContext {
     }
 
     public EndpointStats getEndpointStats() {
-        JsonValue data = se.getStatsDataSupplier() == null
-            ? null
-            : se.getStatsDataSupplier().get();
-
         return new EndpointStats(
             se.getEndpoint().getName(),
             se.getSubject(),
             numRequests.get(),
             numErrors.get(),
             processingTime.get(),
-            averageProcessingTime.get(),
             lastError,
-            data,
+            getData(),
             started);
+    }
+
+    private JsonValue getData() {
+        return se.getStatsDataSupplier() == null ? null : se.getStatsDataSupplier().get();
     }
 
     public void reset() {
         numRequests.set(0);
         numErrors.set(0);
         processingTime.set(0);
-        averageProcessingTime.set(0);
         lastError = null;
         started = DateTimeUtils.gmtNow();
     }
 
-    // TODO can we combine some of these to reduce number of function calls?
-
-    long incrementNumRequests() {
-        return this.numRequests.incrementAndGet();
+    void incrementNumRequests() {
+        numRequests.incrementAndGet();
     }
 
-    void incrementNumErrors() {
-        this.numErrors.incrementAndGet();
+    void setError(Throwable t) {
+        numErrors.incrementAndGet();
+        this.lastError = t.toString();
     }
 
-    long addTotalProcessingTime(long elapsed) {
-        return this.processingTime.addAndGet(elapsed);
-    }
-
-    void setAverageProcessingTime(long averageProcessingTime) {
-        this.averageProcessingTime.set(averageProcessingTime);
-    }
-
-    void setLastError(String lastError) {
-        this.lastError = lastError;
+    void addProcessingTime(long elapsed) {
+        processingTime.addAndGet(elapsed);
     }
 
     public String getSubject() {
@@ -145,8 +134,8 @@ public class EndpointContext {
         return dispatcher;
     }
 
-    public boolean isInternalDispatcher() {
-        return internalDispatcher;
+    public boolean isNotInternalDispatcher() {
+        return !internalDispatcher;
     }
 
     public Subscription getSub() {

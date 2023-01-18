@@ -9,10 +9,10 @@ import static io.nats.client.support.Validator.validateSubject;
 
 public class ServiceUtil {
 
-    public static final String PING = "PING";
-    public static final String INFO = "INFO";
-    public static final String SCHEMA = "SCHEMA";
-    public static final String STATS = "STATS";
+    public static final String SRV_PING = "PING";
+    public static final String SRV_INFO = "INFO";
+    public static final String SRV_SCHEMA = "SCHEMA";
+    public static final String SRV_STATS = "STATS";
     public static final String DEFAULT_SERVICE_PREFIX = "$SRV.";
     public static final String QGROUP = "q";
 

@@ -18,7 +18,6 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 import io.nats.service.*;
-import io.nats.service.api.*;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -64,8 +63,8 @@ public class ServiceExample {
             Group sortGroup = new Group(SORT_GROUP);
 
             // 4 service endpoints. 3 in service 1, 1 in service 2
-            // - We will reuse an endpoint definition.
-            // - For echo, we could have reused a handler as we, if we wanted to.
+            // - We will reuse an endpoint definition, so we make it ahead of time
+            // - For echo, we could have reused a handler as well, if we wanted to.
             ServiceEndpoint seEcho1 = ServiceEndpoint.builder()
                 .endpoint(epEcho)
                 .handler(msg -> handleEchoMessage(nc, msg, "S1E")) // see below: handleEchoMessage below
@@ -77,6 +76,7 @@ public class ServiceExample {
                 .handler(msg -> handleEchoMessage(nc, msg, "S2E"))
                 .build();
 
+            // you can make the Endpoint directly on the Service Endpoint Builder
             ServiceEndpoint seSort1A = ServiceEndpoint.builder()
                 .group(sortGroup)
                 .endpointName(SORT_ENDPOINT_ASCENDING_NAME)
@@ -86,10 +86,11 @@ public class ServiceExample {
                 .handler(msg -> handleSortAscending(nc, msg, "S1A"))
                 .build();
 
+            // you can also make an endpoint with a constructor instead of a builder.
+            Endpoint endSortD = new Endpoint(SORT_ENDPOINT_DESCENDING_NAME, SORT_ENDPOINT_DESCENDING_SUBJECT);
             ServiceEndpoint seSort1D = ServiceEndpoint.builder()
                 .group(sortGroup)
-                .endpointName(SORT_ENDPOINT_DESCENDING_NAME)
-                .endpointSubject(SORT_ENDPOINT_DESCENDING_SUBJECT)
+                .endpoint(endSortD)
                 .handler(msg -> handlerSortDescending(nc, msg, "S1D"))
                 .build();
 
@@ -217,25 +218,25 @@ public class ServiceExample {
             .getJsonValue();
     }
 
-    private static void handlerSortDescending(Connection nc, Message msg, String handlerId) {
-        byte[] data = msg.getData();
+    private static void handlerSortDescending(Connection nc, ServiceMessage smsg, String handlerId) {
+        byte[] data = smsg.getData();
         Arrays.sort(data);
         int len = data.length;
         byte[] descending = new byte[len];
         for (int x = 0; x < len; x++) {
             descending[x] = data[len - x - 1];
         }
-        ServiceReplyUtils.reply(nc, msg, replyBody("sort_descending", descending, handlerId));
+        smsg.reply(nc, replyBody("sort_descending", descending, handlerId));
     }
 
-    private static void handleSortAscending(Connection nc, Message msg, String handlerId) {
-        byte[] ascending = msg.getData();
+    private static void handleSortAscending(Connection nc, ServiceMessage smsg, String handlerId) {
+        byte[] ascending = smsg.getData();
         Arrays.sort(ascending);
-        ServiceReplyUtils.reply(nc, msg, replyBody("sort_ascending", ascending, handlerId));
+        smsg.reply(nc, replyBody("sort_ascending", ascending, handlerId));
     }
 
-    private static void handleEchoMessage(Connection nc, Message msg, String handlerId) {
-        ServiceReplyUtils.reply(nc, msg, replyBody("echo", msg.getData(), handlerId));
+    private static void handleEchoMessage(Connection nc, ServiceMessage smsg, String handlerId) {
+        smsg.reply(nc, replyBody("echo", smsg.getData(), handlerId));
     }
 
     @SuppressWarnings("rawtypes")

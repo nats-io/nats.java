@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.service.api;
+package io.nats.service;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
@@ -44,19 +44,19 @@ public class EndpointStats implements JsonSerializable {
         return JsonValueUtils.listOf(vEndpointStats, EndpointStats::new);
     }
 
-    public EndpointStats(String name, String subject, long numRequests, long numErrors, long processingTime, long averageProcessingTime, String lastError, JsonValue data, ZonedDateTime started) {
+    EndpointStats(String name, String subject, long numRequests, long numErrors, long processingTime, String lastError, JsonValue data, ZonedDateTime started) {
         this.name = name;
         this.subject = subject;
         this.numRequests = numRequests;
         this.numErrors = numErrors;
         this.processingTime = processingTime;
-        this.averageProcessingTime = averageProcessingTime;
+        this.averageProcessingTime = numRequests < 1 ? 0 : processingTime / numRequests;
         this.lastError = lastError;
         this.data = data;
         this.started = started;
     }
 
-    public EndpointStats(JsonValue vEndpointStats) {
+    EndpointStats(JsonValue vEndpointStats) {
         name = readString(vEndpointStats, NAME);
         subject = readString(vEndpointStats, SUBJECT);
         numRequests = readLong(vEndpointStats, NUM_REQUESTS, 0);

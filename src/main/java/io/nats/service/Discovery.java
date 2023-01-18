@@ -17,10 +17,6 @@ import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.StatusException;
 import io.nats.client.Subscription;
-import io.nats.service.api.InfoResponse;
-import io.nats.service.api.PingResponse;
-import io.nats.service.api.SchemaResponse;
-import io.nats.service.api.StatsResponse;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -58,12 +54,12 @@ public class Discovery {
 
     public List<PingResponse> ping(String serviceName) {
         List<PingResponse> list = new ArrayList<>();
-        discoverMany(PING, serviceName, jsonBytes -> list.add(new PingResponse(jsonBytes)));
+        discoverMany(SRV_PING, serviceName, jsonBytes -> list.add(new PingResponse(jsonBytes)));
         return list;
     }
 
     public PingResponse ping(String serviceName, String serviceId) {
-        byte[] jsonBytes = discoverOne(PING, serviceName, serviceId);
+        byte[] jsonBytes = discoverOne(SRV_PING, serviceName, serviceId);
         return jsonBytes == null ? null : new PingResponse(jsonBytes);
     }
 
@@ -76,12 +72,12 @@ public class Discovery {
 
     public List<InfoResponse> info(String serviceName) {
         List<InfoResponse> list = new ArrayList<>();
-        discoverMany(INFO, serviceName, jsonBytes -> list.add(new InfoResponse(jsonBytes)));
+        discoverMany(SRV_INFO, serviceName, jsonBytes -> list.add(new InfoResponse(jsonBytes)));
         return list;
     }
 
     public InfoResponse info(String serviceName, String serviceId) {
-        byte[] jsonBytes = discoverOne(INFO, serviceName, serviceId);
+        byte[] jsonBytes = discoverOne(SRV_INFO, serviceName, serviceId);
         return jsonBytes == null ? null : new InfoResponse(jsonBytes);
     }
 
@@ -94,12 +90,12 @@ public class Discovery {
 
     public List<SchemaResponse> schema(String serviceName) {
         List<SchemaResponse> list = new ArrayList<>();
-        discoverMany(SCHEMA, serviceName, jsonBytes -> list.add(new SchemaResponse(jsonBytes)));
+        discoverMany(SRV_SCHEMA, serviceName, jsonBytes -> list.add(new SchemaResponse(jsonBytes)));
         return list;
     }
 
     public SchemaResponse schema(String serviceName, String serviceId) {
-        byte[] jsonBytes = discoverOne(SCHEMA, serviceName, serviceId);
+        byte[] jsonBytes = discoverOne(SRV_SCHEMA, serviceName, serviceId);
         return jsonBytes == null ? null : new SchemaResponse(jsonBytes);
     }
 
@@ -112,12 +108,12 @@ public class Discovery {
 
     public List<StatsResponse> stats(String serviceName) {
         List<StatsResponse> list = new ArrayList<>();
-        discoverMany(STATS, serviceName, jsonBytes -> list.add(new StatsResponse(jsonBytes)));
+        discoverMany(SRV_STATS, serviceName, jsonBytes -> list.add(new StatsResponse(jsonBytes)));
         return list;
     }
 
     public StatsResponse stats(String serviceName, String serviceId) {
-        byte[] jsonBytes = discoverOne(STATS, serviceName, serviceId);
+        byte[] jsonBytes = discoverOne(SRV_STATS, serviceName, serviceId);
         return jsonBytes == null ? null : new StatsResponse(jsonBytes);
     }
 

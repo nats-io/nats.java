@@ -11,54 +11,55 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.service.api;
+package io.nats.service;
 
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 
-import static io.nats.client.support.ApiConstants.API_URL;
 import static io.nats.client.support.ApiConstants.ENDPOINTS;
-import static io.nats.client.support.JsonValueUtils.readString;
+import static io.nats.client.support.ApiConstants.STARTED;
+import static io.nats.client.support.JsonValueUtils.readDate;
 import static io.nats.client.support.JsonValueUtils.readValue;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class SchemaResponse extends ServiceResponse {
-    public static final String TYPE = "io.nats.micro.v1.schema_response";
+public class StatsResponse extends ServiceResponse {
+    public static final String TYPE = "io.nats.micro.v1.stats_response";
 
-    private final String apiUrl;
-    private final List<Endpoint> endpoints;
+    private final ZonedDateTime started;
+    private final List<EndpointStats> endpointStats;
 
-    public SchemaResponse(String id, String name, String version, String apiUrl, List<Endpoint> endpoints) {
-        super(TYPE, id, name, version);
-        this.apiUrl = apiUrl;
-        this.endpoints = endpoints;
+    public StatsResponse(ServiceResponse template, ZonedDateTime started, List<EndpointStats> endpointStats) {
+        super(TYPE, template);
+        this.started = started;
+        this.endpointStats = endpointStats;
     }
 
-    public SchemaResponse(byte[] jsonBytes) {
+    public StatsResponse(byte[] jsonBytes) {
         this(parseMessage(jsonBytes));
     }
 
-    private SchemaResponse(JsonValue jv) {
+    private StatsResponse(JsonValue jv) {
         super(TYPE, jv);
-        apiUrl = readString(jv, API_URL);
-        endpoints = Endpoint.listOf(readValue(jv, ENDPOINTS));
+        endpointStats = EndpointStats.listOf(readValue(jv, ENDPOINTS));
+        started = readDate(jv, STARTED);
     }
 
     @Override
     protected void subToJson(StringBuilder sb, boolean forToString) {
-        JsonUtils.addField(sb, API_URL, apiUrl);
-        JsonUtils.addJsons(sb, ENDPOINTS, endpoints);
+        JsonUtils.addJsons(sb, ENDPOINTS, endpointStats);
+        JsonUtils.addField(sb, STARTED, started);
     }
 
-    public String getApiUrl() {
-        return apiUrl;
+    public ZonedDateTime getStarted() {
+        return started;
     }
 
-    public List<Endpoint> getEndpoints() {
-        return endpoints;
+    public List<EndpointStats> getEndpointStats() {
+        return endpointStats;
     }
 }

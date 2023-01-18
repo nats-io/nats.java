@@ -14,10 +14,8 @@
 package io.nats.service;
 
 import io.nats.client.Dispatcher;
-import io.nats.client.MessageHandler;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.Validator;
-import io.nats.service.api.Endpoint;
 
 import java.util.function.Supplier;
 
@@ -29,16 +27,25 @@ import static io.nats.client.support.NatsConstants.DOT;
 public class ServiceEndpoint {
     protected final Group group;
     protected final Endpoint endpoint;
-    protected final MessageHandler handler;
-    protected final Supplier<JsonValue> statsDataSupplier;
+    protected final ServiceMessageHandler handler;
     protected final Dispatcher dispatcher;
+    protected final Supplier<JsonValue> statsDataSupplier;
 
     private ServiceEndpoint(Builder b, Endpoint e) {
         this.group = b.group;
         this.endpoint = e;
         this.handler = b.handler;
-        this.statsDataSupplier = b.statsDataSupplier;
         this.dispatcher = b.dispatcher;
+        this.statsDataSupplier = b.statsDataSupplier;
+    }
+
+    // internal use constructor
+    ServiceEndpoint(Endpoint endpoint, ServiceMessageHandler handler, Dispatcher dispatcher) {
+        this.group = null;
+        this.endpoint = endpoint;
+        this.handler = handler;
+        this.dispatcher = dispatcher;
+        this.statsDataSupplier = null;
     }
 
     public String getName() {
@@ -57,7 +64,7 @@ public class ServiceEndpoint {
         return endpoint;
     }
 
-    public MessageHandler getHandler() {
+    public ServiceMessageHandler getHandler() {
         return handler;
     }
 
@@ -75,7 +82,7 @@ public class ServiceEndpoint {
 
     public static class Builder {
         private Group group;
-        private MessageHandler handler;
+        private ServiceMessageHandler handler;
         private Dispatcher dispatcher;
         private Supplier<JsonValue> statsDataSupplier;
         Endpoint.Builder endpointBuilder = Endpoint.builder();
@@ -110,7 +117,7 @@ public class ServiceEndpoint {
             return this;
         }
 
-        public Builder handler(MessageHandler handler) {
+        public Builder handler(ServiceMessageHandler handler) {
             this.handler = handler;
             return this;
         }

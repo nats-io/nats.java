@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.service.api;
+package io.nats.service;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
@@ -39,32 +39,36 @@ public class Endpoint implements JsonSerializable {
         return JsonValueUtils.listOf(vEndpoints, Endpoint::new);
     }
 
-
     public Endpoint(String name, String subject, Schema schema) {
-        this.name = validateEndpointName(name);
-        this.subject = validateEndpointSubject(subject, this.name);
-        this.schema = schema;
-    }
-
-    public Endpoint(String name, String subject) {
-        this(name, subject, null);
+        this(name, subject, schema, true);
     }
 
     public Endpoint(String name) {
-        this(name, null, null);
+        this(name, null, null, true);
+    }
+
+    public Endpoint(String name, String subject) {
+        this(name, subject, null, true);
     }
 
     public Endpoint(String name, String subject, String schemaRequest, String schemaResponse) {
-        this(name, subject, Schema.optionalInstance(schemaRequest, schemaResponse));
+        this(name, subject, Schema.optionalInstance(schemaRequest, schemaResponse), true);
     }
 
-    protected Endpoint(JsonValue vEndpoint) {
+    // internal use constructors
+    Endpoint(String name, String subject, Schema schema, boolean validate) {
+        this.name = validate ? validateEndpointName(name) : name;
+        this.subject = validate ? validateEndpointSubject(subject, this.name) : subject;
+        this.schema = schema;
+    }
+
+    Endpoint(JsonValue vEndpoint) {
         name = readString(vEndpoint, NAME);
         subject = readString(vEndpoint, SUBJECT);
         schema = Schema.optionalInstance(readValue(vEndpoint, SCHEMA));
     }
 
-    private Endpoint(Builder b) {
+    Endpoint(Builder b) {
         this(b.name, b.subject, Schema.optionalInstance(b.schemaRequest, b.schemaResponse));
     }
 
