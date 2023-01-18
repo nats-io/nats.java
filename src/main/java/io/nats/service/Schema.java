@@ -15,10 +15,13 @@ package io.nats.service;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
-import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.ApiConstants.REQUEST;
+import static io.nats.client.support.ApiConstants.RESPONSE;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonValueUtils.readString;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
@@ -27,9 +30,8 @@ public class Schema implements JsonSerializable {
     private final String request;
     private final String response;
 
-    public static Schema optionalInstance(String fullJson) {
-        String objJson = JsonUtils.getJsonObject(SCHEMA, fullJson, null);
-        return objJson == null ? null : new Schema(objJson);
+    public static Schema optionalInstance(JsonValue vSchema) {
+        return vSchema == null ? null : new Schema(vSchema);
     }
 
     public Schema(String request, String response) {
@@ -37,9 +39,9 @@ public class Schema implements JsonSerializable {
         this.response = response;
     }
 
-    protected Schema(String json) {
-        request = JsonUtils.readString(json, REQUEST_RE);
-        response = JsonUtils.readString(json, RESPONSE_RE);
+    protected Schema(JsonValue vSchema) {
+        request = readString(vSchema, REQUEST);
+        response = readString(vSchema, RESPONSE);
     }
 
     @Override

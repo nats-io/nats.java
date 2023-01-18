@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.JetStreamApiException;
+import io.nats.client.support.JsonParser;
 import io.nats.client.support.Status;
 import org.junit.jupiter.api.Test;
 
@@ -26,7 +27,7 @@ public class ApiResponseTests {
 
     static class TestApiResponse extends ApiResponse<TestApiResponse> {
         TestApiResponse(String json) {
-            super(json);
+            super(JsonParser.parse(json));
         }
 
         public TestApiResponse() { }
@@ -37,6 +38,7 @@ public class ApiResponseTests {
         TestApiResponse jsApiResp = new TestApiResponse(dataAsString("ConsumerInfo.json"));
         assertFalse(jsApiResp.hasError());
         assertNull(jsApiResp.getError());
+        assertNotNull(new TestApiResponse().toString());
     }
 
     @Test

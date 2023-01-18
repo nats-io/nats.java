@@ -13,9 +13,7 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
-
-import static io.nats.client.support.ApiConstants.MIRROR;
+import io.nats.client.support.JsonValue;
 
 /**
  * Mirror Information. Maintains a 1:1 mirror of another stream with name matching this property.
@@ -23,17 +21,16 @@ import static io.nats.client.support.ApiConstants.MIRROR;
  */
 public class Mirror extends SourceBase {
 
-    static Mirror optionalInstance(String fullJson) {
-        String objJson = JsonUtils.getJsonObject(MIRROR, fullJson, null);
-        return objJson == null ? null : new Mirror(objJson);
+    static Mirror optionalInstance(JsonValue vMirror) {
+        return vMirror == null ? null : new Mirror(vMirror);
     }
 
-    Mirror(String json) {
-        super(MIRROR, json);
+    Mirror(JsonValue vMirror) {
+        super(vMirror);
     }
 
     Mirror(Builder b) {
-        super(MIRROR, b);
+        super(b);
     }
 
     public static Builder builder() {

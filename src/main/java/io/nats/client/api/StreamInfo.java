@@ -14,14 +14,15 @@
 package io.nats.client.api;
 
 import io.nats.client.Message;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
 
-import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.objectString;
+import static io.nats.client.support.JsonValueUtils.readDate;
+import static io.nats.client.support.JsonValueUtils.readValue;
 
 /**
  * The StreamInfo class contains information about a JetStream stream.
@@ -36,17 +37,17 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
     private final List<SourceInfo> sourceInfos;
 
     public StreamInfo(Message msg) {
-        this(new String(msg.getData(), StandardCharsets.UTF_8));
+        this(JsonParser.parse(msg.getData()));
     }
 
-    public StreamInfo(String json) {
-        super(json);
-        created = JsonUtils.readDate(json, CREATED_RE);
-        config = StreamConfiguration.instance(JsonUtils.getJsonObject(CONFIG, json));
-        state = new StreamState(JsonUtils.getJsonObject(STATE, json));
-        clusterInfo = ClusterInfo.optionalInstance(json);
-        mirrorInfo = MirrorInfo.optionalInstance(json);
-        sourceInfos = SourceInfo.optionalListOf(json);
+    public StreamInfo(JsonValue vStreamInfo) {
+        super(vStreamInfo);
+        created = readDate(jv, CREATED);
+        config = StreamConfiguration.instance(readValue(jv, CONFIG));
+        state = new StreamState(readValue(jv, STATE));
+        clusterInfo = ClusterInfo.optionalInstance(readValue(jv, CLUSTER));
+        mirrorInfo = MirrorInfo.optionalInstance(readValue(jv, MIRROR));
+        sourceInfos = SourceInfo.optionalListOf(readValue(jv, SOURCES));
     }
     
     /**
@@ -83,17 +84,5 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
 
     public ClusterInfo getClusterInfo() {
         return clusterInfo;
-    }
-
-    @Override
-    public String toString() {
-        return "StreamInfo{" +
-                "created=" + created +
-                ", " + objectString("config", config) +
-                ", " + objectString("state", state) +
-                ", " + objectString("cluster", clusterInfo) +
-                ", " + objectString("mirror", mirrorInfo) +
-                ", sources=" + sourceInfos +
-                '}';
     }
 }

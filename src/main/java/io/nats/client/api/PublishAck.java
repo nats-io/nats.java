@@ -14,7 +14,7 @@ package io.nats.client.api;
 
 import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValueUtils;
 
 import java.io.IOException;
 
@@ -33,23 +33,23 @@ public class PublishAck extends ApiResponse<PublishAck> {
     /**
      *
      * This signature is public for testing purposes and is not intended to be used externally
-     * @param msg the message containing the Pub Ack Json https://github.com/nats-io/jsm.go/blob/main/schemas/jetstream/api/v1/pub_ack_response.json
+     * @param msg the message containing the Pub Ack Json <a href="https://github.com/nats-io/jsm.go/blob/main/schemas/jetstream/api/v1/pub_ack_response.json">pub_ack_response.json</a>
      * @throws IOException various IO exception such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the request
      */
     public PublishAck(Message msg) throws IOException, JetStreamApiException {
         super(msg);
         throwOnHasError();
-        stream = JsonUtils.readString(json, STREAM_RE, null);
+        stream = JsonValueUtils.readString(jv, STREAM);
         if (stream == null) {
             throw new IOException("Invalid JetStream ack.");
         }
-        domain = JsonUtils.readString(json, DOMAIN_RE, null);
-        seq = JsonUtils.readLong(json, SEQ_RE, 0);
+        seq = JsonValueUtils.readLong(jv, SEQ, 0);
         if (seq == 0) {
             throw new IOException("Invalid JetStream ack.");
         }
-        duplicate = JsonUtils.readBoolean(json, DUPLICATE_RE);
+        domain = JsonValueUtils.readString(jv, DOMAIN);
+        duplicate = JsonValueUtils.readBoolean(jv, DUPLICATE);
     }
 
     /**
@@ -82,15 +82,5 @@ public class PublishAck extends ApiResponse<PublishAck> {
      */
     public boolean isDuplicate() {
         return duplicate;
-    }
-
-    @Override
-    public String toString() {
-        return "PublishAck{" +
-                "stream='" + stream + '\'' +
-                ", domain='" + domain + '\'' +
-                ", seq=" + seq +
-                ", duplicate=" + duplicate +
-                "}";
     }
 }

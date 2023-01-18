@@ -13,7 +13,7 @@ plugins {
     id 'signing'
 }
 
-def jarVersion = "2.16.6"
+def jarVersion = "2.16.7"
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 def bs = System.getenv("BRANCH_SNAPSHOT")
@@ -41,6 +41,7 @@ dependencies {
     implementation 'net.i2p.crypto:eddsa:0.3.0'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
     testImplementation 'io.nats:jnats-server-runner:1.0.14'
+    testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
 }
 
 sourceSets {

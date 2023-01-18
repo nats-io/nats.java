@@ -14,7 +14,9 @@
 package io.nats.examples.service;
 
 import io.nats.client.*;
+import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 import io.nats.service.*;
 
 import java.io.IOException;
@@ -26,6 +28,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.readInteger;
+import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
@@ -232,8 +236,9 @@ public class ServiceExample {
         }
 
         public ExampleStatsData(String json) {
-            this.sData = JsonUtils.readString(json, string_pattern("sdata"));
-            this.iData = JsonUtils.readInt(json, integer_pattern("idata"), -1);
+            JsonValue jv = JsonParser.parse(json);
+            this.sData = readString(jv, "sdata");
+            this.iData = readInteger(jv, "idata", -1);
         }
 
         @Override

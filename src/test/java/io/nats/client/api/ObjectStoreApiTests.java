@@ -66,10 +66,10 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
     public void testObjectInfoConstruction() throws Exception {
         String json = dataAsString("ObjectInfo.json");
         ZonedDateTime now = ZonedDateTime.now();
-        ObjectInfo oi = new ObjectInfo(json, now);
+        ObjectInfo oi = new ObjectInfo(json.getBytes(), now);
         validateObjectInfo(oi, DateTimeUtils.toGmt(now));
         now = ZonedDateTime.now();
-        oi = new ObjectInfo(oi.toJson(), now);
+        oi = new ObjectInfo(oi.toJson().getBytes(), now);
         validateObjectInfo(oi, DateTimeUtils.toGmt(now));
     }
 

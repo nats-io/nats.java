@@ -13,25 +13,29 @@
 
 package io.nats.client.api;
 
-import java.util.ArrayList;
-import java.util.List;
+import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 
-import static io.nats.client.support.ApiConstants.REPLICA;
-import static io.nats.client.support.ApiConstants.REPLICAS;
-import static io.nats.client.support.JsonUtils.getObjectList;
+import java.util.List;
 
 public class Replica extends PeerInfo {
 
-    static List<Replica> optionalListOf(String json) {
-        List<String> strObjects = getObjectList(REPLICAS, json);
-        List<Replica> list = new ArrayList<>();
-        for (String j : strObjects) {
-            list.add(new Replica(j));
-        }
-        return list.isEmpty() ? null : list;
+    static List<Replica> optionalListOf(JsonValue vReplicas) {
+        return JsonValueUtils.optionalListOf(vReplicas, Replica::new);
     }
 
-    Replica(String json) {
-        super(REPLICA, json);
+    Replica(JsonValue vReplica) {
+        super(vReplica);
+    }
+
+    @Override
+    public String toString() {
+        return "Replica{" +
+            "name='" + getName() + '\'' +
+            ", current=" + isCurrent() +
+            ", offline=" + isOffline() +
+            ", active=" + getActive() +
+            ", lag=" + getLag() +
+            '}';
     }
 }

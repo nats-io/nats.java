@@ -13,11 +13,9 @@
 
 package io.nats.service;
 
-import io.nats.client.support.ApiConstants;
-import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.*;
 
+import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -26,6 +24,7 @@ import java.util.function.Function;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonValueUtils.*;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
@@ -69,7 +68,10 @@ public class StatsResponse implements JsonSerializable {
         return copy;
     }
 
-    public StatsResponse(String json, Function<String, StatsData> decoder) {
+    public StatsResponse(byte[] jsonBytes, Function<String, StatsData> decoder) {
+        JsonValue jv = JsonParser.parse(jsonBytes);
+
+        String json = new String(jsonBytes, StandardCharsets.UTF_8);
         // handle the data first just in the off chance that the data has a duplicate
         // field name to the stats. This is because we don't have a proper parse, but it works fine.
         String dataJson = JsonUtils.getJsonObject(DATA, json, null);
@@ -80,15 +82,15 @@ public class StatsResponse implements JsonSerializable {
             JsonUtils.removeObject(json, DATA);
         }
 
-        name = JsonUtils.readString(json, NAME_RE);
-        serviceId = JsonUtils.readString(json, ID_RE);
-        version = JsonUtils.readString(json, VERSION_RE);
-        numRequests = new AtomicLong(JsonUtils.readLong(json, NUM_REQUESTS_RE, 0));
-        numErrors = new AtomicLong(JsonUtils.readLong(json, NUM_ERRORS_RE, 0));
-        lastError = new AtomicReference<>(JsonUtils.readString(json, LAST_ERROR_RE));
-        processingTime = new AtomicLong(JsonUtils.readLong(json, PROCESSING_TIME_RE, 0));
-        averageProcessingTime = new AtomicLong(JsonUtils.readLong(json, AVERAGE_PROCESSING_TIME_RE, 0));
-        started = JsonUtils.readDate(json, STARTED_RE);
+        name = readString(jv, NAME);
+        serviceId = readString(jv, ID);
+        version = readString(jv, VERSION);
+        numRequests = new AtomicLong(readLong(jv, NUM_REQUESTS, 0));
+        numErrors = new AtomicLong(readLong(jv, NUM_ERRORS, 0));
+        lastError = new AtomicReference<>(readString(jv, LAST_ERROR));
+        processingTime = new AtomicLong(readLong(jv, PROCESSING_TIME, 0));
+        averageProcessingTime = new AtomicLong(readLong(jv, AVERAGE_PROCESSING_TIME, 0));
+        started = readDate(jv, STARTED);
     }
 
     void start() {
