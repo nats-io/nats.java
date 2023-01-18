@@ -7,7 +7,7 @@ import java.time.Duration;
 import static io.nats.client.support.Validator.nullOrEmpty;
 import static io.nats.client.support.Validator.validateSubject;
 
-public class ServiceUtil {
+public abstract class ServiceUtil {
 
     public static final String SRV_PING = "PING";
     public static final String SRV_INFO = "INFO";
@@ -19,6 +19,8 @@ public class ServiceUtil {
     public static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofSeconds(5);
     public static final long DEFAULT_DISCOVERY_MAX_TIME_MILLIS = 5000;
     public static final int DEFAULT_DISCOVERY_MAX_RESULTS = 10;
+
+    private ServiceUtil() {} /* ensures cannot be constructed */
 
     public static String toDiscoverySubject(String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {
         if (nullOrEmpty(optionalServiceIdSegment)) {

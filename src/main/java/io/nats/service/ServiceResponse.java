@@ -46,14 +46,17 @@ public abstract class ServiceResponse implements JsonSerializable {
     }
 
     protected ServiceResponse(String type, JsonValue jv) {
-        this.type = type;
         String jvType = readString(jv, TYPE);
+        if (Validator.emptyAsNull(jvType) == null) {
+            throw new IllegalArgumentException("Type cannot be null or empty.");
+        }
         if (!type.equals(jvType)) {
             throw new IllegalArgumentException("Invalid type for " + getClass().getSimpleName() + ". Expecting: " + type + ". Received " + jvType);
         }
-        name = readString(jv, NAME);
-        id = readString(jv, ID);
-        version = readString(jv, VERSION);
+        this.type = type;
+        id = Validator.required(readString(jv, ID), "Id");
+        name = Validator.required(readString(jv, NAME), "Name");
+        version = Validator.required(readString(jv, VERSION), "Version");
     }
 
     protected static JsonValue parseMessage(byte[] bytes) {
@@ -97,7 +100,7 @@ public abstract class ServiceResponse implements JsonSerializable {
         return version;
     }
 
-    protected abstract void subToJson(StringBuilder sb, boolean forToString);
+    protected void subToJson(StringBuilder sb, boolean forToString) {}
 
     private String _toJson(boolean forToString) {
         StringBuilder sb;
@@ -107,8 +110,8 @@ public abstract class ServiceResponse implements JsonSerializable {
         else {
             sb = JsonUtils.beginJson();
         }
-        JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, ID, id);
+        JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, VERSION, version);
         subToJson(sb, forToString);
         JsonUtils.addField(sb, ApiConstants.TYPE, type);

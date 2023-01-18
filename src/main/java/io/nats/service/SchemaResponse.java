@@ -17,6 +17,7 @@ import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 
 import java.util.List;
+import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.API_URL;
 import static io.nats.client.support.ApiConstants.ENDPOINTS;
@@ -60,5 +61,25 @@ public class SchemaResponse extends ServiceResponse {
 
     public List<Endpoint> getEndpoints() {
         return endpoints;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        if (!super.equals(o)) return false;
+
+        SchemaResponse that = (SchemaResponse) o;
+
+        if (!Objects.equals(apiUrl, that.apiUrl)) return false;
+        return Objects.equals(endpoints, that.endpoints);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + (apiUrl != null ? apiUrl.hashCode() : 0);
+        result = 31 * result + (endpoints != null ? endpoints.hashCode() : 0);
+        return result;
     }
 }

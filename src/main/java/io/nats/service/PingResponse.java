@@ -26,9 +26,4 @@ public class PingResponse extends ServiceResponse {
     public PingResponse(byte[] jsonBytes) {
         super(TYPE, parseMessage(jsonBytes));
     }
-
-    @Override
-    protected void subToJson(StringBuilder sb, boolean forToString) {
-        // nothing needed here since ping doesn't have any additional fields
-    }
 }

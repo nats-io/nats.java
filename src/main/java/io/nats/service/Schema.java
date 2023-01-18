@@ -18,6 +18,8 @@ import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.Validator;
 
+import java.util.Objects;
+
 import static io.nats.client.support.ApiConstants.REQUEST;
 import static io.nats.client.support.ApiConstants.RESPONSE;
 import static io.nats.client.support.JsonUtils.endJson;
@@ -60,7 +62,7 @@ public class Schema implements JsonSerializable {
 
     @Override
     public String toString() {
-        return toJson();
+        return JsonUtils.toKey(getClass()) + toJson();
     }
 
     /**
@@ -77,5 +79,23 @@ public class Schema implements JsonSerializable {
      */
     public String getResponse() {
         return response;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Schema schema = (Schema) o;
+
+        if (!Objects.equals(request, schema.request)) return false;
+        return Objects.equals(response, schema.response);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = request != null ? request.hashCode() : 0;
+        result = 31 * result + (response != null ? response.hashCode() : 0);
+        return result;
     }
 }

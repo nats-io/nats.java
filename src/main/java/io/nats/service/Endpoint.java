@@ -19,6 +19,7 @@ import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 
 import java.util.List;
+import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.endJson;
@@ -83,7 +84,7 @@ public class Endpoint implements JsonSerializable {
 
     @Override
     public String toString() {
-        return toJson();
+        return JsonUtils.toKey(getClass()) + toJson();
     }
 
     public String getName() {
@@ -158,5 +159,25 @@ public class Endpoint implements JsonSerializable {
         public Endpoint build() {
             return new Endpoint(this);
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Endpoint endpoint = (Endpoint) o;
+
+        if (!Objects.equals(name, endpoint.name)) return false;
+        if (!Objects.equals(subject, endpoint.subject)) return false;
+        return Objects.equals(schema, endpoint.schema);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = name != null ? name.hashCode() : 0;
+        result = 31 * result + (subject != null ? subject.hashCode() : 0);
+        result = 31 * result + (schema != null ? schema.hashCode() : 0);
+        return result;
     }
 }

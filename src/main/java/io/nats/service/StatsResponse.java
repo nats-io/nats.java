@@ -18,6 +18,7 @@ import io.nats.client.support.JsonValue;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.ENDPOINTS;
 import static io.nats.client.support.ApiConstants.STARTED;
@@ -61,5 +62,25 @@ public class StatsResponse extends ServiceResponse {
 
     public List<EndpointStats> getEndpointStats() {
         return endpointStats;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        if (!super.equals(o)) return false;
+
+        StatsResponse that = (StatsResponse) o;
+
+        if (!Objects.equals(started, that.started)) return false;
+        return Objects.equals(endpointStats, that.endpointStats);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + (started != null ? started.hashCode() : 0);
+        result = 31 * result + (endpointStats != null ? endpointStats.hashCode() : 0);
+        return result;
     }
 }

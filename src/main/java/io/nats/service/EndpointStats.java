@@ -20,6 +20,7 @@ import io.nats.client.support.JsonValueUtils;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
@@ -38,7 +39,7 @@ public class EndpointStats implements JsonSerializable {
     private final long averageProcessingTime;
     private final String lastError;
     private final JsonValue data;
-    private final ZonedDateTime started; // THIS FIELD IS CURRENTLY IN JAVA ONLY
+    private final ZonedDateTime started;
 
     static List<EndpointStats> listOf(JsonValue vEndpointStats) {
         return JsonValueUtils.listOf(vEndpointStats, EndpointStats::new);
@@ -121,6 +122,38 @@ public class EndpointStats implements JsonSerializable {
 
     @Override
     public String toString() {
-        return toJson();
+        return JsonUtils.toKey(getClass()) + toJson();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        EndpointStats that = (EndpointStats) o;
+
+        if (numRequests != that.numRequests) return false;
+        if (numErrors != that.numErrors) return false;
+        if (processingTime != that.processingTime) return false;
+        if (averageProcessingTime != that.averageProcessingTime) return false;
+        if (!Objects.equals(name, that.name)) return false;
+        if (!Objects.equals(subject, that.subject)) return false;
+        if (!Objects.equals(lastError, that.lastError)) return false;
+        if (!Objects.equals(data, that.data)) return false;
+        return Objects.equals(started, that.started);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = name != null ? name.hashCode() : 0;
+        result = 31 * result + (subject != null ? subject.hashCode() : 0);
+        result = 31 * result + (int) (numRequests ^ (numRequests >>> 32));
+        result = 31 * result + (int) (numErrors ^ (numErrors >>> 32));
+        result = 31 * result + (int) (processingTime ^ (processingTime >>> 32));
+        result = 31 * result + (int) (averageProcessingTime ^ (averageProcessingTime >>> 32));
+        result = 31 * result + (lastError != null ? lastError.hashCode() : 0);
+        result = 31 * result + (data != null ? data.hashCode() : 0);
+        result = 31 * result + (started != null ? started.hashCode() : 0);
+        return result;
     }
 }

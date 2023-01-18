@@ -17,6 +17,7 @@ import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 
 import java.util.List;
+import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.DESCRIPTION;
 import static io.nats.client.support.ApiConstants.SUBJECTS;
@@ -68,5 +69,25 @@ public class InfoResponse extends ServiceResponse {
      */
     public List<String> getSubjects() {
         return subjects;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        if (!super.equals(o)) return false;
+
+        InfoResponse that = (InfoResponse) o;
+
+        if (!Objects.equals(description, that.description)) return false;
+        return Objects.equals(subjects, that.subjects);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + (description != null ? description.hashCode() : 0);
+        result = 31 * result + (subjects != null ? subjects.hashCode() : 0);
+        return result;
     }
 }

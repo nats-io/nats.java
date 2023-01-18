@@ -23,6 +23,10 @@ public class ServiceBuilder {
     Dispatcher schemaDispatcher;
     Dispatcher statsDispatcher;
 
+    public static ServiceBuilder instance() {
+        return new ServiceBuilder();
+    }
+
     public ServiceBuilder connection(Connection conn) {
         this.conn = conn;
         return this;

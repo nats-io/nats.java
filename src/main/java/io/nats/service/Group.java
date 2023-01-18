@@ -13,6 +13,8 @@
 
 package io.nats.service;
 
+import java.util.Objects;
+
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.service.ServiceUtil.validateGroupName;
 
@@ -42,5 +44,23 @@ public class Group {
 
     public Group getNext() {
         return next;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Group group = (Group) o;
+
+        if (!Objects.equals(name, group.name)) return false;
+        return Objects.equals(next, group.next);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = name != null ? name.hashCode() : 0;
+        result = 31 * result + (next != null ? next.hashCode() : 0);
+        return result;
     }
 }
