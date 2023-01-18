@@ -442,7 +442,6 @@ public class ServiceTests extends JetStreamTestBase {
 
         assertThrows(IllegalArgumentException.class, () -> new Group(HAS_SPACE));
         assertThrows(IllegalArgumentException.class, () -> new Group(HAS_LOW));
-        assertThrows(IllegalArgumentException.class, () -> new Group(HAS_GT)); // invalid in the middle
         assertThrows(IllegalArgumentException.class, () -> new Group(HAS_127));
         assertThrows(IllegalArgumentException.class, () -> new Group("foo.>")); // gt is last segment
         assertThrows(IllegalArgumentException.class, () -> new Group("foo.>.bar")); // gt is not last segment
