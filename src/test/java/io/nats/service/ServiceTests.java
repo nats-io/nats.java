@@ -17,6 +17,7 @@ import io.nats.client.*;
 import io.nats.client.impl.AdditionalConnectTests;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
+import io.nats.client.impl.NatsMessage;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
@@ -31,6 +32,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static io.nats.client.impl.NatsPackageScopeWorkarounds.getDispatchers;
@@ -560,6 +562,117 @@ public class ServiceTests extends JetStreamTestBase {
             assertEquals(1, es.getNumRequests());
             assertEquals(1, es.getNumErrors());
             assertEquals("java.lang.RuntimeException: handler-problem", es.getLastError());
+        });
+    }
+
+    @Test
+    public void testServiceMessage() throws Exception {
+        runInServer(nc -> {
+
+            AtomicInteger atomic = new AtomicInteger();
+
+            ServiceEndpoint se = ServiceEndpoint.builder()
+                .endpointName("testServiceMessage")
+                .handler(m-> {
+                    // Coverage // just hitting all the reply variations
+                    int which = atomic.incrementAndGet();
+                    Headers h;
+                    switch (which) {
+                        case 1:
+                            m.reply(nc, "1".getBytes());
+                            break;
+                        case 2:
+                            m.reply(nc, "2");
+                            break;
+                        case 3:
+                            m.reply(nc, new JsonValue("3"));
+                            break;
+                        case 4:
+                            m.reply(nc, "4".getBytes(), m.getHeaders());
+                            break;
+                        case 5:
+                            m.reply(nc, "5", m.getHeaders());
+                            break;
+                        case 6:
+                            m.reply(nc, new JsonValue("6"), m.getHeaders());
+                            break;
+                        case 7:
+                            // Coverage, Message Interface
+                            assertEquals("testServiceMessage", m.getSubject());
+                            assertFalse(m.hasHeaders());
+                            assertNull(m.getHeaders());
+                            assertFalse(m.isStatusMessage());
+                            assertNull(m.getStatus());
+                            m.isUtf8mode();
+                            assertNotNull(m.getSubscription());
+                            assertNotNull(m.getSID());
+                            assertNotNull(m.getConnection());
+                            assertThrows(IllegalStateException.class, m::metaData);
+                            assertNull(m.lastAck());
+                            assertDoesNotThrow(() -> m.ackSync(Duration.ofMillis(1)));
+                            m.ack();
+                            m.nak();
+                            m.nakWithDelay(Duration.ofMillis(1));
+                            m.nakWithDelay(1);
+                            m.term();
+                            m.inProgress();
+                            assertFalse(m.isJetStream());
+                            // the actual reply
+                            m.replyStandardError(nc, "error", 500);
+                            break;
+                    }
+                })
+                .build();
+            Service service = new ServiceBuilder()
+                .connection(nc)
+                .name("testService")
+                .version("0.0.1")
+                .addServiceEndpoint(se)
+                .build();
+            service.startService();
+
+            CompletableFuture<Message> future = nc.request("testServiceMessage", null);
+            Message m = future.get();
+            assertEquals("1", new String(m.getData()));
+            assertFalse(m.hasHeaders());
+
+            future = nc.request("testServiceMessage", null);
+            m = future.get();
+            assertEquals("2", new String(m.getData()));
+            assertFalse(m.hasHeaders());
+
+            future = nc.request("testServiceMessage", null);
+            m = future.get();
+            assertEquals("\"3\"", new String(m.getData()));
+            assertFalse(m.hasHeaders());
+
+            Headers h = new Headers().put("h", "4");
+            future = nc.request(NatsMessage.builder().subject("testServiceMessage").headers(h).build());
+            m = future.get();
+            assertEquals("4", new String(m.getData()));
+            assertTrue(m.hasHeaders());
+            assertEquals("4", m.getHeaders().getFirst("h"));
+
+            h = new Headers().put("h", "5");
+            future = nc.request(NatsMessage.builder().subject("testServiceMessage").headers(h).build());
+            m = future.get();
+            assertEquals("5", new String(m.getData()));
+            assertTrue(m.hasHeaders());
+            assertEquals("5", m.getHeaders().getFirst("h"));
+
+            h = new Headers().put("h", "6");
+            future = nc.request(NatsMessage.builder().subject("testServiceMessage").headers(h).build());
+            m = future.get();
+            assertEquals("\"6\"", new String(m.getData()));
+            assertTrue(m.hasHeaders());
+            assertEquals("6", m.getHeaders().getFirst("h"));
+
+            future = nc.request("testServiceMessage", null);
+            m = future.get();
+            assertEquals(0, m.getData().length);
+            assertTrue(m.hasHeaders());
+            assertEquals("error", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertEquals("500", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
         });
     }
 

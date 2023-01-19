@@ -37,7 +37,7 @@ public class ServiceMessage implements Message {
 
     private final Message message;
 
-    public ServiceMessage(Message message) {
+    ServiceMessage(Message message) {
         this.message = message;
     }
 
@@ -49,8 +49,8 @@ public class ServiceMessage implements Message {
         conn.publish(message.getReplyTo(), data.getBytes(StandardCharsets.UTF_8));
     }
 
-    public void reply(Connection conn, JsonSerializable js) {
-        conn.publish(message.getReplyTo(), js.serialize());
+    public void reply(Connection conn, JsonSerializable data) {
+        conn.publish(message.getReplyTo(), data.serialize());
     }
 
     public void reply(Connection conn, byte[] data, Headers headers) {
@@ -59,6 +59,10 @@ public class ServiceMessage implements Message {
 
     public void reply(Connection conn, String data, Headers headers) {
         conn.publish(NatsMessage.builder().subject(message.getReplyTo()).data(data).headers(headers).build());
+    }
+
+    public void reply(Connection conn, JsonSerializable data, Headers headers) {
+        conn.publish(NatsMessage.builder().subject(message.getReplyTo()).data(data.serialize()).headers(headers).build());
     }
 
     public void replyStandardError(Connection conn, String errorMessage, int errorCode) {
