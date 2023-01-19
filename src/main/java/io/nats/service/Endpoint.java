@@ -25,8 +25,8 @@ import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.JsonValueUtils.readValue;
-import static io.nats.service.ServiceUtil.validateEndpointName;
-import static io.nats.service.ServiceUtil.validateEndpointSubject;
+import static io.nats.client.support.Validator.validateIsRestrictedTerm;
+import static io.nats.client.support.Validator.validateSubject;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
@@ -58,8 +58,19 @@ public class Endpoint implements JsonSerializable {
 
     // internal use constructors
     Endpoint(String name, String subject, Schema schema, boolean validate) {
-        this.name = validate ? validateEndpointName(name) : name;
-        this.subject = validate ? validateEndpointSubject(subject, this.name) : subject;
+        if (validate) {
+            this.name = validateIsRestrictedTerm(name, "Endpoint Name", true);
+            if (subject == null) {
+                this.subject = this.name;
+            }
+            else {
+                this.subject = validateSubject(subject, "Endpoint Subject", false, false);
+            }
+        }
+        else {
+            this.name = name;
+            this.subject = subject;
+        }
         this.schema = schema;
     }
 

@@ -17,8 +17,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.Validator.*;
@@ -76,6 +75,26 @@ public class ValidatorTests {
         notAllowedRequired(Validator::validateDurable, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT, HAS_LOW, HAS_127));
         notAllowedRequired(Validator::validateDurable, UTF_ONLY_STRINGS);
         allowedNotRequiredEmptyAsNull(Validator::validateDurable, Arrays.asList(null, EMPTY));
+    }
+
+    @Test
+    public void testValidatePrintable() {
+        validatePrintable(PLAIN, "label", true);
+        validatePrintable(HAS_PRINTABLE, "label", true);
+        validatePrintable(HAS_DOT, "label", true);
+        validatePrintable(HAS_STAR, "label", true);
+        validatePrintable(HAS_GT, "label", true);
+        validatePrintable(HAS_DASH, "label", true);
+        validatePrintable(HAS_UNDER, "label", true);
+        validatePrintable(HAS_DOLLAR, "label", true);
+        validatePrintable(HAS_FWD_SLASH, "label", true);
+        validatePrintable(HAS_BACK_SLASH, "label", true);
+        validatePrintable(HAS_EQUALS, "label", true);
+        validatePrintable(HAS_TIC, "label", true);
+
+        assertThrows(IllegalArgumentException.class, () -> validatePrintable(HAS_SPACE, "label", true));
+        assertThrows(IllegalArgumentException.class, () -> validatePrintable(HAS_127, "label", true));
+        assertThrows(IllegalArgumentException.class, () -> validatePrintable(HAS_LOW, "label", true));
     }
 
     @Test
@@ -284,6 +303,23 @@ public class ValidatorTests {
         assertEquals("x", validateMustMatchIfBothSupplied("x", " ", err));
         assertEquals("x", validateMustMatchIfBothSupplied("x", "x", err));
         assertThrows(IllegalArgumentException.class, () -> validateMustMatchIfBothSupplied("x", "y", err));
+    }
+
+    @SuppressWarnings({"ObviousNullCheck", "rawtypes"})
+    @Test
+    public void testValidateRequired() {
+        required("required", "label");
+        required(new Object(), "label");
+        required(Collections.singletonList("list"), "label");
+        required(Collections.singletonMap("key", "value"), "label");
+
+        assertThrows(IllegalArgumentException.class, () -> required((String)null, "label"));
+        assertThrows(IllegalArgumentException.class, () -> required(EMPTY, "label"));
+        assertThrows(IllegalArgumentException.class, () -> required((Object)null, "label"));
+        assertThrows(IllegalArgumentException.class, () -> required((List)null, "label"));
+        assertThrows(IllegalArgumentException.class, () -> required(new ArrayList<>(), "label"));
+        assertThrows(IllegalArgumentException.class, () -> required((Map)null, "label"));
+        assertThrows(IllegalArgumentException.class, () -> required(new HashMap<>(), "label"));
     }
 
     @Test

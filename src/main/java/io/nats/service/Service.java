@@ -30,12 +30,18 @@ import java.util.concurrent.TimeUnit;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonUtils.toKey;
-import static io.nats.service.ServiceUtil.toDiscoverySubject;
+import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class Service {
+    public static final String SRV_PING = "PING";
+    public static final String SRV_INFO = "INFO";
+    public static final String SRV_SCHEMA = "SCHEMA";
+    public static final String SRV_STATS = "STATS";
+    public static final String DEFAULT_SERVICE_PREFIX = "$SRV.";
+
     private final Connection conn;
     private final Duration drainTimeout;
     private final Map<String, EndpointContext> serviceContexts;
@@ -56,7 +62,7 @@ public class Service {
         dInternals = new ArrayList<>();
         stopLock = new Object();
 
-        // setup the service contexts
+        // set up the service contexts
         // ? do we need an internal dispatcher for any user endpoints
         // ? also while we are here, we need to collect the endpoints for the SchemaResponse
         Dispatcher dTemp = null;
@@ -94,9 +100,9 @@ public class Service {
         }
 
         discoveryContexts = new ArrayList<>();
-        addDiscoveryContexts(ServiceUtil.SRV_PING, pingResponse, b.pingDispatcher, dTemp);
-        addDiscoveryContexts(ServiceUtil.SRV_INFO, infoResponse, b.infoDispatcher, dTemp);
-        addDiscoveryContexts(ServiceUtil.SRV_SCHEMA, schemaResponse, b.schemaDispatcher, dTemp);
+        addDiscoveryContexts(SRV_PING, pingResponse, b.pingDispatcher, dTemp);
+        addDiscoveryContexts(SRV_INFO, infoResponse, b.infoDispatcher, dTemp);
+        addDiscoveryContexts(SRV_SCHEMA, schemaResponse, b.schemaDispatcher, dTemp);
         addStatsContexts(b.statsDispatcher, dTemp);
     }
 
@@ -108,12 +114,22 @@ public class Service {
 
     private void addStatsContexts(Dispatcher dUser, Dispatcher dInternal) {
         ServiceMessageHandler handler = smsg -> smsg.reply(conn,getStatsResponse().serialize());
-        addDiscoveryContexts(ServiceUtil.SRV_STATS, dUser, dInternal, handler);
+        addDiscoveryContexts(SRV_STATS, dUser, dInternal, handler);
     }
 
     private Endpoint internalEndpoint(String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {
         String subject = toDiscoverySubject(discoveryName, optionalServiceNameSegment, optionalServiceIdSegment);
         return new Endpoint(subject, subject, null, false);
+    }
+
+    static String toDiscoverySubject(String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {
+        if (nullOrEmpty(optionalServiceIdSegment)) {
+            if (nullOrEmpty(optionalServiceNameSegment)) {
+                return DEFAULT_SERVICE_PREFIX + discoveryName;
+            }
+            return DEFAULT_SERVICE_PREFIX + discoveryName + "." + optionalServiceNameSegment;
+        }
+        return DEFAULT_SERVICE_PREFIX + discoveryName + "." + optionalServiceNameSegment + "." + optionalServiceIdSegment;
     }
 
     private void addDiscoveryContexts(String discoveryName, Dispatcher dUser, Dispatcher dInternal, ServiceMessageHandler handler) {
@@ -140,6 +156,10 @@ public class Service {
         }
         started = DateTimeUtils.gmtNow();
         return doneFuture;
+    }
+
+    public static ServiceBuilder builder() {
+        return new ServiceBuilder();
     }
 
     @Override
@@ -236,7 +256,27 @@ public class Service {
     }
 
     public String getId() {
-        return pingResponse.getId();
+        return infoResponse.getId();
+    }
+
+    public String getName() {
+        return infoResponse.getName();
+    }
+
+    public String getVersion() {
+        return infoResponse.getVersion();
+    }
+
+    public String getDescription() {
+        return infoResponse.getDescription();
+    }
+
+    public String getApiUrl() {
+        return schemaResponse.getApiUrl();
+    }
+
+    public Duration getDrainTimeout() {
+        return drainTimeout;
     }
 
     public PingResponse getPingResponse() {

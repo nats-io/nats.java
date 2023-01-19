@@ -16,6 +16,8 @@ package io.nats.service;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.NatsTestServer;
+import io.nats.client.Options;
+import io.nats.client.impl.AdditionalConnectTests;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
@@ -26,9 +28,11 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 
 import static io.nats.client.support.JsonUtils.toKey;
@@ -36,9 +40,9 @@ import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsConstants.EMPTY;
+import static io.nats.service.Service.SRV_PING;
 import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR;
 import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR_CODE;
-import static io.nats.service.ServiceUtil.SRV_PING;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ServiceTests extends JetStreamTestBase {
@@ -95,7 +99,7 @@ public class ServiceTests extends JetStreamTestBase {
 
                 ServiceEndpoint seSortD1 = ServiceEndpoint.builder()
                     .endpoint(endSortD)
-                    .handler(new SortHandlerA(serviceNc1))
+                    .handler(new SortHandlerD(serviceNc1))
                     .build();
 
                 ServiceEndpoint seEcho2 = ServiceEndpoint.builder()
@@ -116,7 +120,7 @@ public class ServiceTests extends JetStreamTestBase {
                 ServiceEndpoint seSortD2 = ServiceEndpoint.builder()
                     .endpointName(endSortD.getName())
                     .endpointSubject(endSortD.getSubject())
-                    .handler(new SortHandlerA(serviceNc2))
+                    .handler(new SortHandlerD(serviceNc2))
                     .build();
 
                 Service service1 = new ServiceBuilder()
@@ -193,6 +197,9 @@ public class ServiceTests extends JetStreamTestBase {
                 verifyDiscovery(discovery.ping(), pingVerifier, pingResponse1, pingResponse2);
                 verifyDiscovery(discovery.ping(SERVICE_NAME_1), pingVerifier, pingResponse1);
                 verifyDiscovery(discovery.ping(SERVICE_NAME_2), pingVerifier, pingResponse2);
+                verifyDiscovery(discovery.ping(SERVICE_NAME_1, serviceId1), pingVerifier, pingResponse1);
+                assertNull(discovery.ping(SERVICE_NAME_1, "badId"));
+                assertNull(discovery.ping("bad", "badId"));
 
                 // info discovery
                 Verifier infoVerifier = (expected, response) -> {
@@ -208,6 +215,9 @@ public class ServiceTests extends JetStreamTestBase {
                 verifyDiscovery(discovery.info(), infoVerifier, infoResponse1, infoResponse2);
                 verifyDiscovery(discovery.info(SERVICE_NAME_1), infoVerifier, infoResponse1);
                 verifyDiscovery(discovery.info(SERVICE_NAME_2), infoVerifier, infoResponse2);
+                verifyDiscovery(discovery.info(SERVICE_NAME_1, serviceId1), infoVerifier, infoResponse1);
+                assertNull(discovery.info(SERVICE_NAME_1, "badId"));
+                assertNull(discovery.info("bad", "badId"));
 
                 // schema discovery
                 Verifier schemaVerifier = (expected, response) -> {
@@ -222,6 +232,9 @@ public class ServiceTests extends JetStreamTestBase {
                 verifyDiscovery(discovery.schema(), schemaVerifier, schemaResponse1, schemaResponse2);
                 verifyDiscovery(discovery.schema(SERVICE_NAME_1), schemaVerifier, schemaResponse1);
                 verifyDiscovery(discovery.schema(SERVICE_NAME_2), schemaVerifier, schemaResponse2);
+                verifyDiscovery(discovery.schema(SERVICE_NAME_1, serviceId1), schemaVerifier, schemaResponse1);
+                assertNull(discovery.schema(SERVICE_NAME_1, "badId"));
+                assertNull(discovery.schema("bad", "badId"));
 
                 // stats discovery
                 Verifier statsVerifier = (expected, response) -> {
@@ -244,6 +257,9 @@ public class ServiceTests extends JetStreamTestBase {
                 verifyDiscovery(discovery.stats(), statsVerifier, statsResponse1, statsResponse2);
                 verifyDiscovery(discovery.stats(SERVICE_NAME_1), statsVerifier, statsResponse1);
                 verifyDiscovery(discovery.stats(SERVICE_NAME_2), statsVerifier, statsResponse2);
+                verifyDiscovery(discovery.stats(SERVICE_NAME_1, serviceId1), statsVerifier, statsResponse1);
+                assertNull(discovery.stats(SERVICE_NAME_1, "badId"));
+                assertNull(discovery.stats("bad", "badId"));
 
                 // test reset
                 ZonedDateTime zdt = DateTimeUtils.gmtNow();
@@ -270,8 +286,9 @@ public class ServiceTests extends JetStreamTestBase {
                 // shutdown
                 service1.stop();
                 serviceDone1.get();
-                service2.stop();
-                serviceDone2.get();
+                service2.stop(new RuntimeException("Testing stop(Throwable t)"));
+                ExecutionException ee = assertThrows(ExecutionException.class, serviceDone2::get);
+                assertTrue(ee.getMessage().contains("Testing stop(Throwable t)"));
             }
         }
     }
@@ -299,16 +316,6 @@ public class ServiceTests extends JetStreamTestBase {
         }
         return null;
     }
-
-    @SuppressWarnings("rawtypes")
-//    private static void verifyDiscovery(SchemaResponse expectedSchemaResponse, List objects, SchemaInfoVerifier siv, String... expectedIds) {
-//        List<String> expectedList = Arrays.asList(expectedIds);
-//        assertEquals(expectedList.size(), objects.size());
-//        for (Object o : objects) {
-//            String id = siv.verify(expectedSchemaResponse, o);
-//            assertTrue(expectedList.contains(id));
-//        }
-//    }
 
     private static void verifyServiceExecution(Connection nc, String endpointName, String serviceSubject) {
         try {
@@ -400,7 +407,7 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     private static String sortD(String data) {
-        return sortA(data.getBytes(StandardCharsets.UTF_8));
+        return sortD(data.getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
@@ -433,57 +440,57 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testEndpoint() {
+    public void testEndpointConstruction() {
         EqualsVerifier.simple().forClass(Endpoint.class).verify();
 
-        Endpoint e = new Endpoint(PLAIN);
-        assertEquals(PLAIN, e.getName());
-        assertEquals(PLAIN, e.getSubject());
+        Endpoint e = new Endpoint(NAME);
+        assertEquals(NAME, e.getName());
+        assertEquals(NAME, e.getSubject());
         assertNull(e.getSchema());
         assertEquals(e, Endpoint.builder().endpoint(e).build());
 
-        e = new Endpoint(PLAIN, SUBJECT);
-        assertEquals(PLAIN, e.getName());
+        e = new Endpoint(NAME, SUBJECT);
+        assertEquals(NAME, e.getName());
         assertEquals(SUBJECT, e.getSubject());
         assertNull(e.getSchema());
         assertEquals(e, Endpoint.builder().endpoint(e).build());
 
-        e = new Endpoint(PLAIN, SUBJECT, "schema-request", null);
-        assertEquals(PLAIN, e.getName());
+        e = new Endpoint(NAME, SUBJECT, "schema-request", null);
+        assertEquals(NAME, e.getName());
         assertEquals(SUBJECT, e.getSubject());
         assertEquals("schema-request", e.getSchema().getRequest());
         assertNull(e.getSchema().getResponse());
         assertEquals(e, Endpoint.builder().endpoint(e).build());
 
-        e = new Endpoint(PLAIN, SUBJECT, null, "schema-response");
-        assertEquals(PLAIN, e.getName());
+        e = new Endpoint(NAME, SUBJECT, null, "schema-response");
+        assertEquals(NAME, e.getName());
         assertEquals(SUBJECT, e.getSubject());
         assertNull(e.getSchema().getRequest());
         assertEquals("schema-response", e.getSchema().getResponse());
         assertEquals(e, Endpoint.builder().endpoint(e).build());
 
         e = Endpoint.builder()
-            .name(PLAIN).subject(SUBJECT)
+            .name(NAME).subject(SUBJECT)
             .schemaRequest("schema-request").schemaResponse("schema-response")
             .build();
-        assertEquals(PLAIN, e.getName());
+        assertEquals(NAME, e.getName());
         assertEquals(SUBJECT, e.getSubject());
         assertEquals("schema-request", e.getSchema().getRequest());
         assertEquals("schema-response", e.getSchema().getResponse());
         assertEquals(e, Endpoint.builder().endpoint(e).build());
 
         e = Endpoint.builder()
-            .name(PLAIN).subject(SUBJECT)
+            .name(NAME).subject(SUBJECT)
             .schema(e.getSchema())
             .build();
-        assertEquals(PLAIN, e.getName());
+        assertEquals(NAME, e.getName());
         assertEquals(SUBJECT, e.getSubject());
         assertEquals("schema-request", e.getSchema().getRequest());
         assertEquals("schema-response", e.getSchema().getResponse());
 
         String j = e.toJson();
         assertTrue(j.startsWith("{"));
-        assertTrue(j.contains("\"name\":\"plain\""));
+        assertTrue(j.contains("\"name\":\"name\""));
         assertTrue(j.contains("\"subject\":\"subject\""));
         assertTrue(j.contains("\"schema\":{"));
         assertTrue(j.contains("\"request\":\"schema-request\""));
@@ -491,18 +498,20 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(toKey(Endpoint.class) + j, e.toString());
 
         e = Endpoint.builder()
-            .name(PLAIN).subject(SUBJECT)
+            .name(NAME).subject(SUBJECT)
             .schema(null)
             .build();
-        assertEquals(PLAIN, e.getName());
+        assertEquals(NAME, e.getName());
         assertEquals(SUBJECT, e.getSubject());
         assertNull(e.getSchema());
 
         // some subject testing
-        e = new Endpoint(PLAIN, "foo.>");
+        e = new Endpoint(NAME, "foo.>");
         assertEquals("foo.>", e.getSubject());
-        e = new Endpoint(PLAIN, "foo.*");
+        e = new Endpoint(NAME, "foo.*");
         assertEquals("foo.*", e.getSubject());
+
+        assertThrows(IllegalArgumentException.class, () -> Endpoint.builder().build());
 
         // many names are bad
         assertThrows(IllegalArgumentException.class, () -> new Endpoint((String)null));
@@ -521,15 +530,14 @@ public class ServiceTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_TIC));
 
         // fewer subjects are bad
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(PLAIN, HAS_SPACE));
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(PLAIN, HAS_LOW));
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(PLAIN, HAS_127));
-
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(PLAIN, "foo.>.bar")); // gt is not last segment
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, "foo.>.bar")); // gt is not last segment
     }
 
     @Test
-    public void testSchema() {
+    public void testSchemaConstruction() {
         EqualsVerifier.simple().forClass(Schema.class).verify();
         Schema s1 = new Schema("request", "response");
         assertEquals("request", s1.getRequest());
@@ -564,7 +572,7 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testEndpointStats() {
+    public void testEndpointStatsConstruction() {
         JsonValue data = new JsonValue("data");
         EqualsVerifier.simple().forClass(EndpointStats.class)
             .withPrefabValues(JsonValue.class, data, JsonValue.NULL)
@@ -607,15 +615,19 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testGroup() {
+    public void testGroupConstruction() {
         Group g1 = new Group(subject(1));
         Group g2 = new Group(subject(2));
+        Group g3 = new Group(subject(3));
         assertEquals(subject(1), g1.getName());
         assertEquals(subject(1), g1.getSubject());
         assertEquals(subject(2), g2.getName());
         assertEquals(subject(2), g2.getSubject());
+        assertEquals(subject(3), g3.getName());
+        assertEquals(subject(3), g3.getSubject());
         assertNull(g1.getNext());
         assertNull(g2.getNext());
+        assertNull(g3.getNext());
 
         g1.appendGroup(g2);
         assertEquals(subject(2), g1.getNext().getName());
@@ -624,6 +636,12 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(subject(1) + DOT + subject(2), g1.getSubject());
         assertEquals(subject(2), g2.getName());
         assertEquals(subject(2), g2.getSubject());
+
+        g1.appendGroup(g3);
+        assertEquals(subject(2), g1.getNext().getName());
+        assertEquals(subject(3), g1.getNext().getNext().getName());
+        assertEquals(subject(1), g1.getName());
+        assertEquals(subject(1) + DOT + subject(2) + DOT + subject(3), g1.getSubject());
 
         g1 = new Group("foo.*");
         assertEquals("foo.*", g1.getName());
@@ -638,10 +656,158 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testServiceEndpointConstruction() {
+        Group g1 = new Group(subject(1));
+        Group g2 = new Group(subject(2)).appendGroup(g1);
+        Endpoint e1 = new Endpoint(name(100), subject(100));
+        Endpoint e2 = new Endpoint(name(200), subject(200));
+        ServiceMessageHandler smh = m -> {};
+        Supplier<JsonValue> sds = () -> null;
+
+        ServiceEndpoint se = ServiceEndpoint.builder()
+            .endpoint(e1)
+            .handler(smh)
+            .statsDataSupplier(sds)
+            .dispatcher(null) // just for some coverage, dispatcher is tested elsewhere
+            .build();
+        assertNull(se.getGroup());
+        assertEquals(e1, se.getEndpoint());
+        assertEquals(e1.getName(), se.getName());
+        assertEquals(e1.getSubject(), se.getSubject());
+        assertEquals(smh, se.getHandler());
+        assertEquals(sds, se.getStatsDataSupplier());
+        assertNull(se.getDispatcher());
+
+        se = ServiceEndpoint.builder()
+            .group(g1)
+            .endpoint(e1)
+            .handler(smh)
+            .build();
+        assertEquals(g1, se.getGroup());
+        assertEquals(e1, se.getEndpoint());
+        assertEquals(e1.getName(), se.getName());
+        assertEquals(g1.getSubject() + DOT + e1.getSubject(), se.getSubject());
+        assertNull(se.getStatsDataSupplier());
+        assertNull(se.getDispatcher());
+
+        se = ServiceEndpoint.builder()
+            .group(g2)
+            .endpoint(e1)
+            .handler(smh)
+            .build();
+        assertEquals(g1, se.getGroup());
+        assertEquals(e1, se.getEndpoint());
+        assertEquals(e1.getName(), se.getName());
+        assertEquals(g2.getSubject() + DOT + e1.getSubject(), se.getSubject());
+
+        se = ServiceEndpoint.builder()
+            .endpoint(e1)
+            .endpoint(e2)
+            .handler(smh)
+            .build();
+        assertEquals(e2, se.getEndpoint());
+        assertEquals(e2.getName(), se.getName());
+        assertEquals(e2.getSubject(), se.getSubject());
+
+        se = ServiceEndpoint.builder()
+            .endpoint(e1)
+            .endpointName(e2.getName())
+            .handler(smh)
+            .build();
+        assertEquals(e2.getName(), se.getName());
+        assertEquals(e1.getSubject(), se.getSubject());
+
+        se = ServiceEndpoint.builder()
+            .endpoint(e1)
+            .endpointSubject(e2.getSubject())
+            .handler(smh)
+            .build();
+        assertEquals(e1.getName(), se.getName());
+        assertEquals(e2.getSubject(), se.getSubject());
+
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+            () -> ServiceEndpoint.builder().build());
+        assertTrue(iae.getMessage().contains("Endpoint"));
+
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> ServiceEndpoint.builder().build());
+        assertTrue(iae.getMessage().contains("Endpoint"));
+
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> ServiceEndpoint.builder().endpoint(e1).build());
+        assertTrue(iae.getMessage().contains("Handler"));
+    }
+
+    @SuppressWarnings("resource")
+    @Test
+    public void testServiceBuilderConstruction() {
+        Options options = new Options.Builder().build();
+        Connection conn = new AdditionalConnectTests.TestNatsConnection(options);
+        ServiceEndpoint se = ServiceEndpoint.builder()
+            .endpoint(new Endpoint(name(0)))
+            .handler(m -> {})
+            .build();
+
+        // minimum valid service
+        Service service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se).build();
+        assertNotNull(service.toString()); // coverage
+        assertNotNull(service.getId());
+        assertEquals(NAME, service.getName());
+        assertEquals(ServiceBuilder.DEFAULT_DRAIN_TIMEOUT, service.getDrainTimeout());
+        assertEquals("1.0.0", service.getVersion());
+        assertNull(service.getDescription());
+        assertNull(service.getApiUrl());
+
+        service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se)
+            .apiUrl("apiUrl")
+            .description("desc")
+            .drainTimeout(Duration.ofSeconds(1))
+            .build();
+        assertEquals("desc", service.getDescription());
+        assertEquals("apiUrl", service.getApiUrl());
+        assertEquals(Duration.ofSeconds(1), service.getDrainTimeout());
+
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(null));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_PRINTABLE));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_DOT));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_STAR)); // invalid in the middle
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_GT)); // invalid in the middle
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_FWD_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_BACK_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_EQUALS));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_TIC));
+
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().version(null));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().version(EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().version("not-semver"));
+
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+            () -> Service.builder().name(NAME).version("1.0.0").addServiceEndpoint(se).build());
+        assertTrue(iae.getMessage().contains("Connection cannot be null or empty"));
+
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> Service.builder().connection(conn).version("1.0.0").addServiceEndpoint(se).build());
+        assertTrue(iae.getMessage().contains("Name cannot be null or empty"));
+
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> Service.builder().connection(conn).name(NAME).addServiceEndpoint(se).build());
+        assertTrue(iae.getMessage().contains("Version cannot be null or empty"));
+
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> Service.builder().connection(conn).name(NAME).version("1.0.0").build());
+        assertTrue(iae.getMessage().contains("Endpoints cannot be null or empty"));
+    }
+
+    @Test
     public void testUtilToDiscoverySubject() {
-        assertEquals("$SRV.PING", ServiceUtil.toDiscoverySubject(SRV_PING, null, null));
-        assertEquals("$SRV.PING.myservice", ServiceUtil.toDiscoverySubject(SRV_PING, "myservice", null));
-        assertEquals("$SRV.PING.myservice.123", ServiceUtil.toDiscoverySubject(SRV_PING, "myservice", "123"));
+        assertEquals("$SRV.PING", Service.toDiscoverySubject(SRV_PING, null, null));
+        assertEquals("$SRV.PING.myservice", Service.toDiscoverySubject(SRV_PING, "myservice", null));
+        assertEquals("$SRV.PING.myservice.123", Service.toDiscoverySubject(SRV_PING, "myservice", "123"));
     }
 
     static class TestServiceResponses extends ServiceResponse {
@@ -657,7 +823,7 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testServiceResponses() {
+    public void testServiceResponsesConstruction() {
         PingResponse pr1 = new PingResponse("id", "name", "0.0.0");
         PingResponse pr2 = new PingResponse(pr1.toJson().getBytes());
         validateApiInOutPingResponse(pr1);

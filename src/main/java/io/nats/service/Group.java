@@ -16,7 +16,7 @@ package io.nats.service;
 import java.util.Objects;
 
 import static io.nats.client.support.NatsConstants.DOT;
-import static io.nats.service.ServiceUtil.validateGroupName;
+import static io.nats.client.support.Validator.validateSubject;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
@@ -26,16 +26,20 @@ public class Group {
     private Group next;
 
     public Group(String name) {
-        this.name = validateGroupName(name);
+        this.name = validateSubject(name, "Group Name", true, true);
     }
 
     public Group appendGroup(Group group) {
-        this.next = group;
+        Group last = this;
+        while (last.next != null) {
+            last = last.next;
+        }
+        last.next = group;
         return group;
     }
 
     public String getSubject() {
-        return next == null ? name : name + DOT + next.getName();
+        return next == null ? name : name + DOT + next.getSubject();
     }
 
     public String getName() {

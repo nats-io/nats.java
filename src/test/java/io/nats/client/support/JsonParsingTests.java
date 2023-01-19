@@ -732,10 +732,36 @@ public final class JsonParsingTests {
         map.put("list", new ArrayList<>());
         map.put("smap", new TestSerializableMap());
         map.put("slist", new TestSerializableList());
+        map.put("jv", JsonValue.EMPTY_MAP);
         map.put("null", null);
-        JsonValue v = instance(map);
+        map.put("jvNull", JsonValue.NULL);
+        validateMap(true, instance(map));
+    }
+
+    @Test
+    public void testValueUtilsMapBuilder() {
+        validateMap(false, mapBuilder()
+            .put("string", "Hello")
+            .put("char", 'c')
+            .put("int", 1)
+            .put("long", 1L)
+            .put("double", 1D)
+            .put("float", 1F)
+            .put("bd", new BigDecimal("1.0"))
+            .put("bi", new BigInteger("1"))
+            .put("bool", true)
+            .put("map", new HashMap<>())
+            .put("list", new ArrayList<>())
+            .put("smap", new TestSerializableMap())
+            .put("slist", new TestSerializableList())
+            .put("jv", JsonValue.EMPTY_MAP)
+            .put("null", null)
+            .put("jvNull", JsonValue.NULL)
+            .getJsonValue());
+    }
+
+    private static void validateMap(boolean checkNull, JsonValue v) {
         assertNotNull(v.map);
-        assertEquals(14, v.map.size());
         assertEquals(JsonValue.Type.STRING, v.map.get("string").type);
         assertEquals(JsonValue.Type.STRING, v.map.get("char").type);
         assertEquals(JsonValue.Type.INTEGER, v.map.get("int").type);
@@ -749,6 +775,84 @@ public final class JsonParsingTests {
         assertEquals(JsonValue.Type.ARRAY, v.map.get("list").type);
         assertEquals(JsonValue.Type.MAP, v.map.get("smap").type);
         assertEquals(JsonValue.Type.ARRAY, v.map.get("slist").type);
-        assertEquals(JsonValue.Type.NULL, v.map.get("null").type);
+        assertEquals(JsonValue.Type.MAP, v.map.get("jv").type);
+        if (checkNull) {
+            assertEquals(16, v.map.size());
+            assertEquals(JsonValue.Type.NULL, v.map.get("null").type);
+            assertEquals(JsonValue.Type.NULL, v.map.get("jvNull").type);
+        }
+        else {
+            assertEquals(14, v.map.size());
+        }
+    }
+
+    @Test
+    public void testValueUtilsInstanceArray() {
+        List<Object> list = new ArrayList<>();
+        list.add("Hello");
+        list.add('c');
+        list.add(1);
+        list.add(1L);
+        list.add(1D);
+        list.add(1F);
+        list.add(new BigDecimal("1.0"));
+        list.add(new BigInteger("1"));
+        list.add(true);
+        list.add(new HashMap<>());
+        list.add(new ArrayList<>());
+        list.add(new TestSerializableMap());
+        list.add(new TestSerializableList());
+        list.add(JsonValue.EMPTY_MAP);
+        list.add(null);
+        list.add(JsonValue.NULL);
+        validateArray(true, instance(list));
+    }
+
+    @Test
+    public void testValueUtilsArrayBuilder() {
+        validateArray(false, arrayBuilder()
+            .add("Hello")
+            .add('c')
+            .add(1)
+            .add(1L)
+            .add(1D)
+            .add(1F)
+            .add(new BigDecimal("1.0"))
+            .add(new BigInteger("1"))
+            .add(true)
+            .add(new HashMap<>())
+            .add(new ArrayList<>())
+            .add(new TestSerializableMap())
+            .add(new TestSerializableList())
+            .add(JsonValue.EMPTY_MAP)
+            .add(null)
+            .add(JsonValue.NULL)
+            .getJsonValue());
+    }
+
+    private static void validateArray(boolean checkNull, JsonValue v) {
+        assertNotNull(v.array);
+        assertEquals(JsonValue.Type.STRING, v.array.get(0).type);
+        assertEquals(JsonValue.Type.STRING, v.array.get(1).type);
+        assertEquals(JsonValue.Type.INTEGER, v.array.get(2).type);
+        assertEquals(JsonValue.Type.LONG, v.array.get(3).type);
+        assertEquals(JsonValue.Type.DOUBLE, v.array.get(4).type);
+        assertEquals(JsonValue.Type.FLOAT, v.array.get(5).type);
+        assertEquals(JsonValue.Type.BIG_DECIMAL, v.array.get(6).type);
+        assertEquals(JsonValue.Type.BIG_INTEGER, v.array.get(7).type);
+        assertEquals(JsonValue.Type.BOOL, v.array.get(8).type);
+        assertEquals(JsonValue.Type.MAP, v.array.get(9).type);
+        assertEquals(JsonValue.Type.ARRAY, v.array.get(10).type);
+        assertEquals(JsonValue.Type.MAP, v.array.get(11).type);
+        assertEquals(JsonValue.Type.ARRAY, v.array.get(12).type);
+        assertEquals(JsonValue.Type.MAP, v.array.get(13).type);
+        if (checkNull) {
+            assertEquals(16, v.array.size());
+            assertEquals(JsonValue.Type.NULL, v.array.get(14).type);
+            assertEquals(JsonValue.Type.NULL, v.array.get(15).type);
+        }
+        else {
+            assertEquals(14, v.array.size());
+        }
     }
 }

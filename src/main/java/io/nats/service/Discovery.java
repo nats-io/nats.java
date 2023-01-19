@@ -15,7 +15,6 @@ package io.nats.service;
 
 import io.nats.client.Connection;
 import io.nats.client.Message;
-import io.nats.client.StatusException;
 import io.nats.client.Subscription;
 
 import java.time.Duration;
@@ -24,12 +23,14 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import static io.nats.client.NUID.nextGlobal;
-import static io.nats.service.ServiceUtil.*;
+import static io.nats.service.Service.*;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class Discovery {
+    public static final long DEFAULT_DISCOVERY_MAX_TIME_MILLIS = 5000;
+    public static final int DEFAULT_DISCOVERY_MAX_RESULTS = 10;
 
     private final Connection conn;
     private final long maxTimeMillis;
@@ -54,9 +55,7 @@ public class Discovery {
 
     public List<PingResponse> ping(String serviceName) {
         List<PingResponse> list = new ArrayList<>();
-        discoverMany(SRV_PING, serviceName, jsonBytes -> {
-            list.add(new PingResponse(jsonBytes));
-        });
+        discoverMany(SRV_PING, serviceName, jsonBytes -> list.add(new PingResponse(jsonBytes)));
         return list;
     }
 
@@ -123,18 +122,20 @@ public class Discovery {
     // workers
     // ----------------------------------------------------------------------------------------------------
     private byte[] discoverOne(String action, String serviceName, String serviceId) {
-        String subject = ServiceUtil.toDiscoverySubject(action, serviceName, serviceId);
+        String subject = Service.toDiscoverySubject(action, serviceName, serviceId);
         try {
             Message m = conn.request(subject, null, Duration.ofMillis(maxTimeMillis));
             if (m != null) {
                 return m.getData();
             }
         }
-        catch (InterruptedException ignore) {}
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         return null;
     }
 
-    private void discoverMany(String action, String serviceName, Consumer<byte[]> stringConsumer) {
+    private void discoverMany(String action, String serviceName, Consumer<byte[]> dataConsumer) {
         Subscription sub = null;
         try {
             StringBuilder sb = new StringBuilder(nextGlobal()).append('-').append(action);
@@ -145,7 +146,7 @@ public class Discovery {
 
             sub = conn.subscribe(replyTo);
 
-            String subject = ServiceUtil.toDiscoverySubject(action, serviceName, null);
+            String subject = toDiscoverySubject(action, serviceName, null);
             conn.publish(subject, replyTo, null);
 
             int resultsLeft = maxResults;
@@ -156,13 +157,7 @@ public class Discovery {
                 if (msg == null) {
                     return;
                 }
-                if (msg.isStatusMessage()) {
-                    throw new StatusException(sub, msg.getStatus());
-                }
-                if (msg.getData() == null) {
-                    return;
-                }
-                stringConsumer.accept(msg.getData());
+                dataConsumer.accept(msg.getData());
                 resultsLeft--;
                 // try again while we have time
                 timeLeft = maxTimeMillis - (System.currentTimeMillis() - start);
@@ -173,9 +168,8 @@ public class Discovery {
         }
         finally {
             try {
-                if (sub != null) {
-                    sub.unsubscribe();
-                }
+                //noinspection DataFlowIssue
+                sub.unsubscribe();
             }
             catch (Exception ignore) {}
         }

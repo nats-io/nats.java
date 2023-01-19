@@ -14,6 +14,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class EndpointContext {
+    public static final String QGROUP = "q";
+
     protected final Connection conn;
     protected final ServiceEndpoint se;
     protected final ServiceMessageHandler handler;
@@ -36,7 +38,7 @@ public class EndpointContext {
         this.se = se;
         handler = se.getHandler();
         this.recordStats = recordStats;
-        qGroup = recordStats ? ServiceUtil.QGROUP : null;
+        qGroup = recordStats ? QGROUP : null;
 
         if (se.getDispatcher() == null) {
             dispatcher = internalDispatcher;

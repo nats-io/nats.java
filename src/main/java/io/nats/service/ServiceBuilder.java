@@ -8,9 +8,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static io.nats.client.support.Validator.*;
-import static io.nats.service.ServiceUtil.DEFAULT_DRAIN_TIMEOUT;
 
 public class ServiceBuilder {
+    public static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofSeconds(5);
+
     Connection conn;
     String name;
     String description;
@@ -23,17 +24,13 @@ public class ServiceBuilder {
     Dispatcher schemaDispatcher;
     Dispatcher statsDispatcher;
 
-    public static ServiceBuilder instance() {
-        return new ServiceBuilder();
-    }
-
     public ServiceBuilder connection(Connection conn) {
         this.conn = conn;
         return this;
     }
 
     public ServiceBuilder name(String name) {
-        this.name = validateIsRestrictedTerm(name, "Name", true);
+        this.name = validateIsRestrictedTerm(name, "Service Name", true);
         return this;
     }
 
@@ -43,7 +40,7 @@ public class ServiceBuilder {
     }
 
     public ServiceBuilder version(String version) {
-        this.version = validateSemVer(version, "Version", true);
+        this.version = validateSemVer(version, "Service Version", true);
         return this;
     }
 
