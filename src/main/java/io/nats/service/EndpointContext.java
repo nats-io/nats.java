@@ -86,11 +86,6 @@ public class EndpointContext {
         }
     }
 
-    public EndpointContext setSub(Subscription sub) {
-        this.sub = sub;
-        return this;
-    }
-
     public EndpointStats getEndpointStats() {
         return new EndpointStats(
             se.getEndpoint().getName(),
@@ -126,14 +121,6 @@ public class EndpointContext {
 
     void addProcessingTime(long elapsed) {
         processingTime.addAndGet(elapsed);
-    }
-
-    public String getSubject() {
-        return se.getSubject();
-    }
-
-    public Dispatcher getDispatcher() {
-        return dispatcher;
     }
 
     public boolean isNotInternalDispatcher() {

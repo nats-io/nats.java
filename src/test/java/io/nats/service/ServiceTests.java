@@ -13,10 +13,7 @@
 
 package io.nats.service;
 
-import io.nats.client.Connection;
-import io.nats.client.Message;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
+import io.nats.client.*;
 import io.nats.client.impl.AdditionalConnectTests;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
@@ -33,8 +30,10 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
+import static io.nats.client.impl.NatsPackageScopeWorkarounds.getDispatchers;
 import static io.nats.client.support.JsonUtils.toKey;
 import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readString;
@@ -163,6 +162,17 @@ public class ServiceTests extends JetStreamTestBase {
                 SchemaResponse schemaResponse2 = service2.getSchemaResponse();
                 StatsResponse statsResponse1 = service1.getStatsResponse();
                 StatsResponse statsResponse2 = service2.getStatsResponse();
+                EndpointStats[] endpointStatsArray1 = new EndpointStats[] {
+                    service1.getEndpointStats(ECHO_ENDPOINT_NAME),
+                    service1.getEndpointStats(SORT_ENDPOINT_ASCENDING_NAME),
+                    service1.getEndpointStats(SORT_ENDPOINT_DESCENDING_NAME)
+                };
+                EndpointStats[] endpointStatsArray2 = new EndpointStats[] {
+                    service2.getEndpointStats(ECHO_ENDPOINT_NAME),
+                    service2.getEndpointStats(SORT_ENDPOINT_ASCENDING_NAME),
+                    service2.getEndpointStats(SORT_ENDPOINT_DESCENDING_NAME)
+                };
+                assertNull(service1.getEndpointStats("notAnEndpoint"));
 
                 assertEquals(serviceId1, pingResponse1.getId());
                 assertEquals(serviceId2, pingResponse2.getId());
@@ -177,6 +187,9 @@ public class ServiceTests extends JetStreamTestBase {
                 // in the same order and the json list comes back ordered
                 // expecting 10 responses across each endpoint between 2 services
                 for (int x = 0; x < 3; x++) {
+                    assertEquals(requestCount,
+                        endpointStatsArray1[x].getNumRequests()
+                            + endpointStatsArray2[x].getNumRequests());
                     assertEquals(requestCount,
                         statsResponse1.getEndpointStats().get(x).getNumRequests()
                             + statsResponse2.getEndpointStats().get(x).getNumRequests());
@@ -408,6 +421,117 @@ public class ServiceTests extends JetStreamTestBase {
 
     private static String sortD(String data) {
         return sortD(data.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Test
+    public void testDispatchers() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer()) {
+            try (Connection nc = standardConnection(ts.getURI())) {
+
+                Map<String, Dispatcher> dispatchers = getDispatchers(nc);
+                assertEquals(0, dispatchers.size());
+
+                Dispatcher dPing = nc.createDispatcher();
+                Dispatcher dInfo = nc.createDispatcher();
+                Dispatcher dSchema = nc.createDispatcher();
+                Dispatcher dStats = nc.createDispatcher();
+                Dispatcher dEnd = nc.createDispatcher();
+
+                dispatchers = getDispatchers(nc);
+                assertEquals(5, dispatchers.size());
+
+                ServiceEndpoint se1 = ServiceEndpoint.builder()
+                    .endpointName("dispatch")
+                    .handler(m -> {})
+                    .dispatcher(dEnd)
+                    .build();
+                Service service = new ServiceBuilder()
+                    .connection(nc)
+                    .name("testDispatchers")
+                    .version("0.0.1")
+                    .addServiceEndpoint(se1)
+                    .pingDispatcher(dPing)
+                    .infoDispatcher(dInfo)
+                    .schemaDispatcher(dSchema)
+                    .statsDispatcher(dStats)
+                    .build();
+
+                CompletableFuture<Boolean> done = service.startService();
+                sleep(100); // give the service time to spin up
+                service.stop(false); // no need to drain, plus // Coverage
+                done.get(100, TimeUnit.MILLISECONDS);
+
+                dispatchers = getDispatchers(nc);
+                assertEquals(5, dispatchers.size()); // stop doesn't touch supplied dispatchers
+
+                nc.closeDispatcher(dPing);
+                nc.closeDispatcher(dInfo);
+                nc.closeDispatcher(dSchema);
+                sleep(100); // no rush
+
+                dispatchers = getDispatchers(nc);
+                assertEquals(2, dispatchers.size()); // dEnd and dStats
+                assertTrue(dispatchers.containsValue(dStats));
+                assertTrue(dispatchers.containsValue(dEnd));
+
+                service = new ServiceBuilder()
+                    .connection(nc)
+                    .name("testDispatchers")
+                    .version("0.0.1")
+                    .addServiceEndpoint(se1)
+                    .statsDispatcher(dStats)
+                    .build();
+
+                dispatchers = getDispatchers(nc);
+                assertEquals(3, dispatchers.size()); // endpoint, stats, internal discovery
+
+                done = service.startService();
+                sleep(100); // give the service time to spin up
+                service.stop(); // Coverage
+                done.get(100, TimeUnit.MILLISECONDS);
+
+                dispatchers = getDispatchers(nc);
+                assertEquals(2, dispatchers.size()); // internal discovery was stopped
+                assertTrue(dispatchers.containsValue(dStats));
+                assertTrue(dispatchers.containsValue(dEnd));
+
+                nc.closeDispatcher(dStats);
+                nc.closeDispatcher(dEnd);
+                sleep(100); // no rush
+
+                dispatchers = getDispatchers(nc);
+                assertEquals(0, dispatchers.size());
+
+                se1 = ServiceEndpoint.builder()
+                    .endpointName("dispatch")
+                    .handler(m -> {})
+                    .build();
+
+                ServiceEndpoint se2 = ServiceEndpoint.builder()
+                    .endpointName("another")
+                    .handler(m -> {})
+                    .build();
+
+                service = new ServiceBuilder()
+                    .connection(nc)
+                    .name("testDispatchers")
+                    .version("0.0.1")
+                    .addServiceEndpoint(se1)
+                    .addServiceEndpoint(se2)
+                    .build();
+
+                dispatchers = getDispatchers(nc);
+                assertEquals(2, dispatchers.size()); // 1 internal discovery and 1 internal endpoints
+
+                done = service.startService();
+                sleep(100); // give the service time to spin up
+                service.stop(); // Coverage
+                done.get(100, TimeUnit.MILLISECONDS);
+
+                dispatchers = getDispatchers(nc);
+                assertEquals(0, dispatchers.size()); // service cleans up internal dispatchers
+            }
+        }
     }
 
     @Test
