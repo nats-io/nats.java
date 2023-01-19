@@ -128,18 +128,18 @@ public class ServiceTests extends JetStreamTestBase {
                     .addServiceEndpoint(seSortD1)
                     .build();
                 String serviceId1 = service1.getId();
-                CompletableFuture<Boolean> serverDone1 = service1.startService();
+                CompletableFuture<Boolean> serviceDone1 = service1.startService();
 
                 Service service2 = new ServiceBuilder()
                     .name(SERVICE_NAME_2)
                     .version("1.0.0")
-                    .connection(serviceNc1)
+                    .connection(serviceNc2)
                     .addServiceEndpoint(seEcho2)
                     .addServiceEndpoint(seSortA2)
                     .addServiceEndpoint(seSortD2)
                     .build();
                 String serviceId2 = service2.getId();
-                CompletableFuture<Boolean> serverDone2 = service1.startService();
+                CompletableFuture<Boolean> serviceDone2 = service2.startService();
 
                 assertNotEquals(serviceId1, serviceId2);
 
@@ -157,198 +157,158 @@ public class ServiceTests extends JetStreamTestBase {
                 InfoResponse infoResponse2 = service2.getInfoResponse();
                 SchemaResponse schemaResponse1 = service1.getSchemaResponse();
                 SchemaResponse schemaResponse2 = service2.getSchemaResponse();
+                StatsResponse statsResponse1 = service1.getStatsResponse();
+                StatsResponse statsResponse2 = service2.getStatsResponse();
 
-                System.out.println(pingResponse1);
-                System.out.println(pingResponse2);
-                System.out.println(infoResponse1);
-                System.out.println(infoResponse2);
-                System.out.println(schemaResponse1);
-                System.out.println(schemaResponse2);
-                System.out.println(service1.getStatsResponse());
-                System.out.println(service2.getStatsResponse());
-//
-//                // discovery - wait at most 500 millis for responses, 5 total responses max
-//                Discovery discovery = new Discovery(clientNc, 500, 5);
-//
-//                // ping discovery
-//                InfoVerifier pingValidator = (expectedInfoResponse, o) -> {
-//                    assertTrue(o instanceof PingResponse);
-//                    PingResponse p = (PingResponse)o;
-//                    if (expectedInfoResponse != null) {
-//                        assertEquals(expectedInfoResponse.getName(), p.getName());
-//                        assertEquals(PingResponse.TYPE, p.getType());
-//                        assertEquals(expectedInfoResponse.getVersion(), p.getVersion());
-//                    }
-//                    return p.getServiceId();
-//                };
-//                verifyDiscovery(null, discovery.ping(), pingValidator, echoServiceId1, sortServiceId1, echoServiceId2, sortServiceId2);
-//                verifyDiscovery(echoInfoResponse, discovery.ping(ECHO_ENDPOINT_NAME), pingValidator, echoServiceId1, echoServiceId2);
-//                verifyDiscovery(sortInfoResponse, discovery.ping(SORT_SERVICE_NAME), pingValidator, sortServiceId1, sortServiceId2);
-//                verifyDiscovery(echoInfoResponse, discovery.ping(ECHO_ENDPOINT_NAME, echoServiceId1), pingValidator, echoServiceId1);
-//                verifyDiscovery(sortInfoResponse, discovery.ping(SORT_SERVICE_NAME, sortServiceId1), pingValidator, sortServiceId1);
-//                verifyDiscovery(echoInfoResponse, discovery.ping(ECHO_ENDPOINT_NAME, echoServiceId2), pingValidator, echoServiceId2);
-//                verifyDiscovery(sortInfoResponse, discovery.ping(SORT_SERVICE_NAME, sortServiceId2), pingValidator, sortServiceId2);
-//
-//                // info discovery
-//                InfoVerifier infoValidator = (expectedInfoResponse, o) -> {
-//                    assertTrue(o instanceof InfoResponse);
-//                    InfoResponse i = (InfoResponse)o;
-//                    if (expectedInfoResponse != null) {
-//                        assertEquals(expectedInfoResponse.getName(), i.getName());
-//                        assertEquals(InfoResponse.TYPE, i.getType());
-//                        assertEquals(expectedInfoResponse.getDescription(), i.getDescription());
-//                        assertEquals(expectedInfoResponse.getVersion(), i.getVersion());
-//                        assertEquals(expectedInfoResponse.getSubject(), i.getSubject());
-//                    }
-//                    return i.getServiceId();
-//                };
-//                verifyDiscovery(null, discovery.info(), infoValidator, echoServiceId1, sortServiceId1, echoServiceId2, sortServiceId2);
-//                verifyDiscovery(echoInfoResponse, discovery.info(ECHO_ENDPOINT_NAME), infoValidator, echoServiceId1, echoServiceId2);
-//                verifyDiscovery(sortInfoResponse, discovery.info(SORT_SERVICE_NAME), infoValidator, sortServiceId1, sortServiceId2);
-//                verifyDiscovery(echoInfoResponse, discovery.info(ECHO_ENDPOINT_NAME, echoServiceId1), infoValidator, echoServiceId1);
-//                verifyDiscovery(sortInfoResponse, discovery.info(SORT_SERVICE_NAME, sortServiceId1), infoValidator, sortServiceId1);
-//                verifyDiscovery(echoInfoResponse, discovery.info(ECHO_ENDPOINT_NAME, echoServiceId2), infoValidator, echoServiceId2);
-//                verifyDiscovery(sortInfoResponse, discovery.info(SORT_SERVICE_NAME, sortServiceId2), infoValidator, sortServiceId2);
-//
-//                // schema discovery
-//                SchemaInfoVerifier schemaValidator = (expectedSchemaResponse, o) -> {
-//                    assertTrue(o instanceof SchemaResponse);
-//                    SchemaResponse sr = (SchemaResponse)o;
-//                    if (expectedSchemaResponse != null) {
-//                        assertEquals(SchemaResponse.TYPE, sr.getType());
-//                        assertEquals(expectedSchemaResponse.getName(), sr.getName());
-//                        assertEquals(expectedSchemaResponse.getVersion(), sr.getVersion());
-//                        assertEquals(expectedSchemaResponse.getSchema().getRequest(), sr.getSchema().getRequest());
-//                        assertEquals(expectedSchemaResponse.getSchema().getResponse(), sr.getSchema().getResponse());
-//                    }
-//                    return sr.getServiceId();
-//                };
-//                verifyDiscovery(null, discovery.schema(), schemaValidator, echoServiceId1, sortServiceId1, echoServiceId2, sortServiceId2);
-//                verifyDiscovery(echoSchemaResponse, discovery.schema(ECHO_ENDPOINT_NAME), schemaValidator, echoServiceId1, echoServiceId2);
-//                verifyDiscovery(sortSchemaResponse, discovery.schema(SORT_SERVICE_NAME), schemaValidator, sortServiceId1, sortServiceId2);
-//                verifyDiscovery(echoSchemaResponse, discovery.schema(ECHO_ENDPOINT_NAME, echoServiceId1), schemaValidator, echoServiceId1);
-//                verifyDiscovery(sortSchemaResponse, discovery.schema(SORT_SERVICE_NAME, sortServiceId1), schemaValidator, sortServiceId1);
-//                verifyDiscovery(echoSchemaResponse, discovery.schema(ECHO_ENDPOINT_NAME, echoServiceId2), schemaValidator, echoServiceId2);
-//                verifyDiscovery(sortSchemaResponse, discovery.schema(SORT_SERVICE_NAME, sortServiceId2), schemaValidator, sortServiceId2);
-//
-//                // stats discovery
-//                discovery = new Discovery(clientNc); // coverage for the simple constructor
-//                List<StatsResponse> srList = discovery.stats(sdd);
-//                assertEquals(4, srList.size());
-//                int responseEcho = 0;
-//                int responseSort = 0;
-//                long requestsEcho = 0;
-//                long requestsSort = 0;
-//                for (StatsResponse statsResponse : srList) {
-//                    if (statsResponse.getName().equals(ECHO_ENDPOINT_NAME)) {
-//                        responseEcho++;
-//                        requestsEcho += statsResponse.getNumRequests();
-//                        assertNotNull(statsResponse.getData());
-//                        assertTrue(statsResponse.getData() instanceof TestStatsData);
-//                    }
-//                    else {
-//                        responseSort++;
-//                        requestsSort += statsResponse.getNumRequests();
-//                    }
-//                    assertEquals(StatsResponse.TYPE, statsResponse.getType());
-//                }
-//                assertEquals(2, responseEcho);
-//                assertEquals(2, responseSort);
-//                assertEquals(requestCount, requestsEcho);
-//                assertEquals(requestCount, requestsSort);
-//
-//                // stats one specific instance so I can also test reset
-//                StatsResponse sr = discovery.stats(ECHO_ENDPOINT_NAME, echoServiceId1);
-//                assertEquals(echoServiceId1, sr.getServiceId());
-//                assertEquals(echoInfoResponse.getVersion(), sr.getVersion());
-//
-//                // reset stats
-//                echoService1.reset();
-//                sr = echoService1.getStats();
-//                assertEquals(0, sr.getNumRequests());
-//                assertEquals(0, sr.getNumErrors());
-//                assertEquals(0, sr.getProcessingTime());
-//                assertEquals(0, sr.getAverageProcessingTime());
-//                assertNull(sr.getData());
-//
-//                sr = discovery.stats(ECHO_ENDPOINT_NAME, echoServiceId1);
-//                assertEquals(0, sr.getNumRequests());
-//                assertEquals(0, sr.getNumErrors());
-//                assertEquals(0, sr.getProcessingTime());
-//                assertEquals(0, sr.getAverageProcessingTime());
-//
-//                // shutdown
-//                Map<String, Dispatcher> dispatchers = getDispatchers(serviceNc1);
-//                assertEquals(3, dispatchers.size()); // user supplied plus echo discovery plus sort discovery
-//                dispatchers = getDispatchers(serviceNc2);
-//                assertEquals(4, dispatchers.size()); // echo service, echo discovery, sort service, sort discovery
-//
-//                sortService1.stop();
-//                sortDone1.get();
-//                dispatchers = getDispatchers(serviceNc1);
-//                assertEquals(2, dispatchers.size()); // user supplied plus echo discovery
-//                dispatchers = getDispatchers(serviceNc2);
-//                assertEquals(4, dispatchers.size()); // echo service, echo discovery, sort service, sort discovery
-//
-//                echoService1.stop(null); // coverage of public void stop(Throwable t)
-//                serverDone1.get();
-//                dispatchers = getDispatchers(serviceNc1);
-//                assertEquals(1, dispatchers.size()); // user supplied is not managed by the service since it was supplied by the user
-//                dispatchers = getDispatchers(serviceNc2);
-//                assertEquals(4, dispatchers.size());  // echo service, echo discovery, sort service, sort discovery
-//
-//                sortService2.stop(true); // coverage of public void stop(boolean drain)
-//                sortDone2.get();
-//                dispatchers = getDispatchers(serviceNc1);
-//                assertEquals(1, dispatchers.size()); // no change so just user supplied
-//                dispatchers = getDispatchers(serviceNc2);
-//                assertEquals(2, dispatchers.size());  // echo service, echo discovery
-//
-//                echoService2.stop(new Exception()); // coverage
-//                assertThrows(ExecutionException.class, echoDone2::get);
-//                dispatchers = getDispatchers(serviceNc1);
-//                assertEquals(1, dispatchers.size()); // no change so user supplied
-//                dispatchers = getDispatchers(serviceNc2);
-//                assertEquals(0, dispatchers.size());  // no user supplied
+                assertEquals(serviceId1, pingResponse1.getId());
+                assertEquals(serviceId2, pingResponse2.getId());
+                assertEquals(serviceId1, infoResponse1.getId());
+                assertEquals(serviceId2, infoResponse2.getId());
+                assertEquals(serviceId1, schemaResponse1.getId());
+                assertEquals(serviceId2, schemaResponse2.getId());
+                assertEquals(serviceId1, statsResponse1.getId());
+                assertEquals(serviceId2, statsResponse2.getId());
+
+                // this relies on the fact that I load the endpoints up in the service
+                // in the same order and the json list comes back ordered
+                // expecting 10 responses across each endpoint between 2 services
+                for (int x = 0; x < 3; x++) {
+                    assertEquals(requestCount,
+                        statsResponse1.getEndpointStats().get(x).getNumRequests()
+                            + statsResponse2.getEndpointStats().get(x).getNumRequests());
+                }
+
+                // discovery - wait at most 500 millis for responses, 5 total responses max
+                Discovery discovery = new Discovery(clientNc, 500, 5);
+
+                // ping discovery
+                Verifier pingVerifier = (expected, response) -> {
+                    assertTrue(response instanceof PingResponse);
+                    PingResponse exp = (PingResponse)expected;
+                    PingResponse p = (PingResponse)response;
+                    assertEquals(PingResponse.TYPE, p.getType());
+                    assertEquals(exp.getName(), p.getName());
+                    assertEquals(exp.getVersion(), p.getVersion());
+                };
+                verifyDiscovery(discovery.ping(), pingVerifier, pingResponse1, pingResponse2);
+                verifyDiscovery(discovery.ping(SERVICE_NAME_1), pingVerifier, pingResponse1);
+                verifyDiscovery(discovery.ping(SERVICE_NAME_2), pingVerifier, pingResponse2);
+
+                // info discovery
+                Verifier infoVerifier = (expected, response) -> {
+                    assertTrue(response instanceof InfoResponse);
+                    InfoResponse exp = (InfoResponse)expected;
+                    InfoResponse i = (InfoResponse)response;
+                    assertEquals(InfoResponse.TYPE, i.getType());
+                    assertEquals(exp.getName(), i.getName());
+                    assertEquals(exp.getVersion(), i.getVersion());
+                    assertEquals(exp.getDescription(), i.getDescription());
+                    assertEquals(exp.getSubjects(), i.getSubjects());
+                };
+                verifyDiscovery(discovery.info(), infoVerifier, infoResponse1, infoResponse2);
+                verifyDiscovery(discovery.info(SERVICE_NAME_1), infoVerifier, infoResponse1);
+                verifyDiscovery(discovery.info(SERVICE_NAME_2), infoVerifier, infoResponse2);
+
+                // schema discovery
+                Verifier schemaVerifier = (expected, response) -> {
+                    SchemaResponse exp = (SchemaResponse)expected;
+                    SchemaResponse sr = (SchemaResponse)response;
+                    assertEquals(SchemaResponse.TYPE, sr.getType());
+                    assertEquals(exp.getName(), sr.getName());
+                    assertEquals(exp.getVersion(), sr.getVersion());
+                    assertEquals(exp.getApiUrl(), sr.getApiUrl());
+                    assertEquals(exp.getEndpoints(), sr.getEndpoints());
+                };
+                verifyDiscovery(discovery.schema(), schemaVerifier, schemaResponse1, schemaResponse2);
+                verifyDiscovery(discovery.schema(SERVICE_NAME_1), schemaVerifier, schemaResponse1);
+                verifyDiscovery(discovery.schema(SERVICE_NAME_2), schemaVerifier, schemaResponse2);
+
+                // stats discovery
+                Verifier statsVerifier = (expected, response) -> {
+                    assertTrue(response instanceof StatsResponse);
+                    StatsResponse exp = (StatsResponse)expected;
+                    StatsResponse sr = (StatsResponse)response;
+                    assertEquals(StatsResponse.TYPE, sr.getType());
+                    assertEquals(exp.getName(), sr.getName());
+                    assertEquals(exp.getVersion(), sr.getVersion());
+                    assertEquals(exp.getStarted(), sr.getStarted());
+                    for (int x = 0; x < 3; x++) {
+                        EndpointStats es = exp.getEndpointStats().get(x);
+                        if (!es.getName().equals(ECHO_ENDPOINT_NAME)) {
+                            // echo endpoint has data that will vary
+                            assertEquals(es, sr.getEndpointStats().get(x));
+                        }
+                    }
+                };
+                discovery = new Discovery(clientNc); // coverage for the simple constructor
+                verifyDiscovery(discovery.stats(), statsVerifier, statsResponse1, statsResponse2);
+                verifyDiscovery(discovery.stats(SERVICE_NAME_1), statsVerifier, statsResponse1);
+                verifyDiscovery(discovery.stats(SERVICE_NAME_2), statsVerifier, statsResponse2);
+
+                // test reset
+                ZonedDateTime zdt = DateTimeUtils.gmtNow();
+                sleep(1);
+                service1.reset();
+                StatsResponse sr = service1.getStatsResponse();
+                assertTrue(zdt.isBefore(sr.getStarted()));
+                for (int x = 0; x < 3; x++) {
+                    EndpointStats es = sr.getEndpointStats().get(x);
+                    assertEquals(0, es.getNumRequests());
+                    assertEquals(0, es.getNumErrors());
+                    assertEquals(0, es.getProcessingTime());
+                    assertEquals(0, es.getAverageProcessingTime());
+                    assertNull(es.getLastError());
+                    if (es.getName().equals(ECHO_ENDPOINT_NAME)) {
+                        assertNotNull(es.getData());
+                    }
+                    else {
+                        assertNull(es.getData());
+                    }
+                    assertTrue(zdt.isBefore(es.getStarted()));
+                }
+
+                // shutdown
+                service1.stop();
+                serviceDone1.get();
+                service2.stop();
+                serviceDone2.get();
             }
         }
     }
 
-    interface InfoVerifier {
-        String verify(InfoResponse expectedInfoResponse, Object o);
+    interface Verifier {
+        void verify(ServiceResponse expected, Object response);
     }
 
-    interface SchemaInfoVerifier {
-        String verify(SchemaResponse expectedSchemaResponse, Object o);
-    }
-
-    private static void verifyDiscovery(InfoResponse expectedInfoResponse, Object object, InfoVerifier iv, String... expectedIds) {
-        verifyDiscovery(expectedInfoResponse, Collections.singletonList(object), iv, expectedIds);
-    }
-
-    private static void verifyDiscovery(SchemaResponse expectedSchemaResponse, Object object, SchemaInfoVerifier siv, String... expectedIds) {
-        verifyDiscovery(expectedSchemaResponse, Collections.singletonList(object), siv, expectedIds);
-    }
-
-    @SuppressWarnings("rawtypes")
-    private static void verifyDiscovery(InfoResponse expectedInfoResponse, List objects, InfoVerifier iv, String... expectedIds) {
-        List<String> expectedList = Arrays.asList(expectedIds);
-        assertEquals(expectedList.size(), objects.size());
-        for (Object o : objects) {
-            String id = iv.verify(expectedInfoResponse, o);
-            assertTrue(expectedList.contains(id));
+    @SuppressWarnings("unchecked")
+    private static void verifyDiscovery(Object oResponse, Verifier v, ServiceResponse... expectedResponses) {
+        List<Object> responses = oResponse instanceof List ? (List<Object>)oResponse : Collections.singletonList(oResponse);
+        assertEquals(expectedResponses.length, responses.size());
+        for (Object response : responses) {
+            ServiceResponse expected = find(expectedResponses, (ServiceResponse)response);
+            assertNotNull(expected);
+            v.verify(expected, response);
         }
     }
 
-    @SuppressWarnings("rawtypes")
-    private static void verifyDiscovery(SchemaResponse expectedSchemaResponse, List objects, SchemaInfoVerifier siv, String... expectedIds) {
-        List<String> expectedList = Arrays.asList(expectedIds);
-        assertEquals(expectedList.size(), objects.size());
-        for (Object o : objects) {
-            String id = siv.verify(expectedSchemaResponse, o);
-            assertTrue(expectedList.contains(id));
+    private static ServiceResponse find(ServiceResponse[] expectedResponses, ServiceResponse response) {
+        for (ServiceResponse sr : expectedResponses) {
+            if (response.id.equals(sr.id)) {
+                return sr;
+            }
         }
+        return null;
     }
+
+    @SuppressWarnings("rawtypes")
+//    private static void verifyDiscovery(SchemaResponse expectedSchemaResponse, List objects, SchemaInfoVerifier siv, String... expectedIds) {
+//        List<String> expectedList = Arrays.asList(expectedIds);
+//        assertEquals(expectedList.size(), objects.size());
+//        for (Object o : objects) {
+//            String id = siv.verify(expectedSchemaResponse, o);
+//            assertTrue(expectedList.contains(id));
+//        }
+//    }
 
     private static void verifyServiceExecution(Connection nc, String endpointName, String serviceSubject) {
         try {

@@ -226,14 +226,11 @@ public class Service {
     }
 
     public void reset() {
-        for (EndpointContext c : serviceContexts.values()) {
+        started = DateTimeUtils.gmtNow();
+        for (EndpointContext c : discoveryContexts) {
             c.reset();
         }
-    }
-
-    public void reset(String endpointName) {
-        EndpointContext c = serviceContexts.get(endpointName);
-        if (c != null) {
+        for (EndpointContext c : serviceContexts.values()) {
             c.reset();
         }
     }

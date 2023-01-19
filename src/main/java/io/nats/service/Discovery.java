@@ -54,7 +54,9 @@ public class Discovery {
 
     public List<PingResponse> ping(String serviceName) {
         List<PingResponse> list = new ArrayList<>();
-        discoverMany(SRV_PING, serviceName, jsonBytes -> list.add(new PingResponse(jsonBytes)));
+        discoverMany(SRV_PING, serviceName, jsonBytes -> {
+            list.add(new PingResponse(jsonBytes));
+        });
         return list;
     }
 
