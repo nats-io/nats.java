@@ -1,4 +1,4 @@
-// Copyright 2022 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -21,15 +21,16 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import static io.nats.client.NUID.nextGlobal;
-import static io.nats.service.ServiceUtil.*;
+import static io.nats.service.Service.*;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class Discovery {
+    public static final long DEFAULT_DISCOVERY_MAX_TIME_MILLIS = 5000;
+    public static final int DEFAULT_DISCOVERY_MAX_RESULTS = 10;
 
     private final Connection conn;
     private final long maxTimeMillis;
@@ -54,15 +55,13 @@ public class Discovery {
 
     public List<PingResponse> ping(String serviceName) {
         List<PingResponse> list = new ArrayList<>();
-        discoverMany(PING, serviceName, json -> {
-            list.add(new PingResponse(json));
-        });
+        discoverMany(SRV_PING, serviceName, jsonBytes -> list.add(new PingResponse(jsonBytes)));
         return list;
     }
 
     public PingResponse ping(String serviceName, String serviceId) {
-        String json = discoverOne(PING, serviceName, serviceId);
-        return json == null ? null : new PingResponse(json);
+        byte[] jsonBytes = discoverOne(SRV_PING, serviceName, serviceId);
+        return jsonBytes == null ? null : new PingResponse(jsonBytes);
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -74,15 +73,13 @@ public class Discovery {
 
     public List<InfoResponse> info(String serviceName) {
         List<InfoResponse> list = new ArrayList<>();
-        discoverMany(INFO, serviceName, json -> {
-            list.add(new InfoResponse(json));
-        });
+        discoverMany(SRV_INFO, serviceName, jsonBytes -> list.add(new InfoResponse(jsonBytes)));
         return list;
     }
 
     public InfoResponse info(String serviceName, String serviceId) {
-        String json = discoverOne(INFO, serviceName, serviceId);
-        return json == null ? null : new InfoResponse(json);
+        byte[] jsonBytes = discoverOne(SRV_INFO, serviceName, serviceId);
+        return jsonBytes == null ? null : new InfoResponse(jsonBytes);
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -94,65 +91,51 @@ public class Discovery {
 
     public List<SchemaResponse> schema(String serviceName) {
         List<SchemaResponse> list = new ArrayList<>();
-        discoverMany(SCHEMA, serviceName, json -> {
-            list.add(new SchemaResponse(json));
-        });
+        discoverMany(SRV_SCHEMA, serviceName, jsonBytes -> list.add(new SchemaResponse(jsonBytes)));
         return list;
     }
 
     public SchemaResponse schema(String serviceName, String serviceId) {
-        String json = discoverOne(SCHEMA, serviceName, serviceId);
-        return json == null ? null : new SchemaResponse(json);
+        byte[] jsonBytes = discoverOne(SRV_SCHEMA, serviceName, serviceId);
+        return jsonBytes == null ? null : new SchemaResponse(jsonBytes);
     }
 
     // ----------------------------------------------------------------------------------------------------
     // stats
     // ----------------------------------------------------------------------------------------------------
     public List<StatsResponse> stats() {
-        return stats(null, (Function<String, StatsData>)null);
-    }
-
-    public List<StatsResponse> stats(Function<String, StatsData> statsDataDecoder) {
-        return stats(null, statsDataDecoder);
+        return stats(null);
     }
 
     public List<StatsResponse> stats(String serviceName) {
-        return stats(serviceName, (Function<String, StatsData>)null);
-    }
-
-    public List<StatsResponse> stats(String serviceName, Function<String, StatsData> statsDataDecoder) {
         List<StatsResponse> list = new ArrayList<>();
-        discoverMany(STATS, serviceName, json -> {
-            list.add(new StatsResponse(json, statsDataDecoder));
-        });
+        discoverMany(SRV_STATS, serviceName, jsonBytes -> list.add(new StatsResponse(jsonBytes)));
         return list;
     }
 
     public StatsResponse stats(String serviceName, String serviceId) {
-        return stats(serviceName, serviceId, null);
-    }
-
-    public StatsResponse stats(String serviceName, String serviceId, Function<String, StatsData> statsDataDecoder) {
-        String json = discoverOne(STATS, serviceName, serviceId);
-        return json == null ? null : new StatsResponse(json, statsDataDecoder);
+        byte[] jsonBytes = discoverOne(SRV_STATS, serviceName, serviceId);
+        return jsonBytes == null ? null : new StatsResponse(jsonBytes);
     }
 
     // ----------------------------------------------------------------------------------------------------
     // workers
     // ----------------------------------------------------------------------------------------------------
-    private String discoverOne(String action, String serviceName, String serviceId) {
-        String subject = ServiceUtil.toDiscoverySubject(action, serviceName, serviceId);
+    private byte[] discoverOne(String action, String serviceName, String serviceId) {
+        String subject = Service.toDiscoverySubject(action, serviceName, serviceId);
         try {
             Message m = conn.request(subject, null, Duration.ofMillis(maxTimeMillis));
             if (m != null) {
-                return new String(m.getData());
+                return m.getData();
             }
         }
-        catch (InterruptedException ignore) {}
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         return null;
     }
 
-    private void discoverMany(String action, String serviceName, Consumer<String> stringConsumer) {
+    private void discoverMany(String action, String serviceName, Consumer<byte[]> dataConsumer) {
         Subscription sub = null;
         try {
             StringBuilder sb = new StringBuilder(nextGlobal()).append('-').append(action);
@@ -163,7 +146,7 @@ public class Discovery {
 
             sub = conn.subscribe(replyTo);
 
-            String subject = ServiceUtil.toDiscoverySubject(action, serviceName, null);
+            String subject = toDiscoverySubject(action, serviceName, null);
             conn.publish(subject, replyTo, null);
 
             int resultsLeft = maxResults;
@@ -174,7 +157,7 @@ public class Discovery {
                 if (msg == null) {
                     return;
                 }
-                stringConsumer.accept(new String(msg.getData()));
+                dataConsumer.accept(msg.getData());
                 resultsLeft--;
                 // try again while we have time
                 timeLeft = maxTimeMillis - (System.currentTimeMillis() - start);
@@ -185,9 +168,8 @@ public class Discovery {
         }
         finally {
             try {
-                if (sub != null) {
-                    sub.unsubscribe();
-                }
+                //noinspection DataFlowIssue
+                sub.unsubscribe();
             }
             catch (Exception ignore) {}
         }

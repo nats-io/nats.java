@@ -13,12 +13,15 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonParseException;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
 
 import java.util.Arrays;
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonValueUtils.*;
 
 public class ServerInfo {
 
@@ -47,24 +50,32 @@ public class ServerInfo {
             throw new IllegalArgumentException("Invalid Server Info");
         }
 
-        serverId = JsonUtils.readString(json, SERVER_ID_RE);
-        serverName = JsonUtils.readString(json, SERVER_NAME_RE);
-        version = JsonUtils.readString(json, VERSION_RE);
-        go = JsonUtils.readString(json, GO_RE);
-        host = JsonUtils.readString(json, HOST_RE);
-        headersSupported =JsonUtils.readBoolean(json, HEADERS_RE);
-        authRequired = JsonUtils.readBoolean(json, AUTH_REQUIRED_RE);
-        nonce = JsonUtils.readBytes(json, NONCE_RE);
-        tlsRequired = JsonUtils.readBoolean(json, TLS_RE);
-        lameDuckMode = JsonUtils.readBoolean(json, LAME_DUCK_MODE_RE);
-        jetStream = JsonUtils.readBoolean(json, JET_STREAM_RE);
-        port = JsonUtils.readInt(json, PORT_RE, 0);
-        protocolVersion = JsonUtils.readInt(json, PROTO_RE, 0);
-        maxPayload = JsonUtils.readLong(json, MAX_PAYLOAD_RE, 0);
-        clientId = JsonUtils.readInt(json, CLIENT_ID_RE, 0);
-        clientIp = JsonUtils.readString(json, CLIENT_IP_RE);
-        cluster = JsonUtils.readString(json, CLUSTER_RE);
-        connectURLs = JsonUtils.getStringList(CONNECT_URLS, json);
+        JsonValue jv;
+        try {
+            jv = JsonParser.parse(json, json.indexOf("{"));
+        }
+        catch (JsonParseException e) {
+            throw new IllegalArgumentException("Invalid Server Info Json");
+        }
+
+        serverId = readString(jv, SERVER_ID);
+        serverName = readString(jv, SERVER_NAME);
+        version = readString(jv, VERSION);
+        go = readString(jv, GO);
+        host = readString(jv, HOST);
+        headersSupported = readBoolean(jv, HEADERS);
+        authRequired = readBoolean(jv, AUTH_REQUIRED);
+        nonce = readBytes(jv, NONCE);
+        tlsRequired = readBoolean(jv, TLS);
+        lameDuckMode = readBoolean(jv, LAME_DUCK_MODE);
+        jetStream = readBoolean(jv, JETSTREAM);
+        port = readInteger(jv, PORT, 0);
+        protocolVersion = readInteger(jv, PROTO, 0);
+        maxPayload = readLong(jv, MAX_PAYLOAD, 0);
+        clientId = readInteger(jv, CLIENT_ID, 0);
+        clientIp = readString(jv, CLIENT_IP);
+        cluster = readString(jv, CLUSTER);
+        connectURLs = readStringListIgnoreEmpty(jv, CONNECT_URLS);
     }
 
     public boolean isLameDuckMode() {

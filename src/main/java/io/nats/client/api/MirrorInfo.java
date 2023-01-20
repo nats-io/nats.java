@@ -13,21 +13,23 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
-
-import static io.nats.client.support.ApiConstants.MIRROR;
+import io.nats.client.support.JsonValue;
 
 /**
  * Information about an upstream stream source in a mirror
  */
 public class MirrorInfo extends SourceInfoBase {
 
-    static MirrorInfo optionalInstance(String fullJson) {
-        String objJson = JsonUtils.getJsonObject(MIRROR, fullJson, null);
-        return objJson == null ? null : new MirrorInfo(objJson);
+    static MirrorInfo optionalInstance(JsonValue vMirror) {
+        return vMirror == null ? null : new MirrorInfo(vMirror);
     }
 
-    MirrorInfo(String json) {
-        super(json, MIRROR);
+    MirrorInfo(JsonValue vMirror) {
+        super(vMirror);
+    }
+
+    @Override
+    public String toString() {
+        return "Mirror" + super.toString();
     }
 }

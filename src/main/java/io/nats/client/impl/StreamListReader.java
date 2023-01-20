@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.api.StreamInfo;
+import io.nats.client.support.JsonValue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,14 +27,14 @@ class StreamListReader extends AbstractListReader {
     List<StreamInfo> streams;
 
     StreamListReader() {
-        super(STREAMS, ListType.OBJECTS, SUBJECT);
+        super(STREAMS, SUBJECT);
         streams = new ArrayList<>();
     }
 
     @Override
-    void processItems(List<String> items) {
-        for (String item : items) {
-            streams.add(new StreamInfo(item));
+    void processItems(List<JsonValue> items) {
+        for (JsonValue v : items) {
+            streams.add(new StreamInfo(v));
         }
     }
 

@@ -112,6 +112,14 @@ public class ServerInfoTests {
         assertTrue(infoAlpha2.isOlderThanVersion("1.0.0-beta1"));
         assertTrue(infoBeta1.isNewerVersionThan("1.0.0-alpha1"));
         assertTrue(infoBeta1.isNewerVersionThan("1.0.0-alpha2"));
+
+        // coverage for
+        ServerInfo infoPadded1 = new ServerInfo(json.replace("1.2.3", "1.20.30"));
+        ServerInfo infoPadded2 = new ServerInfo(json.replace("1.2.3", "40.500.6000"));
+        assertTrue(infoPadded1.isSameVersion("1.20.30"));
+        assertTrue(infoPadded2.isSameVersion("40.500.6000"));
+        assertTrue(infoPadded2.isNewerVersionThan(infoPadded1.getVersion()));
+        assertTrue(infoPadded1.isOlderThanVersion(infoPadded2.getVersion()));
     }
 
     @Test
@@ -172,12 +180,5 @@ public class ServerInfoTests {
         assertEquals("my!server", info.getGoVersion());
         assertEquals("my\\host", info.getHost());
         assertEquals("1.1.1\t1", info.getVersion());
-    }
-
-    @Test
-    public void testInvalidUnicode() {
-        String json = "INFO {\"server_id\":\"\\"+"u33"+"\"}";
-        ServerInfo info = new ServerInfo(json);
-        assertEquals("u33", info.getServerId());
     }
 }

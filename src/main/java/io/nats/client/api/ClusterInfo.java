@@ -13,11 +13,13 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonValueUtils.readString;
+import static io.nats.client.support.JsonValueUtils.readValue;
 
 /**
  * Information about the cluster a stream is part of.
@@ -27,15 +29,14 @@ public class ClusterInfo {
     private final String leader;
     private final List<Replica> replicas;
 
-    static ClusterInfo optionalInstance(String fullJson) {
-        String objJson = JsonUtils.getJsonObject(CLUSTER, fullJson, null);
-        return objJson == null ? null : new ClusterInfo(objJson);
+    static ClusterInfo optionalInstance(JsonValue v) {
+        return v == null ? null : new ClusterInfo(v);
     }
 
-    ClusterInfo(String json) {
-        name = JsonUtils.readString(json, NAME_RE);
-        leader = JsonUtils.readString(json, LEADER_RE);
-        replicas = Replica.optionalListOf(json);
+    ClusterInfo(JsonValue v) {
+        name = readString(v, NAME);
+        leader = readString(v, LEADER);
+        replicas = Replica.optionalListOf(readValue(v, REPLICAS));
     }
 
     public String getName() {

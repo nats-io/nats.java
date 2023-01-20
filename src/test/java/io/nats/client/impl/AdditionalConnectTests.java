@@ -129,7 +129,7 @@ public class AdditionalConnectTests {
         }
     }
 
-    static class TestNatsConnection extends NatsConnection {
+    public static class TestNatsConnection extends NatsConnection {
         public TestNatsConnection(Options options) {
             super(options);
         }

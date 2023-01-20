@@ -16,7 +16,10 @@ package io.nats.client.api;
 import io.nats.client.JetStreamManagement;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
 import io.nats.client.utils.ResourceUtils;
+import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -26,14 +29,15 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamConfigurationTests extends JetStreamTestBase {
 
     private StreamConfiguration getTestConfiguration() {
         String json = ResourceUtils.dataAsString("StreamConfiguration.json");
-        return StreamConfiguration.instance(json);
+        StreamConfiguration sc = StreamConfiguration.instance(JsonParser.parseUnchecked(json));
+        assertNotNull(sc.toString()); // coverage
+        return sc;
     }
 
     @Test
@@ -63,7 +67,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         validate(testSc, false);
 
         // test toJson
-        validate(StreamConfiguration.instance(testSc.toJson()), false);
+        validate(StreamConfiguration.instance(JsonParser.parseUnchecked(testSc.toJson())), false);
 
         // copy constructor
         validate(StreamConfiguration.builder(testSc).build(), false);
@@ -102,7 +106,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         List<Source> sources = new ArrayList<>(testSc.getSources());
         sources.add(null);
-        Source copy = new Source(sources.get(0).toJson());
+        Source copy = new Source(JsonParser.parseUnchecked(sources.get(0).toJson()));
         sources.add(copy);
         validate(builder.addSources(sources).build(), false);
 
@@ -127,10 +131,10 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         List<String> lines = ResourceUtils.dataAsLines("MirrorsSources.json");
         for (String l1 : lines) {
             if (l1.startsWith("{")) {
-                Mirror m1 = new Mirror(l1);
+                Mirror m1 = new Mirror(JsonParser.parseUnchecked(l1));
                 assertEquals(m1, m1);
                 assertEquals(m1, Mirror.builder(m1).build());
-                Source s1 = new Source(l1);
+                Source s1 = new Source(JsonParser.parseUnchecked(l1));
                 assertEquals(s1, s1);
                 assertEquals(s1, Source.builder(s1).build());
                 //this provides testing coverage
@@ -139,8 +143,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 assertNotEquals(m1, new Object());
                 for (String l2 : lines) {
                     if (l2.startsWith("{")) {
-                        Mirror m2 = new Mirror(l2);
-                        Source s2 = new Source(l2);
+                        Mirror m2 = new Mirror(JsonParser.parseUnchecked(l2));
+                        Source s2 = new Source(JsonParser.parseUnchecked(l2));
                         if (l1.equals(l2)) {
                             assertEquals(m1, m2);
                             assertEquals(s1, s2);
@@ -156,12 +160,12 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         lines = ResourceUtils.dataAsLines("ExternalJson.txt");
         for (String l1 : lines) {
-            External e1 = new External(l1);
+            External e1 = new External(JsonParser.parseUnchecked(l1));
             assertEquals(e1, e1);
             assertNotEquals(e1, null);
             assertNotEquals(e1, new Object());
             for (String l2 : lines) {
-                External e2 = new External(l2);
+                External e2 = new External(JsonParser.parseUnchecked(l2));
                 if (l1.equals(l2)) {
                     assertEquals(e1, e2);
                 }
@@ -208,14 +212,14 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         StreamConfiguration sc = getTestConfiguration();
         Mirror m = sc.getMirror();
 
-        String json = m.toJson();
-        Source s1 = new Source(json);
-        Source s2 = new Source(json);
+        JsonValue v = JsonParser.parseUnchecked(m.toJson());
+        Source s1 = new Source(v);
+        Source s2 = new Source(v);
         assertEquals(s1, s2);
         assertNotEquals(s1, null);
         assertNotEquals(s1, new Object());
-        Mirror m1 = new Mirror(json);
-        Mirror m2 = new Mirror(json);
+        Mirror m1 = new Mirror(v);
+        Mirror m2 = new Mirror(v);
         assertEquals(m1, m2);
         assertNotEquals(m1, null);
         assertNotEquals(m1, new Object());
@@ -241,7 +245,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertNotEqualsEqualsHashcode(s1, m1, sb.filterSubject(m.getFilterSubject()), mb.filterSubject(m.getFilterSubject()));
 
         assertNotEqualsEqualsHashcode(s1, m1, sb.external(null), mb.external(null));
-        assertNotEqualsEqualsHashcode(s1, m1, sb.external(new External(EMPTY_JSON)), mb.external(new External(EMPTY_JSON)));
+        assertNotEqualsEqualsHashcode(s1, m1, sb.external(new External(JsonValue.NULL)), mb.external(new External(JsonValue.NULL)));
 
         sb.external(m.getExternal());
         mb.external(m.getExternal());
@@ -436,13 +440,6 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     }
 
     @Test
-    public void miscCoverage() {
-        // COVERAGE
-        String json = ResourceUtils.dataAsString("StreamConfiguration.json");
-        assertNotNull(StreamConfiguration.instance(json).toString());
-    }
-
-    @Test
     public void testPlacement() {
         assertThrows(IllegalArgumentException.class, () -> Placement.builder().build());
 
@@ -485,5 +482,12 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         e = External.builder().build();
         assertNull(e.getApi());
         assertNull(e.getDeliver());
+    }
+
+    @Test
+    public void equalsContract() {
+        // really testing SourceBase
+        EqualsVerifier.simple().forClass(Mirror.class).verify();
+        EqualsVerifier.simple().forClass(Source.class).verify();
     }
 }

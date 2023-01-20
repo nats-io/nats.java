@@ -14,6 +14,8 @@
 package io.nats.client.api;
 
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -66,8 +68,8 @@ public class ConsumerConfigurationTests extends TestBase {
 
         assertNotNull(ccr.getConfig());
 
-        String json = ccr.toJson();
-        c = new ConsumerConfiguration(json);
+        String json = ccr.getConfig().toJson();
+        c = new ConsumerConfiguration(JsonParser.parseUnchecked(json));
         assertAsBuilt(c, zdt);
 
         assertNotNull(ccr.toString()); // COVERAGE
@@ -251,8 +253,8 @@ public class ConsumerConfigurationTests extends TestBase {
 
     @Test
     public void testParsingAndSetters() {
-        String configJSON = dataAsString("ConsumerConfiguration.json");
-        ConsumerConfiguration c = new ConsumerConfiguration(configJSON);
+        String json = dataAsString("ConsumerConfiguration.json");
+        ConsumerConfiguration c = new ConsumerConfiguration(JsonParser.parseUnchecked(json));
         assertEquals("foo-desc", c.getDescription());
         assertEquals(DeliverPolicy.All, c.getDeliverPolicy());
         assertEquals(AckPolicy.All, c.getAckPolicy());
@@ -284,7 +286,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
         assertEquals(Duration.ofSeconds(3), c.getBackoff().get(2));
 
-        assertDefaultCc(new ConsumerConfiguration("{}"));
+        assertDefaultCc(new ConsumerConfiguration(JsonValue.EMPTY_MAP));
     }
 
     private static void assertDefaultCc(ConsumerConfiguration c)

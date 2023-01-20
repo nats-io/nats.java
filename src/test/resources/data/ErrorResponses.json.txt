@@ -56,7 +56,7 @@
 {
   "type": "no-code_desc_err_response",
   "error": {
-    "description": "the description"
+    "description": "the description",
     "err_code": 12345
   }
 }
