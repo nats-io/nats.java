@@ -27,6 +27,7 @@ public class ResponseTests extends JetStreamTestBase {
         PurgeResponse pr = new PurgeResponse(getDataMessage(json));
         assertTrue(pr.isSuccess());
         assertEquals(5, pr.getPurged());
+        //noinspection deprecation
         assertEquals(5, pr.getPurgedCount()); // coverage for deprecated
         assertNotNull(pr.toString()); // COVERAGE
     }

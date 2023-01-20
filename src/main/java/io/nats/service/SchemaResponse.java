@@ -1,4 +1,4 @@
-// Copyright 2022 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -13,93 +13,73 @@
 
 package io.nats.service;
 
-import io.nats.client.support.ApiConstants;
-import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
-import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.Validator.nullOrEmpty;
+import java.util.List;
+import java.util.Objects;
+
+import static io.nats.client.support.ApiConstants.API_URL;
+import static io.nats.client.support.ApiConstants.ENDPOINTS;
+import static io.nats.client.support.JsonValueUtils.readString;
+import static io.nats.client.support.JsonValueUtils.readValue;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class SchemaResponse implements JsonSerializable {
+public class SchemaResponse extends ServiceResponse {
     public static final String TYPE = "io.nats.micro.v1.schema_response";
 
-    private final String serviceId;
-    private final String name;
-    private final String version;
-    private final Schema schema;
+    private final String apiUrl;
+    private final List<Endpoint> endpoints;
 
-    public SchemaResponse(String serviceId, String name, String version, String schemaRequest, String schemaResponse) {
-        this.serviceId = serviceId;
-        this.name = name;
-        this.version = version;
-        if (nullOrEmpty(schemaRequest) && nullOrEmpty(schemaResponse)) {
-            this.schema = null;
-        }
-        else {
-            this.schema = new Schema(schemaRequest, schemaResponse);
-        }
+    public SchemaResponse(String id, String name, String version, String apiUrl, List<Endpoint> endpoints) {
+        super(TYPE, id, name, version);
+        this.apiUrl = apiUrl;
+        this.endpoints = endpoints;
     }
 
-    public SchemaResponse(String json) {
-        name = JsonUtils.readString(json, NAME_RE);
-        serviceId = JsonUtils.readString(json, ID_RE);
-        version = JsonUtils.readString(json, VERSION_RE);
-        schema = Schema.optionalInstance(json);
+    public SchemaResponse(byte[] jsonBytes) {
+        this(parseMessage(jsonBytes));
+    }
+
+    private SchemaResponse(JsonValue jv) {
+        super(TYPE, jv);
+        apiUrl = readString(jv, API_URL);
+        endpoints = Endpoint.listOf(readValue(jv, ENDPOINTS));
     }
 
     @Override
-    public String toJson() {
-        StringBuilder sb = beginJson();
-        JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, ApiConstants.TYPE, TYPE);
-        JsonUtils.addField(sb, ID, serviceId);
-        JsonUtils.addField(sb, VERSION, version);
-        addField(sb, SCHEMA, schema);
-        return endJson(sb).toString();
+    protected void subToJson(StringBuilder sb, boolean forToString) {
+        JsonUtils.addField(sb, API_URL, apiUrl);
+        JsonUtils.addJsons(sb, ENDPOINTS, endpoints);
     }
 
-    /**
-     * The kind of the service reporting the status
-     * @return the service name
-     */
-    public String getName() {
-        return name;
+    public String getApiUrl() {
+        return apiUrl;
     }
 
-    /**
-     * The type of this. Always {@value #TYPE}
-     * @return the type string
-     */
-    public String getType() {
-        return TYPE;
-    }
-
-    /**
-     * The unique ID of the service reporting the status
-     * @return the service id
-     */
-    public String getServiceId() {
-        return serviceId;
-    }
-
-    /**
-     * Version of the schema
-     * @return the version
-     */
-    public String getVersion() {
-        return version;
-    }
-
-    public Schema getSchema() {
-        return schema;
+    public List<Endpoint> getEndpoints() {
+        return endpoints;
     }
 
     @Override
-    public String toString() {
-        return toJson();
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        if (!super.equals(o)) return false;
+
+        SchemaResponse that = (SchemaResponse) o;
+
+        if (!Objects.equals(apiUrl, that.apiUrl)) return false;
+        return Objects.equals(endpoints, that.endpoints);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + (apiUrl != null ? apiUrl.hashCode() : 0);
+        result = 31 * result + (endpoints != null ? endpoints.hashCode() : 0);
+        return result;
     }
 }

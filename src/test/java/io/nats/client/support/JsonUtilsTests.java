@@ -19,21 +19,22 @@ import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
 import static io.nats.client.support.ApiConstants.DESCRIPTION;
-import static io.nats.client.support.Encoding.jsonDecode;
-import static io.nats.client.support.Encoding.jsonEncode;
+import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
 import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
+@SuppressWarnings("deprecation")
 public final class JsonUtilsTests {
     @Test
     public void testRegex() {
@@ -127,29 +128,29 @@ public final class JsonUtilsTests {
         assertEquals("{", sb.toString());
 
         sb = beginJsonPrefixed("pre");
-        assertEquals("pre {", sb.toString());
+        assertEquals("pre{", sb.toString());
     }
 
     @Test
     public void testAddFields() {
         StringBuilder sb = new StringBuilder();
 
-        addField(sb, "n/a", (String)null);
+        addField(sb, "n/a", (String) null);
         assertEquals(0, sb.length());
 
         addField(sb, "n/a", "");
         assertEquals(0, sb.length());
 
-        addStrings(sb, "n/a", (String[])null);
+        addStrings(sb, "n/a", (String[]) null);
         assertEquals(0, sb.length());
 
         addStrings(sb, "n/a", new String[0]);
         assertEquals(0, sb.length());
 
-        addStrings(sb, "n/a", (List<String>)null);
+        addStrings(sb, "n/a", (List<String>) null);
         assertEquals(0, sb.length());
 
-        addField(sb, "n/a", (JsonSerializable)null);
+        addField(sb, "n/a", (JsonSerializable) null);
         assertEquals(0, sb.length());
 
         addJsons(sb, "n/a", new ArrayList<>());
@@ -164,7 +165,7 @@ public final class JsonUtilsTests {
         addDurations(sb, "n/a", new ArrayList<>());
         assertEquals(0, sb.length());
 
-        addField(sb, "n/a", (Boolean)null);
+        addField(sb, "n/a", (Boolean) null);
         assertEquals(0, sb.length());
 
         addFldWhenTrue(sb, "n/a", null);
@@ -173,10 +174,10 @@ public final class JsonUtilsTests {
         addFldWhenTrue(sb, "n/a", false);
         assertEquals(0, sb.length());
 
-        addField(sb, "n/a", (Integer)null);
+        addField(sb, "n/a", (Integer) null);
         assertEquals(0, sb.length());
 
-        addField(sb, "n/a", (Long)null);
+        addField(sb, "n/a", (Long) null);
         assertEquals(0, sb.length());
 
         //noinspection UnnecessaryBoxing
@@ -204,10 +205,10 @@ public final class JsonUtilsTests {
         addField(sb, "bfalse", false);
         assertEquals(87, sb.length());
 
-        addFieldWhenGtZero(sb, "intnull", (Integer)null);
+        addFieldWhenGtZero(sb, "intnull", (Integer) null);
         assertEquals(87, sb.length());
 
-        addFieldWhenGtZero(sb, "longnull", (Long)null);
+        addFieldWhenGtZero(sb, "longnull", (Long) null);
         assertEquals(87, sb.length());
 
         //noinspection UnnecessaryBoxing
@@ -224,7 +225,7 @@ public final class JsonUtilsTests {
         addFieldWhenGtZero(sb, "longgt0", 1L);
         assertEquals(110, sb.length());
 
-        addField(sb, "null-header", (Headers)null);
+        addField(sb, "null-header", (Headers) null);
         assertEquals(110, sb.length());
 
         addField(sb, "null-header", new Headers());
@@ -232,6 +233,15 @@ public final class JsonUtilsTests {
 
         addField(sb, "header", new Headers().add("foo", "bar").add("foo", "baz"));
         assertEquals(141, sb.length());
+
+        addField(sb, "zdt", (ZonedDateTime)null);
+        assertEquals(141, sb.length());
+
+        addField(sb, "zdt", DEFAULT_TIME);
+        assertEquals(141, sb.length());
+
+        addField(sb, "zdt", DateTimeUtils.gmtNow());
+        assertEquals(180, sb.length());
     }
 
     static final String EXPECTED_LIST_JSON = "{\"a1\":[\"one\"],\"a2\":[\"two\",\"too\"],\"l1\":[\"one\"],\"l2\":[\"two\",\"too\"],\"j1\":[{\"filter\":\"sub1\",\"keep\":421}],\"j2\":[{\"filter\":\"sub2\",\"seq\":732},{\"filter\":\"sub3\"}],\"d1\":[1000000],\"d2\":[2000000,3000000]}";
@@ -241,7 +251,7 @@ public final class JsonUtilsTests {
         StringBuilder sb = beginJson();
 
         String[] s1 = new String[]{"one"};
-        String[] s2 = new String[]{"two","too"};
+        String[] s2 = new String[]{"two", "too"};
         List<String> l1 = Arrays.asList(s1);
         List<String> l2 = Arrays.asList(s2);
         addStrings(sb, "a1", s1);
@@ -302,17 +312,33 @@ public final class JsonUtilsTests {
     @Test
     public void testInteger() {
         Pattern RE = buildPattern("num", FieldType.jsonInteger);
+        Pattern MISSING_RE = buildPattern("x", FieldType.jsonInteger);
         assertEquals(-1, readInt("\"num\":-1", RE, 0));
         assertEquals(12345678, readInt("\"num\":12345678", RE, 0));
         assertEquals(2147483647, readInt("\"num\":2147483647", RE, 0));
+        assertEquals(-1, readInt("\"num\":12345678", MISSING_RE, -1));
+
+        assertEquals(12345678, readInteger("\"num\":12345678", RE));
+        assertNull(readInteger("\"num\":12345678", MISSING_RE));
+
+        AtomicInteger atomic = new AtomicInteger();
+        readInt("\"num\":12345678", RE, atomic::set);
+        assertEquals(12345678, atomic.get());
+
+        atomic.set(0);
+        readInt("\"num\":12345678", MISSING_RE, atomic::set);
+        assertEquals(0, atomic.get());
     }
 
     @Test
     public void testLong() {
         Pattern RE = buildPattern("num", FieldType.jsonInteger);
+        Pattern MISSING_RE = buildPattern("x", FieldType.jsonInteger);
         assertEquals(-1, readLong("\"num\":-1", RE, 0));
         assertEquals(12345678, readLong("\"num\":12345678", RE, 0));
         assertEquals(9223372036854775807L, readLong("\"num\":9223372036854775807", RE, 0));
+        assertNull(readLong("\"num\":12345678", MISSING_RE));
+        assertEquals(-1, readLong("\"num\":12345678", MISSING_RE, -1));
 
         AtomicLong al = new AtomicLong();
         readLong("\"num\":999", RE, al::set);
@@ -339,7 +365,7 @@ public final class JsonUtilsTests {
     }
 
     @Test
-    public void testReads() {
+    public void testBoolean() {
         String json = "\"yes\": true, \"no\": false";
         Pattern YES_RE = buildPattern("yes", FieldType.jsonBoolean);
         Pattern NO_RE = buildPattern("no", FieldType.jsonBoolean);
@@ -348,53 +374,11 @@ public final class JsonUtilsTests {
         assertTrue(readBoolean(json, YES_RE));
         assertFalse(readBoolean(json, NO_RE));
         assertFalse((readBoolean(json, MISSING_RE)));
-    }
 
-    @Test
-    public void testEncodeDecode() {
-        _testEncodeDecode("b4\\\\after",    "b4\\after", null); // a single slash with a meaningless letter after it
-        _testEncodeDecode("b4\\\\tafter",    "b4\\tafter", null); // a single slash with a char that can be part of an escape
-
-        _testEncodeDecode("b4\\bafter",     "b4\bafter", null);
-        _testEncodeDecode("b4\\fafter",     "b4\fafter", null);
-        _testEncodeDecode("b4\\nafter",     "b4\nafter", null);
-        _testEncodeDecode("b4\\rafter",     "b4\rafter", null);
-        _testEncodeDecode("b4\\tafter",     "b4\tafter", null);
-
-        _testEncodeDecode("b4\\u0000after", "b4" + (char)0 + "after", null);
-        _testEncodeDecode("b4\\u001fafter", "b4" + (char)0x1f + "after", "b4\\u001Fafter");
-        _testEncodeDecode("b4\\u0020after", "b4 after", "b4 after");
-        _testEncodeDecode("b4\\u0022after", "b4\"after", "b4\\\"after");
-        _testEncodeDecode("b4\\u0027after", "b4'after", "b4'after");
-        _testEncodeDecode("b4\\u003dafter", "b4=after", "b4=after");
-        _testEncodeDecode("b4\\u003Dafter", "b4=after", "b4=after");
-        _testEncodeDecode("b4\\u003cafter", "b4<after", "b4<after");
-        _testEncodeDecode("b4\\u003Cafter", "b4<after", "b4<after");
-        _testEncodeDecode("b4\\u003eafter", "b4>after", "b4>after");
-        _testEncodeDecode("b4\\u003Eafter", "b4>after", "b4>after");
-        _testEncodeDecode("b4\\u0060after", "b4`after", "b4`after");
-        _testEncodeDecode("b4\\xafter",     "b4xafter", "b4xafter"); // unknown escape
-        _testEncodeDecode("b4\\",           "b4\\", "b4\\\\"); // last char is \
-
-        List<String> utfs = dataAsLines("utf8-only-no-ws-test-strings.txt");
-        for (String u : utfs) {
-            String uu = "b4\\b\\f\\n\\r\\t" + u + "after";
-            _testEncodeDecode(jsonDecode(uu), "b4\b\f\n\r\t" + u + "after", uu);
-        }
-    }
-
-    private void _testEncodeDecode(String input, String targetDecode, String targetEncode) {
-        String decoded = jsonDecode(input);
-        assertEquals(targetDecode, decoded);
-        StringBuilder sb = new StringBuilder();
-        jsonEncode(sb, decoded);
-        String encoded = sb.toString();
-        if (targetEncode == null) {
-            assertEquals(input, encoded);
-        }
-        else {
-            assertEquals(targetEncode, encoded);
-        }
+        assertTrue(readBoolean(json, YES_RE, false));
+        assertFalse(readBoolean(json, NO_RE, true));
+        assertTrue(readBoolean(json, MISSING_RE, true));
+        assertFalse(readBoolean(json, MISSING_RE, false));
     }
 
     @Test
@@ -406,12 +390,15 @@ public final class JsonUtilsTests {
     @Test
     public void testMiscCoverage() {
         Pattern ipattern = integer_pattern("foo");
+        //noinspection deprecation
         Pattern npattern = number_pattern("foo"); // coverage for deprecated
 
         assertEquals(ipattern.pattern(), npattern.pattern());
         assertEquals(0, getMapOfObjects("\"bad\": ").size());
         assertEquals(0, getMapOfLists("\"bad\": ").size());
         assertEquals("\"field\": ", removeObject("\"field\": ", "notfound"));
+
+        printFormatted(JsonParser.parseUnchecked(dataAsString("StreamInfo.json")));
     }
 
     @Test

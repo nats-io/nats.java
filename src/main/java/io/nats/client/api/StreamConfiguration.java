@@ -15,16 +15,22 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.regex.Matcher;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.readBoolean;
+import static io.nats.client.support.JsonValueUtils.readInteger;
+import static io.nats.client.support.JsonValueUtils.readLong;
+import static io.nats.client.support.JsonValueUtils.readNanos;
+import static io.nats.client.support.JsonValueUtils.readString;
+import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.Validator.*;
 
 /**
@@ -62,49 +68,35 @@ public class StreamConfiguration implements JsonSerializable {
     private final boolean denyPurge;
     private final boolean discardNewPerSubject;
 
-    // for the response from the server
-    static StreamConfiguration instance(String json) {
+    static StreamConfiguration instance(JsonValue v) {
         Builder builder = new Builder();
-
-        Matcher m = RETENTION_RE.matcher(json);
-        if (m.find()) {
-            builder.retentionPolicy(RetentionPolicy.get(m.group(1)));
-        }
-
-        m = STORAGE_TYPE_RE.matcher(json);
-        if (m.find()) {
-            builder.storageType(StorageType.get(m.group(1)));
-        }
-
-        m = DISCARD_RE.matcher(json);
-        if (m.find()) {
-            builder.discardPolicy(DiscardPolicy.get(m.group(1)));
-        }
-
-        builder.name(readString(json, NAME_RE));
-        builder.description(readString(json, DESCRIPTION_RE));
-        readLong(json, MAX_CONSUMERS_RE, builder::maxConsumers);
-        readLong(json, MAX_MSGS_RE, builder::maxMessages);
-        readLong(json, MAX_MSGS_PER_SUB_RE, builder::maxMessagesPerSubject);
-        readLong(json, MAX_BYTES_RE, builder::maxBytes);
-        readNanos(json, MAX_AGE_RE, builder::maxAge);
-        readLong(json, MAX_MSG_SIZE_RE, builder::maxMsgSize);
-        readInt(json, NUM_REPLICAS_RE, builder::replicas);
-        builder.noAck(readBoolean(json, NO_ACK_RE));
-        builder.templateOwner(readString(json, TEMPLATE_OWNER_RE));
-        readNanos(json, DUPLICATE_WINDOW_RE, builder::duplicateWindow);
-        builder.subjects(getStringList(SUBJECTS, json));
-        builder.placement(Placement.optionalInstance(json));
-        builder.republish(Republish.optionalInstance(json));
-        builder.mirror(Mirror.optionalInstance(json));
-        builder.sources(Source.optionalListOf(json));
-        builder.sealed(readBoolean(json, SEALED_RE));
-        builder.allowRollup(readBoolean(json, ALLOW_ROLLUP_HDRS_RE));
-        builder.allowDirect(readBoolean(json, ALLOW_DIRECT_RE));
-        builder.mirrorDirect(readBoolean(json, MIRROR_DIRECT_RE));
-        builder.denyDelete(readBoolean(json, DENY_DELETE_RE));
-        builder.denyPurge(readBoolean(json, DENY_PURGE_RE));
-        builder.discardNewPerSubject(readBoolean(json, DISCARD_NEW_PER_SUBJECT_RE));
+        builder.retentionPolicy(RetentionPolicy.get(readString(v, RETENTION)));
+        builder.storageType(StorageType.get(readString(v, STORAGE)));
+        builder.discardPolicy(DiscardPolicy.get(readString(v, DISCARD)));
+        builder.name(readString(v, NAME));
+        builder.description(readString(v, DESCRIPTION));
+        builder.maxConsumers(readLong(v, MAX_CONSUMERS, -1));
+        builder.maxMessages(readLong(v, MAX_MSGS, -1));
+        builder.maxMessagesPerSubject(readLong(v, MAX_MSGS_PER_SUB, -1));
+        builder.maxBytes(readLong(v, MAX_BYTES, -1));
+        builder.maxAge(readNanos(v, MAX_AGE));
+        builder.maxMsgSize(readLong(v, MAX_MSG_SIZE, -1));
+        builder.replicas(readInteger(v, NUM_REPLICAS, 1));
+        builder.noAck(readBoolean(v, NO_ACK));
+        builder.templateOwner(readString(v, TEMPLATE_OWNER));
+        builder.duplicateWindow(readNanos(v, DUPLICATE_WINDOW));
+        builder.subjects(readStringList(v, SUBJECTS));
+        builder.placement(Placement.optionalInstance(readValue(v, PLACEMENT)));
+        builder.republish(Republish.optionalInstance(readValue(v, REPUBLISH)));
+        builder.mirror(Mirror.optionalInstance(readValue(v, MIRROR)));
+        builder.sources(Source.optionalListOf(readValue(v, SOURCES)));
+        builder.sealed(readBoolean(v, SEALED));
+        builder.allowRollup(readBoolean(v, ALLOW_ROLLUP_HDRS));
+        builder.allowDirect(readBoolean(v, ALLOW_DIRECT));
+        builder.mirrorDirect(readBoolean(v, MIRROR_DIRECT));
+        builder.denyDelete(readBoolean(v, DENY_DELETE));
+        builder.denyPurge(readBoolean(v, DENY_PURGE));
+        builder.discardNewPerSubject(readBoolean(v, DISCARD_NEW_PER_SUBJECT));
 
         return builder.build();
     }

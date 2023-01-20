@@ -13,6 +13,8 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.support.JsonValue;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,13 +27,17 @@ abstract class StringListReader extends AbstractListReader {
     }
 
     StringListReader(String objectName, String filterFieldName) {
-        super(objectName, ListType.STRINGS, filterFieldName);
+        super(objectName, filterFieldName);
         strings = new ArrayList<>();
     }
 
     @Override
-    void processItems(List<String> items) {
-        strings.addAll(items);
+    void processItems(List<JsonValue> items) {
+        for (JsonValue v : items) {
+            if (v.string != null) {
+                strings.add(v.string);
+            }
+        }
     }
 
     List<String> getStrings() {
