@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.JetStreamApiException;
+import io.nats.client.Message;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.Status;
 import org.junit.jupiter.api.Test;
@@ -21,13 +22,18 @@ import org.junit.jupiter.api.Test;
 import static io.nats.client.api.ApiResponse.NO_TYPE;
 import static io.nats.client.api.Error.*;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
+import static io.nats.client.utils.TestBase.getDataMessage;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ApiResponseTests {
 
     static class TestApiResponse extends ApiResponse<TestApiResponse> {
         TestApiResponse(String json) {
-            super(JsonParser.parse(json));
+            super(JsonParser.parseUnchecked(json));
+        }
+
+        TestApiResponse(Message msg) {
+            super(msg);
         }
 
         public TestApiResponse() { }
@@ -39,6 +45,18 @@ public class ApiResponseTests {
         assertFalse(jsApiResp.hasError());
         assertNull(jsApiResp.getError());
         assertNotNull(new TestApiResponse().toString());
+    }
+
+    @Test
+    public void testGarbageJson() {
+        TestApiResponse a = new TestApiResponse(getDataMessage("notjson"));
+        assertEquals(500, a.getErrorCode());
+        assertEquals(Error.NOT_SET, a.getApiErrorCode());
+        assertTrue(a.getDescription().startsWith("Error parsing: "));
+        JetStreamApiException j = assertThrows(JetStreamApiException.class, () -> {
+            new TestApiResponse(getDataMessage("notjson")).throwOnHasError();
+        });
+        assertTrue(j.getMessage().contains("Error parsing: "));
     }
 
     @Test

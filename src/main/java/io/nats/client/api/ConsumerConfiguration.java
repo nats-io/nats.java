@@ -15,7 +15,10 @@ package io.nats.client.api;
 
 import io.nats.client.PullSubscribeOptions;
 import io.nats.client.PushSubscribeOptions;
-import io.nats.client.support.*;
+import io.nats.client.support.ApiConstants;
+import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -112,11 +115,6 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.headersOnly = cc.headersOnly;
         this.memStorage = cc.memStorage;
         this.backoff = new ArrayList<>(cc.backoff);
-    }
-
-    // for the response from the server
-    ConsumerConfiguration(String json) {
-        this(JsonParser.parse(json));
     }
 
     ConsumerConfiguration(JsonValue v) {

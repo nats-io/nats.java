@@ -26,6 +26,7 @@ import java.util.function.LongConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
 import static io.nats.client.support.Encoding.jsonDecode;
 import static io.nats.client.support.Encoding.jsonEncode;
 import static io.nats.client.support.NatsConstants.COLON;
@@ -68,7 +69,7 @@ public abstract class JsonUtils {
 
     public static StringBuilder beginJsonPrefixed(String prefix) {
         return prefix == null ? beginJson()
-            : new StringBuilder(prefix).append(NatsConstants.SPACE).append('{');
+            : new StringBuilder(prefix).append('{');
     }
 
     public static StringBuilder endJson(StringBuilder sb) {
@@ -344,11 +345,12 @@ public abstract class JsonUtils {
      * @param zonedDateTime field value
      */
     public static void addField(StringBuilder sb, String fname, ZonedDateTime zonedDateTime) {
-        if (zonedDateTime != null) {
+        if (zonedDateTime != null && !DEFAULT_TIME.equals(zonedDateTime)) {
             sb.append(Q);
             jsonEncode(sb, fname);
             sb.append(QCOLONQ)
-                .append(DateTimeUtils.toRfc3339(zonedDateTime)).append(QCOMMA);
+                .append(DateTimeUtils.toRfc3339(zonedDateTime))
+                .append(QCOMMA);
         }
     }
 

@@ -38,7 +38,7 @@ public class StreamInfoTests {
     public void testStreamInfo() {
         StreamInfo si = new StreamInfo(getDataMessage(json));
         validateStreamInfo(si);
-        assertNotNull(si.toString());
+        assertNotNull(si.toString()); // coverage
     }
 
     private void validateStreamInfo(StreamInfo si) {
@@ -191,12 +191,6 @@ public class StreamInfoTests {
     }
 
     @Test
-    public void testToString() {
-        // COVERAGE
-        assertNotNull(new StreamInfo(JsonParser.parse(json)).toString());
-    }
-
-    @Test
     public void testStreamInfoOptionsCoverage() {
         StreamInfoOptions opts = StreamInfoOptions.filterSubjects("sub");
         String json = opts.toJson();
@@ -228,7 +222,7 @@ public class StreamInfoTests {
         list = Subject.listOf(JsonValue.EMPTY_MAP);
         assertTrue(list.isEmpty());
 
-        list = Subject.listOf(JsonParser.parse("{\"sub0\": 1, \"sub1\": 2,\"x.foo\": 3}"));
+        list = Subject.listOf(JsonParser.parseUnchecked("{\"sub0\": 1, \"sub1\": 2,\"x.foo\": 3}"));
         assertEquals(3, list.size());
         assertNotNull(list.get(0).toString()); // coverage
         Collections.sort(list);

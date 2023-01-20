@@ -57,7 +57,7 @@ public class ObjectInfo implements JsonSerializable {
     }
 
     ObjectInfo(byte[] jsonBytes, ZonedDateTime messageTime) {
-        JsonValue jv = JsonParser.parse(jsonBytes);
+        JsonValue jv = JsonParser.parseUnchecked(jsonBytes);
         objectMeta = new ObjectMeta(jv);
         bucket = JsonValueUtils.readString(jv, BUCKET);
         nuid = JsonValueUtils.readString(jv, NUID);

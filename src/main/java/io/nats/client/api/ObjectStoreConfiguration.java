@@ -24,10 +24,6 @@ import static io.nats.client.support.Validator.*;
  * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public class ObjectStoreConfiguration extends FeatureConfiguration {
-    static ObjectStoreConfiguration instance(String json) {
-        return new ObjectStoreConfiguration(StreamConfiguration.instance(json));
-    }
-
     ObjectStoreConfiguration(StreamConfiguration sc) {
         super(sc, extractBucketName(sc.getName()));
     }

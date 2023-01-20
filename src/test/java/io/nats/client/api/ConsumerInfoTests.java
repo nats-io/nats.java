@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class ConsumerInfoTests {
 
-    static JsonValue vConsumerInfo = JsonParser.parse(dataAsString("ConsumerInfo.json"));
+    static JsonValue vConsumerInfo = JsonParser.parseUnchecked(dataAsString("ConsumerInfo.json"));
 
     @Test
     public void testTime() {

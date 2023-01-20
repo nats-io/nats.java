@@ -13,7 +13,6 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
@@ -68,11 +67,6 @@ public class StreamConfiguration implements JsonSerializable {
     private final boolean denyDelete;
     private final boolean denyPurge;
     private final boolean discardNewPerSubject;
-
-    // for the response from the server
-    static StreamConfiguration instance(String json) {
-        return instance(JsonParser.parse(json));
-    }
 
     static StreamConfiguration instance(JsonValue v) {
         Builder builder = new Builder();

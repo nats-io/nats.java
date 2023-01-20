@@ -1,4 +1,4 @@
-// Copyright 2022 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -16,10 +16,12 @@ package io.nats.service;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
+import io.nats.client.support.Validator;
+
+import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.REQUEST;
 import static io.nats.client.support.ApiConstants.RESPONSE;
-import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readString;
 
@@ -34,6 +36,12 @@ public class Schema implements JsonSerializable {
         return vSchema == null ? null : new Schema(vSchema);
     }
 
+    public static Schema optionalInstance(String request, String response) {
+        request = Validator.emptyAsNull(request);
+        response = Validator.emptyAsNull(response);
+        return request == null && response == null ? null : new Schema(request, response);
+    }
+
     public Schema(String request, String response) {
         this.request = request;
         this.response = response;
@@ -46,13 +54,15 @@ public class Schema implements JsonSerializable {
 
     @Override
     public String toJson() {
-        return endJson(appendSuperFields(beginJson())).toString();
-    }
-
-    protected StringBuilder appendSuperFields(StringBuilder sb) {
+        StringBuilder sb = JsonUtils.beginJson();
         JsonUtils.addField(sb, REQUEST, request);
         JsonUtils.addField(sb, RESPONSE, response);
-        return sb;
+        return endJson(sb).toString();
+    }
+
+    @Override
+    public String toString() {
+        return JsonUtils.toKey(getClass()) + toJson();
     }
 
     /**
@@ -72,7 +82,20 @@ public class Schema implements JsonSerializable {
     }
 
     @Override
-    public String toString() {
-        return toJson();
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Schema schema = (Schema) o;
+
+        if (!Objects.equals(request, schema.request)) return false;
+        return Objects.equals(response, schema.response);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = request != null ? request.hashCode() : 0;
+        result = 31 * result + (response != null ? response.hashCode() : 0);
+        return result;
     }
 }

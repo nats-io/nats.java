@@ -19,6 +19,7 @@ import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -28,6 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
 import static io.nats.client.support.ApiConstants.DESCRIPTION;
+import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
 import static io.nats.client.support.JsonUtils.*;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
@@ -126,7 +128,7 @@ public final class JsonUtilsTests {
         assertEquals("{", sb.toString());
 
         sb = beginJsonPrefixed("pre");
-        assertEquals("pre {", sb.toString());
+        assertEquals("pre{", sb.toString());
     }
 
     @Test
@@ -231,6 +233,15 @@ public final class JsonUtilsTests {
 
         addField(sb, "header", new Headers().add("foo", "bar").add("foo", "baz"));
         assertEquals(141, sb.length());
+
+        addField(sb, "zdt", (ZonedDateTime)null);
+        assertEquals(141, sb.length());
+
+        addField(sb, "zdt", DEFAULT_TIME);
+        assertEquals(141, sb.length());
+
+        addField(sb, "zdt", DateTimeUtils.gmtNow());
+        assertEquals(180, sb.length());
     }
 
     static final String EXPECTED_LIST_JSON = "{\"a1\":[\"one\"],\"a2\":[\"two\",\"too\"],\"l1\":[\"one\"],\"l2\":[\"two\",\"too\"],\"j1\":[{\"filter\":\"sub1\",\"keep\":421}],\"j2\":[{\"filter\":\"sub2\",\"seq\":732},{\"filter\":\"sub3\"}],\"d1\":[1000000],\"d2\":[2000000,3000000]}";
@@ -387,7 +398,7 @@ public final class JsonUtilsTests {
         assertEquals(0, getMapOfLists("\"bad\": ").size());
         assertEquals("\"field\": ", removeObject("\"field\": ", "notfound"));
 
-        printFormatted(JsonParser.parse(dataAsString("StreamInfo.json")));
+        printFormatted(JsonParser.parseUnchecked(dataAsString("StreamInfo.json")));
     }
 
     @Test

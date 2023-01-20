@@ -14,13 +14,13 @@
 package io.nats.client.api;
 
 import io.nats.client.Message;
-import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
 
 import java.time.ZonedDateTime;
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonParser.parseUnchecked;
 import static io.nats.client.support.JsonValueUtils.readDate;
 import static io.nats.client.support.JsonValueUtils.readValue;
 
@@ -37,7 +37,7 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
     private final List<SourceInfo> sourceInfos;
 
     public StreamInfo(Message msg) {
-        this(JsonParser.parse(msg.getData()));
+        this(parseUnchecked(msg.getData()));
     }
 
     public StreamInfo(JsonValue vStreamInfo) {

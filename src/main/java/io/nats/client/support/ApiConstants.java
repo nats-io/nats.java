@@ -24,6 +24,7 @@ public interface ApiConstants {
     String AVERAGE_PROCESSING_TIME = "average_processing_time";
     String MIRROR_DIRECT     = "mirror_direct";
     String API               = "api";
+    String API_URL           = "api_url";
     String AUTH_REQUIRED     = "auth_required";
     String BACKOFF           = "backoff";
     String BATCH             = "batch";
@@ -59,6 +60,7 @@ public interface ApiConstants {
     String DOMAIN            = "domain";
     String DUPLICATE         = "duplicate";
     String DUPLICATE_WINDOW  = "duplicate_window";
+    String ENDPOINTS         = "endpoints";
     String DURABLE_NAME      = "durable_name";
     String ERR_CODE          = "err_code";
     String ERROR             = "error";

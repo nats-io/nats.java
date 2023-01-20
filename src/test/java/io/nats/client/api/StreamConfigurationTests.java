@@ -35,7 +35,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     private StreamConfiguration getTestConfiguration() {
         String json = ResourceUtils.dataAsString("StreamConfiguration.json");
-        return StreamConfiguration.instance(json);
+        StreamConfiguration sc = StreamConfiguration.instance(JsonParser.parseUnchecked(json));
+        assertNotNull(sc.toString()); // coverage
+        return sc;
     }
 
     @Test
@@ -65,7 +67,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         validate(testSc, false);
 
         // test toJson
-        validate(StreamConfiguration.instance(testSc.toJson()), false);
+        validate(StreamConfiguration.instance(JsonParser.parseUnchecked(testSc.toJson())), false);
 
         // copy constructor
         validate(StreamConfiguration.builder(testSc).build(), false);
@@ -104,7 +106,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         List<Source> sources = new ArrayList<>(testSc.getSources());
         sources.add(null);
-        Source copy = new Source(JsonParser.parse(sources.get(0).toJson()));
+        Source copy = new Source(JsonParser.parseUnchecked(sources.get(0).toJson()));
         sources.add(copy);
         validate(builder.addSources(sources).build(), false);
 
@@ -129,10 +131,10 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         List<String> lines = ResourceUtils.dataAsLines("MirrorsSources.json");
         for (String l1 : lines) {
             if (l1.startsWith("{")) {
-                Mirror m1 = new Mirror(JsonParser.parse(l1));
+                Mirror m1 = new Mirror(JsonParser.parseUnchecked(l1));
                 assertEquals(m1, m1);
                 assertEquals(m1, Mirror.builder(m1).build());
-                Source s1 = new Source(JsonParser.parse(l1));
+                Source s1 = new Source(JsonParser.parseUnchecked(l1));
                 assertEquals(s1, s1);
                 assertEquals(s1, Source.builder(s1).build());
                 //this provides testing coverage
@@ -141,8 +143,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 assertNotEquals(m1, new Object());
                 for (String l2 : lines) {
                     if (l2.startsWith("{")) {
-                        Mirror m2 = new Mirror(JsonParser.parse(l2));
-                        Source s2 = new Source(JsonParser.parse(l2));
+                        Mirror m2 = new Mirror(JsonParser.parseUnchecked(l2));
+                        Source s2 = new Source(JsonParser.parseUnchecked(l2));
                         if (l1.equals(l2)) {
                             assertEquals(m1, m2);
                             assertEquals(s1, s2);
@@ -158,12 +160,12 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         lines = ResourceUtils.dataAsLines("ExternalJson.txt");
         for (String l1 : lines) {
-            External e1 = new External(JsonParser.parse(l1));
+            External e1 = new External(JsonParser.parseUnchecked(l1));
             assertEquals(e1, e1);
             assertNotEquals(e1, null);
             assertNotEquals(e1, new Object());
             for (String l2 : lines) {
-                External e2 = new External(JsonParser.parse(l2));
+                External e2 = new External(JsonParser.parseUnchecked(l2));
                 if (l1.equals(l2)) {
                     assertEquals(e1, e2);
                 }
@@ -210,7 +212,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         StreamConfiguration sc = getTestConfiguration();
         Mirror m = sc.getMirror();
 
-        JsonValue v = JsonParser.parse(m.toJson());
+        JsonValue v = JsonParser.parseUnchecked(m.toJson());
         Source s1 = new Source(v);
         Source s2 = new Source(v);
         assertEquals(s1, s2);
@@ -435,13 +437,6 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertNotNull(source.getExternal());
         assertEquals(api, source.getExternal().getApi());
         assertEquals(deliver, source.getExternal().getDeliver());
-    }
-
-    @Test
-    public void miscCoverage() {
-        // COVERAGE
-        String json = ResourceUtils.dataAsString("StreamConfiguration.json");
-        assertNotNull(StreamConfiguration.instance(json).toString());
     }
 
     @Test

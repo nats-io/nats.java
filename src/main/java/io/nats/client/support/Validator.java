@@ -15,6 +15,8 @@ package io.nats.client.support;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 import static io.nats.client.support.NatsConstants.DOT;
@@ -25,7 +27,29 @@ public abstract class Validator {
     } /* ensures cannot be constructed */
 
     public static String validateSubject(String s, boolean required) {
-        return validatePrintable(s, "Subject", required);
+        return validateSubject(s, "Subject", required, false);
+    }
+
+    public static String validateSubject(String subject, String label, boolean required, boolean cantEndWithGt) {
+        if (emptyAsNull(subject) == null) {
+            if (required) {
+                throw new IllegalArgumentException(label + " cannot be null or empty.");
+            }
+            return null;
+        }
+        String[] segments = subject.split("\\.");
+        for (int x = 0; x < segments.length; x++) {
+            String segment = segments[x];
+            if (segment.equals(">")) {
+                if (cantEndWithGt || x != segments.length - 1) { // if it can end with gt, gt must be last segment
+                    throw new IllegalArgumentException(label + " cannot contain '>'");
+                }
+            }
+            else if (!segment.equals("*") && notPrintable(segment)) {
+                    throw new IllegalArgumentException(label + " must be printable characters only.");
+            }
+        }
+        return subject;
     }
 
     public static String validateReplyTo(String s, boolean required) {
@@ -109,6 +133,18 @@ public abstract class Validator {
 
     public static void required(Object o, String label) {
         if (o == null) {
+            throw new IllegalArgumentException(label + " cannot be null or empty.");
+        }
+    }
+
+    public static void required(List<?> l, String label) {
+        if (l == null || l.isEmpty()) {
+            throw new IllegalArgumentException(label + " cannot be null or empty.");
+        }
+    }
+
+    public static void required(Map<?, ?> m, String label) {
+        if (m == null || m.isEmpty()) {
             throw new IllegalArgumentException(label + " cannot be null or empty.");
         }
     }
