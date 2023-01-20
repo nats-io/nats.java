@@ -18,7 +18,10 @@ import io.nats.client.support.Status;
 /**
  * JetStreamStatusException is used to indicate an unknown status message was received.
  */
-public class JetStreamStatusException extends StatusException {
+public class JetStreamStatusException extends IllegalStateException {
+    private final JetStreamSubscription sub;
+    private final Status status;
+
     /**
      * Construct an exception with a status message
      *
@@ -26,7 +29,9 @@ public class JetStreamStatusException extends StatusException {
      * @param status the status
      */
     public JetStreamStatusException(JetStreamSubscription sub, Status status) {
-        super("Unknown or unprocessed status message", sub, status);
+        super("Unknown or unprocessed status message: " + status.getMessage());
+        this.sub = sub;
+        this.status = status;
     }
 
     /**
@@ -34,8 +39,16 @@ public class JetStreamStatusException extends StatusException {
      *
      * @return the subscription
      */
-    @Override
     public JetStreamSubscription getSubscription() {
-        return (JetStreamSubscription)sub;
+        return sub;
+    }
+
+    /**
+     * Get the full status object
+     *
+     * @return the status
+     */
+    public Status getStatus() {
+        return status;
     }
 }
