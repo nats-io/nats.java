@@ -566,6 +566,14 @@ public class Options {
     }
 
     /**
+     * Creates a builder for the options.
+     * @return the builder.
+     */
+    public static Builder newBuilder() {
+        return new Builder();
+    }
+
+    /**
      * Options are created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls. The builder can also
      * be created from a properties object using the property names defined with the
