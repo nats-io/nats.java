@@ -16,9 +16,7 @@ package io.nats.service;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
-import io.nats.client.support.JsonValueUtils;
 
-import java.util.List;
 import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.*;
@@ -35,10 +33,6 @@ public class Endpoint implements JsonSerializable {
     private final String name;
     private final String subject;
     private final Schema schema;
-
-    static List<Endpoint> listOf(JsonValue vEndpoints) {
-        return JsonValueUtils.listOf(vEndpoints, Endpoint::new);
-    }
 
     public Endpoint(String name, String subject, Schema schema) {
         this(name, subject, schema, true);

@@ -86,8 +86,8 @@ class EndpointContext {
         }
     }
 
-    EndpointStats getEndpointStats() {
-        return new EndpointStats(
+    EndpointResponse getEndpointStats() {
+        return new EndpointResponse(
             se.getEndpoint().getName(),
             se.getSubject(),
             numRequests.get(),

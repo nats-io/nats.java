@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.endJson;
-import static io.nats.client.support.JsonUtils.toKey;
 import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
@@ -67,7 +66,7 @@ public class Service {
         // ! also while we are here, we need to collect the endpoints for the SchemaResponse
         Dispatcher dTemp = null;
         List<String> infoSubjects = new ArrayList<>();
-        List<Endpoint> schemaEndpoints = new ArrayList<>();
+        List<EndpointResponse> schemaEndpoints = new ArrayList<>();
         serviceContexts = new HashMap<>();
         for (ServiceEndpoint se : b.serviceEndpoints.values()) {
             if (se.getDispatcher() == null) {
@@ -80,7 +79,7 @@ public class Service {
                 serviceContexts.put(se.getName(), new EndpointContext(conn, null, true, se));
             }
             infoSubjects.add(se.getSubject());
-            schemaEndpoints.add(se.getEndpoint());
+            schemaEndpoints.add(new EndpointResponse(se.getName(), se.getSubject(), se.getEndpoint().getSchema()));
         }
         if (dTemp != null) {
             dInternals.add(dTemp);
@@ -280,21 +279,21 @@ public class Service {
     }
 
     public StatsResponse getStatsResponse() {
-        List<EndpointStats> endpointStats = new ArrayList<>();
+        List<EndpointResponse> endpointStats = new ArrayList<>();
         for (EndpointContext c : serviceContexts.values()) {
             endpointStats.add(c.getEndpointStats());
         }
         return new StatsResponse(pingResponse, started, endpointStats);
     }
 
-    public EndpointStats getEndpointStats(String endpointName) {
+    public EndpointResponse getEndpointStats(String endpointName) {
         EndpointContext c = serviceContexts.get(endpointName);
         return c == null ? null : c.getEndpointStats();
     }
 
     @Override
     public String toString() {
-        StringBuilder sb = JsonUtils.beginJsonPrefixed(toKey(this.getClass()));
+        StringBuilder sb = JsonUtils.beginJsonPrefixed("\"Service\":");
         JsonUtils.addField(sb, ID, infoResponse.getId());
         JsonUtils.addField(sb, NAME, infoResponse.getName());
         JsonUtils.addField(sb, VERSION, infoResponse.getVersion());
