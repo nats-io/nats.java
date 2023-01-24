@@ -35,7 +35,7 @@ public class Group {
             last = last.next;
         }
         last.next = group;
-        return group;
+        return this;
     }
 
     public String getSubject() {
@@ -48,6 +48,11 @@ public class Group {
 
     public Group getNext() {
         return next;
+    }
+
+    @Override
+    public String toString() {
+        return "Group [" + getSubject().replace('.', '/') + "]";
     }
 
     @Override

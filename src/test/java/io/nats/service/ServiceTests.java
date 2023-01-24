@@ -58,14 +58,12 @@ public class ServiceTests extends JetStreamTestBase {
     public static final String SORT_ENDPOINT_DESCENDING_SUBJECT = "descending";
 
     @Test
-    public void testService() throws Exception {
+    public void testServiceWorkflow() throws Exception {
         try (NatsTestServer ts = new NatsTestServer())
         {
             try (Connection serviceNc1 = standardConnection(ts.getURI());
                  Connection serviceNc2 = standardConnection(ts.getURI());
                  Connection clientNc = standardConnection(ts.getURI())) {
-
-                Supplier<JsonValue> sds = new TestStatsDataSupplier();
 
                 Endpoint endEcho = Endpoint.builder()
                     .name(ECHO_ENDPOINT_NAME)
@@ -90,15 +88,17 @@ public class ServiceTests extends JetStreamTestBase {
                 ServiceEndpoint seEcho1 = ServiceEndpoint.builder()
                     .endpoint(endEcho)
                     .handler(new EchoHandler(serviceNc1))
-                    .statsDataSupplier(sds)
+                    .statsDataSupplier(ServiceTests::supplyData)
                     .build();
 
                 ServiceEndpoint seSortA1 = ServiceEndpoint.builder()
+                    .group(sortGroup)
                     .endpoint(endSortA)
                     .handler(new SortHandlerA(serviceNc1))
                     .build();
 
                 ServiceEndpoint seSortD1 = ServiceEndpoint.builder()
+                    .group(sortGroup)
                     .endpoint(endSortD)
                     .handler(new SortHandlerD(serviceNc1))
                     .build();
@@ -106,11 +106,12 @@ public class ServiceTests extends JetStreamTestBase {
                 ServiceEndpoint seEcho2 = ServiceEndpoint.builder()
                     .endpoint(endEcho)
                     .handler(new EchoHandler(serviceNc2))
-                    .statsDataSupplier(sds)
+                    .statsDataSupplier(ServiceTests::supplyData)
                     .build();
 
                 // build variations
                 ServiceEndpoint seSortA2 = ServiceEndpoint.builder()
+                    .group(sortGroup)
                     .endpointName(endSortA.getName())
                     .endpointSubject(endSortA.getSubject())
                     .endpointSchemaRequest(endSortA.getSchema().getRequest())
@@ -119,6 +120,7 @@ public class ServiceTests extends JetStreamTestBase {
                     .build();
 
                 ServiceEndpoint seSortD2 = ServiceEndpoint.builder()
+                    .group(sortGroup)
                     .endpointName(endSortD.getName())
                     .endpointSubject(endSortD.getSubject())
                     .handler(new SortHandlerD(serviceNc2))
@@ -151,9 +153,9 @@ public class ServiceTests extends JetStreamTestBase {
                 // service request execution
                 int requestCount = 10;
                 for (int x = 0; x < requestCount; x++) {
-                    verifyServiceExecution(clientNc, ECHO_ENDPOINT_NAME, ECHO_ENDPOINT_SUBJECT);
-                    verifyServiceExecution(clientNc, SORT_ENDPOINT_ASCENDING_NAME, SORT_ENDPOINT_ASCENDING_SUBJECT);
-                    verifyServiceExecution(clientNc, SORT_ENDPOINT_DESCENDING_NAME, SORT_ENDPOINT_DESCENDING_SUBJECT);
+                    verifyServiceExecution(clientNc, ECHO_ENDPOINT_NAME, ECHO_ENDPOINT_SUBJECT, null);
+                    verifyServiceExecution(clientNc, SORT_ENDPOINT_ASCENDING_NAME, SORT_ENDPOINT_ASCENDING_SUBJECT, sortGroup);
+                    verifyServiceExecution(clientNc, SORT_ENDPOINT_DESCENDING_NAME, SORT_ENDPOINT_DESCENDING_SUBJECT, sortGroup);
                 }
 
                 PingResponse pingResponse1 = service1.getPingResponse();
@@ -201,14 +203,7 @@ public class ServiceTests extends JetStreamTestBase {
                 Discovery discovery = new Discovery(clientNc, 500, 5);
 
                 // ping discovery
-                Verifier pingVerifier = (expected, response) -> {
-                    assertTrue(response instanceof PingResponse);
-                    PingResponse exp = (PingResponse)expected;
-                    PingResponse p = (PingResponse)response;
-                    assertEquals(PingResponse.TYPE, p.getType());
-                    assertEquals(exp.getName(), p.getName());
-                    assertEquals(exp.getVersion(), p.getVersion());
-                };
+                Verifier pingVerifier = (expected, response) -> assertTrue(response instanceof PingResponse);
                 verifyDiscovery(discovery.ping(), pingVerifier, pingResponse1, pingResponse2);
                 verifyDiscovery(discovery.ping(SERVICE_NAME_1), pingVerifier, pingResponse1);
                 verifyDiscovery(discovery.ping(SERVICE_NAME_2), pingVerifier, pingResponse2);
@@ -220,12 +215,9 @@ public class ServiceTests extends JetStreamTestBase {
                 Verifier infoVerifier = (expected, response) -> {
                     assertTrue(response instanceof InfoResponse);
                     InfoResponse exp = (InfoResponse)expected;
-                    InfoResponse i = (InfoResponse)response;
-                    assertEquals(InfoResponse.TYPE, i.getType());
-                    assertEquals(exp.getName(), i.getName());
-                    assertEquals(exp.getVersion(), i.getVersion());
-                    assertEquals(exp.getDescription(), i.getDescription());
-                    assertEquals(exp.getSubjects(), i.getSubjects());
+                    InfoResponse r = (InfoResponse)response;
+                    assertEquals(exp.getDescription(), r.getDescription());
+                    assertEquals(exp.getSubjects(), r.getSubjects());
                 };
                 verifyDiscovery(discovery.info(), infoVerifier, infoResponse1, infoResponse2);
                 verifyDiscovery(discovery.info(SERVICE_NAME_1), infoVerifier, infoResponse1);
@@ -236,13 +228,11 @@ public class ServiceTests extends JetStreamTestBase {
 
                 // schema discovery
                 Verifier schemaVerifier = (expected, response) -> {
+                    assertTrue(response instanceof SchemaResponse);
                     SchemaResponse exp = (SchemaResponse)expected;
-                    SchemaResponse sr = (SchemaResponse)response;
-                    assertEquals(SchemaResponse.TYPE, sr.getType());
-                    assertEquals(exp.getName(), sr.getName());
-                    assertEquals(exp.getVersion(), sr.getVersion());
-                    assertEquals(exp.getApiUrl(), sr.getApiUrl());
-                    assertEquals(exp.getEndpoints(), sr.getEndpoints());
+                    SchemaResponse r = (SchemaResponse)response;
+                    assertEquals(exp.getApiUrl(), r.getApiUrl());
+                    assertEquals(exp.getEndpoints(), r.getEndpoints());
                 };
                 verifyDiscovery(discovery.schema(), schemaVerifier, schemaResponse1, schemaResponse2);
                 verifyDiscovery(discovery.schema(SERVICE_NAME_1), schemaVerifier, schemaResponse1);
@@ -256,9 +246,6 @@ public class ServiceTests extends JetStreamTestBase {
                     assertTrue(response instanceof StatsResponse);
                     StatsResponse exp = (StatsResponse)expected;
                     StatsResponse sr = (StatsResponse)response;
-                    assertEquals(StatsResponse.TYPE, sr.getType());
-                    assertEquals(exp.getName(), sr.getName());
-                    assertEquals(exp.getVersion(), sr.getVersion());
                     assertEquals(exp.getStarted(), sr.getStarted());
                     for (int x = 0; x < 3; x++) {
                         EndpointStats es = exp.getEndpointStats().get(x);
@@ -317,9 +304,13 @@ public class ServiceTests extends JetStreamTestBase {
         List<Object> responses = oResponse instanceof List ? (List<Object>)oResponse : Collections.singletonList(oResponse);
         assertEquals(expectedResponses.length, responses.size());
         for (Object response : responses) {
-            ServiceResponse expected = find(expectedResponses, (ServiceResponse)response);
-            assertNotNull(expected);
-            v.verify(expected, response);
+            ServiceResponse sr = (ServiceResponse)response;
+            ServiceResponse exp = find(expectedResponses, sr);
+            assertNotNull(exp);
+            assertEquals(exp.getType(), sr.getType());
+            assertEquals(exp.getName(), sr.getName());
+            assertEquals(exp.getVersion(), sr.getVersion());
+            v.verify(exp, response);
         }
     }
 
@@ -332,10 +323,11 @@ public class ServiceTests extends JetStreamTestBase {
         return null;
     }
 
-    private static void verifyServiceExecution(Connection nc, String endpointName, String serviceSubject) {
+    private static void verifyServiceExecution(Connection nc, String endpointName, String serviceSubject, Group group) {
         try {
             String request = Long.toHexString(System.currentTimeMillis()) + Long.toHexString(System.nanoTime()); // just some random text
-            CompletableFuture<Message> future = nc.request(serviceSubject, request.getBytes());
+            String subject = group == null ? serviceSubject : group.getSubject() + DOT + serviceSubject;
+            CompletableFuture<Message> future = nc.request(subject, request.getBytes());
             Message m = future.get();
             String response = new String(m.getData());
             switch (endpointName) {
@@ -364,7 +356,7 @@ public class ServiceTests extends JetStreamTestBase {
 
         @Override
         public void onMessage(ServiceMessage smsg) {
-            smsg.reply(conn, echo(smsg.getData()), new Headers().put("handlerId", Integer.toString(hashCode())));
+            smsg.respond(conn, echo(smsg.getData()));
         }
     }
 
@@ -377,7 +369,7 @@ public class ServiceTests extends JetStreamTestBase {
 
         @Override
         public void onMessage(ServiceMessage smsg) {
-            smsg.reply(conn, sortA(smsg.getData()), new Headers().put("handlerId", Integer.toString(hashCode())));
+            smsg.respond(conn, sortA(smsg.getData()));
         }
     }
 
@@ -390,7 +382,7 @@ public class ServiceTests extends JetStreamTestBase {
 
         @Override
         public void onMessage(ServiceMessage smsg) {
-            smsg.reply(conn, sortD(smsg.getData()), new Headers().put("handlerId", Integer.toString(hashCode())));
+            smsg.respond(conn, sortD(smsg.getData()));
         }
     }
 
@@ -536,13 +528,78 @@ public class ServiceTests extends JetStreamTestBase {
         }
     }
 
+    @SuppressWarnings("resource")
+    @Test
+    public void testServiceBuilderConstruction() {
+        Options options = new Options.Builder().build();
+        Connection conn = new AdditionalConnectTests.TestNatsConnection(options);
+        ServiceEndpoint se = ServiceEndpoint.builder()
+            .endpoint(new Endpoint(name(0)))
+            .handler(m -> {})
+            .build();
+
+        // minimum valid service
+        Service service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se).build();
+        assertNotNull(service.toString()); // coverage
+        assertNotNull(service.getId());
+        assertEquals(NAME, service.getName());
+        assertEquals(ServiceBuilder.DEFAULT_DRAIN_TIMEOUT, service.getDrainTimeout());
+        assertEquals("1.0.0", service.getVersion());
+        assertNull(service.getDescription());
+        assertNull(service.getApiUrl());
+
+        service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se)
+            .apiUrl("apiUrl")
+            .description("desc")
+            .drainTimeout(Duration.ofSeconds(1))
+            .build();
+        assertEquals("desc", service.getDescription());
+        assertEquals("apiUrl", service.getApiUrl());
+        assertEquals(Duration.ofSeconds(1), service.getDrainTimeout());
+
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(null));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_PRINTABLE));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_DOT));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_STAR)); // invalid in the middle
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_GT)); // invalid in the middle
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_FWD_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_BACK_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_EQUALS));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_TIC));
+
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().version(null));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().version(EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().version("not-semver"));
+
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+            () -> Service.builder().name(NAME).version("1.0.0").addServiceEndpoint(se).build());
+        assertTrue(iae.getMessage().contains("Connection cannot be null or empty"));
+
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> Service.builder().connection(conn).version("1.0.0").addServiceEndpoint(se).build());
+        assertTrue(iae.getMessage().contains("Name cannot be null or empty"));
+
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> Service.builder().connection(conn).name(NAME).addServiceEndpoint(se).build());
+        assertTrue(iae.getMessage().contains("Version cannot be null or empty"));
+
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> Service.builder().connection(conn).name(NAME).version("1.0.0").build());
+        assertTrue(iae.getMessage().contains("Endpoints cannot be null or empty"));
+    }
+
     @Test
     public void testHandlerException() throws Exception {
         runInServer(nc -> {
             ServiceEndpoint exServiceEndpoint = ServiceEndpoint.builder()
                 .endpointName("exEndpoint")
                 .endpointSubject("exSubject")
-                .handler(m-> { throw new RuntimeException("handler-problem"); })
+                .handler(m -> { throw new RuntimeException("handler-problem"); })
                 .build();
 
             Service exService = new ServiceBuilder()
@@ -555,7 +612,7 @@ public class ServiceTests extends JetStreamTestBase {
 
             CompletableFuture<Message> future = nc.request("exSubject", null);
             Message m = future.get();
-            assertEquals("handler-problem", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertEquals("java.lang.RuntimeException: handler-problem", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
             assertEquals("500", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
             StatsResponse sr = exService.getStatsResponse();
             EndpointStats es = sr.getEndpointStats().get(0);
@@ -568,33 +625,29 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testServiceMessage() throws Exception {
         runInServer(nc -> {
-
-            AtomicInteger atomic = new AtomicInteger();
-
+            AtomicInteger which = new AtomicInteger();
             ServiceEndpoint se = ServiceEndpoint.builder()
                 .endpointName("testServiceMessage")
-                .handler(m-> {
+                .handler(m -> {
                     // Coverage // just hitting all the reply variations
-                    int which = atomic.incrementAndGet();
-                    Headers h;
-                    switch (which) {
+                    switch (which.incrementAndGet()) {
                         case 1:
-                            m.reply(nc, "1".getBytes());
+                            m.respond(nc, "1".getBytes());
                             break;
                         case 2:
-                            m.reply(nc, "2");
+                            m.respond(nc, "2");
                             break;
                         case 3:
-                            m.reply(nc, new JsonValue("3"));
+                            m.respond(nc, new JsonValue("3"));
                             break;
                         case 4:
-                            m.reply(nc, "4".getBytes(), m.getHeaders());
+                            m.respond(nc, "4".getBytes(), m.getHeaders());
                             break;
                         case 5:
-                            m.reply(nc, "5", m.getHeaders());
+                            m.respond(nc, "5", m.getHeaders());
                             break;
                         case 6:
-                            m.reply(nc, new JsonValue("6"), m.getHeaders());
+                            m.respond(nc, new JsonValue("6"), m.getHeaders());
                             break;
                         case 7:
                             // Coverage, Message Interface
@@ -618,11 +671,12 @@ public class ServiceTests extends JetStreamTestBase {
                             m.inProgress();
                             assertFalse(m.isJetStream());
                             // the actual reply
-                            m.replyStandardError(nc, "error", 500);
+                            m.respondStandardError(nc, "error", 500);
                             break;
                     }
                 })
                 .build();
+
             Service service = new ServiceBuilder()
                 .connection(nc)
                 .name("testService")
@@ -831,7 +885,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals("name", es.getName());
         assertEquals("subject", es.getSubject());
         assertEquals("lastError", es.getLastError());
-        assertEquals("data", es.getData().string);
+        assertEquals("\"data\"", es.getData().toString());
         assertEquals(2, es.getNumRequests());
         assertEquals(4, es.getNumErrors());
         assertEquals(10, es.getProcessingTime());
@@ -866,7 +920,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertNull(g2.getNext());
         assertNull(g3.getNext());
 
-        g1.appendGroup(g2);
+        assertEquals(g1, g1.appendGroup(g2));
         assertEquals(subject(2), g1.getNext().getName());
         assertNull(g2.getNext());
         assertEquals(subject(1), g1.getName());
@@ -874,7 +928,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(subject(2), g2.getName());
         assertEquals(subject(2), g2.getSubject());
 
-        g1.appendGroup(g3);
+        assertEquals(g1, g1.appendGroup(g3));
         assertEquals(subject(2), g1.getNext().getName());
         assertEquals(subject(3), g1.getNext().getNext().getName());
         assertEquals(subject(1), g1.getName());
@@ -932,7 +986,7 @@ public class ServiceTests extends JetStreamTestBase {
             .endpoint(e1)
             .handler(smh)
             .build();
-        assertEquals(g1, se.getGroup());
+        assertEquals(g2, se.getGroup());
         assertEquals(e1, se.getEndpoint());
         assertEquals(e1.getName(), se.getName());
         assertEquals(g2.getSubject() + DOT + e1.getSubject(), se.getSubject());
@@ -967,77 +1021,8 @@ public class ServiceTests extends JetStreamTestBase {
         assertTrue(iae.getMessage().contains("Endpoint"));
 
         iae = assertThrows(IllegalArgumentException.class,
-            () -> ServiceEndpoint.builder().build());
-        assertTrue(iae.getMessage().contains("Endpoint"));
-
-        iae = assertThrows(IllegalArgumentException.class,
             () -> ServiceEndpoint.builder().endpoint(e1).build());
         assertTrue(iae.getMessage().contains("Handler"));
-    }
-
-    @SuppressWarnings("resource")
-    @Test
-    public void testServiceBuilderConstruction() {
-        Options options = new Options.Builder().build();
-        Connection conn = new AdditionalConnectTests.TestNatsConnection(options);
-        ServiceEndpoint se = ServiceEndpoint.builder()
-            .endpoint(new Endpoint(name(0)))
-            .handler(m -> {})
-            .build();
-
-        // minimum valid service
-        Service service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se).build();
-        assertNotNull(service.toString()); // coverage
-        assertNotNull(service.getId());
-        assertEquals(NAME, service.getName());
-        assertEquals(ServiceBuilder.DEFAULT_DRAIN_TIMEOUT, service.getDrainTimeout());
-        assertEquals("1.0.0", service.getVersion());
-        assertNull(service.getDescription());
-        assertNull(service.getApiUrl());
-
-        service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se)
-            .apiUrl("apiUrl")
-            .description("desc")
-            .drainTimeout(Duration.ofSeconds(1))
-            .build();
-        assertEquals("desc", service.getDescription());
-        assertEquals("apiUrl", service.getApiUrl());
-        assertEquals(Duration.ofSeconds(1), service.getDrainTimeout());
-
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(null));
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(EMPTY));
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_SPACE));
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_PRINTABLE));
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_DOT));
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_STAR)); // invalid in the middle
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_GT)); // invalid in the middle
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_DOLLAR));
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_LOW));
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_127));
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_FWD_SLASH));
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_BACK_SLASH));
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_EQUALS));
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_TIC));
-
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().version(null));
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().version(EMPTY));
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().version("not-semver"));
-
-        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
-            () -> Service.builder().name(NAME).version("1.0.0").addServiceEndpoint(se).build());
-        assertTrue(iae.getMessage().contains("Connection cannot be null or empty"));
-
-        iae = assertThrows(IllegalArgumentException.class,
-            () -> Service.builder().connection(conn).version("1.0.0").addServiceEndpoint(se).build());
-        assertTrue(iae.getMessage().contains("Name cannot be null or empty"));
-
-        iae = assertThrows(IllegalArgumentException.class,
-            () -> Service.builder().connection(conn).name(NAME).addServiceEndpoint(se).build());
-        assertTrue(iae.getMessage().contains("Version cannot be null or empty"));
-
-        iae = assertThrows(IllegalArgumentException.class,
-            () -> Service.builder().connection(conn).name(NAME).version("1.0.0").build());
-        assertTrue(iae.getMessage().contains("Endpoints cannot be null or empty"));
     }
 
     @Test
@@ -1106,8 +1091,7 @@ public class ServiceTests extends JetStreamTestBase {
         sleep(100); endStarteds[1] = DateTimeUtils.gmtNow();
 
         List<EndpointStats> statsList = new ArrayList<>();
-        TestStatsDataSupplier tsds = new TestStatsDataSupplier();
-        JsonValue[] data = new JsonValue[]{tsds.get(), tsds.get()};
+        JsonValue[] data = new JsonValue[]{supplyData(), supplyData()};
         statsList.add(new EndpointStats("endName0", "endSubject0", 1000, 0, 10000, "lastError0", data[0], endStarteds[0]));
         statsList.add(new EndpointStats("endName1", "endSubject1", 2000, 10, 10000, "lastError1", data[1], endStarteds[1]));
 
@@ -1184,6 +1168,13 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(toKey(r.getClass()) + j, r.toString());
     }
 
+    private static int _dataX = -1;
+    public static JsonValue supplyData()
+    {
+        _dataX++;
+        return new TestStatsData("s-" + _dataX, _dataX).toJsonValue();
+    }
+
     static class TestStatsData implements JsonSerializable {
         public String sData;
         public int iData;
@@ -1232,15 +1223,6 @@ public class ServiceTests extends JetStreamTestBase {
             int result = sData != null ? sData.hashCode() : 0;
             result = 31 * result + iData;
             return result;
-        }
-    }
-
-    static class TestStatsDataSupplier implements Supplier<JsonValue> {
-        int x = -1;
-        @Override
-        public JsonValue get() {
-            ++x;
-            return new TestStatsData("s-" + x, x).toJsonValue();
         }
     }
 }

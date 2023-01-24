@@ -50,7 +50,7 @@ public class InfoResponse extends ServiceResponse {
     }
 
     @Override
-    protected void subToJson(StringBuilder sb, boolean forToString) {
+    protected void subToJson(StringBuilder sb) {
         JsonUtils.addField(sb, DESCRIPTION, description);
         JsonUtils.addStrings(sb, SUBJECTS, subjects);
     }

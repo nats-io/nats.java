@@ -17,7 +17,7 @@ public class ServiceBuilder {
     String description;
     String version;
     String apiUrl;
-    Map<String, ServiceEndpoint> serviceEndpoints = new HashMap<>();
+    final Map<String, ServiceEndpoint> serviceEndpoints = new HashMap<>();
     Duration drainTimeout = DEFAULT_DRAIN_TIMEOUT;
     Dispatcher pingDispatcher;
     Dispatcher infoDispatcher;
@@ -83,7 +83,7 @@ public class ServiceBuilder {
         required(conn, "Connection");
         required(name, "Name");
         required(version, "Version");
-        required(serviceEndpoints, "Endpoints");
+        required(serviceEndpoints, "Service Endpoints");
         return new Service(this);
     }
 }

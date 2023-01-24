@@ -50,7 +50,7 @@ public class SchemaResponse extends ServiceResponse {
     }
 
     @Override
-    protected void subToJson(StringBuilder sb, boolean forToString) {
+    protected void subToJson(StringBuilder sb) {
         JsonUtils.addField(sb, API_URL, apiUrl);
         JsonUtils.addJsons(sb, ENDPOINTS, endpoints);
     }

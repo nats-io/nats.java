@@ -51,7 +51,7 @@ public class StatsResponse extends ServiceResponse {
     }
 
     @Override
-    protected void subToJson(StringBuilder sb, boolean forToString) {
+    protected void subToJson(StringBuilder sb) {
         JsonUtils.addJsons(sb, ENDPOINTS, endpointStats);
         JsonUtils.addField(sb, STARTED, started);
     }
