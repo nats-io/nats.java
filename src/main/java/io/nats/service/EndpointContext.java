@@ -5,7 +5,6 @@ import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.JsonValue;
 
 import java.time.ZonedDateTime;
 import java.util.concurrent.atomic.AtomicLong;
@@ -13,27 +12,27 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class EndpointContext {
-    public static final String QGROUP = "q";
+class EndpointContext {
+    private static final String QGROUP = "q";
 
-    protected final Connection conn;
-    protected final ServiceEndpoint se;
-    protected final ServiceMessageHandler handler;
-    protected final boolean recordStats;
-    protected final String qGroup;
+    private final Connection conn;
+    private final ServiceEndpoint se;
+    private final ServiceMessageHandler handler;
+    private final boolean recordStats;
+    private final String qGroup;
 
-    protected final boolean internalDispatcher;
-    protected final Dispatcher dispatcher;
+    private final boolean internalDispatcher;
+    private final Dispatcher dispatcher;
 
-    protected Subscription sub;
+    private Subscription sub;
 
-    protected ZonedDateTime started;
-    protected String lastError;
-    protected final AtomicLong numRequests;
-    protected final AtomicLong numErrors;
-    protected final AtomicLong processingTime;
+    private ZonedDateTime started;
+    private String lastError;
+    private final AtomicLong numRequests;
+    private final AtomicLong numErrors;
+    private final AtomicLong processingTime;
 
-    public EndpointContext(Connection conn, Dispatcher internalDispatcher, boolean recordStats, ServiceEndpoint se) {
+    EndpointContext(Connection conn, Dispatcher internalDispatcher, boolean recordStats, ServiceEndpoint se) {
         this.conn = conn;
         this.se = se;
         handler = se.getHandler();
@@ -55,7 +54,7 @@ public class EndpointContext {
         started = DateTimeUtils.gmtNow();
     }
 
-    public void start() {
+    void start() {
         sub = qGroup == null
             ? dispatcher.subscribe(se.getSubject(), this::onMessage)
             : dispatcher.subscribe(se.getSubject(), qGroup, this::onMessage);
@@ -67,42 +66,39 @@ public class EndpointContext {
         ServiceMessage smsg = new ServiceMessage(msg);
         try {
             if (recordStats) {
-                incrementNumRequests();
+                numRequests.incrementAndGet();
             }
             handler.onMessage(smsg);
         }
         catch (Throwable t) {
             if (recordStats) {
-                setError(t);
+                numErrors.incrementAndGet();
+                lastError = t.toString();
             }
             try {
-                smsg.replyStandardError(conn, t.getMessage(), 500);
+                smsg.respondStandardError(conn, lastError, 500);
             } catch (RuntimeException ignore) {}
         }
         finally {
             if (recordStats) {
-                addProcessingTime(System.nanoTime() - start);
+                processingTime.addAndGet(System.nanoTime() - start);
             }
         }
     }
 
-    public EndpointStats getEndpointStats() {
-        return new EndpointStats(
+    EndpointResponse getEndpointStats() {
+        return new EndpointResponse(
             se.getEndpoint().getName(),
             se.getSubject(),
             numRequests.get(),
             numErrors.get(),
             processingTime.get(),
             lastError,
-            getData(),
+            se.getStatsDataSupplier() == null ? null : se.getStatsDataSupplier().get(),
             started);
     }
 
-    private JsonValue getData() {
-        return se.getStatsDataSupplier() == null ? null : se.getStatsDataSupplier().get();
-    }
-
-    public void reset() {
+    void reset() {
         numRequests.set(0);
         numErrors.set(0);
         processingTime.set(0);
@@ -110,24 +106,11 @@ public class EndpointContext {
         started = DateTimeUtils.gmtNow();
     }
 
-    void incrementNumRequests() {
-        numRequests.incrementAndGet();
-    }
-
-    void setError(Throwable t) {
-        numErrors.incrementAndGet();
-        this.lastError = t.toString();
-    }
-
-    void addProcessingTime(long elapsed) {
-        processingTime.addAndGet(elapsed);
-    }
-
-    public boolean isNotInternalDispatcher() {
+    boolean isNotInternalDispatcher() {
         return !internalDispatcher;
     }
 
-    public Subscription getSub() {
+    Subscription getSub() {
         return sub;
     }
 }

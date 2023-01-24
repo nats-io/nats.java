@@ -31,9 +31,9 @@ public class SchemaResponse extends ServiceResponse {
     public static final String TYPE = "io.nats.micro.v1.schema_response";
 
     private final String apiUrl;
-    private final List<Endpoint> endpoints;
+    private final List<EndpointResponse> endpoints;
 
-    public SchemaResponse(String id, String name, String version, String apiUrl, List<Endpoint> endpoints) {
+    public SchemaResponse(String id, String name, String version, String apiUrl, List<EndpointResponse> endpoints) {
         super(TYPE, id, name, version);
         this.apiUrl = apiUrl;
         this.endpoints = endpoints;
@@ -46,11 +46,11 @@ public class SchemaResponse extends ServiceResponse {
     private SchemaResponse(JsonValue jv) {
         super(TYPE, jv);
         apiUrl = readString(jv, API_URL);
-        endpoints = Endpoint.listOf(readValue(jv, ENDPOINTS));
+        endpoints = EndpointResponse.listOf(readValue(jv, ENDPOINTS));
     }
 
     @Override
-    protected void subToJson(StringBuilder sb, boolean forToString) {
+    protected void subToJson(StringBuilder sb) {
         JsonUtils.addField(sb, API_URL, apiUrl);
         JsonUtils.addJsons(sb, ENDPOINTS, endpoints);
     }
@@ -59,7 +59,7 @@ public class SchemaResponse extends ServiceResponse {
         return apiUrl;
     }
 
-    public List<Endpoint> getEndpoints() {
+    public List<EndpointResponse> getEndpoints() {
         return endpoints;
     }
 

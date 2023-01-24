@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.endJson;
-import static io.nats.client.support.JsonUtils.toKey;
 import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
@@ -52,8 +51,8 @@ public class Service {
     private final SchemaResponse schemaResponse;
 
     private final Object stopLock;
-    private ZonedDateTime started;
     private CompletableFuture<Boolean> doneFuture;
+    private ZonedDateTime started;
 
     Service(ServiceBuilder b) {
         String id = new io.nats.client.NUID().next();
@@ -64,10 +63,10 @@ public class Service {
 
         // set up the service contexts
         // ? do we need an internal dispatcher for any user endpoints
-        // ? also while we are here, we need to collect the endpoints for the SchemaResponse
+        // ! also while we are here, we need to collect the endpoints for the SchemaResponse
         Dispatcher dTemp = null;
         List<String> infoSubjects = new ArrayList<>();
-        List<Endpoint> schemaEndpoints = new ArrayList<>();
+        List<EndpointResponse> schemaEndpoints = new ArrayList<>();
         serviceContexts = new HashMap<>();
         for (ServiceEndpoint se : b.serviceEndpoints.values()) {
             if (se.getDispatcher() == null) {
@@ -80,7 +79,7 @@ public class Service {
                 serviceContexts.put(se.getName(), new EndpointContext(conn, null, true, se));
             }
             infoSubjects.add(se.getSubject());
-            schemaEndpoints.add(se.getEndpoint());
+            schemaEndpoints.add(new EndpointResponse(se.getName(), se.getSubject(), se.getEndpoint().getSchema()));
         }
         if (dTemp != null) {
             dInternals.add(dTemp);
@@ -106,14 +105,28 @@ public class Service {
         addStatsContexts(b.statsDispatcher, dTemp);
     }
 
+    private void addDiscoveryContexts(String discoveryName, Dispatcher dUser, Dispatcher dInternal, ServiceMessageHandler handler) {
+        Endpoint[] endpoints = new Endpoint[] {
+            internalEndpoint(discoveryName, null, null),
+            internalEndpoint(discoveryName, pingResponse.getName(), null),
+            internalEndpoint(discoveryName, pingResponse.getName(), pingResponse.getId())
+        };
+
+        for (Endpoint endpoint : endpoints) {
+            discoveryContexts.add(
+                new EndpointContext(conn, dInternal, false,
+                    new ServiceEndpoint(endpoint, handler, dUser)));
+        }
+    }
+
     private void addDiscoveryContexts(String discoveryName, ServiceResponse sr, Dispatcher dUser, Dispatcher dInternal) {
         final byte[] responseBytes = sr.serialize();
-        ServiceMessageHandler handler = smsg -> smsg.reply(conn, responseBytes);
+        ServiceMessageHandler handler = smsg -> smsg.respond(conn, responseBytes);
         addDiscoveryContexts(discoveryName, dUser, dInternal, handler);
     }
 
     private void addStatsContexts(Dispatcher dUser, Dispatcher dInternal) {
-        ServiceMessageHandler handler = smsg -> smsg.reply(conn,getStatsResponse().serialize());
+        ServiceMessageHandler handler = smsg -> smsg.respond(conn, getStatsResponse().serialize());
         addDiscoveryContexts(SRV_STATS, dUser, dInternal, handler);
     }
 
@@ -132,20 +145,6 @@ public class Service {
         return DEFAULT_SERVICE_PREFIX + discoveryName + "." + optionalServiceNameSegment + "." + optionalServiceIdSegment;
     }
 
-    private void addDiscoveryContexts(String discoveryName, Dispatcher dUser, Dispatcher dInternal, ServiceMessageHandler handler) {
-        Endpoint[] endpoints = new Endpoint[] {
-            internalEndpoint(discoveryName, null, null),
-            internalEndpoint(discoveryName, pingResponse.getName(), null),
-            internalEndpoint(discoveryName, pingResponse.getName(), pingResponse.getId())
-        };
-
-        for (Endpoint endpoint : endpoints) {
-            discoveryContexts.add(
-                new EndpointContext(conn, dInternal, false,
-                    new ServiceEndpoint(endpoint, handler, dUser)));
-        }
-    }
-
     public CompletableFuture<Boolean> startService() {
         doneFuture = new CompletableFuture<>();
         for (EndpointContext ctx : serviceContexts.values()) {
@@ -160,18 +159,6 @@ public class Service {
 
     public static ServiceBuilder builder() {
         return new ServiceBuilder();
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder sb = JsonUtils.beginJsonPrefixed(toKey(this.getClass()));
-        JsonUtils.addField(sb, ID, pingResponse.getId());
-        JsonUtils.addField(sb, NAME, pingResponse.getName());
-        JsonUtils.addField(sb, VERSION, infoResponse.getVersion());
-        JsonUtils.addField(sb, DESCRIPTION, infoResponse.getDescription());
-        JsonUtils.addField(sb, API_URL, schemaResponse.getApiUrl());
-        JsonUtils.addJsons(sb, ENDPOINTS, schemaResponse.getEndpoints());
-        return endJson(sb).toString();
     }
 
     public void stop() {
@@ -292,16 +279,27 @@ public class Service {
     }
 
     public StatsResponse getStatsResponse() {
-        List<EndpointStats> endpointStats = new ArrayList<>();
+        List<EndpointResponse> endpointStats = new ArrayList<>();
         for (EndpointContext c : serviceContexts.values()) {
-            EndpointStats es = c.getEndpointStats();
-            endpointStats.add(es);
+            endpointStats.add(c.getEndpointStats());
         }
         return new StatsResponse(pingResponse, started, endpointStats);
     }
 
-    public EndpointStats getEndpointStats(String endpointName) {
+    public EndpointResponse getEndpointStats(String endpointName) {
         EndpointContext c = serviceContexts.get(endpointName);
         return c == null ? null : c.getEndpointStats();
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = JsonUtils.beginJsonPrefixed("\"Service\":");
+        JsonUtils.addField(sb, ID, infoResponse.getId());
+        JsonUtils.addField(sb, NAME, infoResponse.getName());
+        JsonUtils.addField(sb, VERSION, infoResponse.getVersion());
+        JsonUtils.addField(sb, DESCRIPTION, infoResponse.getDescription());
+        JsonUtils.addField(sb, API_URL, schemaResponse.getApiUrl());
+        JsonUtils.addJsons(sb, ENDPOINTS, schemaResponse.getEndpoints());
+        return endJson(sb).toString();
     }
 }

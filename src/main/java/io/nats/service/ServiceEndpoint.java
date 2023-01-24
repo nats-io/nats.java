@@ -25,11 +25,11 @@ import static io.nats.client.support.NatsConstants.DOT;
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class ServiceEndpoint {
-    protected final Group group;
-    protected final Endpoint endpoint;
-    protected final ServiceMessageHandler handler;
-    protected final Dispatcher dispatcher;
-    protected final Supplier<JsonValue> statsDataSupplier;
+    private final Group group;
+    private final Endpoint endpoint;
+    private final ServiceMessageHandler handler;
+    private final Dispatcher dispatcher;
+    private final Supplier<JsonValue> statsDataSupplier;
 
     private ServiceEndpoint(Builder b, Endpoint e) {
         this.group = b.group;
@@ -85,7 +85,7 @@ public class ServiceEndpoint {
         private ServiceMessageHandler handler;
         private Dispatcher dispatcher;
         private Supplier<JsonValue> statsDataSupplier;
-        Endpoint.Builder endpointBuilder = Endpoint.builder();
+        private final Endpoint.Builder endpointBuilder = Endpoint.builder();
 
         public Builder group(Group group) {
             this.group = group;
