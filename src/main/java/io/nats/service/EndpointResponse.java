@@ -30,9 +30,10 @@ import static io.nats.client.support.JsonValueUtils.*;
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class EndpointStats implements JsonSerializable {
+public class EndpointResponse implements JsonSerializable {
     private final String name;
     private final String subject;
+    private final Schema schema;
     private final long numRequests;
     private final long numErrors;
     private final long processingTime;
@@ -41,13 +42,15 @@ public class EndpointStats implements JsonSerializable {
     private final JsonValue data;
     private final ZonedDateTime started;
 
-    static List<EndpointStats> listOf(JsonValue vEndpointStats) {
-        return JsonValueUtils.listOf(vEndpointStats, EndpointStats::new);
+    static List<EndpointResponse> listOf(JsonValue vEndpointStats) {
+        return JsonValueUtils.listOf(vEndpointStats, EndpointResponse::new);
     }
 
-    EndpointStats(String name, String subject, long numRequests, long numErrors, long processingTime, String lastError, JsonValue data, ZonedDateTime started) {
+    // This is for stats
+    EndpointResponse(String name, String subject, long numRequests, long numErrors, long processingTime, String lastError, JsonValue data, ZonedDateTime started) {
         this.name = name;
         this.subject = subject;
+        this.schema = null;
         this.numRequests = numRequests;
         this.numErrors = numErrors;
         this.processingTime = processingTime;
@@ -57,16 +60,31 @@ public class EndpointStats implements JsonSerializable {
         this.started = started;
     }
 
-    EndpointStats(JsonValue vEndpointStats) {
-        name = readString(vEndpointStats, NAME);
-        subject = readString(vEndpointStats, SUBJECT);
-        numRequests = readLong(vEndpointStats, NUM_REQUESTS, 0);
-        numErrors = readLong(vEndpointStats, NUM_ERRORS, 0);
-        processingTime = readLong(vEndpointStats, PROCESSING_TIME, 0);
-        averageProcessingTime = readLong(vEndpointStats, AVERAGE_PROCESSING_TIME, 0);
-        lastError = readString(vEndpointStats, LAST_ERROR);
-        data = readValue(vEndpointStats, DATA);
-        started = readDate(vEndpointStats, STARTED);
+    // This is for schema
+    EndpointResponse(String name, String subject, Schema schema) {
+        this.name = name;
+        this.subject = subject;
+        this.schema = schema;
+        this.numRequests = 0;
+        this.numErrors = 0;
+        this.processingTime = 0;
+        this.averageProcessingTime = 0;
+        this.lastError = null;
+        this.data = null;
+        this.started = null;
+    }
+
+    EndpointResponse(JsonValue vEndpointResponse) {
+        name = readString(vEndpointResponse, NAME);
+        subject = readString(vEndpointResponse, SUBJECT);
+        schema = Schema.optionalInstance(readValue(vEndpointResponse, SCHEMA));
+        numRequests = readLong(vEndpointResponse, NUM_REQUESTS, 0);
+        numErrors = readLong(vEndpointResponse, NUM_ERRORS, 0);
+        processingTime = readLong(vEndpointResponse, PROCESSING_TIME, 0);
+        averageProcessingTime = readLong(vEndpointResponse, AVERAGE_PROCESSING_TIME, 0);
+        lastError = readString(vEndpointResponse, LAST_ERROR);
+        data = readValue(vEndpointResponse, DATA);
+        started = readDate(vEndpointResponse, STARTED);
     }
 
     @Override
@@ -74,10 +92,11 @@ public class EndpointStats implements JsonSerializable {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, SUBJECT, subject);
-        JsonUtils.addField(sb, NUM_REQUESTS, numRequests);
-        JsonUtils.addField(sb, NUM_ERRORS, numErrors);
-        JsonUtils.addField(sb, PROCESSING_TIME, processingTime);
-        JsonUtils.addField(sb, AVERAGE_PROCESSING_TIME, averageProcessingTime);
+        JsonUtils.addField(sb, SCHEMA, schema);
+        JsonUtils.addFieldWhenGtZero(sb, NUM_REQUESTS, numRequests);
+        JsonUtils.addFieldWhenGtZero(sb, NUM_ERRORS, numErrors);
+        JsonUtils.addFieldWhenGtZero(sb, PROCESSING_TIME, processingTime);
+        JsonUtils.addFieldWhenGtZero(sb, AVERAGE_PROCESSING_TIME, averageProcessingTime);
         JsonUtils.addField(sb, LAST_ERROR, lastError);
         JsonUtils.addField(sb, DATA, data);
         JsonUtils.addField(sb, STARTED, started);
@@ -90,6 +109,10 @@ public class EndpointStats implements JsonSerializable {
 
     public String getSubject() {
         return subject;
+    }
+
+    public Schema getSchema() {
+        return schema;
     }
 
     public long getNumRequests() {
@@ -130,7 +153,7 @@ public class EndpointStats implements JsonSerializable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        EndpointStats that = (EndpointStats) o;
+        EndpointResponse that = (EndpointResponse) o;
 
         if (numRequests != that.numRequests) return false;
         if (numErrors != that.numErrors) return false;
@@ -138,6 +161,7 @@ public class EndpointStats implements JsonSerializable {
         if (averageProcessingTime != that.averageProcessingTime) return false;
         if (!Objects.equals(name, that.name)) return false;
         if (!Objects.equals(subject, that.subject)) return false;
+        if (!Objects.equals(schema, that.schema)) return false;
         if (!Objects.equals(lastError, that.lastError)) return false;
         if (!Objects.equals(data, that.data)) return false;
         return Objects.equals(started, that.started);
@@ -147,6 +171,7 @@ public class EndpointStats implements JsonSerializable {
     public int hashCode() {
         int result = name != null ? name.hashCode() : 0;
         result = 31 * result + (subject != null ? subject.hashCode() : 0);
+        result = 31 * result + (schema != null ? schema.hashCode() : 0);
         result = 31 * result + (int) (numRequests ^ (numRequests >>> 32));
         result = 31 * result + (int) (numErrors ^ (numErrors >>> 32));
         result = 31 * result + (int) (processingTime ^ (processingTime >>> 32));

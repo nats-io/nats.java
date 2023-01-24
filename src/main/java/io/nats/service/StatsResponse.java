@@ -32,9 +32,9 @@ public class StatsResponse extends ServiceResponse {
     public static final String TYPE = "io.nats.micro.v1.stats_response";
 
     private final ZonedDateTime started;
-    private final List<EndpointStats> endpointStats;
+    private final List<EndpointResponse> endpointStats;
 
-    public StatsResponse(ServiceResponse template, ZonedDateTime started, List<EndpointStats> endpointStats) {
+    public StatsResponse(ServiceResponse template, ZonedDateTime started, List<EndpointResponse> endpointStats) {
         super(TYPE, template);
         this.started = started;
         this.endpointStats = endpointStats;
@@ -46,7 +46,7 @@ public class StatsResponse extends ServiceResponse {
 
     private StatsResponse(JsonValue jv) {
         super(TYPE, jv);
-        endpointStats = EndpointStats.listOf(readValue(jv, ENDPOINTS));
+        endpointStats = EndpointResponse.listOf(readValue(jv, ENDPOINTS));
         started = readDate(jv, STARTED);
     }
 
@@ -60,7 +60,7 @@ public class StatsResponse extends ServiceResponse {
         return started;
     }
 
-    public List<EndpointStats> getEndpointStats() {
+    public List<EndpointResponse> getEndpointStats() {
         return endpointStats;
     }
 

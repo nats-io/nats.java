@@ -202,7 +202,7 @@ public class ServiceExample {
         }
     }
 
-    public static JsonValue replyBody(String label, byte[] data, String handlerId) {
+    private static JsonValue replyBody(String label, byte[] data, String handlerId) {
         return JsonValueUtils.mapBuilder()
             .put(label, new String(data))
             .put("hid", handlerId)
@@ -238,7 +238,7 @@ public class ServiceExample {
         }
     }
 
-    public static class ExampleStatsData implements JsonSerializable {
+    static class ExampleStatsData implements JsonSerializable {
         public String sData;
         public int iData;
 
