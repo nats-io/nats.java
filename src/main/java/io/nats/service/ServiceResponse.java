@@ -19,7 +19,6 @@ import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.endJson;
-import static io.nats.client.support.JsonUtils.toKey;
 import static io.nats.client.support.JsonValueUtils.readString;
 
 /**
@@ -100,32 +99,23 @@ public abstract class ServiceResponse implements JsonSerializable {
         return version;
     }
 
-    protected void subToJson(StringBuilder sb, boolean forToString) {}
+    protected void subToJson(StringBuilder sb) {}
 
-    private String _toJson(boolean forToString) {
-        StringBuilder sb;
-        if (forToString) {
-            sb = JsonUtils.beginJsonPrefixed(toKey(this.getClass()));
-        }
-        else {
-            sb = JsonUtils.beginJson();
-        }
+    @Override
+    public String toJson() {
+        StringBuilder sb = JsonUtils.beginJson();
         JsonUtils.addField(sb, ID, id);
         JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, VERSION, version);
-        subToJson(sb, forToString);
+        subToJson(sb);
         JsonUtils.addField(sb, ApiConstants.TYPE, type);
         return endJson(sb).toString();
     }
 
-    @Override
-    public String toJson() {
-        return _toJson(false);
-    }
 
     @Override
     public String toString() {
-        return _toJson(true);
+        return JsonUtils.toKey(getClass()) + toJson();
     }
 
     @Override

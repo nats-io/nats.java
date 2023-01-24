@@ -41,31 +41,31 @@ public class ServiceMessage implements Message {
         this.message = message;
     }
 
-    public void reply(Connection conn, byte[] data) {
-        conn.publish(message.getReplyTo(), data);
+    public void respond(Connection conn, byte[] response) {
+        conn.publish(message.getReplyTo(), response);
     }
 
-    public void reply(Connection conn, String data) {
-        conn.publish(message.getReplyTo(), data.getBytes(StandardCharsets.UTF_8));
+    public void respond(Connection conn, String response) {
+        conn.publish(message.getReplyTo(), response.getBytes(StandardCharsets.UTF_8));
     }
 
-    public void reply(Connection conn, JsonSerializable data) {
-        conn.publish(message.getReplyTo(), data.serialize());
+    public void respond(Connection conn, JsonSerializable response) {
+        conn.publish(message.getReplyTo(), response.serialize());
     }
 
-    public void reply(Connection conn, byte[] data, Headers headers) {
-        conn.publish(NatsMessage.builder().subject(message.getReplyTo()).data(data).headers(headers).build());
+    public void respond(Connection conn, byte[] response, Headers headers) {
+        conn.publish(NatsMessage.builder().subject(message.getReplyTo()).data(response).headers(headers).build());
     }
 
-    public void reply(Connection conn, String data, Headers headers) {
-        conn.publish(NatsMessage.builder().subject(message.getReplyTo()).data(data).headers(headers).build());
+    public void respond(Connection conn, String response, Headers headers) {
+        conn.publish(NatsMessage.builder().subject(message.getReplyTo()).data(response).headers(headers).build());
     }
 
-    public void reply(Connection conn, JsonSerializable data, Headers headers) {
-        conn.publish(NatsMessage.builder().subject(message.getReplyTo()).data(data.serialize()).headers(headers).build());
+    public void respond(Connection conn, JsonSerializable response, Headers headers) {
+        conn.publish(NatsMessage.builder().subject(message.getReplyTo()).data(response.serialize()).headers(headers).build());
     }
 
-    public void replyStandardError(Connection conn, String errorMessage, int errorCode) {
+    public void respondStandardError(Connection conn, String errorMessage, int errorCode) {
         conn.publish(NatsMessage.builder()
             .subject(message.getReplyTo())
             .headers(new Headers()
