@@ -248,10 +248,10 @@ public class ServiceTests extends JetStreamTestBase {
                     StatsResponse sr = (StatsResponse)response;
                     assertEquals(exp.getStarted(), sr.getStarted());
                     for (int x = 0; x < 3; x++) {
-                        EndpointResponse es = exp.getEndpointStats().get(x);
-                        if (!es.getName().equals(ECHO_ENDPOINT_NAME)) {
+                        EndpointResponse er = exp.getEndpointStats().get(x);
+                        if (!er.getName().equals(ECHO_ENDPOINT_NAME)) {
                             // echo endpoint has data that will vary
-                            assertEquals(es, sr.getEndpointStats().get(x));
+                            assertEquals(er, sr.getEndpointStats().get(x));
                         }
                     }
                 };
@@ -270,19 +270,19 @@ public class ServiceTests extends JetStreamTestBase {
                 StatsResponse sr = service1.getStatsResponse();
                 assertTrue(zdt.isBefore(sr.getStarted()));
                 for (int x = 0; x < 3; x++) {
-                    EndpointResponse es = sr.getEndpointStats().get(x);
-                    assertEquals(0, es.getNumRequests());
-                    assertEquals(0, es.getNumErrors());
-                    assertEquals(0, es.getProcessingTime());
-                    assertEquals(0, es.getAverageProcessingTime());
-                    assertNull(es.getLastError());
-                    if (es.getName().equals(ECHO_ENDPOINT_NAME)) {
-                        assertNotNull(es.getData());
+                    EndpointResponse er = sr.getEndpointStats().get(x);
+                    assertEquals(0, er.getNumRequests());
+                    assertEquals(0, er.getNumErrors());
+                    assertEquals(0, er.getProcessingTime());
+                    assertEquals(0, er.getAverageProcessingTime());
+                    assertNull(er.getLastError());
+                    if (er.getName().equals(ECHO_ENDPOINT_NAME)) {
+                        assertNotNull(er.getData());
                     }
                     else {
-                        assertNull(es.getData());
+                        assertNull(er.getData());
                     }
-                    assertTrue(zdt.isBefore(es.getStarted()));
+                    assertTrue(zdt.isBefore(er.getStarted()));
                 }
 
                 // shutdown
@@ -615,10 +615,10 @@ public class ServiceTests extends JetStreamTestBase {
             assertEquals("java.lang.RuntimeException: handler-problem", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
             assertEquals("500", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
             StatsResponse sr = exService.getStatsResponse();
-            EndpointResponse es = sr.getEndpointStats().get(0);
-            assertEquals(1, es.getNumRequests());
-            assertEquals(1, es.getNumErrors());
-            assertEquals("java.lang.RuntimeException: handler-problem", es.getLastError());
+            EndpointResponse er = sr.getEndpointStats().get(0);
+            assertEquals(1, er.getNumRequests());
+            assertEquals(1, er.getNumErrors());
+            assertEquals("java.lang.RuntimeException: handler-problem", er.getLastError());
         });
     }
 
@@ -870,31 +870,31 @@ public class ServiceTests extends JetStreamTestBase {
             .verify();
         ZonedDateTime zdt = DateTimeUtils.gmtNow();
 
-        EndpointResponse es = new EndpointResponse("name", "subject", 0, 0, 0, null, null, zdt);
-        assertEquals("name", es.getName());
-        assertEquals("subject", es.getSubject());
-        assertNull(es.getSchema());
-        assertNull(es.getLastError());
-        assertNull(es.getData());
-        assertEquals(0, es.getNumRequests());
-        assertEquals(0, es.getNumErrors());
-        assertEquals(0, es.getProcessingTime());
-        assertEquals(0, es.getAverageProcessingTime());
-        assertEquals(zdt, es.getStarted());
+        EndpointResponse er = new EndpointResponse("name", "subject", 0, 0, 0, null, null, zdt);
+        assertEquals("name", er.getName());
+        assertEquals("subject", er.getSubject());
+        assertNull(er.getSchema());
+        assertNull(er.getLastError());
+        assertNull(er.getData());
+        assertEquals(0, er.getNumRequests());
+        assertEquals(0, er.getNumErrors());
+        assertEquals(0, er.getProcessingTime());
+        assertEquals(0, er.getAverageProcessingTime());
+        assertEquals(zdt, er.getStarted());
 
-        es = new EndpointResponse("name", "subject", 2, 4, 10, "lastError", data, zdt);
-        assertEquals("name", es.getName());
-        assertEquals("subject", es.getSubject());
-        assertNull(es.getSchema());
-        assertEquals("lastError", es.getLastError());
-        assertEquals("\"data\"", es.getData().toString());
-        assertEquals(2, es.getNumRequests());
-        assertEquals(4, es.getNumErrors());
-        assertEquals(10, es.getProcessingTime());
-        assertEquals(5, es.getAverageProcessingTime());
-        assertEquals(zdt, es.getStarted());
+        er = new EndpointResponse("name", "subject", 2, 4, 10, "lastError", data, zdt);
+        assertEquals("name", er.getName());
+        assertEquals("subject", er.getSubject());
+        assertNull(er.getSchema());
+        assertEquals("lastError", er.getLastError());
+        assertEquals("\"data\"", er.getData().toString());
+        assertEquals(2, er.getNumRequests());
+        assertEquals(4, er.getNumErrors());
+        assertEquals(10, er.getProcessingTime());
+        assertEquals(5, er.getAverageProcessingTime());
+        assertEquals(zdt, er.getStarted());
 
-        String j = es.toJson();
+        String j = er.toJson();
         assertTrue(j.startsWith("{"));
         assertTrue(j.contains("\"name\":\"name\""));
         assertTrue(j.contains("\"subject\":\"subject\""));
@@ -905,22 +905,22 @@ public class ServiceTests extends JetStreamTestBase {
         assertTrue(j.contains("\"num_errors\":4"));
         assertTrue(j.contains("\"processing_time\":10"));
         assertTrue(j.contains("\"average_processing_time\":5"));
-        assertEquals(toKey(EndpointResponse.class) + j, es.toString());
+        assertEquals(toKey(EndpointResponse.class) + j, er.toString());
 
         Schema schema = new Schema("req", "res");
-        es = new EndpointResponse("name", "subject", schema);
-        assertEquals("name", es.getName());
-        assertEquals("subject", es.getSubject());
-        assertEquals(schema, es.getSchema());
-        assertNull(es.getLastError());
-        assertNull(es.getData());
-        assertEquals(0, es.getNumRequests());
-        assertEquals(0, es.getNumErrors());
-        assertEquals(0, es.getProcessingTime());
-        assertEquals(0, es.getAverageProcessingTime());
-        assertNull(es.getStarted());
+        er = new EndpointResponse("name", "subject", schema);
+        assertEquals("name", er.getName());
+        assertEquals("subject", er.getSubject());
+        assertEquals(schema, er.getSchema());
+        assertNull(er.getLastError());
+        assertNull(er.getData());
+        assertEquals(0, er.getNumRequests());
+        assertEquals(0, er.getNumErrors());
+        assertEquals(0, er.getProcessingTime());
+        assertEquals(0, er.getAverageProcessingTime());
+        assertNull(er.getStarted());
 
-        j = es.toJson();
+        j = er.toJson();
         assertTrue(j.startsWith("{"));
         assertTrue(j.contains("\"name\":\"name\""));
         assertTrue(j.contains("\"subject\":\"subject\""));
@@ -931,7 +931,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertFalse(j.contains("\"num_errors\":"));
         assertFalse(j.contains("\"processing_time\":"));
         assertFalse(j.contains("\"average_processing_time\":"));
-        assertEquals(toKey(EndpointResponse.class) + j, es.toString());
+        assertEquals(toKey(EndpointResponse.class) + j, er.toString());
     }
 
     @Test
