@@ -570,14 +570,22 @@ public class Options {
         }
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // BUILDER
+    // ----------------------------------------------------------------------------------------------------
+    /**
+     * Creates a builder for the options in a fluent style
+     * @return the builder.
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
     /**
      * Options are created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls. The builder can also
      * be created from a properties object using the property names defined with the
      * prefix PROP_ in this class.
-     * 
-     * <p>{@code new Options.Builder().build()} is equivalent to calling {@link Nats#connect() Nats.connect()}.
-     * 
      * <p>A common usage for testing might be {@code new Options.Builder().server(myserverurl).noReconnect.build()}
      */
     public static class Builder {
