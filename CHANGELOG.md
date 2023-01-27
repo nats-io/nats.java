@@ -1,5 +1,17 @@
 # Change Log
 
+## 2.16.7
+
+#### Core
+
+* Options.builder() fluent #832 @nwseOOO
+
+#### Service
+
+* Service multi endpoints #830 @scottf
+* Service fine tuning #833 @scottf
+* Service subject in responses #834 @scottf
+
 ## 2.16.6
 
 #### Core
