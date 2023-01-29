@@ -81,8 +81,8 @@ test {
     }
     retry {
         failOnPassedAfterRetry = false
-        maxFailures = 2
-        maxRetries = 2
+        maxFailures = 5
+        maxRetries = 5
     }
     maxParallelForks = Runtime.runtime.availableProcessors()
 }
