@@ -41,7 +41,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
      */
     @Override
     public PublishAck publish(String subject, byte[] body) throws IOException, JetStreamApiException {
-        return publishSyncInternal(subject, null, body, false, null);
+        return publishSyncInternal(subject, null, body, null);
     }
 
     /**
@@ -58,7 +58,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     @Override
     public PublishAck publish(Message message) throws IOException, JetStreamApiException {
         validateNotNull(message, "Message");
-        return publishSyncInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), null);
+        return publishSyncInternal(message.getSubject(), message.getHeaders(), message.getData(), null);
     }
 
     /**
@@ -67,7 +67,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     @Override
     public PublishAck publish(Message message, PublishOptions options) throws IOException, JetStreamApiException {
         validateNotNull(message, "Message");
-        return publishSyncInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), options);
+        return publishSyncInternal(message.getSubject(), message.getHeaders(), message.getData(), options);
     }
 
     /**
@@ -92,7 +92,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     @Override
     public CompletableFuture<PublishAck> publishAsync(Message message) {
         validateNotNull(message, "Message");
-        return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), null, null);
+        return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), null, null);
     }
 
     /**
@@ -101,42 +101,32 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
     @Override
     public CompletableFuture<PublishAck> publishAsync(Message message, PublishOptions options) {
         validateNotNull(message, "Message");
-        return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), options, null);
+        return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), options, null);
     }
 
     private PublishAck publishSyncInternal(String subject, Headers headers, byte[] data, PublishOptions options) throws IOException, JetStreamApiException {
-        return publishSyncInternal(subject, headers, data, false, options);
-    }
-
-    @Deprecated // Plans are to remove allowing utf8mode
-    private PublishAck publishSyncInternal(String subject, Headers headers, byte[] data, boolean utf8mode, PublishOptions options) throws IOException, JetStreamApiException {
         Headers merged = mergePublishOptions(headers, options);
 
         if (jso.isPublishNoAck()) {
-            conn.publishInternal(subject, null, merged, data, utf8mode);
+            conn.publishInternal(subject, null, merged, data);
             return null;
         }
 
         Duration timeout = options == null ? jso.getRequestTimeout() : options.getStreamTimeout();
 
-        Message resp = makeInternalRequestResponseRequired(subject, merged, data, utf8mode, timeout, false);
+        Message resp = makeInternalRequestResponseRequired(subject, merged, data, timeout, false);
         return processPublishResponse(resp, options);
     }
 
     private CompletableFuture<PublishAck> publishAsyncInternal(String subject, Headers headers, byte[] data, PublishOptions options, Duration knownTimeout) {
-        return publishAsyncInternal(subject, headers, data, false, options, knownTimeout);
-    }
-
-    @Deprecated // Plans are to remove allowing utf8mode
-    private CompletableFuture<PublishAck> publishAsyncInternal(String subject, Headers headers, byte[] data, boolean utf8mode, PublishOptions options, Duration knownTimeout) {
         Headers merged = mergePublishOptions(headers, options);
 
         if (jso.isPublishNoAck()) {
-            conn.publishInternal(subject, null, merged, data, utf8mode);
+            conn.publishInternal(subject, null, merged, data);
             return null;
         }
 
-        CompletableFuture<Message> future = conn.requestFutureInternal(subject, merged, data, utf8mode, knownTimeout, false);
+        CompletableFuture<Message> future = conn.requestFutureInternal(subject, merged, data, knownTimeout, false);
 
         return future.thenCompose(resp -> {
             try {

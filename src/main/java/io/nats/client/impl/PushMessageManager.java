@@ -243,7 +243,7 @@ class PushMessageManager extends MessageManager {
         // we may get multiple fc/hb messages with the same reply
         // only need to post to that subject once
         if (fcSubject != null && !fcSubject.equals(lastFcSubject)) {
-            conn.publishInternal(fcSubject, null, null, null, false);
+            conn.publishInternal(fcSubject, null, null, null);
             lastFcSubject = fcSubject; // set after publish in case the pub fails
             conn.executeCallback((c, el) -> el.flowControlProcessed(c, sub, fcSubject, source));
         }
