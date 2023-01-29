@@ -13,10 +13,11 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 
-import static io.nats.client.support.ApiConstants.ERRORS_RE;
-import static io.nats.client.support.ApiConstants.TOTAL_RE;
+import static io.nats.client.support.ApiConstants.ERRORS;
+import static io.nats.client.support.ApiConstants.TOTAL;
 
 /**
  * Represents the JetStream Account Api Stats
@@ -26,9 +27,9 @@ public class ApiStats {
     private final int total;
     private final int errors;
 
-    ApiStats(String json) {
-        this.total = JsonUtils.readInt(json, TOTAL_RE, 0);
-        this.errors = JsonUtils.readInt(json, ERRORS_RE, 0);
+    ApiStats(JsonValue vApiStats) {
+        this.total = JsonValueUtils.readInteger(vApiStats, TOTAL, 0);
+        this.errors = JsonValueUtils.readInteger(vApiStats, ERRORS, 0);
     }
 
     /**
@@ -45,13 +46,5 @@ public class ApiStats {
      */
     public int getErrors() {
         return errors;
-    }
-
-    @Override
-    public String toString() {
-        return "ApiStats{" +
-            "total=" + total +
-            ", errors=" + errors +
-            '}';
     }
 }

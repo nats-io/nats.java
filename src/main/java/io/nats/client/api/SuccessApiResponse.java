@@ -14,16 +14,16 @@
 package io.nats.client.api;
 
 import io.nats.client.Message;
-import io.nats.client.support.JsonUtils;
 
-import static io.nats.client.support.ApiConstants.SUCCESS_RE;
+import static io.nats.client.support.ApiConstants.SUCCESS;
+import static io.nats.client.support.JsonValueUtils.readBoolean;
 
 public class SuccessApiResponse extends ApiResponse<SuccessApiResponse> {
     boolean success;
 
     public SuccessApiResponse(Message msg) {
         super(msg);
-        success = JsonUtils.readBoolean(json, SUCCESS_RE);
+        success = readBoolean(jv, SUCCESS);
     }
 
     public boolean getSuccess() {

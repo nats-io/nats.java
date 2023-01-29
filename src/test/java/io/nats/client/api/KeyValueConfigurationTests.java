@@ -13,6 +13,8 @@
 package io.nats.client.api;
 
 import io.nats.client.impl.JetStreamTestBase;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -44,7 +46,8 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
 
         validate(KeyValueConfiguration.builder(bc).build());
 
-        validate(KeyValueConfiguration.instance(bc.getBackingConfig().toJson()));
+        JsonValue jvSc = JsonParser.parseUnchecked(bc.getBackingConfig().toJson());
+        validate(new KeyValueConfiguration(StreamConfiguration.instance(jvSc)));
 
         bc = KeyValueConfiguration.builder()
                 .name("bucketName")

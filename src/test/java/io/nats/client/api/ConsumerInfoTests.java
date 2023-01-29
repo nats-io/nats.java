@@ -14,21 +14,32 @@
 package io.nats.client.api;
 
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
 
-import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ConsumerInfoTests {
 
+    static JsonValue vConsumerInfo = JsonParser.parseUnchecked(dataAsString("ConsumerInfo.json"));
+
+    @Test
+    public void testTime() {
+        long start = System.currentTimeMillis();
+        for (int x = 0; x < 1_000_000; x++) {
+            new ConsumerInfo(vConsumerInfo);
+        }
+        System.out.println(System.currentTimeMillis() - start);
+    }
+
     @Test
     public void testConsumerInfo() {
-        String json = dataAsString("ConsumerInfo.json");
-        ConsumerInfo ci = new ConsumerInfo(json);
+        ConsumerInfo ci = new ConsumerInfo(vConsumerInfo);
         assertEquals("foo-stream", ci.getStreamName());
         assertEquals("foo-consumer", ci.getName());
 
@@ -74,7 +85,7 @@ public class ConsumerInfoTests {
         assertNotNull(reps);
         assertEquals(2, reps.size());
 
-        ci = new ConsumerInfo(EMPTY_JSON);
+        ci = new ConsumerInfo(JsonValue.EMPTY_MAP);
         assertNull(ci.getStreamName());
         assertNull(ci.getName());
         assertNull(ci.getCreationTime());
@@ -90,7 +101,6 @@ public class ConsumerInfoTests {
     @Test
     public void testToString() {
         // COVERAGE
-        String json = dataAsString("ConsumerInfo.json");
-        assertNotNull(new ConsumerInfo(json).toString());
+        assertNotNull(new ConsumerInfo(vConsumerInfo).toString());
     }
 }

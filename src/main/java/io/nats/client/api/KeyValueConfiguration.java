@@ -27,10 +27,6 @@ import static io.nats.client.support.Validator.*;
  * The KeyValueConfiguration class contains the configuration for of a Key Value bucket.
  */
 public class KeyValueConfiguration extends FeatureConfiguration {
-    static KeyValueConfiguration instance(String json) {
-        return new KeyValueConfiguration(StreamConfiguration.instance(json));
-    }
-
     KeyValueConfiguration(StreamConfiguration sc) {
         super(sc, extractBucketName(sc.getName()));
     }

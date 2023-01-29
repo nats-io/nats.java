@@ -15,33 +15,63 @@ package io.nats.client.api;
 
 import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.*;
 
-import static io.nats.client.api.Error.NOT_SET;
-import static io.nats.client.support.ApiConstants.TYPE_RE;
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static io.nats.client.support.ApiConstants.ERROR;
+import static io.nats.client.support.ApiConstants.TYPE;
+import static io.nats.client.support.JsonValueUtils.readString;
+import static io.nats.client.support.JsonValueUtils.readValue;
 
 public abstract class ApiResponse<T> {
 
     public static final String NO_TYPE = "io.nats.jetstream.api.v1.no_type";
+    public static final String PARSE_ERROR_TYPE = "io.nats.client.api.parse_error";
 
-    protected final String json;
+    protected final JsonValue jv;
 
     private final String type;
     private final Error error;
 
     public ApiResponse(Message msg) {
-        this(new String(msg.getData(), UTF_8));
+        this(parseMessage(msg));
     }
 
-    public ApiResponse(String json) {
-        this.json = json;
-        error = json == null ? null : Error.optionalInstance(json);
-        type = json == null ? NO_TYPE : JsonUtils.readString(json, TYPE_RE, NO_TYPE);
+    protected static JsonValue parseMessage(Message msg) {
+        if (msg == null) {
+            return null;
+        }
+        try {
+            return JsonParser.parse(msg.getData());
+        }
+        catch (JsonParseException e) {
+            return JsonValueUtils.mapBuilder()
+                .put(ERROR, new Error(500, "Error parsing: " + e.getMessage()))
+                .put(TYPE, PARSE_ERROR_TYPE)
+                .getJsonValue();
+        }
+    }
+
+    public ApiResponse(JsonValue jsonValue) {
+        jv = jsonValue;
+        if (jv == null) {
+            error = null;
+            type = null;
+        }
+        else {
+            error = Error.optionalInstance(readValue(jv, ERROR));
+            String temp = readString(jv, TYPE);
+            if (temp == null) {
+                type = NO_TYPE;
+            }
+            else {
+                type = temp;
+                jv.map.remove(TYPE); // just so it's not in the toString, it's very long and the object name will be there
+            }
+        }
     }
 
     public ApiResponse() {
-        json = null;
+        jv = null;
         error = null;
         type = NO_TYPE;
     }
@@ -54,6 +84,10 @@ public abstract class ApiResponse<T> {
         return (T)this;
     }
 
+    public JsonValue getJv() {
+        return jv;
+    }
+
     public boolean hasError() {
         return error != null;
     }
@@ -63,11 +97,11 @@ public abstract class ApiResponse<T> {
     }
 
     public int getErrorCode() {
-        return error == null ? NOT_SET : error.getCode();
+        return error == null ? Error.NOT_SET : error.getCode();
     }
 
     public int getApiErrorCode() {
-        return error == null ? NOT_SET : error.getApiErrorCode();
+        return error == null ? Error.NOT_SET : error.getApiErrorCode();
     }
 
     public String getDescription() {
@@ -80,5 +114,12 @@ public abstract class ApiResponse<T> {
 
     public Error getErrorObject() {
         return error;
+    }
+
+    @Override
+    public String toString() {
+        return jv == null
+            ? JsonUtils.toKey(getClass()) + "\":null"
+            : jv.toString(getClass());
     }
 }

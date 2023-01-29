@@ -24,7 +24,9 @@ public interface NatsConstants {
     String NATS_PROTOCOL = "nats";
     String TLS_PROTOCOL = "tls";
     String OPENTLS_PROTOCOL = "opentls";
-    List<String> KNOWN_PROTOCOLS = Arrays.asList(NATS_PROTOCOL, TLS_PROTOCOL, OPENTLS_PROTOCOL);
+    String WEBSOCKET_PROTOCOL = "ws";
+    String SECURE_WEBSOCKET_PROTOCOL = "wss";
+    List<String> KNOWN_PROTOCOLS = Arrays.asList(NATS_PROTOCOL, TLS_PROTOCOL, OPENTLS_PROTOCOL, WEBSOCKET_PROTOCOL, SECURE_WEBSOCKET_PROTOCOL);
     String NATS_PROTOCOL_SLASH_SLASH = "nats://";
 
     String SPACE = " ";

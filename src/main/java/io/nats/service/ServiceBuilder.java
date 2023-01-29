@@ -2,29 +2,27 @@ package io.nats.service;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
-import io.nats.client.MessageHandler;
 
 import java.time.Duration;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.HashMap;
+import java.util.Map;
 
 import static io.nats.client.support.Validator.*;
-import static io.nats.service.ServiceUtil.DEFAULT_DRAIN_TIMEOUT;
 
 public class ServiceBuilder {
+    public static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofSeconds(5);
+
     Connection conn;
     String name;
     String description;
     String version;
-    String subject;
-    String schemaRequest;
-    String schemaResponse;
-    MessageHandler serviceMessageHandler;
-    Dispatcher dUserDiscovery;
-    Dispatcher dUserService;
-    Supplier<StatsData> statsDataSupplier;
-    Function<String, StatsData> statsDataDecoder;
+    String apiUrl;
+    final Map<String, ServiceEndpoint> serviceEndpoints = new HashMap<>();
     Duration drainTimeout = DEFAULT_DRAIN_TIMEOUT;
+    Dispatcher pingDispatcher;
+    Dispatcher infoDispatcher;
+    Dispatcher schemaDispatcher;
+    Dispatcher statsDispatcher;
 
     public ServiceBuilder connection(Connection conn) {
         this.conn = conn;
@@ -32,7 +30,7 @@ public class ServiceBuilder {
     }
 
     public ServiceBuilder name(String name) {
-        this.name = name;
+        this.name = validateIsRestrictedTerm(name, "Service Name", true);
         return this;
     }
 
@@ -42,43 +40,17 @@ public class ServiceBuilder {
     }
 
     public ServiceBuilder version(String version) {
-        this.version = version;
+        this.version = validateSemVer(version, "Service Version", true);
         return this;
     }
 
-    public ServiceBuilder subject(String subject) {
-        this.subject = subject;
+    public ServiceBuilder apiUrl(String apiUrl) {
+        this.apiUrl = apiUrl;
         return this;
     }
 
-    public ServiceBuilder schemaRequest(String schemaRequest) {
-        this.schemaRequest = schemaRequest;
-        return this;
-    }
-
-    public ServiceBuilder schemaResponse(String schemaResponse) {
-        this.schemaResponse = schemaResponse;
-        return this;
-    }
-
-    public ServiceBuilder serviceMessageHandler(MessageHandler userMessageHandler) {
-        this.serviceMessageHandler = userMessageHandler;
-        return this;
-    }
-
-    public ServiceBuilder userDiscoveryDispatcher(Dispatcher dUserDiscovery) {
-        this.dUserDiscovery = dUserDiscovery;
-        return this;
-    }
-
-    public ServiceBuilder userServiceDispatcher(Dispatcher dUserService) {
-        this.dUserService = dUserService;
-        return this;
-    }
-
-    public ServiceBuilder statsDataHandlers(Supplier<StatsData> statsDataSupplier, Function<String, StatsData> statsDataDecoder) {
-        this.statsDataSupplier = statsDataSupplier;
-        this.statsDataDecoder = statsDataDecoder;
+    public ServiceBuilder addServiceEndpoint(ServiceEndpoint endpoint) {
+        serviceEndpoints.put(endpoint.getName(), endpoint);
         return this;
     }
 
@@ -87,15 +59,31 @@ public class ServiceBuilder {
         return this;
     }
 
+    public ServiceBuilder pingDispatcher(Dispatcher pingDispatcher) {
+        this.pingDispatcher = pingDispatcher;
+        return this;
+    }
+
+    public ServiceBuilder infoDispatcher(Dispatcher infoDispatcher) {
+        this.infoDispatcher = infoDispatcher;
+        return this;
+    }
+
+    public ServiceBuilder schemaDispatcher(Dispatcher schemaDispatcher) {
+        this.schemaDispatcher = schemaDispatcher;
+        return this;
+    }
+
+    public ServiceBuilder statsDispatcher(Dispatcher statsDispatcher) {
+        this.statsDispatcher = statsDispatcher;
+        return this;
+    }
+
     public Service build() {
         required(conn, "Connection");
-        required(serviceMessageHandler, "Service Message Handler");
-        validateIsRestrictedTerm(name, "Name", true);
-        validateSemVer(version, "Version", true);
-        if ((statsDataSupplier != null && statsDataDecoder == null)
-            || (statsDataSupplier == null && statsDataDecoder != null)) {
-            throw new IllegalArgumentException("You must provide neither or both the stats data supplier and decoder");
-        }
+        required(name, "Name");
+        required(version, "Version");
+        required(serviceEndpoints, "Service Endpoints");
         return new Service(this);
     }
 }

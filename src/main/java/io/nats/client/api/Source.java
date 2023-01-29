@@ -13,33 +13,26 @@
 
 package io.nats.client.api;
 
-import java.util.ArrayList;
-import java.util.List;
+import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 
-import static io.nats.client.support.ApiConstants.SOURCE;
-import static io.nats.client.support.ApiConstants.SOURCES;
-import static io.nats.client.support.JsonUtils.getObjectList;
+import java.util.List;
 
 /**
  * Source Information
  */
 public class Source extends SourceBase {
 
-    static List<Source> optionalListOf(String json) {
-        List<String> strObjects = getObjectList(SOURCES, json);
-        List<Source> list = new ArrayList<>();
-        for (String j : strObjects) {
-            list.add(new Source(j));
-        }
-        return list.isEmpty() ? null : list;
+    static List<Source> optionalListOf(JsonValue vSources) {
+        return JsonValueUtils.optionalListOf(vSources, Source::new);
     }
 
-    Source(String json) {
-        super(SOURCE, json);
+    Source(JsonValue vSource) {
+        super(vSource);
     }
 
     Source(Builder b) {
-        super(SOURCE, b);
+        super(b);
     }
 
     public static Builder builder() {

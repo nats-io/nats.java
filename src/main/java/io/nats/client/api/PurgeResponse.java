@@ -14,10 +14,11 @@
 package io.nats.client.api;
 
 import io.nats.client.Message;
-import io.nats.client.support.JsonUtils;
 
-import static io.nats.client.support.ApiConstants.PURGED_RE;
-import static io.nats.client.support.ApiConstants.SUCCESS_RE;
+import static io.nats.client.support.ApiConstants.PURGED;
+import static io.nats.client.support.ApiConstants.SUCCESS;
+import static io.nats.client.support.JsonValueUtils.readBoolean;
+import static io.nats.client.support.JsonValueUtils.readLong;
 
 public class PurgeResponse extends ApiResponse<PurgeResponse> {
 
@@ -26,8 +27,8 @@ public class PurgeResponse extends ApiResponse<PurgeResponse> {
 
     public PurgeResponse(Message msg) {
         super(msg);
-        success = JsonUtils.readBoolean(json, SUCCESS_RE);
-        purged = JsonUtils.readLong(json, PURGED_RE, 0);
+        success = readBoolean(jv, SUCCESS);
+        purged = readLong(jv, PURGED, 0);
     }
 
     /**
@@ -57,13 +58,5 @@ public class PurgeResponse extends ApiResponse<PurgeResponse> {
      */
     public long getPurged() {
         return purged;
-    }
-
-    @Override
-    public String toString() {
-        return "PurgeResponse{" +
-                "success=" + success +
-                ", purged=" + purged +
-                '}';
     }
 }

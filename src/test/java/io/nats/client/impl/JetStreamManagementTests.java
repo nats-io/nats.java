@@ -27,7 +27,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static io.nats.client.support.NatsConstants.EMPTY_BODY;
 import static io.nats.client.support.NatsJetStreamConstants.*;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
@@ -48,6 +47,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .build();
 
             StreamInfo si = jsm.addStream(sc);
+            assertNotNull(si.getStreamState().toString()); // coverage
             assertTrue(now <= si.getCreateTime().toEpochSecond());
 
             assertNotNull(si.getConfiguration());
@@ -1022,12 +1022,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 StreamInfo si = jsm.addStream(sc);
 
                 ZonedDateTime beforeCreated = ZonedDateTime.now();
-                js.publish(NatsMessage.builder().subject(subject(1)).data("s1-q1").build());
-                js.publish(NatsMessage.builder().subject(subject(2)).data("s2-q2").build());
-                js.publish(NatsMessage.builder().subject(subject(1)).data("s1-q3").build());
-                js.publish(NatsMessage.builder().subject(subject(2)).data("s2-q4").build());
-                js.publish(NatsMessage.builder().subject(subject(1)).data("s1-q5").build());
-                js.publish(NatsMessage.builder().subject(subject(2)).data("s2-q6").build());
+                js.publish(buildTestGetMessage(1, 1));
+                js.publish(buildTestGetMessage(2, 2));
+                js.publish(buildTestGetMessage(1, 3));
+                js.publish(buildTestGetMessage(2, 4));
+                js.publish(buildTestGetMessage(1, 5));
+                js.publish(buildTestGetMessage(2, 6));
 
                 validateGetMessage(jsm, si, false, beforeCreated);
 
@@ -1039,6 +1039,15 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream(999), 1));
             }
         });
+    }
+
+    private static NatsMessage buildTestGetMessage(int s, int q) {
+        String data = "s" + s + "-q" + q;
+        return NatsMessage.builder()
+            .subject(subject(s))
+            .data("d-" + data)
+            .headers(new Headers().put("h", "h-" + data))
+            .build();
     }
 
     private void validateGetMessage(JetStreamManagement jsm, StreamInfo si, boolean allowDirect, ZonedDateTime beforeCreated) throws IOException, JetStreamApiException {
@@ -1083,15 +1092,18 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertEquals(seq, mi.getSeq());
         assertNotNull(mi.getTime());
         assertTrue(mi.getTime().toEpochSecond() >= beforeCreated.toEpochSecond());
-        assertEquals("s" + subj + "-q" + seq, new String(mi.getData()));
+        String expectedData = "s" + subj + "-q" + seq;
+        assertEquals("d-" + expectedData, new String(mi.getData()));
+        assertEquals("h-" + expectedData, mi.getHeaders().getFirst("h"));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMessageGetRequest() {
-        validateMgr(1, null, null, MessageGetRequest.forSequence(1));
-        validateMgr(-1, "last", null, MessageGetRequest.lastForSubject("last"));
-        validateMgr(-1, null, "first", MessageGetRequest.firstForSubject("first"));
-        validateMgr(1, null, "first", MessageGetRequest.nextForSubject(1, "first"));
+        validateMessageGetRequest(1, null, null, MessageGetRequest.forSequence(1));
+        validateMessageGetRequest(-1, "last", null, MessageGetRequest.lastForSubject("last"));
+        validateMessageGetRequest(-1, null, "first", MessageGetRequest.firstForSubject("first"));
+        validateMessageGetRequest(1, null, "first", MessageGetRequest.nextForSubject(1, "first"));
 
         // coverage for deprecated methods
         MessageGetRequest.seqBytes(1);
@@ -1099,16 +1111,13 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         new MessageGetRequest(1);
         new MessageGetRequest(SUBJECT);
 
-        new NatsMessage("deprecated", null, EMPTY_BODY);
-
-        // coverage for MessageInfo
+        // coverage for MessageInfo, has error
         String json = dataAsString("GenericErrorResponse.json");
         NatsMessage m = new NatsMessage("sub", null, json.getBytes(StandardCharsets.US_ASCII));
         MessageInfo mi = new MessageInfo(m);
         assertTrue(mi.hasError());
         assertEquals(-1, mi.getLastSeq());
-        assertFalse(mi.toString().contains("lastSeq"));
-        System.out.println(mi.toString());
+        assertFalse(mi.toString().contains("last_seq"));
 
         // coverage for MessageInfo
         m = new NatsMessage("sub", null, new Headers()
@@ -1119,11 +1128,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             null);
         mi = new MessageInfo(m, "stream", true);
         assertEquals(1, mi.getLastSeq());
-        assertTrue(mi.toString().contains("lastSeq"));
-        System.out.println(mi.toString());
+        assertTrue(mi.toString().contains("last_seq"));
+        assertNotNull(mi.toString());
     }
 
-    private void validateMgr(long seq, String lastBySubject, String nextBySubject, MessageGetRequest mgr) {
+    private void validateMessageGetRequest(
+        long seq, String lastBySubject, String nextBySubject, MessageGetRequest mgr) {
         assertEquals(seq, mgr.getSequence());
         assertEquals(lastBySubject, mgr.getLastBySubject());
         assertEquals(nextBySubject, mgr.getNextBySubject());

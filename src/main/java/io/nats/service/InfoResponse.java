@@ -1,4 +1,4 @@
-// Copyright 2022 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -13,76 +13,46 @@
 
 package io.nats.service;
 
-import io.nats.client.support.ApiConstants;
-import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
-import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
+import java.util.List;
+import java.util.Objects;
+
+import static io.nats.client.support.ApiConstants.DESCRIPTION;
+import static io.nats.client.support.ApiConstants.SUBJECTS;
+import static io.nats.client.support.JsonValueUtils.readString;
+import static io.nats.client.support.JsonValueUtils.readStringList;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
-public class InfoResponse implements JsonSerializable {
+public class InfoResponse extends ServiceResponse {
     public static final String TYPE = "io.nats.micro.v1.info_response";
 
-    private final String serviceId;
-    private final String name;
-    private final String version;
     private final String description;
-    private final String subject;
+    private final List<String> subjects;
 
-    public InfoResponse(String serviceId, String name, String version, String description, String subject) {
-        this.serviceId = serviceId;
-        this.name = name;
-        this.version = version;
+    public InfoResponse(String id, String name, String version, String description, List<String> subjects) {
+        super(TYPE, id, name, version);
         this.description = description;
-        this.subject = subject;
+        this.subjects = subjects;
     }
 
-    public InfoResponse(String json) {
-        name = JsonUtils.readString(json, NAME_RE);
-        serviceId = JsonUtils.readString(json, ID_RE);
-        description = JsonUtils.readString(json, DESCRIPTION_RE);
-        version = JsonUtils.readString(json, VERSION_RE);
-        subject = JsonUtils.readString(json, SUBJECT_RE);
+    public InfoResponse(byte[] jsonBytes) {
+        this(parseMessage(jsonBytes));
+    }
+
+    private InfoResponse(JsonValue jv) {
+        super(TYPE, jv);
+        description = readString(jv, DESCRIPTION);
+        subjects = readStringList(jv, SUBJECTS);
     }
 
     @Override
-    public String toJson() {
-        StringBuilder sb = beginJson();
-        JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, ApiConstants.TYPE, TYPE);
-        JsonUtils.addField(sb, ID, serviceId);
+    protected void subToJson(StringBuilder sb) {
         JsonUtils.addField(sb, DESCRIPTION, description);
-        JsonUtils.addField(sb, VERSION, version);
-        JsonUtils.addField(sb, SUBJECT, subject);
-        return endJson(sb).toString();
-    }
-
-    /**
-     * The kind of the service reporting the status
-     * @return the service name
-     */
-    public String getName() {
-        return name;
-    }
-
-    /**
-     * The type of this. Always {@value #TYPE}
-     * @return the type string
-     */
-    public String getType() {
-        return TYPE;
-    }
-
-    /**
-     * The unique ID of the service reporting the status
-     * @return the service id
-     */
-    public String getServiceId() {
-        return serviceId;
+        JsonUtils.addStrings(sb, SUBJECTS, subjects);
     }
 
     /**
@@ -94,23 +64,30 @@ public class InfoResponse implements JsonSerializable {
     }
 
     /**
-     * Version of the service
-     * @return the version
+     * Subjects that can be invoked
+     * @return the subjects
      */
-    public String getVersion() {
-        return version;
-    }
-
-    /**
-     * Subject where the service can be invoked
-     * @return the subject
-     */
-    public String getSubject() {
-        return subject;
+    public List<String> getSubjects() {
+        return subjects;
     }
 
     @Override
-    public String toString() {
-        return toJson();
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        if (!super.equals(o)) return false;
+
+        InfoResponse that = (InfoResponse) o;
+
+        if (!Objects.equals(description, that.description)) return false;
+        return Objects.equals(subjects, that.subjects);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + (description != null ? description.hashCode() : 0);
+        result = 31 * result + (subjects != null ? subjects.hashCode() : 0);
+        return result;
     }
 }

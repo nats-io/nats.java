@@ -1,5 +1,39 @@
 # Change Log
 
+## 2.16.7
+
+#### Core
+
+* Options.builder() fluent #832 @nwseOOO
+
+#### Service
+
+* Service multi endpoints #830 @scottf
+* Service fine tuning #833 @scottf
+* Service subject in responses #834 @scottf
+
+## 2.16.6
+
+#### Core
+
+* message size calculation improvements #820 @scottf @MauriceVanVeen
+* consistent validation and version comparison fix #823 @scottf @pskiwi
+
+#### Service
+
+* Service Beta #813 @scottf
+* service response types #818 @scottf
+
+#### Key Value
+
+* kv additional update api #814 @scottf
+
+#### Etc. Tests / Docs / Examples
+
+* fix inactiveThreshold docs in ConsumerConfiguration #809 @MauriceVanVeen
+* verify 810 is not a defect #811 @scottf
+* CI deploy snapshot for a branch #817 @scottf
+
 ## 2.16.5
 
 #### Core

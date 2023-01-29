@@ -13,11 +13,12 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.time.ZonedDateTime;
 
-import static io.nats.client.support.ApiConstants.LAST_ACTIVE_RE;
+import static io.nats.client.support.ApiConstants.LAST_ACTIVE;
+import static io.nats.client.support.JsonValueUtils.readDate;
 
 /**
  * This class holds the sequence numbers for a consumer and
@@ -27,9 +28,9 @@ public class SequenceInfo extends SequencePair {
 
     private final ZonedDateTime lastActive;
 
-    SequenceInfo(String json) {
-        super(json);
-        lastActive = JsonUtils.readDate(json, LAST_ACTIVE_RE);
+    SequenceInfo(JsonValue vSequenceInfo) {
+        super(vSequenceInfo);
+        lastActive = readDate(vSequenceInfo, LAST_ACTIVE);
     }
 
     /**

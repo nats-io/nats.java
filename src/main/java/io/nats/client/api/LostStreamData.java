@@ -13,11 +13,14 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import java.util.List;
 
-import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.ApiConstants.BYTES;
+import static io.nats.client.support.ApiConstants.MSGS;
+import static io.nats.client.support.JsonValueUtils.readLong;
+import static io.nats.client.support.JsonValueUtils.readLongList;
 
 /**
  * Information about lost stream data
@@ -26,14 +29,14 @@ public class LostStreamData {
     private final List<Long> messages;
     private final Long bytes;
 
-    static LostStreamData optionalInstance(String fullJson) {
-        String objJson = JsonUtils.getJsonObject(LOST, fullJson, null);
-        return objJson == null ? null : new LostStreamData(objJson);
+    static LostStreamData optionalInstance(JsonValue vLost) {
+        return vLost == null ? null : new LostStreamData(vLost);
     }
 
-    LostStreamData(String json) {
-        messages = JsonUtils.getLongList(MSGS, json);
-        bytes = JsonUtils.readLong(json, BYTES_RE);
+
+    LostStreamData(JsonValue vLost) {
+        messages = readLongList(vLost, MSGS);
+        bytes = readLong(vLost, BYTES);
     }
 
     /**

@@ -13,7 +13,9 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 import io.nats.client.support.Status;
 
 import static io.nats.client.support.ApiConstants.*;
@@ -21,60 +23,68 @@ import static io.nats.client.support.ApiConstants.*;
 /**
  * Error returned from an api request.
  */
-public class Error {
+public class Error implements JsonSerializable {
 
     public static final int NOT_SET = -1;
 
-    private final String json;
-    private final int code;
-    private final int apiErrorCode;
-    private final String desc;
+    private final JsonValue jv;
 
-    static Error optionalInstance(String json) {
-        String errorJson = JsonUtils.getJsonObject(ERROR, json, null);
-        return errorJson == null ? null : new Error(errorJson);
+    static Error optionalInstance(JsonValue vError) {
+        return vError == null ? null : new Error(vError);
     }
 
-    Error(String json) {
-        this.json = json;
-        code = JsonUtils.readInt(json, CODE_RE, NOT_SET);
-        apiErrorCode = JsonUtils.readInt(json, ERR_CODE_RE, NOT_SET);
-        desc = JsonUtils.readStringMayHaveQuotes(json, DESCRIPTION, "Unknown JetStream Error");
+    Error(JsonValue jv) {
+        this.jv = jv;
+    }
+
+    Error(int code, String desc) {
+        this(code, NOT_SET, desc);
     }
 
     Error(int code, int apiErrorCode, String desc) {
-        this.json = null;
-        this.code = code;
-        this.apiErrorCode = apiErrorCode;
-        this.desc = desc;
+        jv = JsonValueUtils.mapBuilder()
+            .put(CODE, code)
+            .put(ERR_CODE, apiErrorCode)
+            .put(DESCRIPTION, desc)
+            .getJsonValue();
+    }
+
+    @Override
+    public String toJson() {
+        return jv.toJson();
+    }
+
+    @Override
+    public JsonValue toJsonValue() {
+        return jv;
     }
 
     public int getCode() {
-        return code;
+        return JsonValueUtils.readInteger(jv, CODE, NOT_SET);
     }
 
     public int getApiErrorCode() {
-        return apiErrorCode;
+        return JsonValueUtils.readInteger(jv, ERR_CODE, NOT_SET);
     }
 
     public String getDescription() {
-        return desc;
+        return JsonValueUtils.readString(jv, DESCRIPTION, "Unknown JetStream Error");
     }
 
     @Override
     public String toString() {
+        int apiErrorCode = getApiErrorCode();
+        int code = getCode();
         if (apiErrorCode == NOT_SET) {
             if (code == NOT_SET) {
-                return desc;
+                return getDescription();
             }
-            return desc + " (" + code + ")";
+            return getDescription() + " (" + code + ")";
         }
-
         if (code == NOT_SET) {
-            return desc;
+            return getDescription();
         }
-
-        return desc + " [" + apiErrorCode + "]";
+        return getDescription() + " [" + apiErrorCode + "]";
     }
 
     public static Error convert(Status status) {

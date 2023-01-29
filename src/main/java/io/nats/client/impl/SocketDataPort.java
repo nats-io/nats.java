@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.Options;
+import io.nats.client.support.WebSocket;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
@@ -28,6 +29,8 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import static io.nats.client.support.NatsConstants.SECURE_WEBSOCKET_PROTOCOL;
+
 /**
  * This class is not theadsafe.  Caller must ensure thread safety.
  */
@@ -37,7 +40,7 @@ public class SocketDataPort implements DataPort {
     private String host;
     private int port;
     private Socket socket;
-    private SSLSocket sslSocket;
+    private boolean isSecure = false;
 
     private InputStream in;
     private OutputStream out;
@@ -53,12 +56,27 @@ public class SocketDataPort implements DataPort {
             this.host = uri.getHost();
             this.port = uri.getPort();
 
-            this.socket = new Socket();
+            if (options.getProxy() != null) {
+                this.socket = new Socket(options.getProxy());
+            } else {
+                this.socket = new Socket();
+            }
             socket.setTcpNoDelay(true);
             socket.setReceiveBufferSize(2 * 1024 * 1024);
             socket.setSendBufferSize(2 * 1024 * 1024);
             socket.connect(new InetSocketAddress(host, port), (int) timeout);
 
+            if (isWebsocketScheme(uri.getScheme())) {
+                if (SECURE_WEBSOCKET_PROTOCOL.equalsIgnoreCase(uri.getScheme())) {
+                    upgradeToSecure();
+                }
+                try {
+                    socket = new WebSocket(socket, this.host, options.getHttpRequestInterceptors());
+                } catch (Exception ex) {
+                    socket.close();
+                    throw ex;
+                }
+            }
             in = socket.getInputStream();
             out = socket.getOutputStream();
         } catch (Exception ex) {
@@ -77,16 +95,16 @@ public class SocketDataPort implements DataPort {
         SSLSocketFactory factory = context.getSocketFactory();
         Duration timeout = options.getConnectionTimeout();
 
-        this.sslSocket = (SSLSocket) factory.createSocket(socket, this.host, this.port, true);
-        this.sslSocket.setUseClientMode(true);
+        SSLSocket sslSocket = (SSLSocket) factory.createSocket(socket, this.host, this.port, true);
+        sslSocket.setUseClientMode(true);
 
         final CompletableFuture<Void> waitForHandshake = new CompletableFuture<>();
         
-        this.sslSocket.addHandshakeCompletedListener((evt) -> {
+        sslSocket.addHandshakeCompletedListener((evt) -> {
             waitForHandshake.complete(null);
         });
 
-        this.sslSocket.startHandshake();
+        sslSocket.startHandshake();
 
         try {
             waitForHandshake.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
@@ -95,8 +113,10 @@ public class SocketDataPort implements DataPort {
             return;
         }
 
+        socket = sslSocket;
         in = sslSocket.getInputStream();
         out = sslSocket.getOutputStream();
+        isSecure = true;
     }
 
     public int read(byte[] dst, int off, int len) throws IOException {
@@ -109,20 +129,21 @@ public class SocketDataPort implements DataPort {
 
     public void shutdownInput() throws IOException {
         // cannot call shutdownInput on sslSocket
-        if (sslSocket == null) {
+        if (!isSecure) {
             socket.shutdownInput();
         }
     }
 
     public void close() throws IOException {
-        if (sslSocket != null) {
-            sslSocket.close(); // auto closes the underlying socket
-        } else {
-            socket.close();
-        }
+        socket.close();
     }
 
     public void flush() throws IOException {
         out.flush();
+    }
+
+    private static boolean isWebsocketScheme(String scheme) {
+        return "ws".equalsIgnoreCase(scheme) ||
+            "wss".equalsIgnoreCase(scheme);
     }
 }

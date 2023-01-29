@@ -15,6 +15,8 @@ package io.nats.client.api;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -45,7 +47,8 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
 
         validate(ObjectStoreConfiguration.builder(bc).build());
 
-        validate(ObjectStoreConfiguration.instance(bc.getBackingConfig().toJson()));
+        JsonValue jvSc = JsonParser.parseUnchecked(bc.getBackingConfig().toJson());
+        validate(new ObjectStoreConfiguration(StreamConfiguration.instance(jvSc)));
     }
 
     private void validate(ObjectStoreConfiguration osc) {
@@ -66,10 +69,10 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
     public void testObjectInfoConstruction() throws Exception {
         String json = dataAsString("ObjectInfo.json");
         ZonedDateTime now = ZonedDateTime.now();
-        ObjectInfo oi = new ObjectInfo(json, now);
+        ObjectInfo oi = new ObjectInfo(json.getBytes(), now);
         validateObjectInfo(oi, DateTimeUtils.toGmt(now));
         now = ZonedDateTime.now();
-        oi = new ObjectInfo(oi.toJson(), now);
+        oi = new ObjectInfo(oi.toJson().getBytes(), now);
         validateObjectInfo(oi, DateTimeUtils.toGmt(now));
     }
 

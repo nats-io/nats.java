@@ -38,13 +38,19 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     private final ArrayList<Message> discardedMessages = new ArrayList<>();
 
     private boolean printExceptions;
+    private boolean verbose;
 
     public TestHandler() {
-        this.printExceptions = true;
+        this(true, false);
     }
 
     public TestHandler(boolean printExceptions) {
+        this(true, false);
+    }
+
+    public TestHandler(boolean printExceptions, boolean verbose) {
         this.printExceptions = printExceptions;
+        this.verbose = verbose;
     }
 
     public void prepForStatusChange(Events waitFor) {
@@ -72,11 +78,15 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         this.count.incrementAndGet();
         this.exceptionCount.incrementAndGet();
 
-        if( exp != null && this.printExceptions){
-            System.out.println("Current time - "+System.currentTimeMillis());
-            exp.printStackTrace();
-            Statistics stats = conn.getStatistics();
-            System.out.println("Sent "+stats.getOutMsgs()+"/"+stats.getOutBytes()+" - Received "+stats.getInMsgs()+"/"+stats.getInBytes());
+        if (exp != null) {
+            if (printExceptions) {
+                exp.printStackTrace();
+            }
+            if (verbose) {
+                System.out.println("Current time - "+System.currentTimeMillis());
+                Statistics stats = conn.getStatistics();
+                System.out.println("Sent "+stats.getOutMsgs()+"/"+stats.getOutBytes()+" - Received "+stats.getInMsgs()+"/"+stats.getInBytes());
+            }
         }
     }
 
@@ -122,12 +132,13 @@ public class TestHandler implements ErrorListener, ConnectionListener {
             }
             counter.incrementAndGet();
 
-            System.out.println("Status change "+type);
+            if (verbose) {
+                System.out.println("Status change " + type);
+            }
 
             if (statusChanged != null && type == eventToWaitFor) {
                 statusChanged.complete(Boolean.TRUE);
             }
-            
         } finally {
             lock.unlock();
         }
@@ -214,7 +225,12 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         return this.connection;
     }
 
-    public void setPrintExceptions(boolean tf) {
-        this.printExceptions = tf;
+    public void setPrintExceptions(boolean printExceptions) {
+        this.printExceptions = printExceptions;
+    }
+
+    public TestHandler setVerbose(boolean verbose) {
+        this.verbose = verbose;
+        return this;
     }
 }

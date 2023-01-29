@@ -14,11 +14,13 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 import io.nats.client.support.Validator;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.readBoolean;
+import static io.nats.client.support.JsonValueUtils.readString;
 
 /**
  * Republish directives to consider
@@ -28,19 +30,18 @@ public class Republish implements JsonSerializable {
     private final String destination;
     private final boolean headersOnly;
 
-    static Republish optionalInstance(String fullJson) {
-        String objJson = JsonUtils.getJsonObject(REPUBLISH, fullJson, null);
-        return objJson == null ? null : new Republish(objJson);
+    static Republish optionalInstance(JsonValue vRepublish) {
+        return vRepublish == null ? null : new Republish(vRepublish);
     }
 
-    Republish(String json) {
-        source = JsonUtils.readString(json, SRC_RE);
-        destination = JsonUtils.readString(json, DEST_RE);
-        headersOnly = JsonUtils.readBoolean(json, HEADERS_ONLY_RE);
+    Republish(JsonValue vRepublish) {
+        source = readString(vRepublish, SRC);
+        destination = readString(vRepublish, DEST);
+        headersOnly = readBoolean(vRepublish, HEADERS_ONLY);
     }
 
     /**
-     * Construct a republish object
+     * Construct a 'republish' object
      * @param source the Published Subject-matching filter
      * @param destination the RePublish Subject template
      * @param headersOnly Whether to RePublish only headers (no body)
@@ -51,14 +52,26 @@ public class Republish implements JsonSerializable {
         this.headersOnly = headersOnly;
     }
 
+    /**
+     * Get source, the Published Subject-matching filter
+     * @return the source
+     */
     public String getSource() {
         return source;
     }
 
+    /**
+     * Get destination, the RePublish Subject template
+     * @return the destination
+     */
     public String getDestination() {
         return destination;
     }
 
+    /**
+     * Get headersOnly, Whether to RePublish only headers (no body)
+     * @return headersOnly
+     */
     public boolean isHeadersOnly() {
         return headersOnly;
     }

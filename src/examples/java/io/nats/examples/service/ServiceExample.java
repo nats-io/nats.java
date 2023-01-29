@@ -14,29 +14,24 @@
 package io.nats.examples.service;
 
 import io.nats.client.*;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 import io.nats.service.*;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import java.util.function.Supplier;
-
-import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class ServiceExample {
-    public static final String ECHO_SERVICE_NAME = "EchoService";
-    public static final String SORT_SERVICE_NAME = "SortService";
-    public static final String ECHO_SERVICE_SUBJECT = "echo";
-    public static final String SORT_SERVICE_SUBJECT = "sort";
-
     public static void main(String[] args) throws IOException {
 
         Options options = new Options.Builder()
@@ -44,63 +39,102 @@ public class ServiceExample {
             .errorListener(new ErrorListener() {})
             .build();
 
-        Supplier<StatsData> sds = new ExampleStatsDataSupplier();
-        Function<String, StatsData> sdd = new ExampleStatsDataDecoder();
-
         try (Connection nc = Nats.connect(options)) {
-            // create the services
-            Service serviceEcho = new ServiceBuilder()
-                .connection(nc)
-                .name(ECHO_SERVICE_NAME)
-                .subject(ECHO_SERVICE_SUBJECT)
-                .description("An Echo Service")
-                .version("0.0.1")
-                .schemaRequest("echo schema request string/url")
-                .schemaResponse("echo schema response string/url")
-                .statsDataHandlers(sds, sdd)
-                .serviceMessageHandler(msg -> ServiceMessage.reply(nc, msg, "Echo " + new String(msg.getData())))
+            // endpoints can be created ahead of time
+            // or created directly by the ServiceEndpoint builder.
+            Endpoint epEcho = Endpoint.builder()
+                .name("EchoEndpoint")
+                .subject("echo")
+                .schemaRequest("echo schema request info")   // optional
+                .schemaResponse("echo schema response info") // optional
                 .build();
 
-            System.out.println(getFormatted(serviceEcho));
+            // Sort is going to be grouped. This will affect the actual subject
+            Group sortGroup = new Group("sort");
 
-            ServiceBuilder serviceBuilderSort = new ServiceBuilder()
+            // 4 service endpoints. 3 in service 1, 1 in service 2
+            // - We will reuse an endpoint definition, so we make it ahead of time
+            // - For echo, we could have reused a handler as well, if we wanted to.
+            ServiceEndpoint seEcho1 = ServiceEndpoint.builder()
+                .endpoint(epEcho)
+                .handler(msg -> handleEchoMessage(nc, msg, "S1E")) // see below: handleEchoMessage below
+                .statsDataSupplier(new ExampleStatsDataSupplier()) // see below: ExampleStatsDataSupplier
+                .build();
+
+            ServiceEndpoint seEcho2 = ServiceEndpoint.builder()
+                .endpoint(epEcho)
+                .handler(msg -> handleEchoMessage(nc, msg, "S2E"))
+                .build();
+
+            // you can make the Endpoint directly on the Service Endpoint Builder
+            ServiceEndpoint seSort1A = ServiceEndpoint.builder()
+                .group(sortGroup)
+                .endpointName("SortEndpointAscending")
+                .endpointSubject("ascending")
+                .endpointSchemaRequest("sort ascending schema request info")   // optional
+                .endpointSchemaResponse("sort ascending schema response info") // optional
+                .handler(msg -> handleSortAscending(nc, msg, "S1A"))
+                .build();
+
+            // you can also make an endpoint with a constructor instead of a builder.
+            Endpoint endSortD = new Endpoint("SortEndpointDescending", "descending");
+            ServiceEndpoint seSort1D = ServiceEndpoint.builder()
+                .group(sortGroup)
+                .endpoint(endSortD)
+                .handler(msg -> handlerSortDescending(nc, msg, "S1D"))
+                .build();
+
+            // Create the service from service endpoints.
+            Service service1 = new ServiceBuilder()
                 .connection(nc)
-                .name(SORT_SERVICE_NAME)
-                .subject(SORT_SERVICE_SUBJECT)
-                .description("A Sort Service")
-                .version("0.0.2")
-                .schemaRequest("sort schema request string/url")
-                .schemaResponse("sort schema response string/url")
-                .serviceMessageHandler(msg -> {
-                    byte[] data = msg.getData();
-                    Arrays.sort(data);
-                    ServiceMessage.reply(nc, msg, "Sort " + new String(data));
-                });
+                .name("Service1")
+                .apiUrl("Service1 Api Url")          // optional
+                .description("Service1 Description") // optional
+                .version("0.0.1")
+                .addServiceEndpoint(seEcho1)
+                .addServiceEndpoint(seSort1A)
+                .addServiceEndpoint(seSort1D)
+                .build();
 
-            Service serviceSort = serviceBuilderSort.build();
-            Service serviceAnotherSort = serviceBuilderSort.build();
-            System.out.println("\n" + getFormatted(serviceSort));
-            System.out.println("\n" + getFormatted(serviceAnotherSort));
+            Service service2 = new ServiceBuilder()
+                .connection(nc)
+                .name("Service2")
+                .version("0.0.1")
+                .addServiceEndpoint(seEcho2) // another of the echo type
+                .build();
+
+            System.out.println("\n" + service1);
+            System.out.println("\n" + service2);
 
             // ----------------------------------------------------------------------------------------------------
             // Start the services
             // ----------------------------------------------------------------------------------------------------
-            CompletableFuture<Boolean> doneEcho = serviceEcho.startService();
-            CompletableFuture<Boolean> doneSort = serviceSort.startService();
-            CompletableFuture<Boolean> doneAnotherSort = serviceAnotherSort.startService();
+            CompletableFuture<Boolean> done1 = service1.startService();
+            CompletableFuture<Boolean> done2 = service2.startService();
 
             // ----------------------------------------------------------------------------------------------------
             // Call the services
             // ----------------------------------------------------------------------------------------------------
-            String request = randomText();
-            CompletableFuture<Message> reply = nc.request(ECHO_SERVICE_SUBJECT, request.getBytes());
-            String response = new String(reply.get().getData());
-            System.out.println("\nCalled " + ECHO_SERVICE_SUBJECT + " with [" + request + "] Received [" + response + "]");
+            System.out.println();
+            String request = null;
+            for (int x = 1; x <= 9; x++) { // run ping a few times to see it hit different services
+                request = randomText();
+                String subject = "echo";
+                CompletableFuture<Message> reply = nc.request(subject, request.getBytes());
+                String response = new String(reply.get().getData());
+                System.out.println("" + x + ". Called " + subject + " with [" + request + "] Received " + response);
+            }
 
-            request = randomText();
-            reply = nc.request(SORT_SERVICE_SUBJECT, request.getBytes());
+            // sort subjects are formed this way because the endpoints have groups
+            String subject = "sort.ascending";
+            CompletableFuture<Message> reply = nc.request(subject, request.getBytes());
+            String response = new String(reply.get().getData());
+            System.out.println("1. Called " + subject + " with [" + request + "] Received " + response);
+
+            subject = "sort.descending";
+            reply = nc.request(subject, request.getBytes());
             response = new String(reply.get().getData());
-            System.out.println("Called " + SORT_SERVICE_SUBJECT + " with [" + request + "] Received [" + response + "]");
+            System.out.println("1. Called " + subject + " with [" + request + "] Received " + response);
 
             // ----------------------------------------------------------------------------------------------------
             // discovery
@@ -113,19 +147,11 @@ public class ServiceExample {
             List<PingResponse> pingResponses = discovery.ping();
             printDiscovery("Ping", "[All]", pingResponses);
 
-            pingResponses = discovery.ping(ECHO_SERVICE_NAME);
-            printDiscovery("Ping", ECHO_SERVICE_NAME, pingResponses);
+            pingResponses = discovery.ping("Service1");
+            printDiscovery("Ping", "Service1", pingResponses);
 
-            String echoId = pingResponses.get(0).getServiceId();
-            PingResponse pingResponse = discovery.ping(ECHO_SERVICE_NAME, echoId);
-            printDiscovery("Ping", ECHO_SERVICE_NAME, echoId, pingResponse);
-
-            pingResponses = discovery.ping(SORT_SERVICE_NAME);
-            printDiscovery("Ping", SORT_SERVICE_NAME, pingResponses);
-
-            String sortId = pingResponses.get(0).getServiceId();
-            pingResponse = discovery.ping(SORT_SERVICE_NAME, sortId);
-            printDiscovery("Ping", SORT_SERVICE_NAME, sortId, pingResponse);
+            pingResponses = discovery.ping("Service2");
+            printDiscovery("Ping", "Service2", pingResponses);
 
             // ----------------------------------------------------------------------------------------------------
             // info discover variations
@@ -133,67 +159,75 @@ public class ServiceExample {
             List<InfoResponse> infoResponses = discovery.info();
             printDiscovery("Info", "[All]", infoResponses);
 
-            infoResponses = discovery.info(ECHO_SERVICE_NAME);
-            printDiscovery("Info", ECHO_SERVICE_NAME, infoResponses);
+            infoResponses = discovery.info("Service1");
+            printDiscovery("Info", "Service1", infoResponses);
 
-            InfoResponse infoResponse = discovery.info(ECHO_SERVICE_NAME, echoId);
-            printDiscovery("Info", ECHO_SERVICE_NAME, echoId, infoResponse);
-
-            infoResponses = discovery.info(SORT_SERVICE_NAME);
-            printDiscovery("Info", SORT_SERVICE_NAME, infoResponses);
-
-            infoResponse = discovery.info(SORT_SERVICE_NAME, sortId);
-            printDiscovery("Info", SORT_SERVICE_NAME, sortId, infoResponse);
+            infoResponses = discovery.info("Service2");
+            printDiscovery("Info", "Service2", infoResponses);
 
             // ----------------------------------------------------------------------------------------------------
             // schema discover variations
             // ----------------------------------------------------------------------------------------------------
-            List<SchemaResponse> schemaResponses = discovery.schema();
-            printDiscovery("Schema", "[All]", schemaResponses);
+            List<SchemaResponse> schemaResponsList = discovery.schema();
+            printDiscovery("Schema", "[All]", schemaResponsList);
 
-            schemaResponses = discovery.schema(ECHO_SERVICE_NAME);
-            printDiscovery("Schema", ECHO_SERVICE_NAME, schemaResponses);
+            schemaResponsList = discovery.schema("Service1");
+            printDiscovery("Schema", "Service1", schemaResponsList);
 
-            SchemaResponse schemaResponse = discovery.schema(ECHO_SERVICE_NAME, echoId);
-            printDiscovery("Schema", ECHO_SERVICE_NAME, echoId, schemaResponse);
-
-            schemaResponses = discovery.schema(SORT_SERVICE_NAME);
-            printDiscovery("Schema", SORT_SERVICE_NAME, schemaResponses);
-
-            schemaResponse = discovery.schema(SORT_SERVICE_NAME, sortId);
-            printDiscovery("Schema", SORT_SERVICE_NAME, sortId, schemaResponse);
+            schemaResponsList = discovery.schema("Service2");
+            printDiscovery("Schema", "Service2", schemaResponsList);
 
             // ----------------------------------------------------------------------------------------------------
             // stats discover variations
             // ----------------------------------------------------------------------------------------------------
-            List<StatsResponse> statsResponseList = discovery.stats(sdd);
+            List<StatsResponse> statsResponseList = discovery.stats();
             printDiscovery("Stats", "[All]", statsResponseList);
 
-            statsResponseList = discovery.stats(ECHO_SERVICE_NAME);
-            printDiscovery("Stats", ECHO_SERVICE_NAME, statsResponseList); // will show echo without data decoder
+            statsResponseList = discovery.stats("Service1");
+            printDiscovery("Stats", "Service1", statsResponseList); // will show echo without data decoder
 
-            statsResponseList = discovery.stats(SORT_SERVICE_NAME);
-            printDiscovery("Stats", SORT_SERVICE_NAME, statsResponseList);
+            statsResponseList = discovery.stats("Service2");
+            printDiscovery("Stats", "Service2", statsResponseList);
 
             // ----------------------------------------------------------------------------------------------------
             // stop the service
             // ----------------------------------------------------------------------------------------------------
-            serviceEcho.stop();
-            serviceSort.stop();
-            serviceAnotherSort.stop();
-            System.out.println("\nEcho service done ? " + doneEcho.get(1, TimeUnit.SECONDS));
-            System.out.println("Sort Service done ? " + doneSort.get(1, TimeUnit.SECONDS));
-            System.out.println("Another Sort Service done ? " + doneAnotherSort.get(1, TimeUnit.SECONDS));
-
+            service1.stop();
+            service2.stop();
+            System.out.println("\nService 1 done ? " + done1.get(1, TimeUnit.SECONDS));
+            System.out.println("Service 2 done ? " + done2.get(2, TimeUnit.SECONDS));
         }
         catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private static void printDiscovery(String action, String serviceName, String serviceId, Object o) {
-        System.out.println("\n" + action  + " " + serviceName + " " + serviceId);
-        System.out.println("  " + o);
+    private static JsonValue replyBody(String label, byte[] data, String handlerId) {
+        return JsonValueUtils.mapBuilder()
+            .put(label, new String(data))
+            .put("hid", handlerId)
+            .getJsonValue();
+    }
+
+    private static void handlerSortDescending(Connection nc, ServiceMessage smsg, String handlerId) {
+        byte[] data = smsg.getData();
+        Arrays.sort(data);
+        int len = data.length;
+        byte[] descending = new byte[len];
+        for (int x = 0; x < len; x++) {
+            descending[x] = data[len - x - 1];
+        }
+        smsg.respond(nc, replyBody("sort_descending", descending, handlerId));
+    }
+
+    private static void handleSortAscending(Connection nc, ServiceMessage smsg, String handlerId) {
+        byte[] ascending = smsg.getData();
+        Arrays.sort(ascending);
+        smsg.respond(nc, replyBody("sort_ascending", ascending, handlerId));
+    }
+
+    private static void handleEchoMessage(Connection nc, ServiceMessage smsg, String handlerId) {
+        smsg.respond(nc, replyBody("echo", smsg.getData(), handlerId));
     }
 
     @SuppressWarnings("rawtypes")
@@ -204,7 +238,7 @@ public class ServiceExample {
         }
     }
 
-    public static class ExampleStatsData implements StatsData {
+    static class ExampleStatsData implements JsonSerializable {
         public String sData;
         public int iData;
 
@@ -213,39 +247,31 @@ public class ServiceExample {
             this.iData = iData;
         }
 
-        public ExampleStatsData(String json) {
-            this.sData = JsonUtils.readString(json, string_pattern("sdata"));
-            this.iData = JsonUtils.readInt(json, integer_pattern("idata"), -1);
+        @Override
+        public String toJson() {
+            return toJsonValue().toJson();
         }
 
         @Override
-        public String toJson() {
-            StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "sdata", sData);
-            JsonUtils.addField(sb, "idata", iData);
-            return endJson(sb).toString();
+        public JsonValue toJsonValue() {
+            Map<String, JsonValue> map = new HashMap<>();
+            map.put("sdata", new JsonValue(sData));
+            map.put("idata", new JsonValue(iData));
+            return new JsonValue(map);
         }
 
         @Override
         public String toString() {
-            return "ExampleStatsData" + toJson();
+            return toJsonValue().toString(getClass());
         }
     }
 
-    static class ExampleStatsDataSupplier implements Supplier<StatsData> {
+    static class ExampleStatsDataSupplier implements Supplier<JsonValue> {
         int x = 0;
         @Override
-        public StatsData get() {
+        public JsonValue get() {
             ++x;
-            return new ExampleStatsData("s-" + hashCode(), x);
-        }
-    }
-
-    static class ExampleStatsDataDecoder implements Function<String, StatsData> {
-        @Override
-        public StatsData apply(String json) {
-            ExampleStatsData esd = new ExampleStatsData(json);
-            return nullOrEmpty(esd.sData) ? null : esd;
+            return new ExampleStatsData("s-" + hashCode(), x).toJsonValue();
         }
     }
 

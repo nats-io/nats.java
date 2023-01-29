@@ -13,9 +13,11 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonValueUtils.readInteger;
+import static io.nats.client.support.JsonValueUtils.readObject;
 
 /**
  * Represents the JetStream Account Tier
@@ -28,12 +30,12 @@ public class AccountTier {
     private final int consumers;
     private final AccountLimits limits;
 
-    AccountTier(String json) {
-        memory = JsonUtils.readInt(json, MEMORY_RE, 0);
-        storage = JsonUtils.readInt(json, STORAGE_RE, 0);
-        streams = JsonUtils.readInt(json, STREAMS_RE, 0);
-        consumers = JsonUtils.readInt(json, CONSUMERS_RE, 0);
-        limits = new AccountLimits(JsonUtils.getJsonObject(LIMITS, json));
+    AccountTier(JsonValue vAccountTier) {
+        memory = readInteger(vAccountTier, MEMORY, 0);
+        storage = readInteger(vAccountTier, STORAGE, 0);
+        streams = readInteger(vAccountTier, STREAMS, 0);
+        consumers = readInteger(vAccountTier, CONSUMERS, 0);
+        limits = new AccountLimits(readObject(vAccountTier, LIMITS));
     }
 
     /**
