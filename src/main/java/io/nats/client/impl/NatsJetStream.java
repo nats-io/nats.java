@@ -48,8 +48,24 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
      * {@inheritDoc}
      */
     @Override
+    public PublishAck publish(String subject, Headers headers, byte[] body) throws IOException, JetStreamApiException {
+        return publishSyncInternal(subject, headers, body, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public PublishAck publish(String subject, byte[] body, PublishOptions options) throws IOException, JetStreamApiException {
         return publishSyncInternal(subject, null, body, options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public PublishAck publish(String subject, Headers headers, byte[] body, PublishOptions options) throws IOException, JetStreamApiException {
+        return publishSyncInternal(subject, headers, body, options);
     }
 
     /**
@@ -82,8 +98,24 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
      * {@inheritDoc}
      */
     @Override
+    public CompletableFuture<PublishAck> publishAsync(String subject, Headers headers, byte[] body) {
+        return publishAsyncInternal(subject, headers, body, null, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, byte[] body, PublishOptions options) {
         return publishAsyncInternal(subject, null, body, options, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CompletableFuture<PublishAck> publishAsync(String subject, Headers headers, byte[] body, PublishOptions options) {
+        return publishAsyncInternal(subject, headers, body, options, null);
     }
 
     /**
