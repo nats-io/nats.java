@@ -184,6 +184,7 @@ public class NatsMessageTests {
 
     @Test
     public void miscCoverage() {
+        //noinspection deprecation
         NatsMessage m = NatsMessage.builder()
                 .subject("test").replyTo("reply").utf8mode(true)
                 .data("data", StandardCharsets.US_ASCII)
@@ -231,7 +232,8 @@ public class NatsMessageTests {
         m = testMessage();
         assertTrue(m.hasHeaders());
         assertNotNull(m.getHeaders());
-        assertTrue(m.isUtf8mode());
+        //noinspection deprecation
+        assertFalse(m.isUtf8mode()); // coverage, ALWAYS FALSE SINCE DEPRECATED
         assertFalse(m.getHeaders().isEmpty());
         assertNull(m.getSubscription());
         assertNull(m.getNatsSubscription());
@@ -262,7 +264,6 @@ public class NatsMessageTests {
         // coverage coverage coverage
         //noinspection deprecation
         NatsMessage nmCov = new NatsMessage("sub", "reply", null, true);
-        assertTrue(nmCov.isUtf8mode());
 
         assertTrue(nmCov.toDetailString().contains("PUB sub reply 0"));
         assertTrue(nmCov.toDetailString().contains("next=No"));
@@ -308,7 +309,7 @@ public class NatsMessageTests {
         h.add("key", "value");
 
         return NatsMessage.builder()
-                .subject("test").replyTo("reply").headers(h).utf8mode(true)
+                .subject("test").replyTo("reply").headers(h)
                 .data("data", StandardCharsets.US_ASCII)
                 .build();
     }

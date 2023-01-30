@@ -36,7 +36,12 @@ public class RequestTests extends TestBase {
             
             Dispatcher d = nc.createDispatcher((msg) -> {
                 assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
-                nc.publish(msg.getReplyTo(), null);
+                if (msg.hasHeaders()) {
+                    nc.publish(msg.getReplyTo(), msg.getHeaders(), null);
+                }
+                else {
+                    nc.publish(msg.getReplyTo(), null);
+                }
             });
             d.subscribe("subject");
 
@@ -47,6 +52,16 @@ public class RequestTests extends TestBase {
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
+
+            incoming = nc.request("subject", new Headers().put("foo", "bar"), null);
+            msg = incoming.get(500, TimeUnit.MILLISECONDS);
+
+            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            assertNotNull(msg);
+            assertEquals(0, msg.getData().length);
+            assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
+            assertTrue(msg.hasHeaders());
+            assertEquals("bar", msg.getHeaders().getFirst("foo"));
         }
     }
 
@@ -54,7 +69,12 @@ public class RequestTests extends TestBase {
     public void testRequestVarieties() throws Exception {
         runInServer(nc -> {
             Dispatcher d = nc.createDispatcher((msg) -> {
-                nc.publish(msg.getReplyTo(), msg.getData());
+                if (msg.hasHeaders()) {
+                    nc.publish(msg.getReplyTo(), msg.getHeaders(), msg.getData());
+                }
+                else {
+                    nc.publish(msg.getReplyTo(), msg.getData());
+                }
             });
             d.subscribe(SUBJECT);
 
@@ -62,17 +82,22 @@ public class RequestTests extends TestBase {
             Message msg = f.get(500, TimeUnit.MILLISECONDS);
             assertEquals(data(1), new String(msg.getData()));
 
-            NatsMessage nm = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
-            f = nc.request(nm);
+            NatsMessage outMsg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
+            f = nc.request(outMsg);
             msg = f.get(500, TimeUnit.MILLISECONDS);
             assertEquals(data(2), new String(msg.getData()));
 
             msg = nc.request(SUBJECT, dataBytes(3), Duration.ofSeconds(1));
             assertEquals(data(3), new String(msg.getData()));
 
-            nm = NatsMessage.builder().subject(SUBJECT).data(dataBytes(4)).build();
-            msg = nc.request(nm, Duration.ofSeconds(1));
+            outMsg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(4)).build();
+            msg = nc.request(outMsg, Duration.ofSeconds(1));
             assertEquals(data(4), new String(msg.getData()));
+
+            msg = nc.request(SUBJECT, new Headers().put("foo", "bar"), dataBytes(5), Duration.ofSeconds(1));
+            assertEquals(data(5), new String(msg.getData()));
+            assertTrue(msg.hasHeaders());
+            assertEquals("bar", msg.getHeaders().getFirst("foo"));
 
             assertThrows(IllegalArgumentException.class, () -> nc.request(null));
             assertThrows(IllegalArgumentException.class, () -> nc.request(null, Duration.ofSeconds(1)));
@@ -176,22 +201,38 @@ public class RequestTests extends TestBase {
     }
 
     @Test
-    public void testManualRequestReply() throws IOException, InterruptedException {
+    public void testManualRequestReplyAndPublishSignatures() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
              Connection nc = Nats.connect(ts.getURI())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
-            Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), msg.getData()));
-            d.subscribe("request");
+            Dispatcher d = nc.createDispatcher(msg -> {
+                // also getting coverage here of multiple publish signatures
+                if (msg.hasHeaders()) {
+                    nc.publish(msg.getReplyTo(), msg.getHeaders(), msg.getData());
+                }
+                else {
+                    nc.publish(msg.getReplyTo(), msg.getData());
+                }
+            });
+            d.subscribe("request-subject");
 
-            Subscription sub = nc.subscribe("reply");
+            Subscription sub = nc.subscribe("reply-to");
 
-            nc.publish("request", "reply", "hello".getBytes(StandardCharsets.UTF_8));
+            nc.publish("request-subject", "reply-to", "hello".getBytes(StandardCharsets.UTF_8));
 
             Message msg = sub.nextMessage(Duration.ofMillis(400));
 
             assertNotNull(msg);
             assertEquals("hello", new String(msg.getData(), StandardCharsets.UTF_8));
+
+            nc.publish("request-subject", "reply-to", new Headers().put("foo", "bar"), "check-headers".getBytes(StandardCharsets.UTF_8));
+
+            msg = sub.nextMessage(Duration.ofMillis(400));
+
+            assertEquals("check-headers", new String(msg.getData(), StandardCharsets.UTF_8));
+            assertTrue(msg.hasHeaders());
+            assertEquals("bar", msg.getHeaders().getFirst("foo"));
         }
     }
 
@@ -273,7 +314,7 @@ public class RequestTests extends TestBase {
         try (NatsTestServer ts = new NatsTestServer(false))
         {
             Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofHours(1)).build();
-            NatsConnection nc = (NatsConnection) Nats.connect(options);
+            Connection nc = Nats.connect(options);
 
             try {
 
@@ -281,11 +322,16 @@ public class RequestTests extends TestBase {
 
                 Dispatcher d = nc.createDispatcher((msg) -> {
                     assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
-                    nc.publish(msg.getReplyTo(), null);
+                    if (msg.hasHeaders()) {
+                        nc.publish(msg.getReplyTo(), msg.getHeaders(), null);
+                    }
+                    else {
+                        nc.publish(msg.getReplyTo(), null);
+                    }
                 });
                 d.subscribe(SUBJECT);
 
-                NatsMessage nm = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
+                NatsMessage outMsg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
                 CompletableFuture<Message> incoming = nc.requestWithTimeout("subject", null, Duration.ofMillis(100));
 
                 Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
@@ -295,6 +341,16 @@ public class RequestTests extends TestBase {
                 assertEquals(0, msg.getData().length);
                 assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
 
+                incoming = nc.requestWithTimeout("subject", new Headers().put("foo", "bar"), null, Duration.ofMillis(100));
+
+                msg = incoming.get(500, TimeUnit.MILLISECONDS);
+
+                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertNotNull(msg);
+                assertEquals(0, msg.getData().length);
+                assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
+                assertTrue(msg.hasHeaders());
+                assertEquals("bar", msg.getHeaders().getFirst("foo"));
             }
             finally {
                 nc.close();
