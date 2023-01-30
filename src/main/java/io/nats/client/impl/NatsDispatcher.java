@@ -69,51 +69,48 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
     public void run() {
         try {
-            while (this.running.get()) {
+            while (this.running.get()) { // start
 
                 NatsMessage msg = this.incoming.pop(this.waitForMessage);
 
-                if (msg == null) {
-                    if (breakRunLoop()) {
-                        return;
-                    } else {
-                        continue;
-                    }
-                }
+                if (msg != null) {
+                    NatsSubscription sub = msg.getNatsSubscription();
+                    if (sub != null && sub.isActive()) {
+                        MessageHandler handler = subscriptionHandlers.get(sub.getSID());
+                        if (handler == null) {
+                            handler = defaultHandler;
+                        }
+                        // A dispatcher can have a null defaultHandler. You can't subscribe without a handler,
+                        // but messages might come in while the dispatcher is being closed or after unsubscribe
+                        // and the [non-default] handler has already been removed from subscriptionHandlers
+                        if (handler != null) {
+                            sub.incrementDeliveredCount();
+                            this.incrementDeliveredCount();
 
-                NatsSubscription sub = msg.getNatsSubscription();
+                            try {
+                                handler.onMessage(msg);
+                            } catch (Exception exp) {
+                                connection.processException(exp);
+                            }
 
-                if (sub != null && sub.isActive()) {
-
-                    sub.incrementDeliveredCount();
-                    this.incrementDeliveredCount();
-
-                    MessageHandler handler = this.subscriptionHandlers.get(sub.getSID());
-                    if (handler == null) {
-                        handler = defaultHandler;
-                    }
-
-                    try {
-                        handler.onMessage(msg);
-                    } catch (Exception exp) {
-                        this.connection.processException(exp);
-                    }
-
-                    if (sub.reachedUnsubLimit()) {
-                        this.connection.invalidate(sub);
+                            if (sub.reachedUnsubLimit()) {
+                                connection.invalidate(sub);
+                            }
+                        }
                     }
                 }
 
                 if (breakRunLoop()) {
-                    // will set the dispatcher to not active
                     return;
                 }
             }
-        } catch (InterruptedException exp) {
+        }
+        catch (InterruptedException exp) {
             if (this.running.get()){
                 this.connection.processException(exp);
             } //otherwise we did it
-        } finally {
+        }
+        finally {
             this.running.set(false);
             this.thread = null;
         }
@@ -140,11 +137,11 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             this.subscriptionsWithHandlers.forEach((sid, sub) -> {
                 this.connection.unsubscribe(sub, -1);
             });
-        } else {
-            this.subscriptionsUsingDefaultHandler.clear();
-            this.subscriptionsWithHandlers.clear();
-            this.subscriptionHandlers.clear();
         }
+
+        this.subscriptionsUsingDefaultHandler.clear();
+        this.subscriptionsWithHandlers.clear();
+        this.subscriptionHandlers.clear();
     }
 
     public boolean isActive() {
