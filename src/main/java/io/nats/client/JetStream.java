@@ -403,10 +403,10 @@ public interface JetStream {
 
     /**
      * Create a synchronous subscription to the specified subject.
-     * 
+     *
      * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}
      * method to read messages for this subscription.
-     * 
+     *
      * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
      * information about creating an asynchronous subscription with callbacks.
      *
@@ -417,7 +417,7 @@ public interface JetStream {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     */    
+     */
     JetStreamSubscription subscribe(String subject, String queue, PushSubscribeOptions options) throws IOException, JetStreamApiException;
 
     /**
@@ -433,7 +433,7 @@ public interface JetStream {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     */      
+     */
     JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck) throws IOException, JetStreamApiException;
 
     /**
@@ -468,7 +468,7 @@ public interface JetStream {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     */    
+     */
     JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException;
 
     /**
@@ -480,6 +480,6 @@ public interface JetStream {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     */      
+     */
     JetStreamSubscription subscribe(String subject, PullSubscribeOptions options) throws IOException, JetStreamApiException;
 }
