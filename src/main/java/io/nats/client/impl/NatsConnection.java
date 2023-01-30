@@ -601,6 +601,9 @@ class NatsConnection implements Connection {
 
     // Close socket is called when another connect attempt is possible
     // Close is called when the connection should shutdown, period
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void close() throws InterruptedException {
         this.close(true);
@@ -743,23 +746,48 @@ class NatsConnection implements Connection {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void publish(String subject, byte[] body) {
-        publishInternal(subject, null, null, body, options.supportUTF8Subjects());
+        publishInternal(subject, null, null, body);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void publish(String subject, Headers headers, byte[] body) {
+        publishInternal(subject, null, headers, body);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void publish(String subject, String replyTo, byte[] body) {
-        publishInternal(subject, replyTo, null, body, options.supportUTF8Subjects());
+        publishInternal(subject, replyTo, null, body);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void publish(String subject, String replyTo, Headers headers, byte[] body) {
+        publishInternal(subject, replyTo, headers, body);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void publish(Message message) {
         validateNotNull(message, "Message");
-        publishInternal(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode());
+        publishInternal(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData());
     }
 
-    void publishInternal(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
+    void publishInternal(String subject, String replyTo, Headers headers, byte[] data) {
         checkIfNeedsHeaderSupport(headers);
         checkPayloadSize(data);
 
@@ -769,7 +797,7 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Connection is Draining"); // Ok to publish while waiting on subs
         }
 
-        NatsMessage nm = new NatsMessage(subject, replyTo, new Headers(headers), data, utf8mode);
+        NatsMessage nm = new NatsMessage(subject, replyTo, new Headers(headers), data);
 
         Connection.Status stat = this.status;
         if ((stat == Status.RECONNECTING || stat == Status.DISCONNECTED)
@@ -794,6 +822,9 @@ class NatsConnection implements Connection {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Subscription subscribe(String subject) {
 
@@ -811,6 +842,9 @@ class NatsConnection implements Connection {
         return createSubscription(subject, null, null, null);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Subscription subscribe(String subject, String queueName) {
 
@@ -937,6 +971,9 @@ class NatsConnection implements Connection {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String createInbox() {
         return options.getInboxPrefix() + nuid.next();
@@ -1004,19 +1041,33 @@ class NatsConnection implements Connection {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException {
-        return requestInternal(subject, null, body, options.supportUTF8Subjects(), timeout, true);
+        return requestInternal(subject, null, body, timeout, true);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Message request(String subject, Headers headers, byte[] body, Duration timeout) throws InterruptedException {
+        return requestInternal(subject, headers, body, timeout, true);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Message request(Message message, Duration timeout) throws InterruptedException {
         validateNotNull(message, "Message");
-        return requestInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), timeout, true);
+        return requestInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, true);
     }
 
-    Message requestInternal(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timeout, boolean cancelOn503) throws InterruptedException {
-        CompletableFuture<Message> incoming = requestFutureInternal(subject, headers, data, utf8mode, timeout, cancelOn503);
+    Message requestInternal(String subject, Headers headers, byte[] data, Duration timeout, boolean cancelOn503) throws InterruptedException {
+        CompletableFuture<Message> incoming = requestFutureInternal(subject, headers, data, timeout, cancelOn503);
         try {
             return incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (TimeoutException | ExecutionException | CancellationException e) {
@@ -1024,29 +1075,57 @@ class NatsConnection implements Connection {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public CompletableFuture<Message> request(String subject, byte[] body) {
-        return requestFutureInternal(subject, null, body, options.supportUTF8Subjects(), null, true);
+        return requestFutureInternal(subject, null, body, null, true);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CompletableFuture<Message> request(String subject, Headers headers, byte[] body) {
+        return requestFutureInternal(subject, headers, body, null, true);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public CompletableFuture<Message> requestWithTimeout(String subject, byte[] body, Duration timeout) {
-        return requestFutureInternal(subject, null, body, options.supportUTF8Subjects(), timeout, true);
+        return requestFutureInternal(subject, null, body, timeout, true);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CompletableFuture<Message> requestWithTimeout(String subject, Headers headers, byte[] body, Duration timeout) {
+        return requestFutureInternal(subject, headers, body, timeout, true);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public CompletableFuture<Message> requestWithTimeout(Message message, Duration timeout) {
         validateNotNull(message, "Message");
-        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), timeout, true);
+        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, true);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public CompletableFuture<Message> request(Message message) {
         validateNotNull(message, "Message");
-        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), null, true);
+        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), null, true);
     }
 
-    CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, boolean utf8mode, Duration futureTimeout, boolean cancelOn503) {
+    CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, Duration futureTimeout, boolean cancelOn503) {
         checkPayloadSize(data);
 
         if (isClosed()) {
@@ -1091,7 +1170,7 @@ class NatsConnection implements Connection {
             responsesAwaiting.put(sub.getSID(), future);
         }
 
-        publishInternal(subject, responseInbox, headers, data, utf8mode);
+        publishInternal(subject, responseInbox, headers, data);
         writer.flushBuffer();
         statistics.incrementRequestsSent();
 
@@ -1559,11 +1638,17 @@ class NatsConnection implements Connection {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ServerInfo getServerInfo() {
         return getInfo();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public InetAddress getClientInetAddress() {
         try {
@@ -1578,11 +1663,17 @@ class NatsConnection implements Connection {
         return this.serverInfo.get();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Options getOptions() {
         return this.options;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Statistics getStatistics() {
         return this.statistics;
@@ -1700,21 +1791,33 @@ class NatsConnection implements Connection {
         return servers;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getConnectedUrl() {
         return this.currentServer;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Status getStatus() {
         return this.status;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getLastError() {
         return this.lastError.get();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void clearLastError() {
         this.lastError.set("");
@@ -1900,6 +2003,9 @@ class NatsConnection implements Connection {
         return false;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public CompletableFuture<Boolean> drain(Duration timeout) throws TimeoutException, InterruptedException {
 
@@ -2010,6 +2116,9 @@ class NatsConnection implements Connection {
         return err.startsWith("user authentication") || err.contains("authorization violation");
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void flushBuffer() throws IOException {
         if (!isConnected()) {
