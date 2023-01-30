@@ -82,7 +82,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
                         }
                         // A dispatcher can have a null defaultHandler. You can't subscribe without a handler,
                         // but messages might come in while the dispatcher is being closed or after unsubscribe
-                        // and the [non-default] ]handler has already been removed from subscriptionHandlers
+                        // and the [non-default] handler has already been removed from subscriptionHandlers
                         if (handler != null) {
                             sub.incrementDeliveredCount();
                             this.incrementDeliveredCount();
