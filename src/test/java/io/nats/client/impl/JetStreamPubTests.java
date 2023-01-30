@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -64,22 +63,32 @@ public class JetStreamPubTests extends JetStreamTestBase {
             pa = js.publish(msg, po);
             assertPublishAck(pa, 8);
 
+            Headers h = new Headers().put("foo", "bar9");
+            pa = js.publish(SUBJECT, h, dataBytes(9));
+            assertPublishAck(pa, 9);
+
+            h = new Headers().put("foo", "bar10");
+            pa = js.publish(SUBJECT, h, dataBytes(10));
+            assertPublishAck(pa, 10);
+
             Subscription s = js.subscribe(SUBJECT);
-            assertNextMessage(s, data(1));
-            assertNextMessage(s, data(2));
-            assertNextMessage(s, data(3));
-            assertNextMessage(s, data(4));
-            assertNextMessage(s, null); // 5
-            assertNextMessage(s, null); // 6
-            assertNextMessage(s, null); // 7
-            assertNextMessage(s, null); // 8
+            assertNextMessage(s, data(1), null);
+            assertNextMessage(s, data(2), null);
+            assertNextMessage(s, data(3), null);
+            assertNextMessage(s, data(4), null);
+            assertNextMessage(s, null, null); // 5
+            assertNextMessage(s, null, null); // 6
+            assertNextMessage(s, null, null); // 7
+            assertNextMessage(s, null, null); // 8
+            assertNextMessage(s, data(9), "bar9");
+            assertNextMessage(s, data(10), "bar10");
 
             // 503
             assertThrows(IOException.class, () -> js.publish(subject(999), null));
         });
     }
 
-    private void assertNextMessage(Subscription s, String data) throws InterruptedException {
+    private void assertNextMessage(Subscription s, String data, String header) throws InterruptedException {
         Message m = s.nextMessage(DEFAULT_TIMEOUT);
         assertNotNull(m);
         if (data == null) {
@@ -88,6 +97,10 @@ public class JetStreamPubTests extends JetStreamTestBase {
         }
         else {
             assertEquals(data, new String(m.getData()));
+        }
+        if (header != null) {
+            assertTrue(m.hasHeaders());
+            assertEquals(header, m.getHeaders().getFirst("foo"));
         }
     }
 
@@ -122,19 +135,33 @@ public class JetStreamPubTests extends JetStreamTestBase {
             msg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(4)).build();
             futures.add(js.publishAsync(msg, po));
 
-            Subscription s = js.subscribe(SUBJECT);
-            List<String> datas = new ArrayList<>(Arrays.asList(data(1), data(2), data(3), data(4)));
-            assertContainsMessage(s, datas);
-            assertContainsMessage(s, datas);
-            assertContainsMessage(s, datas);
-            assertContainsMessage(s, datas);
-            assertEquals(0, datas.size());
+            Headers h = new Headers().put("foo", "bar5");
+            futures.add(js.publishAsync(SUBJECT, h, dataBytes(5)));
 
-            List<Long> seqnos = new ArrayList<>(Arrays.asList(1L, 2L, 3L, 4L));
-            for (CompletableFuture<PublishAck> future : futures) {
-                assertContainsPublishAck(future.get(), seqnos);
+            h = new Headers().put("foo", "bar6");
+            futures.add(js.publishAsync(SUBJECT, h, dataBytes(6), po));
+
+            sleep(100); // just make sure all the publish complete
+
+            for (int i = 1; i <= 6; i++) {
+                CompletableFuture<PublishAck> future = futures.get(i-1);
+                PublishAck pa = future.get();
+                assertEquals(STREAM, pa.getStream());
+                assertFalse(pa.isDuplicate());
+                assertEquals(i, pa.getSeqno());
             }
-            assertEquals(0, seqnos.size());
+
+            Subscription s = js.subscribe(SUBJECT);
+            for (int x = 1; x <= 6; x++) {
+                Message m = s.nextMessage(DEFAULT_TIMEOUT);
+                assertNotNull(m);
+                String data = new String(m.getData());
+                assertEquals(data(x), data);
+                if (x > 4) {
+                    assertTrue(m.hasHeaders());
+                    assertEquals("bar" + x, m.getHeaders().getFirst("foo"));
+                }
+            }
 
             assertFutureIOException(js.publishAsync(subject(999), null));
 
@@ -167,21 +194,6 @@ public class JetStreamPubTests extends JetStreamTestBase {
         ExecutionException ee = assertThrows(ExecutionException.class, future::get);
         assertTrue(ee.getCause() instanceof RuntimeException);
         assertTrue(ee.getCause().getCause() instanceof JetStreamApiException);
-    }
-
-    private void assertContainsMessage(Subscription s, List<String> datas) throws InterruptedException {
-        Message m = s.nextMessage(DEFAULT_TIMEOUT);
-        assertNotNull(m);
-        String data = new String(m.getData());
-        assertTrue(datas.contains(data));
-        datas.remove(data);
-    }
-
-    private void assertContainsPublishAck(PublishAck pa, List<Long> seqnos) {
-        assertEquals(STREAM, pa.getStream());
-        assertFalse(pa.isDuplicate());
-        assertTrue(seqnos.contains(pa.getSeqno()));
-        seqnos.remove(pa.getSeqno());
     }
 
     @Test

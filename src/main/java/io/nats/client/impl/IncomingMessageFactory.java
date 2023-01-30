@@ -69,7 +69,6 @@ class IncomingMessageFactory {
         message.replyTo = replyTo;
         message.headers = headers;
         message.headerLen = headerLen;
-        message.utf8mode = utf8mode;
         message.sizeInBytes = protocolLineLength + headerLen + message.dataLen + 4; // Two CRLFs
         return message;
     }

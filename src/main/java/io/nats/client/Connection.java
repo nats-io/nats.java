@@ -14,6 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.api.ServerInfo;
+import io.nats.client.impl.Headers;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -127,6 +128,29 @@ public interface Connection extends AutoCloseable {
     void publish(String subject, byte[] body);
 
     /**
+     * Send a message to the specified subject. The message body <strong>will
+     * not</strong> be copied. The expected usage with string content is something
+     * like:
+     *
+     * <pre>
+     * nc = Nats.connect()
+     * Headers h = new Headers().put("key", "value");
+     * nc.publish("destination", h, "message".getBytes("UTF-8"))
+     * </pre>
+     *
+     * where the sender creates a byte array immediately before calling publish.
+     *
+     * See {@link #publish(String, String, byte[]) publish()} for more details on
+     * publish during reconnect.
+     *
+     * @param subject the subject to send the message to
+     * @param headers Optional headers to publish with the message.
+     * @param body the message body
+     * @throws IllegalStateException if the reconnect buffer is exceeded
+     */
+    void publish(String subject, Headers headers, byte[] body);
+
+    /**
      * Send a request to the specified subject, providing a replyTo subject. The
      * message body <strong>will not</strong> be copied. The expected usage with
      * string content is something like:
@@ -150,6 +174,33 @@ public interface Connection extends AutoCloseable {
      * @throws IllegalStateException if the reconnect buffer is exceeded
      */
     void publish(String subject, String replyTo, byte[] body);
+
+    /**
+     * Send a request to the specified subject, providing a replyTo subject. The
+     * message body <strong>will not</strong> be copied. The expected usage with
+     * string content is something like:
+     *
+     * <pre>
+     * nc = Nats.connect()
+     * Headers h = new Headers().put("key", "value");
+     * nc.publish("destination", "reply-to", h, "message".getBytes("UTF-8"))
+     * </pre>
+     *
+     * where the sender creates a byte array immediately before calling publish.
+     * <p>
+     * During reconnect the client will try to buffer messages. The buffer size is set
+     * in the connect options, see {@link Options.Builder#reconnectBufferSize(long) reconnectBufferSize()}
+     * with a default value of {@link Options#DEFAULT_RECONNECT_BUF_SIZE 8 * 1024 * 1024} bytes.
+     * If the buffer is exceeded an IllegalStateException is thrown. Applications should use
+     * this exception as a signal to wait for reconnect before continuing.
+     * </p>
+     * @param subject the subject to send the message to
+     * @param replyTo the subject the receiver should send the response to
+     * @param headers Optional headers to publish with the message.
+     * @param body the message body
+     * @throws IllegalStateException if the reconnect buffer is exceeded
+     */
+    void publish(String subject, String replyTo, Headers headers, byte[] body);
 
     /**
      * Send a message to the specified subject. The message body <strong>will
@@ -186,12 +237,34 @@ public interface Connection extends AutoCloseable {
      * response comes back.
      *
      * @param subject the subject for the service that will handle the request
+     * @param headers Optional headers to publish with the message.
+     * @param body the content of the message
+     * @return a Future for the response, which may be cancelled on error or timed out
+     */
+    CompletableFuture<Message> request(String subject, Headers headers, byte[] body);
+
+    /**
+     * Send a request. The returned future will be completed when the
+     * response comes back.
+     *
+     * @param subject the subject for the service that will handle the request
      * @param body the content of the message
      * @param timeout the time to wait for a response
      * @return a Future for the response, which may be cancelled on error or timed out
      */
     CompletableFuture<Message> requestWithTimeout(String subject, byte[] body, Duration timeout);
 
+    /**
+     * Send a request. The returned future will be completed when the
+     * response comes back.
+     *
+     * @param subject the subject for the service that will handle the request
+     * @param body the content of the message
+     * @param headers Optional headers to publish with the message.
+     * @param timeout the time to wait for a response
+     * @return a Future for the response, which may be cancelled on error or timed out
+     */
+    CompletableFuture<Message> requestWithTimeout(String subject, Headers headers, byte[] body, Duration timeout);
 
     /**
      * Send a request. The returned future will be completed when the
@@ -219,7 +292,7 @@ public interface Connection extends AutoCloseable {
      * @return a Future for the response, which may be cancelled on error or timed out
      */
     CompletableFuture<Message> requestWithTimeout(Message message, Duration timeout);
-    
+
     /**
      * Send a request and returns the reply or null. This version of request is equivalent
      * to calling get on the future returned from {@link #request(String, byte[]) request()} with
@@ -232,6 +305,20 @@ public interface Connection extends AutoCloseable {
      * @throws InterruptedException if one is thrown while waiting, in order to propagate it up
      */
     Message request(String subject, byte[] body, Duration timeout) throws InterruptedException;
+
+    /**
+     * Send a request and returns the reply or null. This version of request is equivalent
+     * to calling get on the future returned from {@link #request(String, byte[]) request()} with
+     * the timeout and handling the ExecutionException and TimeoutException.
+     *
+     * @param subject the subject for the service that will handle the request
+     * @param headers Optional headers to publish with the message.
+     * @param body the content of the message
+     * @param timeout the time to wait for a response
+     * @return the reply message or null if the timeout is reached
+     * @throws InterruptedException if one is thrown while waiting, in order to propagate it up
+     */
+    Message request(String subject, Headers headers, byte[] body, Duration timeout) throws InterruptedException;
 
     /**
      * Send a request and returns the reply or null. This version of request is equivalent
