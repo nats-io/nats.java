@@ -13,9 +13,9 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
 import nats.io.NatsRunnerUtils;
+import nats.io.NatsServerRunner;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -51,21 +51,21 @@ public class AdditionalConnectTests {
         String[] insert3 = makeClusterInsert(3, cport3, cport1, cport2);
 
         try (
-            NatsTestServer ts = new NatsTestServer(0, false, false, null, insert1, null);
-            NatsTestServer ts2 = new NatsTestServer(0, false, false, null, insert2, null);
-            NatsTestServer ts3 = new NatsTestServer(0, false, false, null, insert3, null)
+            NatsServerRunner srv1 = NatsServerRunner.builder().configInserts(insert1).build();
+            NatsServerRunner srv2 = NatsServerRunner.builder().configInserts(insert2).build();
+            NatsServerRunner srv3 = NatsServerRunner.builder().configInserts(insert3).build()
         ) {
             sleep(1000); // just make sure the cluster is all ready
 
-            Options options1 = new Options.Builder().server(ts.getURI()).build();
+            Options options1 = new Options.Builder().server(srv1.getURI()).build();
             TestNatsConnection conn1 = new TestNatsConnection(options1);
             conn1.connect(false);
 
-            Options options2 = new Options.Builder().server(ts.getURI()).ignoreDiscoveredServers().build();
+            Options options2 = new Options.Builder().server(srv1.getURI()).ignoreDiscoveredServers().build();
             TestNatsConnection conn2 = new TestNatsConnection(options2);
             conn2.connect(false);
 
-            Options options3 = new Options.Builder().server(ts.getURI()).noRandomize().build();
+            Options options3 = new Options.Builder().server(srv1.getURI()).noRandomize().build();
             TestNatsConnection conn3 = new TestNatsConnection(options3);
             conn3.connect(false);
 
@@ -85,7 +85,7 @@ public class AdditionalConnectTests {
             conn3.addDiscoveredServers(discoveredServers3);
 
             // option 1 is randomized so just check that both options and discovered are there
-            assertEquals(ts.getURI(), conn1.getConnectedUrl());
+            assertEquals(srv1.getURI(), conn1.getConnectedUrl());
             assertEquals(optionsServers1.size() + discoveredServers1.size(), conn1.getServersToTry().size());
             List<String> toTry = conn1.getServersToTry();
             for (String url : optionsServers1) {
@@ -95,21 +95,21 @@ public class AdditionalConnectTests {
                 assertTrue(toTry.contains(url));
             }
             String ds = discoveredServers1.toString();
-            assertTrue(ds.contains("" + ts.getPort()));
-            assertTrue(ds.contains("" + ts2.getPort()));
-            assertTrue(ds.contains("" + ts3.getPort()));
+            assertTrue(ds.contains("" + srv1.getPort()));
+            assertTrue(ds.contains("" + srv2.getPort()));
+            assertTrue(ds.contains("" + srv3.getPort()));
 
             // option 2 is ignore discovered to to try must only be the options
-            assertEquals(ts.getURI(), conn2.getConnectedUrl());
+            assertEquals(srv1.getURI(), conn2.getConnectedUrl());
             assertEquals(1, conn2.getServersToTry().size());
-            assertEquals(ts.getURI(), conn2.getServersToTry().get(0));
+            assertEquals(srv1.getURI(), conn2.getServersToTry().get(0));
             ds = discoveredServers2.toString();
-            assertTrue(ds.contains("" + ts.getPort()));
-            assertTrue(ds.contains("" + ts2.getPort()));
-            assertTrue(ds.contains("" + ts3.getPort()));
+            assertTrue(ds.contains("" + srv1.getPort()));
+            assertTrue(ds.contains("" + srv2.getPort()));
+            assertTrue(ds.contains("" + srv3.getPort()));
 
             // option 3 is no randomize so the order in to try is maintained
-            assertEquals(ts.getURI(), conn3.getConnectedUrl());
+            assertEquals(srv1.getURI(), conn3.getConnectedUrl());
             List<String> expected = new ArrayList<>();
             expected.addAll(optionsServers3);
             expected.addAll(discoveredServers1);
@@ -119,9 +119,9 @@ public class AdditionalConnectTests {
                 assertEquals(expected.get(x), toTry.get(x));
             }
             ds = discoveredServers3.toString();
-            assertTrue(ds.contains("" + ts.getPort()));
-            assertTrue(ds.contains("" + ts2.getPort()));
-            assertTrue(ds.contains("" + ts3.getPort()));
+            assertTrue(ds.contains("" + srv1.getPort()));
+            assertTrue(ds.contains("" + srv2.getPort()));
+            assertTrue(ds.contains("" + srv3.getPort()));
 
             standardCloseConnection(conn1);
             standardCloseConnection(conn2);
