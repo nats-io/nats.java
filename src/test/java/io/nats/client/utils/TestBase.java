@@ -16,6 +16,7 @@ package io.nats.client.utils;
 import io.nats.client.*;
 import io.nats.client.impl.NatsMessage;
 import io.nats.client.support.NatsJetStreamClientError;
+import nats.io.NatsServerRunner;
 import org.junit.jupiter.api.function.Executable;
 import org.opentest4j.AssertionFailedError;
 
@@ -157,9 +158,11 @@ public class TestBase {
             "}"
         };
 
-        try (NatsTestServer hub = new NatsTestServer(hubPort, false, true, null, hubInserts, null);
+        try (NatsServerRunner hub =
+                 NatsServerRunner.builder().port(hubPort).jetstream(true).configInserts(hubInserts).build();
              Connection nchub = standardConnection(hub.getURI());
-             NatsTestServer leaf = new NatsTestServer(leafPort, false, true, null, leafInserts, null);
+             NatsServerRunner leaf =
+                 NatsServerRunner.builder().port(leafPort).jetstream(true).configInserts(leafInserts).build();
              Connection ncleaf = standardConnection(leaf.getURI())
         ) {
             try {
