@@ -21,7 +21,7 @@ import java.util.logging.Level;
 
 public class NatsTestServer extends NatsServerRunner {
     static {
-        NatsServerRunner.setLoggingLevel(Level.SEVERE);
+        NatsServerRunner.setDefaultDisplayLevel(Level.SEVERE);
     }
 
     public NatsTestServer() throws IOException {
