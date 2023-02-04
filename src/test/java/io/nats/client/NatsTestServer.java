@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import nats.io.ConsoleOutput;
 import nats.io.NatsRunnerUtils;
 import nats.io.NatsServerRunner;
 
@@ -21,8 +22,11 @@ import java.util.logging.Level;
 
 public class NatsTestServer extends NatsServerRunner {
     static {
-        NatsServerRunner.setDefaultDisplayLevel(Level.SEVERE);
+        NatsServerRunner.setDefaultOutputSupplier(ConsoleOutput::new);
+        NatsServerRunner.setDefaultOutputLevel(Level.WARNING);
     }
+
+    public static void init() { /* does nothing except force static initializer */ }
 
     public NatsTestServer() throws IOException {
         super();
