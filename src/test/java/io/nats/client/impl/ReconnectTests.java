@@ -17,7 +17,6 @@ import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -618,7 +617,7 @@ public class ReconnectTests {
     } 
     
     @Test
-    public void testReconnectWait() throws IOException, InterruptedException {
+    public void testReconnectWait() throws Exception {
         TestReconnecWaitHandler trwh = new TestReconnecWaitHandler();
 
         int port = NatsTestServer.nextPort();

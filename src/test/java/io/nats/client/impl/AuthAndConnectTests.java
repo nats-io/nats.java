@@ -17,15 +17,13 @@ import io.nats.client.Connection;
 import io.nats.client.NatsTestServer;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class AuthAndConnectTests {
     @Test
-    public void testIsAuthError() throws IOException, InterruptedException {
+    public void testIsAuthError() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Connection nc = standardConnection(ts.getURI());
             NatsConnection nats = (NatsConnection)nc;
@@ -42,9 +40,9 @@ public class AuthAndConnectTests {
     }
 
     @Test()
-    public void testConnectWhenClosed() throws IOException, InterruptedException {
+    public void testConnectWhenClosed() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            NatsConnection nc = (NatsConnection)standardConnection(ts.getURI());;
+            NatsConnection nc = (NatsConnection)standardConnection(ts.getURI());
             standardCloseConnection(nc);
             nc.connect(false); // should do nothing
             assertClosed(nc);

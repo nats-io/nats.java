@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class ConnectTests {
     @Test
-    public void testDefaultConnection() throws IOException, InterruptedException {
+    public void testDefaultConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
             Connection nc = standardConnection();
             assertEquals(Options.DEFAULT_PORT, nc.getServerInfo().getPort());
@@ -38,7 +38,7 @@ public class ConnectTests {
     }
 
     @Test
-    public void testConnection() throws IOException, InterruptedException {
+    public void testConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Connection nc = standardConnection(ts.getURI());
             assertEquals(ts.getPort(), nc.getServerInfo().getPort());
@@ -51,7 +51,7 @@ public class ConnectTests {
     }
 
     @Test
-    public void testConnectionWithOptions() throws IOException, InterruptedException {
+    public void testConnectionWithOptions() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).build();
             assertCanConnect(options);
@@ -59,14 +59,14 @@ public class ConnectTests {
     }
 
     @Test
-    public void testFullFakeConnect() throws IOException, InterruptedException {
+    public void testFullFakeConnect() throws Exception {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
             assertCanConnect(ts.getURI());
         }
     }
 
     @Test
-    public void testFullFakeConnectWithTabs() throws IOException, InterruptedException {
+    public void testFullFakeConnectWithTabs() throws Exception {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
             ts.useTabs();
             assertCanConnect(ts.getURI());
@@ -114,7 +114,7 @@ public class ConnectTests {
     }
 
     @Test
-    public void testConnectionFailureWithFallback() throws IOException, InterruptedException {
+    public void testConnectionFailureWithFallback() throws Exception {
 
         try (NatsTestServer ts = new NatsTestServer(false)) {
             try (NatsServerProtocolMock fake = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_PING)) {
@@ -126,14 +126,14 @@ public class ConnectTests {
     }
 
     @Test
-    public void testConnectWithConfig() throws IOException, InterruptedException {
+    public void testConnectWithConfig() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/simple.conf", false)) {
             assertCanConnect(ts.getURI());
         }
     }
 
     @Test
-    public void testConnectWithCommas() throws IOException, InterruptedException {
+    public void testConnectWithCommas() throws Exception {
         try (NatsTestServer ts1 = new NatsTestServer(false)) {
             try (NatsTestServer ts2 = new NatsTestServer(false)) {
                 assertCanConnect(ts1.getURI() + "," + ts2.getURI());
@@ -142,7 +142,7 @@ public class ConnectTests {
     }
 
     @Test
-    public void testConnectRandomize() throws IOException, InterruptedException {
+    public void testConnectRandomize() throws Exception {
         try (NatsTestServer ts1 = new NatsTestServer(false)) {
             try (NatsTestServer ts2 = new NatsTestServer(false)) {
                 int one = 0;
@@ -169,7 +169,7 @@ public class ConnectTests {
     }
 
     @Test
-    public void testConnectNoRandomize() throws IOException, InterruptedException {
+    public void testConnectNoRandomize() throws Exception {
         try (NatsTestServer ts1 = new NatsTestServer(false)) {
             try (NatsTestServer ts2 = new NatsTestServer(false)) {
                 int one = 0;
@@ -241,7 +241,7 @@ public class ConnectTests {
     }
 
     @Test
-    public void testAsyncConnection() throws IOException, InterruptedException {
+    public void testAsyncConnection() throws Exception {
         TestHandler handler = new TestHandler();
         Connection nc = null;
 
@@ -261,7 +261,7 @@ public class ConnectTests {
     }
 
     @Test
-    public void testAsyncConnectionWithReconnect() throws IOException, InterruptedException {
+    public void testAsyncConnectionWithReconnect() throws Exception {
         TestHandler handler = new TestHandler();
         int port = NatsTestServer.nextPort();
         Options options = new Options.Builder().server("nats://localhost:" + port).maxReconnects(-1)
@@ -292,7 +292,7 @@ public class ConnectTests {
     }
 
     @Test
-    public void testErrorOnAsync() throws IOException, InterruptedException {
+    public void testErrorOnAsync() throws Exception {
         TestHandler handler = new TestHandler(false);
         Options options = new Options.Builder().server("nats://localhost:" + NatsTestServer.nextPort())
                 .connectionListener(handler).errorListener(handler).noReconnect().build();
@@ -318,7 +318,7 @@ public class ConnectTests {
     }
 
     @Test
-    public void testSlowConnectionNoTimeout() throws IOException, InterruptedException {
+    public void testSlowConnectionNoTimeout() throws Exception {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.SLEEP_BEFORE_INFO)) {
             Options options = new Options.Builder().server(ts.getURI()).noReconnect()
                     .connectionTimeout(Duration.ofSeconds(6)). // longer than the sleep
@@ -328,7 +328,7 @@ public class ConnectTests {
     }
 
     @Test
-    public void testTimeCheckCoverage() throws IOException, InterruptedException {
+    public void testTimeCheckCoverage() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
             Options options = new Options.Builder().server(ts.getURI()).traceConnection().build();
             assertCanConnect(options);
@@ -346,7 +346,7 @@ public class ConnectTests {
     }
 
     @Test
-    public void testFlushBuffer() throws IOException, InterruptedException {
+    public void testFlushBuffer() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
             Connection nc = standardConnection(ts.getURI());
 
@@ -366,7 +366,7 @@ public class ConnectTests {
     }
 
     @Test
-    public void testFlushBufferThreadSafety() throws IOException, InterruptedException {
+    public void testFlushBufferThreadSafety() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
             Connection nc = standardConnection(ts.getURI());
 

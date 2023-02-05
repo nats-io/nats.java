@@ -15,7 +15,6 @@ package io.nats.client;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
@@ -28,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class SubscriberTests {
 
     @Test
-    public void testCreateInbox() throws IOException, InterruptedException {
+    public void testCreateInbox() throws Exception {
         HashSet<String> check = new HashSet<>();
         try (NatsTestServer ts = new NatsTestServer(false);
             Connection nc = Nats.connect(ts.getURI())) {
@@ -43,7 +42,7 @@ public class SubscriberTests {
     }
 
     @Test
-    public void testSingleMessage() throws IOException, InterruptedException {
+    public void testSingleMessage() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
             standardConnectionWait(nc);
@@ -62,7 +61,7 @@ public class SubscriberTests {
     }
 
     @Test
-    public void testMessageFromSubscriptionContainsConnection() throws IOException, InterruptedException {
+    public void testMessageFromSubscriptionContainsConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
             standardConnectionWait(nc);
@@ -138,7 +137,7 @@ public class SubscriberTests {
     }
 
     @Test
-    public void testMultiMessage() throws IOException, InterruptedException {
+    public void testMultiMessage() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
             standardConnectionWait(nc);
@@ -164,7 +163,7 @@ public class SubscriberTests {
     }
 
     @Test
-    public void testQueueSubscribers() throws IOException, InterruptedException, TimeoutException {
+    public void testQueueSubscribers() throws Exception, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
             standardConnectionWait(nc);
@@ -472,7 +471,7 @@ public class SubscriberTests {
     }
 
     @Test
-    public void testWhiteSpaceInSubject() throws IOException, InterruptedException {
+    public void testWhiteSpaceInSubject() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
             Connection nc = Nats.connect(ts.getURI())) {
             standardConnectionWait(nc);
@@ -485,7 +484,7 @@ public class SubscriberTests {
     }
 
     @Test
-    public void testWhiteSpaceInQueue() throws IOException, InterruptedException {
+    public void testWhiteSpaceInQueue() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
             Connection nc = Nats.connect(ts.getURI())) {
             standardConnectionWait(nc);
