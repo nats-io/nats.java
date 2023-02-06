@@ -1,4 +1,4 @@
-name: Build Push (Merge) To Main
+name: Build Main
 
 on:
   push:
