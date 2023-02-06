@@ -13,33 +13,19 @@
 
 package io.nats.client.impl;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.nats.client.*;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Message;
-import io.nats.client.MessageHandler;
-import io.nats.client.Nats;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.Subscription;
+import static org.junit.jupiter.api.Assertions.*;
 
 
 
@@ -49,7 +35,7 @@ import io.nats.client.Subscription;
 
 public class DispatcherTests {
     @Test
-    public void testSingleMessage() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testSingleMessage() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
             assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
@@ -75,7 +61,7 @@ public class DispatcherTests {
     }
 
     @Test
-    public void testDispatcherMessageContainsConnection() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testDispatcherMessageContainsConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
             assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
@@ -105,7 +91,7 @@ public class DispatcherTests {
     }
 
     @Test
-    public void testMultiSubject() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testMultiSubject() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
@@ -135,7 +121,7 @@ public class DispatcherTests {
     }
 
     @Test
-    public void testMultiMessage() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testMultiMessage() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
@@ -215,7 +201,7 @@ public class DispatcherTests {
 
 
     @Test
-    public void testQueueSubscribers() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testQueueSubscribers() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                  Connection nc = Nats.connect(ts.getURI())) {
             int msgs = 100;
@@ -325,7 +311,7 @@ public class DispatcherTests {
 
     @Test
     public void testPublishAndFlushFromCallback()
-            throws IOException, InterruptedException, ExecutionException, TimeoutException {
+            throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
             assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
@@ -354,7 +340,7 @@ public class DispatcherTests {
     }
 
     @Test
-    public void testUnsub() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testUnsub() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> phase1 = new CompletableFuture<>();
@@ -402,7 +388,7 @@ public class DispatcherTests {
     }
 
     @Test
-    public void testAutoUnsub() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testAutoUnsub() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> phase1 = new CompletableFuture<>();
@@ -451,7 +437,7 @@ public class DispatcherTests {
     }
 
     @Test
-    public void testUnsubFromCallback() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testUnsubFromCallback() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
@@ -486,7 +472,7 @@ public class DispatcherTests {
 
     @Test
     public void testAutoUnsubFromCallback()
-            throws IOException, InterruptedException, ExecutionException, TimeoutException {
+            throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
@@ -522,7 +508,7 @@ public class DispatcherTests {
     }
 
     @Test
-    public void testCloseFromCallback() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testCloseFromCallback() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
@@ -551,7 +537,7 @@ public class DispatcherTests {
     }
 
     @Test
-    public void testDispatchHandlesExceptionInHandler() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testDispatchHandlesExceptionInHandler() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
@@ -724,7 +710,7 @@ public class DispatcherTests {
     }
 
     @Test
-    public void testDoubleSubscribe() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testDoubleSubscribe() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
@@ -756,7 +742,7 @@ public class DispatcherTests {
     }
 
     @Test
-    public void testDoubleSubscribeWithCustomHandler() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testDoubleSubscribeWithCustomHandler() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
@@ -785,7 +771,7 @@ public class DispatcherTests {
     }
 
     @Test
-    public void testDoubleSubscribeWithUnsubscribeAfterWithCustomHandler() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testDoubleSubscribeWithUnsubscribeAfterWithCustomHandler() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> done1 = new CompletableFuture<>();

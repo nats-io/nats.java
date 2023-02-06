@@ -18,7 +18,6 @@ import nats.io.NatsRunnerUtils;
 import nats.io.NatsServerRunner;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +41,7 @@ public class AdditionalConnectTests {
     }
 
     @Test
-    public void testConnectionWithServerUriManagement() throws IOException, InterruptedException {
+    public void testConnectionWithServerUriManagement() throws Exception {
         int cport1 = NatsRunnerUtils.nextPort();
         int cport2 = NatsRunnerUtils.nextPort();
         int cport3 = NatsRunnerUtils.nextPort();
@@ -99,7 +98,7 @@ public class AdditionalConnectTests {
             assertTrue(ds.contains("" + srv2.getPort()));
             assertTrue(ds.contains("" + srv3.getPort()));
 
-            // option 2 is ignore discovered to to try must only be the options
+            // option 2 is to ignore discovered, must only be the options
             assertEquals(srv1.getURI(), conn2.getConnectedUrl());
             assertEquals(1, conn2.getServersToTry().size());
             assertEquals(srv1.getURI(), conn2.getServersToTry().get(0));

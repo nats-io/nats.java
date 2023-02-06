@@ -1,11 +1,6 @@
-name: Build for Pr, Merge or Tag
+name: Build Release
 
 on:
-  pull_request:
-    types: [opened, synchronize, edited, reopened]
-  push:
-    branches:
-      - main
   release:
     branches:
       - main
@@ -21,7 +16,6 @@ jobs:
       SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
       SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
       SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
-      COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
       GODEBUG: x509sha1=1
     steps:
       - name: Setup JDK 8
@@ -48,14 +42,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
       - name: Build and Test
-        run: chmod +x gradlew && ./gradlew clean test jacocoTestReport coveralls
-      - name: On Pull Request, Verify Javadoc
-        if: ${{ success() && github.event_name == 'pull_request' }}
-        run: ./gradlew javadoc
-      - name: On Merge to Main, Verify and Publish Snapshot
-        if: ${{ success() && github.event_name == 'push' }}
-        run: ./gradlew -i publishToSonatype
-      - name: On Tag Release Main, Verify, Sign and Publish Release
-        if: ${{ success() && github.event_name == 'release' }}
+        run: chmod +x gradlew && ./gradlew clean test
+      - name: Verify, Sign and Publish Release
         run: ./gradlew -i signArchives signMavenJavaPublication publishToSonatype closeAndReleaseSonatypeStagingRepository
 
