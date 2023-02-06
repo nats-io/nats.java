@@ -16,7 +16,6 @@ package io.nats.client.utils;
 import io.nats.client.*;
 import io.nats.client.impl.NatsMessage;
 import io.nats.client.support.NatsJetStreamClientError;
-import nats.io.NatsServerRunner;
 import org.junit.jupiter.api.function.Executable;
 import org.opentest4j.AssertionFailedError;
 
@@ -57,6 +56,10 @@ public class TestBase {
     public static final long MEDIUM_FLUSH_TIMEOUT_MS = 5000;
     public static final long LONG_TIMEOUT_MS = 15000;
     public static final long VERY_LONG_TIMEOUT_MS = 20000;
+
+    static {
+        NatsTestServer.init();
+    }
 
     // ----------------------------------------------------------------------------------------------------
     // runners
@@ -158,11 +161,9 @@ public class TestBase {
             "}"
         };
 
-        try (NatsServerRunner hub =
-                 NatsServerRunner.builder().port(hubPort).jetstream(true).configInserts(hubInserts).build();
+        try (NatsTestServer hub = new NatsTestServer(hubPort, false, true, null, hubInserts, null);
              Connection nchub = standardConnection(hub.getURI());
-             NatsServerRunner leaf =
-                 NatsServerRunner.builder().port(leafPort).jetstream(true).configInserts(leafInserts).build();
+             NatsTestServer leaf = new NatsTestServer(leafPort, false, true, null, leafInserts, null);
              Connection ncleaf = standardConnection(leaf.getURI())
         ) {
             try {
