@@ -94,10 +94,6 @@ public class IncomingHeadersProcessor {
             peek = new Token(serialized, len, tCrlf, null);
         }
         peek.mustBe(TokenType.CRLF);
-
-        if ((headers == null || headers.size() == 0) && !hadStatus) {
-            throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
-        }
     }
 
     private Token initStatus(byte[] serialized, int len, Token tSpace) {
