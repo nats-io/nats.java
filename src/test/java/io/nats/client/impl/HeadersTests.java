@@ -472,14 +472,11 @@ public class HeadersTests {
         assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0 \r\n".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0X\r\n".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0 \r\n\r\n".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\n\r\n".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\n".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0 503\r".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0 503\n".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0 FiveOhThree\r\n".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\n".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\n\r\n".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\n\r\n\r\n".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\nk1:v1".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\nk1:v1\r\n".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\nk1:v1\r\r\n".getBytes()));
@@ -492,6 +489,7 @@ public class HeadersTests {
         assertValidHeader("NATS/1.0\r\nk1:\r\n\r\n", "k1", EMPTY);
         assertValidHeader("NATS/1.0\r\nks1: \r\n\r\n", "ks1", EMPTY);
         assertValidHeader("NATS/1.0\r\ncolons::::\r\n\r\n", "colons", ":::");
+        assertValidHeader("NATS/1.0\r\n\r\n\r\n", null, null);
     }
 
     @Test
@@ -540,11 +538,16 @@ public class HeadersTests {
 
     private IncomingHeadersProcessor assertValidHeader(IncomingHeadersProcessor ihp, String key, String val) {
         Headers headers = ihp.getHeaders();
-        assertNotNull(headers);
-        assertEquals(1, headers.size());
-        assertTrue(headers.containsKey(key));
-        assertEquals(1, headers.get(key).size());
-        assertEquals(val, headers.get(key).get(0));
+        if (key == null) {
+            assertNull(headers);
+        }
+        else {
+            assertNotNull(headers);
+            assertEquals(1, headers.size());
+            assertTrue(headers.containsKey(key));
+            assertEquals(1, headers.get(key).size());
+            assertEquals(val, headers.get(key).get(0));
+        }
         return ihp;
     }
 

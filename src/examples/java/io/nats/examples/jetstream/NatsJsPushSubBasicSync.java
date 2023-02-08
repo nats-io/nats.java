@@ -64,7 +64,7 @@ public class NatsJsPushSubBasicSync {
             // Build our subscription options.
             // * A push subscription means the server will "push" us messages.
             // * Durable means the server will remember where we are if we use that name.
-            // * Durable can by null or empty, the builder treats them the same.
+            // * Durable can be null or empty, the builder treats them the same.
             // * The stream name is not technically required. If it is not provided, the
             //   code building the subscription will look it up by making a request to the server.
             //   If you know the stream name, you might as well supply it and save a trip to the server.
