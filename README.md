@@ -107,7 +107,7 @@ If you need the latest and greatest before Maven central updates, you can use:
 
 ```groovy
 repositories {
-    jcenter()
+    mavenCentral()
     maven {
         url "https://oss.sonatype.org/content/repositories/releases"
     }
@@ -118,7 +118,7 @@ If you need a snapshot version, you must add the url for the snapshots and chang
 
 ```groovy
 repositories {
-    ...
+    mavenCentral()
     maven {
         url "https://oss.sonatype.org/content/repositories/snapshots"
     }
