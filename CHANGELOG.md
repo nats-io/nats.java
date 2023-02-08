@@ -1,5 +1,20 @@
 # Change Log
 
+## 2.16.8
+
+#### Core and JetStream
+
+* Fill in Publish / Request Header Gaps #839 @scottf
+
+#### Core
+
+* Dispatcher with no default handler sometimes has NPE during close if messages are still coming in #841 @scottf
+* allow empty headers #844 @scottf
+
+#### Test
+
+* Server runner update to 1.2.0 #843 @scottf
+
 ## 2.16.7
 
 #### Core
