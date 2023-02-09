@@ -34,7 +34,7 @@ public class NatsJsPullSubIterate {
                     + "\n\nDefault Values:"
                     + "\n   [-strm] iterate-stream"
                     + "\n   [-sub]  iterate-subject"
-                    + "\n   [-dur]  iterate-durable"
+                    + "\n   [-dur]  iterate-durable-not-required"
                     + "\n   [-mcnt] 15"
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
                     + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
@@ -45,7 +45,7 @@ public class NatsJsPullSubIterate {
         ExampleArgs exArgs = ExampleArgs.builder("Pull Subscription using macro Iterate", args, usageString)
             .defaultStream("iterate-stream")
             .defaultSubject("iterate-subject")
-            .defaultDurable("iterate-durable")
+            .defaultDurable("iterate-durable-not-required")
             .defaultMsgCount(15)
             .build();
 
@@ -68,7 +68,7 @@ public class NatsJsPullSubIterate {
                 .ackWait(Duration.ofMillis(2500))
                 .build();
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                .durable(exArgs.durable) // required
+                .durable(exArgs.durable)
                 .configuration(cc)
                 .build();
 

@@ -21,6 +21,7 @@ In the `io.nats.examples.jetstream` package...
 
 1. `NatsJsPub.java` - publish JetStream messages
 1. `NatsJsPubAsync.java` - publish JetStream messages asynchronously
+1. `NatsJsPubAsync2.java` - publish JetStream messages asynchronously
 1. `NatsJsPubVersusCorePub.java` - publish JetStream messages versus core publish to the same stream.
 1. `NatsJsPubWithOptionsUseCases` - publish JetStream with examples on using publish options
 1. `NatsJsPullSubBatchSize.java` - pull subscription example specifying batch size and manual handling
@@ -31,15 +32,16 @@ In the `io.nats.examples.jetstream` package...
 1. `NatsJsPullSubFetchUseCases.java` - pull subscription example using fetch list macro function with examples of various cases of available messages
 1. `NatsJsPullSubIterate.java` - pull subscription example using iterate macro function
 1. `NatsJsPullSubIterateUseCases.java` - pull subscription example using iterate macro function with examples of various cases of available messages
+1. `NatsJsPullSubMultipleWorkers.java` - pull subscribing using a durable consumer and sharing processing of the messages
 1. `NatsJsPullSubNoWaitUseCases.java` - pull subscription example specifying no wait with examples of manual handling various cases of available messages
-1. `NatsJsPushSubBasicAsync.java` - push subscribing to read messages asynchronously and manually acknowledge messages.
-1. `NatsJsPushSubBasicSync.java` - push subscribing to read messages synchronously and manually acknowledges messages.
+1. `NatsJsPushSubAsyncQueueDurable.java` - push async subscribing using a durable consumer and a queue
+1. `NatsJsPushSubBasicAsync.java` - basic asynchronous push subscribing with a handler
+1. `NatsJsPushSubBasicSync.java` - push subscribing to read messages synchronously and manually acknowledges messages
 1. `NatsJsPushSubBindDurable.java` - push subscribing with the bind options
 1. `NatsJsPushSubDeliverSubject.java` - push subscribing with a deliver subject and how the subject can be read as a regular Nats Message  
-1. `NatsJsPushSubFilterSubject.java` - push subscribing with a filter on the subjects.
-1. `NatsJsPushSubFlowControl.java` -
-1. `NatsJsPushSubHeartbeat.java` -
-1. `NatsJsPushSubQueueDurable.java` - push subscribing to read messages in a load balance queue using a durable consumer.
+1. `NatsJsPushSubFilterSubject.java` - push subscribing with a filter on the subjects
+1. `NatsJsPushSubFlowControl.java` - listening to flow control messages through the Error Listener
+1. `NatsJsPushSubQueueDurable.java` - push subscribing to read messages in a load balance queue using a durable consumer
 
 ### JetStream Management / Admin Examples
 1. `NatsJsManageConsumers.java` - demonstrate the management of consumers

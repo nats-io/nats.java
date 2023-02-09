@@ -34,7 +34,7 @@ public class NatsJsPullSubFetch {
             + "\n\nDefault Values:"
             + "\n   [-strm] fetch-stream"
             + "\n   [-sub]  fetch-subject"
-            + "\n   [-dur]  fetch-durable"
+            + "\n   [-dur]  fetch-durable-not-required"
             + "\n   [-mcnt] 15"
             + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
@@ -45,7 +45,7 @@ public class NatsJsPullSubFetch {
         ExampleArgs exArgs = ExampleArgs.builder("Pull Subscription using macro Fetch", args, usageString)
                 .defaultStream("fetch-stream")
                 .defaultSubject("fetch-subject")
-                .defaultDurable("fetch-durable")
+                .defaultDurable("fetch-durable-not-required")
                 .defaultMsgCount(15)
                 .build();
 
@@ -68,7 +68,7 @@ public class NatsJsPullSubFetch {
                 .ackWait(Duration.ofMillis(2500))
                 .build();
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                .durable(exArgs.durable) // required
+                .durable(exArgs.durable)
                 .configuration(cc)
                 .build();
 
