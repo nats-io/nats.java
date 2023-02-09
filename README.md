@@ -179,7 +179,11 @@ If you are using the 1.x version of java-nats and don't want to upgrade to 2.0.0
 
 ## Basic Usage
 
-Sending and receiving with NATS is as simple as connecting to the nats-server and publishing or subscribing for messages. A number of examples are provided in this repo as described in the [Examples Readme](src/examples/java/io/nats/examples/README.md).
+Sending and receiving with NATS is as simple as connecting to the nats-server and publishing or subscribing for messages.
+
+Please see the examples in this project. The [Examples Readme](src/examples/java/io/nats/examples/README.md) is a good place to start.
+
+There are also examples in the [java-nats-examples](https://github.com/nats-io/java-nats-examples) repo. 
 
 ### Connecting
 
