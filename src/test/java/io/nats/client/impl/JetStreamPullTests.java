@@ -45,7 +45,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
                 .build();
 
             PullSubscribeOptions options = PullSubscribeOptions.builder()
-                .durable(DURABLE) // required
+                .durable(DURABLE)
                 .configuration(cc)
                 .build();
 
@@ -120,7 +120,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
                     .build();
 
             PullSubscribeOptions options = PullSubscribeOptions.builder()
-                    .durable(DURABLE) // required
+                    .durable(DURABLE)
                     .configuration(cc)
                     .build();
 

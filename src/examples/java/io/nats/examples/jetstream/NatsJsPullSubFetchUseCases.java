@@ -35,7 +35,7 @@ public class NatsJsPullSubFetchUseCases {
             + "\n\nDefault Values:"
             + "\n   [-strm] fetch-uc-stream"
             + "\n   [-sub]  fetch-uc-subject"
-            + "\n   [-dur]  fetch-uc-durable"
+            + "\n   [-dur]  fetch-uc-durable-not-required"
             + "\n   [-mcnt] 15"
             + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
@@ -46,7 +46,7 @@ public class NatsJsPullSubFetchUseCases {
         ExampleArgs exArgs = ExampleArgs.builder("Pull Subscription using macro Fetch, Use Cases", args, usageString)
                 .defaultStream("fetch-uc-stream")
                 .defaultSubject("fetch-uc-subject")
-                .defaultDurable("fetch-uc-durable")
+                .defaultDurable("fetch-uc-durable-not-required")
                 .build();
         
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
@@ -65,7 +65,7 @@ public class NatsJsPullSubFetchUseCases {
                     .ackWait(Duration.ofMillis(2500))
                     .build();
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                    .durable(exArgs.durable) // required
+                    .durable(exArgs.durable)
                     .configuration(cc)
                     .build();
 

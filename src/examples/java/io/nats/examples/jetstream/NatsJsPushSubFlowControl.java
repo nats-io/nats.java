@@ -26,7 +26,7 @@ import static io.nats.examples.ExampleUtils.sleep;
 import static io.nats.examples.jetstream.NatsJsUtils.createStreamExitWhenExists;
 
 /**
- * This example will demonstrate JetStream push subscribing. Run NatsJsPub first to setup message data.
+ * This example will demonstrate JetStream listening to flow control messages through the Error Listener
  */
 public class NatsJsPushSubFlowControl {
     static final String usageString =

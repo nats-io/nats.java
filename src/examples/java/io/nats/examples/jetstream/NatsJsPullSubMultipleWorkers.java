@@ -33,7 +33,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.createStreamExitWhenExists;
  * This example will demonstrate JetStream pull subscribing using a durable consumer
  * and sharing processing of the messages.
  * NOTE: This example has multiple subscriptions for the same consumer.
- * Typically those subscriptions would be running in their own JVM,
+ * Typically, those subscriptions would be running in their own JVM,
  * or their own machine instance, etc. in order to horizontally scale them.
  * This example just demonstrates the functionality of the subscriptions,
  * not how a real application would typically work.
