@@ -13,32 +13,25 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.NatsServerListProvider;
 import io.nats.client.Options;
+import io.nats.client.support.NatsUri;
+import io.nats.client.utils.TestBase;
 import nats.io.NatsRunnerUtils;
 import nats.io.NatsServerRunner;
 import org.junit.jupiter.api.Test;
 
-import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
-import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class AdditionalConnectTests {
+public class AdditionalConnectTests extends TestBase {
 
-    // THESE TESTS ARE HERE BECAUSE I NEED SOMETHING PACKAGE SCOPED
-    private List<String> getOptionsServers(Options options) {
-        List<String> servers = new ArrayList<>();
-        for (URI uri : options.getServers()) {
-            String srv = uri.toString();
-            if (!servers.contains(srv)) {
-                servers.add(srv);
-            }
-        }
-        return servers;
-    }
+    // THIS CLASS IS PACKAGED HERE BECAUSE MockNatsConnection only works package scoped
 
     @Test
     public void testConnectionWithServerUriManagement() throws Exception {
@@ -57,41 +50,56 @@ public class AdditionalConnectTests {
             sleep(1000); // just make sure the cluster is all ready
 
             Options options1 = new Options.Builder().server(srv1.getURI()).build();
-            TestNatsConnection conn1 = new TestNatsConnection(options1);
+            MockNatsConnection conn1 = new MockNatsConnection(options1);
             conn1.connect(false);
 
             Options options2 = new Options.Builder().server(srv1.getURI()).ignoreDiscoveredServers().build();
-            TestNatsConnection conn2 = new TestNatsConnection(options2);
+            MockNatsConnection conn2 = new MockNatsConnection(options2);
             conn2.connect(false);
 
             Options options3 = new Options.Builder().server(srv1.getURI()).noRandomize().build();
-            TestNatsConnection conn3 = new TestNatsConnection(options3);
+            MockNatsConnection conn3 = new MockNatsConnection(options3);
             conn3.connect(false);
 
             standardConnectionWait(conn1);
             standardConnectionWait(conn2);
             standardConnectionWait(conn3);
 
-            final List<String> optionsServers1 = getOptionsServers(conn1.getOptions());
-            final List<String> discoveredServers1 = new ArrayList<>();
-            conn1.addDiscoveredServers(discoveredServers1);
+            final List<NatsUri> optionsServers1 = conn1.getOptions().getNatsUris();
+            final List<NatsUri> discoveredServers1 = new ArrayList<>();
+            for (String s : conn1.getServerInfoConnectUrls()) {
+                try {
+                    discoveredServers1.add(new NatsUri(s));
+                }
+                catch (URISyntaxException ignore) {}
+            }
 
-            final List<String> discoveredServers2 = new ArrayList<>();
-            conn2.addDiscoveredServers(discoveredServers2);
+            final List<NatsUri> discoveredServers2 = new ArrayList<>();
+            for (String s : conn2.getServerInfoConnectUrls()) {
+                try {
+                    discoveredServers2.add(new NatsUri(s));
+                }
+                catch (URISyntaxException ignore) {}
+            }
 
-            final List<String> optionsServers3 = getOptionsServers(conn3.getOptions());
-            final List<String> discoveredServers3 = new ArrayList<>();
-            conn3.addDiscoveredServers(discoveredServers3);
+            final List<NatsUri> optionsServers3 = conn3.getOptions().getNatsUris();
+            final List<NatsUri> discoveredServers3 = new ArrayList<>();
+            for (String s : conn3.getServerInfoConnectUrls()) {
+                try {
+                    discoveredServers3.add(new NatsUri(s));
+                }
+                catch (URISyntaxException ignore) {}
+            }
 
             // option 1 is randomized so just check that both options and discovered are there
             assertEquals(srv1.getURI(), conn1.getConnectedUrl());
             assertEquals(optionsServers1.size() + discoveredServers1.size(), conn1.getServersToTry().size());
-            List<String> toTry = conn1.getServersToTry();
-            for (String url : optionsServers1) {
-                assertTrue(toTry.contains(url));
+            List<NatsUri> toTry = conn1.getServersToTry();
+            for (NatsUri uri : optionsServers1) {
+                assertTrue(toTry.contains(uri));
             }
-            for (String url : discoveredServers1) {
-                assertTrue(toTry.contains(url));
+            for (NatsUri uri : discoveredServers1) {
+                assertTrue(toTry.contains(uri));
             }
             String ds = discoveredServers1.toString();
             assertTrue(ds.contains("" + srv1.getPort()));
@@ -101,17 +109,18 @@ public class AdditionalConnectTests {
             // option 2 is to ignore discovered, must only be the options
             assertEquals(srv1.getURI(), conn2.getConnectedUrl());
             assertEquals(1, conn2.getServersToTry().size());
-            assertEquals(srv1.getURI(), conn2.getServersToTry().get(0));
+            assertEquals(srv1.getURI(), conn2.getServersToTry().get(0).toString());
             ds = discoveredServers2.toString();
             assertTrue(ds.contains("" + srv1.getPort()));
             assertTrue(ds.contains("" + srv2.getPort()));
             assertTrue(ds.contains("" + srv3.getPort()));
 
             // option 3 is no randomize so the order in to try is maintained
+            // note even on no randomize, the lastConnectedServer gets moved to the end
             assertEquals(srv1.getURI(), conn3.getConnectedUrl());
-            List<String> expected = new ArrayList<>();
-            expected.addAll(optionsServers3);
+            List<NatsUri> expected = new ArrayList<>();
             expected.addAll(discoveredServers1);
+            expected.addAll(optionsServers3); // done in this order b/c the 1 server in optionsServers3 is last connected
             toTry = conn3.getServersToTry();
             assertEquals(expected.size(), toTry.size());
             for (int x = 0; x < toTry.size(); x++) {
@@ -128,19 +137,56 @@ public class AdditionalConnectTests {
         }
     }
 
-    public static class TestNatsConnection extends NatsConnection {
-        public TestNatsConnection(Options options) {
+    @Test
+    public void testServerListProvider() throws URISyntaxException {
+        Options o = new Options.Builder().build();
+        NatsUri lastConnectedServer = new NatsUri("nats://one");
+        List<NatsUri> optionsNatsUris = Arrays.asList(new NatsUri("nats://one"), new NatsUri("nats://two"));
+        List<String> serverInfoConnectUrls = Arrays.asList("nats://one:4222", "nats://two:4222", "nats://three:4222", "bad://");
+
+        NatsServerListProvider nslp = new NatsServerListProvider(o);
+        List<NatsUri> list = nslp.getServerList(null, optionsNatsUris, serverInfoConnectUrls);
+        validateNslp(list, null, false, "nats://one", "nats://two", "nats://three");
+
+        list = nslp.getServerList(lastConnectedServer, optionsNatsUris, serverInfoConnectUrls);
+        validateNslp(list, lastConnectedServer, false, "nats://one", "nats://two", "nats://three");
+
+        o = new Options.Builder().noRandomize().build();
+        nslp = new NatsServerListProvider(o);
+        list = nslp.getServerList(null, optionsNatsUris, serverInfoConnectUrls);
+        validateNslp(list, null, true, "nats://one", "nats://two", "nats://three");
+
+        list = nslp.getServerList(lastConnectedServer, optionsNatsUris, serverInfoConnectUrls);
+        validateNslp(list, lastConnectedServer, true, "nats://one", "nats://two", "nats://three");
+
+        o = new Options.Builder().ignoreDiscoveredServers().build();
+        nslp = new NatsServerListProvider(o);
+        list = nslp.getServerList(null, optionsNatsUris, serverInfoConnectUrls);
+        validateNslp(list, null, false, "nats://one", "nats://two");
+
+        list = nslp.getServerList(lastConnectedServer, optionsNatsUris, serverInfoConnectUrls);
+        validateNslp(list, lastConnectedServer, false, "nats://one", "nats://two");
+    }
+
+    private static void validateNslp(List<NatsUri> list, NatsUri last, boolean notRandom, String... expectedUrls) throws URISyntaxException {
+        int expectedSize = expectedUrls.length;
+        assertEquals(expectedSize, list.size());
+        for (int i = 0; i < expectedUrls.length; i++) {
+            String url = expectedUrls[i];
+            NatsUri nuri = new NatsUri(url);
+            assertTrue(list.contains(nuri));
+            if (notRandom && last == null) {
+                assertEquals(nuri, list.get(i));
+            }
+        }
+        if (last != null) {
+            assertEquals(last, list.get(list.size() - 1));
+        }
+    }
+
+    public static class MockNatsConnection extends NatsConnection {
+        public MockNatsConnection(Options options) {
             super(options);
-        }
-
-        @Override
-        public List<String> getServersToTry() {
-            return super.getServersToTry();
-        }
-
-        @Override
-        public void addDiscoveredServers(List<String> servers) {
-            super.addDiscoveredServers(servers);
         }
     }
 

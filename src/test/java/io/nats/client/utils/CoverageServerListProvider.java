@@ -14,6 +14,7 @@
 package io.nats.client.utils;
 
 import io.nats.client.ServerListProvider;
+import io.nats.client.support.NatsUri;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +24,7 @@ import java.util.List;
  */
 public class CoverageServerListProvider implements ServerListProvider {
     @Override
-    public List<String> getServerList(String currentServer, List<String> optionsServersUnprocessed, List<String> discoveredServersUnprocessed) {
+    public List<NatsUri> getServerList(NatsUri lastConnectedServer, List<NatsUri> optionsNatsUris, List<String> serverInfoConnectUrls) {
         return new ArrayList<>();
     }
 }

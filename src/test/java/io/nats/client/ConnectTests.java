@@ -293,7 +293,7 @@ public class ConnectTests {
 
     @Test
     public void testErrorOnAsync() throws Exception {
-        TestHandler handler = new TestHandler(false);
+        TestHandler handler = new TestHandler();
         Options options = new Options.Builder().server("nats://localhost:" + NatsTestServer.nextPort())
                 .connectionListener(handler).errorListener(handler).noReconnect().build();
         handler.prepForStatusChange(Events.CLOSED);
@@ -357,11 +357,11 @@ public class ConnectTests {
             sleep(100);
 
             // test while reconnecting
-            assertThrows(IllegalStateException.class, () -> nc.flushBuffer());
+            assertThrows(IllegalStateException.class, nc::flushBuffer);
             standardCloseConnection(nc);
 
             // test when closed.
-            assertThrows(IllegalStateException.class, () -> nc.flushBuffer());
+            assertThrows(IllegalStateException.class, nc::flushBuffer);
         }
     }
 

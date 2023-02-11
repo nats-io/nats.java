@@ -41,11 +41,11 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     private boolean verbose;
 
     public TestHandler() {
-        this(true, false);
+        this(false, false);
     }
 
     public TestHandler(boolean printExceptions) {
-        this(true, false);
+        this(printExceptions, false);
     }
 
     public TestHandler(boolean printExceptions, boolean verbose) {

@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.Options;
+import io.nats.client.support.NatsUri;
 import io.nats.client.support.WebSocket;
 
 import javax.net.ssl.SSLContext;
@@ -24,7 +25,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -45,33 +46,42 @@ public class SocketDataPort implements DataPort {
     private InputStream in;
     private OutputStream out;
 
+    @Override
     public void connect(String serverURI, NatsConnection conn, long timeoutNanos) throws IOException {
+        try {
+            connect(conn, new NatsUri(serverURI), timeoutNanos);
+        }
+        catch (URISyntaxException e) {
+            throw new IOException(e);
+        }
+    }
+
+    @Override
+    public void connect(NatsConnection conn, NatsUri nuri, long timeoutNanos) throws IOException {
+        connection = conn;
+        Options options = connection.getOptions();
+        long timeout = timeoutNanos / 1_000_000; // convert to millis
+        host = nuri.getHost();
+        port = nuri.getPort();
 
         try {
-            this.connection = conn;
-
-            Options options = this.connection.getOptions();
-            long timeout = timeoutNanos / 1_000_000; // convert to millis
-            URI uri = options.createURIForServer(serverURI);
-            this.host = uri.getHost();
-            this.port = uri.getPort();
-
             if (options.getProxy() != null) {
-                this.socket = new Socket(options.getProxy());
-            } else {
-                this.socket = new Socket();
+                socket = new Socket(options.getProxy());
+            }
+            else {
+                socket = new Socket();
             }
             socket.setTcpNoDelay(true);
             socket.setReceiveBufferSize(2 * 1024 * 1024);
             socket.setSendBufferSize(2 * 1024 * 1024);
             socket.connect(new InetSocketAddress(host, port), (int) timeout);
 
-            if (isWebsocketScheme(uri.getScheme())) {
-                if (SECURE_WEBSOCKET_PROTOCOL.equalsIgnoreCase(uri.getScheme())) {
+            if (isWebsocketScheme(nuri.getScheme())) {
+                if (SECURE_WEBSOCKET_PROTOCOL.equalsIgnoreCase(nuri.getScheme())) {
                     upgradeToSecure();
                 }
                 try {
-                    socket = new WebSocket(socket, this.host, options.getHttpRequestInterceptors());
+                    socket = new WebSocket(socket, host, options.getHttpRequestInterceptors());
                 } catch (Exception ex) {
                     socket.close();
                     throw ex;
@@ -79,8 +89,14 @@ public class SocketDataPort implements DataPort {
             }
             in = socket.getInputStream();
             out = socket.getOutputStream();
-        } catch (Exception ex) {
-            throw new IOException(ex);
+        }
+        catch (Exception e) {
+            try { socket.close(); } catch (Exception ignore) {}
+            socket = null;
+            if (e instanceof IOException) {
+                throw e;
+            }
+            throw new IOException(e);
         }
     }
 
@@ -89,13 +105,13 @@ public class SocketDataPort implements DataPort {
      * If the data port type doesn't support SSL it should throw an exception.
      */
     public void upgradeToSecure() throws IOException {
-        Options options = this.connection.getOptions();
+        Options options = connection.getOptions();
         SSLContext context = options.getSslContext();
         
         SSLSocketFactory factory = context.getSocketFactory();
         Duration timeout = options.getConnectionTimeout();
 
-        SSLSocket sslSocket = (SSLSocket) factory.createSocket(socket, this.host, this.port, true);
+        SSLSocket sslSocket = (SSLSocket) factory.createSocket(socket, host, port, true);
         sslSocket.setUseClientMode(true);
 
         final CompletableFuture<Void> waitForHandshake = new CompletableFuture<>();
@@ -109,7 +125,7 @@ public class SocketDataPort implements DataPort {
         try {
             waitForHandshake.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (Exception ex) {
-            this.connection.handleCommunicationIssue(ex);
+            connection.handleCommunicationIssue(ex);
             return;
         }
 

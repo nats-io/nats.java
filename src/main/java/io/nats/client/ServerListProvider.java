@@ -13,22 +13,23 @@
 
 package io.nats.client;
 
+import io.nats.client.support.NatsUri;
+
 import java.util.List;
 
 /**
  * Allows the developer to provide the list of servers to try for connecting/reconnecting
- *
  * IMPORTANT! ServerListProvider IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public interface ServerListProvider {
     /**
-     * Get the ordered server list to try for connecting/reconnecting
-     * @param currentServer the server that connection is currently connected to. May be null.
-     * @param optionsServersUnprocessed the list of server urls exactly how they were given to the options
-     * @param discoveredServersUnprocessed the entire list of servers exactly as returned in the server info
+     * Get the server list to try for connecting/reconnecting
+     * @param lastConnectedServer the server that connection last connected to. Can be null.
+     * @param optionsNatsUris the list of nats server uris from options. Will never be null or empty.
+     * @param serverInfoConnectUrls the entire list of servers exactly as returned in the server info. Will never be null but might be empty.
      * @return the ordered server list
      */
-    List<String> getServerList(String currentServer,
-                               List<String> optionsServersUnprocessed,
-                               List<String> discoveredServersUnprocessed);
+    List<NatsUri> getServerList(NatsUri lastConnectedServer,
+                            List<NatsUri> optionsNatsUris,
+                            List<String> serverInfoConnectUrls);
 }

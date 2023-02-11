@@ -532,7 +532,7 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testServiceBuilderConstruction() {
         Options options = new Options.Builder().build();
-        Connection conn = new AdditionalConnectTests.TestNatsConnection(options);
+        Connection conn = new AdditionalConnectTests.MockNatsConnection(options);
         ServiceEndpoint se = ServiceEndpoint.builder()
             .endpoint(new Endpoint(name(0)))
             .handler(m -> {})

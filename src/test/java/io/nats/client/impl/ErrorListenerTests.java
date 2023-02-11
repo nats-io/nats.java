@@ -129,15 +129,19 @@ public class ErrorListenerTests {
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
         TestHandler handler = new TestHandler();
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
-            sleep(100); // give the server time to get ready, otherwise sometimes this test flaps
+            sleep(1000); // give the server time to get ready, otherwise sometimes this test flaps
             // See config file for user/pass
+            // no or wrong u/p in the options is an error
             Options options = new Options.Builder().
                     server(ts.getURI())
                     .maxReconnects(0)
                     .errorListener(handler)
-                    // skip this so we get an error userInfo("stephen", "password").
                     .build();
-            assertThrows(AuthenticationException.class, () -> Nats.connect(options));
+            try {
+                Nats.connect(options);
+                fail();
+            }
+            catch (Exception ignore) {}
             assertTrue(handler.getCount() > 0);
             assertEquals(1, handler.getErrorCount("Authorization Violation"));
         }

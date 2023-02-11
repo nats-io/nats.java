@@ -17,6 +17,8 @@ import io.nats.client.impl.DataPort;
 import io.nats.client.impl.ErrorListenerLoggerImpl;
 import io.nats.client.impl.SocketDataPort;
 import io.nats.client.support.HttpRequest;
+import io.nats.client.support.NatsConstants;
+import io.nats.client.support.NatsUri;
 import io.nats.client.support.SSLUtils;
 
 import javax.net.ssl.SSLContext;
@@ -73,7 +75,7 @@ public class Options {
      * <p>
      * This property is defined as {@value}
      */
-    public static final int DEFAULT_PORT = 4222;
+    public static final int DEFAULT_PORT = NatsConstants.DEFAULT_PORT;
 
     /**
      * Default maximum number of reconnect attempts, see {@link #getMaxReconnect() getMaxReconnect()}.
@@ -501,7 +503,7 @@ public class Options {
     // ----------------------------------------------------------------------------------------------------
     // CLASS VARIABLES
     // ----------------------------------------------------------------------------------------------------
-    private final List<URI> serverURIs;
+    private final List<NatsUri> natsUris;
     private final List<String> unprocessedServers;
     private final boolean noRandomize;
     private final String connectionName;
@@ -593,7 +595,7 @@ public class Options {
         // ----------------------------------------------------------------------------------------------------
         // BUILDER VARIABLES
         // ----------------------------------------------------------------------------------------------------
-        private final List<URI> serverURIs = new ArrayList<>();
+        private final List<NatsUri> natsUris = new ArrayList<>();
         private final List<String> unprocessedServers = new ArrayList<>();
         private boolean noRandomize = false;
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
@@ -886,10 +888,14 @@ public class Options {
                 if (s != null && !s.isEmpty()) {
                     try {
                         String unprocessed = s.trim();
-                        this.serverURIs.add(Options.parseURIForServer(unprocessed, false));
-                        this.unprocessedServers.add(unprocessed);
-                    } catch (URISyntaxException e) {
-                        throw new IllegalArgumentException("Bad server URL: " + s, e);
+                        NatsUri nuri = new NatsUri(unprocessed);
+                        if (!natsUris.contains(nuri)) {
+                            natsUris.add(nuri);
+                            unprocessedServers.add(unprocessed);
+                        }
+                    }
+                    catch (URISyntaxException e) {
+                        throw new IllegalArgumentException(e);
                     }
                 }
             }
@@ -1488,14 +1494,13 @@ public class Options {
                 throw new IllegalStateException("Options can't have token and username");
             }
             
-            if (serverURIs.size() == 0) {
+            if (natsUris.size() == 0) {
                 server(DEFAULT_URL);
             }
             else if (sslContext == null) { // see if we need to provide one
-                for (int i = 0; sslContext == null && i < serverURIs.size(); i++) {
-                    URI serverURI = serverURIs.get(i);
-                    String scheme = "" + serverURI.getScheme(); // scheme might be null
-                    switch (scheme) {
+                for (int i = 0; sslContext == null && i < natsUris.size(); i++) {
+                    NatsUri natsUri = natsUris.get(i);
+                    switch (natsUri.getScheme()) {
                         case TLS_PROTOCOL:
                         case SECURE_WEBSOCKET_PROTOCOL:
                             try {
@@ -1526,7 +1531,7 @@ public class Options {
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------------------------------
     private Options(Builder b) {
-        this.serverURIs = new ArrayList<>(b.serverURIs); // builder servers is a set so no dupes
+        this.natsUris = Collections.unmodifiableList(b.natsUris);
         this.unprocessedServers = b.unprocessedServers;  // exactly how the user gave them
         this.noRandomize = b.noRandomize;
         this.connectionName = b.connectionName;
@@ -1571,7 +1576,7 @@ public class Options {
 
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
 
-        this.serverListProvider = b.serverListProvider;
+        this.serverListProvider = b.serverListProvider == null ? new NatsServerListProvider(this) : b.serverListProvider;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -1643,10 +1648,21 @@ public class Options {
     }
 
     /**
-     * @return the servers stored in this options, see {@link Builder#servers(String[]) servers()} in the builder doc
+     * @return the servers configured in options, see {@link Builder#servers(String[]) servers()} in the builder doc
      */
-    public Collection<URI> getServers() {
-        return serverURIs;
+    public List<URI> getServers() {
+        List<URI> list = new ArrayList<>();
+        for (NatsUri nuri : natsUris) {
+            list.add(nuri.getUri());
+        }
+        return list;
+    }
+
+    /**
+     * @return the servers configured in options, see {@link Builder#servers(String[]) servers()} in the builder doc
+     */
+    public List<NatsUri> getNatsUris() {
+        return natsUris;
     }
 
     /**
@@ -1665,7 +1681,7 @@ public class Options {
 
     /**
      * @deprecated Plans are to remove allowing utf8mode
-     * @return whether or not utf8 subjects are supported, see {@link Builder#supportUTF8Subjects() supportUTF8Subjects()} in the builder doc.
+     * @return whether utf8 subjects are supported, see {@link Builder#supportUTF8Subjects() supportUTF8Subjects()} in the builder doc.
      */
     @Deprecated
     public boolean supportUTF8Subjects() {
@@ -1846,7 +1862,7 @@ public class Options {
 
     /**
      * @deprecated converts the char array to a string, use getPasswordChars instead for more security
-     * @return the password the password to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
+     * @return the password to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
      */
     @Deprecated
     public String getPassword() {
@@ -1854,7 +1870,7 @@ public class Options {
     }
 
     /**
-     * @return the password the password to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
+     * @return the password to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
      */
     public char[] getPasswordChars() {
         return password;
@@ -1924,61 +1940,13 @@ public class Options {
     }
 
     public URI createURIForServer(String serverURI) throws URISyntaxException {
-        return createURIForServer(serverURI, false);
-    }
-
-    public URI createURIForServer(String serverURI, boolean isWebsocket) throws URISyntaxException {
-        return Options.parseURIForServer(serverURI, isWebsocket);
-    }
-
-    static URI parseURIForServer(String serverURI, boolean isWebsocket) throws URISyntaxException {
-        URI uri;
-
-        try {
-            uri = new URI(serverURI);
-            if (uri.getHost() == null || uri.getHost().length() == 0 || uri.getScheme() == null || uri.getScheme().length() == 0) {
-                // try nats:// - we don't allow bare URIs in options, only from info and then we don't use the protocol
-                if (isWebsocket) {
-                    uri = new URI("wss://" + serverURI);
-                } else {
-                    uri = new URI(NATS_PROTOCOL_SLASH_SLASH + serverURI);
-                }
-            }
-        } catch (URISyntaxException e) {
-            // try nats:// - we don't allow bare URIs in options, only from info and then we don't use the protocol
-            if (isWebsocket) {
-                uri = new URI("wss://" + serverURI);
-            } else {
-                uri = new URI(NATS_PROTOCOL_SLASH_SLASH + serverURI);
-            }
-        }
-
-        if (!KNOWN_PROTOCOLS.contains(uri.getScheme())) {
-            throw new URISyntaxException(serverURI, "unknown URI scheme ");
-        }
-
-        if (uri.getHost() != null && uri.getHost().length() > 0) {
-            if (uri.getPort() == -1) {
-                uri = new URI(uri.getScheme(),
-                                uri.getUserInfo(), 
-                                uri.getHost(),
-                                DEFAULT_PORT,
-                                uri.getPath(),
-                                uri.getQuery(),
-                                uri.getFragment());
-            }
-            return uri;
-        }
-
-        throw new URISyntaxException(serverURI, "unable to parse server URI");
+        return new NatsUri(serverURI).getUri();
     }
 
     /**
-     * Create the options string sent with a connect message.
-     * 
+     * Create the options string sent with the connect message.
      * If includeAuth is true the auth information is included:
-     * If the server URIs have auth info it is used. Otherwise the userInfo is used.
-     * 
+     * If the server URIs have auth info it is used. Otherwise, the userInfo is used.
      * @param serverURI the current server uri
      * @param includeAuth tells the options to build a connection string that includes auth information
      * @param nonce if the client is supposed to sign the nonce for authentication
