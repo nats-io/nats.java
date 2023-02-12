@@ -23,13 +23,17 @@ import java.util.List;
  */
 public interface ServerListProvider {
     /**
+     * When the connection received discovered servers (ServerInfo.getConnectURLs)
+     * it passes them on to the provider for later use
+     * @param serverInfoConnectUrls the list of discovered servers. Will not be null or empty.
+     * @return boolean if any of the discovered servers where not known before.
+     */
+    boolean acceptDiscoveredUrls(List<String> serverInfoConnectUrls);
+
+    /**
      * Get the server list to try for connecting/reconnecting
      * @param lastConnectedServer the server that connection last connected to. Can be null.
-     * @param optionsNatsUris the list of nats server uris from options. Will never be null or empty.
-     * @param serverInfoConnectUrls the entire list of servers exactly as returned in the server info. Will never be null but might be empty.
      * @return the ordered server list
      */
-    List<NatsUri> getServerList(NatsUri lastConnectedServer,
-                            List<NatsUri> optionsNatsUris,
-                            List<String> serverInfoConnectUrls);
+    List<NatsUri> getServerList(NatsUri lastConnectedServer);
 }

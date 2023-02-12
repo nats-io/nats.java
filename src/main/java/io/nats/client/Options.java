@@ -507,7 +507,7 @@ public class Options {
     // ----------------------------------------------------------------------------------------------------
     // CLASS VARIABLES
     // ----------------------------------------------------------------------------------------------------
-    private final List<NatsUri> natsUris;
+    private final List<NatsUri> natsServerUris;
     private final List<String> unprocessedServers;
     private final boolean noRandomize;
     private final boolean resolveHostnames;
@@ -1550,7 +1550,7 @@ public class Options {
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------------------------------
     private Options(Builder b) {
-        this.natsUris = Collections.unmodifiableList(b.natsUris);
+        this.natsServerUris = Collections.unmodifiableList(b.natsUris);
         this.unprocessedServers = b.unprocessedServers;  // exactly how the user gave them
         this.noRandomize = b.noRandomize;
         this.resolveHostnames = b.resolveHostnames;
@@ -1672,7 +1672,7 @@ public class Options {
      */
     public List<URI> getServers() {
         List<URI> list = new ArrayList<>();
-        for (NatsUri nuri : natsUris) {
+        for (NatsUri nuri : natsServerUris) {
             list.add(nuri.getUri());
         }
         return list;
@@ -1681,8 +1681,8 @@ public class Options {
     /**
      * @return the servers configured in options, see {@link Builder#servers(String[]) servers()} in the builder doc
      */
-    public List<NatsUri> getNatsUris() {
-        return natsUris;
+    public List<NatsUri> getNatsServerUris() {
+        return natsServerUris;
     }
 
     /**

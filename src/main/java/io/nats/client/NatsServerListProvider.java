@@ -26,35 +26,39 @@ import java.util.concurrent.ThreadLocalRandom;
 public class NatsServerListProvider implements ServerListProvider {
 
     // behavior is to
-    // 1. add the configured servers
-    // 2. optionally add the discovered servers (options default is to get them)
+    // 1. add the configured servers on construction
+    // 2. optionally add the discovered servers (options default is to include them)
     // 3. optionally randomize the servers (options default is to randomize)
     // 4. on randomize, move the current server to the bottom
 
     private final Options options;
+    private final List<NatsUri> list;
 
     public NatsServerListProvider(Options opts) {
         this.options = opts;
+        list = new ArrayList<>();
+        for (NatsUri nuri : options.getNatsServerUris()) {
+            add(nuri);
+        }
     }
 
     @Override
-    public List<NatsUri> getServerList(NatsUri lastConnectedServer, List<NatsUri> optionsNatsUris, List<String> serverInfoConnectUrls) {
-        List<NatsUri> list = new ArrayList<>();
-
-        for (NatsUri nuri : optionsNatsUris) {
-            addUnique(list, nuri);
-        }
-
+    public boolean acceptDiscoveredUrls(List<String> serverInfoConnectUrls) {
+        boolean anyAdded = false;
         if (!options.isIgnoreDiscoveredServers()) {
+            // TODO PRUNE ???
             for (String discovered : serverInfoConnectUrls) {
                 try {
-                    NatsUri nuri = new NatsUri(discovered);
-                    addUnique(list, nuri);
+                    anyAdded |= add(new NatsUri(discovered));
                 }
                 catch (URISyntaxException ignore) {}
             }
         }
+        return anyAdded;
+    }
 
+    @Override
+    public List<NatsUri> getServerList(NatsUri lastConnectedServer) {
         if (list.size() > 1) {
             boolean removed = false;
             if (lastConnectedServer != null) {
@@ -67,34 +71,45 @@ public class NatsServerListProvider implements ServerListProvider {
                 list.add(lastConnectedServer);
             }
         }
-
-        return list;
+        return new ArrayList<>(list); // return a copy
     }
 
-    private void addUnique(List<NatsUri> list, NatsUri nuri) {
+    private boolean add(NatsUri nuri) {
         if (options.resolveHostnames()) {
-            if (!nuri.hostIsIpAddress()) {
-                try {
-                    InetAddress[] addrs = InetAddress.getAllByName(nuri.getHost());
-                    for (InetAddress a : addrs) {
-                        try {
-                            NatsUri rehost = nuri.reHost(a.getHostAddress());
-                            if (!list.contains(rehost)) {
-                                list.add(rehost);
-                            }
-                        }
-                        catch (URISyntaxException e) {
-                            // just don't fail here
+            if (nuri.hostIsIpAddress()) {
+                return _add(nuri);
+            }
+
+            boolean added = false;
+            try {
+                InetAddress[] addresses = InetAddress.getAllByName(nuri.getHost());
+                for (InetAddress a : addresses) {
+                    try {
+                        NatsUri rehost = nuri.reHost(a.getHostAddress());
+                        if (!list.contains(rehost)) {
+                            list.add(rehost);
                         }
                     }
-                }
-                catch (UnknownHostException ignore) {
-                    // just don't fail here
+                    catch (URISyntaxException ignore) {
+                        // should never actually happen
+                    }
                 }
             }
+            catch (UnknownHostException ignore) {
+                // A user might have supplied a bad host, but the server shouldn't.
+                // Either way, nothing much to do.
+            }
+            return added;
         }
-        else if (!list.contains(nuri)) {
-            list.add(nuri);
+
+        return _add(nuri);
+    }
+
+    private boolean _add(NatsUri nuri) {
+        if (list.contains(nuri)) {
+            return false;
         }
+        list.add(nuri);
+        return true;
     }
 }

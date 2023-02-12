@@ -62,7 +62,7 @@ class NatsConnection implements Connection {
 
     private CompletableFuture<DataPort> dataPortFuture;
     private DataPort dataPort;
-    private NatsUri currentServerUri;
+    private NatsUri currentNatsServerUri;
     private CompletableFuture<Boolean> reconnectWaiter;
     private final HashMap<NatsUri, String> serverAuthErrors;
 
@@ -349,7 +349,7 @@ class NatsConnection implements Connection {
     // will wait for any previous attempt to complete, using the reader.stop and
     // writer.stop
     void tryToConnect(NatsUri nuri, long now) {
-        currentServerUri = null;
+        currentNatsServerUri = null;
 
         try {
             Duration connectTimeout = options.getConnectionTimeout();
@@ -466,7 +466,7 @@ class NatsConnection implements Connection {
                     throw this.exceptionDuringConnectChange;
                 }
 
-                this.currentServerUri = nuri;
+                this.currentNatsServerUri = nuri;
                 this.serverAuthErrors.remove(nuri); // reset on successful connection
                 updateStatus(Status.CONNECTED); // will signal status change, we also signal in finally
             } finally {
@@ -679,7 +679,7 @@ class NatsConnection implements Connection {
 
     // Should only be called from closeSocket or close
     void closeSocketImpl() {
-        this.currentServerUri = null;
+        this.currentNatsServerUri = null;
 
         // Signal both to stop.
         final Future<Boolean> readStop = this.reader.stop();
@@ -1464,7 +1464,9 @@ class NatsConnection implements Connection {
 
         List<String> urls = this.serverInfo.get().getConnectURLs();
         if (urls != null && urls.size() > 0) {
-            processConnectionEvent(Events.DISCOVERED_SERVERS);
+            if (options.getServerListProvider().acceptDiscoveredUrls(urls)) {
+                processConnectionEvent(Events.DISCOVERED_SERVERS);
+            }
         }
 
         if (serverInfo.isLameDuckMode()) {
@@ -1577,8 +1579,8 @@ class NatsConnection implements Connection {
         this.connectError.set(errorText); // even if this isn't during connection, save it just in case
 
         // If we are connected && we get an authentication error, save it
-        if (this.isConnected() && this.isAuthenticationError(errorText) && currentServerUri != null) {
-            this.serverAuthErrors.put(currentServerUri, errorText);
+        if (this.isConnected() && this.isAuthenticationError(errorText) && currentNatsServerUri != null) {
+            this.serverAuthErrors.put(currentNatsServerUri, errorText);
         }
 
         if (!this.callbackRunner.isShutdown()) {
@@ -1699,23 +1701,23 @@ class NatsConnection implements Connection {
      */
     public Collection<String> getServers() {
         // This does not use the server list provider because it does what it's doc says
-        List<String> servers = new ArrayList<>();
-        for (NatsUri nuri : options.getNatsUris()) {
+        Set<String> servers = new HashSet<>();
+        for (NatsUri nuri : options.getNatsServerUris()) {
             servers.add(nuri.toString());
         }
-        servers.addAll(getServerInfoConnectUrls());
+        ServerInfo info = serverInfo.get();
+        if (info != null) {
+            List<String> urls = this.serverInfo.get().getConnectURLs();
+            if (urls != null && urls.size() > 0) {
+                servers.addAll(urls);
+            }
+        }
         return servers;
     }
 
     // the list is used by the connect/reconnect code
     protected List<NatsUri> getServersToTry() {
-        return options.getServerListProvider().getServerList(
-            currentServerUri, options.getNatsUris(), getServerInfoConnectUrls());
-    }
-
-    protected List<String> getServerInfoConnectUrls() {
-        ServerInfo info = serverInfo.get();
-        return info == null ? Collections.emptyList() : info.getConnectURLs();
+        return options.getServerListProvider().getServerList(currentNatsServerUri);
     }
 
     /**
@@ -1723,7 +1725,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public String getConnectedUrl() {
-        return currentServerUri == null ? null : currentServerUri.toString();
+        return currentNatsServerUri == null ? null : currentNatsServerUri.toString();
     }
 
     /**

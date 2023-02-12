@@ -24,7 +24,12 @@ import java.util.List;
  */
 public class CoverageServerListProvider implements ServerListProvider {
     @Override
-    public List<NatsUri> getServerList(NatsUri lastConnectedServer, List<NatsUri> optionsNatsUris, List<String> serverInfoConnectUrls) {
+    public boolean acceptDiscoveredUrls(List<String> serverInfoConnectUrls) {
+        return false;
+    }
+
+    @Override
+    public List<NatsUri> getServerList(NatsUri lastConnectedServer) {
         return new ArrayList<>();
     }
 }

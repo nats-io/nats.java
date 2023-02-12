@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Test;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -66,9 +65,9 @@ public class AdditionalConnectTests extends TestBase {
             standardConnectionWait(conn2);
             standardConnectionWait(conn3);
 
-            final List<NatsUri> optionsServers1 = conn1.getOptions().getNatsUris();
+            final List<NatsUri> optionsServers1 = conn1.getOptions().getNatsServerUris();
             final List<NatsUri> discoveredServers1 = new ArrayList<>();
-            for (String s : conn1.getServerInfoConnectUrls()) {
+            for (String s : conn1.getServerInfo().getConnectURLs()) {
                 try {
                     discoveredServers1.add(new NatsUri(s));
                 }
@@ -76,16 +75,16 @@ public class AdditionalConnectTests extends TestBase {
             }
 
             final List<NatsUri> discoveredServers2 = new ArrayList<>();
-            for (String s : conn2.getServerInfoConnectUrls()) {
+            for (String s : conn2.getServerInfo().getConnectURLs()) {
                 try {
                     discoveredServers2.add(new NatsUri(s));
                 }
                 catch (URISyntaxException ignore) {}
             }
 
-            final List<NatsUri> optionsServers3 = conn3.getOptions().getNatsUris();
+            final List<NatsUri> optionsServers3 = conn3.getOptions().getNatsServerUris();
             final List<NatsUri> discoveredServers3 = new ArrayList<>();
-            for (String s : conn3.getServerInfoConnectUrls()) {
+            for (String s : conn3.getServerInfo().getConnectURLs()) {
                 try {
                     discoveredServers3.add(new NatsUri(s));
                 }
@@ -140,43 +139,53 @@ public class AdditionalConnectTests extends TestBase {
 
     @Test
     public void testServerListProvider() throws URISyntaxException {
-        Options o = new Options.Builder().build();
-        NatsUri lastConnectedServer = new NatsUri("nats://one");
-        List<NatsUri> optionsNatsUris = Arrays.asList(new NatsUri("nats://one"), new NatsUri("nats://two"));
+        String[] optionsNatsUris = new String[]{"nats://one", "nats://two"};
         List<String> serverInfoConnectUrls = Arrays.asList("nats://one:4222", "nats://two:4222", "nats://three:4222", "bad://");
 
+        Options o = new Options.Builder().servers(optionsNatsUris).build();
+        NatsUri lastConnectedServer = new NatsUri("nats://one");
+
         NatsServerListProvider nslp = new NatsServerListProvider(o);
-        List<NatsUri> list = nslp.getServerList(null, optionsNatsUris, serverInfoConnectUrls);
+        nslp.acceptDiscoveredUrls(serverInfoConnectUrls);
+        List<NatsUri> list = nslp.getServerList(null);
         validateNslp(list, null, false, "nats://one", "nats://two", "nats://three");
 
-        list = nslp.getServerList(lastConnectedServer, optionsNatsUris, serverInfoConnectUrls);
+        nslp = new NatsServerListProvider(o);
+        nslp.acceptDiscoveredUrls(serverInfoConnectUrls);
+        list = nslp.getServerList(lastConnectedServer);
         validateNslp(list, lastConnectedServer, false, "nats://one", "nats://two", "nats://three");
 
-        o = new Options.Builder().noRandomize().build();
+        o = new Options.Builder().noRandomize().servers(optionsNatsUris).build();
         nslp = new NatsServerListProvider(o);
-        list = nslp.getServerList(null, optionsNatsUris, serverInfoConnectUrls);
+        nslp.acceptDiscoveredUrls(serverInfoConnectUrls);
+        list = nslp.getServerList(null);
         validateNslp(list, null, true, "nats://one", "nats://two", "nats://three");
 
-        list = nslp.getServerList(lastConnectedServer, optionsNatsUris, serverInfoConnectUrls);
+        nslp = new NatsServerListProvider(o);
+        nslp.acceptDiscoveredUrls(serverInfoConnectUrls);
+        list = nslp.getServerList(lastConnectedServer);
         validateNslp(list, lastConnectedServer, true, "nats://one", "nats://two", "nats://three");
 
-        o = new Options.Builder().ignoreDiscoveredServers().build();
+        o = new Options.Builder().ignoreDiscoveredServers().servers(optionsNatsUris).build();
         nslp = new NatsServerListProvider(o);
-        list = nslp.getServerList(null, optionsNatsUris, serverInfoConnectUrls);
+        nslp.acceptDiscoveredUrls(serverInfoConnectUrls);
+        list = nslp.getServerList(null);
         validateNslp(list, null, false, "nats://one", "nats://two");
 
-        list = nslp.getServerList(lastConnectedServer, optionsNatsUris, serverInfoConnectUrls);
+        nslp = new NatsServerListProvider(o);
+        nslp.acceptDiscoveredUrls(serverInfoConnectUrls);
+        list = nslp.getServerList(lastConnectedServer);
         validateNslp(list, lastConnectedServer, false, "nats://one", "nats://two");
 
-        o = new Options.Builder().build();
+        o = new Options.Builder().server("connect.ngs.global").build();
         nslp = new NatsServerListProvider(o);
-        list = nslp.getServerList(null, Collections.singletonList(new NatsUri("connect.ngs.global")), new ArrayList<>());
+        list = nslp.getServerList(null);
         assertEquals(1, list.size());
         assertEquals(new NatsUri("connect.ngs.global"), list.get(0));
 
-        o = new Options.Builder().resolveHostnames().build();
+        o = new Options.Builder().resolveHostnames().server("connect.ngs.global").build();
         nslp = new NatsServerListProvider(o);
-        list = nslp.getServerList(null, Collections.singletonList(new NatsUri("connect.ngs.global")), new ArrayList<>());
+        list = nslp.getServerList(null);
         assertTrue(list.size() > 1);
         for (NatsUri nuri : list) {
             assertTrue(nuri.hostIsIpAddress());
