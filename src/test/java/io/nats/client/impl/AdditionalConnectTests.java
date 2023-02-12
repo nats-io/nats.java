@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -166,6 +167,20 @@ public class AdditionalConnectTests extends TestBase {
 
         list = nslp.getServerList(lastConnectedServer, optionsNatsUris, serverInfoConnectUrls);
         validateNslp(list, lastConnectedServer, false, "nats://one", "nats://two");
+
+        o = new Options.Builder().build();
+        nslp = new NatsServerListProvider(o);
+        list = nslp.getServerList(null, Collections.singletonList(new NatsUri("connect.ngs.global")), new ArrayList<>());
+        assertEquals(1, list.size());
+        assertEquals(new NatsUri("connect.ngs.global"), list.get(0));
+
+        o = new Options.Builder().resolveHostnames().build();
+        nslp = new NatsServerListProvider(o);
+        list = nslp.getServerList(null, Collections.singletonList(new NatsUri("connect.ngs.global")), new ArrayList<>());
+        assertTrue(list.size() > 1);
+        for (NatsUri nuri : list) {
+            assertTrue(nuri.hostIsIpAddress());
+        }
     }
 
     private static void validateNslp(List<NatsUri> list, NatsUri last, boolean notRandom, String... expectedUrls) throws URISyntaxException {

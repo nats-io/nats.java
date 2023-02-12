@@ -16,6 +16,7 @@ package io.nats.client.support;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import static io.nats.client.support.NatsConstants.*;
 
@@ -55,6 +56,18 @@ public class NatsUri {
 
     public boolean isWebsocket() {
         return WSS_PROTOCOLS.contains(uri.getScheme().toLowerCase());
+    }
+
+    public NatsUri reHost(String newHost) throws URISyntaxException {
+        return new NatsUri(uri.toString().replace(uri.getHost(), newHost));
+    }
+
+    static Pattern IPV4_RE = Pattern.compile("(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])");
+    static Pattern IPV6_RE = Pattern.compile("((([0-9a-fA-F]){1,4})\\:){7}([0-9a-fA-F]){1,4}");
+
+    public boolean hostIsIpAddress() {
+        return IPV4_RE.matcher(uri.getHost()).matches()
+            || IPV6_RE.matcher(uri.getHost()).matches();
     }
 
     @Override

@@ -15,7 +15,9 @@ package io.nats.client;
 
 import io.nats.client.support.NatsUri;
 
+import java.net.InetAddress;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -35,23 +37,19 @@ public class NatsServerListProvider implements ServerListProvider {
         this.options = opts;
     }
 
-    // TODO RESOLVE HOSTNAME
-//    InetAddress[] addrs = InetAddress.getAllByName("connect.ngs.global");
-//        for (InetAddress a : addrs) {
-//        System.out.println(a.getHostAddress());
-//    }
-
     @Override
     public List<NatsUri> getServerList(NatsUri lastConnectedServer, List<NatsUri> optionsNatsUris, List<String> serverInfoConnectUrls) {
-        List<NatsUri> list = new ArrayList<>(optionsNatsUris);
+        List<NatsUri> list = new ArrayList<>();
+
+        for (NatsUri nuri : optionsNatsUris) {
+            addUnique(list, nuri);
+        }
 
         if (!options.isIgnoreDiscoveredServers()) {
             for (String discovered : serverInfoConnectUrls) {
                 try {
                     NatsUri nuri = new NatsUri(discovered);
-                    if (!list.contains(nuri)) {
-                        list.add(nuri);
-                    }
+                    addUnique(list, nuri);
                 }
                 catch (URISyntaxException ignore) {}
             }
@@ -71,5 +69,32 @@ public class NatsServerListProvider implements ServerListProvider {
         }
 
         return list;
+    }
+
+    private void addUnique(List<NatsUri> list, NatsUri nuri) {
+        if (options.resolveHostnames()) {
+            if (!nuri.hostIsIpAddress()) {
+                try {
+                    InetAddress[] addrs = InetAddress.getAllByName(nuri.getHost());
+                    for (InetAddress a : addrs) {
+                        try {
+                            NatsUri rehost = nuri.reHost(a.getHostAddress());
+                            if (!list.contains(rehost)) {
+                                list.add(rehost);
+                            }
+                        }
+                        catch (URISyntaxException e) {
+                            // just don't fail here
+                        }
+                    }
+                }
+                catch (UnknownHostException ignore) {
+                    // just don't fail here
+                }
+            }
+        }
+        else if (!list.contains(nuri)) {
+            list.add(nuri);
+        }
     }
 }

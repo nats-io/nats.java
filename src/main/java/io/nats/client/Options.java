@@ -326,6 +326,10 @@ public class Options {
      */
     public static final String PROP_NORANDOMIZE = PFX + "norandomize";
     /**
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#resolveHostnames() resolveHostnames}.
+     */
+    public static final String PROP_RESOLVE_HOSTNAMES = PFX + "resolvehostnames";
+    /**
      * Property used to configure a builder from a Properties object. {@value},
      * see {@link Builder#servers(String[]) servers}. The value can be a comma-separated list of server URLs.
      */
@@ -506,6 +510,7 @@ public class Options {
     private final List<NatsUri> natsUris;
     private final List<String> unprocessedServers;
     private final boolean noRandomize;
+    private final boolean resolveHostnames;
     private final String connectionName;
     private final boolean verbose;
     private final boolean pedantic;
@@ -598,6 +603,7 @@ public class Options {
         private final List<NatsUri> natsUris = new ArrayList<>();
         private final List<String> unprocessedServers = new ArrayList<>();
         private boolean noRandomize = false;
+        private boolean resolveHostnames = false;
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
         private boolean verbose = false;
         private boolean pedantic = false;
@@ -698,6 +704,10 @@ public class Options {
 
             if (props.containsKey(PROP_NORANDOMIZE)) {
                 this.noRandomize = Boolean.parseBoolean(props.getProperty(PROP_NORANDOMIZE));
+            }
+
+            if (props.containsKey(PROP_RESOLVE_HOSTNAMES)) {
+                resolveHostnames = Boolean.parseBoolean(props.getProperty(PROP_RESOLVE_HOSTNAMES));
             }
 
             if (props.containsKey(PROP_SECURE)) {
@@ -922,6 +932,15 @@ public class Options {
          */
         public Builder noRandomize() {
             this.noRandomize = true;
+            return this;
+        }
+
+        /**
+         * For the default server list provider, whether to resolve hostnames when building server list.
+         * @return the Builder for chaining
+         */
+        public Builder resolveHostnames() {
+            this.resolveHostnames = true;
             return this;
         }
 
@@ -1534,6 +1553,7 @@ public class Options {
         this.natsUris = Collections.unmodifiableList(b.natsUris);
         this.unprocessedServers = b.unprocessedServers;  // exactly how the user gave them
         this.noRandomize = b.noRandomize;
+        this.resolveHostnames = b.resolveHostnames;
         this.connectionName = b.connectionName;
         this.verbose = b.verbose;
         this.pedantic = b.pedantic;
@@ -1677,6 +1697,13 @@ public class Options {
      */
     public boolean isNoRandomize() {
         return noRandomize;
+    }
+
+    /**
+     * @return should we resolve hostnames for server connection attempts, see {@link Builder#resolveHostnames() resolveHostnames()} in the builder doc
+     */
+    public boolean resolveHostnames() {
+        return resolveHostnames;
     }
 
     /**

@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import javax.net.ssl.SSLContext;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
@@ -295,6 +296,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_CLIENT_SIDE_LIMIT_CHECKS, "true");
         props.setProperty(Options.PROP_IGNORE_DISCOVERED_SERVERS, "true");
         props.setProperty(Options.PROP_SERVERS_LIST_PROVIDER_CLASS, "io.nats.client.utils.CoverageServerListProvider");
+        props.setProperty(Options.PROP_RESOLVE_HOSTNAMES, "true");
 
         Options o = new Options.Builder(props).build();
         assertNull(o.getSslContext(), "property context");
@@ -303,6 +305,7 @@ public class OptionsTests {
         assertTrue(o.clientSideLimitChecks());
         assertTrue(o.isIgnoreDiscoveredServers());
         assertNotNull(o.getServerListProvider());
+        assertTrue(o.resolveHostnames());
     }
 
     @Test
@@ -636,16 +639,18 @@ public class OptionsTests {
     }
 
     @Test
-    public void testNatsUri() throws URISyntaxException {
+    public void testNatsUri() throws URISyntaxException, UnknownHostException {
         String[] schemes = new String[]  { "nats", "tls",  "opentls",  "ws",   "wss", null, "unk"};
         boolean[] secures = new boolean[]{ false,  true,   true,       false,  true,  false, false};
         boolean[] wses = new boolean[]   { false,  false,  false,      true,   true,  false, false};
         String[] hosts = new String[]{"host", "1.2.3.4", null};
+        boolean[] ips = new boolean[]{false,  true,      false};
         Integer[] ports = new Integer[]{1122, null};
         String[] userInfos = new String[]{null, "u:p"};
-        for (int i = 0; i < schemes.length; i++) {
-            String scheme = schemes[i];
-            for (String host : hosts) {
+        for (int e = 0; e < schemes.length; e++) {
+            String scheme = schemes[e];
+            for (int h = 0; h < hosts.length; h++) {
+                String host = hosts[h];
                 for (Integer port : ports) {
                     for (String userInfo : userInfos) {
                         StringBuilder sb = new StringBuilder();
@@ -678,8 +683,8 @@ public class OptionsTests {
                             NatsUri uri1 = new NatsUri(sb.toString());
                             NatsUri uri2 = new NatsUri(uri1.getUri());
                             assertEquals(uri1, uri2);
-                            checkCreate(uri1, secures[i], wses[i], expectedScheme, host, expectedPort, userInfo);
-                            checkCreate(uri2, secures[i], wses[i], expectedScheme, host, expectedPort, userInfo);
+                            checkCreate(uri1, secures[e], wses[e], ips[h], expectedScheme, host, expectedPort, userInfo);
+                            checkCreate(uri2, secures[e], wses[e], ips[h], expectedScheme, host, expectedPort, userInfo);
                         }
                     }
                 }
@@ -693,19 +698,19 @@ public class OptionsTests {
         assertFalse(new NatsUri(Options.DEFAULT_URL).equals(new Object()));
     }
 
-    private static void checkCreate(NatsUri uri, boolean secure, boolean ws, String scheme, String host, int port, String userInfo) throws URISyntaxException {
+    private static void checkCreate(NatsUri uri, boolean secure, boolean ws, boolean ip, String scheme, String host, int port, String userInfo) throws URISyntaxException {
         assertEquals(secure, uri.isSecure());
         assertEquals(ws, uri.isWebsocket());
         assertEquals(scheme, uri.getScheme());
         assertEquals(host, uri.getHost());
         assertEquals(port, uri.getPort());
         assertEquals(userInfo, uri.getUserInfo());
-        if (userInfo == null) {
-            assertEquals(scheme + "://" + host + ":" + port, uri.toString());
-        }
-        else {
-            assertEquals(scheme + "://" + userInfo + "@" + host + ":" + port, uri.toString());
-        }
+        String expectedUri = userInfo == null
+            ? scheme + "://" + host + ":" + port
+            : scheme + "://" + userInfo + "@" + host + ":" + port;
+        assertEquals(expectedUri, uri.toString());
+        assertEquals(expectedUri.replace(host, "rehost"), uri.reHost("rehost").toString());
+        assertEquals(ip, uri.hostIsIpAddress());
     }
 
     @Test
