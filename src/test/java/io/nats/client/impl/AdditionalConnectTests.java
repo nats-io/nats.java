@@ -140,56 +140,63 @@ public class AdditionalConnectTests extends TestBase {
     @Test
     public void testServerListProvider() throws URISyntaxException {
         String[] optionsNatsUris = new String[]{"nats://one", "nats://two"};
-        List<String> serverInfoConnectUrls = Arrays.asList("nats://one:4222", "nats://two:4222", "nats://three:4222", "bad://");
+        List<String> discoveredServers = Arrays.asList("nats://one:4222", "nats://two:4222", "nats://three:4222", "bad://");
 
         Options o = new Options.Builder().servers(optionsNatsUris).build();
         NatsUri lastConnectedServer = new NatsUri("nats://one");
 
-        NatsServerListProvider nslp = new NatsServerListProvider(o);
-        nslp.acceptDiscoveredUrls(serverInfoConnectUrls);
+        NatsServerListProvider nslp = newNatsServerListProvider(o, discoveredServers);
         List<NatsUri> list = nslp.getServerList(null);
         validateNslp(list, null, false, "nats://one", "nats://two", "nats://three");
 
-        nslp = new NatsServerListProvider(o);
-        nslp.acceptDiscoveredUrls(serverInfoConnectUrls);
+        nslp = newNatsServerListProvider(o, discoveredServers);
         list = nslp.getServerList(lastConnectedServer);
         validateNslp(list, lastConnectedServer, false, "nats://one", "nats://two", "nats://three");
 
         o = new Options.Builder().noRandomize().servers(optionsNatsUris).build();
-        nslp = new NatsServerListProvider(o);
-        nslp.acceptDiscoveredUrls(serverInfoConnectUrls);
+        nslp = newNatsServerListProvider(o, discoveredServers);
         list = nslp.getServerList(null);
         validateNslp(list, null, true, "nats://one", "nats://two", "nats://three");
 
-        nslp = new NatsServerListProvider(o);
-        nslp.acceptDiscoveredUrls(serverInfoConnectUrls);
+        nslp = newNatsServerListProvider(o, discoveredServers);
         list = nslp.getServerList(lastConnectedServer);
         validateNslp(list, lastConnectedServer, true, "nats://one", "nats://two", "nats://three");
 
         o = new Options.Builder().ignoreDiscoveredServers().servers(optionsNatsUris).build();
-        nslp = new NatsServerListProvider(o);
-        nslp.acceptDiscoveredUrls(serverInfoConnectUrls);
+        nslp = newNatsServerListProvider(o, discoveredServers);
         list = nslp.getServerList(null);
         validateNslp(list, null, false, "nats://one", "nats://two");
 
-        nslp = new NatsServerListProvider(o);
-        nslp.acceptDiscoveredUrls(serverInfoConnectUrls);
+        nslp = new NatsServerListProvider();
+        nslp = newNatsServerListProvider(o, discoveredServers);
         list = nslp.getServerList(lastConnectedServer);
         validateNslp(list, lastConnectedServer, false, "nats://one", "nats://two");
 
-        o = new Options.Builder().server("connect.ngs.global").build();
-        nslp = new NatsServerListProvider(o);
-        list = nslp.getServerList(null);
-        assertEquals(1, list.size());
-        assertEquals(new NatsUri("connect.ngs.global"), list.get(0));
+        // resolving host name is optionals
+        NatsUri ngs = new NatsUri("connect.ngs.global");
+        o = new Options.Builder().build();
+        nslp = newNatsServerListProvider(o, null);
+        List<String> resolved = nslp.resolveHostToIps("connect.ngs.global");
+        assertEquals(1, resolved.size());
+        assertEquals(ngs, new NatsUri(resolved.get(0)));
 
-        o = new Options.Builder().resolveHostnames().server("connect.ngs.global").build();
-        nslp = new NatsServerListProvider(o);
-        list = nslp.getServerList(null);
-        assertTrue(list.size() > 1);
-        for (NatsUri nuri : list) {
+        o = new Options.Builder().resolveHostnames().build();
+        nslp = newNatsServerListProvider(o, null);
+        resolved = nslp.resolveHostToIps("connect.ngs.global");
+        assertTrue(resolved.size() > 1);
+        for (String ip : resolved) {
+            NatsUri nuri = ngs.reHost(ip);
             assertTrue(nuri.hostIsIpAddress());
         }
+    }
+
+    private static NatsServerListProvider newNatsServerListProvider(Options o, List<String> discoveredServers) {
+        NatsServerListProvider nslp = new NatsServerListProvider();
+        nslp.initialize(o);
+        if (discoveredServers != null) {
+            nslp.acceptDiscoveredUrls(discoveredServers);
+        }
+        return nslp;
     }
 
     private static void validateNslp(List<NatsUri> list, NatsUri last, boolean notRandom, String... expectedUrls) throws URISyntaxException {

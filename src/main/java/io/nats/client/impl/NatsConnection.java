@@ -23,6 +23,7 @@ import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.time.Duration;
@@ -98,6 +99,8 @@ class NatsConnection implements Connection {
     private final ExecutorService connectExecutor;
     private final boolean advancedTracking;
 
+    private final ServerListProvider serverListProvider;
+
     NatsConnection(Options options) {
         boolean trace = options.isTraceConnection();
         timeTrace(trace, "creating connection object");
@@ -145,6 +148,9 @@ class NatsConnection implements Connection {
 
         this.needPing = new AtomicBoolean(true);
 
+        serverListProvider = options.getServerListProvider() == null ? new NatsServerListProvider() : options.getServerListProvider();
+        serverListProvider.initialize(options);
+
         timeTrace(trace, "connection object created");
     }
 
@@ -162,38 +168,70 @@ class NatsConnection implements Connection {
         timeTrace(trace, "starting connect loop");
 
         List<NatsUri> serversToTry = getServersToTry();
-        for (NatsUri nuri : serversToTry) {
-            if (isClosed()) {
-                break; // goes to statement after end-connect-server-loop
+        List<NatsUri> resovledToTry = new ArrayList<>();
+        boolean notDoneTrying = true;
+        int ixTry = -1;
+        int szTry = serversToTry.size();
+        while (notDoneTrying && ++ixTry < szTry) {
+
+            // let server list provider resolve hostnames
+            NatsUri nuri = serversToTry.get(ixTry);
+            resovledToTry.clear();
+            if (!nuri.hostIsIpAddress()) {
+                List<String> ips = serverListProvider.resolveHostToIps(nuri.getHost());
+                for (String ip : ips) {
+                    try {
+                        resovledToTry.add(nuri.reHost(ip));
+                    }
+                    catch (URISyntaxException u) {
+                        // ??? should never happen
+                    }
+                }
+            }
+            if (resovledToTry.size() == 0) {
+                resovledToTry.add(nuri);
             }
 
-            this.connectError.set(""); // new on each attempt
+            // loop through resolved
+            int ixRes = -1;
+            int szRes = resovledToTry.size();
+            while (notDoneTrying && ++ixRes < szRes) {
+                if (isClosed()) {
+                    notDoneTrying = false;
+                }
+                else {
+                    this.connectError.set(""); // new on each attempt
 
-            timeTrace(trace, "setting status to connecting");
-            updateStatus(Status.CONNECTING);
+                    timeTrace(trace, "setting status to connecting");
+                    updateStatus(Status.CONNECTING);
 
-            timeTrace(trace, "trying to connect to %s", nuri);
-            tryToConnect(nuri, System.nanoTime());
+                    NatsUri resolved = resovledToTry.get(ixRes);
+                    timeTrace(trace, "trying to connect to %s", nuri);
+                    tryToConnect(resolved, System.nanoTime());
 
-            if (isConnected()) {
-                break; // goes to statement after end-connect-server-loop
+                    if (isConnected()) {
+                        notDoneTrying = false;
+                    }
+                    else {
+                        timeTrace(trace, "setting status to disconnected");
+                        updateStatus(Status.DISCONNECTED);
+
+                        String err = connectError.get();
+
+                        if (this.isAuthenticationError(err)) {
+                            this.serverAuthErrors.put(nuri, err);
+                        }
+                    }
+                }
             }
-
-            timeTrace(trace, "setting status to disconnected");
-            updateStatus(Status.DISCONNECTED);
-
-            String err = connectError.get();
-
-            if (this.isAuthenticationError(err)) {
-                this.serverAuthErrors.put(nuri, err);
-            }
-        } // end-connect-server-loop
+        }
 
         if (!isConnected() && !isClosed()) {
             if (reconnectOnConnect) {
                 timeTrace(trace, "trying to reconnect on connect");
                 reconnect();
-            } else {
+            }
+            else {
                 timeTrace(trace, "connection failed, closing to cleanup");
                 close();
 
@@ -206,7 +244,8 @@ class NatsConnection implements Connection {
                     throw new IOException(msg);
                 }
             }
-        } else if (trace) {
+        }
+        else if (trace) {
             long end = System.nanoTime();
             double seconds = ((double) (end - start)) / 1_000_000_000.0;
             timeTrace(trace, "connect complete in %.3f seconds", seconds);
@@ -215,71 +254,63 @@ class NatsConnection implements Connection {
 
     // Reconnect can only be called when the connection is disconnected
     void reconnect() throws InterruptedException {
-        long maxTries = options.getMaxReconnect();
-        long tries = 0;
-
         if (isClosed()) {
             return;
         }
 
+        long maxTries = options.getMaxReconnect();
         if (maxTries == 0) {
             this.close();
             return;
+        }
+        if (maxTries < 0) {
+            maxTries = Integer.MAX_VALUE;
         }
 
         this.writer.setReconnectMode(true);
 
         boolean doubleAuthError = false;
-
-        while (!isConnected() && !isClosed() && !this.isClosing()) {
-            if (tries > 0) { // not the first loop
-                waitForReconnectTimeout(tries);
+        long rounds = -1;
+        while (!isConnected() && !isClosed() && !this.isClosing() && ++rounds < maxTries) {
+            if (rounds > 0) { // not the first loop
+                waitForReconnectTimeout(rounds);
             }
 
             List<NatsUri> serversToTry = getServersToTry();
             for (NatsUri nuri : serversToTry) {
                 if (isClosed()) {
-                    break; // goes to statement after end-reconnect-server-loop
+                    break; // goes to statement after end-reconnect-server-try-loop
                 }
 
                 connectError.set(""); // reset on each loop
 
                 if (isDisconnectingOrClosed() || this.isClosing()) {
-                    break; // goes to statement after end-reconnect-server-loop
+                    break; // goes to statement after end-reconnect-server-try-loop
                 }
 
                 updateStatus(Status.RECONNECTING);
 
                 tryToConnect(nuri, System.nanoTime());
 
-                tries++;
-                if (maxTries > 0 && tries >= maxTries) {
-                    break; // goes to statement after end-reconnect-server-loop
-                }
-
                 if (isConnected()) {
                     this.statistics.incrementReconnects();
-                    break; // goes to statement after end-reconnect-server-loop
+                    break; // goes to statement after end-reconnect-server-try-loop
                 }
 
                 String err = connectError.get();
                 if (this.isAuthenticationError(err)) {
                     if (err.equals(this.serverAuthErrors.get(nuri))) {
                         doubleAuthError = true;
-                        break; // will close below, goes to statement after end-reconnect-server-loop
+                        break; // will close below, goes to statement after end-reconnect-server-try-loop
                     }
                     this.serverAuthErrors.put(nuri, err);
                 }
-            } // end-reconnect-server-loop
+            } // end-reconnect-server-try-loop
 
             if (doubleAuthError) {
-                break; // goes to statement after end-reconnect-connection-loop
+                break; // goes to statement after end-main-loop
             }
-
-            if (maxTries > 0 && tries >= maxTries) {
-                break; // goes to statement after end-reconnect-connection-loop
-            }
-        } // end-reconnect-connection-loop
+        } // end-main-loop
 
         if (!isConnected()) {
             this.close();
@@ -1464,7 +1495,7 @@ class NatsConnection implements Connection {
 
         List<String> urls = this.serverInfo.get().getConnectURLs();
         if (urls != null && urls.size() > 0) {
-            if (options.getServerListProvider().acceptDiscoveredUrls(urls)) {
+            if (serverListProvider.acceptDiscoveredUrls(urls)) {
                 processConnectionEvent(Events.DISCOVERED_SERVERS);
             }
         }
@@ -1613,13 +1644,12 @@ class NatsConnection implements Connection {
     }
 
     void processConnectionEvent(Events type) {
-        ConnectionListener handler = this.options.getConnectionListener();
-
-        if (handler != null && !this.callbackRunner.isShutdown()) {
+        ConnectionListener listener = this.options.getConnectionListener();
+        if (listener != null && !this.callbackRunner.isShutdown()) {
             try {
                 this.callbackRunner.execute(() -> {
                     try {
-                        handler.connectionEvent(this, type);
+                        listener.connectionEvent(this, type);
                     } catch (Exception ex) {
                         this.statistics.incrementExceptionCount();
                     }
@@ -1701,15 +1731,22 @@ class NatsConnection implements Connection {
      */
     public Collection<String> getServers() {
         // This does not use the server list provider because it does what it's doc says
-        Set<String> servers = new HashSet<>();
+        List<String> servers = new ArrayList<>();
         for (NatsUri nuri : options.getNatsServerUris()) {
-            servers.add(nuri.toString());
+            String s = nuri.toString();
+            if (!servers.contains(s)) {
+                servers.add(s);
+            }
         }
         ServerInfo info = serverInfo.get();
         if (info != null) {
             List<String> urls = this.serverInfo.get().getConnectURLs();
-            if (urls != null && urls.size() > 0) {
-                servers.addAll(urls);
+            if (urls != null) {
+                for (String s : urls) {
+                    if (!servers.contains(s)) {
+                        servers.add(s);
+                    }
+                }
             }
         }
         return servers;
@@ -1717,7 +1754,7 @@ class NatsConnection implements Connection {
 
     // the list is used by the connect/reconnect code
     protected List<NatsUri> getServersToTry() {
-        return options.getServerListProvider().getServerList(currentNatsServerUri);
+        return serverListProvider.getServerList(currentNatsServerUri);
     }
 
     /**

@@ -22,13 +22,20 @@ import java.util.List;
  * IMPORTANT! ServerListProvider IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public interface ServerListProvider {
+
+    /**
+     * Initialize the provider. Called once when the connection is being created.
+     * @param opts the options
+     */
+    void initialize(Options opts);
+
     /**
      * When the connection received discovered servers (ServerInfo.getConnectURLs)
      * it passes them on to the provider for later use
-     * @param serverInfoConnectUrls the list of discovered servers. Will not be null or empty.
+     * @param discoveredServers the list of discovered servers. Will not be null or empty.
      * @return boolean if any of the discovered servers where not known before.
      */
-    boolean acceptDiscoveredUrls(List<String> serverInfoConnectUrls);
+    boolean acceptDiscoveredUrls(List<String> discoveredServers);
 
     /**
      * Get the server list to try for connecting/reconnecting
@@ -36,4 +43,6 @@ public interface ServerListProvider {
      * @return the ordered server list
      */
     List<NatsUri> getServerList(NatsUri lastConnectedServer);
+
+    List<String> resolveHostToIps(String host);
 }

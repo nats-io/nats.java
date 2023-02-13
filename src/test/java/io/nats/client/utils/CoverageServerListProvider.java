@@ -13,6 +13,7 @@
 
 package io.nats.client.utils;
 
+import io.nats.client.Options;
 import io.nats.client.ServerListProvider;
 import io.nats.client.support.NatsUri;
 
@@ -24,12 +25,20 @@ import java.util.List;
  */
 public class CoverageServerListProvider implements ServerListProvider {
     @Override
-    public boolean acceptDiscoveredUrls(List<String> serverInfoConnectUrls) {
+    public void initialize(Options opts) {}
+
+    @Override
+    public boolean acceptDiscoveredUrls(List<String> discoveredServers) {
         return false;
     }
 
     @Override
     public List<NatsUri> getServerList(NatsUri lastConnectedServer) {
+        return new ArrayList<>();
+    }
+
+    @Override
+    public List<String> resolveHostToIps(String host) {
         return new ArrayList<>();
     }
 }

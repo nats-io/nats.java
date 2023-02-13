@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.support.Encoding.uriDecode;
 import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.support.NatsUri.DEFAULT_NATS_URI;
 
 /**
  * The Options class specifies the connection options for a new NATs connection, including the default options.
@@ -1550,6 +1551,9 @@ public class Options {
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------------------------------
     private Options(Builder b) {
+        if (b.natsUris.size() == 0) {
+            b.natsUris.add(DEFAULT_NATS_URI);
+        }
         this.natsServerUris = Collections.unmodifiableList(b.natsUris);
         this.unprocessedServers = b.unprocessedServers;  // exactly how the user gave them
         this.noRandomize = b.noRandomize;
@@ -1596,7 +1600,7 @@ public class Options {
 
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
 
-        this.serverListProvider = b.serverListProvider == null ? new NatsServerListProvider(this) : b.serverListProvider;
+        this.serverListProvider = b.serverListProvider;
     }
 
     // ----------------------------------------------------------------------------------------------------

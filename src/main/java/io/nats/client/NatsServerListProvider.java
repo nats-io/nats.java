@@ -31,27 +31,32 @@ public class NatsServerListProvider implements ServerListProvider {
     // 3. optionally randomize the servers (options default is to randomize)
     // 4. on randomize, move the current server to the bottom
 
-    private final Options options;
+    private Options options;
     private final List<NatsUri> list;
 
-    public NatsServerListProvider(Options opts) {
-        this.options = opts;
+    public NatsServerListProvider() {
         list = new ArrayList<>();
+    }
+
+    public void initialize(Options opts) {
+        this.options = opts;
         for (NatsUri nuri : options.getNatsServerUris()) {
             add(nuri);
         }
     }
 
     @Override
-    public boolean acceptDiscoveredUrls(List<String> serverInfoConnectUrls) {
+    public boolean acceptDiscoveredUrls(List<String> discoveredServers) {
         boolean anyAdded = false;
         if (!options.isIgnoreDiscoveredServers()) {
             // TODO PRUNE ???
-            for (String discovered : serverInfoConnectUrls) {
+            for (String discovered : discoveredServers) {
                 try {
                     anyAdded |= add(new NatsUri(discovered));
                 }
-                catch (URISyntaxException ignore) {}
+                catch (URISyntaxException ignore) {
+                    // should never actually happen
+                }
             }
         }
         return anyAdded;
@@ -74,38 +79,29 @@ public class NatsServerListProvider implements ServerListProvider {
         return new ArrayList<>(list); // return a copy
     }
 
-    private boolean add(NatsUri nuri) {
+    @Override
+    public List<String> resolveHostToIps(String host) {
+        List<String> resolved = new ArrayList<>();
         if (options.resolveHostnames()) {
-            if (nuri.hostIsIpAddress()) {
-                return _add(nuri);
-            }
-
-            boolean added = false;
             try {
-                InetAddress[] addresses = InetAddress.getAllByName(nuri.getHost());
+                InetAddress[] addresses = InetAddress.getAllByName(host);
                 for (InetAddress a : addresses) {
-                    try {
-                        NatsUri rehost = nuri.reHost(a.getHostAddress());
-                        if (!list.contains(rehost)) {
-                            list.add(rehost);
-                        }
-                    }
-                    catch (URISyntaxException ignore) {
-                        // should never actually happen
-                    }
+                    resolved.add(a.getHostAddress());
                 }
             }
             catch (UnknownHostException ignore) {
                 // A user might have supplied a bad host, but the server shouldn't.
-                // Either way, nothing much to do.
+                // Either way, nothing much we can do.
             }
-            return added;
         }
 
-        return _add(nuri);
+        if (resolved.size() == 0){
+            resolved.add(host);
+        }
+        return resolved;
     }
 
-    private boolean _add(NatsUri nuri) {
+    private boolean add(NatsUri nuri) {
         if (list.contains(nuri)) {
             return false;
         }

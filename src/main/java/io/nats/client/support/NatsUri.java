@@ -13,6 +13,8 @@
 
 package io.nats.client.support;
 
+import io.nats.client.Options;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
@@ -24,9 +26,11 @@ public class NatsUri {
     private static final int NO_PORT = -1;
     private static final String UNABLE_TO_PARSE = "Unable to parse URI string.";
     private static final String UNSUPPORTED_SCHEME = "Unsupported NATS URI scheme.";
-    private static final String URI_EX_CAN_TRY_AGAIN = "Illegal character in scheme name at index";
-    public static final String LOOPBACK = "127.0.0.1";
-    public static final String LOCALHOST = "localhost";
+    private static final String URI_E_ALLOW_TRY_PREFIXED = "Illegal character in scheme name at index";
+    private static final Pattern IPV4_RE = Pattern.compile("(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])");
+    private static final Pattern IPV6_RE = Pattern.compile("((([0-9a-fA-F]){1,4})\\:){7}([0-9a-fA-F]){1,4}");
+
+    public static NatsUri DEFAULT_NATS_URI = new NatsUri();
 
     private final URI uri;
 
@@ -58,16 +62,13 @@ public class NatsUri {
         return WSS_PROTOCOLS.contains(uri.getScheme().toLowerCase());
     }
 
-    public NatsUri reHost(String newHost) throws URISyntaxException {
-        return new NatsUri(uri.toString().replace(uri.getHost(), newHost));
-    }
-
-    static Pattern IPV4_RE = Pattern.compile("(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])");
-    static Pattern IPV6_RE = Pattern.compile("((([0-9a-fA-F]){1,4})\\:){7}([0-9a-fA-F]){1,4}");
-
     public boolean hostIsIpAddress() {
         return IPV4_RE.matcher(uri.getHost()).matches()
             || IPV6_RE.matcher(uri.getHost()).matches();
+    }
+
+    public NatsUri reHost(String newHost) throws URISyntaxException {
+        return new NatsUri(uri.toString().replace(uri.getHost(), newHost));
     }
 
     @Override
@@ -77,15 +78,26 @@ public class NatsUri {
 
     @Override
     public boolean equals(Object o) {
+        if (o == null) return false;
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        NatsUri natsUri = (NatsUri) o;
-        return uri.equals(natsUri.uri);
+        if (o instanceof NatsUri) {
+            o = ((NatsUri)o).uri;
+        }
+        return uri.equals(o);
     }
 
     @Override
     public int hashCode() {
         return uri.hashCode();
+    }
+
+    public NatsUri() {
+        try {
+            uri = new URI(Options.DEFAULT_URL);
+        } catch (URISyntaxException e) {
+            // seriously, this better not happen!
+            throw new RuntimeException(e);
+        }
     }
 
     public NatsUri(URI uri) throws URISyntaxException {
@@ -131,15 +143,15 @@ public class NatsUri {
         proto://u:p@1.2.3.4:4222 --> scheme:'proto', host:'1.2.3.4', up:'u:p', port:4222, path:''
      */
 
-        Worker worker = new Worker(url);
-        String scheme = worker.uri.getScheme();
-        String path = worker.uri.getPath();
+        Helper h = parse(url, true);
+        String scheme = h.uri.getScheme();
+        String path = h.uri.getPath();
         if (scheme == null) {
             if (path != null) {
                 // [3]
-                worker.tryPrefixedWithDefaultProto();
-                scheme = worker.uri.getScheme();
-                path = worker.uri.getPath();
+                h = tryPrefixed(h);
+                scheme = h.uri.getScheme();
+                path = h.uri.getPath();
             }
             else {
                 // [X] not in the examples so don't know what to do, we are done
@@ -147,13 +159,13 @@ public class NatsUri {
             }
         }
 
-        String host = worker.uri.getHost();
+        String host = h.uri.getHost();
         if (host == null) {
             if (path == null) {
                 // [4]
-                worker.tryPrefixedWithDefaultProto();
-                scheme = worker.uri.getScheme();
-                host = worker.uri.getHost();
+                h = tryPrefixed(h);
+                scheme = h.uri.getScheme();
+                host = h.uri.getHost();
             }
             else {
                 // [5]
@@ -166,50 +178,48 @@ public class NatsUri {
             throw new URISyntaxException(url, UNABLE_TO_PARSE);
         }
 
-        if (!KNOWN_PROTOCOLS.contains(scheme)) {
+        String lower = scheme.toLowerCase();
+        if (!KNOWN_PROTOCOLS.contains(lower)) {
             throw new URISyntaxException(url, UNSUPPORTED_SCHEME);
         }
-
-        if (worker.uri.getPort() == NO_PORT) {
-            // [6]
-            worker.url += ":" + DEFAULT_PORT;
+        if (!lower.equals(scheme)) {
+            h.url = h.url.replace(scheme, lower);
         }
 
-        uri = worker.done();
+        if (h.uri.getPort() == NO_PORT) {
+            // [6]
+            uri = new URI(h.url + ":" + DEFAULT_PORT);
+        }
+        else {
+            uri = new URI(h.url);
+        }
     }
 
-    private static class Worker {
+    static class Helper {
         String url;
         URI uri;
+    }
 
-        public Worker(String url) throws URISyntaxException {
-            work(url, true);
+    private Helper tryPrefixed(Helper helper) throws URISyntaxException {
+        return parse(NATS_PROTOCOL_SLASH_SLASH + helper.url, false);
+    }
+
+    private Helper parse(String inUrl, boolean allowTryPrefixed) throws URISyntaxException {
+        Helper helper = new Helper();
+        try {
+            helper.url = inUrl.trim();
+            helper.uri = new URI(helper.url);
+            return helper;
         }
-
-        public void work(String inUrl, boolean allowTryAgain) throws URISyntaxException {
-            try {
-                url = inUrl.trim();
-                uri = new URI(url);
+        catch (URISyntaxException e) {
+            if (allowTryPrefixed && e.getMessage().contains(URI_E_ALLOW_TRY_PREFIXED)) {
+                // [4]
+                return tryPrefixed(helper);
             }
-            catch (URISyntaxException e) {
-                if (allowTryAgain && e.getMessage().contains(URI_EX_CAN_TRY_AGAIN)) {
-                    // [4]
-                    tryPrefixedWithDefaultProto();
-                }
-                else {
-                    // [5]
-                    throw e;
-                }
+            else {
+                // [5]
+                throw e;
             }
-        }
-
-        private void tryPrefixedWithDefaultProto() throws URISyntaxException {
-            url = NATS_PROTOCOL_SLASH_SLASH + url;
-            work(url, false);
-        }
-
-        public URI done() throws URISyntaxException {
-            return new URI(url);
         }
     }
 

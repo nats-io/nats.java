@@ -269,14 +269,14 @@ public class OptionsTests {
     public void testBuilderCoverageOptions() {
         Options o = new Options.Builder().build();
         assertTrue(o.clientSideLimitChecks());
-        assertNotNull(o.getServerListProvider()); // there is a default provider
+        assertNull(o.getServerListProvider()); // there is a default provider
 
         o = new Options.Builder().clientSideLimitChecks(true).build();
         assertTrue(o.clientSideLimitChecks());
 
         o = new Options.Builder()
             .clientSideLimitChecks(false)
-            .serverListProvider(new NatsServerListProvider(o))
+            .serverListProvider(new NatsServerListProvider())
             .build();
         assertFalse(o.clientSideLimitChecks());
         assertNotNull(o.getServerListProvider());
@@ -640,9 +640,9 @@ public class OptionsTests {
 
     @Test
     public void testNatsUri() throws URISyntaxException, UnknownHostException {
-        String[] schemes = new String[]  { "nats", "tls",  "opentls",  "ws",   "wss", null, "unk"};
-        boolean[] secures = new boolean[]{ false,  true,   true,       false,  true,  false, false};
-        boolean[] wses = new boolean[]   { false,  false,  false,      true,   true,  false, false};
+        String[] schemes = new String[]  { "nats", "NATS",  "tls",  "opentls",  "ws",   "wss", null, "unk"};
+        boolean[] secures = new boolean[]{ false,  false,   true,   true,       false,  true,  false, false};
+        boolean[] wses = new boolean[]   { false,  false,   false,  false,      true,   true,  false, false};
         String[] hosts = new String[]{"host", "1.2.3.4", null};
         boolean[] ips = new boolean[]{false,  true,      false};
         Integer[] ports = new Integer[]{1122, null};
@@ -699,6 +699,7 @@ public class OptionsTests {
     }
 
     private static void checkCreate(NatsUri uri, boolean secure, boolean ws, boolean ip, String scheme, String host, int port, String userInfo) throws URISyntaxException {
+        scheme = scheme.toLowerCase();
         assertEquals(secure, uri.isSecure());
         assertEquals(ws, uri.isWebsocket());
         assertEquals(scheme, uri.getScheme());
