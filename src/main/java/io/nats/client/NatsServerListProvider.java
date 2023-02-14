@@ -26,7 +26,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class NatsServerListProvider implements ServerListProvider {
 
     // NatsConnection calling ServerListProvider api
-    // 1. On creation, the connection calls `initialize`
+    // 1. The connection calls `initialize` while it is being constructed
     // 2. On `Connect` the connection calls `getServerList` and tries the whole list once
     //    2.1 Just before trying an entry, call resolveHostToIps and actually loop through that list
     //    2.2. on a successful connection, call `acceptDiscoveredUrls`
