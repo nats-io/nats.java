@@ -29,10 +29,10 @@ public class NatsServerListProvider implements ServerListProvider {
     // 1. On creation, the connection calls `initialize`
     // 2. On `Connect` the connection calls `getServerList` and tries the whole list once
     //    2.1 Just before trying an entry, call resolveHostToIps and actually loop through that list
-    //    2.2. on a successful connection, call acceptDiscoveredUrls
-    // 3. ReConnect calls getServerList and tries the whole list options.maxRetries times
-    //    3.1 Just before trying an entry, call resolveHostToIps and actually loop through that list
-    //    3.2. on a successful connection, call acceptDiscoveredUrls
+    //    2.2. on a successful connection, call `acceptDiscoveredUrls`
+    // 3. On `Reconnect`, the connection calls `getServerList` and tries the whole list options.getMaxReconnect() times
+    //    3.1 Just before trying an entry, call `resolveHostToIps` and actually loop through that list
+    //    3.2. on a successful connection, call `acceptDiscoveredUrls`
 
     // NatsServerListProvider implementation logic
     // initialize - is only called once to make sure the provider has the Options
