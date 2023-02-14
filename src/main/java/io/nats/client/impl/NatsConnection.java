@@ -168,29 +168,14 @@ class NatsConnection implements Connection {
         timeTrace(trace, "starting connect loop");
 
         List<NatsUri> serversToTry = getServersToTry();
-        List<NatsUri> resovledToTry = new ArrayList<>();
         boolean notDoneTrying = true;
         int ixTry = -1;
         int szTry = serversToTry.size();
         while (notDoneTrying && ++ixTry < szTry) {
+            NatsUri nuri = serversToTry.get(ixTry);
 
             // let server list provider resolve hostnames
-            NatsUri nuri = serversToTry.get(ixTry);
-            resovledToTry.clear();
-            if (!nuri.hostIsIpAddress()) {
-                List<String> ips = serverListProvider.resolveHostToIps(nuri.getHost());
-                for (String ip : ips) {
-                    try {
-                        resovledToTry.add(nuri.reHost(ip));
-                    }
-                    catch (URISyntaxException u) {
-                        // ??? should never happen
-                    }
-                }
-            }
-            if (resovledToTry.size() == 0) {
-                resovledToTry.add(nuri);
-            }
+            List<NatsUri> resovledToTry = resolveHost(nuri);
 
             // loop through resolved
             int ixRes = -1;
@@ -200,7 +185,7 @@ class NatsConnection implements Connection {
                     notDoneTrying = false;
                 }
                 else {
-                    this.connectError.set(""); // new on each attempt
+                    connectError.set(""); // new on each attempt
 
                     timeTrace(trace, "setting status to connecting");
                     updateStatus(Status.CONNECTING);
@@ -277,38 +262,52 @@ class NatsConnection implements Connection {
             }
 
             List<NatsUri> serversToTry = getServersToTry();
-            for (NatsUri nuri : serversToTry) {
-                if (isClosed()) {
-                    break; // goes to statement after end-reconnect-server-try-loop
-                }
+            boolean notDoneTrying = true;
+            int ixTry = -1;
+            int szTry = serversToTry.size();
+            while (notDoneTrying && ++ixTry < szTry) {
+                NatsUri nuri = serversToTry.get(ixTry);
 
-                connectError.set(""); // reset on each loop
+                // let server list provider resolve hostnames
+                List<NatsUri> resovledToTry = resolveHost(nuri);
 
-                if (isDisconnectingOrClosed() || this.isClosing()) {
-                    break; // goes to statement after end-reconnect-server-try-loop
-                }
-
-                updateStatus(Status.RECONNECTING);
-
-                tryToConnect(nuri, System.nanoTime());
-
-                if (isConnected()) {
-                    this.statistics.incrementReconnects();
-                    break; // goes to statement after end-reconnect-server-try-loop
-                }
-
-                String err = connectError.get();
-                if (this.isAuthenticationError(err)) {
-                    if (err.equals(this.serverAuthErrors.get(nuri))) {
-                        doubleAuthError = true;
-                        break; // will close below, goes to statement after end-reconnect-server-try-loop
+                // loop through resolved
+                int ixRes = -1;
+                int szRes = resovledToTry.size();
+                while (notDoneTrying && ++ixRes < szRes) {
+                    if (isClosed()) {
+                        notDoneTrying = false;
                     }
-                    this.serverAuthErrors.put(nuri, err);
-                }
-            } // end-reconnect-server-try-loop
+                    else {
+                        connectError.set(""); // reset on each loop
 
-            if (doubleAuthError) {
-                break; // goes to statement after end-main-loop
+                        if (isDisconnectingOrClosed() || this.isClosing()) {
+                            notDoneTrying = false;
+                        }
+                        else {
+                            updateStatus(Status.RECONNECTING);
+
+                            tryToConnect(nuri, System.nanoTime());
+
+                            if (isConnected()) {
+                                this.statistics.incrementReconnects();
+                                notDoneTrying = false;
+                            }
+                            else {
+                                String err = connectError.get();
+                                if (this.isAuthenticationError(err)) {
+                                    if (err.equals(this.serverAuthErrors.get(nuri))) {
+                                        doubleAuthError = true;
+                                        notDoneTrying = false;
+                                    }
+                                    else {
+                                        this.serverAuthErrors.put(nuri, err);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         } // end-main-loop
 
@@ -1755,6 +1754,25 @@ class NatsConnection implements Connection {
     // the list is used by the connect/reconnect code
     protected List<NatsUri> getServersToTry() {
         return serverListProvider.getServerList(currentNatsServerUri);
+    }
+
+    protected List<NatsUri> resolveHost(NatsUri nuri) {
+        List<NatsUri> resovledToTry = new ArrayList<>();
+        if (!nuri.hostIsIpAddress()) {
+            List<String> ips = serverListProvider.resolveHostToIps(nuri.getHost());
+            for (String ip : ips) {
+                try {
+                    resovledToTry.add(nuri.reHost(ip));
+                }
+                catch (URISyntaxException u) {
+                    // ??? should never happen
+                }
+            }
+        }
+        if (resovledToTry.size() == 0) {
+            resovledToTry.add(nuri);
+        }
+        return resovledToTry;
     }
 
     /**
