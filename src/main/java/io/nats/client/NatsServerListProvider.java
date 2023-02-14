@@ -26,13 +26,13 @@ import java.util.concurrent.ThreadLocalRandom;
 public class NatsServerListProvider implements ServerListProvider {
 
     // NatsConnection calling ServerListProvider api
-    // 1. The connection calls `initialize` while it is being constructed
-    // 2. On `Connect` the connection calls `getServerList` and tries the whole list once
-    //    2.1 Just before trying an entry, call resolveHostToIps and actually loop through that list
-    //    2.2. on a successful connection, call `acceptDiscoveredUrls`
-    // 3. On `Reconnect`, the connection calls `getServerList` and tries the whole list options.getMaxReconnect() times
-    //    3.1 Just before trying an entry, call `resolveHostToIps` and actually loop through that list
-    //    3.2. on a successful connection, call `acceptDiscoveredUrls`
+    // 1. The connection calls `initialize` while it (the connection object) is being constructed.
+    // 2. On `Connect` the connection calls `getServerList` and tries the whole list x one time.
+    //    2.1. Just before trying an entry, call `resolveHostToIps` and actually loop through the resolved list.
+    //    2.2. On a successful connection, call `acceptDiscoveredUrls`
+    // 3. On `Reconnect`, the connection calls `getServerList` and tries the whole list x options.getMaxReconnect() times
+    //    3.1. Just before trying an entry, call `resolveHostToIps` and actually loop through the resolved list.
+    //    3.2. On a successful connection, call `acceptDiscoveredUrls`
 
     // NatsServerListProvider implementation logic
     // initialize - is only called once to make sure the provider has the Options
