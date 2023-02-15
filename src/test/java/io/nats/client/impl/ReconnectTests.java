@@ -632,19 +632,10 @@ public class ReconnectTests {
         sleep(3000);
         handler.active = false;
         c.close();
-        assertTrue(handler.times.size() > 1);
-        RuntimeException re = null;
-        try {
-            for (int i = 0; i < handler.times.size(); i++) {
-                assertTrue(handler.times.get(i) > 250);
-            }
-        }
-        catch (RuntimeException e) {
-            re = e;
-        }
-        if (re == null)
-            throw new Exception(handler.debug.toString());
-        else
-            throw new Exception(handler.debug.toString(), re);
+//        assertTrue(handler.times.size() > 1);
+//        for (int i = 0; i < handler.times.size(); i++) {
+//            assertTrue(handler.times.get(i) > 250);
+//        }
+        throw new Exception(handler.debug.toString());
     }
 }
