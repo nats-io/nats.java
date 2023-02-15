@@ -14,9 +14,9 @@
 package io.nats.service;
 
 import io.nats.client.*;
-import io.nats.client.impl.AdditionalConnectTests;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
+import io.nats.client.impl.MockNatsConnection;
 import io.nats.client.impl.NatsMessage;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonSerializable;
@@ -532,7 +532,7 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testServiceBuilderConstruction() {
         Options options = new Options.Builder().build();
-        Connection conn = new AdditionalConnectTests.MockNatsConnection(options);
+        Connection conn = new MockNatsConnection(options);
         ServiceEndpoint se = ServiceEndpoint.builder()
             .endpoint(new Endpoint(name(0)))
             .handler(m -> {})

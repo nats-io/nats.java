@@ -15,6 +15,7 @@ package io.nats.client.utils;
 
 import io.nats.client.*;
 import io.nats.client.impl.NatsMessage;
+import io.nats.client.impl.TestHandler;
 import io.nats.client.support.NatsJetStreamClientError;
 import org.junit.jupiter.api.function.Executable;
 import org.opentest4j.AssertionFailedError;

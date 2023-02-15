@@ -11,7 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.client.impl;
+
+import io.nats.client.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,21 +33,19 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     private CompletableFuture<Boolean> statusChanged;
     private CompletableFuture<Boolean> slowSubscriber;
+    private CompletableFuture<Boolean> errorWaitFuture;
     private Events eventToWaitFor;
+    private String errorToWaitFor;
 
     private Connection connection;
     private final ArrayList<Consumer> slowConsumers = new ArrayList<>();
     private final ArrayList<Message> discardedMessages = new ArrayList<>();
 
-    private boolean printExceptions;
-    private boolean verbose;
+    private final boolean printExceptions;
+    private final boolean verbose;
 
     public TestHandler() {
         this(false, false);
-    }
-
-    public TestHandler(boolean printExceptions) {
-        this(printExceptions, false);
     }
 
     public TestHandler(boolean printExceptions, boolean verbose) {
@@ -58,41 +58,64 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         try {
             statusChanged = new CompletableFuture<>();
             eventToWaitFor = waitFor;
+            if (verbose) {
+                System.out.println("TestHandler.prepForStatusChange: " + waitFor);
+            }
         } finally {
             lock.unlock();
         }
     }
 
-    public void waitForStatusChange(long timeout, TimeUnit units) {
+    private boolean waitForFuture(CompletableFuture<Boolean> future, long timeout, TimeUnit units) {
         try {
-            this.statusChanged.get(timeout, units);
+            return future.get(timeout, units);
         } catch (TimeoutException | ExecutionException | InterruptedException e) {
             if (printExceptions) {
                 e.printStackTrace();
             }
+            return false;
         }
+    }
+
+    public void waitForStatusChange(long timeout, TimeUnit units) {
+        waitForFuture(statusChanged, timeout, units);
     }
 
     public void exceptionOccurred(Connection conn, Exception exp) {
-        this.connection = conn;
-        this.count.incrementAndGet();
-        this.exceptionCount.incrementAndGet();
+        connection = conn;
+        count.incrementAndGet();
+        exceptionCount.incrementAndGet();
 
         if (exp != null) {
-            if (printExceptions) {
-                exp.printStackTrace();
-            }
             if (verbose) {
-                System.out.println("Current time - "+System.currentTimeMillis());
-                Statistics stats = conn.getStatistics();
-                System.out.println("Sent "+stats.getOutMsgs()+"/"+stats.getOutBytes()+" - Received "+stats.getInMsgs()+"/"+stats.getInBytes());
+                System.out.println("TestHandler.exceptionOccurred: " + exp);
+            }
+            else if (printExceptions) {
+                exp.printStackTrace();
             }
         }
     }
 
+    public void prepForError(String waitFor) {
+        lock.lock();
+        try {
+            errorWaitFuture = new CompletableFuture<>();
+            errorToWaitFor = waitFor;
+            if (verbose) {
+                System.out.println("TestHandler.prepForError: " + waitFor);
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public boolean waitForError(long timeout, TimeUnit units) {
+        return waitForFuture(errorWaitFuture, timeout, units);
+    }
+
     public void errorOccurred(Connection conn, String type) {
-        this.connection = conn;
-        this.count.incrementAndGet();
+        connection = conn;
+        count.incrementAndGet();
 
         lock.lock();
         try {
@@ -102,26 +125,35 @@ public class TestHandler implements ErrorListener, ConnectionListener {
                 errorCounts.put(type, counter);
             }
             counter.incrementAndGet();
+            if (errorWaitFuture != null && type.equals(errorToWaitFor)) {
+                errorWaitFuture.complete(Boolean.TRUE);
+            }
+            if (verbose) {
+                System.out.println("TestHandler.errorOccurred: " + type);
+            }
         } finally {
             lock.unlock();
         }
     }
 
     public void messageDiscarded(Connection conn, Message msg) {
-        this.connection = conn;
-        this.count.incrementAndGet();
+        connection = conn;
+        count.incrementAndGet();
 
         lock.lock();
         try {
-            this.discardedMessages.add(msg);
+            discardedMessages.add(msg);
+            if (verbose) {
+                System.out.println("TestHandler.messageDiscarded: " + msg);
+            }
         } finally {
             lock.unlock();
         }
     }
 
     public void connectionEvent(Connection conn, Events type) {
-        this.connection = conn;
-        this.count.incrementAndGet();
+        connection = conn;
+        count.incrementAndGet();
 
         lock.lock();
         try {
@@ -131,13 +163,11 @@ public class TestHandler implements ErrorListener, ConnectionListener {
                 eventCounts.put(type, counter);
             }
             counter.incrementAndGet();
-
-            if (verbose) {
-                System.out.println("Status change " + type);
-            }
-
             if (statusChanged != null && type == eventToWaitFor) {
                 statusChanged.complete(Boolean.TRUE);
+            }
+            if (verbose) {
+                System.out.println("TestHandler.connectionEvent: " + type);
             }
         } finally {
             lock.unlock();
@@ -145,19 +175,33 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public Future<Boolean> waitForSlow() {
-        this.slowSubscriber = new CompletableFuture<>();
-        return this.slowSubscriber;
+        slowSubscriber = new CompletableFuture<>();
+        return slowSubscriber;
     }
 
     public void slowConsumerDetected(Connection conn, Consumer consumer) {
-        this.count.incrementAndGet();
+        count.incrementAndGet();
 
         lock.lock();
         try {
-            this.slowConsumers.add(consumer);
-
-            if (this.slowSubscriber != null) {
-                this.slowSubscriber.complete(true);
+            slowConsumers.add(consumer);
+            if (slowSubscriber != null) {
+                slowSubscriber.complete(true);
+            }
+            if (verbose) {
+                String msg;
+                if (consumer instanceof NatsSubscription) {
+                    NatsSubscription nats = (NatsSubscription)consumer;
+                    msg = "Subscription " + nats.getSID() + " for " + nats.getSubject();
+                }
+                else if (consumer instanceof NatsDispatcher) {
+                    NatsDispatcher nats = (NatsDispatcher)consumer;
+                    msg = "Dispatcher " + nats.getId();
+                }
+                else {
+                    msg = consumer.toString();
+                }
+                System.out.println("TestHandler.slowConsumerDetected: " + msg);
             }
         } finally {
             lock.unlock();
@@ -165,19 +209,19 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public List<Consumer> getSlowConsumers() {
-        return this.slowConsumers;
+        return slowConsumers;
     }
 
     public List<Message> getDiscardedMessages() {
-        return this.discardedMessages;
+        return discardedMessages;
     }
 
     public int getCount() {
-        return this.count.get();
+        return count.get();
     }
 
     public int getExceptionCount() {
-        return this.exceptionCount.get();
+        return exceptionCount.get();
     }
 
     public int getEventCount(Events type) {
@@ -222,15 +266,6 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public Connection getConnection() {
-        return this.connection;
-    }
-
-    public void setPrintExceptions(boolean printExceptions) {
-        this.printExceptions = printExceptions;
-    }
-
-    public TestHandler setVerbose(boolean verbose) {
-        this.verbose = verbose;
-        return this;
+        return connection;
     }
 }

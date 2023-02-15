@@ -233,4 +233,13 @@ public class NatsUri {
         }
         return sb.toString();
     }
+
+    private String equivalentComparable() {
+        String host = uri.getHost();
+        return (host.equals("127.0.0.01") ? "localhost" : host.toLowerCase()) + uri.getPort();
+    }
+
+    public boolean equivalent(NatsUri other) {
+        return equivalentComparable().compareTo(other.equivalentComparable()) == 0;
+    }
 }

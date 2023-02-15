@@ -14,18 +14,18 @@
 package io.nats.client.utils;
 
 import io.nats.client.Options;
-import io.nats.client.ServerListProvider;
+import io.nats.client.ServerPool;
 import io.nats.client.support.NatsUri;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
  * This class is simply to have a concrete implementation to test setting properties and calling the builder in Options
  */
-public class CoverageServerListProvider implements ServerListProvider {
+public class CoverageServerPool implements ServerPool {
     @Override
-    public void initialize(Options opts) {}
+    public void initialize(Options opts) {
+    }
 
     @Override
     public boolean acceptDiscoveredUrls(List<String> discoveredServers) {
@@ -33,12 +33,25 @@ public class CoverageServerListProvider implements ServerListProvider {
     }
 
     @Override
-    public List<NatsUri> getServerList(NatsUri lastConnectedServer) {
-        return new ArrayList<>();
+    public NatsUri nextServer() {
+        return null;
     }
 
     @Override
     public List<String> resolveHostToIps(String host) {
-        return new ArrayList<>();
+        return null;
+    }
+
+    @Override
+    public void connectSucceeded(NatsUri nuri) {
+    }
+
+    @Override
+    public void connectFailed(NatsUri nuri) {
+    }
+
+    @Override
+    public List<String> getServerList() {
+        return null;
     }
 }

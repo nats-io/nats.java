@@ -16,6 +16,8 @@ package io.nats.client;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.DataPort;
 import io.nats.client.impl.ErrorListenerLoggerImpl;
+import io.nats.client.impl.NatsServerPool;
+import io.nats.client.impl.TestHandler;
 import io.nats.client.support.HttpRequest;
 import io.nats.client.support.NatsUri;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
@@ -269,17 +271,17 @@ public class OptionsTests {
     public void testBuilderCoverageOptions() {
         Options o = new Options.Builder().build();
         assertTrue(o.clientSideLimitChecks());
-        assertNull(o.getServerListProvider()); // there is a default provider
+        assertNull(o.getServerPool()); // there is a default provider
 
         o = new Options.Builder().clientSideLimitChecks(true).build();
         assertTrue(o.clientSideLimitChecks());
 
         o = new Options.Builder()
             .clientSideLimitChecks(false)
-            .serverListProvider(new NatsServerListProvider())
+            .serverPool(new NatsServerPool())
             .build();
         assertFalse(o.clientSideLimitChecks());
-        assertNotNull(o.getServerListProvider());
+        assertNotNull(o.getServerPool());
     }
 
     @Test
@@ -295,7 +297,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_RECONNECT_JITTER_TLS, "2000");
         props.setProperty(Options.PROP_CLIENT_SIDE_LIMIT_CHECKS, "true");
         props.setProperty(Options.PROP_IGNORE_DISCOVERED_SERVERS, "true");
-        props.setProperty(Options.PROP_SERVERS_LIST_PROVIDER_CLASS, "io.nats.client.utils.CoverageServerListProvider");
+        props.setProperty(Options.PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, "io.nats.client.utils.CoverageServerPool");
         props.setProperty(Options.PROP_RESOLVE_HOSTNAMES, "true");
 
         Options o = new Options.Builder(props).build();
@@ -304,7 +306,7 @@ public class OptionsTests {
         assertTrue(o.isNoNoResponders());
         assertTrue(o.clientSideLimitChecks());
         assertTrue(o.isIgnoreDiscoveredServers());
-        assertNotNull(o.getServerListProvider());
+        assertNotNull(o.getServerPool());
         assertTrue(o.resolveHostnames());
     }
 

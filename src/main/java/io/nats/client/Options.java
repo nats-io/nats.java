@@ -498,12 +498,12 @@ public class Options {
     public static final String PROP_IGNORE_DISCOVERED_SERVERS = "ignore_discovered_servers";
 
     /**
-     * Property used to set class name for ServerListProvider implementation
-     * {@link Builder#serverListProvider(ServerListProvider) serverListProvider}.
+     * Property used to set class name for ServerPool implementation
+     * {@link Builder#serverPool(ServerPool) serverPool}.
      *
-     * IMPORTANT! ServerListProvider IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
+     * IMPORTANT! ServerPool IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
      */
-    public static final String PROP_SERVERS_LIST_PROVIDER_CLASS = "servers_list_provider_class";
+    public static final String PROP_SERVERS_POOL_IMPLEMENTATION_CLASS = "servers_pool_implementation_class";
 
     // ----------------------------------------------------------------------------------------------------
     // CLASS VARIABLES
@@ -552,7 +552,7 @@ public class Options {
     private final boolean traceConnection;
 
     private final ExecutorService executor;
-    private final ServerListProvider serverListProvider;
+    private final ServerPool serverPool;
 
     private final List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
     private final Proxy proxy;
@@ -635,7 +635,7 @@ public class Options {
         private int maxMessagesInOutgoingQueue = DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
         private boolean ignoreDiscoveredServers = false;
-        private ServerListProvider serverListProvider = null;
+        private ServerPool serverPool = null;
 
         private AuthHandler authHandler;
         private ReconnectDelayHandler reconnectDelayHandler;
@@ -855,9 +855,9 @@ public class Options {
                 this.ignoreDiscoveredServers = Boolean.parseBoolean(props.getProperty(PROP_IGNORE_DISCOVERED_SERVERS));
             }
 
-            if (props.containsKey(PROP_SERVERS_LIST_PROVIDER_CLASS)) {
-                Object instance = createInstanceOf(props.getProperty(PROP_SERVERS_LIST_PROVIDER_CLASS));
-                this.serverListProvider = (ServerListProvider) instance;
+            if (props.containsKey(PROP_SERVERS_POOL_IMPLEMENTATION_CLASS)) {
+                Object instance = createInstanceOf(props.getProperty(PROP_SERVERS_POOL_IMPLEMENTATION_CLASS));
+                this.serverPool = (ServerPool) instance;
             }
         }
 
@@ -1478,13 +1478,13 @@ public class Options {
         }
 
         /**
-         * Set the ServerListProvider implementation for connections to use instead of the default bahvior
-         * IMPORTANT! ServerListProvider IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
-         * @param serverListProvider the implementation
+         * Set the ServerPool implementation for connections to use instead of the default bahvior
+         * IMPORTANT! ServerPool IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
+         * @param serverPool the implementation
          * @return the Builder for chaining
          */
-        public Builder serverListProvider(ServerListProvider serverListProvider) {
-            this.serverListProvider = serverListProvider;
+        public Builder serverPool(ServerPool serverPool) {
+            this.serverPool = serverPool;
             return this;
         }
 
@@ -1600,7 +1600,7 @@ public class Options {
 
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
 
-        this.serverListProvider = b.serverListProvider;
+        this.serverPool = b.serverPool;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -1962,12 +1962,12 @@ public class Options {
     }
 
     /**
-     * Get a provided ServerListProvider. If null, a default implementation is used.
-     * IMPORTANT! ServerListProvider IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
-     * @return the ServerListProvider implementation
+     * Get a provided ServerPool. If null, a default implementation is used.
+     * IMPORTANT! ServerPool IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
+     * @return the ServerPool implementation
      */
-    public ServerListProvider getServerListProvider() {
-        return serverListProvider;
+    public ServerPool getServerPool() {
+        return serverPool;
     }
 
     public URI createURIForServer(String serverURI) throws URISyntaxException {

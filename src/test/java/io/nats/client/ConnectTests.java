@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.impl.TestHandler;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

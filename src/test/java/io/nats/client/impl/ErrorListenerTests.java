@@ -137,13 +137,13 @@ public class ErrorListenerTests {
                     .maxReconnects(0)
                     .errorListener(handler)
                     .build();
+            handler.prepForError("Authorization Violation");
             try {
                 Nats.connect(options);
                 fail();
             }
             catch (Exception ignore) {}
-            assertTrue(handler.getCount() > 0);
-            assertEquals(1, handler.getErrorCount("Authorization Violation"));
+            assertTrue(handler.waitForError(1, TimeUnit.SECONDS));
         }
     }
 
