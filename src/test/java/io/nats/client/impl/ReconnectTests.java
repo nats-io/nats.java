@@ -609,6 +609,7 @@ public class ReconnectTests {
                 times.add(now - lastEvent);
                 lastEvent = now;
             }
+            super.connectionEvent(conn, type);
         }
     } 
     
