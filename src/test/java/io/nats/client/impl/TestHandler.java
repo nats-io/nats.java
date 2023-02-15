@@ -59,7 +59,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
             statusChanged = new CompletableFuture<>();
             eventToWaitFor = waitFor;
             if (verbose) {
-                System.out.println("TestHandler.prepForStatusChange: " + waitFor);
+                report("prepForStatusChange",  waitFor);
             }
         } finally {
             lock.unlock();
@@ -77,8 +77,8 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         }
     }
 
-    public void waitForStatusChange(long timeout, TimeUnit units) {
-        waitForFuture(statusChanged, timeout, units);
+    public boolean waitForStatusChange(long timeout, TimeUnit units) {
+        return waitForFuture(statusChanged, timeout, units);
     }
 
     public void exceptionOccurred(Connection conn, Exception exp) {
@@ -88,7 +88,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
         if (exp != null) {
             if (verbose) {
-                System.out.println("TestHandler.exceptionOccurred: " + exp);
+                report("exceptionOccurred",  exp);
             }
             else if (printExceptions) {
                 exp.printStackTrace();
@@ -102,7 +102,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
             errorWaitFuture = new CompletableFuture<>();
             errorToWaitFor = waitFor;
             if (verbose) {
-                System.out.println("TestHandler.prepForError: " + waitFor);
+                report("prepForError",  waitFor);
             }
         } finally {
             lock.unlock();
@@ -129,7 +129,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
                 errorWaitFuture.complete(Boolean.TRUE);
             }
             if (verbose) {
-                System.out.println("TestHandler.errorOccurred: " + type);
+                report("errorOccurred",  type);
             }
         } finally {
             lock.unlock();
@@ -144,7 +144,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         try {
             discardedMessages.add(msg);
             if (verbose) {
-                System.out.println("TestHandler.messageDiscarded: " + msg);
+                report("messageDiscarded",  msg);
             }
         } finally {
             lock.unlock();
@@ -167,7 +167,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
                 statusChanged.complete(Boolean.TRUE);
             }
             if (verbose) {
-                System.out.println("TestHandler.connectionEvent: " + type);
+                report("connectionEvent",  type);
             }
         } finally {
             lock.unlock();
@@ -201,11 +201,15 @@ public class TestHandler implements ErrorListener, ConnectionListener {
                 else {
                     msg = consumer.toString();
                 }
-                System.out.println("TestHandler.slowConsumerDetected: " + msg);
+                report("slowConsumerDetected",  msg);
             }
         } finally {
             lock.unlock();
         }
+    }
+
+    private void report(String func, Object message) {
+        System.out.println("" + System.currentTimeMillis() + " [TestHelper." + func + "] " + message);
     }
 
     public List<Consumer> getSlowConsumers() {

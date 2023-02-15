@@ -20,6 +20,8 @@ import org.junit.jupiter.api.Test;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -590,29 +592,25 @@ public class ReconnectTests {
         }
     }
 
-    private static class TestReconnecWaitHandler implements ConnectionListener {
-        int disconnectCount = 0;
-
-        public synchronized int getDisconnectCount() {
-            return disconnectCount;
-        }
-
-        private synchronized void incrementDisconnectedCount() {
-            disconnectCount++;
-        }
+    private static class TestReconnectHandler implements ConnectionListener {
+        public long lastEvent = 0;
+        public List<Long> times = new ArrayList<>();
+        public boolean active = true;
 
         @Override
         public void connectionEvent(Connection conn, Events type) {
-            if (type == Events.DISCONNECTED) {
+            if (active && type == Events.DISCONNECTED) {
                 // disconnect is called after every failed reconnect attempt.
-                incrementDisconnectedCount();
+                long now = System.currentTimeMillis();
+                times.add(now - lastEvent);
+                lastEvent = now;
             }
         }
     } 
     
     @Test
     public void testReconnectWait() throws Exception {
-        TestReconnecWaitHandler trwh = new TestReconnecWaitHandler();
+        TestReconnectHandler handler = new TestReconnectHandler();
 
         int port = NatsTestServer.nextPort();
         Options options = new Options.Builder().
@@ -620,16 +618,17 @@ public class ReconnectTests {
                                 maxReconnects(-1).
                                 connectionTimeout(Duration.ofSeconds(1)).
                                 reconnectWait(Duration.ofMillis(250)).
-                                connectionListener(trwh).
+                                connectionListener(handler).
                                 build();
 
         NatsTestServer ts = new NatsTestServer(port, false);
         Connection c = Nats.connect(options);
         ts.close();
-
-        sleep(250);
-        assertTrue(trwh.getDisconnectCount() < 3, "disconnectCount");
-
-        c.close();
+        sleep(5000);
+        handler.active = false;
+        sleep(100);
+        for (int i = 1; i < handler.times.size(); i++) {
+            assertTrue(handler.times.get(i) > 250);
+        }
     }
 }
