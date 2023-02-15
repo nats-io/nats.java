@@ -592,10 +592,14 @@ public class ReconnectTests {
         }
     }
 
-    private static class TestReconnectHandler implements ConnectionListener {
+    private static class TestReconnectHandler extends TestHandler {
         public long lastEvent = 0;
         public List<Long> times = new ArrayList<>();
         public boolean active = true;
+
+        public TestReconnectHandler() {
+            super(true, true);
+        }
 
         @Override
         public void connectionEvent(Connection conn, Events type) {
