@@ -624,9 +624,10 @@ public class ReconnectTests {
         NatsTestServer ts = new NatsTestServer(port, false);
         Connection c = Nats.connect(options);
         ts.close();
-        sleep(5000);
+        sleep(3000);
         handler.active = false;
-        sleep(100);
+        sleep(1000);
+        assertTrue(handler.times.size() > 1);
         for (int i = 1; i < handler.times.size(); i++) {
             assertTrue(handler.times.get(i) > 250);
         }
