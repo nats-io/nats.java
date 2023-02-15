@@ -592,14 +592,10 @@ public class ReconnectTests {
         }
     }
 
-    private static class TestReconnectHandler extends TestHandler {
+    private static class TestReconnectHandler implements ConnectionListener {
         public long lastEvent = 0;
         public List<Long> times = new ArrayList<>();
         public boolean active = true;
-
-        public TestReconnectHandler() {
-            super(true, true);
-        }
 
         @Override
         public void connectionEvent(Connection conn, Events type) {
@@ -608,8 +604,11 @@ public class ReconnectTests {
                 long now = System.currentTimeMillis();
                 times.add(now - lastEvent);
                 lastEvent = now;
+                System.out.println("" + System.currentTimeMillis() + " [TestReconnectHandler] " + type + " " + times.get(times.size()-1));
             }
-            super.connectionEvent(conn, type);
+            else {
+                System.out.println("" + System.currentTimeMillis() + " [TestReconnectHandler] " + type);
+            }
         }
     } 
     
@@ -631,9 +630,9 @@ public class ReconnectTests {
         ts.close();
         sleep(3000);
         handler.active = false;
-        sleep(1000);
+        c.close();
         assertTrue(handler.times.size() > 1);
-        for (int i = 1; i < handler.times.size(); i++) {
+        for (int i = 0; i < handler.times.size(); i++) {
             assertTrue(handler.times.get(i) > 250);
         }
     }
