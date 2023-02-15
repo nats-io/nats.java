@@ -596,6 +596,7 @@ public class ReconnectTests {
         public long lastEvent = 0;
         public List<Long> times = new ArrayList<>();
         public boolean active = true;
+        public StringBuilder debug = new StringBuilder("TRH REPORT\n");
 
         @Override
         public void connectionEvent(Connection conn, Events type) {
@@ -604,10 +605,10 @@ public class ReconnectTests {
                 long now = System.currentTimeMillis();
                 times.add(now - lastEvent);
                 lastEvent = now;
-                System.out.println("" + System.currentTimeMillis() + " [TestReconnectHandler] " + type + " " + times.get(times.size()-1));
+                debug.append("TRH D ").append(System.currentTimeMillis()).append(" ").append(type).append(" ").append(times.get(times.size() - 1)).append("\n");
             }
             else {
-                System.out.println("" + System.currentTimeMillis() + " [TestReconnectHandler] " + type);
+                debug.append("TRH E ").append(System.currentTimeMillis()).append(" ").append(type).append("\n");
             }
         }
     } 
@@ -632,8 +633,18 @@ public class ReconnectTests {
         handler.active = false;
         c.close();
         assertTrue(handler.times.size() > 1);
-        for (int i = 0; i < handler.times.size(); i++) {
-            assertTrue(handler.times.get(i) > 250);
+        RuntimeException re = null;
+        try {
+            for (int i = 0; i < handler.times.size(); i++) {
+                assertTrue(handler.times.get(i) > 250);
+            }
         }
+        catch (RuntimeException e) {
+            re = e;
+        }
+        if (re == null)
+            throw new Exception(handler.debug.toString());
+        else
+            throw new Exception(handler.debug.toString(), re);
     }
 }
