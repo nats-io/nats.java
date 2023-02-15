@@ -611,31 +611,47 @@ public class ReconnectTests {
                 debug.append("TRH E ").append(System.currentTimeMillis()).append(" ").append(type).append("\n");
             }
         }
-    } 
-    
+    }
+    private static class TestReconnecWaitHandler implements ConnectionListener {
+        int disconnectCount = 0;
+
+        public synchronized int getDisconnectCount() {
+            return disconnectCount;
+        }
+
+        private synchronized void incrementDisconnectedCount() {
+            disconnectCount++;
+        }
+
+        @Override
+        public void connectionEvent(Connection conn, Events type) {
+            if (type == Events.DISCONNECTED) {
+                // disconnect is called after every failed reconnect attempt.
+                incrementDisconnectedCount();
+            }
+        }
+    }
+
     @Test
     public void testReconnectWait() throws Exception {
-        TestReconnectHandler handler = new TestReconnectHandler();
+        TestReconnecWaitHandler trwh = new TestReconnecWaitHandler();
 
         int port = NatsTestServer.nextPort();
         Options options = new Options.Builder().
-                                server("nats://localhost:"+port).
-                                maxReconnects(-1).
-                                connectionTimeout(Duration.ofSeconds(1)).
-                                reconnectWait(Duration.ofMillis(250)).
-                                connectionListener(handler).
-                                build();
+            server("nats://localhost:"+port).
+            maxReconnects(-1).
+            connectionTimeout(Duration.ofSeconds(1)).
+            reconnectWait(Duration.ofMillis(250)).
+            connectionListener(trwh).
+            build();
 
         NatsTestServer ts = new NatsTestServer(port, false);
         Connection c = Nats.connect(options);
         ts.close();
-        sleep(3000);
-        handler.active = false;
+
+        sleep(250);
+        assertTrue(trwh.getDisconnectCount() < 5, "disconnectCount");
+
         c.close();
-//        assertTrue(handler.times.size() > 1);
-//        for (int i = 0; i < handler.times.size(); i++) {
-//            assertTrue(handler.times.get(i) > 250);
-//        }
-        throw new Exception(handler.debug.toString());
     }
 }
