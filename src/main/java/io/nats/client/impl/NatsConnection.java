@@ -167,44 +167,51 @@ class NatsConnection implements Connection {
 
         timeTrace(trace, "starting connect loop");
 
-
         Set<NatsUri> failList = new HashSet<>();
-        boolean notDone = true;
+        boolean keepGoing = true;
+        NatsUri first = null;
         NatsUri cur;
-        while (notDone && (cur = serverPool.nextServer()) != null) {
-            // let server list provider resolve hostnames
-            // then loop through resolved
+        while (keepGoing && (cur = serverPool.peekNextServer()) != null) {
+            if (first == null) {
+                first = cur;
+            }
+            else if (cur.equals(first)) {
+                break;  // connect only goes through loop once
+            }
+            serverPool.nextServer(); // b/c we only peeked.
+
+            // let server pool resolve hostnames, then loop through resolved
             List<NatsUri> resolved = resolveHost(cur);
-            while (notDone && resolved.size() > 0) {
+            while (resolved.size() > 0) {
                 if (isClosed()) {
-                    notDone = false;
+                    keepGoing = false;
+                    break;
                 }
-                else {
-                    connectError.set(""); // new on each attempt
+                connectError.set(""); // new on each attempt
 
-                    timeTrace(trace, "setting status to connecting");
-                    updateStatus(Status.CONNECTING);
+                timeTrace(trace, "setting status to connecting");
+                updateStatus(Status.CONNECTING);
 
-                    NatsUri toTry = resolved.remove(0);
-                    timeTrace(trace, "trying to connect to %s", cur);
-                    tryToConnect(toTry, System.nanoTime());
+                timeTrace(trace, "trying to connect to %s", cur);
+                NatsUri toTry = resolved.remove(0);
+                tryToConnect(toTry, System.nanoTime());
 
-                    if (isConnected()) {
-                        serverPool.connectSucceeded(cur);
-                        notDone = false;
-                    }
-                    else {
-                        failList.add(cur);
-                        serverPool.connectFailed(cur);
-                        timeTrace(trace, "setting status to disconnected");
-                        updateStatus(Status.DISCONNECTED);
+                if (isConnected()) {
+                    serverPool.connectSucceeded(cur);
+                    keepGoing = false;
+                    break;
+                }
 
-                        String err = connectError.get();
+                timeTrace(trace, "setting status to disconnected");
+                updateStatus(Status.DISCONNECTED);
 
-                        if (this.isAuthenticationError(err)) {
-                            this.serverAuthErrors.put(toTry, err);
-                        }
-                    }
+                failList.add(cur);
+                serverPool.connectFailed(cur);
+
+                String err = connectError.get();
+
+                if (this.isAuthenticationError(err)) {
+                    this.serverAuthErrors.put(toTry, err);
                 }
             }
         }
@@ -241,20 +248,25 @@ class NatsConnection implements Connection {
             return;
         }
 
+        if (options.getMaxReconnect() == 0) {
+            this.close();
+            return;
+        }
+
         writer.setReconnectMode(true);
 
         if (!isConnected() && !isClosed() && !this.isClosing()) {
             boolean keepGoing = true;
-            int completedRounds = -1;
+            int timesAllServersSeen = -1;
             NatsUri first = null;
             NatsUri cur;
             while (keepGoing && (cur = serverPool.nextServer()) != null) {
-                if (++completedRounds == 0) {
+                if (++timesAllServersSeen == 0) {
                     first = cur;
                 }
                 else if (first.equals(cur)) {
                     // went around the pool an entire time
-                    invokeReconnectDelayHandler(completedRounds);
+                    invokeReconnectDelayHandler(timesAllServersSeen);
                 }
 
                 // let server list provider resolve hostnames
@@ -400,7 +412,7 @@ class NatsConnection implements Connection {
 
             timeoutNanos = timeCheck(trace, end, "connecting data port");
             DataPort newDataPort = this.options.buildDataPort();
-            newDataPort.connect(this, nuri, timeoutNanos);
+            newDataPort.connect(nuri.toString(), this, timeoutNanos);
 
             // Notify any threads waiting on the sockets
             this.dataPort = newDataPort;

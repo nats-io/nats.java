@@ -37,16 +37,21 @@ public class NatsServerPool implements ServerPool {
             this.nuri = nuri;
             this.isGossiped = isGossiped;
         }
+
+        @Override
+        public String toString() {
+            return nuri + " " + isGossiped + "/" + failedAttempts;
+        }
     }
 
-    private final Object poolLock;
+    private final Object listLock;
     private List<Srv> srvList;
     private Options options;
     private int maxConnectAttempts;
     private NatsUri lastConnected;
 
     public NatsServerPool() {
-        poolLock = new Object();
+        listLock = new Object();
     }
 
     /**
@@ -61,11 +66,23 @@ public class NatsServerPool implements ServerPool {
 
         // 3. Add all the bootstrap to the server list and prepare list for next
         //    FYI bootstrap will always have at least the default url
-        synchronized (poolLock) {
+        synchronized (listLock) {
             srvList = new ArrayList<>();
             for (NatsUri nuri : options.getNatsServerUris()) {
-                addNoDupes(srvList, nuri, false);
+                // 1. If item is not found in the list being built, add to the list
+                boolean notFound = true;
+                for (Srv srv : srvList) {
+                    if (nuri.equivalent(srv.nuri)) {
+                        notFound = false;
+                        break;
+                    }
+                }
+                if (notFound) {
+                    srvList.add(new Srv(nuri, false));
+                }
             }
+
+            // 6. prepare list for next
             prepareListForNext();
         }
     }
@@ -75,16 +92,17 @@ public class NatsServerPool implements ServerPool {
      */
     @Override
     public boolean acceptDiscoveredUrls(List<String> discoveredServers) {
-        // 1. If ignored discovered servers, don't do anything, return false for no new servers found
+        // 1. If ignored discovered servers, don't do anything b/c never want
+        //    anything but the explicit, which is already loaded.
+        // 2. return false == no new servers discovered
         if (options.isIgnoreDiscoveredServers()) {
-            // never want anything but the explicit, which is already loaded.
-            return false; // there are no new servers
+            return false;
         }
 
-        synchronized (poolLock) {
+        synchronized (listLock) {
             // 2. Build a list for discovered
             //    - since we'll need the NatsUris later
-            //    - so we have a list to check the old list against in order to prune old gossiped servers
+            //    - and to have a list to use to prune removed gossiped servers
             List<NatsUri> discovered = new ArrayList<>();
             for (String d : discoveredServers) {
                 try {
@@ -94,18 +112,31 @@ public class NatsServerPool implements ServerPool {
                 }
             }
 
-            // 3. start a new server list keeping all non-gossiped and any found in the new discovered list
+            // 3. Start a new server list, loading in current order from the current list, and keeping
+            //    - the last connected
+            //    - all non-gossiped
+            //    - any found in the new discovered list
+            //      - for any new discovered, we also remove them from
+            //        that list so step there are no dupes for step #4
+            //      - This also maintains the Srv state of an already known discovered
             List<Srv> newSrvList = new ArrayList<>();
             for (Srv srv : srvList) {
-                if (!srv.isGossiped || discovered.contains(srv.nuri)) {
+                int ix = findEquivalent(discovered, srv.nuri);
+                if (ix != -1 || srv.nuri.equals(lastConnected) || !srv.isGossiped) {
                     newSrvList.add(srv);
+                    if (ix != -1) {
+                        discovered.remove(ix);
+                    }
                 }
             }
 
-            // 4. Add all non-dupes from the new discovered list
-            boolean anyAdded = false;
-            for (NatsUri d : discovered) {
-                anyAdded |= addNoDupes(newSrvList, d, true);
+            // 4. Add all left over from the new discovered list
+            boolean discoveryContainedUnknowns = false;
+            if (discovered.size() > 0) {
+                discoveryContainedUnknowns = true;
+                for (NatsUri d : discovered) {
+                    newSrvList.add(new Srv(d, true));
+                }
             }
 
             // 5. replace the list with the new one
@@ -114,26 +145,24 @@ public class NatsServerPool implements ServerPool {
             // 6. prepare list for next
             prepareListForNext();
 
-            // 7. even if there was not any added, the isGossiped flag may have been updated
-            return anyAdded;
+            // 7.
+            return discoveryContainedUnknowns;
         }
     }
 
-    private static boolean addNoDupes(List<Srv> list, NatsUri nuri, boolean gossiped) {
-        // 1. Look up the item in the list.
-        // 2. If it is found, return false, this was a dupe
-        // 3. else add to the list and return true, this was not a dupe
-        for (Srv srv : list) {
-            if (nuri.equivalent(srv.nuri)) {
-                return false;
+    private int findEquivalent(List<NatsUri> list, NatsUri toFind) {
+        for (int i = 0; i < list.size(); i++) {
+            NatsUri nuri = list.get(i);
+            if (nuri.equivalent(toFind)) {
+                return i;
             }
         }
-        list.add(new Srv(nuri, gossiped));
-        return true;
+        return -1;
     }
 
     private void prepareListForNext() {
         // This is about randomization and putting the last connected server at the end.
+        // 0. srvList is locked by caller
         // 1. If there is only one server there is nothing to do
         // 2. else
         //    2.1. If we are allowed to randomize, do so
@@ -158,27 +187,21 @@ public class NatsServerPool implements ServerPool {
 
     @Override
     public NatsUri peekNextServer() {
-        synchronized (poolLock) {
+        synchronized (listLock) {
             return srvList.size() > 0 ? srvList.get(0).nuri : null;
         }
     }
 
     @Override
     public NatsUri nextServer() {
-        // 1. Loop until you find an acceptable server or run out
-        // 2. Remove the first server from the list, it will be disqualified or moved to ebd
-        // 3. If qualified (failed attempts < maxReconnectAttempts)
-        //    - maxConnectAttempts accounts for the first connect attempt and also reconnect attempts
-        //    so if max reconnect = 5, connect can fail, then you can try 5 more times
-        //    so if max reconnect = 0, connect can fail, then you can try 0 more times
-        synchronized (poolLock) {
-            while (srvList.size() > 0) {
+        // 0. The list is already managed for qualified by connectFailed
+        // 1. Get the first item in the list, update it's time, add back to the end of list
+        synchronized (listLock) {
+            if (srvList.size() > 0) {
                 Srv srv = srvList.remove(0);
-                if (srv.failedAttempts < maxConnectAttempts) {
-                    srv.lastAttempt = System.currentTimeMillis();
-                    srvList.add(srv);
-                    return srv.nuri;
-                }
+                srv.lastAttempt = System.currentTimeMillis();
+                srvList.add(srv);
+                return srv.nuri;
             }
             return null;
         }
@@ -222,7 +245,7 @@ public class NatsServerPool implements ServerPool {
         // 2. If we find the server in the list...
         //    2.1. remember it and
         //    2.2. reset failed attempts
-        synchronized (poolLock) {
+        synchronized (listLock) {
             for (int x = srvList.size() - 1; x >= 0 ; x--) {
                 Srv srv = srvList.get(x);
                 if (srv.nuri.equals(nuri)) {
@@ -240,11 +263,13 @@ public class NatsServerPool implements ServerPool {
         // 2. If we find the server in the list...
         //    2.1. increment failed attempts
         //    2.2. if failed attempts reaches max, remove it from the list
-        synchronized (poolLock) {
+        synchronized (listLock) {
             for (int x = srvList.size() - 1; x >= 0 ; x--) {
                 Srv srv = srvList.get(x);
                 if (srv.nuri.equals(nuri)) {
-                    ++srv.failedAttempts;
+                    if (++srv.failedAttempts >= maxConnectAttempts) {
+                        srvList.remove(x);
+                    }
                     return;
                 }
             }
@@ -253,7 +278,7 @@ public class NatsServerPool implements ServerPool {
 
     @Override
     public List<String> getServerList() {
-        synchronized (poolLock) {
+        synchronized (listLock) {
             List<String> list = new ArrayList<>();
             for (Srv srv : srvList) {
                 list.add(srv.nuri.toString());

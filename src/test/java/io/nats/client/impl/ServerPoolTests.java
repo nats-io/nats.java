@@ -25,18 +25,19 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class ServerPoolTests extends TestBase {
 
-    public static final String NATS_ONE = "nats://one";
-    public static final String NATS_TWO = "nats://two";
-    public static final String NATS_THREE = "nats://three";
-    public static final String NATS_FOUR = "nats://four";
+    public static final String BOOT_ONE = "nats://b1";
+    public static final String BOOT_TWO = "nats://b2";
+    public static final String DISC_ONE = "nats://d1";
+    public static final String DISC_TWO = "nats://d2";
+    public static final String DISC_THREE = "nats://d3";
     public static final String HOST_THAT_CAN_BE_RESOLVED = "connect.ngs.global";
-    public static final String[] bootstrap = new String[]{NATS_ONE, NATS_TWO};
-    public static final String[] combined = new String[]{NATS_ONE, NATS_TWO, NATS_THREE, NATS_FOUR};
-    public static final List<String> discoveredServers = Arrays.asList(NATS_TWO, NATS_THREE, NATS_FOUR);
+    public static final String[] bootstrap = new String[]{BOOT_ONE, BOOT_TWO};
+    public static final String[] combined = new String[]{BOOT_ONE, BOOT_TWO, DISC_ONE, DISC_TWO, DISC_THREE};
+    public static final List<String> discoveredServers = Arrays.asList(BOOT_TWO, DISC_ONE, DISC_TWO, DISC_THREE);
 
     @Test
     public void testPoolOptions() throws URISyntaxException {
-        NatsUri lastConnectedServer = new NatsUri(NATS_ONE);
+        NatsUri lastConnectedServer = new NatsUri(BOOT_ONE);
 
         // testing that the expected show up in the pool
         Options o = new Options.Builder().servers(bootstrap).build();
@@ -59,48 +60,55 @@ public class ServerPoolTests extends TestBase {
         // testing that ignoreDiscoveredServers ignores discovered servers
         o = new Options.Builder().ignoreDiscoveredServers().servers(bootstrap).build();
         nsp = newNatsServerPool(o, null, discoveredServers);
-        validateNslp(nsp, null, false, NATS_ONE, NATS_TWO);
+        validateNslp(nsp, null, false, BOOT_ONE, BOOT_TWO);
     }
 
     @Test
     public void testMaxReconnects() throws URISyntaxException {
-        NatsUri failed = new NatsUri(NATS_ONE);
+        NatsUri failed = new NatsUri(BOOT_ONE);
 
         // testing that servers that fail max times and is removed
-        Options o = new Options.Builder().server(NATS_ONE).maxReconnects(3).build();
+        Options o = new Options.Builder().server(BOOT_ONE).maxReconnects(3).build();
         NatsServerPool nsp = newNatsServerPool(o, null, null);
         for (int x = 0; x < 4; x++) {
             nsp.nextServer();
-            validateNslp(nsp, null, false, NATS_ONE);
+            validateNslp(nsp, null, false, BOOT_ONE);
             nsp.connectFailed(failed);
         }
         assertNull(nsp.nextServer());
 
         // and that it's put back
-        nsp.acceptDiscoveredUrls(Collections.singletonList(NATS_ONE));
-        validateNslp(nsp, null, false, NATS_ONE);
+        nsp.acceptDiscoveredUrls(Collections.singletonList(BOOT_ONE));
+        validateNslp(nsp, null, false, BOOT_ONE);
 
         // testing that servers that fail max times and is removed
-        o = new Options.Builder().server(NATS_ONE).maxReconnects(0).build();
+        o = new Options.Builder().server(BOOT_ONE).maxReconnects(0).build();
         nsp = newNatsServerPool(o, null, null);
         nsp.nextServer();
-        validateNslp(nsp, null, false, NATS_ONE);
+        validateNslp(nsp, null, false, BOOT_ONE);
         nsp.connectFailed(failed);
         assertNull(nsp.nextServer());
 
         // and that it's put back
-        nsp.acceptDiscoveredUrls(Collections.singletonList(NATS_ONE));
-        validateNslp(nsp, null, false, NATS_ONE);
+        nsp.acceptDiscoveredUrls(Collections.singletonList(BOOT_ONE));
+        validateNslp(nsp, null, false, BOOT_ONE);
     }
 
     @Test
     public void testPruning() throws URISyntaxException {
-        // making sure that pruning happens
+        // making sure that pruning happens. get baseline
         Options o = new Options.Builder().servers(bootstrap).maxReconnects(0).build();
         NatsServerPool nsp = newNatsServerPool(o, null, discoveredServers);
         validateNslp(nsp, null, false, combined);
-        nsp.acceptDiscoveredUrls(Collections.singletonList(NATS_FOUR));
-        validateNslp(nsp, null, false, NATS_ONE, NATS_TWO, NATS_FOUR);
+
+        // new discovered list is missing d3
+        nsp.acceptDiscoveredUrls(Arrays.asList(DISC_ONE, DISC_TWO));
+        validateNslp(nsp, null, false, BOOT_ONE, BOOT_TWO, DISC_ONE, DISC_TWO);
+
+        // new discovered list is missing the last connected
+        nsp.connectSucceeded(new NatsUri(DISC_TWO));
+        nsp.acceptDiscoveredUrls(Collections.singletonList(DISC_ONE));
+        validateNslp(nsp, null, false, BOOT_ONE, BOOT_TWO, DISC_ONE, DISC_TWO);
     }
 
     @Test

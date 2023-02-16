@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 import static io.nats.client.support.NatsConstants.SECURE_WEBSOCKET_PROTOCOL;
 
 /**
- * This class is not theadsafe.  Caller must ensure thread safety.
+ * This class is not thread-safe.  Caller must ensure thread safety.
  */
 public class SocketDataPort implements DataPort {
 

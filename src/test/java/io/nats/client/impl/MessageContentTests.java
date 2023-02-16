@@ -132,7 +132,7 @@ public class MessageContentTests {
                 return;
             }
 
-            System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
             w.write("MSG test 0 4\rtest"); // Missing \n
             w.flush();
         };
@@ -152,7 +152,7 @@ public class MessageContentTests {
                 return;
             }
 
-            System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
             w.write("MSG test 0 4\r\ntesttesttest"); // data is too long
             w.flush();
         };
@@ -172,7 +172,7 @@ public class MessageContentTests {
                 return;
             }
 
-            System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
             w.write("MSG test 0 4\r\ntest\rPING"); // no \n after data
             w.flush();
         };
@@ -191,7 +191,7 @@ public class MessageContentTests {
                 return;
             }
 
-            System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
             w.write("BLAM\r\n"); // Bad protocol op
             w.flush();
         };

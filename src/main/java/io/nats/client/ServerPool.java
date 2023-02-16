@@ -32,8 +32,8 @@ public interface ServerPool {
     /**
      * When the connection received discovered servers (ServerInfo.getConnectURLs)
      * it passes them on to the provider for later use
+     *
      * @param discoveredServers the list of discovered servers. Will not be empty.
-     * @return boolean if any of the discovered servers were added to the pool
      */
     boolean acceptDiscoveredUrls(List<String> discoveredServers);
 

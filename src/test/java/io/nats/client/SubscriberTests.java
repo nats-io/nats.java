@@ -88,7 +88,7 @@ public class SubscriberTests {
         NatsServerProtocolMock.Customizer receiveMessageCustomizer = (ts, r,w) -> {
             String subLine = "";
             
-            System.out.println("*** Mock Server @" + ts.getPort() + " waiting for SUB ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " waiting for SUB ...");
             try {
                 subLine = r.readLine();
             } catch(Exception e) {
@@ -210,8 +210,8 @@ public class SubscriberTests {
             assertEquals(msgs, received);
             assertEquals(msgs, sub1Count + sub2Count);
 
-            System.out.println("### Sub 1 " + sub1Count);
-            System.out.println("### Sub 2 " + sub2Count);
+            // System.out.println("### Sub 1 " + sub1Count);
+            // System.out.println("### Sub 2 " + sub2Count);
         }
     }
 
