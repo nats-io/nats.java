@@ -38,8 +38,14 @@ public interface ServerPool {
     boolean acceptDiscoveredUrls(List<String> discoveredServers);
 
     /**
+     * Just take a peek at the next server without doing any processing.
+     * @return the next server Nuri or null if the pool is empty.
+     */
+    NatsUri peekNextServer();
+
+    /**
      * Get the next server to try to connect to.
-     * @return the next server or null if the pool is empty.
+     * @return the next server Nuri or null if the pool is empty.
      */
     NatsUri nextServer();
 

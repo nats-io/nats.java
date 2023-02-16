@@ -650,7 +650,7 @@ public class ReconnectTests {
         ts.close();
 
         sleep(250);
-        assertTrue(trwh.getDisconnectCount() < 5, "disconnectCount");
+        assertTrue(trwh.getDisconnectCount() < 3, "disconnectCount");
 
         c.close();
     }

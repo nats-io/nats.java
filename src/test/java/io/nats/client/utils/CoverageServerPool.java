@@ -33,6 +33,11 @@ public class CoverageServerPool implements ServerPool {
     }
 
     @Override
+    public NatsUri peekNextServer() {
+        return null;
+    }
+
+    @Override
     public NatsUri nextServer() {
         return null;
     }

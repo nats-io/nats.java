@@ -241,39 +241,33 @@ class NatsConnection implements Connection {
             return;
         }
 
-        long maxTries = options.getMaxReconnect();
-        if (maxTries == 0) {
-            this.close();
-            return;
-        }
-        if (maxTries < 0) {
-            maxTries = Integer.MAX_VALUE;
-        }
+        writer.setReconnectMode(true);
 
-        this.writer.setReconnectMode(true);
-
-        long rounds = -1;
-        while (!isConnected() && !isClosed() && !this.isClosing() && ++rounds < maxTries) {
-            if (rounds > 0) { // not the first loop
-                waitForReconnectTimeout(rounds);
-            }
-
-            boolean notDone = true;
+        if (!isConnected() && !isClosed() && !this.isClosing()) {
+            boolean keepGoing = true;
+            int completedRounds = -1;
+            NatsUri first = null;
             NatsUri cur;
-            while (notDone && (cur = serverPool.nextServer()) != null) {
+            while (keepGoing && (cur = serverPool.nextServer()) != null) {
+                if (++completedRounds == 0) {
+                    first = cur;
+                }
+                else if (first.equals(cur)) {
+                    // went around the pool an entire time
+                    invokeReconnectDelayHandler(completedRounds);
+                }
 
                 // let server list provider resolve hostnames
                 // then loop through resolved
                 List<NatsUri> resolved = resolveHost(cur);
-                while (notDone && resolved.size() > 0) {
+                while (keepGoing && resolved.size() > 0) {
                     if (isClosed()) {
-                        notDone = false;
+                        keepGoing = false;
                     }
                     else {
                         connectError.set(""); // reset on each loop
-
                         if (isDisconnectingOrClosed() || this.isClosing()) {
-                            notDone = false;
+                            keepGoing = false;
                         }
                         else {
                             updateStatus(Status.RECONNECTING);
@@ -284,14 +278,14 @@ class NatsConnection implements Connection {
                             if (isConnected()) {
                                 serverPool.connectSucceeded(cur);
                                 statistics.incrementReconnects();
-                                notDone = false;
+                                keepGoing = false;
                             }
                             else {
                                 serverPool.connectFailed(cur);
                                 String err = connectError.get();
                                 if (this.isAuthenticationError(err)) {
                                     if (err.equals(this.serverAuthErrors.get(toTry))) {
-                                        notDone = false; // double auth error
+                                        keepGoing = false; // double auth error
                                     }
                                     else {
                                         serverAuthErrors.put(toTry, err);
@@ -1884,7 +1878,7 @@ class NatsConnection implements Connection {
         }
     }
 
-    void waitForReconnectTimeout(long totalTries) {
+    void invokeReconnectDelayHandler(long totalTries) {
         long currentWaitNanos = 0;
 
         ReconnectDelayHandler handler = options.getReconnectDelayHandler();

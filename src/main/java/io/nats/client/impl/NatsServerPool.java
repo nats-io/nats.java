@@ -157,6 +157,13 @@ public class NatsServerPool implements ServerPool {
     }
 
     @Override
+    public NatsUri peekNextServer() {
+        synchronized (poolLock) {
+            return srvList.size() > 0 ? srvList.get(0).nuri : null;
+        }
+    }
+
+    @Override
     public NatsUri nextServer() {
         // 1. Loop until you find an acceptable server or run out
         // 2. Remove the first server from the list, it will be disqualified or moved to ebd
