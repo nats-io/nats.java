@@ -73,4 +73,10 @@ public interface ServerPool {
      * @return the lost of servers
      */
     List<String> getServerList();
+
+    /**
+     * Whether the pool has any server with a secure scheme
+     * @return the flag
+     */
+    boolean hasSecureServer();
 }

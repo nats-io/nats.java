@@ -49,6 +49,7 @@ public class NatsServerPool implements ServerPool {
     private Options options;
     private int maxConnectAttempts;
     private NatsUri lastConnected;
+    private boolean hasSecureServer;
 
     public NatsServerPool() {
         listLock = new Object();
@@ -83,7 +84,7 @@ public class NatsServerPool implements ServerPool {
             }
 
             // 6. prepare list for next
-            prepareListForNext();
+            afterListChanged();
         }
     }
 
@@ -143,45 +144,33 @@ public class NatsServerPool implements ServerPool {
             srvList = newSrvList;
 
             // 6. prepare list for next
-            prepareListForNext();
+            afterListChanged();
 
             // 7.
             return discoveryContainedUnknowns;
         }
     }
 
-    private int findEquivalent(List<NatsUri> list, NatsUri toFind) {
-        for (int i = 0; i < list.size(); i++) {
-            NatsUri nuri = list.get(i);
-            if (nuri.equivalent(toFind)) {
-                return i;
+    private void afterListChanged() {
+        // 1. randomize if needed and allowed
+        if (srvList.size() > 1 && !options.isNoRandomize()) {
+            Collections.shuffle(srvList, ThreadLocalRandom.current());
+        }
+
+        // 2. calculate hasSecureServer and find the index of lastConnected
+        hasSecureServer = false;
+        int lastIx = -1;
+        for (int ix = 0; ix < srvList.size(); ix++) {
+            NatsUri nuri = srvList.get(ix).nuri;
+            hasSecureServer |= nuri.isSecure();
+            if (nuri.equals(lastConnected)) {
+                lastIx = ix;
             }
         }
-        return -1;
-    }
 
-    private void prepareListForNext() {
-        // This is about randomization and putting the last connected server at the end.
-        // 0. srvList is locked by caller
-        // 1. If there is only one server there is nothing to do
-        // 2. else
-        //    2.1. If we are allowed to randomize, do so
-        //    2.2. Find the last connected server and move it to the end.
-        if (srvList.size() > 1) {
-            if (!options.isNoRandomize()) {
-                Collections.shuffle(srvList, ThreadLocalRandom.current());
-            }
-            if (lastConnected != null) {
-                int lastIx = srvList.size() - 1;
-                for (int x = lastIx; x >= 0 ; x--) {
-                    if (srvList.get(x).nuri.equals(lastConnected)) {
-                        if (x != lastIx) {
-                            srvList.add(srvList.remove(x));
-                        }
-                        break;
-                    }
-                }
-            }
+        // C. put the last connected server at the end of the list
+        if (lastIx != -1) {
+            srvList.add(srvList.remove(lastIx));
         }
     }
 
@@ -285,5 +274,20 @@ public class NatsServerPool implements ServerPool {
             }
             return list;
         }
+    }
+
+    @Override
+    public boolean hasSecureServer() {
+        return hasSecureServer;
+    }
+
+    private int findEquivalent(List<NatsUri> list, NatsUri toFind) {
+        for (int i = 0; i < list.size(); i++) {
+            NatsUri nuri = list.get(i);
+            if (nuri.equivalent(toFind)) {
+                return i;
+            }
+        }
+        return -1;
     }
 }

@@ -1898,7 +1898,7 @@ class NatsConnection implements Connection {
             Duration dur = options.getReconnectWait();
             if (dur != null) {
                 currentWaitNanos = dur.toNanos();
-                dur = options.isTLSRequired() ? options.getReconnectJitterTls() : options.getReconnectJitter();
+                dur = serverPool.hasSecureServer() ? options.getReconnectJitterTls() : options.getReconnectJitter();
                 if (dur != null) {
                     currentWaitNanos += ThreadLocalRandom.current().nextLong(dur.toNanos());
                 }

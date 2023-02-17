@@ -59,4 +59,9 @@ public class CoverageServerPool implements ServerPool {
     public List<String> getServerList() {
         return null;
     }
+
+    @Override
+    public boolean hasSecureServer() {
+        return false;
+    }
 }
