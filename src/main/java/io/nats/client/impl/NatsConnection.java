@@ -63,7 +63,7 @@ class NatsConnection implements Connection {
 
     private CompletableFuture<DataPort> dataPortFuture;
     private DataPort dataPort;
-    private NatsUri currentNatsServerUri;
+    private NatsUri currentServer;
     private CompletableFuture<Boolean> reconnectWaiter;
     private final HashMap<NatsUri, String> serverAuthErrors;
 
@@ -193,8 +193,8 @@ class NatsConnection implements Connection {
                 updateStatus(Status.CONNECTING);
 
                 timeTrace(trace, "trying to connect to %s", cur);
-                NatsUri toTry = resolved.remove(0);
-                tryToConnect(toTry, System.nanoTime());
+                NatsUri nuriToTry = resolved.remove(0);
+                tryToConnect(nuriToTry, System.nanoTime());
 
                 if (isConnected()) {
                     serverPool.connectSucceeded(cur);
@@ -211,7 +211,7 @@ class NatsConnection implements Connection {
                 String err = connectError.get();
 
                 if (this.isAuthenticationError(err)) {
-                    this.serverAuthErrors.put(toTry, err);
+                    this.serverAuthErrors.put(nuriToTry, err);
                 }
             }
         }
@@ -284,8 +284,8 @@ class NatsConnection implements Connection {
                         else {
                             updateStatus(Status.RECONNECTING);
 
-                            NatsUri toTry = resolved.remove(0);
-                            tryToConnect(toTry, System.nanoTime());
+                            NatsUri nuriToTry = resolved.remove(0);
+                            tryToConnect(nuriToTry, System.nanoTime());
 
                             if (isConnected()) {
                                 serverPool.connectSucceeded(cur);
@@ -296,11 +296,11 @@ class NatsConnection implements Connection {
                                 serverPool.connectFailed(cur);
                                 String err = connectError.get();
                                 if (this.isAuthenticationError(err)) {
-                                    if (err.equals(this.serverAuthErrors.get(toTry))) {
+                                    if (err.equals(this.serverAuthErrors.get(nuriToTry))) {
                                         keepGoing = false; // double auth error
                                     }
                                     else {
-                                        serverAuthErrors.put(toTry, err);
+                                        serverAuthErrors.put(nuriToTry, err);
                                     }
                                 }
                             }
@@ -378,7 +378,7 @@ class NatsConnection implements Connection {
     // will wait for any previous attempt to complete, using the reader.stop and
     // writer.stop
     void tryToConnect(NatsUri nuri, long now) {
-        currentNatsServerUri = null;
+        currentServer = null;
 
         try {
             Duration connectTimeout = options.getConnectionTimeout();
@@ -495,7 +495,7 @@ class NatsConnection implements Connection {
                     throw this.exceptionDuringConnectChange;
                 }
 
-                this.currentNatsServerUri = nuri;
+                this.currentServer = nuri;
                 this.serverAuthErrors.remove(nuri); // reset on successful connection
                 updateStatus(Status.CONNECTED); // will signal status change, we also signal in finally
             } finally {
@@ -708,7 +708,7 @@ class NatsConnection implements Connection {
 
     // Should only be called from closeSocket or close
     void closeSocketImpl() {
-        this.currentNatsServerUri = null;
+        this.currentServer = null;
 
         // Signal both to stop.
         final Future<Boolean> readStop = this.reader.stop();
@@ -1608,8 +1608,8 @@ class NatsConnection implements Connection {
         this.connectError.set(errorText); // even if this isn't during connection, save it just in case
 
         // If we are connected && we get an authentication error, save it
-        if (this.isConnected() && this.isAuthenticationError(errorText) && currentNatsServerUri != null) {
-            this.serverAuthErrors.put(currentNatsServerUri, errorText);
+        if (this.isConnected() && this.isAuthenticationError(errorText) && currentServer != null) {
+            this.serverAuthErrors.put(currentServer, errorText);
         }
 
         if (!this.callbackRunner.isShutdown()) {
@@ -1763,7 +1763,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public String getConnectedUrl() {
-        return currentNatsServerUri == null ? null : currentNatsServerUri.toString();
+        return currentServer == null ? null : currentServer.toString();
     }
 
     /**

@@ -27,25 +27,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class NatsServerPool implements ServerPool {
 
-    static class Srv {
-        NatsUri nuri;
-        boolean isGossiped;
-        int failedAttempts;
-        long lastAttempt;
-
-        public Srv(NatsUri nuri, boolean isGossiped) {
-            this.nuri = nuri;
-            this.isGossiped = isGossiped;
-        }
-
-        @Override
-        public String toString() {
-            return nuri + " " + isGossiped + "/" + failedAttempts;
-        }
-    }
-
     private final Object listLock;
-    private List<Srv> srvList;
+    private List<ServerPoolEntry> entryList;
     private Options options;
     private int maxConnectAttempts;
     private NatsUri lastConnected;
@@ -68,18 +51,18 @@ public class NatsServerPool implements ServerPool {
         // 3. Add all the bootstrap to the server list and prepare list for next
         //    FYI bootstrap will always have at least the default url
         synchronized (listLock) {
-            srvList = new ArrayList<>();
+            entryList = new ArrayList<>();
             for (NatsUri nuri : options.getNatsServerUris()) {
                 // 1. If item is not found in the list being built, add to the list
                 boolean notFound = true;
-                for (Srv srv : srvList) {
-                    if (nuri.equivalent(srv.nuri)) {
+                for (ServerPoolEntry entry : entryList) {
+                    if (nuri.equivalent(entry.nuri)) {
                         notFound = false;
                         break;
                     }
                 }
                 if (notFound) {
-                    srvList.add(new Srv(nuri, false));
+                    entryList.add(new ServerPoolEntry(nuri, false));
                 }
             }
 
@@ -120,11 +103,11 @@ public class NatsServerPool implements ServerPool {
             //      - for any new discovered, we also remove them from
             //        that list so step there are no dupes for step #4
             //      - This also maintains the Srv state of an already known discovered
-            List<Srv> newSrvList = new ArrayList<>();
-            for (Srv srv : srvList) {
-                int ix = findEquivalent(discovered, srv.nuri);
-                if (ix != -1 || srv.nuri.equals(lastConnected) || !srv.isGossiped) {
-                    newSrvList.add(srv);
+            List<ServerPoolEntry> newEntryList = new ArrayList<>();
+            for (ServerPoolEntry entry : entryList) {
+                int ix = findEquivalent(discovered, entry.nuri);
+                if (ix != -1 || entry.nuri.equals(lastConnected) || !entry.isGossiped) {
+                    newEntryList.add(entry);
                     if (ix != -1) {
                         discovered.remove(ix);
                     }
@@ -136,12 +119,12 @@ public class NatsServerPool implements ServerPool {
             if (discovered.size() > 0) {
                 discoveryContainedUnknowns = true;
                 for (NatsUri d : discovered) {
-                    newSrvList.add(new Srv(d, true));
+                    newEntryList.add(new ServerPoolEntry(d, true));
                 }
             }
 
             // 5. replace the list with the new one
-            srvList = newSrvList;
+            entryList = newEntryList;
 
             // 6. prepare list for next
             afterListChanged();
@@ -153,15 +136,15 @@ public class NatsServerPool implements ServerPool {
 
     private void afterListChanged() {
         // 1. randomize if needed and allowed
-        if (srvList.size() > 1 && !options.isNoRandomize()) {
-            Collections.shuffle(srvList, ThreadLocalRandom.current());
+        if (entryList.size() > 1 && !options.isNoRandomize()) {
+            Collections.shuffle(entryList, ThreadLocalRandom.current());
         }
 
         // 2. calculate hasSecureServer and find the index of lastConnected
         hasSecureServer = false;
         int lastIx = -1;
-        for (int ix = 0; ix < srvList.size(); ix++) {
-            NatsUri nuri = srvList.get(ix).nuri;
+        for (int ix = 0; ix < entryList.size(); ix++) {
+            NatsUri nuri = entryList.get(ix).nuri;
             hasSecureServer |= nuri.isSecure();
             if (nuri.equals(lastConnected)) {
                 lastIx = ix;
@@ -170,14 +153,14 @@ public class NatsServerPool implements ServerPool {
 
         // C. put the last connected server at the end of the list
         if (lastIx != -1) {
-            srvList.add(srvList.remove(lastIx));
+            entryList.add(entryList.remove(lastIx));
         }
     }
 
     @Override
     public NatsUri peekNextServer() {
         synchronized (listLock) {
-            return srvList.size() > 0 ? srvList.get(0).nuri : null;
+            return entryList.size() > 0 ? entryList.get(0).nuri : null;
         }
     }
 
@@ -186,11 +169,11 @@ public class NatsServerPool implements ServerPool {
         // 0. The list is already managed for qualified by connectFailed
         // 1. Get the first item in the list, update it's time, add back to the end of list
         synchronized (listLock) {
-            if (srvList.size() > 0) {
-                Srv srv = srvList.remove(0);
-                srv.lastAttempt = System.currentTimeMillis();
-                srvList.add(srv);
-                return srv.nuri;
+            if (entryList.size() > 0) {
+                ServerPoolEntry entry = entryList.remove(0);
+                entry.lastAttempt = System.currentTimeMillis();
+                entryList.add(entry);
+                return entry.nuri;
             }
             return null;
         }
@@ -235,11 +218,11 @@ public class NatsServerPool implements ServerPool {
         //    2.1. remember it and
         //    2.2. reset failed attempts
         synchronized (listLock) {
-            for (int x = srvList.size() - 1; x >= 0 ; x--) {
-                Srv srv = srvList.get(x);
-                if (srv.nuri.equals(nuri)) {
+            for (int x = entryList.size() - 1; x >= 0 ; x--) {
+                ServerPoolEntry entry = entryList.get(x);
+                if (entry.nuri.equals(nuri)) {
                     lastConnected = nuri;
-                    srv.failedAttempts = 0;
+                    entry.failedAttempts = 0;
                     return;
                 }
             }
@@ -253,11 +236,11 @@ public class NatsServerPool implements ServerPool {
         //    2.1. increment failed attempts
         //    2.2. if failed attempts reaches max, remove it from the list
         synchronized (listLock) {
-            for (int x = srvList.size() - 1; x >= 0 ; x--) {
-                Srv srv = srvList.get(x);
-                if (srv.nuri.equals(nuri)) {
-                    if (++srv.failedAttempts >= maxConnectAttempts) {
-                        srvList.remove(x);
+            for (int x = entryList.size() - 1; x >= 0 ; x--) {
+                ServerPoolEntry entry = entryList.get(x);
+                if (entry.nuri.equals(nuri)) {
+                    if (++entry.failedAttempts >= maxConnectAttempts) {
+                        entryList.remove(x);
                     }
                     return;
                 }
@@ -269,8 +252,8 @@ public class NatsServerPool implements ServerPool {
     public List<String> getServerList() {
         synchronized (listLock) {
             List<String> list = new ArrayList<>();
-            for (Srv srv : srvList) {
-                list.add(srv.nuri.toString());
+            for (ServerPoolEntry entry : entryList) {
+                list.add(entry.nuri.toString());
             }
             return list;
         }
