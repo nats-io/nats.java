@@ -186,8 +186,8 @@ public class NatsServerPool implements ServerPool {
 
     @Override
     public List<String> resolveHostToIps(String host) {
-        // 1. if NOT options.resolveHostnames(), return empty list
-        if (!options.resolveHostnames()) {
+        // 1. if options.isNoResolveHostnames(), return empty list
+        if (options.isNoResolveHostnames()) {
             return null;
         }
 

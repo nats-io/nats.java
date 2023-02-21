@@ -115,13 +115,13 @@ public class ServerPoolTests extends TestBase {
     public void testResolvingHostname() throws URISyntaxException {
         // resolving host name is false
         NatsUri ngs = new NatsUri(HOST_THAT_CAN_BE_RESOLVED);
-        Options o = new Options.Builder().build();
+        Options o = new Options.Builder().noResolveHostnames().build();
         NatsServerPool nsp = newNatsServerPool(o, null, null);
         List<String> resolved = nsp.resolveHostToIps(HOST_THAT_CAN_BE_RESOLVED);
         assertNull(resolved);
 
         // resolving host name is true
-        o = new Options.Builder().resolveHostnames().build();
+        o = new Options.Builder().build();
         nsp = newNatsServerPool(o, null, null);
         resolved = nsp.resolveHostToIps(HOST_THAT_CAN_BE_RESOLVED);
         assertNotNull(resolved);

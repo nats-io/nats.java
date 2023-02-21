@@ -327,9 +327,9 @@ public class Options {
      */
     public static final String PROP_NORANDOMIZE = PFX + "norandomize";
     /**
-     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#resolveHostnames() resolveHostnames}.
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noResolveHostnames() noResolveHostnames}.
      */
-    public static final String PROP_RESOLVE_HOSTNAMES = PFX + "resolvehostnames";
+    public static final String PROP_NO_RESOLVE_HOSTNAMES = PFX + "noResolveHostnames";
     /**
      * Property used to configure a builder from a Properties object. {@value},
      * see {@link Builder#servers(String[]) servers}. The value can be a comma-separated list of server URLs.
@@ -511,7 +511,7 @@ public class Options {
     private final List<NatsUri> natsServerUris;
     private final List<String> unprocessedServers;
     private final boolean noRandomize;
-    private final boolean resolveHostnames;
+    private final boolean noResolveHostnames;
     private final String connectionName;
     private final boolean verbose;
     private final boolean pedantic;
@@ -604,7 +604,7 @@ public class Options {
         private final List<NatsUri> natsUris = new ArrayList<>();
         private final List<String> unprocessedServers = new ArrayList<>();
         private boolean noRandomize = false;
-        private boolean resolveHostnames = false;
+        private boolean noResolveHostnames = false;
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
         private boolean verbose = false;
         private boolean pedantic = false;
@@ -707,8 +707,8 @@ public class Options {
                 this.noRandomize = Boolean.parseBoolean(props.getProperty(PROP_NORANDOMIZE));
             }
 
-            if (props.containsKey(PROP_RESOLVE_HOSTNAMES)) {
-                resolveHostnames = Boolean.parseBoolean(props.getProperty(PROP_RESOLVE_HOSTNAMES));
+            if (props.containsKey(PROP_NO_RESOLVE_HOSTNAMES)) {
+                noResolveHostnames = Boolean.parseBoolean(props.getProperty(PROP_NO_RESOLVE_HOSTNAMES));
             }
 
             if (props.containsKey(PROP_SECURE)) {
@@ -940,8 +940,8 @@ public class Options {
          * For the default server list provider, whether to resolve hostnames when building server list.
          * @return the Builder for chaining
          */
-        public Builder resolveHostnames() {
-            this.resolveHostnames = true;
+        public Builder noResolveHostnames() {
+            this.noResolveHostnames = true;
             return this;
         }
 
@@ -1557,7 +1557,7 @@ public class Options {
         this.natsServerUris = Collections.unmodifiableList(b.natsUris);
         this.unprocessedServers = b.unprocessedServers;  // exactly how the user gave them
         this.noRandomize = b.noRandomize;
-        this.resolveHostnames = b.resolveHostnames;
+        this.noResolveHostnames = b.noResolveHostnames;
         this.connectionName = b.connectionName;
         this.verbose = b.verbose;
         this.pedantic = b.pedantic;
@@ -1704,10 +1704,10 @@ public class Options {
     }
 
     /**
-     * @return should we resolve hostnames for server connection attempts, see {@link Builder#resolveHostnames() resolveHostnames()} in the builder doc
+     * @return should we resolve hostnames for server connection attempts, see {@link Builder#noResolveHostnames() noResolveHostnames()} in the builder doc
      */
-    public boolean resolveHostnames() {
-        return resolveHostnames;
+    public boolean isNoResolveHostnames() {
+        return noResolveHostnames;
     }
 
     /**

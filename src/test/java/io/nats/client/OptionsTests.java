@@ -296,7 +296,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_CLIENT_SIDE_LIMIT_CHECKS, "true");
         props.setProperty(Options.PROP_IGNORE_DISCOVERED_SERVERS, "true");
         props.setProperty(Options.PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, "io.nats.client.utils.CoverageServerPool");
-        props.setProperty(Options.PROP_RESOLVE_HOSTNAMES, "true");
+        props.setProperty(Options.PROP_NO_RESOLVE_HOSTNAMES, "true");
 
         Options o = new Options.Builder(props).build();
         assertNull(o.getSslContext(), "property context");
@@ -305,7 +305,7 @@ public class OptionsTests {
         assertTrue(o.clientSideLimitChecks());
         assertTrue(o.isIgnoreDiscoveredServers());
         assertNotNull(o.getServerPool());
-        assertTrue(o.resolveHostnames());
+        assertTrue(o.isNoResolveHostnames());
     }
 
     @Test
