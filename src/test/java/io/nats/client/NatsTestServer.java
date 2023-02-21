@@ -23,10 +23,16 @@ import java.util.logging.Level;
 public class NatsTestServer extends NatsServerRunner {
     static {
         NatsServerRunner.setDefaultOutputSupplier(ConsoleOutput::new);
+        quiet();
+    }
+
+    public static void quiet() {
         NatsServerRunner.setDefaultOutputLevel(Level.WARNING);
     }
 
-    public static void init() { /* does nothing except force static initializer */ }
+    public static void verbose() {
+        NatsServerRunner.setDefaultOutputLevel(Level.ALL);
+    }
 
     public NatsTestServer() throws IOException {
         super();

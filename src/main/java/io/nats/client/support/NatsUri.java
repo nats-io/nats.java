@@ -28,11 +28,14 @@ public class NatsUri {
     private static final String UNSUPPORTED_SCHEME = "Unsupported NATS URI scheme.";
     private static final String URI_E_ALLOW_TRY_PREFIXED = "Illegal character in scheme name at index";
     private static final Pattern IPV4_RE = Pattern.compile("(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])");
-    private static final Pattern IPV6_RE = Pattern.compile("((([0-9a-fA-F]){1,4})\\:){7}([0-9a-fA-F]){1,4}");
+    private static final String COLON_SLASH_SLASH = "://";
 
     public static NatsUri DEFAULT_NATS_URI = new NatsUri();
 
     private final URI uri;
+    private boolean isSecure;
+    private boolean isWebsocket;
+    private boolean hostIsIpAddress;
 
     public URI getUri() {
         return uri;
@@ -55,16 +58,15 @@ public class NatsUri {
     }
 
     public boolean isSecure() {
-        return SECURE_PROTOCOLS.contains(uri.getScheme().toLowerCase());
+        return isSecure;
     }
 
     public boolean isWebsocket() {
-        return WSS_PROTOCOLS.contains(uri.getScheme().toLowerCase());
+        return isWebsocket;
     }
 
     public boolean hostIsIpAddress() {
-        return IPV4_RE.matcher(uri.getHost()).matches()
-            || IPV6_RE.matcher(uri.getHost()).matches();
+        return hostIsIpAddress;
     }
 
     public NatsUri reHost(String newHost) throws URISyntaxException {
@@ -98,13 +100,18 @@ public class NatsUri {
             // seriously, this better not happen!
             throw new RuntimeException(e);
         }
+        postConstruct();
     }
 
     public NatsUri(URI uri) throws URISyntaxException {
-        this(uri.toString());
+        this(uri.toString(), null);
     }
 
     public NatsUri(String url) throws URISyntaxException {
+        this(url, null);
+    }
+
+    public NatsUri(String url, String defaultScheme) throws URISyntaxException {
     /*
         test string --> result of new URI(String)
 
@@ -143,15 +150,26 @@ public class NatsUri {
         proto://u:p@1.2.3.4:4222 --> scheme:'proto', host:'1.2.3.4', up:'u:p', port:4222, path:''
      */
 
-        Helper h = parse(url, true);
-        String scheme = h.uri.getScheme();
-        String path = h.uri.getPath();
+        String prefix;
+        if (defaultScheme == null) {
+            prefix = NATS_PROTOCOL_SLASH_SLASH;
+        }
+        else {
+            prefix = defaultScheme.toLowerCase();
+            if (!prefix.endsWith(COLON_SLASH_SLASH)) {
+                prefix += COLON_SLASH_SLASH;
+            }
+        }
+
+        Helper helper = parse(url, true, prefix);
+        String scheme = helper.uri.getScheme();
+        String path = helper.uri.getPath();
         if (scheme == null) {
             if (path != null) {
                 // [3]
-                h = tryPrefixed(h);
-                scheme = h.uri.getScheme();
-                path = h.uri.getPath();
+                helper = tryPrefixed(helper, prefix);
+                scheme = helper.uri.getScheme();
+                path = helper.uri.getPath();
             }
             else {
                 // [X] not in the examples so don't know what to do, we are done
@@ -159,13 +177,13 @@ public class NatsUri {
             }
         }
 
-        String host = h.uri.getHost();
+        String host = helper.uri.getHost();
         if (host == null) {
             if (path == null) {
                 // [4]
-                h = tryPrefixed(h);
-                scheme = h.uri.getScheme();
-                host = h.uri.getHost();
+                helper = tryPrefixed(helper, prefix);
+                scheme = helper.uri.getScheme();
+                host = helper.uri.getHost();
             }
             else {
                 // [5]
@@ -183,16 +201,26 @@ public class NatsUri {
             throw new URISyntaxException(url, UNSUPPORTED_SCHEME);
         }
         if (!lower.equals(scheme)) {
-            h.url = h.url.replace(scheme, lower);
+            helper.url = helper.url.replace(scheme, lower);
         }
 
-        if (h.uri.getPort() == NO_PORT) {
+        if (helper.uri.getPort() == NO_PORT) {
             // [6]
-            uri = new URI(h.url + ":" + DEFAULT_PORT);
+            uri = new URI(helper.url + ":" + DEFAULT_PORT);
         }
         else {
-            uri = new URI(h.url);
+            uri = new URI(helper.url);
         }
+
+        postConstruct();
+    }
+
+    private void postConstruct() {
+        String s = uri.getScheme().toLowerCase();
+        isSecure = SECURE_PROTOCOLS.contains(s);
+        isWebsocket = WSS_PROTOCOLS.contains(s);
+        s = uri.getHost();
+        hostIsIpAddress = IPV4_RE.matcher(s).matches() || s.startsWith("[") && s.endsWith("]");
     }
 
     static class Helper {
@@ -200,11 +228,11 @@ public class NatsUri {
         URI uri;
     }
 
-    private Helper tryPrefixed(Helper helper) throws URISyntaxException {
-        return parse(NATS_PROTOCOL_SLASH_SLASH + helper.url, false);
+    private Helper tryPrefixed(Helper helper, String prefix) throws URISyntaxException {
+        return parse(prefix + helper.url, false, prefix);
     }
 
-    private Helper parse(String inUrl, boolean allowTryPrefixed) throws URISyntaxException {
+    private Helper parse(String inUrl, boolean allowTryPrefixed, String prefix) throws URISyntaxException {
         Helper helper = new Helper();
         try {
             helper.url = inUrl.trim();
@@ -214,7 +242,7 @@ public class NatsUri {
         catch (URISyntaxException e) {
             if (allowTryPrefixed && e.getMessage().contains(URI_E_ALLOW_TRY_PREFIXED)) {
                 // [4]
-                return tryPrefixed(helper);
+                return tryPrefixed(helper, prefix);
             }
             else {
                 // [5]

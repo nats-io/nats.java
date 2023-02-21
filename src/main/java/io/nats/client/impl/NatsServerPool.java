@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.Options;
 import io.nats.client.ServerPool;
+import io.nats.client.support.NatsConstants;
 import io.nats.client.support.NatsUri;
 
 import java.net.InetAddress;
@@ -33,6 +34,7 @@ public class NatsServerPool implements ServerPool {
     private int maxConnectAttempts;
     private NatsUri lastConnected;
     private boolean hasSecureServer;
+    private String defaultScheme;
 
     public NatsServerPool() {
         listLock = new Object();
@@ -43,7 +45,7 @@ public class NatsServerPool implements ServerPool {
      */
     public void initialize(Options opts) {
         // 1. Hold on to options as we need them for settings
-        this.options = opts;
+        options = opts;
 
         // 2. maxConnectAttempts accounts for the first connect attempt and also reconnect attempts
         maxConnectAttempts = options.getMaxReconnect() < 0 ? Integer.MAX_VALUE : options.getMaxReconnect() + 1;
@@ -54,14 +56,17 @@ public class NatsServerPool implements ServerPool {
             entryList = new ArrayList<>();
             for (NatsUri nuri : options.getNatsServerUris()) {
                 // 1. If item is not found in the list being built, add to the list
-                boolean notFound = true;
+                boolean notAlreadyInList = true;
                 for (ServerPoolEntry entry : entryList) {
                     if (nuri.equivalent(entry.nuri)) {
-                        notFound = false;
+                        notAlreadyInList = false;
                         break;
                     }
                 }
-                if (notFound) {
+                if (notAlreadyInList) {
+                    if (defaultScheme == null && !nuri.getScheme().equals(NatsConstants.NATS_PROTOCOL)) {
+                        defaultScheme = nuri.getScheme();
+                    }
                     entryList.add(new ServerPoolEntry(nuri, false));
                 }
             }
@@ -90,7 +95,7 @@ public class NatsServerPool implements ServerPool {
             List<NatsUri> discovered = new ArrayList<>();
             for (String d : discoveredServers) {
                 try {
-                    discovered.add(new NatsUri(d));
+                    discovered.add(new NatsUri(d, defaultScheme));
                 } catch (URISyntaxException ignore) {
                     // should never actually happen
                 }
@@ -142,18 +147,18 @@ public class NatsServerPool implements ServerPool {
 
         // 2. calculate hasSecureServer and find the index of lastConnected
         hasSecureServer = false;
-        int lastIx = -1;
+        int lastConnectedIx = -1;
         for (int ix = 0; ix < entryList.size(); ix++) {
             NatsUri nuri = entryList.get(ix).nuri;
             hasSecureServer |= nuri.isSecure();
             if (nuri.equals(lastConnected)) {
-                lastIx = ix;
+                lastConnectedIx = ix;
             }
         }
 
         // C. put the last connected server at the end of the list
-        if (lastIx != -1) {
-            entryList.add(entryList.remove(lastIx));
+        if (lastConnectedIx != -1) {
+            entryList.add(entryList.remove(lastConnectedIx));
         }
     }
 

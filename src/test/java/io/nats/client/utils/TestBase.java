@@ -58,7 +58,7 @@ public class TestBase {
     public static final long VERY_LONG_TIMEOUT_MS = 20000;
 
     static {
-        NatsTestServer.init();
+        NatsTestServer.quiet();
     }
 
     // ----------------------------------------------------------------------------------------------------

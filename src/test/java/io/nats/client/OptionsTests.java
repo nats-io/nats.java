@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Test;
 import javax.net.ssl.SSLContext;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
@@ -36,7 +35,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.support.NatsConstants.DEFAULT_PORT;
-import static io.nats.client.support.NatsConstants.NATS_PROTOCOL;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class OptionsTests {
@@ -640,56 +638,20 @@ public class OptionsTests {
         assertTrue(name.startsWith(Options.DEFAULT_THREAD_NAME_PREFIX));
     }
 
+    String[] schemes = new String[]   { "NATS", "unk",  "tls",  "opentls",  "ws",   "wss", "nats"};
+    boolean[] secures = new boolean[] { false,  false,  true,   true,       false,  true,  false};
+    boolean[] wses = new boolean[]    { false,  false,  false,  false,      true,   true,  false};
+    String[] hosts = new String[]     { "host", "1.2.3.4", "[1:2:3:4::5]", null};
+    boolean[] ips = new boolean[]     { false,  true,      true,           false};
+    Integer[] ports = new Integer[]   {1122, null};
+    String[] userInfos = new String[] {null, "u:p"};
+
     @Test
-    public void testNatsUri() throws URISyntaxException, UnknownHostException {
-        String[] schemes = new String[]  { "nats", "NATS",  "tls",  "opentls",  "ws",   "wss", null, "unk"};
-        boolean[] secures = new boolean[]{ false,  false,   true,   true,       false,  true,  false, false};
-        boolean[] wses = new boolean[]   { false,  false,   false,  false,      true,   true,  false, false};
-        String[] hosts = new String[]{"host", "1.2.3.4", null};
-        boolean[] ips = new boolean[]{false,  true,      false};
-        Integer[] ports = new Integer[]{1122, null};
-        String[] userInfos = new String[]{null, "u:p"};
+    public void testNatsUri() throws URISyntaxException {
         for (int e = 0; e < schemes.length; e++) {
-            String scheme = schemes[e];
-            for (int h = 0; h < hosts.length; h++) {
-                String host = hosts[h];
-                for (Integer port : ports) {
-                    for (String userInfo : userInfos) {
-                        StringBuilder sb = new StringBuilder();
-                        String expectedScheme;
-                        if (scheme == null) {
-                            expectedScheme = NATS_PROTOCOL;
-                        }
-                        else {
-                            expectedScheme = scheme;
-                            sb.append(scheme).append("://");
-                        }
-                        if (userInfo != null) {
-                            sb.append(userInfo).append("@");
-                        }
-                        if (host != null) {
-                            sb.append(host);
-                        }
-                        int expectedPort;
-                        if (port == null) {
-                            expectedPort = DEFAULT_PORT;
-                        }
-                        else {
-                            expectedPort = port;
-                            sb.append(":").append(port);
-                        }
-                        if (host == null || "unk".equals(scheme)) {
-                            assertThrows(URISyntaxException.class, () -> new NatsUri(sb.toString()));
-                        }
-                        else {
-                            NatsUri uri1 = new NatsUri(sb.toString());
-                            NatsUri uri2 = new NatsUri(uri1.getUri());
-                            assertEquals(uri1, uri2);
-                            checkCreate(uri1, secures[e], wses[e], ips[h], expectedScheme, host, expectedPort, userInfo);
-                            checkCreate(uri2, secures[e], wses[e], ips[h], expectedScheme, host, expectedPort, userInfo);
-                        }
-                    }
-                }
+            _testNatsUri(e, null);
+            if (e > 1) {
+                _testNatsUri(-e, schemes[e]);
             }
         }
 
@@ -698,6 +660,51 @@ public class OptionsTests {
         assertFalse(new NatsUri(Options.DEFAULT_URL).equals(null));
         //noinspection SimplifiableAssertion
         assertFalse(new NatsUri(Options.DEFAULT_URL).equals(new Object()));
+    }
+
+    private void _testNatsUri(int e, String nullScheme) throws URISyntaxException {
+        String scheme = e < 0 ? null : schemes[e];
+        e = Math.abs(e);
+        for (int h = 0; h < hosts.length; h++) {
+            String host = hosts[h];
+            for (Integer port : ports) {
+                for (String userInfo : userInfos) {
+                    StringBuilder sb = new StringBuilder();
+                    String expectedScheme;
+                    if (scheme == null) {
+                        expectedScheme = nullScheme;
+                    }
+                    else {
+                        expectedScheme = scheme;
+                        sb.append(scheme).append("://");
+                    }
+                    if (userInfo != null) {
+                        sb.append(userInfo).append("@");
+                    }
+                    if (host != null) {
+                        sb.append(host);
+                    }
+                    int expectedPort;
+                    if (port == null) {
+                        expectedPort = DEFAULT_PORT;
+                    }
+                    else {
+                        expectedPort = port;
+                        sb.append(":").append(port);
+                    }
+                    if (host == null || "unk".equals(scheme)) {
+                        assertThrows(URISyntaxException.class, () -> new NatsUri(sb.toString()));
+                    }
+                    else {
+                        NatsUri uri1 = scheme == null ? new NatsUri(sb.toString(), nullScheme) : new NatsUri(sb.toString());
+                        NatsUri uri2 = new NatsUri(uri1.getUri());
+                        assertEquals(uri1, uri2);
+                        checkCreate(uri1, secures[e], wses[e], ips[h], expectedScheme, host, expectedPort, userInfo);
+                        checkCreate(uri2, secures[e], wses[e], ips[h], expectedScheme, host, expectedPort, userInfo);
+                    }
+                }
+            }
+        }
     }
 
     private static void checkCreate(NatsUri uri, boolean secure, boolean ws, boolean ip, String scheme, String host, int port, String userInfo) throws URISyntaxException {
