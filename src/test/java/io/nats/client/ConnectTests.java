@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.impl.TestHandler;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -293,7 +294,7 @@ public class ConnectTests {
 
     @Test
     public void testErrorOnAsync() throws Exception {
-        TestHandler handler = new TestHandler(false);
+        TestHandler handler = new TestHandler();
         Options options = new Options.Builder().server("nats://localhost:" + NatsTestServer.nextPort())
                 .connectionListener(handler).errorListener(handler).noReconnect().build();
         handler.prepForStatusChange(Events.CLOSED);
@@ -354,14 +355,16 @@ public class ConnectTests {
             nc.flushBuffer();
 
             ts.shutdown();
-            sleep(100);
+            while (nc.getStatus() == Connection.Status.CONNECTED) {
+                sleep(10);
+            }
 
             // test while reconnecting
-            assertThrows(IllegalStateException.class, () -> nc.flushBuffer());
+            assertThrows(IllegalStateException.class, nc::flushBuffer);
             standardCloseConnection(nc);
 
             // test when closed.
-            assertThrows(IllegalStateException.class, () -> nc.flushBuffer());
+            assertThrows(IllegalStateException.class, nc::flushBuffer);
         }
     }
 

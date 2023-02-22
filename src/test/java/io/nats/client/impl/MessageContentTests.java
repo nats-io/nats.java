@@ -14,9 +14,9 @@
 package io.nats.client.impl;
 
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.nats.client.*;
+import io.nats.client.ConnectionListener.Events;
+import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -24,17 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.NatsServerProtocolMock;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.TestHandler;
-import io.nats.client.ConnectionListener.Events;
+import static org.junit.jupiter.api.Assertions.*;
 
 
 public class MessageContentTests {
@@ -142,7 +132,7 @@ public class MessageContentTests {
                 return;
             }
 
-            System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
             w.write("MSG test 0 4\rtest"); // Missing \n
             w.flush();
         };
@@ -162,7 +152,7 @@ public class MessageContentTests {
                 return;
             }
 
-            System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
             w.write("MSG test 0 4\r\ntesttesttest"); // data is too long
             w.flush();
         };
@@ -182,7 +172,7 @@ public class MessageContentTests {
                 return;
             }
 
-            System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
             w.write("MSG test 0 4\r\ntest\rPING"); // no \n after data
             w.flush();
         };
@@ -201,7 +191,7 @@ public class MessageContentTests {
                 return;
             }
 
-            System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " sending bad message ...");
             w.write("BLAM\r\n"); // Bad protocol op
             w.flush();
         };

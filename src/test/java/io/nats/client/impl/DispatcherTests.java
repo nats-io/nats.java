@@ -321,7 +321,6 @@ public class DispatcherTests {
                 try {
                     nc.flush(Duration.ofMillis(1000));
                 } catch (Exception ex) {
-                    System.out.println("!!! Exception in callback");
                     ex.printStackTrace();
                 }
                 msgFuture.complete(msg);

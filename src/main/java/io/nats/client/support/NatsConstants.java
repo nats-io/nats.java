@@ -21,13 +21,18 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 public interface NatsConstants {
     String HEADER_VERSION = "NATS/1.0";
 
+    int DEFAULT_PORT = 4222;
+
     String NATS_PROTOCOL = "nats";
     String TLS_PROTOCOL = "tls";
     String OPENTLS_PROTOCOL = "opentls";
     String WEBSOCKET_PROTOCOL = "ws";
     String SECURE_WEBSOCKET_PROTOCOL = "wss";
-    List<String> KNOWN_PROTOCOLS = Arrays.asList(NATS_PROTOCOL, TLS_PROTOCOL, OPENTLS_PROTOCOL, WEBSOCKET_PROTOCOL, SECURE_WEBSOCKET_PROTOCOL);
     String NATS_PROTOCOL_SLASH_SLASH = "nats://";
+
+    List<String> KNOWN_PROTOCOLS = Arrays.asList(NATS_PROTOCOL, TLS_PROTOCOL, OPENTLS_PROTOCOL, WEBSOCKET_PROTOCOL, SECURE_WEBSOCKET_PROTOCOL);
+    List<String> SECURE_PROTOCOLS = Arrays.asList(TLS_PROTOCOL, OPENTLS_PROTOCOL, SECURE_WEBSOCKET_PROTOCOL);
+    List<String> WSS_PROTOCOLS = Arrays.asList(WEBSOCKET_PROTOCOL, SECURE_WEBSOCKET_PROTOCOL);
 
     String SPACE = " ";
     String EMPTY = "";
