@@ -181,8 +181,8 @@ class NatsConnection implements Connection {
             serverPool.nextServer(); // b/c we only peeked.
 
             // let server pool resolve hostnames, then loop through resolved
-            List<NatsUri> resolved = resolveHost(cur);
-            while (resolved.size() > 0) {
+            List<NatsUri> resolvedList = resolveHost(cur);
+            while (resolvedList.size() > 0) {
                 if (isClosed()) {
                     keepGoing = false;
                     break;
@@ -193,8 +193,8 @@ class NatsConnection implements Connection {
                 updateStatus(Status.CONNECTING);
 
                 timeTrace(trace, "trying to connect to %s", cur);
-                NatsUri nuriToTry = resolved.remove(0);
-                tryToConnect(nuriToTry, System.nanoTime());
+                NatsUri resolved = resolvedList.remove(0);
+                tryToConnect(cur, resolved, System.nanoTime());
 
                 if (isConnected()) {
                     serverPool.connectSucceeded(cur);
@@ -211,7 +211,7 @@ class NatsConnection implements Connection {
                 String err = connectError.get();
 
                 if (this.isAuthenticationError(err)) {
-                    this.serverAuthErrors.put(nuriToTry, err);
+                    this.serverAuthErrors.put(resolved, err);
                 }
             }
         }
@@ -271,8 +271,8 @@ class NatsConnection implements Connection {
 
                 // let server list provider resolve hostnames
                 // then loop through resolved
-                List<NatsUri> resolved = resolveHost(cur);
-                while (keepGoing && resolved.size() > 0) {
+                List<NatsUri> resolvedList = resolveHost(cur);
+                while (keepGoing && resolvedList.size() > 0) {
                     if (isClosed()) {
                         keepGoing = false;
                     }
@@ -284,8 +284,8 @@ class NatsConnection implements Connection {
                         else {
                             updateStatus(Status.RECONNECTING);
 
-                            NatsUri nuriToTry = resolved.remove(0);
-                            tryToConnect(nuriToTry, System.nanoTime());
+                            NatsUri resolved = resolvedList.remove(0);
+                            tryToConnect(cur, resolved, System.nanoTime());
 
                             if (isConnected()) {
                                 serverPool.connectSucceeded(cur);
@@ -296,11 +296,11 @@ class NatsConnection implements Connection {
                                 serverPool.connectFailed(cur);
                                 String err = connectError.get();
                                 if (this.isAuthenticationError(err)) {
-                                    if (err.equals(this.serverAuthErrors.get(nuriToTry))) {
+                                    if (err.equals(this.serverAuthErrors.get(resolved))) {
                                         keepGoing = false; // double auth error
                                     }
                                     else {
-                                        serverAuthErrors.put(nuriToTry, err);
+                                        serverAuthErrors.put(resolved, err);
                                     }
                                 }
                             }
@@ -377,7 +377,7 @@ class NatsConnection implements Connection {
     // is called from reconnect and connect
     // will wait for any previous attempt to complete, using the reader.stop and
     // writer.stop
-    void tryToConnect(NatsUri nuri, long now) {
+    void tryToConnect(NatsUri cur, NatsUri resolved, long now) {
         currentServer = null;
 
         try {
@@ -412,7 +412,7 @@ class NatsConnection implements Connection {
 
             timeoutNanos = timeCheck(trace, end, "connecting data port");
             DataPort newDataPort = this.options.buildDataPort();
-            newDataPort.connect(nuri.toString(), this, timeoutNanos);
+            newDataPort.connect(resolved.toString(), this, timeoutNanos);
 
             // Notify any threads waiting on the sockets
             this.dataPort = newDataPort;
@@ -424,7 +424,7 @@ class NatsConnection implements Connection {
                 readInitialInfo();
                 checkVersionRequirements();
                 long start = System.nanoTime();
-                upgradeToSecureIfNeeded(nuri);
+                upgradeToSecureIfNeeded(resolved);
                 if (trace && options.isTLSRequired()) {
                     // If the time appears too long it might be related to
                     // https://github.com/nats-io/nats.java#linux-platform-note
@@ -449,7 +449,7 @@ class NatsConnection implements Connection {
             this.writer.start(this.dataPortFuture);
 
             timeCheck(trace, end, "sending connect message");
-            this.sendConnect(nuri);
+            this.sendConnect(resolved);
 
             timeoutNanos = timeCheck(trace, end, "sending initial ping");
             Future<Boolean> pongFuture = sendPing();
@@ -495,8 +495,8 @@ class NatsConnection implements Connection {
                     throw this.exceptionDuringConnectChange;
                 }
 
-                this.currentServer = nuri;
-                this.serverAuthErrors.remove(nuri); // reset on successful connection
+                this.currentServer = cur;
+                this.serverAuthErrors.remove(resolved); // reset on successful connection
                 updateStatus(Status.CONNECTED); // will signal status change, we also signal in finally
             } finally {
                 statusLock.unlock();

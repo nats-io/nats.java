@@ -263,8 +263,7 @@ public class NatsUri {
     }
 
     private String equivalentComparable() {
-        String host = uri.getHost();
-        return (host.equals("127.0.0.01") ? "localhost" : host.toLowerCase()) + uri.getPort();
+        return uri.getHost().toLowerCase() + uri.getPort();
     }
 
     public boolean equivalent(NatsUri other) {
