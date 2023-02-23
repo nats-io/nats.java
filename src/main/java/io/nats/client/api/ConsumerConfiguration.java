@@ -153,7 +153,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     // For the builder
-    private ConsumerConfiguration(Builder b)
+    protected ConsumerConfiguration(Builder b)
     {
         this.deliverPolicy = b.deliverPolicy;
         this.ackPolicy = b.ackPolicy;

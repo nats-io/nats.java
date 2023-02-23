@@ -88,7 +88,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         return bucketName;
     }
 
-    private ObjectInfo publishMeta(ObjectInfo info) throws JetStreamApiException, IOException {
+    private ObjectInfo publishMeta(ObjectInfo info) throws IOException, JetStreamApiException {
         js.publish(NatsMessage.builder()
             .subject(pubSubMetaSubject(info.getObjectName()))
             .headers(getMetaHeaders())

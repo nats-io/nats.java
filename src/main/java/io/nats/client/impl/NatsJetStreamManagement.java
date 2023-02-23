@@ -23,7 +23,7 @@ import java.util.List;
 
 import static io.nats.client.support.Validator.*;
 
-public class NatsJetStreamManagement extends NatsJetStreamImplBase implements JetStreamManagement {
+public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStreamManagement {
 
     public NatsJetStreamManagement(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
         super(connection, jsOptions);

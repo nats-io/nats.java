@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.support.Validator.*;
 
-public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
+public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
     public NatsJetStream(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
         super(connection, jsOptions);
@@ -627,24 +627,18 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         return options == null || !options.isBind();
     }
 
-    // ----------------------------------------------------------------------------------------------------
-    // General Utils
-    // ----------------------------------------------------------------------------------------------------
-    ConsumerInfo lookupConsumerInfo(String stream, String consumer) throws IOException, JetStreamApiException {
-        try {
-            return _getConsumerInfo(stream, consumer);
-        }
-        catch (JetStreamApiException e) {
-            // the right side of this condition...  ( starting here \/ ) is for backward compatibility with server versions that did not provide api error codes
-            if (e.getApiErrorCode() == JS_CONSUMER_NOT_FOUND_ERR || (e.getErrorCode() == 404 && e.getErrorDescription().contains("consumer"))) {
-                return null;
-            }
-            throw e;
-        }
+    @Override
+    public StreamContext getStreamContext(String stream) throws IOException, JetStreamApiException {
+        return new NatsStreamContext(conn, jso, stream);
     }
 
-    protected String lookupStreamBySubject(String subject) throws IOException, JetStreamApiException {
-        List<String> list = _getStreamNames(subject);
-        return list.size() == 1 ? list.get(0) : null;
+    @Override
+    public ConsumerContext getConsumerContext(String stream, String consumer) throws IOException, JetStreamApiException {
+        return new NatsConsumerContext(conn, jso, stream, consumer);
+    }
+
+    @Override
+    public ConsumerContext getConsumerContext(String stream, ConsumerConfiguration config) throws IOException, JetStreamApiException {
+        return new NatsConsumerContext(conn, jso, stream, config);
     }
 }

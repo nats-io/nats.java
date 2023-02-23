@@ -647,4 +647,6 @@ public interface Connection extends AutoCloseable {
      * @throws IOException various IO exception such as timeout or interruption
      */
     ObjectStoreManagement objectStoreManagement(ObjectStoreOptions options) throws IOException;
+
+
 }

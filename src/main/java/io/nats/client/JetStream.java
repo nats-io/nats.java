@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2020-2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -10,8 +10,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package io.nats.client;
 
+import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.PublishAck;
 import io.nats.client.impl.Headers;
 
@@ -482,4 +484,8 @@ public interface JetStream {
      * @throws JetStreamApiException the request had an error related to the data
      */
     JetStreamSubscription subscribe(String subject, PullSubscribeOptions options) throws IOException, JetStreamApiException;
+
+    StreamContext getStreamContext(String stream) throws IOException, JetStreamApiException;
+    ConsumerContext getConsumerContext(String stream, String consumer) throws IOException, JetStreamApiException;
+    ConsumerContext getConsumerContext(String stream, ConsumerConfiguration config) throws IOException, JetStreamApiException;
 }
