@@ -19,6 +19,7 @@ import io.nats.client.api.ConsumerInfo;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
 
@@ -75,12 +76,12 @@ public class NatsConsumerContext implements ConsumerContext {
     }
 
     @Override
-    public List<Message> fetch(int count) throws IOException, JetStreamApiException {
-        return fetch(count, null);
+    public List<Message> fetchBlock(int count) throws IOException, JetStreamApiException {
+        return fetchBlock(count, null);
     }
 
     @Override
-    public List<Message> fetch(int count, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public List<Message> fetchBlock(int count, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         PullSubscribeOptions pso = PullSubscribeOptions.bind(stream, consumer);
         JetStreamSubscription sub = js.subscribe(null, pso);
         ConsumeOptions co = orDefault(consumeOptions);
@@ -88,16 +89,46 @@ public class NatsConsumerContext implements ConsumerContext {
     }
 
     @Override
-    public Iterator<Message> iterate(int count) throws IOException, JetStreamApiException {
-        return iterate(count, null);
+    public MessageNextConsumer fetch(int count) throws IOException, JetStreamApiException {
+        return fetch(count, null);
+    }
+
+    static class TemporaryMessageNextConsumer extends NatsMessageConsumer implements MessageNextConsumer {
+        Iterator<Message> iterator;
+        boolean unsub = true;
+
+        public TemporaryMessageNextConsumer(NatsJetStreamPullSubscription sub, ConsumeOptions co, int count) {
+            super(sub, co);
+            iterator = sub.iterate(count, co.getExpiresIn());
+        }
+
+        @Override
+        public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
+            if (iterator.hasNext()) {
+                return iterator.next();
+            }
+            return unsub();
+        }
+
+        private synchronized Message unsub() {
+            if (unsub) unsubscribe();
+            return null;
+        }
+
+        @Override
+        public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
+            if (iterator.hasNext()) {
+                return iterator.next();
+            }
+            return unsub();
+        }
     }
 
     @Override
-    public Iterator<Message> iterate(int count, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public MessageNextConsumer fetch(int count, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         PullSubscribeOptions pso = PullSubscribeOptions.bind(stream, consumer);
-        JetStreamSubscription sub = js.subscribe(null, pso);
-        ConsumeOptions co = orDefault(consumeOptions);
-        return sub.iterate(count, co.getExpiresIn());
+        NatsJetStreamPullSubscription sub = (NatsJetStreamPullSubscription)js.subscribe(null, pso);
+        return new TemporaryMessageNextConsumer(sub, orDefault(consumeOptions), count);
     }
 
     @Override
