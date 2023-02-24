@@ -798,34 +798,35 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             // plain subject
             ConsumerConfiguration.Builder builder = ConsumerConfiguration.builder().durable(DURABLE);
             jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(SUBJECT).build());
+            List<ConsumerInfo> cis = jsm.getConsumers(STREAM);
+            assertEquals(SUBJECT, cis.get(0).getConsumerConfiguration().getFilterSubject());
 
-            assertThrows(JetStreamApiException.class,
+            if (nc.getServerInfo().isNewerVersionThan("2.9.99")) {
+                // 2.10 and later you can set the filter to something that does not match
+                jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("two-ten-allows-not-matching")).build());
+                cis = jsm.getConsumers(STREAM);
+                assertEquals(subjectDot("two-ten-allows-not-matching"), cis.get(0).getConsumerConfiguration().getFilterSubject());
+            }
+            else {
+                assertThrows(JetStreamApiException.class,
                     () -> jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("not-match")).build()));
+            }
 
             // wildcard subject
             jsm.deleteStream(STREAM);
             createMemoryStream(jsm, STREAM, SUBJECT_STAR);
 
             jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("A")).build());
-
-            if (nc.getServerInfo().isSameOrOlderThanVersion("2.8.4")) {
-                assertThrows(JetStreamApiException.class,
-                    () -> jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("not-match")).build()));
-            }
+            cis = jsm.getConsumers(STREAM);
+            assertEquals(subjectDot("A"), cis.get(0).getConsumerConfiguration().getFilterSubject());
 
             // gt subject
             jsm.deleteStream(STREAM);
             createMemoryStream(jsm, STREAM, SUBJECT_GT);
 
             jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("A")).build());
-
-            // try to filter against durable with mismatch, pull
-
-            jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder()
-                    .durable(durable(42))
-                    .filterSubject(subjectDot("F"))
-                    .build()
-            );
+            cis = jsm.getConsumers(STREAM);
+            assertEquals(subjectDot("A"), cis.get(0).getConsumerConfiguration().getFilterSubject());
         });
     }
 
