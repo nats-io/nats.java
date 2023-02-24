@@ -16,9 +16,11 @@ package io.nats.client;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.DataPort;
 import io.nats.client.impl.ErrorListenerLoggerImpl;
+import io.nats.client.impl.NatsServerPool;
+import io.nats.client.impl.TestHandler;
 import io.nats.client.support.HttpRequest;
+import io.nats.client.support.NatsUri;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
-import io.nats.client.utils.CoverageServerListProvider;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -32,6 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static io.nats.client.support.NatsConstants.DEFAULT_PORT;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class OptionsTests {
@@ -266,17 +269,17 @@ public class OptionsTests {
     public void testBuilderCoverageOptions() {
         Options o = new Options.Builder().build();
         assertTrue(o.clientSideLimitChecks());
-        assertNull(o.getServerListProvider());
+        assertNull(o.getServerPool()); // there is a default provider
 
         o = new Options.Builder().clientSideLimitChecks(true).build();
         assertTrue(o.clientSideLimitChecks());
 
         o = new Options.Builder()
             .clientSideLimitChecks(false)
-            .serverListProvider(new CoverageServerListProvider())
+            .serverPool(new NatsServerPool())
             .build();
         assertFalse(o.clientSideLimitChecks());
-        assertNotNull(o.getServerListProvider());
+        assertNotNull(o.getServerPool());
     }
 
     @Test
@@ -292,7 +295,8 @@ public class OptionsTests {
         props.setProperty(Options.PROP_RECONNECT_JITTER_TLS, "2000");
         props.setProperty(Options.PROP_CLIENT_SIDE_LIMIT_CHECKS, "true");
         props.setProperty(Options.PROP_IGNORE_DISCOVERED_SERVERS, "true");
-        props.setProperty(Options.PROP_SERVERS_LIST_PROVIDER_CLASS, "io.nats.client.utils.CoverageServerListProvider");
+        props.setProperty(Options.PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, "io.nats.client.utils.CoverageServerPool");
+        props.setProperty(Options.PROP_NO_RESOLVE_HOSTNAMES, "true");
 
         Options o = new Options.Builder(props).build();
         assertNull(o.getSslContext(), "property context");
@@ -300,7 +304,8 @@ public class OptionsTests {
         assertTrue(o.isNoNoResponders());
         assertTrue(o.clientSideLimitChecks());
         assertTrue(o.isIgnoreDiscoveredServers());
-        assertNotNull(o.getServerListProvider());
+        assertNotNull(o.getServerPool());
+        assertTrue(o.isNoResolveHostnames());
     }
 
     @Test
@@ -633,62 +638,89 @@ public class OptionsTests {
         assertTrue(name.startsWith(Options.DEFAULT_THREAD_NAME_PREFIX));
     }
 
-    @Test
-    public void testParseURIForServer() throws URISyntaxException {
-        String[][] test = {
-            {"nats://localhost:4222","nats://localhost:4222"},
-            {"tls://localhost:4222","tls://localhost:4222"},
-            {"opentls://localhost:4222","opentls://localhost:4222"},
-            {"localhost:4222","nats://localhost:4222"},
-
-            {"nats://localhost","nats://localhost:4222"},
-            {"tls://localhost","tls://localhost:4222"},
-            {"opentls://localhost","opentls://localhost:4222"},
-            {"localhost","nats://localhost:4222"},
-
-            {"nats://connect.nats.io:4222","nats://connect.nats.io:4222"},
-            {"tls://connect.nats.io:4222","tls://connect.nats.io:4222"},
-            {"opentls://connect.nats.io:4222","opentls://connect.nats.io:4222"},
-            {"connect.nats.io:4222","nats://connect.nats.io:4222"},
-
-            {"nats://connect.nats.io","nats://connect.nats.io:4222"},
-            {"tls://connect.nats.io","tls://connect.nats.io:4222"},
-            {"opentls://connect.nats.io","opentls://connect.nats.io:4222"},
-            {"connect.nats.io","nats://connect.nats.io:4222"},
-            
-            {"nats://192.168.0.1:4222","nats://192.168.0.1:4222"},
-            {"tls://192.168.0.1:4222","tls://192.168.0.1:4222"},
-            {"opentls://192.168.0.1:4222","opentls://192.168.0.1:4222"},
-            {"192.168.0.1:4222","nats://192.168.0.1:4222"},
-
-            {"nats://192.168.0.1","nats://192.168.0.1:4222"},
-            {"tls://192.168.0.1","tls://192.168.0.1:4222"},
-            {"opentls://192.168.0.1","opentls://192.168.0.1:4222"},
-            {"192.168.0.1","nats://192.168.0.1:4222"},
-        };
-
-        for (String[] strings : test) {
-            URI actual = Options.parseURIForServer(strings[0], false);
-            URI expected = new URI(strings[1]);
-            assertEquals(expected.toASCIIString(), actual.toASCIIString());
-        }
-        URI actual = Options.parseURIForServer("connect.nats.io", true);
-        URI expected = new URI("wss://connect.nats.io:4222");
-        assertEquals(expected.toASCIIString(), actual.toASCIIString());
-}
+    String[] schemes = new String[]   { "NATS", "unk",  "tls",  "opentls",  "ws",   "wss", "nats"};
+    boolean[] secures = new boolean[] { false,  false,  true,   true,       false,  true,  false};
+    boolean[] wses = new boolean[]    { false,  false,  false,  false,      true,   true,  false};
+    String[] hosts = new String[]     { "host", "1.2.3.4", "[1:2:3:4::5]", null};
+    boolean[] ips = new boolean[]     { false,  true,      true,           false};
+    Integer[] ports = new Integer[]   {1122, null};
+    String[] userInfos = new String[] {null, "u:p"};
 
     @Test
-    public void testParseBadURIForServer() {
-
-        String[] strings = new String[] {
-                "unk://123.1.1.1", // unknown protocol
-                "//123.1.1.1",     // ends up no host
-                ":4222"            // just wrong
-        };
-
-        for (String string : strings) {
-            assertThrows(URISyntaxException.class, () -> Options.parseURIForServer(string, false));
+    public void testNatsUri() throws URISyntaxException {
+        for (int e = 0; e < schemes.length; e++) {
+            _testNatsUri(e, null);
+            if (e > 1) {
+                _testNatsUri(-e, schemes[e]);
+            }
         }
+
+        // coverage
+        //noinspection SimplifiableAssertion,ConstantValue
+        assertFalse(new NatsUri(Options.DEFAULT_URL).equals(null));
+        //noinspection SimplifiableAssertion
+        assertFalse(new NatsUri(Options.DEFAULT_URL).equals(new Object()));
+    }
+
+    private void _testNatsUri(int e, String nullScheme) throws URISyntaxException {
+        String scheme = e < 0 ? null : schemes[e];
+        e = Math.abs(e);
+        for (int h = 0; h < hosts.length; h++) {
+            String host = hosts[h];
+            for (Integer port : ports) {
+                for (String userInfo : userInfos) {
+                    StringBuilder sb = new StringBuilder();
+                    String expectedScheme;
+                    if (scheme == null) {
+                        expectedScheme = nullScheme;
+                    }
+                    else {
+                        expectedScheme = scheme;
+                        sb.append(scheme).append("://");
+                    }
+                    if (userInfo != null) {
+                        sb.append(userInfo).append("@");
+                    }
+                    if (host != null) {
+                        sb.append(host);
+                    }
+                    int expectedPort;
+                    if (port == null) {
+                        expectedPort = DEFAULT_PORT;
+                    }
+                    else {
+                        expectedPort = port;
+                        sb.append(":").append(port);
+                    }
+                    if (host == null || "unk".equals(scheme)) {
+                        assertThrows(URISyntaxException.class, () -> new NatsUri(sb.toString()));
+                    }
+                    else {
+                        NatsUri uri1 = scheme == null ? new NatsUri(sb.toString(), nullScheme) : new NatsUri(sb.toString());
+                        NatsUri uri2 = new NatsUri(uri1.getUri());
+                        assertEquals(uri1, uri2);
+                        checkCreate(uri1, secures[e], wses[e], ips[h], expectedScheme, host, expectedPort, userInfo);
+                        checkCreate(uri2, secures[e], wses[e], ips[h], expectedScheme, host, expectedPort, userInfo);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void checkCreate(NatsUri uri, boolean secure, boolean ws, boolean ip, String scheme, String host, int port, String userInfo) throws URISyntaxException {
+        scheme = scheme.toLowerCase();
+        assertEquals(secure, uri.isSecure());
+        assertEquals(ws, uri.isWebsocket());
+        assertEquals(scheme, uri.getScheme());
+        assertEquals(host, uri.getHost());
+        assertEquals(port, uri.getPort());
+        assertEquals(userInfo, uri.getUserInfo());
+        String expectedUri = userInfo == null
+            ? scheme + "://" + host + ":" + port
+            : scheme + "://" + userInfo + "@" + host + ":" + port;
+        assertEquals(expectedUri, uri.toString());
+        assertEquals(expectedUri.replace(host, "rehost"), uri.reHost("rehost").toString());
+        assertEquals(ip, uri.hostIsIpAddress());
     }
 
     @Test

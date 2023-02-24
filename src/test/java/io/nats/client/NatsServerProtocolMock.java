@@ -153,11 +153,11 @@ public class NatsServerProtocolMock implements Closeable{
             serverSocket = new ServerSocket(this.port);
             serverSocket.setSoTimeout(5000);
 
-            System.out.println("*** Mock Server @" + this.port + " started...");
+            // System.out.println("*** Mock Server @" + this.port + " started...");
             socket = serverSocket.accept();
             
             this.progress = Progress.CLIENT_CONNECTED;
-            System.out.println("*** Mock Server @" + this.port + " got client...");
+            // System.out.println("*** Mock Server @" + this.port + " got client...");
 
             writer = new PrintWriter(socket.getOutputStream());
             reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -188,7 +188,7 @@ public class NatsServerProtocolMock implements Closeable{
             }
             writer.flush();
             this.progress = Progress.SENT_INFO;
-            System.out.println("*** Mock Server @" + this.port + " sent info...");
+            // System.out.println("*** Mock Server @" + this.port + " sent info...");
 
             if (exitAt == ExitAt.EXIT_AFTER_INFO) {
                 throw new Exception("exit");
@@ -198,7 +198,7 @@ public class NatsServerProtocolMock implements Closeable{
 
             if (connect != null && connect.startsWith("CONNECT")) {
                 this.progress = Progress.GOT_CONNECT;
-                System.out.println("*** Mock Server @" + this.port + " got connect...");
+                // System.out.println("*** Mock Server @" + this.port + " got connect...");
             } else {
                 throw new IOException("First message wasn't CONNECT");
             }
@@ -211,7 +211,7 @@ public class NatsServerProtocolMock implements Closeable{
 
             if (ping.startsWith("PING")) {
                 this.progress = Progress.GOT_PING;
-                System.out.println("*** Mock Server @" + this.port + " got ping...");
+                // System.out.println("*** Mock Server @" + this.port + " got ping...");
             } else {
                 throw new IOException("Second message wasn't PING");
             }
@@ -223,11 +223,11 @@ public class NatsServerProtocolMock implements Closeable{
             writer.write("PONG\r\n");
             writer.flush();
             this.progress = Progress.SENT_PONG;
-            System.out.println("*** Mock Server @" + this.port + " sent pong...");
+            // System.out.println("*** Mock Server @" + this.port + " sent pong...");
 
             if (this.customizer != null) {
                 this.progress = Progress.STARTED_CUSTOM_CODE;
-                System.out.println("*** Mock Server @" + this.port + " starting custom code...");
+                // System.out.println("*** Mock Server @" + this.port + " starting custom code...");
                 this.customizer.customizeTest(this, reader, writer);
                 this.progress = Progress.COMPLETED_CUSTOM_CODE;
             }
@@ -239,10 +239,10 @@ public class NatsServerProtocolMock implements Closeable{
 
         } catch (IOException io) {
             protocolFailure = true;
-            System.out.println("\n*** Mock Server @" + this.port + " got exception "+io.getMessage());
+            // System.out.println("\n*** Mock Server @" + this.port + " got exception "+io.getMessage());
             io.printStackTrace();
         } catch (Exception ex) {
-            System.out.println("\n*** Mock Server @" + this.port + " got exception "+ex.getMessage());
+            // System.out.println("\n*** Mock Server @" + this.port + " got exception "+ex.getMessage());
             
             if (!"exit".equals(ex.getMessage())) {
                 ex.printStackTrace();
@@ -253,7 +253,7 @@ public class NatsServerProtocolMock implements Closeable{
                 try {
                     serverSocket.close();
                 } catch (IOException ex) {
-                    System.out.println("\n*** Mock Server @" + this.port + " got exception "+ex.getMessage());
+                    // System.out.println("\n*** Mock Server @" + this.port + " got exception "+ex.getMessage());
                 }
             }
             if (socket != null) {
@@ -262,10 +262,10 @@ public class NatsServerProtocolMock implements Closeable{
                     reader.close();
                     socket.close();
                 } catch (IOException ex) {
-                    System.out.println("\n*** Mock Server @" + this.port + " got exception "+ex.getMessage());
+                    // System.out.println("\n*** Mock Server @" + this.port + " got exception "+ex.getMessage());
                 }
             }
         }
-        System.out.println("*** Mock Server @" + this.port + " completed...");
+        // System.out.println("*** Mock Server @" + this.port + " completed...");
     }
 }
