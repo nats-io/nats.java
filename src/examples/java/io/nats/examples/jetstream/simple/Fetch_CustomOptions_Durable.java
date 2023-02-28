@@ -13,7 +13,7 @@ import static io.nats.examples.jetstream.simple.SimpleUtils.*;
  * - custom ConsumeOptions
  * - pre-existing durable consumer
  */
-public class Simple_Fetch_CustomOptions_Durable {
+public class Fetch_CustomOptions_Durable {
 
     public static void main(String[] args) {
         try (Connection nc = Nats.connect()) {

@@ -19,8 +19,11 @@ import io.nats.client.api.ConsumerInfo;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.nats.client.ConsumeOptions.DEFAULT_FETCH_ALL_OPTIONS;
 import static io.nats.client.ConsumeOptions.DEFAULT_OPTIONS;
@@ -101,7 +104,6 @@ public class NatsConsumerContext implements ConsumerContext {
 
         public InternalFetchConsumer(NatsJetStreamPullSubscription sub, ConsumeOptions co, int count) {
             super(sub, co);
-//            System.out.println("--> IFC " + count + " " + co.getExpiresIn());
             iterator = sub.iterate(count, co.getExpiresIn());
         }
 
@@ -152,11 +154,58 @@ public class NatsConsumerContext implements ConsumerContext {
         return null;
     }
 
+    static class InternalMessageConsumer extends NatsMessageConsumer {
+        NatsEndlessConsumer endlessConsumer;
+        MessageHandler handler;
+        Thread hack;
+        AtomicBoolean keepRunning = new AtomicBoolean(true);
+
+        public InternalMessageConsumer(NatsJetStreamPullSubscription sub, ConsumeOptions co,
+                                       MessageHandler handler) {
+            super(sub, co);
+
+            endlessConsumer = new NatsEndlessConsumer(sub, co);
+            this.handler = handler;
+            hack = new Thread(() -> {
+                while (keepRunning.get()) {
+                    try {
+                        Message m = endlessConsumer.nextMessage(co.getExpiresIn());
+                        if (m != null) {
+                            handler.onMessage(m);
+                        }
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            });
+            hack.start();
+        }
+
+        @Override
+        public void unsubscribe() {
+            super.unsubscribe();
+            keepRunning.set(false);
+        }
+
+        @Override
+        public void unsubscribe(int after) {
+            super.unsubscribe(after);
+            keepRunning.set(false);
+        }
+
+        @Override
+        public CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException {
+            CompletableFuture<Boolean> b = super.drain(timeout);
+            keepRunning.set(false);
+            return b;
+        }
+    }
+
     @Override
     public MessageConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         PullSubscribeOptions pso = PullSubscribeOptions.bind(stream, consumer);
         NatsJetStreamPullSubscription sub = (NatsJetStreamPullSubscription)js.subscribe(null, pso);
         ConsumeOptions co = orDefault(consumeOptions);
-        return new NatsEndlessConsumer(sub, co);
+        return new InternalMessageConsumer(sub, co, handler);
     }
 }

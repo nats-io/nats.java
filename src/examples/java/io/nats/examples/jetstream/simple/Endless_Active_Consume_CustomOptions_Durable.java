@@ -9,13 +9,13 @@ import static io.nats.examples.jetstream.simple.SimpleUtils.*;
 
 /**
  * This example will demonstrate simplified consuming using
- * - consume (manual)
+ * - consume (active calling of nextMessage(...))
  * - custom ConsumeOptions
  * - pre-existing durable consumer
  */
-public class Simple_Endless_Consume_CustomOptions_Durable {
+public class Endless_Active_Consume_CustomOptions_Durable {
 
-    static final int BATCH_SIZE = 100;
+    static final int BATCH_SIZE = 1000;
     static final int REPULL_PCT = 50;
 
     public static void main(String[] args) {
@@ -27,25 +27,8 @@ public class Simple_Endless_Consume_CustomOptions_Durable {
             // JetStream context
             JetStream js = nc.jetStream();
 
-            Thread pubThread = new Thread(() -> {
-                while (true) {
-                    int count = ThreadLocalRandom.current().nextInt(BATCH_SIZE) + BATCH_SIZE;
-                    String text = new NUID().next();
-                    for (int x = 1; x <= count; x++) {
-                        try {
-                            js.publish(SUBJECT, ("simple-message-" + text + "-" + x).getBytes());
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                    try {
-                        Thread.sleep(ThreadLocalRandom.current().nextInt(1000));
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-            });
-            pubThread.start();
+            // Start publishing
+            Thread pubThread = startPublish(js);
 
             // Consumer[Context]
             ConsumerContext consumerContext = js.getConsumerContext(STREAM, CONSUMER);
@@ -94,5 +77,28 @@ public class Simple_Endless_Consume_CustomOptions_Durable {
         catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private static Thread startPublish(JetStream js) {
+        Thread t = new Thread(() -> {
+            while (true) {
+                int count = ThreadLocalRandom.current().nextInt(BATCH_SIZE) + (BATCH_SIZE/2);
+                String text = new NUID().next();
+                for (int x = 1; x <= count; x++) {
+                    try {
+                        js.publish(SUBJECT, ("simple-message-" + text + "-" + x).getBytes());
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                try {
+                    Thread.sleep(ThreadLocalRandom.current().nextInt(1000));
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        t.start();
+        return t;
     }
 }
