@@ -24,12 +24,12 @@ import java.util.List;
 public interface ConsumerContext {
     String getName();
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
-    List<Message> fetchBlock(int count) throws IOException, JetStreamApiException;
-    List<Message> fetchBlock(int count, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
-    MessageNextConsumer fetch(int count) throws IOException, JetStreamApiException;
-    MessageNextConsumer fetch(int count, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
-    MessageNextConsumer consume() throws IOException, JetStreamApiException;
-    MessageNextConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    List<Message> fetchAll(int count) throws IOException, JetStreamApiException;
+    List<Message> fetchAll(int count, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    FetchConsumer fetch(int count) throws IOException, JetStreamApiException;
+    FetchConsumer fetch(int count, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    EndlessConsumer consume() throws IOException, JetStreamApiException;
+    EndlessConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
     MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException;
     MessageConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 }

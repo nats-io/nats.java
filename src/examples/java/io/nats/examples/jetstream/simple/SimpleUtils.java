@@ -17,23 +17,52 @@ import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
 public class SimpleUtils {
     public static String STREAM = "simple-stream";
     public static String SUBJECT = "simple-subject";
-    public static String DURABLE = "simple-durable";
+    public static String CONSUMER = "simple-durable";
     public static int COUNT = 20;
 
     public static void setupStreamAndDataAndConsumer(Connection nc) throws IOException, JetStreamApiException {
-        JetStreamManagement jsm = nc.jetStreamManagement();
-        createOrReplaceStream(jsm, STREAM, StorageType.Memory, SUBJECT);
+        setupStreamAndDataAndConsumer(nc, STREAM, SUBJECT, COUNT, CONSUMER);
+    }
 
-        JetStream js = nc.jetStream();
-        for (int x = 1; x <= COUNT; x++) {
-            js.publish(SUBJECT, ("simple-message-" + x).getBytes());
+    public static void setupStreamAndDataAndConsumer(Connection nc, int count) throws IOException, JetStreamApiException {
+        setupStreamAndDataAndConsumer(nc, STREAM, SUBJECT, count, CONSUMER);
+    }
+
+    public static void setupStreamAndDataAndConsumer(Connection nc, String stream, String subject, int count, String durable) throws IOException, JetStreamApiException {
+        setupStream(nc.jetStreamManagement(), stream, subject);
+        setupPublish(nc.jetStream(), subject, count);
+        setupConsumer(nc.jetStreamManagement(), stream, durable);
+    }
+
+    public static void setupStreamAndData(Connection nc) throws IOException, JetStreamApiException {
+        setupStreamAndData(nc, STREAM, SUBJECT, COUNT);
+    }
+
+    public static void setupStreamAndData(Connection nc, String stream, String subject, int count) throws IOException, JetStreamApiException {
+        setupStream(nc.jetStreamManagement(), stream, subject);
+        setupPublish(nc.jetStream(), subject, count);
+    }
+
+    public static void setupStream(Connection nc) throws IOException, JetStreamApiException {
+        setupStream(nc.jetStreamManagement(), STREAM, SUBJECT);
+    }
+
+    public static void setupStream(JetStreamManagement jsm, String stream, String subject) throws IOException, JetStreamApiException {
+        createOrReplaceStream(jsm, stream, StorageType.Memory, subject);
+    }
+
+    public static void setupPublish(JetStream js, String subject, int count) throws IOException, JetStreamApiException {
+        for (int x = 1; x <= count; x++) {
+            js.publish(subject, ("simple-message-" + x).getBytes());
         }
+    }
 
+    public static void setupConsumer(JetStreamManagement jsm, String stream, String durable) throws IOException, JetStreamApiException {
         // Create durable consumer
         ConsumerConfiguration cc =
             ConsumerConfiguration.builder()
-                .durable(DURABLE)
+                .durable(durable)
                 .build();
-        nc.jetStreamManagement().addOrUpdateConsumer(STREAM, cc);
+        jsm.addOrUpdateConsumer(stream, cc);
     }
 }

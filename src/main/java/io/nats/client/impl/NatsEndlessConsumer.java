@@ -14,20 +14,20 @@
 package io.nats.client.impl;
 
 import io.nats.client.ConsumeOptions;
+import io.nats.client.EndlessConsumer;
 import io.nats.client.Message;
-import io.nats.client.MessageNextConsumer;
 import io.nats.client.PullRequestOptions;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-public class NatsMessageNextConsumer extends NatsMessageConsumer implements MessageNextConsumer {
+public class NatsEndlessConsumer extends NatsMessageConsumer implements EndlessConsumer {
     private final PullRequestOptions pro;
     private final int repullAt;
     private int currentBatchRed;
     private boolean keepGoing = true;
 
-    public NatsMessageNextConsumer(NatsJetStreamPullSubscription sub, ConsumeOptions options) {
+    public NatsEndlessConsumer(NatsJetStreamPullSubscription sub, ConsumeOptions options) {
         super(sub, options);
         pro = PullRequestOptions.builder(options.getBatchSize()).expiresIn(options.getExpiresIn()).build();
         repullAt = options.getRepullAt();

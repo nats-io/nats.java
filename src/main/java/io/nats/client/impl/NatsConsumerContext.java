@@ -19,14 +19,17 @@ import io.nats.client.api.ConsumerInfo;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
+
+import static io.nats.client.ConsumeOptions.DEFAULT_FETCH_ALL_OPTIONS;
+import static io.nats.client.ConsumeOptions.DEFAULT_OPTIONS;
 
 /**
  * TODO
  */
 public class NatsConsumerContext implements ConsumerContext {
+
     private final NatsJetStream js;
     private final NatsJetStreamManagement jsm;
     private final String stream;
@@ -72,76 +75,76 @@ public class NatsConsumerContext implements ConsumerContext {
     }
 
     private ConsumeOptions orDefault(ConsumeOptions consumeOptions) {
-        return consumeOptions == null ? ConsumeOptions.DEFAULT_OPTIONS : consumeOptions;
+        return consumeOptions == null ? DEFAULT_OPTIONS : consumeOptions;
+    }
+
+    private ConsumeOptions orDefaultFA(ConsumeOptions consumeOptions) {
+        return consumeOptions == null ? DEFAULT_FETCH_ALL_OPTIONS : consumeOptions;
     }
 
     @Override
-    public List<Message> fetchBlock(int count) throws IOException, JetStreamApiException {
-        return fetchBlock(count, null);
+    public List<Message> fetchAll(int count) throws IOException, JetStreamApiException {
+        return fetchAll(count, null);
     }
 
     @Override
-    public List<Message> fetchBlock(int count, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public List<Message> fetchAll(int count, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         PullSubscribeOptions pso = PullSubscribeOptions.bind(stream, consumer);
         JetStreamSubscription sub = js.subscribe(null, pso);
-        ConsumeOptions co = orDefault(consumeOptions);
+        ConsumeOptions co = orDefaultFA(consumeOptions);
         return sub.fetch(count, co.getExpiresIn());
     }
 
-    @Override
-    public MessageNextConsumer fetch(int count) throws IOException, JetStreamApiException {
-        return fetch(count, null);
-    }
-
-    static class TemporaryMessageNextConsumer extends NatsMessageConsumer implements MessageNextConsumer {
+    static class InternalFetchConsumer extends NatsMessageConsumer implements FetchConsumer {
         Iterator<Message> iterator;
-        boolean unsub = true;
+        boolean isSubbed = true;
 
-        public TemporaryMessageNextConsumer(NatsJetStreamPullSubscription sub, ConsumeOptions co, int count) {
+        public InternalFetchConsumer(NatsJetStreamPullSubscription sub, ConsumeOptions co, int count) {
             super(sub, co);
+//            System.out.println("--> IFC " + count + " " + co.getExpiresIn());
             iterator = sub.iterate(count, co.getExpiresIn());
         }
 
         @Override
-        public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
+        public Message nextMessage() {
             if (iterator.hasNext()) {
                 return iterator.next();
             }
-            return unsub();
-        }
-
-        private synchronized Message unsub() {
-            if (unsub) unsubscribe();
+            unsub();
             return null;
         }
 
-        @Override
-        public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
-            if (iterator.hasNext()) {
-                return iterator.next();
+        private synchronized void unsub() {
+            if (isSubbed) {
+                isSubbed = false;
+                new Thread(this::unsubscribe).start();
             }
-            return unsub();
         }
     }
 
     @Override
-    public MessageNextConsumer fetch(int count, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
-        PullSubscribeOptions pso = PullSubscribeOptions.bind(stream, consumer);
-        NatsJetStreamPullSubscription sub = (NatsJetStreamPullSubscription)js.subscribe(null, pso);
-        return new TemporaryMessageNextConsumer(sub, orDefault(consumeOptions), count);
+    public FetchConsumer fetch(int count) throws IOException, JetStreamApiException {
+        return fetch(count, null);
     }
 
     @Override
-    public MessageNextConsumer consume() throws IOException, JetStreamApiException {
+    public FetchConsumer fetch(int count, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+        PullSubscribeOptions pso = PullSubscribeOptions.bind(stream, consumer);
+        NatsJetStreamPullSubscription sub = (NatsJetStreamPullSubscription)js.subscribe(null, pso);
+        return new InternalFetchConsumer(sub, orDefault(consumeOptions), count);
+    }
+
+    @Override
+    public EndlessConsumer consume() throws IOException, JetStreamApiException {
         return consume((ConsumeOptions)null);
     }
 
     @Override
-    public MessageNextConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public EndlessConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         PullSubscribeOptions pso = PullSubscribeOptions.bind(stream, consumer);
         NatsJetStreamPullSubscription sub = (NatsJetStreamPullSubscription)js.subscribe(null, pso);
         ConsumeOptions co = orDefault(consumeOptions);
-        return new NatsMessageNextConsumer(sub, co);
+        return new NatsEndlessConsumer(sub, co);
     }
 
     @Override
@@ -154,6 +157,6 @@ public class NatsConsumerContext implements ConsumerContext {
         PullSubscribeOptions pso = PullSubscribeOptions.bind(stream, consumer);
         NatsJetStreamPullSubscription sub = (NatsJetStreamPullSubscription)js.subscribe(null, pso);
         ConsumeOptions co = orDefault(consumeOptions);
-        return new NatsMessageNextConsumer(sub, co);
+        return new NatsEndlessConsumer(sub, co);
     }
 }

@@ -19,11 +19,18 @@ import java.time.Duration;
  * TODO
  */
 public class ConsumeOptions {
+    public static final int DEFAULT_BATCH_SIZE = 100;
+    public static final int DEFAULT_MAX_BYTES = 0;
+    public static final int DEFAULT_REPULL_PERCENT = 25;
+    public static final Duration DEFAULT_EXPIRES_IN = Duration.ofSeconds(30);
+    public static final Duration DEFAULT_IDLE_HEARTBEAT = Duration.ofSeconds(15);
+
     public static final ConsumeOptions DEFAULT_OPTIONS = builder().build();
     public static final ConsumeOptions XLARGE_PAYLOAD = predefined(10);
     public static final ConsumeOptions LARGE_PAYLOAD = predefined(20);
     public static final ConsumeOptions MEDIUM_PAYLOAD = predefined(50);
-    public static final ConsumeOptions SMALL_PAYLOAD = predefined(100);
+    public static final ConsumeOptions SMALL_PAYLOAD = predefined(DEFAULT_BATCH_SIZE);
+    public static final ConsumeOptions DEFAULT_FETCH_ALL_OPTIONS = builder().expiresIn(10000).build();
 
     private final int batchSize;
     private final int maxBytes;
@@ -37,11 +44,11 @@ public class ConsumeOptions {
         this.expiresIn = b.expiresIn;
         this.idleHeartbeat = b.idleHeartbeat;
 
-        if (maxBytes > 0) {
-            repullAt = maxBytes * b.repullPercent / 100;
+        if (maxBytes > DEFAULT_MAX_BYTES) {
+            repullAt = maxBytes * b.repullPercent / DEFAULT_BATCH_SIZE;
         }
         else {
-            repullAt = batchSize * b.repullPercent / 100;
+            repullAt = batchSize * b.repullPercent / DEFAULT_BATCH_SIZE;
         }
     }
 
@@ -78,11 +85,11 @@ public class ConsumeOptions {
     }
 
     public static class Builder {
-        private int batchSize = 100;
-        private int maxBytes = 0;
-        private int repullPercent = 25;
-        private Duration expiresIn = Duration.ofSeconds(30);
-        private Duration idleHeartbeat = Duration.ofSeconds(15);
+        private int batchSize = DEFAULT_BATCH_SIZE;
+        private int maxBytes = DEFAULT_MAX_BYTES;
+        private int repullPercent = DEFAULT_REPULL_PERCENT;
+        private Duration expiresIn = DEFAULT_EXPIRES_IN;
+        private Duration idleHeartbeat = DEFAULT_IDLE_HEARTBEAT;
 
         /**
          * Set the batch size for the pull
@@ -90,7 +97,7 @@ public class ConsumeOptions {
          * @return the builder
          */
         public Builder batchSize(int batchSize) {
-            this.batchSize = batchSize < 1 ? 100 : batchSize;
+            this.batchSize = batchSize < 1 ? DEFAULT_BATCH_SIZE : batchSize;
             return this;
         }
 
@@ -110,7 +117,7 @@ public class ConsumeOptions {
          * @return the builder
          */
         public Builder repullPercent(int repullPct) {
-            this.repullPercent = repullPct < 1 ? 25 : Math.min(repullPct, 75);
+            this.repullPercent = repullPct < 1 ? DEFAULT_REPULL_PERCENT : Math.min(repullPct, 75);
             return this;
         }
 

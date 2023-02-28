@@ -15,7 +15,7 @@ package io.nats.client;
 
 import java.time.Duration;
 
-public interface MessageNextConsumer extends MessageConsumer {
+public interface EndlessConsumer extends MessageConsumer {
     Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException;
     Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException;
 }
