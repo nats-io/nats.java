@@ -13,6 +13,8 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.support.NatsUri;
+
 import java.io.IOException;
 
 /**
@@ -22,6 +24,10 @@ import java.io.IOException;
  */
 public interface DataPort {
     void connect(String serverURI, NatsConnection conn, long timeoutNanos) throws IOException;
+
+    default void connect(NatsConnection conn, NatsUri uri, long timeoutNanos) throws IOException {
+        connect(uri.toString(), conn, timeoutNanos);
+    }
 
     /**
      * Upgrade the port to SSL. If it is already secured, this is a no-op.

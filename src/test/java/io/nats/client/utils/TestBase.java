@@ -59,7 +59,7 @@ public class TestBase {
     public static final long VERY_LONG_TIMEOUT_MS = 20000;
 
     static {
-        NatsTestServer.init();
+        NatsTestServer.quiet();
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -417,13 +417,25 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     // connect or wait for a connection
     // ----------------------------------------------------------------------------------------------------
+    public static Options standardOptions() {
+        return Options.builder()
+            .errorListener(new TestHandler())
+            .build();
+    }
+
+    public static Options standardOptions(String serverURL) {
+        return Options.builder()
+            .server(serverURL)
+            .errorListener(new TestHandler())
+            .build();
+    }
 
     public static Connection standardConnection() throws IOException, InterruptedException {
-        return standardConnectionWait( Nats.connect() );
+        return standardConnectionWait( Nats.connect(standardOptions()) );
     }
 
     public static Connection standardConnection(String serverURL) throws IOException, InterruptedException {
-        return standardConnectionWait( Nats.connect(serverURL) );
+        return standardConnectionWait( Nats.connect(standardOptions(serverURL)) );
     }
 
     public static Connection standardConnection(Options options) throws IOException, InterruptedException {

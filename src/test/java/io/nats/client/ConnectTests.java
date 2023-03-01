@@ -355,14 +355,16 @@ public class ConnectTests {
             nc.flushBuffer();
 
             ts.shutdown();
-            sleep(100);
+            while (nc.getStatus() == Connection.Status.CONNECTED) {
+                sleep(10);
+            }
 
             // test while reconnecting
-            assertThrows(IllegalStateException.class, () -> nc.flushBuffer());
+            assertThrows(IllegalStateException.class, nc::flushBuffer);
             standardCloseConnection(nc);
 
             // test when closed.
-            assertThrows(IllegalStateException.class, () -> nc.flushBuffer());
+            assertThrows(IllegalStateException.class, nc::flushBuffer);
         }
     }
 

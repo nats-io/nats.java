@@ -17,6 +17,7 @@ import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
 import io.nats.client.utils.RunProxy;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -29,10 +30,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class WebsocketConnectTests {
+public class WebsocketConnectTests extends TestBase {
+
     @Test
     public void testRequestReply() throws Exception {
         //System.setProperty("javax.net.debug", "all");
@@ -281,7 +282,7 @@ public class WebsocketConnectTests {
     }
 
     @Test
-    public void testServerSecureClientNotMismatch() {
+    public void testServerSecureClientNotMismatch() throws Exception {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/wssverify.conf", false)) {
                 Options options = new Options.Builder().

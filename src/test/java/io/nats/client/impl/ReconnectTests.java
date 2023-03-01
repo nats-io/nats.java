@@ -20,6 +20,8 @@ import org.junit.jupiter.api.Test;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -361,7 +363,6 @@ public class ReconnectTests {
     public void testInfiniteReconnectBuffer() throws Exception {
         Connection nc;
         TestHandler handler = new TestHandler();
-
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = new Options.Builder().
                                     server(ts.getURI()).
@@ -591,6 +592,26 @@ public class ReconnectTests {
         }
     }
 
+    private static class TestReconnectHandler implements ConnectionListener {
+        public long lastEvent = 0;
+        public List<Long> times = new ArrayList<>();
+        public boolean active = true;
+        public StringBuilder debug = new StringBuilder("TRH REPORT\n");
+
+        @Override
+        public void connectionEvent(Connection conn, Events type) {
+            if (active && type == Events.DISCONNECTED) {
+                // disconnect is called after every failed reconnect attempt.
+                long now = System.currentTimeMillis();
+                times.add(now - lastEvent);
+                lastEvent = now;
+                debug.append("TRH D ").append(System.currentTimeMillis()).append(" ").append(type).append(" ").append(times.get(times.size() - 1)).append("\n");
+            }
+            else {
+                debug.append("TRH E ").append(System.currentTimeMillis()).append(" ").append(type).append("\n");
+            }
+        }
+    }
     private static class TestReconnecWaitHandler implements ConnectionListener {
         int disconnectCount = 0;
 
@@ -609,20 +630,20 @@ public class ReconnectTests {
                 incrementDisconnectedCount();
             }
         }
-    } 
-    
+    }
+
     @Test
     public void testReconnectWait() throws Exception {
         TestReconnecWaitHandler trwh = new TestReconnecWaitHandler();
 
         int port = NatsTestServer.nextPort();
         Options options = new Options.Builder().
-                                server("nats://localhost:"+port).
-                                maxReconnects(-1).
-                                connectionTimeout(Duration.ofSeconds(1)).
-                                reconnectWait(Duration.ofMillis(250)).
-                                connectionListener(trwh).
-                                build();
+            server("nats://localhost:"+port).
+            maxReconnects(-1).
+            connectionTimeout(Duration.ofSeconds(1)).
+            reconnectWait(Duration.ofMillis(250)).
+            connectionListener(trwh).
+            build();
 
         NatsTestServer ts = new NatsTestServer(port, false);
         Connection c = Nats.connect(options);
