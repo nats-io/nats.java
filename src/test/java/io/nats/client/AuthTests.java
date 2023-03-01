@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.Connection.Status;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.impl.TestHandler;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 

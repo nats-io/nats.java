@@ -16,6 +16,7 @@ package io.nats.client;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.DataPort;
 import io.nats.client.impl.ErrorListenerLoggerImpl;
+import io.nats.client.impl.TestHandler;
 import io.nats.client.support.HttpRequest;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
 import io.nats.client.utils.CoverageServerListProvider;

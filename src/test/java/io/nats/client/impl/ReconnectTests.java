@@ -45,8 +45,6 @@ public class ReconnectTests {
         long start;
         long end;
 
-        handler.setPrintExceptions(true);
-
         try (NatsTestServer ts = new NatsTestServer(port, false)) {
             Options options = new Options.Builder().
                                 server(ts.getURI()).
@@ -162,8 +160,6 @@ public class ReconnectTests {
         long start;
         long end;
         String[] customArgs = {"--user","stephen","--pass","password"};
-
-        handler.setPrintExceptions(true);
 
         try (NatsTestServer ts = new NatsTestServer(customArgs, port, false)) {
             Options options = new Options.Builder().
@@ -365,8 +361,7 @@ public class ReconnectTests {
     public void testInfiniteReconnectBuffer() throws Exception {
         Connection nc;
         TestHandler handler = new TestHandler();
-        handler.setPrintExceptions(false);
-        
+
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = new Options.Builder().
                                     server(ts.getURI()).

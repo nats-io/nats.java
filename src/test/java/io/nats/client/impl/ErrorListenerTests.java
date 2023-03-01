@@ -127,7 +127,7 @@ public class ErrorListenerTests {
     @Test
     public void testErrorOnNoAuth() throws Exception {
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
-        TestHandler handler = new TestHandler(false);
+        TestHandler handler = new TestHandler();
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
             sleep(100); // give the server time to get ready, otherwise sometimes this test flaps
             // See config file for user/pass
