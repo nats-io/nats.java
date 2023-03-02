@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.support.Status;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,6 +41,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     private Connection connection;
     private final ArrayList<Consumer> slowConsumers = new ArrayList<>();
     private final ArrayList<Message> discardedMessages = new ArrayList<>();
+    private final ArrayList<UnhandledStatusEvent> unhandledStatuses = new ArrayList<>();
 
     private final boolean printExceptions;
     private final boolean verbose;
@@ -51,6 +53,21 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     public TestHandler(boolean printExceptions, boolean verbose) {
         this.printExceptions = printExceptions;
         this.verbose = verbose;
+    }
+
+    public void reset() {
+        count.set(0);
+        eventCounts.clear();
+        errorCounts.clear();
+        exceptionCount.set(0);
+        statusChanged = null;
+        slowSubscriber = null;
+        errorWaitFuture = null;
+        eventToWaitFor = null;
+        errorToWaitFor = null;
+        slowConsumers.clear();
+        discardedMessages.clear();
+        unhandledStatuses.clear();
     }
 
     public void prepForStatusChange(Events waitFor) {
@@ -271,5 +288,24 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     public Connection getConnection() {
         return connection;
+    }
+
+    public static class UnhandledStatusEvent {
+        String sid;
+        Status status;
+
+        public UnhandledStatusEvent(JetStreamSubscription sub, Status status) {
+            this.sid = ((NatsJetStreamSubscription)sub).getSID();
+            this.status = status;
+        }
+    }
+
+    @Override
+    public void unhandledStatus(Connection conn, JetStreamSubscription sub, Status status) {
+        unhandledStatuses.add(new UnhandledStatusEvent(sub, status));
+    }
+
+    public ArrayList<UnhandledStatusEvent> getUnhandledStatuses() {
+        return unhandledStatuses;
     }
 }

@@ -18,23 +18,48 @@ import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 class OrderedManager extends PushMessageManager {
 
-    private long expectedConsumerSeq;
+    private long expectedExternalConsumerSeq;
+    private final AtomicReference<String> targetSid;
 
     OrderedManager(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, NatsDispatcher dispatcher) {
         super(conn, js, stream, so, serverCC, queueMode, dispatcher);
-        expectedConsumerSeq = 1; // always starts at 1
+        expectedExternalConsumerSeq = 1; // always starts at 1
+        targetSid = new AtomicReference<>();
     }
 
     @Override
-    protected boolean pushSubManage(Message msg) {
+    protected void startup(NatsJetStreamSubscription sub) {
+        targetSid.set(sub.getSID());
+        super.startup(sub);
+    }
+
+    @Override
+    protected boolean manage(Message msg) {
+        if (msg.isStatusMessage()) {
+            manageStatus(msg);
+            return true; // all status are managed
+        }
+
+        if (!msg.getSID().equals(targetSid.get())) {
+            return true;
+        }
+
+        // all status are managed, so this is a normal js message
+        // expects sequence in order
+        // if there is a failure,
+        // no need to queue the message (return false)
         long receivedConsumerSeq = msg.metaData().consumerSequence();
-        if (expectedConsumerSeq != receivedConsumerSeq) {
+        if (expectedExternalConsumerSeq != receivedConsumerSeq) {
             handleErrorCondition();
             return true;
         }
-        expectedConsumerSeq++;
+
+        trackJsMessage(msg);
+        expectedExternalConsumerSeq++;
         return false;
     }
 
@@ -45,7 +70,8 @@ class OrderedManager extends PushMessageManager {
 
     private void handleErrorCondition() {
         try {
-            expectedConsumerSeq = 1; // consumer always starts with consumer sequence 1
+            targetSid.set(null);
+            expectedExternalConsumerSeq = 1; // consumer always starts with consumer sequence 1
 
             // 1. shutdown the manager, for instance stops heartbeat timers
             shutdown();
@@ -54,6 +80,7 @@ class OrderedManager extends PushMessageManager {
             //    New sub needs a new deliverSubject
             String newDeliverSubject = sub.connection.createInbox();
             sub.reSubscribe(newDeliverSubject);
+            targetSid.set(sub.getSID());
 
             // 3. make a new consumer using the same deliver subject but
             //    with a new starting point

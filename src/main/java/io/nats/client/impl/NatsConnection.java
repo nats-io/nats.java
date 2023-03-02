@@ -1546,12 +1546,9 @@ class NatsConnection implements Connection {
             } else if (q != null) {
                 c.markNotSlow();
 
-                // beforeQueueProcessor returns null if the message
-                // does not need to be queued, for instance heartbeats
-                // that are not flow control and are already seen by the
-                // auto status manager
-                msg = sub.getBeforeQueueProcessor().apply(msg);
-                if (msg != null) {
+                // beforeQueueProcessor returns true if the message
+                // is allowed to be queued
+                if (sub.getBeforeQueueProcessor().apply(msg)) {
                     q.push(msg);
                 }
             }

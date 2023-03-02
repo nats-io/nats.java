@@ -14,16 +14,14 @@
 package io.nats.client.impl;
 
 import io.nats.client.ErrorListener;
-import io.nats.client.JetStreamStatusException;
 import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.support.Status;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
-
-import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
 class PushMessageManager extends MessageManager {
 
@@ -35,7 +33,11 @@ class PushMessageManager extends MessageManager {
 
     protected final boolean queueMode;
     protected final boolean fc;
+    protected boolean hb;
+    protected long idleHeartbeatSetting;
+    protected long alarmPeriodSetting;
 
+    protected HeartbeatTimer heartbeatTimer;
     protected String lastFcSubject;
 
     PushMessageManager(NatsConnection conn,
@@ -52,6 +54,10 @@ class PushMessageManager extends MessageManager {
         this.originalCc = originalCc;
         this.queueMode = queueMode;
 
+        hb = false;
+        idleHeartbeatSetting = 0;
+        alarmPeriodSetting = 0;
+
         if (queueMode) {
             fc = false;
         }
@@ -61,56 +67,103 @@ class PushMessageManager extends MessageManager {
         }
     }
 
-    boolean isQueueMode()       { return queueMode; }
-    boolean isFc()              { return fc; }
-    String getLastFcSubject()   { return lastFcSubject; }
+    protected void initIdleHeartbeat(Duration configIdleHeartbeat, long configMessageAlarmTime) {
+        initIdleHeartbeat(configIdleHeartbeat == null ? 0 : configIdleHeartbeat.toMillis(), configMessageAlarmTime);
+    }
 
-    protected boolean pushSubManage(Message msg) {
-        return false;
+    protected void initIdleHeartbeat(long configIdleHeartbeat, long configMessageAlarmTime) {
+        idleHeartbeatSetting = configIdleHeartbeat;
+        if (idleHeartbeatSetting <= 0) {
+            alarmPeriodSetting = 0;
+            hb = false;
+        }
+        else {
+            if (configMessageAlarmTime < idleHeartbeatSetting) {
+                alarmPeriodSetting = idleHeartbeatSetting * THRESHOLD;
+            }
+            else {
+                alarmPeriodSetting = configMessageAlarmTime;
+            }
+            hb = true;
+        }
+    }
+
+    boolean isQueueMode()           { return queueMode; }
+    boolean isFc()                  { return fc; }
+    boolean isHb()                  { return hb; }
+    long getIdleHeartbeatSetting()  { return idleHeartbeatSetting; }
+    long getAlarmPeriodSetting()    { return alarmPeriodSetting; }
+    String getLastFcSubject()       { return lastFcSubject; }
+
+    @Override
+    protected void startup(NatsJetStreamSubscription sub) {
+        super.startup(sub);
+        if (hb) {
+            sub.setBeforeQueueProcessor(this::beforeQueueProcessorImpl);
+            heartbeatTimer = new HeartbeatTimer(alarmPeriodSetting);
+        }
+    }
+
+    @Override
+    protected void shutdown() {
+        super.shutdown();
+        if (heartbeatTimer != null) {
+            heartbeatTimer.shutdown();
+            heartbeatTimer = null;
+        }
+    }
+
+    protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
+        lastMsgReceived.set(System.currentTimeMillis());
+        return msg.isStatusMessage() ? bqpStatus(msg) : true;
+    }
+
+    protected Boolean bqpStatus(NatsMessage msg) {
+        // A heartbeat can be plain or include flow control info.
+        // Plain ones do not have to be queued (return false)
+        // Ones with fc subjects need to be queued on since they
+        // are treated like normal fc and processed in turn.
+        final Status status = msg.getStatus();
+        if (status.isHeartbeat()) {
+            return hasFcSubject(msg);
+        }
+        if (!PUSH_KNOWN_STATUS_CODES.contains(status.getCode())) {
+            conn.executeCallback((c, el) -> el.unhandledStatus(c, sub, status));
+            return false;
+        }
+        return true;
     }
 
     @Override
     protected boolean manage(Message msg) {
-        if (!sub.getSID().equals(msg.getSID())) {
-            return true;
-        }
-
         if (msg.isStatusMessage()) {
-            // this checks fc, hb and unknown
-            // only process fc and hb if those flags are set
-            // otherwise they are simply known statuses
-            Status status = msg.getStatus();
-            if (status.isFlowControl()) {
-                if (fc) {
-                    _processFlowControl(msg.getReplyTo(), ErrorListener.FlowControlSource.FLOW_CONTROL);
-                }
-            }
-            else if (status.isHeartbeat()) {
-                if (fc) {
-                    // status flowControlSubject is set in the beforeQueueProcessor
-                    _processFlowControl(extractFcSubject(msg), ErrorListener.FlowControlSource.HEARTBEAT);
-                }
-            }
-            else if (!PUSH_KNOWN_STATUS_CODES.contains(status.getCode())) {
-                // If this status is unknown to us, always use the error handler.
-                // If it's a sync call, also throw an exception
-                conn.executeCallback((c, el) -> el.unhandledStatus(c, sub, status));
-                if (syncMode) {
-                    throw new JetStreamStatusException(sub, status);
-                }
-            }
-            return true;
+            manageStatus(msg);
+            return true; // all status are managed
         }
 
-        return pushSubManage(msg) || super.manage(msg);
+        trackJsMessage(msg);
+        return false;
     }
 
-    @Override
-    protected String extractFcSubject(Message msg) {
-        return msg.getHeaders() == null ? null : msg.getHeaders().getFirst(CONSUMER_STALLED_HDR);
+    protected void manageStatus(Message msg) {
+        // this checks fc, hb and unknown
+        // only process fc and hb if those flags are set
+        // otherwise they are simply known statuses
+        Status status = msg.getStatus();
+        if (status.isFlowControl()) {
+            if (fc) {
+                processFlowControl(msg.getReplyTo(), ErrorListener.FlowControlSource.FLOW_CONTROL);
+            }
+        }
+        else if (status.isHeartbeat()) {
+            if (fc) {
+                // status flowControlSubject is set in the beforeQueueProcessor
+                processFlowControl(extractFcSubject(msg), ErrorListener.FlowControlSource.HEARTBEAT);
+            }
+        }
     }
 
-    private void _processFlowControl(String fcSubject, ErrorListener.FlowControlSource source) {
+    private void processFlowControl(String fcSubject, ErrorListener.FlowControlSource source) {
         // we may get multiple fc/hb messages with the same reply
         // only need to post to that subject once
         if (fcSubject != null && !fcSubject.equals(lastFcSubject)) {

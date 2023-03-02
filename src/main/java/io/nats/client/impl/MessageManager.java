@@ -15,10 +15,11 @@ package io.nats.client.impl;
 
 import io.nats.client.Message;
 
-import java.time.Duration;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
+
+import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
 abstract class MessageManager {
     protected static final int THRESHOLD = 3;
@@ -28,101 +29,56 @@ abstract class MessageManager {
     protected final boolean syncMode;
 
     protected NatsJetStreamSubscription sub;
-    protected boolean hb;
-    protected long idleHeartbeatSetting;
-    protected long alarmPeriodSetting;
 
     protected long lastStreamSeq;
-    protected long lastConsumerSeq;
+    protected long internalConsumerSeq;
 
     protected final AtomicLong lastMsgReceived;
-    protected HeartbeatTimer heartbeatTimer;
 
     public MessageManager(NatsConnection conn, NatsDispatcher dispatcher) {
         this.conn = conn;
         this.dispatcher = dispatcher;
         syncMode = dispatcher == null;
-        hb = false;
-        idleHeartbeatSetting = 0;
-        alarmPeriodSetting = 0;
         lastStreamSeq = -1;
-        lastConsumerSeq = -1;
+        internalConsumerSeq = 0;
         lastMsgReceived = new AtomicLong(System.currentTimeMillis());
     }
 
-    protected void initIdleHeartbeat(Duration configIdleHeartbeat, long configMessageAlarmTime) {
-        initIdleHeartbeat(configIdleHeartbeat == null ? 0 : configIdleHeartbeat.toMillis(), configMessageAlarmTime);
-    }
+    boolean isSyncMode()                { return syncMode; }
+    long getLastStreamSequence()        { return lastStreamSeq; }
+    long getInternalConsumerSequence()  { return internalConsumerSeq; }
+    long getLastMsgReceived()           { return lastMsgReceived.get(); }
 
-    protected void initIdleHeartbeat(long configIdleHeartbeat, long configMessageAlarmTime) {
-        idleHeartbeatSetting = configIdleHeartbeat;
-        if (idleHeartbeatSetting <= 0) {
-            alarmPeriodSetting = 0;
-            hb = false;
-        }
-        else {
-            if (configMessageAlarmTime < idleHeartbeatSetting) {
-                alarmPeriodSetting = idleHeartbeatSetting * THRESHOLD;
-            }
-            else {
-                alarmPeriodSetting = configMessageAlarmTime;
-            }
-            hb = true;
-        }
-    }
-
-    boolean isSyncMode()            { return syncMode; }
-    boolean isHb()                  { return hb; }
-    long getIdleHeartbeatSetting()  { return idleHeartbeatSetting; }
-    long getAlarmPeriodSetting()    { return alarmPeriodSetting; }
-    long getLastStreamSequence()    { return lastStreamSeq; }
-    long getLastConsumerSequence()  { return lastConsumerSeq; }
-    long getLastMsgReceived()       { return lastMsgReceived.get(); }
-
-    void startup(NatsJetStreamSubscription sub) {
+    protected void startup(NatsJetStreamSubscription sub) {
         this.sub = sub;
-        if (hb) {
-            sub.setBeforeQueueProcessor(this::beforeQueueProcessor);
-            heartbeatTimer = new HeartbeatTimer();
-        }
     }
 
-    void shutdown() {
-        if (heartbeatTimer != null) {
-            heartbeatTimer.shutdown();
-            heartbeatTimer = null;
-        }
+    protected void shutdown() {}
+
+    abstract protected boolean manage(Message msg);
+
+    protected void trackJsMessage(Message msg) {
+        NatsJetStreamMetaData meta = msg.metaData();
+        lastStreamSeq = meta.streamSequence();
+        internalConsumerSeq++;
     }
 
-    protected boolean manage(Message msg) {
-        lastStreamSeq = msg.metaData().streamSequence();
-        lastConsumerSeq = msg.metaData().consumerSequence();
-        return false;
+    protected boolean hasFcSubject(Message msg) {
+        return msg.getHeaders() != null && msg.getHeaders().containsKey(CONSUMER_STALLED_HDR);
     }
 
     protected String extractFcSubject(Message msg) {
-        return null;
+        return msg.getHeaders() == null ? null : msg.getHeaders().getFirst(CONSUMER_STALLED_HDR);
     }
-
-    protected NatsMessage beforeQueueProcessor(NatsMessage msg) {
-        lastMsgReceived.set(System.currentTimeMillis());
-        if (msg.isStatusMessage()
-            && msg.getStatus().isHeartbeat()
-            && extractFcSubject(msg) == null)
-        {
-            return null;
-        }
-        return msg;
-    }
-
 
     protected void handleHeartbeatError() {
-        conn.executeCallback((c, el) -> el.heartbeatAlarm(c, sub, lastStreamSeq, lastConsumerSeq));
+        conn.executeCallback((c, el) -> el.heartbeatAlarm(c, sub, lastStreamSeq, internalConsumerSeq));
     }
 
     protected class HeartbeatTimer {
         Timer timer;
         boolean alive = true;
+        long alarmPeriodSetting;
 
         class HeartbeatTimerTask extends TimerTask {
             @Override
@@ -135,7 +91,8 @@ abstract class MessageManager {
             }
         }
 
-        public HeartbeatTimer() {
+        public HeartbeatTimer(long alarmPeriodSetting) {
+            this.alarmPeriodSetting = alarmPeriodSetting;
             restart();
         }
 

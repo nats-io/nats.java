@@ -33,7 +33,7 @@ class NatsSubscription extends NatsConsumer implements Subscription {
 
     private final AtomicLong unSubMessageLimit;
 
-    private Function<NatsMessage, NatsMessage> beforeQueueProcessor;
+    private Function<NatsMessage, Boolean> beforeQueueProcessor;
 
     NatsSubscription(String sid, String subject, String queueName, NatsConnection connection, NatsDispatcher dispatcher) {
         super(connection);
@@ -47,7 +47,7 @@ class NatsSubscription extends NatsConsumer implements Subscription {
             this.incoming = new MessageQueue(false);
         }
 
-        beforeQueueProcessor = m -> m;
+        beforeQueueProcessor = m -> true;
     }
 
     void reSubscribe(String newDeliverSubject) {
@@ -68,11 +68,11 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         return (this.dispatcher != null || this.incoming != null);
     }
 
-    void setBeforeQueueProcessor(Function<NatsMessage, NatsMessage> beforeQueueProcessor) {
+    void setBeforeQueueProcessor(Function<NatsMessage, Boolean> beforeQueueProcessor) {
         this.beforeQueueProcessor = beforeQueueProcessor; // better not be null if it's being set
     }
 
-    public Function<NatsMessage, NatsMessage> getBeforeQueueProcessor() {
+    public Function<NatsMessage, Boolean> getBeforeQueueProcessor() {
         return beforeQueueProcessor;
     }
 

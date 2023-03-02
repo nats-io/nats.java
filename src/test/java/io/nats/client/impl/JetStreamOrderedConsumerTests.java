@@ -39,16 +39,16 @@ public class JetStreamOrderedConsumerTests extends JetStreamTestBase {
         }
 
         @Override
-        protected NatsMessage beforeQueueProcessor(NatsMessage msg) {
-            msg = super.beforeQueueProcessor(msg);
-            if (msg != null && msg.isJetStream()) {
+        protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
+            if (msg.isJetStream()) {
                 long ss = msg.metaData().streamSequence();
                 long cs = msg.metaData().consumerSequence();
                 if ((ss == 2 && cs == 2) || (ss == 5 && cs == 4)) {
-                    return null;
+                    return false;
                 }
             }
-            return msg;
+
+            return super.beforeQueueProcessorImpl(msg);
         }
     }
 
@@ -163,7 +163,7 @@ public class JetStreamOrderedConsumerTests extends JetStreamTestBase {
         }
 
         @Override
-        void startup(NatsJetStreamSubscription sub) {
+        protected void startup(NatsJetStreamSubscription sub) {
             super.startup(sub);
             startups.incrementAndGet();
         }
@@ -177,11 +177,11 @@ public class JetStreamOrderedConsumerTests extends JetStreamTestBase {
         }
 
         @Override
-        protected NatsMessage beforeQueueProcessor(NatsMessage msg) {
+        protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
             if (skip.decrementAndGet() < 0) {
-                return null;
+                return false;
             }
-            return super.beforeQueueProcessor(msg);
+            return super.beforeQueueProcessorImpl(msg);
         }
 
         public String SID() {

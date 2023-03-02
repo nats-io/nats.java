@@ -685,6 +685,28 @@ public class JetStreamPullTests extends JetStreamTestBase {
         }
     }
 
+/*
+    @Test
+    public void testMaxPullRequests() throws Exception {
+        runInJsServer(true, nc -> {
+            createDefaultTestStream(nc);
+            JetStream js = nc.jetStream();
+            ((NatsJetStream)js).PULL_MESSAGE_MANAGER_FACTORY = NoopMessageManager::new;
+
+            PullSubscribeOptions plso = ConsumerConfiguration.builder().maxPullWaiting(1).buildPullSubscribeOptions();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, plso);
+            js.publish(SUBJECT, new byte[0]);
+            sub.pull(1);
+            sub.pull(1);
+            sub.pull(1);
+            System.out.println(sub.nextMessage(1000));
+            System.out.println(sub.nextMessage(1000));
+            System.out.println(sub.nextMessage(1000));
+        });
+    }
+
+*/
+	
     @Test
     public void testMaxWaitingPullRequests() throws Exception {
         runInJsServer(true, nc -> {

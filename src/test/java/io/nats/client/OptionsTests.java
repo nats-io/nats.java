@@ -16,10 +16,11 @@ package io.nats.client;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.DataPort;
 import io.nats.client.impl.ErrorListenerLoggerImpl;
+import io.nats.client.impl.NatsServerPool;
 import io.nats.client.impl.TestHandler;
 import io.nats.client.support.HttpRequest;
+import io.nats.client.support.NatsUri;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
-import io.nats.client.utils.CoverageServerListProvider;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -33,6 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static io.nats.client.support.NatsConstants.DEFAULT_PORT;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class OptionsTests {
@@ -66,7 +68,7 @@ public class OptionsTests {
         assertFalse(o.isNoHeaders(), "default header support");
         assertFalse(o.isNoNoResponders(), "default no responders support");
         assertEquals(Options.DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, o.isDiscardMessagesWhenOutgoingQueueFull(),
-                "default discard messages when outgoing queue full");
+            "default discard messages when outgoing queue full");
 
         assertNull(o.getUsernameChars(), "default username");
         assertNull(o.getPasswordChars(), "default password");
@@ -79,13 +81,13 @@ public class OptionsTests {
         assertEquals(Options.DEFAULT_MAX_PINGS_OUT, o.getMaxPingsOut(), "default ping max");
         assertEquals(Options.DEFAULT_RECONNECT_BUF_SIZE, o.getReconnectBufferSize(), "default reconnect buffer size");
         assertEquals(Options.DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE, o.getMaxMessagesInOutgoingQueue(),
-                "default max messages in outgoing queue");
+            "default max messages in outgoing queue");
 
         assertEquals(Options.DEFAULT_RECONNECT_WAIT, o.getReconnectWait(), "default reconnect wait");
         assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, o.getConnectionTimeout(), "default connection timeout");
         assertEquals(Options.DEFAULT_PING_INTERVAL, o.getPingInterval(), "default ping interval");
         assertEquals(Options.DEFAULT_REQUEST_CLEANUP_INTERVAL, o.getRequestCleanupInterval(),
-                "default cleanup interval");
+            "default cleanup interval");
 
         assertTrue(o.getErrorListener() instanceof ErrorListenerLoggerImpl, "error handler");
         assertNull(o.getConnectionListener(), "disconnect handler");
@@ -98,9 +100,9 @@ public class OptionsTests {
     @Test
     public void testChainedBooleanOptions() {
         Options o = new Options.Builder().verbose().pedantic().noRandomize().supportUTF8Subjects()
-                .noEcho().oldRequestStyle().noHeaders().noNoResponders()
-                .discardMessagesWhenOutgoingQueueFull()
-                .build();
+            .noEcho().oldRequestStyle().noHeaders().noNoResponders()
+            .discardMessagesWhenOutgoingQueueFull()
+            .build();
         assertNull(o.getUsernameChars(), "default username");
         assertTrue(o.isVerbose(), "chained verbose");
         assertTrue(o.isPedantic(), "chained pedantic");
@@ -141,9 +143,9 @@ public class OptionsTests {
     @Test
     public void testChainedIntOptions() {
         Options o = new Options.Builder().maxReconnects(100).maxPingsOut(200).reconnectBufferSize(300)
-                .maxControlLine(400)
-                .maxMessagesInOutgoingQueue(500)
-                .build();
+            .maxControlLine(400)
+            .maxMessagesInOutgoingQueue(500)
+            .build();
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertEquals(100, o.getMaxReconnect(), "chained max reconnect");
         assertEquals(200, o.getMaxPingsOut(), "chained ping max");
@@ -155,11 +157,11 @@ public class OptionsTests {
     @Test
     public void testChainedDurationOptions() {
         Options o = new Options.Builder().reconnectWait(Duration.ofMillis(101))
-                .connectionTimeout(Duration.ofMillis(202)).pingInterval(Duration.ofMillis(303))
-                .requestCleanupInterval(Duration.ofMillis(404))
-                .reconnectJitter(Duration.ofMillis(505))
-                .reconnectJitterTls(Duration.ofMillis(606))
-                .build();
+            .connectionTimeout(Duration.ofMillis(202)).pingInterval(Duration.ofMillis(303))
+            .requestCleanupInterval(Duration.ofMillis(404))
+            .reconnectJitter(Duration.ofMillis(505))
+            .reconnectJitterTls(Duration.ofMillis(606))
+            .build();
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertEquals(Duration.ofMillis(101), o.getReconnectWait(), "chained reconnect wait");
         assertEquals(Duration.ofMillis(202), o.getConnectionTimeout(), "chained connection timeout");
@@ -267,17 +269,17 @@ public class OptionsTests {
     public void testBuilderCoverageOptions() {
         Options o = new Options.Builder().build();
         assertTrue(o.clientSideLimitChecks());
-        assertNull(o.getServerListProvider());
+        assertNull(o.getServerPool()); // there is a default provider
 
         o = new Options.Builder().clientSideLimitChecks(true).build();
         assertTrue(o.clientSideLimitChecks());
 
         o = new Options.Builder()
             .clientSideLimitChecks(false)
-            .serverListProvider(new CoverageServerListProvider())
+            .serverPool(new NatsServerPool())
             .build();
         assertFalse(o.clientSideLimitChecks());
-        assertNotNull(o.getServerListProvider());
+        assertNotNull(o.getServerPool());
     }
 
     @Test
@@ -293,7 +295,8 @@ public class OptionsTests {
         props.setProperty(Options.PROP_RECONNECT_JITTER_TLS, "2000");
         props.setProperty(Options.PROP_CLIENT_SIDE_LIMIT_CHECKS, "true");
         props.setProperty(Options.PROP_IGNORE_DISCOVERED_SERVERS, "true");
-        props.setProperty(Options.PROP_SERVERS_LIST_PROVIDER_CLASS, "io.nats.client.utils.CoverageServerListProvider");
+        props.setProperty(Options.PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, "io.nats.client.utils.CoverageServerPool");
+        props.setProperty(Options.PROP_NO_RESOLVE_HOSTNAMES, "true");
 
         Options o = new Options.Builder(props).build();
         assertNull(o.getSslContext(), "property context");
@@ -301,7 +304,8 @@ public class OptionsTests {
         assertTrue(o.isNoNoResponders());
         assertTrue(o.clientSideLimitChecks());
         assertTrue(o.isIgnoreDiscoveredServers());
-        assertNotNull(o.getServerListProvider());
+        assertNotNull(o.getServerPool());
+        assertTrue(o.isNoResolveHostnames());
     }
 
     @Test
@@ -340,9 +344,9 @@ public class OptionsTests {
         assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, o.getConnectionTimeout(), "default connection timeout");
         assertEquals(Options.DEFAULT_PING_INTERVAL, o.getPingInterval(), "default ping interval");
         assertEquals(Options.DEFAULT_REQUEST_CLEANUP_INTERVAL, o.getRequestCleanupInterval(),
-                "default cleanup interval");
+            "default cleanup interval");
         assertEquals(Options.DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE, o.getMaxMessagesInOutgoingQueue(),
-                "default max messages in outgoing queue");
+            "default max messages in outgoing queue");
     }
 
     @Test
@@ -410,7 +414,7 @@ public class OptionsTests {
     public void testDefaultConnectOptions() {
         Options o = new Options.Builder().build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true}";
+            + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true}";
         assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "default connect options");
     }
 
@@ -418,7 +422,7 @@ public class OptionsTests {
     public void testNonDefaultConnectOptions() {
         Options o = new Options.Builder().noNoResponders().noHeaders().noEcho().pedantic().verbose().build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
-                + ",\"protocol\":1,\"verbose\":true,\"pedantic\":true,\"tls_required\":false,\"echo\":false,\"headers\":false,\"no_responders\":false}";
+            + ",\"protocol\":1,\"verbose\":true,\"pedantic\":true,\"tls_required\":false,\"echo\":false,\"headers\":false,\"no_responders\":false}";
         assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "non default connect options");
     }
 
@@ -427,7 +431,7 @@ public class OptionsTests {
         SSLContext ctx = TestSSLUtils.createTestSSLContext();
         Options o = new Options.Builder().sslContext(ctx).connectionName("c1").build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\",\"name\":\"c1\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":true,\"echo\":true,\"headers\":true,\"no_responders\":true}";
+            + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":true,\"echo\":true,\"headers\":true,\"no_responders\":true}";
         assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "default connect options");
     }
 
@@ -435,10 +439,10 @@ public class OptionsTests {
     public void testAuthConnectOptions() {
         Options o = new Options.Builder().userInfo("hello".toCharArray(), "world".toCharArray()).build();
         String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true}";
+            + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true}";
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true"
-                + ",\"user\":\"hello\",\"pass\":\"world\"}";
+            + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true"
+            + ",\"user\":\"hello\",\"pass\":\"world\"}";
         assertEquals(expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "no auth connect options");
         assertEquals(expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, null).toString(), "auth connect options");
     }
@@ -455,10 +459,10 @@ public class OptionsTests {
 
         Options o = new Options.Builder().authHandler(th).build();
         String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true}";
+            + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true}";
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true"
-                + ",\"no_responders\":true,\"nkey\":\""+new String(th.getID())+"\",\"sig\":\""+sig+"\",\"jwt\":\"\"}";
+            + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true"
+            + ",\"no_responders\":true,\"nkey\":\""+new String(th.getID())+"\",\"sig\":\""+sig+"\",\"jwt\":\"\"}";
         assertEquals(expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, nonce).toString(), "no auth connect options");
         assertEquals(expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, nonce).toString(), "auth connect options");
     }
@@ -481,7 +485,7 @@ public class OptionsTests {
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
 
         assertEquals(CloseOnUpgradeAttempt.class.getCanonicalName(), o.buildDataPort().getClass().getCanonicalName(),
-                "property data port class");
+            "property data port class");
     }
 
     @Test
@@ -586,13 +590,13 @@ public class OptionsTests {
     @Test
     public void testTokenAndUserThrows() {
         assertThrows(IllegalStateException.class,
-                () -> new Options.Builder().token("foo".toCharArray()).userInfo("foo".toCharArray(), "bar".toCharArray()).build());
+            () -> new Options.Builder().token("foo".toCharArray()).userInfo("foo".toCharArray(), "bar".toCharArray()).build());
     }
 
     @Test
     public void testThrowOnBadServerURI() {
         assertThrows(IllegalArgumentException.class,
-                () -> new Options.Builder().server("foo:/bar\\:blammer").build());
+            () -> new Options.Builder().server("foo:/bar\\:blammer").build());
     }
 
     @Test
@@ -613,14 +617,14 @@ public class OptionsTests {
             new Options.Builder().servers(serverUrls).build();
         });
     }
-    
+
     @Test
     public void testSetExectuor() {
         ExecutorService exec = Executors.newCachedThreadPool();
         Options options = new Options.Builder().executor(exec).build();
         assertEquals(exec, options.getExecutor());
     }
-    
+
     @Test
     public void testDefaultExecutor() throws Exception {
         Options options = new Options.Builder().connectionName("test").build();
@@ -634,62 +638,89 @@ public class OptionsTests {
         assertTrue(name.startsWith(Options.DEFAULT_THREAD_NAME_PREFIX));
     }
 
-    @Test
-    public void testParseURIForServer() throws URISyntaxException {
-        String[][] test = {
-            {"nats://localhost:4222","nats://localhost:4222"},
-            {"tls://localhost:4222","tls://localhost:4222"},
-            {"opentls://localhost:4222","opentls://localhost:4222"},
-            {"localhost:4222","nats://localhost:4222"},
-
-            {"nats://localhost","nats://localhost:4222"},
-            {"tls://localhost","tls://localhost:4222"},
-            {"opentls://localhost","opentls://localhost:4222"},
-            {"localhost","nats://localhost:4222"},
-
-            {"nats://connect.nats.io:4222","nats://connect.nats.io:4222"},
-            {"tls://connect.nats.io:4222","tls://connect.nats.io:4222"},
-            {"opentls://connect.nats.io:4222","opentls://connect.nats.io:4222"},
-            {"connect.nats.io:4222","nats://connect.nats.io:4222"},
-
-            {"nats://connect.nats.io","nats://connect.nats.io:4222"},
-            {"tls://connect.nats.io","tls://connect.nats.io:4222"},
-            {"opentls://connect.nats.io","opentls://connect.nats.io:4222"},
-            {"connect.nats.io","nats://connect.nats.io:4222"},
-            
-            {"nats://192.168.0.1:4222","nats://192.168.0.1:4222"},
-            {"tls://192.168.0.1:4222","tls://192.168.0.1:4222"},
-            {"opentls://192.168.0.1:4222","opentls://192.168.0.1:4222"},
-            {"192.168.0.1:4222","nats://192.168.0.1:4222"},
-
-            {"nats://192.168.0.1","nats://192.168.0.1:4222"},
-            {"tls://192.168.0.1","tls://192.168.0.1:4222"},
-            {"opentls://192.168.0.1","opentls://192.168.0.1:4222"},
-            {"192.168.0.1","nats://192.168.0.1:4222"},
-        };
-
-        for (String[] strings : test) {
-            URI actual = Options.parseURIForServer(strings[0], false);
-            URI expected = new URI(strings[1]);
-            assertEquals(expected.toASCIIString(), actual.toASCIIString());
-        }
-        URI actual = Options.parseURIForServer("connect.nats.io", true);
-        URI expected = new URI("wss://connect.nats.io:4222");
-        assertEquals(expected.toASCIIString(), actual.toASCIIString());
-}
+    String[] schemes = new String[]   { "NATS", "unk",  "tls",  "opentls",  "ws",   "wss", "nats"};
+    boolean[] secures = new boolean[] { false,  false,  true,   true,       false,  true,  false};
+    boolean[] wses = new boolean[]    { false,  false,  false,  false,      true,   true,  false};
+    String[] hosts = new String[]     { "host", "1.2.3.4", "[1:2:3:4::5]", null};
+    boolean[] ips = new boolean[]     { false,  true,      true,           false};
+    Integer[] ports = new Integer[]   {1122, null};
+    String[] userInfos = new String[] {null, "u:p"};
 
     @Test
-    public void testParseBadURIForServer() {
-
-        String[] strings = new String[] {
-                "unk://123.1.1.1", // unknown protocol
-                "//123.1.1.1",     // ends up no host
-                ":4222"            // just wrong
-        };
-
-        for (String string : strings) {
-            assertThrows(URISyntaxException.class, () -> Options.parseURIForServer(string, false));
+    public void testNatsUri() throws URISyntaxException {
+        for (int e = 0; e < schemes.length; e++) {
+            _testNatsUri(e, null);
+            if (e > 1) {
+                _testNatsUri(-e, schemes[e]);
+            }
         }
+
+        // coverage
+        //noinspection SimplifiableAssertion,ConstantValue
+        assertFalse(new NatsUri(Options.DEFAULT_URL).equals(null));
+        //noinspection SimplifiableAssertion
+        assertFalse(new NatsUri(Options.DEFAULT_URL).equals(new Object()));
+    }
+
+    private void _testNatsUri(int e, String nullScheme) throws URISyntaxException {
+        String scheme = e < 0 ? null : schemes[e];
+        e = Math.abs(e);
+        for (int h = 0; h < hosts.length; h++) {
+            String host = hosts[h];
+            for (Integer port : ports) {
+                for (String userInfo : userInfos) {
+                    StringBuilder sb = new StringBuilder();
+                    String expectedScheme;
+                    if (scheme == null) {
+                        expectedScheme = nullScheme;
+                    }
+                    else {
+                        expectedScheme = scheme;
+                        sb.append(scheme).append("://");
+                    }
+                    if (userInfo != null) {
+                        sb.append(userInfo).append("@");
+                    }
+                    if (host != null) {
+                        sb.append(host);
+                    }
+                    int expectedPort;
+                    if (port == null) {
+                        expectedPort = DEFAULT_PORT;
+                    }
+                    else {
+                        expectedPort = port;
+                        sb.append(":").append(port);
+                    }
+                    if (host == null || "unk".equals(scheme)) {
+                        assertThrows(URISyntaxException.class, () -> new NatsUri(sb.toString()));
+                    }
+                    else {
+                        NatsUri uri1 = scheme == null ? new NatsUri(sb.toString(), nullScheme) : new NatsUri(sb.toString());
+                        NatsUri uri2 = new NatsUri(uri1.getUri());
+                        assertEquals(uri1, uri2);
+                        checkCreate(uri1, secures[e], wses[e], ips[h], expectedScheme, host, expectedPort, userInfo);
+                        checkCreate(uri2, secures[e], wses[e], ips[h], expectedScheme, host, expectedPort, userInfo);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void checkCreate(NatsUri uri, boolean secure, boolean ws, boolean ip, String scheme, String host, int port, String userInfo) throws URISyntaxException {
+        scheme = scheme.toLowerCase();
+        assertEquals(secure, uri.isSecure());
+        assertEquals(ws, uri.isWebsocket());
+        assertEquals(scheme, uri.getScheme());
+        assertEquals(host, uri.getHost());
+        assertEquals(port, uri.getPort());
+        assertEquals(userInfo, uri.getUserInfo());
+        String expectedUri = userInfo == null
+            ? scheme + "://" + host + ":" + port
+            : scheme + "://" + userInfo + "@" + host + ":" + port;
+        assertEquals(expectedUri, uri.toString());
+        assertEquals(expectedUri.replace(host, "rehost"), uri.reHost("rehost").toString());
+        assertEquals(ip, uri.hostIsIpAddress());
     }
 
     @Test
@@ -733,15 +764,15 @@ public class OptionsTests {
     @Test
     public void coverageForDeprecated() {
         Options o = new Options.Builder()
-                .token("deprecated")
-                .build();
+            .token("deprecated")
+            .build();
         assertEquals("deprecated", o.getToken());
         assertNull(o.getUsername());
         assertNull(o.getPassword());
 
         o = new Options.Builder()
-                .userInfo("user", "pass")
-                .build();
+            .userInfo("user", "pass")
+            .build();
         assertEquals("user", o.getUsername());
         assertEquals("pass", o.getPassword());
         assertNull(o.getToken());
@@ -784,7 +815,7 @@ public class OptionsTests {
         try {
             System.setProperty("javax.net.ssl.keyStore", "foo");
             System.setProperty("javax.net.ssl.trustStore", "bar");
-            
+
             Properties props = new Properties();
             props.setProperty(Options.PROP_SECURE, "true");
             new Options.Builder(props).build();

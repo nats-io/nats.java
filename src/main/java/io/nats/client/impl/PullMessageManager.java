@@ -29,6 +29,17 @@ class PullMessageManager extends MessageManager {
     }
 
     @Override
+    protected void startup(NatsJetStreamSubscription sub) {
+        this.sub = sub;
+        sub.setBeforeQueueProcessor(this::beforeQueueProcessorImpl);
+    }
+
+    @Override
+    protected void shutdown() {
+
+    }
+
+    @Override
     protected boolean manage(Message msg) {
         if (msg.isStatusMessage()) {
             Status status = msg.getStatus();
@@ -42,6 +53,13 @@ class PullMessageManager extends MessageManager {
             }
             return true;
         }
-        return super.manage(msg);
+
+        trackJsMessage(msg);
+        return false;
+    }
+
+    protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
+        lastMsgReceived.set(System.currentTimeMillis());
+        return !msg.isStatusMessage() || !msg.getStatus().isHeartbeat();
     }
 }
