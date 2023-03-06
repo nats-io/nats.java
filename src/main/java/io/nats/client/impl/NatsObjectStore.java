@@ -125,11 +125,10 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
 
             // working with chunkSize number of bytes each time.
             byte[] buffer = new byte[chunkSize];
-            int bufferLength = buffer.length;
             int red = inputStream.read(buffer);
             while (red != -1) { // keep reading while not receiving the end of file mark (-1)
                 // copy if red is less than buffer length
-                byte[] payload = red == bufferLength ? buffer : Arrays.copyOfRange(buffer, 0, red);
+                byte[] payload = red == buffer.length ? buffer : Arrays.copyOfRange(buffer, 0, red);
 
                 // digest the actual bytes
                 digester.update(payload);
