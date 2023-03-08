@@ -120,5 +120,17 @@ public final class DigesterTests {
         s = ResourceUtils.dataAsString("digester_test_bytes_100000.txt");
         d.reset(s);
         assertEquals("yan7pwBVnC1yORqqgBfd64_qAw6q9fNA60_KRiMMooE=", d.getDigestValue());
+
+        d.reset("a");
+        assertEquals("ypeBEsobvcr6wjGzmiPcTaeG7_gUfE5yuYB3ha_uSLs=", d.getDigestValue());
+
+        d.reset("aa");
+        assertEquals("lhtt0-3jy47LqsvWjeBAzXjrLtWIkTDM60xJJo6k1QY=", d.getDigestValue());
+
+        d.reset("aaa");
+        assertEquals("mDSHbc-wXLFnpcJJU-uljErImxrfV_KPL50JrxB-6PA=", d.getDigestValue());
+
+        d.reset("aaaa");
+        assertEquals("Yb5VqOL2tOFyM4vd8YTW2-4pyYhT4KBIXs7n8nua8LQ=", d.getDigestValue());
     }
 }
