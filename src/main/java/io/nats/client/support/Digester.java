@@ -28,6 +28,7 @@ public class Digester {
     private final Charset stringCharset;
     private final Base64.Encoder encoder;
     private final MessageDigest digest;
+    private String digestValue;
 
     public Digester() throws NoSuchAlgorithmException {
         this(null, null, null);
@@ -50,21 +51,25 @@ public class Digester {
 
     public Digester update(String input) {
         digest.update(input.getBytes(stringCharset));
+        digestValue = null;
         return this;
     }
 
     public Digester update(byte[] input) {
         digest.update(input);
+        digestValue = null;
         return this;
     }
 
     public Digester update(byte[] input, int offset, int len) {
         digest.update(input, offset, len);
+        digestValue = null;
         return this;
     }
 
     public Digester reset() {
         digest.reset();
+        digestValue = null;
         return this;
     }
 
@@ -81,11 +86,14 @@ public class Digester {
     }
 
     public String getDigestValue() {
-        return encoder.encodeToString(digest.digest());
+        if (digestValue == null) {
+            digestValue = encoder.encodeToString(digest.digest());
+        }
+        return digestValue;
     }
 
     public String getDigestEntry() {
-        return digest.getAlgorithm() + "=" + encoder.encodeToString(digest.digest());
+        return digest.getAlgorithm() + "=" + getDigestValue();
     }
 
     public boolean matches(String digestEntry) {
