@@ -89,6 +89,11 @@ public class TestBase {
         runInServer(false, true, inServerTest);
     }
 
+    public static void runInJsServer(ErrorListener el, InServerTest inServerTest) throws Exception {
+        Options.Builder builder = new Options.Builder().errorListener(el);
+        runInServer(false, true, builder, inServerTest);
+    }
+
     public static void runInJsServer(Options.Builder builder, InServerTest inServerTest) throws Exception {
         runInServer(false, true, builder, inServerTest);
     }

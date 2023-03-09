@@ -27,13 +27,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import static io.nats.client.support.NatsJetStreamClientError.JsSubOrderedNotAllowOnQueues;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class JetStreamOrderedConsumerTests extends JetStreamTestBase {
+public class JetStreamConsumerTests extends JetStreamTestBase {
 
     // ------------------------------------------------------------------------------------------
     // This allows me to intercept messages before it gets to the connection queue
     // which is before the messages is available for nextMessage, or before
     // it gets dispatched to a handler.
-    static class OrderedTestDropSimulator extends OrderedManager {
+    static class OrderedTestDropSimulator extends OrderedMessageManager {
         public OrderedTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, NatsDispatcher dispatcher) {
             super(conn, js, stream, so, serverCC, queueMode, dispatcher);
         }
@@ -152,95 +152,108 @@ public class JetStreamOrderedConsumerTests extends JetStreamTestBase {
         });
     }
 
-    static class OrderedMissHeartbeatSimulator extends OrderedManager {
-        public AtomicInteger skip = new AtomicInteger(5);
-        public AtomicInteger startups = new AtomicInteger(0);
-        public AtomicInteger handles = new AtomicInteger(0);
-        public CountDownLatch latch = new CountDownLatch(1);
+    static class HeartbeatErrorSimulator extends PushMessageManager {
+        public CountDownLatch latch = new CountDownLatch(2);
 
-        public OrderedMissHeartbeatSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, NatsDispatcher dispatcher) {
+        public HeartbeatErrorSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, NatsDispatcher dispatcher) {
             super(conn, js, stream, so, serverCC, queueMode, dispatcher);
         }
 
         @Override
-        protected void startup(NatsJetStreamSubscription sub) {
-            super.startup(sub);
-            startups.incrementAndGet();
-        }
-
-        @Override
         protected void handleHeartbeatError() {
-            handles.incrementAndGet();
-            skip.set(9999); // more than the number of messages left
             super.handleHeartbeatError();
             latch.countDown();
         }
 
         @Override
         protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
-            if (skip.decrementAndGet() < 0) {
-                return false;
-            }
-            return super.beforeQueueProcessorImpl(msg);
+            return false;
+        }
+    }
+
+    static class HeartbeatErrorOrderedSimulator extends OrderedMessageManager {
+        public CountDownLatch latch = new CountDownLatch(2);
+
+        public HeartbeatErrorOrderedSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, NatsDispatcher dispatcher) {
+            super(conn, js, stream, so, serverCC, queueMode, dispatcher);
         }
 
-        public String SID() {
-            return sub.getSID();
+        @Override
+        protected void handleHeartbeatError() {
+            super.handleHeartbeatError();
+            latch.countDown();
+        }
+
+        @Override
+        protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
+            return false;
         }
     }
 
     @Test
-    public void testOrderedConsumerHbSync() throws Exception {
-        runInJsServer(nc -> {
+    public void testHeartbeatError() throws Exception {
+        TestHandler testHandler = new TestHandler();
+        runInJsServer(testHandler, nc -> {
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            String subject = subject(333);
-            createMemoryStream(jsm, stream(333), subject);
+            String subject = "hbe";
+            createMemoryStream(jsm, "hbestream", subject);
 
-            // Get this in place before any subscriptions are made
-            AtomicReference<OrderedMissHeartbeatSimulator> simRef = new AtomicReference<>();
-            ((NatsJetStream)js).PUSH_MESSAGE_MANAGER_FACTORY = (conn, lJs, stream, so, serverCC, qmode, dispatcher) -> {
-                OrderedMissHeartbeatSimulator sim = new OrderedMissHeartbeatSimulator(conn, lJs, stream, so, serverCC, qmode, dispatcher);
-                simRef.set(sim);
-                return sim;
-            };
+            Dispatcher d = nc.createDispatcher();
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().flowControl(2000).idleHeartbeat(100).build();
 
-            jsPublish(js, subject, 1, 10);
-
-            // Setup subscription
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true)
-                .configuration(ConsumerConfiguration.builder().flowControl(500).build())
-                .build();
-
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
+            AtomicReference<HeartbeatErrorSimulator> simRef = setFactory(js);
             JetStreamSubscription sub = js.subscribe(subject, pso);
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+            validate(sub, testHandler, simRef.get().latch, null);
 
-            OrderedMissHeartbeatSimulator sim = simRef.get();
+            simRef = setFactory(js);
+            sub = js.subscribe(subject, d, m -> {}, false, pso);
+            validate(sub, testHandler, simRef.get().latch, d);
 
-            String firstSid = null;
-            int expectedStreamSeq = 1;
-            while (expectedStreamSeq <= 5) {
-                Message m = sub.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
-                if (m != null) {
-                    if (firstSid == null) {
-                        firstSid = sim.SID();
-                    }
-                    else {
-                        assertEquals(firstSid, sim.SID());
-                    }
-                    assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
-                }
-            }
-            sim.latch.await(10, TimeUnit.SECONDS);
+            pso = PushSubscribeOptions.builder().ordered(true).configuration(cc).build();
+            AtomicReference<HeartbeatErrorOrderedSimulator> simOrderedRef = setOrderedFactory(js);
+            sub = js.subscribe(subject, pso);
+            validate(sub, testHandler, simOrderedRef.get().latch, null);
 
-            while (expectedStreamSeq <= 10) {
-                Message m = sub.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
-                if (m != null) {
-                    assertNotEquals(firstSid, sim.SID());
-                    assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
-                }
-            }
+            simOrderedRef = setOrderedFactory(js);
+            sub = js.subscribe(subject, d, m -> {}, false, pso);
+            validate(sub, testHandler, simOrderedRef.get().latch, d);
         });
+    }
+
+    private static void validate(JetStreamSubscription sub, TestHandler handler, CountDownLatch latch, Dispatcher d) throws InterruptedException {
+        latch.await(10, TimeUnit.SECONDS);
+        if (d == null) {
+            sub.unsubscribe();
+        }
+        else {
+            d.unsubscribe(sub);
+        }
+        assertEquals(0, latch.getCount());
+        assertTrue(handler.getHeartbeatAlarms().size() > 0);
+        handler.reset();
+        assertEquals(0, handler.getHeartbeatAlarms().size());
+    }
+
+    private static AtomicReference<HeartbeatErrorSimulator> setFactory(JetStream js) {
+        AtomicReference<HeartbeatErrorSimulator> simRef = new AtomicReference<>();
+        ((NatsJetStream)js).PUSH_MESSAGE_MANAGER_FACTORY = (conn, lJs, stream, so, serverCC, qmode, dispatcher) -> {
+            HeartbeatErrorSimulator sim = new HeartbeatErrorSimulator(conn, lJs, stream, so, serverCC, qmode, dispatcher);
+            simRef.set(sim);
+            return sim;
+        };
+        return simRef;
+    }
+
+    private static AtomicReference<HeartbeatErrorOrderedSimulator> setOrderedFactory(JetStream js) {
+        AtomicReference<HeartbeatErrorOrderedSimulator> simRef = new AtomicReference<>();
+        ((NatsJetStream)js).PUSH_MESSAGE_MANAGER_FACTORY = (conn, lJs, stream, so, serverCC, qmode, dispatcher) -> {
+            HeartbeatErrorOrderedSimulator sim = new HeartbeatErrorOrderedSimulator(conn, lJs, stream, so, serverCC, qmode, dispatcher);
+            simRef.set(sim);
+            return sim;
+        };
+        return simRef;
     }
 }

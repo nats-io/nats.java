@@ -20,12 +20,12 @@ import io.nats.client.api.DeliverPolicy;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-class OrderedManager extends PushMessageManager {
+class OrderedMessageManager extends PushMessageManager {
 
     private long expectedExternalConsumerSeq;
     private final AtomicReference<String> targetSid;
 
-    OrderedManager(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, NatsDispatcher dispatcher) {
+    OrderedMessageManager(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, NatsDispatcher dispatcher) {
         super(conn, js, stream, so, serverCC, queueMode, dispatcher);
         expectedExternalConsumerSeq = 1; // always starts at 1
         targetSid = new AtomicReference<>();
@@ -65,6 +65,7 @@ class OrderedManager extends PushMessageManager {
 
     @Override
     protected void handleHeartbeatError() {
+        super.handleHeartbeatError();
         handleErrorCondition();
     }
 

@@ -419,7 +419,7 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
                 manager = PUSH_MESSAGE_MANAGER_FACTORY.createPushMessageManager(conn, this, fnlStream, so, settledServerCC, qgroup != null, dispatcher);
             }
             else if (so.isOrdered()) {
-                manager = new OrderedManager(conn, this, fnlStream, so, settledServerCC, qgroup != null, dispatcher);
+                manager = new OrderedMessageManager(conn, this, fnlStream, so, settledServerCC, qgroup != null, dispatcher);
             }
             else {
                 manager = new PushMessageManager(conn, this, fnlStream, so, settledServerCC, qgroup != null, dispatcher);
