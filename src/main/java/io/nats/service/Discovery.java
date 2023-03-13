@@ -21,8 +21,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
-import static io.nats.client.NUID.nextGlobal;
 import static io.nats.service.Service.*;
 
 /**
@@ -36,6 +36,8 @@ public class Discovery {
     private final long maxTimeMillis;
     private final int maxResults;
 
+    private Supplier<String> inboxSupplier;
+
     public Discovery(Connection conn) {
         this(conn, -1, -1);
     }
@@ -44,6 +46,11 @@ public class Discovery {
         this.conn = conn;
         this.maxTimeMillis = maxTimeMillis < 1 ? DEFAULT_DISCOVERY_MAX_TIME_MILLIS : maxTimeMillis;
         this.maxResults = maxResults < 1 ? DEFAULT_DISCOVERY_MAX_RESULTS : maxResults;
+        setInboxSupplier(null);
+    }
+
+    public void setInboxSupplier(Supplier<String> inboxSupplier) {
+        this.inboxSupplier = inboxSupplier == null ? conn::createInbox : inboxSupplier;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -138,12 +145,7 @@ public class Discovery {
     private void discoverMany(String action, String serviceName, Consumer<byte[]> dataConsumer) {
         Subscription sub = null;
         try {
-            StringBuilder sb = new StringBuilder(nextGlobal()).append('-').append(action);
-            if (serviceName != null) {
-                sb.append('-').append(serviceName);
-            }
-            String replyTo = sb.toString();
-
+            String replyTo = inboxSupplier.get();
             sub = conn.subscribe(replyTo);
 
             String subject = toDiscoverySubject(action, serviceName, null);
