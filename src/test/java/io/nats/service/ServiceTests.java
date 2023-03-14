@@ -59,8 +59,7 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testServiceWorkflow() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer())
-        {
+        try (NatsTestServer ts = new NatsTestServer()) {
             try (Connection serviceNc1 = standardConnection(ts.getURI());
                  Connection serviceNc2 = standardConnection(ts.getURI());
                  Connection clientNc = standardConnection(ts.getURI())) {
@@ -166,12 +165,12 @@ public class ServiceTests extends JetStreamTestBase {
                 SchemaResponse schemaResponse2 = service2.getSchemaResponse();
                 StatsResponse statsResponse1 = service1.getStatsResponse();
                 StatsResponse statsResponse2 = service2.getStatsResponse();
-                EndpointResponse[] endpointResponseArray1 = new EndpointResponse[] {
+                EndpointResponse[] endpointResponseArray1 = new EndpointResponse[]{
                     service1.getEndpointStats(ECHO_ENDPOINT_NAME),
                     service1.getEndpointStats(SORT_ENDPOINT_ASCENDING_NAME),
                     service1.getEndpointStats(SORT_ENDPOINT_DESCENDING_NAME)
                 };
-                EndpointResponse[] endpointResponseArray2 = new EndpointResponse[] {
+                EndpointResponse[] endpointResponseArray2 = new EndpointResponse[]{
                     service2.getEndpointStats(ECHO_ENDPOINT_NAME),
                     service2.getEndpointStats(SORT_ENDPOINT_ASCENDING_NAME),
                     service2.getEndpointStats(SORT_ENDPOINT_DESCENDING_NAME)
@@ -214,8 +213,8 @@ public class ServiceTests extends JetStreamTestBase {
                 // info discovery
                 Verifier infoVerifier = (expected, response) -> {
                     assertTrue(response instanceof InfoResponse);
-                    InfoResponse exp = (InfoResponse)expected;
-                    InfoResponse r = (InfoResponse)response;
+                    InfoResponse exp = (InfoResponse) expected;
+                    InfoResponse r = (InfoResponse) response;
                     assertEquals(exp.getDescription(), r.getDescription());
                     assertEquals(exp.getSubjects(), r.getSubjects());
                 };
@@ -229,8 +228,8 @@ public class ServiceTests extends JetStreamTestBase {
                 // schema discovery
                 Verifier schemaVerifier = (expected, response) -> {
                     assertTrue(response instanceof SchemaResponse);
-                    SchemaResponse exp = (SchemaResponse)expected;
-                    SchemaResponse r = (SchemaResponse)response;
+                    SchemaResponse exp = (SchemaResponse) expected;
+                    SchemaResponse r = (SchemaResponse) response;
                     assertEquals(exp.getApiUrl(), r.getApiUrl());
                     assertEquals(exp.getEndpoints(), r.getEndpoints());
                 };
@@ -244,8 +243,8 @@ public class ServiceTests extends JetStreamTestBase {
                 // stats discovery
                 Verifier statsVerifier = (expected, response) -> {
                     assertTrue(response instanceof StatsResponse);
-                    StatsResponse exp = (StatsResponse)expected;
-                    StatsResponse sr = (StatsResponse)response;
+                    StatsResponse exp = (StatsResponse) expected;
+                    StatsResponse sr = (StatsResponse) response;
                     assertEquals(exp.getStarted(), sr.getStarted());
                     for (int x = 0; x < 3; x++) {
                         EndpointResponse er = exp.getEndpointStats().get(x);
@@ -301,10 +300,10 @@ public class ServiceTests extends JetStreamTestBase {
 
     @SuppressWarnings("unchecked")
     private static void verifyDiscovery(Object oResponse, Verifier v, ServiceResponse... expectedResponses) {
-        List<Object> responses = oResponse instanceof List ? (List<Object>)oResponse : Collections.singletonList(oResponse);
+        List<Object> responses = oResponse instanceof List ? (List<Object>) oResponse : Collections.singletonList(oResponse);
         assertEquals(expectedResponses.length, responses.size());
         for (Object response : responses) {
-            ServiceResponse sr = (ServiceResponse)response;
+            ServiceResponse sr = (ServiceResponse) response;
             ServiceResponse exp = find(expectedResponses, sr);
             assertNotNull(exp);
             assertEquals(exp.getType(), sr.getType());
@@ -341,8 +340,7 @@ public class ServiceTests extends JetStreamTestBase {
                     assertEquals(sortD(request), response);
                     break;
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -436,7 +434,8 @@ public class ServiceTests extends JetStreamTestBase {
 
                 ServiceEndpoint se1 = ServiceEndpoint.builder()
                     .endpointName("dispatch")
-                    .handler(m -> {})
+                    .handler(m -> {
+                    })
                     .dispatcher(dEnd)
                     .build();
                 Service service = new ServiceBuilder()
@@ -498,12 +497,14 @@ public class ServiceTests extends JetStreamTestBase {
 
                 se1 = ServiceEndpoint.builder()
                     .endpointName("dispatch")
-                    .handler(m -> {})
+                    .handler(m -> {
+                    })
                     .build();
 
                 ServiceEndpoint se2 = ServiceEndpoint.builder()
                     .endpointName("another")
-                    .handler(m -> {})
+                    .handler(m -> {
+                    })
                     .build();
 
                 service = new ServiceBuilder()
@@ -535,7 +536,8 @@ public class ServiceTests extends JetStreamTestBase {
         Connection conn = new MockNatsConnection(options);
         ServiceEndpoint se = ServiceEndpoint.builder()
             .endpoint(new Endpoint(name(0)))
-            .handler(m -> {})
+            .handler(m -> {
+            })
             .build();
 
         // minimum valid service
@@ -599,7 +601,9 @@ public class ServiceTests extends JetStreamTestBase {
             ServiceEndpoint exServiceEndpoint = ServiceEndpoint.builder()
                 .endpointName("exEndpoint")
                 .endpointSubject("exSubject")
-                .handler(m -> { throw new RuntimeException("handler-problem"); })
+                .handler(m -> {
+                    throw new RuntimeException("handler-problem");
+                })
                 .build();
 
             Service exService = new ServiceBuilder()
@@ -805,7 +809,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> Endpoint.builder().build());
 
         // many names are bad
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint((String)null));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint((String) null));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(EMPTY));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_SPACE));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_PRINTABLE));
@@ -981,7 +985,8 @@ public class ServiceTests extends JetStreamTestBase {
         Group g2 = new Group(subject(2)).appendGroup(g1);
         Endpoint e1 = new Endpoint(name(100), subject(100));
         Endpoint e2 = new Endpoint(name(200), subject(200));
-        ServiceMessageHandler smh = m -> {};
+        ServiceMessageHandler smh = m -> {
+        };
         Supplier<JsonValue> sds = () -> null;
 
         ServiceEndpoint se = ServiceEndpoint.builder()
@@ -1107,8 +1112,8 @@ public class ServiceTests extends JetStreamTestBase {
         validateApiInOutInfoResponse(ir2);
 
         List<EndpointResponse> endpoints = new ArrayList<>();
-        endpoints.add(new EndpointResponse("endName0", "endSubject0", new Schema("endSchemaRequest0",  "endSchemaResponse0")));
-        endpoints.add(new EndpointResponse("endName1", "endSubject1", new Schema("endSchemaRequest1",  "endSchemaResponse1")));
+        endpoints.add(new EndpointResponse("endName0", "endSubject0", new Schema("endSchemaRequest0", "endSchemaResponse0")));
+        endpoints.add(new EndpointResponse("endName1", "endSubject1", new Schema("endSchemaRequest1", "endSchemaResponse1")));
         SchemaResponse sch1 = new SchemaResponse("id", "name", "0.0.0", "apiUrl", endpoints);
         SchemaResponse sch2 = new SchemaResponse(sch1.toJson().getBytes());
         validateApiInOutSchemaResponse(sch1);
@@ -1116,8 +1121,10 @@ public class ServiceTests extends JetStreamTestBase {
 
         ZonedDateTime serviceStarted = DateTimeUtils.gmtNow();
         ZonedDateTime[] endStarteds = new ZonedDateTime[2];
-        sleep(100); endStarteds[0] = DateTimeUtils.gmtNow();
-        sleep(100); endStarteds[1] = DateTimeUtils.gmtNow();
+        sleep(100);
+        endStarteds[0] = DateTimeUtils.gmtNow();
+        sleep(100);
+        endStarteds[1] = DateTimeUtils.gmtNow();
 
         List<EndpointResponse> statsList = new ArrayList<>();
         JsonValue[] data = new JsonValue[]{supplyData(), supplyData()};
@@ -1200,8 +1207,8 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     private static int _dataX = -1;
-    public static JsonValue supplyData()
-    {
+
+    public static JsonValue supplyData() {
         _dataX++;
         return new TestStatsData("s-" + _dataX, _dataX).toJsonValue();
     }
@@ -1255,5 +1262,31 @@ public class ServiceTests extends JetStreamTestBase {
             result = 31 * result + iData;
             return result;
         }
+    }
+
+    static class TestInboxSupplier implements Supplier<String> {
+        boolean wasCalled = false;
+        @Override
+        public String get() {
+            wasCalled = true;
+            return "CUSTOM_INBOX";
+        }
+    }
+
+    @Test
+    public void testInboxSupplier() throws Exception {
+        runInServer(nc -> {
+            Discovery discovery = new Discovery(nc, 100, 1);
+            TestInboxSupplier supplier = new TestInboxSupplier();
+            discovery.setInboxSupplier(supplier);
+            try {
+                discovery.ping("servicename");
+            }
+            catch (Exception e) {
+                // we know it will throw exception b/c there is no service
+                // running, we just care about it make the call
+            }
+            assertTrue(supplier.wasCalled);
+        });
     }
 }
