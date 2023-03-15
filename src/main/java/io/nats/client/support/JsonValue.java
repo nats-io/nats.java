@@ -185,7 +185,7 @@ public class JsonValue implements JsonSerializable {
         switch (type) {
             case STRING:      return valueString(string);
             case BOOL:        return valueString(bool);
-            case MAP:      return valueString(map);
+            case MAP:         return valueString(map);
             case ARRAY:       return valueString(array);
             case INTEGER:     return i.toString();
             case LONG:        return l.toString();

@@ -13,19 +13,18 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.ErrorListener;
+import io.nats.client.JetStreamStatusException;
 import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.support.Status;
 
-import java.time.Duration;
-import java.util.Collections;
-import java.util.List;
+import static io.nats.client.ErrorListener.FlowControlSource;
+import static io.nats.client.ErrorListener.FlowControlSource.FLOW_CONTROL;
+import static io.nats.client.ErrorListener.FlowControlSource.HEARTBEAT;
+import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
 class PushMessageManager extends MessageManager {
-
-    protected static final List<Integer> PUSH_KNOWN_STATUS_CODES = Collections.singletonList(409);
 
     protected final NatsJetStream js;
     protected final String stream;
@@ -33,30 +32,21 @@ class PushMessageManager extends MessageManager {
 
     protected final boolean queueMode;
     protected final boolean fc;
-    protected boolean hb;
-    protected long idleHeartbeatSetting;
-    protected long alarmPeriodSetting;
-
-    protected HeartbeatTimer heartbeatTimer;
     protected String lastFcSubject;
 
-    PushMessageManager(NatsConnection conn,
+    protected PushMessageManager(NatsConnection conn,
                        NatsJetStream js,
                        String stream,
                        SubscribeOptions so,
                        ConsumerConfiguration originalCc,
                        boolean queueMode,
-                       NatsDispatcher dispatcher)
+                       boolean syncMode)
     {
-        super(conn, dispatcher);
+        super(conn, syncMode);
         this.js = js;
         this.stream = stream;
         this.originalCc = originalCc;
         this.queueMode = queueMode;
-
-        hb = false;
-        idleHeartbeatSetting = 0;
-        alarmPeriodSetting = 0;
 
         if (queueMode) {
             fc = false;
@@ -67,82 +57,50 @@ class PushMessageManager extends MessageManager {
         }
     }
 
-    protected void initIdleHeartbeat(Duration configIdleHeartbeat, long configMessageAlarmTime) {
-        initIdleHeartbeat(configIdleHeartbeat == null ? 0 : configIdleHeartbeat.toMillis(), configMessageAlarmTime);
-    }
-
-    protected void initIdleHeartbeat(long configIdleHeartbeat, long configMessageAlarmTime) {
-        idleHeartbeatSetting = configIdleHeartbeat;
-        if (idleHeartbeatSetting <= 0) {
-            alarmPeriodSetting = 0;
-            hb = false;
-        }
-        else {
-            if (configMessageAlarmTime < idleHeartbeatSetting) {
-                alarmPeriodSetting = idleHeartbeatSetting * THRESHOLD;
-            }
-            else {
-                alarmPeriodSetting = configMessageAlarmTime;
-            }
-            hb = true;
-        }
-    }
-
-    boolean isQueueMode()           { return queueMode; }
-    boolean isFc()                  { return fc; }
-    boolean isHb()                  { return hb; }
-    long getIdleHeartbeatSetting()  { return idleHeartbeatSetting; }
-    long getAlarmPeriodSetting()    { return alarmPeriodSetting; }
-    String getLastFcSubject()       { return lastFcSubject; }
+    protected boolean isQueueMode()     { return queueMode; }
+    protected boolean isFc()            { return fc; }
+    protected String getLastFcSubject() { return lastFcSubject; }
 
     @Override
     protected void startup(NatsJetStreamSubscription sub) {
         super.startup(sub);
+        sub.setBeforeQueueProcessor(this::beforeQueueProcessorImpl);
         if (hb) {
-            sub.setBeforeQueueProcessor(this::beforeQueueProcessorImpl);
-            heartbeatTimer = new HeartbeatTimer(alarmPeriodSetting);
+            initOrResetHeartbeatTimer();
         }
     }
 
     @Override
-    protected void shutdown() {
-        super.shutdown();
-        if (heartbeatTimer != null) {
-            heartbeatTimer.shutdown();
-            heartbeatTimer = null;
-        }
-    }
-
     protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
-        lastMsgReceived.set(System.currentTimeMillis());
-        return msg.isStatusMessage() ? bqpStatus(msg) : true;
-    }
-
-    protected Boolean bqpStatus(NatsMessage msg) {
-        // A heartbeat can be plain or include flow control info.
-        // Plain ones do not have to be queued (return false)
-        // Ones with fc subjects need to be queued on since they
-        // are treated like normal fc and processed in turn.
-        final Status status = msg.getStatus();
-        if (status.isHeartbeat()) {
-            return hasFcSubject(msg);
-        }
-        if (!PUSH_KNOWN_STATUS_CODES.contains(status.getCode())) {
-            conn.executeCallback((c, el) -> el.unhandledStatus(c, sub, status));
-            return false;
+        if (hb) {
+            messageReceived();
+            Status status = msg.getStatus();
+            if (status != null) {
+                // only plain heartbeats do not get queued
+                if (status.isHeartbeat()) {
+                    return hasFcSubject(msg); // true if not a plain hb
+                }
+            }
         }
         return true;
     }
 
+    protected boolean hasFcSubject(Message msg) {
+        return msg.getHeaders() != null && msg.getHeaders().containsKey(CONSUMER_STALLED_HDR);
+    }
+
+    protected String extractFcSubject(Message msg) {
+        return msg.getHeaders() == null ? null : msg.getHeaders().getFirst(CONSUMER_STALLED_HDR);
+    }
+
     @Override
     protected boolean manage(Message msg) {
-        if (msg.isStatusMessage()) {
-            manageStatus(msg);
-            return true; // all status are managed
+        if (msg.getStatus() == null) {
+            trackJsMessage(msg);
+            return false;
         }
-
-        trackJsMessage(msg);
-        return false;
+        manageStatus(msg);
+        return true; // all status are managed
     }
 
     protected void manageStatus(Message msg) {
@@ -150,20 +108,21 @@ class PushMessageManager extends MessageManager {
         // only process fc and hb if those flags are set
         // otherwise they are simply known statuses
         Status status = msg.getStatus();
-        if (status.isFlowControl()) {
-            if (fc) {
-                processFlowControl(msg.getReplyTo(), ErrorListener.FlowControlSource.FLOW_CONTROL);
+        if (fc) {
+            boolean sfc = status.isFlowControl();
+            String fcSubject = sfc ? msg.getReplyTo() : extractFcSubject(msg);
+            if (fcSubject != null) {
+                processFlowControl(fcSubject, sfc ? HEARTBEAT : FLOW_CONTROL);
+                return;
             }
         }
-        else if (status.isHeartbeat()) {
-            if (fc) {
-                // status flowControlSubject is set in the beforeQueueProcessor
-                processFlowControl(extractFcSubject(msg), ErrorListener.FlowControlSource.HEARTBEAT);
-            }
+        conn.executeCallback((c, el) -> el.unhandledStatus(c, sub, status));
+        if (syncMode) {
+            throw new JetStreamStatusException(sub, status);
         }
     }
 
-    private void processFlowControl(String fcSubject, ErrorListener.FlowControlSource source) {
+    private void processFlowControl(String fcSubject, FlowControlSource source) {
         // we may get multiple fc/hb messages with the same reply
         // only need to post to that subject once
         if (fcSubject != null && !fcSubject.equals(lastFcSubject)) {

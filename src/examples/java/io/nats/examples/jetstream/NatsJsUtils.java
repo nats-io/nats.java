@@ -179,8 +179,16 @@ public class NatsJsUtils {
         publish(js, subject, "data", count, -1, false);
     }
 
+    public static void publish(JetStream js, String subject, int count, int msgSize) throws IOException, JetStreamApiException {
+        publish(js, subject, "data", count, msgSize, false);
+    }
+
     public static void publish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
-        publish(js, subject, prefix, count, -1, true);
+        publish(js, subject, prefix, count, -1, false);
+    }
+
+    public static void publish(JetStream js, String subject, String prefix, int count, int msgSize) throws IOException, JetStreamApiException {
+        publish(js, subject, prefix, count, msgSize, false);
     }
 
     public static void publish(JetStream js, String subject, String prefix, int count, boolean verbose) throws IOException, JetStreamApiException {

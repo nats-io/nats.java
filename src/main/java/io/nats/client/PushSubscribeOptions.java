@@ -20,6 +20,7 @@ import static io.nats.client.support.Validator.emptyAsNull;
  * Options are set using the {@link PushSubscribeOptions.Builder} or static helper methods.
  */
 public class PushSubscribeOptions extends SubscribeOptions {
+    public static final PushSubscribeOptions DEFAULT_PUSH_OPTS = PushSubscribeOptions.builder().build();
 
     private PushSubscribeOptions(Builder builder, boolean ordered, String deliverSubject, String deliverGroup,
                                  long pendingMessageLimit, long pendingByteLimit) {

@@ -17,6 +17,7 @@ import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
+import io.nats.client.support.Status;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -25,8 +26,14 @@ class OrderedMessageManager extends PushMessageManager {
     private long expectedExternalConsumerSeq;
     private final AtomicReference<String> targetSid;
 
-    OrderedMessageManager(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, NatsDispatcher dispatcher) {
-        super(conn, js, stream, so, serverCC, queueMode, dispatcher);
+    protected OrderedMessageManager(NatsConnection conn,
+                          NatsJetStream js,
+                          String stream,
+                          SubscribeOptions so,
+                          ConsumerConfiguration serverCC,
+                          boolean queueMode,
+                          boolean syncMode) {
+        super(conn, js, stream, so, serverCC, queueMode, syncMode);
         expectedExternalConsumerSeq = 1; // always starts at 1
         targetSid = new AtomicReference<>();
     }
@@ -39,34 +46,24 @@ class OrderedMessageManager extends PushMessageManager {
 
     @Override
     protected boolean manage(Message msg) {
-        if (msg.isStatusMessage()) {
-            manageStatus(msg);
-            return true; // all status are managed
-        }
-
         if (!msg.getSID().equals(targetSid.get())) {
             return true;
         }
 
-        // all status are managed, so this is a normal js message
-        // expects sequence in order
-        // if there is a failure,
-        // no need to queue the message (return false)
-        long receivedConsumerSeq = msg.metaData().consumerSequence();
-        if (expectedExternalConsumerSeq != receivedConsumerSeq) {
-            handleErrorCondition();
-            return true;
+        Status status = msg.getStatus();
+        if (status == null) {
+            long receivedConsumerSeq = msg.metaData().consumerSequence();
+            if (expectedExternalConsumerSeq != receivedConsumerSeq) {
+                handleErrorCondition();
+                return true;
+            }
+            trackJsMessage(msg);
+            expectedExternalConsumerSeq++;
+            return false;
         }
 
-        trackJsMessage(msg);
-        expectedExternalConsumerSeq++;
-        return false;
-    }
-
-    @Override
-    protected void handleHeartbeatError() {
-        super.handleHeartbeatError();
-        handleErrorCondition();
+        super.manageStatus(msg);
+        return true; // all status are managed
     }
 
     private void handleErrorCondition() {
@@ -99,7 +96,7 @@ class OrderedMessageManager extends PushMessageManager {
         catch (Exception e) {
             IllegalStateException ise = new IllegalStateException("Ordered subscription fatal error.", e);
             js.conn.processException(ise);
-            if (dispatcher == null) { // synchronous
+            if (syncMode) {
                 throw ise;
             }
         }

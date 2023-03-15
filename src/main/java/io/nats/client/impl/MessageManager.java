@@ -14,18 +14,18 @@
 package io.nats.client.impl;
 
 import io.nats.client.Message;
+import io.nats.client.PullRequestOptions;
+import io.nats.client.support.PullStatus;
 
+import java.time.Duration;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
 abstract class MessageManager {
     protected static final int THRESHOLD = 3;
 
     protected final NatsConnection conn;
-    protected final NatsDispatcher dispatcher;
     protected final boolean syncMode;
 
     protected NatsJetStreamSubscription sub;
@@ -35,25 +35,55 @@ abstract class MessageManager {
 
     protected final AtomicLong lastMsgReceived;
 
-    public MessageManager(NatsConnection conn, NatsDispatcher dispatcher) {
+    // heartbeat stuff
+    protected boolean hb;
+    protected long idleHeartbeatSetting;
+    protected long alarmPeriodSetting;
+    protected HeartbeatTimer heartbeatTimer;
+
+    protected MessageManager(NatsConnection conn, boolean syncMode) {
         this.conn = conn;
-        this.dispatcher = dispatcher;
-        syncMode = dispatcher == null;
-        lastStreamSeq = -1;
+        this.syncMode = syncMode;
+        lastStreamSeq = 0;
         internalConsumerSeq = 0;
         lastMsgReceived = new AtomicLong(System.currentTimeMillis());
+
+        hb = false;
+        idleHeartbeatSetting = 0;
+        alarmPeriodSetting = 0;
     }
 
-    boolean isSyncMode()                { return syncMode; }
-    long getLastStreamSequence()        { return lastStreamSeq; }
-    long getInternalConsumerSequence()  { return internalConsumerSeq; }
-    long getLastMsgReceived()           { return lastMsgReceived.get(); }
+    protected boolean isSyncMode()               { return syncMode; }
+    protected long getLastStreamSequence()       { return lastStreamSeq; }
+    protected long getInternalConsumerSequence() { return internalConsumerSeq; }
+    protected long getLastMsgReceived()          { return lastMsgReceived.get(); }
+    protected boolean isHb()                     { return hb; }
+    protected long getIdleHeartbeatSetting()     { return idleHeartbeatSetting; }
+    protected long getAlarmPeriodSetting()       { return alarmPeriodSetting; }
 
     protected void startup(NatsJetStreamSubscription sub) {
         this.sub = sub;
     }
 
-    protected void shutdown() {}
+    protected void shutdown() {
+        shutdownHeartbeatTimer();
+    }
+
+    protected void startPullRequest(PullRequestOptions pullRequestOptions) {
+        // does nothing - only implemented for pulls, but in base class since instance is always referenced as MessageManager, not subclass
+    }
+
+    protected PullStatus getPullStatus() {
+        return null;
+    }
+
+    protected void messageReceived() {
+        lastMsgReceived.set(System.currentTimeMillis());
+    }
+
+    protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
+        return true;
+    }
 
     abstract protected boolean manage(Message msg);
 
@@ -63,12 +93,41 @@ abstract class MessageManager {
         internalConsumerSeq++;
     }
 
-    protected boolean hasFcSubject(Message msg) {
-        return msg.getHeaders() != null && msg.getHeaders().containsKey(CONSUMER_STALLED_HDR);
+    protected void initIdleHeartbeat(Duration configIdleHeartbeat, long configMessageAlarmTime) {
+        initIdleHeartbeat(configIdleHeartbeat == null ? 0 : configIdleHeartbeat.toMillis(), configMessageAlarmTime);
     }
 
-    protected String extractFcSubject(Message msg) {
-        return msg.getHeaders() == null ? null : msg.getHeaders().getFirst(CONSUMER_STALLED_HDR);
+    protected void initIdleHeartbeat(long configIdleHeartbeat, long configMessageAlarmTime) {
+        idleHeartbeatSetting = configIdleHeartbeat;
+        if (idleHeartbeatSetting <= 0) {
+            alarmPeriodSetting = 0;
+            hb = false;
+        }
+        else {
+            if (configMessageAlarmTime < idleHeartbeatSetting) {
+                alarmPeriodSetting = idleHeartbeatSetting * THRESHOLD;
+            }
+            else {
+                alarmPeriodSetting = configMessageAlarmTime;
+            }
+            hb = true;
+        }
+    }
+
+    protected void initOrResetHeartbeatTimer() {
+        if (heartbeatTimer == null) {
+            heartbeatTimer = new HeartbeatTimer(alarmPeriodSetting);
+        }
+        else {
+            heartbeatTimer.restart();
+        }
+    }
+
+    protected void shutdownHeartbeatTimer() {
+        if (heartbeatTimer != null) {
+            heartbeatTimer.shutdown();
+            heartbeatTimer = null;
+        }
     }
 
     protected void handleHeartbeatError() {
@@ -76,11 +135,11 @@ abstract class MessageManager {
     }
 
     protected class HeartbeatTimer {
-        Timer timer;
-        boolean alive = true;
-        long alarmPeriodSetting;
+        protected Timer timer;
+        protected boolean alive = true;
+        protected long alarmPeriodSetting;
 
-        class HeartbeatTimerTask extends TimerTask {
+        protected class HeartbeatTimerTask extends TimerTask {
             @Override
             public void run() {
                 long sinceLast = System.currentTimeMillis() - lastMsgReceived.get();
@@ -91,12 +150,12 @@ abstract class MessageManager {
             }
         }
 
-        public HeartbeatTimer(long alarmPeriodSetting) {
+        protected HeartbeatTimer(long alarmPeriodSetting) {
             this.alarmPeriodSetting = alarmPeriodSetting;
             restart();
         }
 
-        synchronized void restart() {
+        synchronized protected void restart() {
             cancel();
             if (alive) {
                 timer = new Timer();
@@ -104,7 +163,7 @@ abstract class MessageManager {
             }
         }
 
-        synchronized public void shutdown() {
+        synchronized protected void shutdown() {
             alive = false;
             cancel();
         }

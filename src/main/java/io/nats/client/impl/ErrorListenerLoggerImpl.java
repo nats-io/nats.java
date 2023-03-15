@@ -92,6 +92,11 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
         LOGGER.warning(() -> supplyMessage("unhandledStatus", conn, null, sub, "Status:", status));
     }
 
+    @Override
+    public void errorPullStatus(Connection conn, JetStreamSubscription sub, Status status) {
+        LOGGER.severe(() -> supplyMessage("errorPullStatus", conn, null, sub, "Status:", status));
+    }
+
     /**
      * {@inheritDoc}
      */

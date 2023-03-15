@@ -1546,8 +1546,7 @@ class NatsConnection implements Connection {
             } else if (q != null) {
                 c.markNotSlow();
 
-                // beforeQueueProcessor returns true if the message
-                // is allowed to be queued
+                // beforeQueueProcessor returns true if the message is allowed to be queued
                 if (sub.getBeforeQueueProcessor().apply(msg)) {
                     q.push(msg);
                 }

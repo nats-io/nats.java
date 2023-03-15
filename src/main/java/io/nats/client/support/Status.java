@@ -23,6 +23,10 @@ public class Status {
     public static final String NO_RESPONDERS_TEXT = "No Responders Available For Request";
     public static final int FLOW_OR_HEARTBEAT_STATUS_CODE = 100;
     public static final int NO_RESPONDERS_CODE = 503;
+    public static final int BAD_REQUEST_CODE = 400;
+    public static final int NOT_FOUND_CODE = 404;
+    public static final int REQUEST_TIMEOUT_CODE = 408;
+    public static final int CONFLICT_CODE = 409;
 
     private final int code;
     private final String message;
@@ -87,33 +91,5 @@ public class Status {
 
     public boolean isNoResponders() {
         return code == NO_RESPONDERS_CODE && message.equals(NO_RESPONDERS_TEXT);
-    }
-
-    public boolean isExceededMaxWaiting() {
-        return code == 409 && message.equals("Exceeded MaxWaiting");
-    }
-
-    public boolean isMessageSizeExceedsMaxBytes() {
-        return code == 409 && message.equals("Message Size Exceeds MaxBytes");
-    }
-
-    public boolean isConsumerDeleted() {
-        return code == 409 && message.equals("Consumer Deleted");
-    }
-
-    public boolean isConsumerIsPushBased() {
-        return code == 409 && message.equals("Consumer is push based");
-    }
-
-    public boolean isExceededMaxRequestBatch() {
-        return code == 409 && message.startsWith("Exceeded MaxRequestBatch");
-    }
-
-    public boolean isExceededMaxRequestExpires() {
-        return code == 409 && message.startsWith("Exceeded MaxRequestExpires");
-    }
-
-    public boolean isExceededMaxRequestMaxBytes() {
-        return code == 409 && message.startsWith("Exceeded MaxRequestMaxBytes");
     }
 }

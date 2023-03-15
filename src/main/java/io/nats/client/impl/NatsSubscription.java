@@ -47,7 +47,7 @@ class NatsSubscription extends NatsConsumer implements Subscription {
             this.incoming = new MessageQueue(false);
         }
 
-        beforeQueueProcessor = m -> true;
+        setBeforeQueueProcessor(null);
     }
 
     void reSubscribe(String newDeliverSubject) {
@@ -69,7 +69,7 @@ class NatsSubscription extends NatsConsumer implements Subscription {
     }
 
     void setBeforeQueueProcessor(Function<NatsMessage, Boolean> beforeQueueProcessor) {
-        this.beforeQueueProcessor = beforeQueueProcessor; // better not be null if it's being set
+        this.beforeQueueProcessor = beforeQueueProcessor == null ? m -> true : beforeQueueProcessor;
     }
 
     public Function<NatsMessage, Boolean> getBeforeQueueProcessor() {

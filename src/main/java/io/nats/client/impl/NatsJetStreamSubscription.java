@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.support.NatsJetStreamConstants;
+import io.nats.client.support.PullStatus;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -231,6 +232,11 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
         return js.lookupConsumerInfo(stream, consumerName);
+    }
+
+    @Override
+    public PullStatus getPullPending() {
+        throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 
     @Override

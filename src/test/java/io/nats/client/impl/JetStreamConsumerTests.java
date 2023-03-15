@@ -34,8 +34,8 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
     // which is before the messages is available for nextMessage, or before
     // it gets dispatched to a handler.
     static class OrderedTestDropSimulator extends OrderedMessageManager {
-        public OrderedTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, NatsDispatcher dispatcher) {
-            super(conn, js, stream, so, serverCC, queueMode, dispatcher);
+        public OrderedTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
+            super(conn, js, stream, so, serverCC, queueMode, syncMode);
         }
 
         @Override
@@ -66,7 +66,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             createMemoryStream(jsm, stream(111), subject);
 
             // Get this in place before any subscriptions are made
-            ((NatsJetStream)js).PUSH_MESSAGE_MANAGER_FACTORY = OrderedTestDropSimulator::new;
+            ((NatsJetStream)js)._pushOrderedMessageManagerFactory = OrderedTestDropSimulator::new;
 
             // The options will be used in various ways
             PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true).build();
@@ -107,7 +107,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             createMemoryStream(jsm, stream(222), subject);
 
             // Get this in place before any subscriptions are made
-            ((NatsJetStream)js).PUSH_MESSAGE_MANAGER_FACTORY = OrderedTestDropSimulator::new;
+            ((NatsJetStream)js)._pushOrderedMessageManagerFactory = OrderedTestDropSimulator::new;
 
             // The options will be used in various ways
             PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true).build();
@@ -155,8 +155,8 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
     static class HeartbeatErrorSimulator extends PushMessageManager {
         public CountDownLatch latch = new CountDownLatch(2);
 
-        public HeartbeatErrorSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, NatsDispatcher dispatcher) {
-            super(conn, js, stream, so, serverCC, queueMode, dispatcher);
+        public HeartbeatErrorSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
+            super(conn, js, stream, so, serverCC, queueMode, syncMode);
         }
 
         @Override
@@ -174,8 +174,8 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
     static class HeartbeatErrorOrderedSimulator extends OrderedMessageManager {
         public CountDownLatch latch = new CountDownLatch(2);
 
-        public HeartbeatErrorOrderedSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, NatsDispatcher dispatcher) {
-            super(conn, js, stream, so, serverCC, queueMode, dispatcher);
+        public HeartbeatErrorOrderedSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
+            super(conn, js, stream, so, serverCC, queueMode, syncMode);
         }
 
         @Override
@@ -239,7 +239,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     private static AtomicReference<HeartbeatErrorSimulator> setFactory(JetStream js) {
         AtomicReference<HeartbeatErrorSimulator> simRef = new AtomicReference<>();
-        ((NatsJetStream)js).PUSH_MESSAGE_MANAGER_FACTORY = (conn, lJs, stream, so, serverCC, qmode, dispatcher) -> {
+        ((NatsJetStream)js)._pushStandardMessageManagerFactory = (conn, lJs, stream, so, serverCC, qmode, dispatcher) -> {
             HeartbeatErrorSimulator sim = new HeartbeatErrorSimulator(conn, lJs, stream, so, serverCC, qmode, dispatcher);
             simRef.set(sim);
             return sim;
@@ -249,7 +249,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     private static AtomicReference<HeartbeatErrorOrderedSimulator> setOrderedFactory(JetStream js) {
         AtomicReference<HeartbeatErrorOrderedSimulator> simRef = new AtomicReference<>();
-        ((NatsJetStream)js).PUSH_MESSAGE_MANAGER_FACTORY = (conn, lJs, stream, so, serverCC, qmode, dispatcher) -> {
+        ((NatsJetStream)js)._pushOrderedMessageManagerFactory = (conn, lJs, stream, so, serverCC, qmode, dispatcher) -> {
             HeartbeatErrorOrderedSimulator sim = new HeartbeatErrorOrderedSimulator(conn, lJs, stream, so, serverCC, qmode, dispatcher);
             simRef.set(sim);
             return sim;

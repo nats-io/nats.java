@@ -39,11 +39,12 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     private String errorToWaitFor;
 
     private Connection connection;
-    private final ArrayList<Consumer> slowConsumers = new ArrayList<>();
-    private final ArrayList<Message> discardedMessages = new ArrayList<>();
-    private final ArrayList<UnhandledStatusEvent> unhandledStatuses = new ArrayList<>();
-    private final ArrayList<HeartbeatAlarmEvent> heartbeatAlarms = new ArrayList<>();
-    private final ArrayList<FlowControlProcessedEvent> flowControlProcesseds = new ArrayList<>();
+    private final List<Consumer> slowConsumers = new ArrayList<>();
+    private final List<Message> discardedMessages = new ArrayList<>();
+    private final List<StatusEvent> unhandledStatuses = new ArrayList<>();
+    private final List<StatusEvent> errorPullStatuses = new ArrayList<>();
+    private final List<HeartbeatAlarmEvent> heartbeatAlarms = new ArrayList<>();
+    private final List<FlowControlProcessedEvent> flowControlProcesseds = new ArrayList<>();
 
     private final boolean printExceptions;
     private final boolean verbose;
@@ -70,6 +71,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         slowConsumers.clear();
         discardedMessages.clear();
         unhandledStatuses.clear();
+        errorPullStatuses.clear();
         heartbeatAlarms.clear();
         flowControlProcesseds.clear();
     }
@@ -241,6 +243,22 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         return discardedMessages;
     }
 
+    public List<StatusEvent> getUnhandledStatuses() {
+        return unhandledStatuses;
+    }
+
+    public List<StatusEvent> getPullErrorStatuses() {
+        return errorPullStatuses;
+    }
+
+    public List<HeartbeatAlarmEvent> getHeartbeatAlarms() {
+        return heartbeatAlarms;
+    }
+
+    public List<FlowControlProcessedEvent> getFlowControlProcessedEvents() {
+        return flowControlProcesseds;
+    }
+
     public int getCount() {
         return count.get();
     }
@@ -294,23 +312,42 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         return connection;
     }
 
-    public static class UnhandledStatusEvent {
-        String sid;
-        Status status;
-
-        public UnhandledStatusEvent(JetStreamSubscription sub, Status status) {
-            this.sid = ((NatsJetStreamSubscription)sub).getSID();
-            this.status = status;
-        }
+    @Override
+    public void unhandledStatus(Connection conn, JetStreamSubscription sub, Status status) {
+        unhandledStatuses.add(new StatusEvent(sub, status));
     }
 
     @Override
-    public void unhandledStatus(Connection conn, JetStreamSubscription sub, Status status) {
-        unhandledStatuses.add(new UnhandledStatusEvent(sub, status));
+    public void errorPullStatus(Connection conn, JetStreamSubscription sub, Status status) {
+        errorPullStatuses.add(new StatusEvent(sub, status));
     }
 
-    public ArrayList<UnhandledStatusEvent> getUnhandledStatuses() {
-        return unhandledStatuses;
+    @Override
+    public void heartbeatAlarm(Connection conn, JetStreamSubscription sub, long lastStreamSequence, long lastConsumerSequence) {
+        heartbeatAlarms.add(new HeartbeatAlarmEvent(sub, lastStreamSequence, lastConsumerSequence));
+    }
+
+    @Override
+    public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String subject, FlowControlSource source) {
+        ErrorListener.super.flowControlProcessed(conn, sub, subject, source);
+    }
+
+    public static class StatusEvent {
+        String sid;
+        Status status;
+
+        public StatusEvent(JetStreamSubscription sub, Status status) {
+            this.sid = extractSid(sub);
+            this.status = status;
+        }
+
+        @Override
+        public String toString() {
+            return "StatusEvent{" +
+                "sid='" + sid + '\'' +
+                ", status=" + status +
+                '}';
+        }
     }
 
     public static class HeartbeatAlarmEvent {
@@ -319,19 +356,19 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         long lastConsumerSequence;
 
         public HeartbeatAlarmEvent(JetStreamSubscription sub, long lastStreamSequence, long lastConsumerSequence) {
-            this.sid = ((NatsJetStreamSubscription)sub).getSID();
+            this.sid = extractSid(sub);
             this.lastStreamSequence = lastStreamSequence;
             this.lastConsumerSequence = lastConsumerSequence;
         }
-    }
 
-    @Override
-    public void heartbeatAlarm(Connection conn, JetStreamSubscription sub, long lastStreamSequence, long lastConsumerSequence) {
-        heartbeatAlarms.add(new HeartbeatAlarmEvent(sub, lastStreamSequence, lastConsumerSequence));
-    }
-
-    public ArrayList<HeartbeatAlarmEvent> getHeartbeatAlarms() {
-        return heartbeatAlarms;
+        @Override
+        public String toString() {
+            return "HeartbeatAlarmEvent{" +
+                "sid='" + sid + '\'' +
+                ", lastStreamSequence=" + lastStreamSequence +
+                ", lastConsumerSequence=" + lastConsumerSequence +
+                '}';
+        }
     }
 
     public static class FlowControlProcessedEvent {
@@ -340,18 +377,22 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         FlowControlSource source;
 
         public FlowControlProcessedEvent(JetStreamSubscription sub, String subject, FlowControlSource source) {
-            this.sid = ((NatsJetStreamSubscription)sub).getSID();
+            this.sid = extractSid(sub);
             this.subject = subject;
             this.source = source;
         }
+
+        @Override
+        public String toString() {
+            return "FlowControlProcessedEvent{" +
+                "sid='" + sid + '\'' +
+                ", subject='" + subject + '\'' +
+                ", source=" + source +
+                '}';
+        }
     }
 
-    @Override
-    public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String subject, FlowControlSource source) {
-        ErrorListener.super.flowControlProcessed(conn, sub, subject, source);
-    }
-
-    public ArrayList<FlowControlProcessedEvent> getFlowControlProcesseds() {
-        return flowControlProcesseds;
+    private static String extractSid(JetStreamSubscription sub) {
+        return ((NatsJetStreamSubscription)sub).getSID();
     }
 }
