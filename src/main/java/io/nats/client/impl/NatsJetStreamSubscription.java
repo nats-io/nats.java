@@ -235,7 +235,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     }
 
     @Override
-    public PullStatus getPullPending() {
+    public PullStatus getPullStatus() {
         throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);
     }
 

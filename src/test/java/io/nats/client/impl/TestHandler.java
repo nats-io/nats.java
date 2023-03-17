@@ -42,7 +42,8 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     private final List<Consumer> slowConsumers = new ArrayList<>();
     private final List<Message> discardedMessages = new ArrayList<>();
     private final List<StatusEvent> unhandledStatuses = new ArrayList<>();
-    private final List<StatusEvent> errorPullStatuses = new ArrayList<>();
+    private final List<StatusEvent> pullStatusWarnings = new ArrayList<>();
+    private final List<StatusEvent> pullStatusErrors = new ArrayList<>();
     private final List<HeartbeatAlarmEvent> heartbeatAlarms = new ArrayList<>();
     private final List<FlowControlProcessedEvent> flowControlProcesseds = new ArrayList<>();
 
@@ -71,7 +72,8 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         slowConsumers.clear();
         discardedMessages.clear();
         unhandledStatuses.clear();
-        errorPullStatuses.clear();
+        pullStatusWarnings.clear();
+        pullStatusErrors.clear();
         heartbeatAlarms.clear();
         flowControlProcesseds.clear();
     }
@@ -247,8 +249,12 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         return unhandledStatuses;
     }
 
-    public List<StatusEvent> getPullErrorStatuses() {
-        return errorPullStatuses;
+    public List<StatusEvent> getPullStatusWarnings() {
+        return pullStatusWarnings;
+    }
+
+    public List<StatusEvent> getPullStatusErrors() {
+        return pullStatusErrors;
     }
 
     public List<HeartbeatAlarmEvent> getHeartbeatAlarms() {
@@ -318,8 +324,13 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     @Override
-    public void errorPullStatus(Connection conn, JetStreamSubscription sub, Status status) {
-        errorPullStatuses.add(new StatusEvent(sub, status));
+    public void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {
+        pullStatusWarnings.add(new StatusEvent(sub, status));
+    }
+
+    @Override
+    public void pullStatusError(Connection conn, JetStreamSubscription sub, Status status) {
+        pullStatusErrors.add(new StatusEvent(sub, status));
     }
 
     @Override

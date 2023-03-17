@@ -138,6 +138,12 @@ public class JetStreamTestBase extends TestBase {
         }
     }
 
+    public static void jsPublishBytes(JetStream js, String subject, int count, byte[] bytes) throws IOException, JetStreamApiException {
+        for (int x = 0; x < count; x++) {
+            js.publish(subject, bytes);
+        }
+    }
+
     public static void jsPublish(JetStream js, String subject, int count) throws IOException, JetStreamApiException {
         jsPublish(js, subject, 1, count);
     }
@@ -151,11 +157,7 @@ public class JetStreamTestBase extends TestBase {
     }
 
     public static PublishAck jsPublish(JetStream js, String subject, String data) throws IOException, JetStreamApiException {
-        Message msg = NatsMessage.builder()
-            .subject(subject)
-            .data(data.getBytes(StandardCharsets.US_ASCII))
-            .build();
-        return js.publish(msg);
+        return js.publish(NatsMessage.builder().subject(subject).data(data.getBytes(StandardCharsets.US_ASCII)).build());
     }
 
     public static PublishAck jsPublish(JetStream js) throws IOException, JetStreamApiException {

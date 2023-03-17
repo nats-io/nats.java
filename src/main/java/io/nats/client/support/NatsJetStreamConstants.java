@@ -105,12 +105,14 @@ public interface NatsJetStreamConstants {
     int JS_NO_MESSAGE_FOUND_ERR = 10037;
     int JS_WRONG_LAST_SEQUENCE = 10071;
 
-    String BAD_REQUEST                    = "Bad Request";
-    String CONSUMER_DELETED               = "Consumer Deleted";
-    String CONSUMER_IS_PUSH_BASED         = "Consumer is push based";
-    String MESSAGE_SIZE_EXCEEDS_MAX_BYTES = "Message Size Exceeds MaxBytes";
-    String EXCEEDED_MAX_WAITING           = "Exceeded MaxWaiting";
-    String EXCEEDED_MAX_REQUEST_BATCH     = "Exceeded MaxRequestBatch";
-    String EXCEEDED_MAX_REQUEST_EXPIRES   = "Exceeded MaxRequestExpires";
-    String EXCEEDED_MAX_REQUEST_MAX_BYTES = "Exceeded MaxRequestMaxBytes";
+    String BAD_REQUEST                    = "Bad Request"; // 400
+    String NO_MESSAGES                    = "No Messages"; // 404
+    String CONSUMER_DELETED               = "Consumer Deleted"; // 409
+    String CONSUMER_IS_PUSH_BASED         = "Consumer is push based"; // 409
+
+    String MESSAGE_SIZE_EXCEEDS_MAX_BYTES = "Message Size Exceeds MaxBytes"; // 409
+    String EXCEEDED_MAX_WAITING           = "Exceeded MaxWaiting"; // 409
+    String EXCEEDED_MAX_REQUEST_BATCH     = "Exceeded MaxRequestBatch"; // 409
+    String EXCEEDED_MAX_REQUEST_EXPIRES   = "Exceeded MaxRequestExpires"; // 409
+    String EXCEEDED_MAX_REQUEST_MAX_BYTES = "Exceeded MaxRequestMaxBytes"; // 409
 }

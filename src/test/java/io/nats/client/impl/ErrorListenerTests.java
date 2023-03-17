@@ -343,7 +343,8 @@ public class ErrorListenerTests {
         AtomicBoolean messageDiscardedFlag = new AtomicBoolean();
         AtomicBoolean heartbeatAlarmFlag = new AtomicBoolean();
         AtomicBoolean unhandledStatusFlag = new AtomicBoolean();
-        AtomicBoolean errorPullStatusFlag = new AtomicBoolean();
+        AtomicBoolean pullStatusWarningFlag = new AtomicBoolean();
+        AtomicBoolean pullStatusErrorFlag = new AtomicBoolean();
         AtomicBoolean flowControlProcessedFlag = new AtomicBoolean();
 
         _cover(new ErrorListener() {
@@ -378,8 +379,13 @@ public class ErrorListenerTests {
             }
 
             @Override
-            public void errorPullStatus(Connection conn, JetStreamSubscription sub, Status status) {
-                errorPullStatusFlag.set(true);
+            public void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {
+                pullStatusWarningFlag.set(true);
+            }
+
+            @Override
+            public void pullStatusError(Connection conn, JetStreamSubscription sub, Status status) {
+                pullStatusErrorFlag.set(true);
             }
 
             @Override
@@ -394,7 +400,8 @@ public class ErrorListenerTests {
         assertTrue(messageDiscardedFlag.get());
         assertTrue(heartbeatAlarmFlag.get());
         assertTrue(unhandledStatusFlag.get());
-        assertTrue(errorPullStatusFlag.get());
+        assertTrue(pullStatusWarningFlag.get());
+        assertTrue(pullStatusErrorFlag.get());
         assertTrue(flowControlProcessedFlag.get());
     }
 
@@ -405,7 +412,8 @@ public class ErrorListenerTests {
         el.messageDiscarded(null, null);
         el.heartbeatAlarm(null, null, -1, -1);
         el.unhandledStatus(null, null, null);
-        el.errorPullStatus(null, null, null);
+        el.pullStatusWarning(null, null, null);
+        el.pullStatusError(null, null, null);
         el.flowControlProcessed(null, null, null, null);
     }
 }

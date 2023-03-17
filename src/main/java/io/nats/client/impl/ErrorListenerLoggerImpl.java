@@ -93,8 +93,13 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
     }
 
     @Override
-    public void errorPullStatus(Connection conn, JetStreamSubscription sub, Status status) {
-        LOGGER.severe(() -> supplyMessage("errorPullStatus", conn, null, sub, "Status:", status));
+    public void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {
+        LOGGER.warning(() -> supplyMessage("pullStatusWarning", conn, null, sub, "Status:", status));
+    }
+
+    @Override
+    public void pullStatusError(Connection conn, JetStreamSubscription sub, Status status) {
+        LOGGER.severe(() -> supplyMessage("pullStatusError", conn, null, sub, "Status:", status));
     }
 
     /**

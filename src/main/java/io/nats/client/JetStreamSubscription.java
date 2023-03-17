@@ -216,5 +216,5 @@ public interface JetStreamSubscription extends Subscription {
      */
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
 
-    PullStatus getPullPending();
+    PullStatus getPullStatus();
 }

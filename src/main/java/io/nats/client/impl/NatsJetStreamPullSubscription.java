@@ -52,6 +52,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     @Override
     public void pull(PullRequestOptions pullRequestOptions) {
         String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
+        manager.startPullRequest(pullRequestOptions);
         connection.publish(publishSubject, getSubject(), pullRequestOptions.serialize());
         connection.lenientFlushBuffer();
     }
@@ -334,7 +335,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     }
 
     @Override
-    public PullStatus getPullPending() {
+    public PullStatus getPullStatus() {
         return manager.getPullStatus();
     }
 }

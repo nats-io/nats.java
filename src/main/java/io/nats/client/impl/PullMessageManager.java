@@ -19,22 +19,24 @@ import io.nats.client.PullRequestOptions;
 import io.nats.client.support.PullStatus;
 import io.nats.client.support.Status;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.support.NatsJetStreamConstants.NATS_PENDING_BYTES;
 import static io.nats.client.support.NatsJetStreamConstants.NATS_PENDING_MESSAGES;
-import static io.nats.client.support.Status.NOT_FOUND_CODE;
-import static io.nats.client.support.Status.REQUEST_TIMEOUT_CODE;
+import static io.nats.client.support.Status.*;
 
 class PullMessageManager extends MessageManager {
 
     protected final AtomicLong pendingMessages;
     protected final AtomicLong pendingBytes;
+    protected final AtomicBoolean trackingBytes;
 
     protected PullMessageManager(NatsConnection conn, boolean syncMode) {
         super(conn, syncMode);
-        this.pendingMessages = new AtomicLong(0);
-        this.pendingBytes = new AtomicLong(0);
+        pendingMessages = new AtomicLong(0);
+        pendingBytes = new AtomicLong(0);
+        trackingBytes = new AtomicBoolean(false);
     }
 
     @Override
@@ -47,6 +49,7 @@ class PullMessageManager extends MessageManager {
     protected void startPullRequest(PullRequestOptions pro) {
         pendingMessages.addAndGet(pro.getBatchSize());
         pendingBytes.addAndGet(pro.getMaxBytes());
+        trackingBytes.set(pendingBytes.get() > 0);
         initIdleHeartbeat(pro.getIdleHeartbeat(), -1);
         if (hb) {
             initOrResetHeartbeatTimer();
@@ -61,21 +64,22 @@ class PullMessageManager extends MessageManager {
         return new PullStatus(pendingMessages.get(), pendingBytes.get(), hb);
     }
 
-    private void trackPending(long mo, long bo) {
+    private void trackPending(long m, long b) {
         boolean reachedEnd = false;
-        if (mo > 0) {
-            if (pendingMessages.addAndGet(-mo) < 1) {
+        if (m > 0) {
+            if (pendingMessages.addAndGet(-m) < 1) {
                 reachedEnd = true;
             }
         }
-        if (bo > 0) {
-            if (pendingBytes.addAndGet(-bo) < 1) {
+        if (trackingBytes.get() && b > 0) {
+            if (pendingBytes.addAndGet(-b) < 1) {
                 reachedEnd = true;
             }
         }
         if (reachedEnd) {
             pendingMessages.set(0);
             pendingBytes.set(0);
+            trackingBytes.set(false);
             if (hb) {
                 shutdownHeartbeatTimer();
             }
@@ -106,25 +110,39 @@ class PullMessageManager extends MessageManager {
         Headers h = msg.getHeaders();
         if (h != null) {
             String s;
-            long mo = ((s = h.getFirst(NATS_PENDING_MESSAGES)) == null) ? -1 : Long.parseLong(s);
-            long bo = ((s = h.getFirst(NATS_PENDING_BYTES)) == null) ? -1 : Long.parseLong(s);
-            trackPending(mo, bo);
+            long m = ((s = h.getFirst(NATS_PENDING_MESSAGES)) == null) ? -1 : Long.parseLong(s);
+            long b = ((s = h.getFirst(NATS_PENDING_BYTES)) == null) ? -1 : Long.parseLong(s);
+            trackPending(m, b);
         }
 
         int statusCode = status.getCode();
-        if (statusCode != NOT_FOUND_CODE && statusCode != REQUEST_TIMEOUT_CODE) {
-            conn.executeCallback((c, el) -> el.errorPullStatus(c, sub, status));
-            if (syncMode) {
-                throw new JetStreamStatusException(sub, status);
+        if (statusCode == NOT_FOUND_CODE || statusCode == REQUEST_TIMEOUT_CODE) {
+            return true; // ignored
+        }
+
+        if (statusCode == CONFLICT_CODE) {
+            // sometimes just a warning
+            if (status.getMessage().contains("Exceed")) {
+                conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
+                return true;
             }
+            // fall through
+        }
+
+        // all others are fatal
+        conn.executeCallback((c, el) -> el.pullStatusError(c, sub, status));
+        if (syncMode) {
+            throw new JetStreamStatusException(sub, status);
         }
 
         return true; // all status are managed
     }
 
     private long bytesInMessage(Message msg) {
-        return msg.getSubject().length()
-            + (msg.getReplyTo() == null ? 0 : msg.getReplyTo().length())
-            + (msg.getData() == null ? 0 : msg.getData().length);
+        NatsMessage nm = (NatsMessage) msg;
+        return nm.subject.length()
+            + nm.headerLen
+            + nm.dataLen
+            + (nm.replyTo == null ? 0 : nm.replyTo.length());
     }
 }
