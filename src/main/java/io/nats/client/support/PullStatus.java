@@ -35,13 +35,4 @@ public class PullStatus {
     public boolean isTrackingHeartbeats() {
         return trackingHeartbeats;
     }
-
-    @Override
-    public String toString() {
-        return "PullStatus{" +
-            "pendingMessages=" + pendingMessages +
-            ", pendingBytes=" + pendingBytes +
-            ", trackingHeartbeats=" + trackingHeartbeats +
-            '}';
-    }
 }
