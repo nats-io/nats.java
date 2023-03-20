@@ -26,7 +26,6 @@ import java.util.function.LongConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static io.nats.client.support.ApiConstants.METADATA;
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
 import static io.nats.client.support.Encoding.jsonDecode;
 import static io.nats.client.support.Encoding.jsonEncode;
@@ -265,7 +264,7 @@ public abstract class JsonUtils {
 
     public static void addField(StringBuilder sb, String fname, Map<String, String> map) {
         if (map != null && map.size() > 0) {
-            addField(sb, METADATA, instance(map));
+            addField(sb, fname, instance(map));
         }
     }
 
