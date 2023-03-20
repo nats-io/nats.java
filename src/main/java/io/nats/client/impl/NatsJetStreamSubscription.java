@@ -234,6 +234,9 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return js.lookupConsumerInfo(stream, consumerName);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public PullStatus getPullStatus() {
         throw new IllegalStateException(SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL);

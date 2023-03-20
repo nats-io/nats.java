@@ -28,9 +28,8 @@ public interface JetStreamSubscription extends Subscription {
 
     /**
      * Initiate pull with the specified batch size.
-     *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
-     * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
+     * ! Primitive API for ADVANCED use only, officially not supported. Prefer fetch, iterate or reader.
      *
      * @param batchSize the size of the batch
      * @throws IllegalStateException if not a pull subscription.
@@ -39,11 +38,8 @@ public interface JetStreamSubscription extends Subscription {
 
     /**
      * Initiate pull with the specified request options
-     *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
-     * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
-     *
-     * IMPORTANT! PullRequestOptions ARE CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
+     * ! Primitive API for ADVANCED use only, officially not supported. Prefer fetch, iterate or reader.
      *
      * @param pullRequestOptions the options object
      * @throws IllegalStateException if not a pull subscription.
@@ -54,7 +50,7 @@ public interface JetStreamSubscription extends Subscription {
      * Initiate pull in noWait mode with the specified batch size.
      *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
-     * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
+     * ! Primitive API for ADVANCED use only, officially not supported. Prefer fetch, iterate or reader.
      *
      * @param batchSize the size of the batch
      * @throws IllegalStateException if not a pull subscription.
@@ -63,9 +59,8 @@ public interface JetStreamSubscription extends Subscription {
 
     /**
      * Initiate pull in noWait mode with the specified batch size.
-     *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
-     * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
+     * ! Primitive API for ADVANCED use only, officially not supported. Prefer fetch, iterate or reader.
      *
      * @param batchSize the size of the batch
      * @param expiresIn how long from now this request should be expired from the server wait list
@@ -75,9 +70,8 @@ public interface JetStreamSubscription extends Subscription {
 
     /**
      * Initiate pull in noWait mode with the specified batch size.
-     *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
-     * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
+     * ! Primitive API for ADVANCED use only, officially not supported. Prefer fetch, iterate or reader.
      *
      * @param batchSize the size of the batch
      * @param expiresInMillis how long from now this request should be expired from the server wait list, in milliseconds
@@ -90,13 +84,12 @@ public interface JetStreamSubscription extends Subscription {
      * <p>
      * <code>sub.nextMessage(timeout)</code> can return a:
      * <ul>
-     * <li>regular message
+     * <li>regular JetStream message
      * <li>null
      * </ul>
      * <p>
-     *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
-     * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
+     * ! Primitive API for ADVANCED use only, officially not supported. Prefer fetch, iterate or reader.
      *
      * @param batchSize the size of the batch
      * @param expiresIn how long from now this request should be expired from the server wait list
@@ -110,13 +103,12 @@ public interface JetStreamSubscription extends Subscription {
      * <p>
      * <code>sub.nextMessage(timeout)</code> can return a:
      * <ul>
-     * <li>regular message
+     * <li>regular JetStream message
      * <li>null
      * </ul>
      * <p>
-     *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
-     * ! Primitive API for Advanced use only. Prefer Fetch or Iterate
+     * ! Primitive API for ADVANCED use only, officially not supported. Prefer fetch, iterate or reader.
      *
      * @param batchSize the size of the batch
      * @param expiresInMillis how long from now this request should be expired from the server wait list, in milliseconds
@@ -129,7 +121,6 @@ public interface JetStreamSubscription extends Subscription {
      * This uses <code>pullExpiresIn</code> under the covers, and manages all responses
      * from <code>sub.nextMessage(...)</code> to only return regular JetStream messages.
      * This can only be used when the subscription is pull based.
-     *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      *
      * @param batchSize the size of the batch
@@ -145,7 +136,6 @@ public interface JetStreamSubscription extends Subscription {
      * This uses <code>pullExpiresIn</code> under the covers, and manages all responses
      * from <code>sub.nextMessage(...)</code> to only return regular JetStream messages.
      * This can only be used when the subscription is pull based.
-     *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      *
      * @param batchSize the size of the batch
@@ -162,7 +152,6 @@ public interface JetStreamSubscription extends Subscription {
      * receive the first message within the max wait period. It will stop if the batch is
      * fulfilled or if there are fewer than batch size messages. 408 Status messages
      * are ignored and will not count toward the fulfilled batch size.
-     *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      *
      * @param batchSize the size of the batch
@@ -179,7 +168,6 @@ public interface JetStreamSubscription extends Subscription {
      * receive the first message within the max wait period. It will stop if the batch is
      * fulfilled or if there are fewer than batch size messages. 408 Status messages
      * are ignored and will not count toward the fulfilled batch size.
-     *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      *
      * @param batchSize the size of the batch
@@ -194,10 +182,7 @@ public interface JetStreamSubscription extends Subscription {
      * Prepares a reader. A reader looks like a push sync subscription,
      * meaning it is just an endless stream of messages to ask for by nextMessage,
      * but uses pull under the covers.
-     *
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
-     *
-     * THIS API IS CONSIDERED EXPERIMENTAL AND SUBJECT TO CHANGE
      *
      * @param batchSize the size of the batch
      * @param repullAt the point in the current batch to tell the server to start the next batch
@@ -216,5 +201,10 @@ public interface JetStreamSubscription extends Subscription {
      */
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
 
+    /**
+     * Get the current status of pull requests for this subscription
+     * ! Pull subscriptions only. Push subscription will throw IllegalStateException
+     * @return the PullStatus object
+     */
     PullStatus getPullStatus();
 }

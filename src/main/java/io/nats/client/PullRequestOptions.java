@@ -23,8 +23,6 @@ import static io.nats.client.support.Validator.validateGtZero;
 
 /**
  * The PullRequestOptions class specifies the options for pull requests
- *
- * IMPORTANT! PullRequestOptions ARE CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public class PullRequestOptions implements JsonSerializable {
 

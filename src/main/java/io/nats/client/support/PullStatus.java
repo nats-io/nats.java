@@ -13,25 +13,47 @@
 
 package io.nats.client.support;
 
+/**
+ * Class representing the current state of a pull subscription
+ */
 public class PullStatus {
     private final long pendingMessages;
     private final long pendingBytes;
     private final boolean trackingHeartbeats;
 
+    /**
+     * Construct a pull status object. This is really an internal object,
+     * and should not be constructed by users
+     * @param pendingMessages the number of pending messages
+     * @param pendingBytes the number of pending bytes
+     * @param trackingHeartbeats whether heartbeats are currently being tracked
+     */
     public PullStatus(long pendingMessages, long pendingBytes, boolean trackingHeartbeats) {
         this.pendingMessages = pendingMessages;
         this.pendingBytes = pendingBytes;
         this.trackingHeartbeats = trackingHeartbeats;
     }
 
+    /**
+     * Get the number of pending messages for the pull
+     * @return the pending messages
+     */
     public long getPendingMessages() {
         return pendingMessages;
     }
 
+    /**
+     * Get the number of pending bytes for the pull
+     * @return the pending bytes
+     */
     public long getPendingBytes() {
         return pendingBytes;
     }
 
+    /**
+     * Get whether heartbeats are currently being tracked.
+     * @return true if heartbeats are currently being tracked
+     */
     public boolean isTrackingHeartbeats() {
         return trackingHeartbeats;
     }

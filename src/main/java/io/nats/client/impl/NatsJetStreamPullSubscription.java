@@ -334,6 +334,9 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         return new JetStreamReaderImpl(this, batchSize, repullAt);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public PullStatus getPullStatus() {
         return manager.getPullStatus();

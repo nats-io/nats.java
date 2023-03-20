@@ -94,11 +94,7 @@ abstract class MessageManager {
     }
 
     protected void initIdleHeartbeat(Duration configIdleHeartbeat, long configMessageAlarmTime) {
-        initIdleHeartbeat(configIdleHeartbeat == null ? 0 : configIdleHeartbeat.toMillis(), configMessageAlarmTime);
-    }
-
-    protected void initIdleHeartbeat(long configIdleHeartbeat, long configMessageAlarmTime) {
-        idleHeartbeatSetting = configIdleHeartbeat;
+        idleHeartbeatSetting = configIdleHeartbeat == null ? 0 : configIdleHeartbeat.toMillis();
         if (idleHeartbeatSetting <= 0) {
             alarmPeriodSetting = 0;
             hb = false;

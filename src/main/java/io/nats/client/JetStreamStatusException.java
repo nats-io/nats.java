@@ -27,7 +27,6 @@ public class JetStreamStatusException extends IllegalStateException {
 
     /**
      * Construct an exception with a status message
-     *
      * @param sub the subscription
      * @param status the status
      */
@@ -35,6 +34,12 @@ public class JetStreamStatusException extends IllegalStateException {
         this(sub, DEFAULT_DESCRIPTION, status);
     }
 
+    /**
+     * Construct an exception with a status message
+     * @param sub the subscription
+     * @param description custom description
+     * @param status the status
+     */
     public JetStreamStatusException(JetStreamSubscription sub, String description, Status status) {
         super(description + ": " + status.getMessage());
         this.sub = sub;
