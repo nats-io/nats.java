@@ -98,7 +98,21 @@ public interface NatsJetStreamConstants {
     String NATS_SUBJECT       = "Nats-Subject";
     String NATS_LAST_SEQUENCE = "Nats-Last-Sequence";
 
+    String NATS_PENDING_MESSAGES = "Nats-Pending-Messages";
+    String NATS_PENDING_BYTES    = "Nats-Pending-Bytes";
+
     int JS_CONSUMER_NOT_FOUND_ERR = 10014;
     int JS_NO_MESSAGE_FOUND_ERR = 10037;
     int JS_WRONG_LAST_SEQUENCE = 10071;
+
+    String BAD_REQUEST                    = "Bad Request"; // 400
+    String NO_MESSAGES                    = "No Messages"; // 404
+    String CONSUMER_DELETED               = "Consumer Deleted"; // 409
+    String CONSUMER_IS_PUSH_BASED         = "Consumer is push based"; // 409
+
+    String MESSAGE_SIZE_EXCEEDS_MAX_BYTES = "Message Size Exceeds MaxBytes"; // 409
+    String EXCEEDED_MAX_WAITING           = "Exceeded MaxWaiting"; // 409
+    String EXCEEDED_MAX_REQUEST_BATCH     = "Exceeded MaxRequestBatch"; // 409
+    String EXCEEDED_MAX_REQUEST_EXPIRES   = "Exceeded MaxRequestExpires"; // 409
+    String EXCEEDED_MAX_REQUEST_MAX_BYTES = "Exceeded MaxRequestMaxBytes"; // 409
 }

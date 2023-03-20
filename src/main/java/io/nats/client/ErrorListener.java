@@ -91,13 +91,32 @@ public interface ErrorListener {
                                 long lastStreamSequence, long lastConsumerSequence) {}
 
     /**
-     * Called by the connection when an unhandled status is received.
-     *
+     * Called when an unhandled status is received in a push subscription.
      * @param conn The connection that had the issue
      * @param sub the JetStreamSubscription that this occurred on
      * @param status the status
      */
     default void unhandledStatus(Connection conn, JetStreamSubscription sub, Status status) {}
+
+    /**
+     * Called when a pull subscription receives a status message that indicates either
+     * the subscription or pull might be problematic
+     *
+     * @param conn   The connection that had the issue
+     * @param sub    the JetStreamSubscription that this occurred on
+     * @param status the status
+     */
+    default void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {}
+
+    /**
+     * Called when a pull subscription receives a status message that indicates either
+     * the subscription cannot continue or the pull request cannot be processed.
+     *
+     * @param conn   The connection that had the issue
+     * @param sub    the JetStreamSubscription that this occurred on
+     * @param status the status
+     */
+    default void pullStatusError(Connection conn, JetStreamSubscription sub, Status status) {}
 
     enum FlowControlSource { FLOW_CONTROL, HEARTBEAT }
 

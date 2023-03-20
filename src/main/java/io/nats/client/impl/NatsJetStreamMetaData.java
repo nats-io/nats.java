@@ -40,7 +40,7 @@ public class NatsJetStreamMetaData {
     public String toString() {
         return "NatsJetStreamMetaData{" +
                 "prefix='" + prefix + '\'' +
-                "domain='" + domain + '\'' +
+                ", domain='" + domain + '\'' +
                 ", stream='" + stream + '\'' +
                 ", consumer='" + consumer + '\'' +
                 ", delivered=" + delivered +

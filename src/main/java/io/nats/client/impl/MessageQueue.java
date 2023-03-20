@@ -111,7 +111,6 @@ class MessageQueue {
     }
 
     boolean push(NatsMessage msg, boolean internal) {
-
         this.filterLock.lock();
         try {
             // If we aren't running, then we need to obey the filter lock
