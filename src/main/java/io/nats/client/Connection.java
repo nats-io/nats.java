@@ -405,6 +405,24 @@ public interface Connection extends AutoCloseable {
     void closeDispatcher(Dispatcher dispatcher);
 
     /**
+     * Attach another ConnectionListener. 
+     * 
+     * <p>The ConnectionListener will only receive Connection events arriving after it has been attached.  When
+     * a Connection event is raised, the invocation order and parallelism of multiple ConnectionListeners is not 
+     * specified.
+     * 
+     * @param connectionListener the ConnectionListener to attach
+     */
+    void addConnectionListener(ConnectionListener connectionListener);
+
+    /**
+     * Detach a ConnectionListioner. This will cease delivery of any further Connection events to this instance.
+     * 
+     * @param connectionListener the ConnectionListener to detach
+     */
+    void removeConnectionListener(ConnectionListener connectionListener);
+
+    /**
      * Flush the connection's buffer of outgoing messages, including sending a
      * protocol message to and from the server. Passing null is equivalent to
      * passing 0, which will wait forever.
