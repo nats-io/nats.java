@@ -86,9 +86,9 @@ public class Service {
         }
 
         // build static responses
-        pingResponse = new PingResponse(id, b.name, b.version);
-        infoResponse = new InfoResponse(id, b.name, b.version, b.description, infoSubjects);
-        schemaResponse = new SchemaResponse(id, b.name, b.version, b.apiUrl, schemaEndpoints);
+        pingResponse = new PingResponse(id, b.name, b.version, b.metadata);
+        infoResponse = new InfoResponse(id, b.name, b.version, b.metadata, b.description, infoSubjects);
+        schemaResponse = new SchemaResponse(id, b.name, b.version, b.metadata, b.apiUrl, schemaEndpoints);
 
         if (b.pingDispatcher == null || b.infoDispatcher == null || b.schemaDispatcher == null || b.statsDispatcher == null) {
             dTemp = conn.createDispatcher();
@@ -132,7 +132,7 @@ public class Service {
 
     private Endpoint internalEndpoint(String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {
         String subject = toDiscoverySubject(discoveryName, optionalServiceNameSegment, optionalServiceIdSegment);
-        return new Endpoint(subject, subject, null, false);
+        return new Endpoint(subject, subject, null, null, false);
     }
 
     static String toDiscoverySubject(String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {

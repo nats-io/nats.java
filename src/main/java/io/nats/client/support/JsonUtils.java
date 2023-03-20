@@ -26,9 +26,11 @@ import java.util.function.LongConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.nats.client.support.ApiConstants.METADATA;
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
 import static io.nats.client.support.Encoding.jsonDecode;
 import static io.nats.client.support.Encoding.jsonEncode;
+import static io.nats.client.support.JsonValueUtils.instance;
 import static io.nats.client.support.NatsConstants.COLON;
 
 /**
@@ -258,6 +260,12 @@ public abstract class JsonUtils {
             sb.append(Q);
             jsonEncode(sb, fname);
             sb.append(QCOLON).append(value.toJson()).append(COMMA);
+        }
+    }
+
+    public static void addField(StringBuilder sb, String fname, Map<String, String> map) {
+        if (map != null && map.size() > 0) {
+            addField(sb, METADATA, instance(map));
         }
     }
 
@@ -926,5 +934,20 @@ public abstract class JsonUtils {
         if (m.find()) {
             c.accept(Duration.ofNanos(Long.parseLong(m.group(1))));
         }
+    }
+
+    public static boolean mapEquals(Map<String, String> map1, Map<String, String> map2) {
+        if (map1 == null) {
+            return map2 == null;
+        }
+        if (map2 == null || map1.size() != map2.size()) {
+            return false;
+        }
+        for (String key : map1.keySet()) {
+            if (!Objects.equals(map1.get(key), map2.get(key))) {
+                return false;
+            }
+        }
+        return true;
     }
 }

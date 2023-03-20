@@ -17,6 +17,7 @@ import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.API_URL;
@@ -33,8 +34,8 @@ public class SchemaResponse extends ServiceResponse {
     private final String apiUrl;
     private final List<EndpointResponse> endpoints;
 
-    public SchemaResponse(String id, String name, String version, String apiUrl, List<EndpointResponse> endpoints) {
-        super(TYPE, id, name, version);
+    public SchemaResponse(String id, String name, String version, Map<String, String> metadata, String apiUrl, List<EndpointResponse> endpoints) {
+        super(TYPE, id, name, version, metadata);
         this.apiUrl = apiUrl;
         this.endpoints = endpoints;
     }
