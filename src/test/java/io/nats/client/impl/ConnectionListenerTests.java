@@ -18,6 +18,10 @@ import io.nats.client.ConnectionListener.Events;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.utils.TestBase.*;
@@ -110,5 +114,45 @@ public class ConnectionListenerTests {
             standardCloseConnection(nc);
             assertTrue(((NatsConnection)nc).getNatsStatistics().getExceptions() > 0);
         }
+    }
+
+    @Test
+    public void testMultipleConnectionListeners() throws Exception {
+        Set<String> capturedEvents = ConcurrentHashMap.newKeySet();
+
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            TestHandler handler = new TestHandler();
+            Options options = new Options.Builder().
+                                server(ts.getURI()).
+                                connectionListener(handler).
+                                build();
+            Connection nc = standardConnection(options);
+            assertEquals(ts.getURI(), nc.getConnectedUrl());
+
+            assertThrows(NullPointerException.class, () -> nc.addConnectionListener(null));
+            assertThrows(NullPointerException.class, () -> nc.removeConnectionListener(null));
+
+            ConnectionListener removedConnectionListener = (conn, event) -> capturedEvents.add("NEVER INVOKED");
+            nc.addConnectionListener(removedConnectionListener);
+            nc.addConnectionListener((conn, event) -> capturedEvents.add("CL1-" + event.name()));
+            nc.addConnectionListener((conn, event) -> capturedEvents.add("CL2-" + event.name()));
+            nc.addConnectionListener((conn, event) -> { throw new RuntimeException("should not interfere with other listeners"); });
+            nc.addConnectionListener((conn, event) -> capturedEvents.add("CL3-" + event.name()));
+            nc.addConnectionListener((conn, event) -> capturedEvents.add("CL4-" + event.name()));
+            nc.removeConnectionListener(removedConnectionListener);
+
+            standardCloseConnection(nc);
+            assertNull(nc.getConnectedUrl());
+            assertEquals(1, handler.getEventCount(Events.CLOSED));
+            assertTrue(((NatsConnection)nc).getNatsStatistics().getExceptions() > 0);
+        }
+
+        Set<String> expectedEvents = new HashSet<>(Arrays.asList(
+                "CL1-CLOSED",
+                "CL2-CLOSED",
+                "CL3-CLOSED",
+                "CL4-CLOSED"));
+
+        assertEquals(expectedEvents, capturedEvents);
     }
 }
