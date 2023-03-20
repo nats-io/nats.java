@@ -75,6 +75,7 @@ class NatsConnection implements Connection {
     private final Map<String, NatsSubscription> subscribers;
     private final Map<String, NatsDispatcher> dispatchers; // use a concurrent map so we get more consistent iteration
                                                      // behavior
+    private final Collection<ConnectionListener> connectionListeners; 
     private final Map<String, NatsRequestCompletableFuture> responsesAwaiting;
     private final Map<String, NatsRequestCompletableFuture> responsesRespondedTo;
     private final ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
@@ -115,6 +116,11 @@ class NatsConnection implements Connection {
         this.status = Status.DISCONNECTED;
         this.reconnectWaiter = new CompletableFuture<>();
         this.reconnectWaiter.complete(Boolean.TRUE);
+
+        this.connectionListeners = ConcurrentHashMap.newKeySet();
+        if (options.getConnectionListener() != null) {
+            addConnectionListener(options.getConnectionListener());
+        }
 
         this.dispatchers = new ConcurrentHashMap<>();
         this.subscribers = new ConcurrentHashMap<>();
@@ -1272,6 +1278,14 @@ class NatsConnection implements Connection {
         return Collections.unmodifiableMap(dispatchers);
     }
 
+    public void addConnectionListener(ConnectionListener connectionListener) {
+        connectionListeners.add(connectionListener);
+    }
+
+    public void removeConnectionListener(ConnectionListener connectionListener) {
+        connectionListeners.remove(connectionListener);
+    }
+
     public void flush(Duration timeout) throws TimeoutException, InterruptedException {
 
         Instant start = Instant.now();
@@ -1642,16 +1656,17 @@ class NatsConnection implements Connection {
     }
 
     void processConnectionEvent(Events type) {
-        ConnectionListener listener = this.options.getConnectionListener();
-        if (listener != null && !this.callbackRunner.isShutdown()) {
+        if (!this.callbackRunner.isShutdown()) {
             try {
-                this.callbackRunner.execute(() -> {
-                    try {
-                        listener.connectionEvent(this, type);
-                    } catch (Exception ex) {
-                        this.statistics.incrementExceptionCount();
-                    }
-                });
+                for (ConnectionListener listener : connectionListeners) {
+                    this.callbackRunner.execute(() -> {
+                        try {
+                            listener.connectionEvent(this, type);
+                        } catch (Exception ex) {
+                            this.statistics.incrementExceptionCount();
+                        }
+                    });
+                }
             } catch (RejectedExecutionException re) {
                 // Timing with shutdown, let it go
             }
