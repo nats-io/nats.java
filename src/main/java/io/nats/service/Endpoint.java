@@ -17,12 +17,12 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 
+import java.util.Map;
 import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.endJson;
-import static io.nats.client.support.JsonValueUtils.readString;
-import static io.nats.client.support.JsonValueUtils.readValue;
+import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.Validator.validateIsRestrictedTerm;
 import static io.nats.client.support.Validator.validateSubject;
 
@@ -33,25 +33,26 @@ public class Endpoint implements JsonSerializable {
     private final String name;
     private final String subject;
     private final Schema schema;
+    private final Map<String, String> metadata;
 
     public Endpoint(String name, String subject, Schema schema) {
-        this(name, subject, schema, true);
+        this(name, subject, schema, null, true);
     }
 
     public Endpoint(String name) {
-        this(name, null, null, true);
+        this(name, null, null, null, true);
     }
 
     public Endpoint(String name, String subject) {
-        this(name, subject, null, true);
+        this(name, subject, null, null, true);
     }
 
     public Endpoint(String name, String subject, String schemaRequest, String schemaResponse) {
-        this(name, subject, Schema.optionalInstance(schemaRequest, schemaResponse), true);
+        this(name, subject, Schema.optionalInstance(schemaRequest, schemaResponse), null, true);
     }
 
     // internal use constructors
-    Endpoint(String name, String subject, Schema schema, boolean validate) {
+    Endpoint(String name, String subject, Schema schema, Map<String, String> metadata, boolean validate) {
         if (validate) {
             this.name = validateIsRestrictedTerm(name, "Endpoint Name", true);
             if (subject == null) {
@@ -66,16 +67,18 @@ public class Endpoint implements JsonSerializable {
             this.subject = subject;
         }
         this.schema = schema;
+        this.metadata = metadata == null || metadata.size() == 0 ? null : metadata;
     }
 
     Endpoint(JsonValue vEndpoint) {
         name = readString(vEndpoint, NAME);
         subject = readString(vEndpoint, SUBJECT);
         schema = Schema.optionalInstance(readValue(vEndpoint, SCHEMA));
+        metadata = readStringStringMap(vEndpoint, METADATA);
     }
 
     Endpoint(Builder b) {
-        this(b.name, b.subject, Schema.optionalInstance(b.schemaRequest, b.schemaResponse));
+        this(b.name, b.subject, Schema.optionalInstance(b.schemaRequest, b.schemaResponse), b.metadata, true);
     }
 
     @Override
@@ -84,6 +87,7 @@ public class Endpoint implements JsonSerializable {
         JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, SUBJECT, subject);
         JsonUtils.addField(sb, SCHEMA, schema);
+        JsonUtils.addField(sb, METADATA, metadata);
         return endJson(sb).toString();
     }
 
@@ -104,6 +108,10 @@ public class Endpoint implements JsonSerializable {
         return schema;
     }
 
+    public Map<String, String> getMetadata() {
+        return metadata;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -113,6 +121,7 @@ public class Endpoint implements JsonSerializable {
         private String subject;
         private String schemaRequest;
         private String schemaResponse;
+        private Map<String, String> metadata;
 
         public Builder endpoint(Endpoint endpoint) {
             name = endpoint.getName();
@@ -161,6 +170,11 @@ public class Endpoint implements JsonSerializable {
             return this;
         }
 
+        public Builder metadata(Map<String, String> metadata) {
+            this.metadata = metadata;
+            return this;
+        }
+
         public Endpoint build() {
             return new Endpoint(this);
         }
@@ -171,11 +185,12 @@ public class Endpoint implements JsonSerializable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        Endpoint endpoint = (Endpoint) o;
+        Endpoint that = (Endpoint) o;
 
-        if (!Objects.equals(name, endpoint.name)) return false;
-        if (!Objects.equals(subject, endpoint.subject)) return false;
-        return Objects.equals(schema, endpoint.schema);
+        if (!Objects.equals(name, that.name)) return false;
+        if (!Objects.equals(subject, that.subject)) return false;
+        if (!Objects.equals(schema, that.schema)) return false;
+        return JsonUtils.mapEquals(metadata, that.metadata);
     }
 
     @Override
@@ -183,6 +198,7 @@ public class Endpoint implements JsonSerializable {
         int result = name != null ? name.hashCode() : 0;
         result = 31 * result + (subject != null ? subject.hashCode() : 0);
         result = 31 * result + (schema != null ? schema.hashCode() : 0);
+        result = 31 * result + (metadata != null ? metadata.hashCode() : 0);
         return result;
     }
 }

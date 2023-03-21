@@ -13,14 +13,16 @@
 
 package io.nats.service;
 
+import java.util.Map;
+
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
  */
 public class PingResponse extends ServiceResponse {
     public static final String TYPE = "io.nats.micro.v1.ping_response";
 
-    public PingResponse(String id, String name, String version) {
-        super(TYPE, id, name, version);
+    public PingResponse(String id, String name, String version, Map<String, String> metadata) {
+        super(TYPE, id, name, version, metadata);
     }
 
     public PingResponse(byte[] jsonBytes) {

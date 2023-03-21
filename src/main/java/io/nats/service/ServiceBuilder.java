@@ -16,6 +16,7 @@ public class ServiceBuilder {
     String name;
     String description;
     String version;
+    Map<String, String> metadata;
     String apiUrl;
     final Map<String, ServiceEndpoint> serviceEndpoints = new HashMap<>();
     Duration drainTimeout = DEFAULT_DRAIN_TIMEOUT;
@@ -41,6 +42,11 @@ public class ServiceBuilder {
 
     public ServiceBuilder version(String version) {
         this.version = validateSemVer(version, "Service Version", true);
+        return this;
+    }
+
+    public ServiceBuilder metadata(Map<String, String> metadata) {
+        this.metadata = metadata;
         return this;
     }
 

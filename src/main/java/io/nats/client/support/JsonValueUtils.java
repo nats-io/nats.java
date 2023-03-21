@@ -21,8 +21,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.function.Function;
 
-import static io.nats.client.support.JsonValue.EMPTY_ARRAY;
-import static io.nats.client.support.JsonValue.EMPTY_MAP;
+import static io.nats.client.support.JsonValue.*;
 
 /**
  * Internal json value helpers.
@@ -50,6 +49,21 @@ public abstract class JsonValueUtils {
 
     public static List<JsonValue> readArray(JsonValue jsonValue, String key) {
         return read(jsonValue, key, v -> v == null ? EMPTY_ARRAY.array : v.array);
+    }
+
+    public static Map<String, String> readStringStringMap(JsonValue jv, String key) {
+        JsonValue o = readObject(jv, key);
+        if (o.type == Type.MAP && o.map.size() > 0) {
+            Map<String, String> temp = new HashMap<>();
+            for (String k : o.map.keySet()) {
+                String value = readString(o, k);
+                if (value != null) {
+                    temp.put(k, value);
+                }
+            }
+            return temp.isEmpty() ? null : temp;
+        }
+        return null;
     }
 
     public static String readString(JsonValue jsonValue, String key) {
@@ -220,7 +234,7 @@ public abstract class JsonValueUtils {
 
     public static JsonValue toJsonValue(Object o) {
         if (o == null) {
-            return JsonValue.NULL;
+            return NULL;
         }
         if (o instanceof JsonValue) {
             return (JsonValue)o;
@@ -272,7 +286,7 @@ public abstract class JsonValueUtils {
 
         public MapBuilder put(String s, Object o) {
             JsonValue vv = JsonValueUtils.toJsonValue(o);
-            if (vv.type != JsonValue.Type.NULL) {
+            if (vv.type != Type.NULL) {
                 jv.map.put(s, vv);
             }
             return this;
@@ -291,7 +305,7 @@ public abstract class JsonValueUtils {
         public JsonValue jv = new JsonValue(new ArrayList<>());
         public ArrayBuilder add(Object o) {
             JsonValue vv = JsonValueUtils.toJsonValue(o);
-            if (vv.type != JsonValue.Type.NULL) {
+            if (vv.type != Type.NULL) {
                 jv.array.add(JsonValueUtils.toJsonValue(o));
             }
             return this;

@@ -17,6 +17,7 @@ import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.DESCRIPTION;
@@ -33,8 +34,8 @@ public class InfoResponse extends ServiceResponse {
     private final String description;
     private final List<String> subjects;
 
-    public InfoResponse(String id, String name, String version, String description, List<String> subjects) {
-        super(TYPE, id, name, version);
+    public InfoResponse(String id, String name, String version, Map<String, String> metadata, String description, List<String> subjects) {
+        super(TYPE, id, name, version, metadata);
         this.description = description;
         this.subjects = subjects;
     }

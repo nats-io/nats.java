@@ -20,10 +20,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
@@ -406,5 +403,63 @@ public final class JsonUtilsTests {
         String json = "{\"num\":1,\"description\":\"q\\\"quoted\\\"q tab\\ttab =\\u003d=\"}";
         assertNull(readStringMayHaveQuotes(json, "NotThere", null));
         assertEquals("q\"quoted\"q tab\ttab ===", readStringMayHaveQuotes(json, DESCRIPTION, null));
+    }
+
+    @Test
+    public void testMapEquals() {
+        Map<String, String> map1 = new HashMap<>();
+        map1.put("foo", "bar");
+        map1.put("bada", "bing");
+
+        Map<String, String> map2 = new HashMap<>();
+        map2.put("bada", "bing");
+        map2.put("foo", "bar");
+
+        Map<String, String> map3 = new HashMap<>();
+        map3.put("foo", "bar");
+
+        Map<String, String> map4 = new HashMap<>();
+        map4.put("foo", "baz");
+
+        Map<String, String> empty1 = new HashMap<>();
+        Map<String, String> empty2 = new HashMap<>();
+
+        assertTrue(JsonUtils.mapEquals(null, null));
+        assertFalse(JsonUtils.mapEquals(map1, null));
+        assertFalse(JsonUtils.mapEquals(null, map1));
+        assertFalse(JsonUtils.mapEquals(null, empty1));
+        assertFalse(JsonUtils.mapEquals(empty1, null));
+
+        assertTrue(JsonUtils.mapEquals(map1, map2));
+        assertFalse(JsonUtils.mapEquals(map1, map3));
+        assertFalse(JsonUtils.mapEquals(map1, map4));
+        assertFalse(JsonUtils.mapEquals(map1, empty1));
+
+        assertTrue(JsonUtils.mapEquals(map2, map1));
+        assertFalse(JsonUtils.mapEquals(map2, map3));
+        assertFalse(JsonUtils.mapEquals(map2, map4));
+        assertFalse(JsonUtils.mapEquals(map2, empty1));
+
+        assertFalse(JsonUtils.mapEquals(map3, map1));
+        assertFalse(JsonUtils.mapEquals(map3, map2));
+        assertFalse(JsonUtils.mapEquals(map3, map4));
+        assertFalse(JsonUtils.mapEquals(map3, empty1));
+
+        assertFalse(JsonUtils.mapEquals(map4, map1));
+        assertFalse(JsonUtils.mapEquals(map4, map2));
+        assertFalse(JsonUtils.mapEquals(map4, map3));
+        assertFalse(JsonUtils.mapEquals(map4, empty1));
+
+        assertFalse(JsonUtils.mapEquals(empty1, map1));
+        assertFalse(JsonUtils.mapEquals(empty1, map2));
+        assertFalse(JsonUtils.mapEquals(empty1, map3));
+        assertFalse(JsonUtils.mapEquals(empty1, map4));
+        assertTrue(JsonUtils.mapEquals(empty1, empty2));
+
+        assertFalse(JsonUtils.mapEquals(empty2, map1));
+        assertFalse(JsonUtils.mapEquals(empty2, map2));
+        assertFalse(JsonUtils.mapEquals(empty2, map3));
+        assertFalse(JsonUtils.mapEquals(empty2, map4));
+        assertTrue(JsonUtils.mapEquals(empty2, empty1));
     }
 }
