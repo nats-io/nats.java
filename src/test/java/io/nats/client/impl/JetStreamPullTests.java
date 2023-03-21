@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.nats.client.api.ConsumerConfiguration.builder;
 import static io.nats.client.support.NatsJetStreamConstants.*;
@@ -556,12 +557,10 @@ public class JetStreamPullTests extends JetStreamTestBase {
             Message m = sub.nextMessage(1000);
             assertNotNull(m);
             assertEquals("WAIT1", new String(m.getData()));
-            System.out.println(m);
 
             m = sub.nextMessage(1000);
             assertNotNull(m);
             assertEquals("WAIT2", new String(m.getData()));
-            System.out.println(m);
 
             sleep(2000);
 
@@ -570,13 +569,11 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertNotNull(m);
             assertEquals("WAIT1", new String(m.getData()));
             m.ack();
-            System.out.println(m);
 
             m = sub.nextMessage(1000);
             assertNotNull(m);
             assertEquals("WAIT2", new String(m.getData()));
             m.ack();
-            System.out.println(m);
 
             sub.pull(2);
             m = sub.nextMessage(1000);
@@ -676,10 +673,22 @@ public class JetStreamPullTests extends JetStreamTestBase {
         JetStreamSubscription setup(JetStreamManagement jsm, JetStream js) throws Exception;
     }
 
+    private boolean skipCheck(Connection nc, String skipVersion) {
+        if (skipVersion == null) {
+            return false;
+        }
+        return nc.getServerInfo().isSameOrOlderThanVersion(skipVersion);
+    }
+
     // int type 1 == error 2 == warning 0 == ignore
-    private void testConflictStatus(String message, int type, boolean syncMode, ConflictSetup setup) throws Exception {
+    private void testConflictStatus(String message, int type, boolean syncMode, String skipVersion, ConflictSetup setup) throws Exception {
         TestHandler handler = new TestHandler();
+        AtomicBoolean skip = new AtomicBoolean(false);
         runInJsServer(handler, nc -> {
+            skip.set(skipCheck(nc, skipVersion));
+            if (skip.get()) {
+                return;
+            }
             createDefaultTestStream(nc);
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
@@ -692,6 +701,9 @@ public class JetStreamPullTests extends JetStreamTestBase {
             }
             sleep(100); // give enough time for handler to receive message
         });
+        if (skip.get()) {
+            return;
+        }
         if (type == 1) {
             assertEquals(0, handler.getPullStatusWarnings().size());
             TestHandler.StatusEvent se = handler.getPullStatusErrors().get(0);
@@ -711,7 +723,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testExceedsMaxWaiting() throws Exception {
         PullSubscribeOptions so = ConsumerConfiguration.builder().maxPullWaiting(1).buildPullSubscribeOptions();
-        testConflictStatus(EXCEEDED_MAX_WAITING, 2, true, (jsm, js) -> {
+        testConflictStatus(EXCEEDED_MAX_WAITING, 2, true, null, (jsm, js) -> {
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pull(1);
             sub.pull(1);
@@ -722,7 +734,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testExceedsMaxRequestBatch() throws Exception {
         PullSubscribeOptions so = ConsumerConfiguration.builder().maxBatch(1).buildPullSubscribeOptions();
-        testConflictStatus(EXCEEDED_MAX_REQUEST_BATCH, 2, true, (jsm, js) -> {
+        testConflictStatus(EXCEEDED_MAX_REQUEST_BATCH, 2, true, null, (jsm, js) -> {
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pull(2);
             return sub;
@@ -732,7 +744,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testMessageSizeExceedsMaxBytes() throws Exception {
         PullSubscribeOptions so = ConsumerConfiguration.builder().buildPullSubscribeOptions();
-        testConflictStatus(MESSAGE_SIZE_EXCEEDS_MAX_BYTES, 2, true, (jsm, js) -> {
+        testConflictStatus(MESSAGE_SIZE_EXCEEDS_MAX_BYTES, 2, true, "2.8.4", (jsm, js) -> {
             js.publish(SUBJECT, new byte[1000]);
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pull(PullRequestOptions.builder(1).maxBytes(100).build());
@@ -743,7 +755,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test // TODO BOTH CASES
     public void testExceedsMaxRequestBytes() throws Exception {
         PullSubscribeOptions so = ConsumerConfiguration.builder().maxBytes(1).buildPullSubscribeOptions();
-        testConflictStatus(EXCEEDED_MAX_REQUEST_MAX_BYTES, 2, true, (jsm, js) -> {
+        testConflictStatus(EXCEEDED_MAX_REQUEST_MAX_BYTES, 2, true, null, (jsm, js) -> {
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pull(PullRequestOptions.builder(1).maxBytes(2).build());
             return sub;
@@ -753,7 +765,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testExceedsMaxRequestExpires() throws Exception {
         PullSubscribeOptions so = ConsumerConfiguration.builder().maxExpires(1000).buildPullSubscribeOptions();
-        testConflictStatus(EXCEEDED_MAX_REQUEST_EXPIRES, 2, true, (jsm, js) -> {
+        testConflictStatus(EXCEEDED_MAX_REQUEST_EXPIRES, 2, true, null, (jsm, js) -> {
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pullExpiresIn(1, 2000);
             return sub;
@@ -763,7 +775,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testConsumerIsPushBased() throws Exception {
         PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
-        testConflictStatus(CONSUMER_IS_PUSH_BASED, 1, true, (jsm, js) -> {
+        testConflictStatus(CONSUMER_IS_PUSH_BASED, 1, true, null, (jsm, js) -> {
             jsm.addOrUpdateConsumer(STREAM, builder().durable(durable(1)).build());
             JetStreamSubscription sub = js.subscribe(null, so);
             jsm.deleteConsumer(STREAM, durable(1));
@@ -776,7 +788,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testConsumerDeleted() throws Exception {
         PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
-        testConflictStatus(CONSUMER_DELETED, 1, true, (jsm, js) -> {
+        testConflictStatus(CONSUMER_DELETED, 1, true, "2.9.0", (jsm, js) -> {
             jsm.addOrUpdateConsumer(STREAM, builder().durable(durable(1)).build());
             JetStreamSubscription sub = js.subscribe(null, so);
             sub.pull(1);
@@ -788,7 +800,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testBadRequest() throws Exception {
         PullSubscribeOptions so = ConsumerConfiguration.builder().buildPullSubscribeOptions();
-        testConflictStatus(BAD_REQUEST, 1, true, (jsm, js) -> {
+        testConflictStatus(BAD_REQUEST, 1, true, null, (jsm, js) -> {
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pull(PullRequestOptions.builder(1).noWait().idleHeartbeat(1).build());
             return sub;
@@ -798,7 +810,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testNotFound() throws Exception {
         PullSubscribeOptions so = ConsumerConfiguration.builder().buildPullSubscribeOptions();
-        testConflictStatus(NO_MESSAGES, 0, true, (jsm, js) -> {
+        testConflictStatus(NO_MESSAGES, 0, true, null, (jsm, js) -> {
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pullNoWait(1);
             return sub;
@@ -806,31 +818,13 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testConsumerDeletedNotFound() throws Exception {
-        PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
-        TestHandler handler = new TestHandler();
-        runInJsServer(handler, nc -> {
-            createDefaultTestStream(nc);
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            JetStream js = nc.jetStream();
-            jsm.addOrUpdateConsumer(STREAM, builder().durable(durable(1)).build());
-
-            JetStreamSubscription sub = js.subscribe(SUBJECT, so);
-
-            jsm.deleteConsumer(STREAM, durable(1));
-            sub.pull(PullRequestOptions.builder(1).noWait().expiresIn(5000).idleHeartbeat(100).build());
-//            jsm.deleteConsumer(STREAM, durable(1));
-
-            System.out.println(sub.nextMessage(3000));
-        });
-        int x = 0;
-    }
-
-    @Test
     public void testPullStatusMessages() throws Exception {
         PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
         TestHandler handler = new TestHandler();
         runInJsServer(handler, nc -> {
+            if (skipCheck(nc, "2.9.0")) {
+                return;
+            }
             createDefaultTestStream(nc);
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
@@ -861,6 +855,9 @@ public class JetStreamPullTests extends JetStreamTestBase {
         PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
         TestHandler handler = new TestHandler();
         runInJsServer(handler, nc -> {
+            if (skipCheck(nc, "2.9.0")) {
+                return;
+            }
             createDefaultTestStream(nc);
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
