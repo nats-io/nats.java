@@ -117,6 +117,7 @@ public interface ApiConstants {
     String MEMORY_MAX_STREAM_BYTES = "memory_max_stream_bytes";
     String MESSAGE           = "message";
     String MESSAGES          = "messages";
+    String METADATA          = "metadata";
     String MTIME             = "mtime";
     String MIRROR            = "mirror";
     String MSGS              = "msgs";

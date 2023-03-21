@@ -15,11 +15,13 @@ package io.nats.service;
 
 import io.nats.client.support.*;
 
+import java.util.Map;
 import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readString;
+import static io.nats.client.support.JsonValueUtils.readStringStringMap;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
@@ -29,12 +31,14 @@ public abstract class ServiceResponse implements JsonSerializable {
     protected final String name;
     protected final String id;
     protected final String version;
+    protected final Map<String, String> metadata;
 
-    protected ServiceResponse(String type, String id, String name, String version) {
+    protected ServiceResponse(String type, String id, String name, String version, Map<String, String> metadata) {
         this.type = type;
         this.id = id;
         this.name = name;
         this.version = version;
+        this.metadata = metadata == null || metadata.isEmpty() ? null : metadata;
     }
 
     protected ServiceResponse(String type, ServiceResponse template) {
@@ -42,6 +46,7 @@ public abstract class ServiceResponse implements JsonSerializable {
         this.id = template.id;
         this.name = template.name;
         this.version = template.version;
+        this.metadata = template.metadata;
     }
 
     protected ServiceResponse(String type, JsonValue jv) {
@@ -56,6 +61,7 @@ public abstract class ServiceResponse implements JsonSerializable {
         id = Validator.required(readString(jv, ID), "Id");
         name = Validator.required(readString(jv, NAME), "Name");
         version = Validator.required(readString(jv, VERSION), "Version");
+        metadata = readStringStringMap(jv, METADATA);
     }
 
     protected static JsonValue parseMessage(byte[] bytes) {
@@ -99,6 +105,14 @@ public abstract class ServiceResponse implements JsonSerializable {
         return version;
     }
 
+    /**
+     * Metadata for the service
+     * @return the metadata or null if there is no metadata
+     */
+    public Map<String, String> getMetadata() {
+        return metadata;
+    }
+
     protected void subToJson(StringBuilder sb) {}
 
     @Override
@@ -108,7 +122,8 @@ public abstract class ServiceResponse implements JsonSerializable {
         JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, VERSION, version);
         subToJson(sb);
-        JsonUtils.addField(sb, ApiConstants.TYPE, type);
+        JsonUtils.addField(sb, TYPE, type);
+        JsonUtils.addField(sb, METADATA, metadata);
         return endJson(sb).toString();
     }
 
@@ -128,7 +143,8 @@ public abstract class ServiceResponse implements JsonSerializable {
         if (!Objects.equals(type, that.type)) return false;
         if (!Objects.equals(name, that.name)) return false;
         if (!Objects.equals(id, that.id)) return false;
-        return Objects.equals(version, that.version);
+        if (!Objects.equals(version, that.version)) return false;
+        return JsonUtils.mapEquals(metadata, that.metadata);
     }
 
     @Override
@@ -137,6 +153,7 @@ public abstract class ServiceResponse implements JsonSerializable {
         result = 31 * result + (name != null ? name.hashCode() : 0);
         result = 31 * result + (id != null ? id.hashCode() : 0);
         result = 31 * result + (version != null ? version.hashCode() : 0);
+        result = 31 * result + (metadata != null ? metadata.hashCode() : 0);
         return result;
     }
 }

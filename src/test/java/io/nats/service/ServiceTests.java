@@ -743,6 +743,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(NAME, e.getSubject());
         assertNull(e.getSchema());
         assertEquals(e, Endpoint.builder().endpoint(e).build());
+        assertNull(e.getMetadata());
 
         e = new Endpoint(NAME, SUBJECT);
         assertEquals(NAME, e.getName());
@@ -799,6 +800,24 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(NAME, e.getName());
         assertEquals(SUBJECT, e.getSubject());
         assertNull(e.getSchema());
+
+        Map<String, String> metadata = new HashMap<>();
+        e = Endpoint.builder()
+            .name(NAME).subject(SUBJECT)
+            .metadata(metadata)
+            .build();
+        assertEquals(NAME, e.getName());
+        assertEquals(SUBJECT, e.getSubject());
+        assertNull(e.getMetadata());
+
+        metadata.put("k", "v");
+        e = Endpoint.builder()
+            .name(NAME).subject(SUBJECT)
+            .metadata(metadata)
+            .build();
+        assertEquals(NAME, e.getName());
+        assertEquals(SUBJECT, e.getSubject());
+        assertTrue(JsonUtils.mapEquals(metadata, e.getMetadata()));
 
         // some subject testing
         e = new Endpoint(NAME, "foo.>");
@@ -1080,7 +1099,10 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testServiceResponsesConstruction() {
-        PingResponse pr1 = new PingResponse("id", "name", "0.0.0");
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("k", "v");
+
+        PingResponse pr1 = new PingResponse("id", "name", "0.0.0", metadata);
         PingResponse pr2 = new PingResponse(pr1.toJson().getBytes());
         validateApiInOutPingResponse(pr1);
         validateApiInOutPingResponse(pr2);
@@ -1106,7 +1128,7 @@ public class ServiceTests extends JetStreamTestBase {
         iae = assertThrows(IllegalArgumentException.class, () -> new TestServiceResponses(json4.getBytes()));
         assertTrue(iae.getMessage().contains("Version cannot be null"));
 
-        InfoResponse ir1 = new InfoResponse("id", "name", "0.0.0", "desc", Arrays.asList("subject1", "subject2"));
+        InfoResponse ir1 = new InfoResponse("id", "name", "0.0.0", metadata, "desc", Arrays.asList("subject1", "subject2"));
         InfoResponse ir2 = new InfoResponse(ir1.toJson().getBytes());
         validateApiInOutInfoResponse(ir1);
         validateApiInOutInfoResponse(ir2);
@@ -1114,7 +1136,7 @@ public class ServiceTests extends JetStreamTestBase {
         List<EndpointResponse> endpoints = new ArrayList<>();
         endpoints.add(new EndpointResponse("endName0", "endSubject0", new Schema("endSchemaRequest0", "endSchemaResponse0")));
         endpoints.add(new EndpointResponse("endName1", "endSubject1", new Schema("endSchemaRequest1", "endSchemaResponse1")));
-        SchemaResponse sch1 = new SchemaResponse("id", "name", "0.0.0", "apiUrl", endpoints);
+        SchemaResponse sch1 = new SchemaResponse("id", "name", "0.0.0", metadata, "apiUrl", endpoints);
         SchemaResponse sch2 = new SchemaResponse(sch1.toJson().getBytes());
         validateApiInOutSchemaResponse(sch1);
         validateApiInOutSchemaResponse(sch2);
@@ -1197,12 +1219,17 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals("id", r.getId());
         assertEquals("name", r.getName());
         assertEquals("0.0.0", r.getVersion());
+        assertNotNull(r.getMetadata());
+        assertEquals(1, r.getMetadata().size());
+        assertEquals("v", r.getMetadata().get("k"));
+        assertNull(r.getMetadata().get("x"));
         String j = r.toJson();
         assertTrue(j.startsWith("{"));
         assertTrue(j.contains("\"type\":\"" + type + "\""));
         assertTrue(j.contains("\"name\":\"name\""));
         assertTrue(j.contains("\"id\":\"id\""));
         assertTrue(j.contains("\"version\":\"0.0.0\""));
+        assertTrue(j.contains("\"metadata\":{\"k\":\"v\"}"));
         assertEquals(toKey(r.getClass()) + j, r.toString());
     }
 
