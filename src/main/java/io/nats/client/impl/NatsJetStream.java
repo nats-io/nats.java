@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static io.nats.client.PushSubscribeOptions.DEFAULT_PUSH_OPTS;
 import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.support.Validator.*;
 
@@ -218,34 +219,24 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     // ----------------------------------------------------------------------------------------------------
     // Subscribe
     // ----------------------------------------------------------------------------------------------------
-    private static final PushSubscribeOptions DEFAULT_PUSH_OPTS = PushSubscribeOptions.builder().build();
-
-    // Push/PullMessageManagerFactory are internal and used for testing / providing a MessageManager mocks
-    interface PushMessageManagerFactory {
-        MessageManager createPushMessageManager(
-            NatsConnection conn,
-            NatsJetStream js,
-            String stream,
-            SubscribeOptions so,
-            ConsumerConfiguration serverCC,
-            boolean queueMode,
-            NatsDispatcher dispatcher);
+    interface MessageManagerFactory {
+        MessageManager createMessageManager(
+            NatsConnection conn, NatsJetStream js, String stream,
+            SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode);
     }
 
-    interface PullMessageManagerFactory {
-        MessageManager createPullMessageManager();
-    }
-
-    PushMessageManagerFactory PUSH_MESSAGE_MANAGER_FACTORY = null;
-    PullMessageManagerFactory PULL_MESSAGE_MANAGER_FACTORY = PullMessageManager::new;
+    MessageManagerFactory _pushStandardMessageManagerFactory = PushMessageManager::new;
+    MessageManagerFactory _pushOrderedMessageManagerFactory = OrderedMessageManager::new;
+    MessageManagerFactory _pullMessageManagerFactory =
+        (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new PullMessageManager(mmConn, mmSyncMode);
 
     JetStreamSubscription createSubscription(String subject,
-                                                 String queueName,
-                                                 NatsDispatcher dispatcher,
-                                                 MessageHandler userHandler,
-                                                 boolean isAutoAck,
-                                                 PushSubscribeOptions pushSubscribeOptions,
-                                                 PullSubscribeOptions pullSubscribeOptions
+                                             String queueName,
+                                             NatsDispatcher dispatcher,
+                                             MessageHandler userHandler,
+                                             boolean isAutoAck,
+                                             PushSubscribeOptions pushSubscribeOptions,
+                                             PullSubscribeOptions pullSubscribeOptions
     ) throws IOException, JetStreamApiException {
 
         // 1. Prepare for all the validation
@@ -257,7 +248,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         ConsumerConfiguration userCC;
 
         if (isPullMode) {
-            so = pullSubscribeOptions; // options must have already been checked to be non null
+            so = pullSubscribeOptions; // options must have already been checked to be non-null
             stream = pullSubscribeOptions.getStream();
 
             userCC = so.getConsumerConfiguration();
@@ -328,7 +319,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
                 ConsumerConfigurationComparer userCCC = new ConsumerConfigurationComparer(userCC);
                 List<String> changes = userCCC.getChanges(serverCC);
                 if (changes.size() > 0) {
-                    throw JsSubExistingConsumerCannotBeModified.instance("Changed fields: " + changes.toString());
+                    throw JsSubExistingConsumerCannotBeModified.instance("Changed fields: " + changes);
                 }
 
                 // deliver subject must be null/empty for pull, defined for push
@@ -407,41 +398,31 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
         // 6. create the subscription. lambda needs final or effectively final vars
         NatsJetStreamSubscription sub;
+        final MessageManager mm;
+        final NatsSubscriptionFactory subFactory;
         if (isPullMode) {
-            final MessageManager manager = PULL_MESSAGE_MANAGER_FACTORY.createPullMessageManager();
-            final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
-                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, this, fnlStream, settledConsumerName, manager);
-            sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
+            mm = _pullMessageManagerFactory.createMessageManager(conn, this, fnlStream, so, settledServerCC, false, dispatcher == null);
+            subFactory = (sid, lSubject, lQgroup, lConn, lDispatcher)
+                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, this, fnlStream, settledConsumerName, mm);
         }
         else {
-            final MessageManager manager;
-            if (PUSH_MESSAGE_MANAGER_FACTORY != null) {
-                manager = PUSH_MESSAGE_MANAGER_FACTORY.createPushMessageManager(conn, this, fnlStream, so, settledServerCC, qgroup != null, dispatcher);
-            }
-            else if (so.isOrdered()) {
-                manager = new OrderedManager(conn, this, fnlStream, so, settledServerCC, qgroup != null, dispatcher);
-            }
-            else {
-                manager = new PushMessageManager(conn, this, fnlStream, so, settledServerCC, qgroup != null, dispatcher);
-            }
-
-            final NatsSubscriptionFactory factory = (sid, lSubject, lQgroup, lConn, lDispatcher)
-                -> {
+            MessageManagerFactory mmFactory = so.isOrdered() ? _pushOrderedMessageManagerFactory : _pushStandardMessageManagerFactory;
+            mm = mmFactory.createMessageManager(conn, this, fnlStream, so, settledServerCC, false, dispatcher == null);
+            subFactory = (sid, lSubject, lQgroup, lConn, lDispatcher) -> {
                 NatsJetStreamSubscription nsub = new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,
-                    this, fnlStream, settledConsumerName, manager);
+                    this, fnlStream, settledConsumerName, mm);
                 if (lDispatcher == null) {
                     nsub.setPendingLimits(so.getPendingMessageLimit(), so.getPendingByteLimit());
                 }
                 return nsub;
             };
-
-            if (dispatcher == null) {
-                sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, factory);
-            }
-            else {
-                AsyncMessageHandler handler = new AsyncMessageHandler(userHandler, isAutoAck, settledServerCC, manager);
-                sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(fnlInboxDeliver, qgroup, handler, factory);
-            }
+        }
+        if (dispatcher == null) {
+            sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, subFactory);
+        }
+        else {
+            AsyncMessageHandler handler = new AsyncMessageHandler(userHandler, isAutoAck, settledServerCC, mm);
+            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(fnlInboxDeliver, qgroup, handler, subFactory);
         }
 
         // 7. The consumer might need to be created, do it here

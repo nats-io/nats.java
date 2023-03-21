@@ -14,6 +14,7 @@
 package io.nats.examples;
 
 import io.nats.client.*;
+import io.nats.client.impl.ErrorListenerLoggerImpl;
 
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
@@ -31,19 +32,7 @@ public class ExampleUtils {
 
     public static final ConnectionListener EXAMPLE_CONNECTION_LISTENER = (conn, type) -> System.out.println("Status change "+ type);
 
-    public static final ErrorListener EXAMPLE_ERROR_LISTENER = new ErrorListener() {
-        public void exceptionOccurred(Connection conn, Exception exp) {
-            System.out.println("Exception " + exp.getMessage());
-        }
-
-        public void errorOccurred(Connection conn, String type) {
-            System.out.println("Error " + type);
-        }
-
-        public void slowConsumerDetected(Connection conn, Consumer consumer) {
-            System.out.println("Slow consumer");
-        }
-    };
+    public static final ErrorListener EXAMPLE_ERROR_LISTENER = new ErrorListenerLoggerImpl();
 
     public static Options createExampleOptions(String[] args) throws Exception {
         String server = getServer(args);

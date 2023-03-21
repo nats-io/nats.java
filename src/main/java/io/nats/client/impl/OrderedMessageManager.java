@@ -17,47 +17,72 @@ import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
+import io.nats.client.support.Status;
 
-class OrderedManager extends PushMessageManager {
+import java.util.concurrent.atomic.AtomicReference;
 
-    private long expectedConsumerSeq;
+class OrderedMessageManager extends PushMessageManager {
 
-    OrderedManager(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, NatsDispatcher dispatcher) {
-        super(conn, js, stream, so, serverCC, queueMode, dispatcher);
-        expectedConsumerSeq = 1; // always starts at 1
+    private long expectedExternalConsumerSeq;
+    private final AtomicReference<String> targetSid;
+
+    protected OrderedMessageManager(NatsConnection conn,
+                          NatsJetStream js,
+                          String stream,
+                          SubscribeOptions so,
+                          ConsumerConfiguration serverCC,
+                          boolean queueMode,
+                          boolean syncMode) {
+        super(conn, js, stream, so, serverCC, queueMode, syncMode);
+        expectedExternalConsumerSeq = 1; // always starts at 1
+        targetSid = new AtomicReference<>();
     }
 
     @Override
-    protected boolean subManage(Message msg) {
-        long receivedConsumerSeq = msg.metaData().consumerSequence();
-        if (expectedConsumerSeq != receivedConsumerSeq) {
-            handleErrorCondition();
+    protected void startup(NatsJetStreamSubscription sub) {
+        targetSid.set(sub.getSID());
+        super.startup(sub);
+    }
+
+    @Override
+    protected boolean manage(Message msg) {
+        if (!msg.getSID().equals(targetSid.get())) {
             return true;
         }
-        expectedConsumerSeq++;
-        return false;
-    }
 
-    @Override
-    protected void handleHeartbeatError() {
-        handleErrorCondition();
+        Status status = msg.getStatus();
+        if (status == null) {
+            long receivedConsumerSeq = msg.metaData().consumerSequence();
+            if (expectedExternalConsumerSeq != receivedConsumerSeq) {
+                handleErrorCondition();
+                return true;
+            }
+            trackJsMessage(msg);
+            expectedExternalConsumerSeq++;
+            return false;
+        }
+
+        super.manageStatus(msg);
+        return true; // all status are managed
     }
 
     private void handleErrorCondition() {
         try {
-            expectedConsumerSeq = 1; // consumer always starts with consumer sequence 1
+            targetSid.set(null);
+            expectedExternalConsumerSeq = 1; // consumer always starts with consumer sequence 1
 
             // 1. shutdown the manager, for instance stops heartbeat timers
-            sub.manager.shutdown();
+            shutdown();
 
             // 2. re-subscribe. This means kill the sub then make a new one
             //    New sub needs a new deliverSubject
             String newDeliverSubject = sub.connection.createInbox();
             sub.reSubscribe(newDeliverSubject);
+            targetSid.set(sub.getSID());
 
             // 3. make a new consumer using the same deliver subject but
             //    with a new starting point
-            ConsumerConfiguration userCC = ConsumerConfiguration.builder(serverCC)
+            ConsumerConfiguration userCC = ConsumerConfiguration.builder(originalCc)
                 .deliverPolicy(DeliverPolicy.ByStartSequence)
                 .deliverSubject(newDeliverSubject)
                 .startSequence(Math.max(1, lastStreamSeq + 1))
@@ -66,12 +91,12 @@ class OrderedManager extends PushMessageManager {
             js._createConsumerUnsubscribeOnException(stream, userCC, sub);
 
             // 4. restart the manager.
-            sub.manager.startup(sub);
+            startup(sub);
         }
         catch (Exception e) {
             IllegalStateException ise = new IllegalStateException("Ordered subscription fatal error.", e);
             js.conn.processException(ise);
-            if (dispatcher == null) { // synchronous
+            if (syncMode) {
                 throw ise;
             }
         }

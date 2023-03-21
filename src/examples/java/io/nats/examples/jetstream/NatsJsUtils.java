@@ -18,6 +18,7 @@ import io.nats.client.api.ConsumerInfo;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
+import io.nats.client.impl.NatsJetStreamMetaData;
 import io.nats.client.impl.NatsMessage;
 
 import java.io.IOException;
@@ -178,8 +179,16 @@ public class NatsJsUtils {
         publish(js, subject, "data", count, -1, false);
     }
 
+    public static void publish(JetStream js, String subject, int count, int msgSize) throws IOException, JetStreamApiException {
+        publish(js, subject, "data", count, msgSize, false);
+    }
+
     public static void publish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
-        publish(js, subject, prefix, count, -1, true);
+        publish(js, subject, prefix, count, -1, false);
+    }
+
+    public static void publish(JetStream js, String subject, String prefix, int count, int msgSize) throws IOException, JetStreamApiException {
+        publish(js, subject, prefix, count, msgSize, false);
     }
 
     public static void publish(JetStream js, String subject, String prefix, int count, boolean verbose) throws IOException, JetStreamApiException {
@@ -205,7 +214,11 @@ public class NatsJsUtils {
     }
 
     public static byte[] makeData(String prefix, int msgSize, boolean verbose, int x) {
-        String text = prefix + "#" + x + "#";
+        if (msgSize == 0) {
+            return null;
+        }
+
+        String text = prefix + "-" + x + ".";
         if (verbose) {
             System.out.print(" " + text);
         }
@@ -342,6 +355,17 @@ public class NatsJsUtils {
         System.out.println(s);
     }
 
+    public static String metaString(NatsJetStreamMetaData meta) {
+        return "Meta{" +
+            "str='" + meta.getStream() + '\'' +
+            ", con='" + meta.getConsumer() + '\'' +
+            ", delivered=" + meta.deliveredCount() +
+            ", strSeq=" + meta.streamSequence() +
+            ", conSeq=" + meta.consumerSequence() +
+            ", pending=" + meta.pendingCount() +
+            '}';
+    }
+
     // ----------------------------------------------------------------------------------------------------
     // REPORT
     // ----------------------------------------------------------------------------------------------------
@@ -384,5 +408,33 @@ public class NatsJsUtils {
             }
         }
         return count;
+    }
+
+    public static void createCleanMemStream(JetStreamManagement jsm, String stream, String... subs) throws IOException, JetStreamApiException {
+        try {
+            jsm.deleteStream(stream);
+        }
+        catch (Exception ignore) {}
+
+        StreamConfiguration sc = StreamConfiguration.builder()
+            .name(stream)
+            .storageType(StorageType.Memory)
+            .subjects(subs)
+            .build();
+        jsm.addStream(sc);
+    }
+
+    public static void createCleanFileStream(JetStreamManagement jsm, String stream, String... subs) throws IOException, JetStreamApiException {
+        try {
+            jsm.deleteStream(stream);
+        }
+        catch (Exception ignore) {}
+
+        StreamConfiguration sc = StreamConfiguration.builder()
+            .name(stream)
+            .storageType(StorageType.File)
+            .subjects(subs)
+            .build();
+        jsm.addStream(sc);
     }
 }

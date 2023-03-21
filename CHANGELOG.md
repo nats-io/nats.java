@@ -1,5 +1,30 @@
 # Change Log
 
+## 2.16.9
+
+#### Core
+
+* ServerPool including Hostname resolution #847 @scottf
+* Enable add/remove of multiple ConnectionListeners per Connection #861 @davidmcote
+
+#### JetStream
+
+* pull status handling #819 @scottf
+
+#### Service  (Experimental)
+
+* use standard connection create inbox for discovery #857 @scottf
+
+#### Object Store (Experimental)
+
+* use -1 to indicate end of stream, not lack of full buffer #852 @scottf
+* digest resets after getting value, so can't call it more than once. #854 @scottf
+
+#### Misc / Test
+
+* Update docs and examples #846 @scottf
+* 2.10 allows filter subject that doesn't match stream subjects #849 @scottf
+* 
 ## 2.16.8
 
 #### Core and JetStream

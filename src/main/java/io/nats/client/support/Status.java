@@ -23,6 +23,10 @@ public class Status {
     public static final String NO_RESPONDERS_TEXT = "No Responders Available For Request";
     public static final int FLOW_OR_HEARTBEAT_STATUS_CODE = 100;
     public static final int NO_RESPONDERS_CODE = 503;
+    public static final int BAD_REQUEST_CODE = 400;
+    public static final int NOT_FOUND_CODE = 404;
+    public static final int REQUEST_TIMEOUT_CODE = 408;
+    public static final int CONFLICT_CODE = 409;
 
     private final int code;
     private final String message;
@@ -77,19 +81,15 @@ public class Status {
                 '}';
     }
 
-    private boolean isStatus(int code, String text) {
-        return this.code == code && message.equals(text);
-    }
-
     public boolean isFlowControl() {
-        return isStatus(FLOW_OR_HEARTBEAT_STATUS_CODE, FLOW_CONTROL_TEXT);
+        return code == FLOW_OR_HEARTBEAT_STATUS_CODE && message.equals(FLOW_CONTROL_TEXT);
     }
 
     public boolean isHeartbeat() {
-        return isStatus(FLOW_OR_HEARTBEAT_STATUS_CODE, HEARTBEAT_TEXT);
+        return code == FLOW_OR_HEARTBEAT_STATUS_CODE && message.equals(HEARTBEAT_TEXT);
     }
 
     public boolean isNoResponders() {
-        return isStatus(NO_RESPONDERS_CODE, NO_RESPONDERS_TEXT);
+        return code == NO_RESPONDERS_CODE && message.equals(NO_RESPONDERS_TEXT);
     }
 }
