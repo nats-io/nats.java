@@ -47,7 +47,7 @@ public abstract class ApiResponse<T> {
             return JsonValueUtils.mapBuilder()
                 .put(ERROR, new Error(500, "Error parsing: " + e.getMessage()))
                 .put(TYPE, PARSE_ERROR_TYPE)
-                .getJsonValue();
+                .toJsonValue();
         }
     }
 
