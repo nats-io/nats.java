@@ -206,7 +206,7 @@ public class ServiceExample {
         return JsonValueUtils.mapBuilder()
             .put(label, new String(data))
             .put("hid", handlerId)
-            .getJsonValue();
+            .toJsonValue();
     }
 
     private static void handlerSortDescending(Connection nc, ServiceMessage smsg, String handlerId) {

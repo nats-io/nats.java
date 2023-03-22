@@ -234,7 +234,7 @@ public abstract class JsonValueUtils {
 
     public static JsonValue toJsonValue(Object o) {
         if (o == null) {
-            return NULL;
+            return JsonValue.NULL;
         }
         if (o instanceof JsonValue) {
             return (JsonValue)o;
@@ -249,6 +249,10 @@ public abstract class JsonValueUtils {
         if (o instanceof List) {
             //noinspection unchecked,rawtypes
             return new JsonValue((List)o);
+        }
+        if (o instanceof Set) {
+            //noinspection unchecked,rawtypes
+            return new JsonValue(new ArrayList<>((Set)o));
         }
         if (o instanceof String) {
             return new JsonValue((String)o);
@@ -281,17 +285,28 @@ public abstract class JsonValueUtils {
         return new MapBuilder();
     }
 
-    public static class MapBuilder {
+    public static class MapBuilder implements JsonSerializable {
         public JsonValue jv = new JsonValue(new HashMap<>());
 
         public MapBuilder put(String s, Object o) {
             JsonValue vv = JsonValueUtils.toJsonValue(o);
-            if (vv.type != Type.NULL) {
+            if (vv.type != JsonValue.Type.NULL) {
                 jv.map.put(s, vv);
             }
             return this;
         }
 
+        @Override
+        public String toJson() {
+            return jv.toJson();
+        }
+
+        @Override
+        public JsonValue toJsonValue() {
+            return jv;
+        }
+
+        @Deprecated
         public JsonValue getJsonValue() {
             return jv;
         }
@@ -301,18 +316,30 @@ public abstract class JsonValueUtils {
         return new ArrayBuilder();
     }
 
-    public static class ArrayBuilder {
+    public static class ArrayBuilder implements JsonSerializable {
         public JsonValue jv = new JsonValue(new ArrayList<>());
         public ArrayBuilder add(Object o) {
             JsonValue vv = JsonValueUtils.toJsonValue(o);
-            if (vv.type != Type.NULL) {
+            if (vv.type != JsonValue.Type.NULL) {
                 jv.array.add(JsonValueUtils.toJsonValue(o));
             }
             return this;
         }
 
+        @Override
+        public String toJson() {
+            return jv.toJson();
+        }
+
+        @Override
+        public JsonValue toJsonValue() {
+            return jv;
+        }
+
+        @Deprecated
         public JsonValue getJsonValue() {
             return jv;
         }
     }
 }
+

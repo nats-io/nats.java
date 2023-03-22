@@ -181,6 +181,11 @@ public class JsonValue implements JsonSerializable {
     }
 
     @Override
+    public JsonValue toJsonValue() {
+        return this;
+    }
+
+    @Override
     public String toJson() {
         switch (type) {
             case STRING:      return valueString(string);
