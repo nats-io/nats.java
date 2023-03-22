@@ -757,7 +757,7 @@ public final class JsonParsingTests {
             .put("jv", JsonValue.EMPTY_MAP)
             .put("null", null)
             .put("jvNull", JsonValue.NULL)
-            .getJsonValue());
+            .toJsonValue());
     }
 
     private static void validateMap(boolean checkNull, JsonValue v) {
@@ -827,7 +827,7 @@ public final class JsonParsingTests {
             .add(JsonValue.EMPTY_MAP)
             .add(null)
             .add(JsonValue.NULL)
-            .getJsonValue());
+            .toJsonValue());
     }
 
     private static void validateArray(boolean checkNull, JsonValue v) {

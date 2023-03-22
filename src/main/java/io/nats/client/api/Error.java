@@ -46,7 +46,7 @@ public class Error implements JsonSerializable {
             .put(CODE, code)
             .put(ERR_CODE, apiErrorCode)
             .put(DESCRIPTION, desc)
-            .getJsonValue();
+            .toJsonValue();
     }
 
     @Override
