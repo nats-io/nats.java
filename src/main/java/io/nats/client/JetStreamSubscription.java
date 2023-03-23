@@ -27,6 +27,12 @@ import java.util.List;
 public interface JetStreamSubscription extends Subscription {
 
     /**
+     * Gets the consumer name that was used to create the subscription.
+     * @return the consumer name
+     */
+    String getConsumerName();
+
+    /**
      * Initiate pull with the specified batch size.
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      * ! Primitive API for ADVANCED use only, officially not supported. Prefer fetch, iterate or reader.
