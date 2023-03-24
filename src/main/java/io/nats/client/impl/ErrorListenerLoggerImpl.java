@@ -36,6 +36,10 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
         }
         if (sub != null) {
             sb.append(", Subscription: ").append(sub.hashCode());
+            if (sub instanceof JetStreamSubscription) {
+                JetStreamSubscription jssub = (JetStreamSubscription)sub;
+                sb.append(", Consumer Name: ").append(jssub.getConsumerName());
+            }
         }
         for (int x = 0; x < pairs.length; x++) {
             sb.append(", ").append(pairs[x]).append(pairs[++x]);
