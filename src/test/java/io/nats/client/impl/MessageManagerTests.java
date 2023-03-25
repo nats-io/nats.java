@@ -226,16 +226,13 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertTrue(manager.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
         assertFalse(manager.manage(getTestJsMessage(1, sid)));
 
-        assertEquals(!manager.hb, manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
-        assertEquals(!manager.hb, manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
+        // tracks but doesn't queue
+        assertFalse(manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
+        assertFalse(manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
+        assertFalse(manager.beforeQueueProcessorImpl(getNotFoundStatus(sid)));
+        assertFalse(manager.beforeQueueProcessorImpl(getRequestTimeoutStatus(sid)));
 
-        // ignores
-        assertTrue(manager.beforeQueueProcessorImpl(getNotFoundStatus(sid)));
-        assertTrue(manager.beforeQueueProcessorImpl(getRequestTimeoutStatus(sid)));
-        manager.manage(getNotFoundStatus(sid));
-        manager.manage(getRequestTimeoutStatus(sid));
-
-        // warnings
+        // warnings get queued
         assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, MESSAGE_SIZE_EXCEEDS_MAX_BYTES)));
         assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_WAITING)));
         assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_BATCH)));
@@ -248,7 +245,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_EXPIRES));
         manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_MAX_BYTES));
 
-        // errors
+        // errors get queued
         assertTrue(manager.beforeQueueProcessorImpl(getBadRequest(sid)));
         assertTrue(manager.beforeQueueProcessorImpl(getUnkownStatus(sid)));
         assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, CONSUMER_DELETED)));
@@ -564,7 +561,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     private NatsMessage getNotFoundStatus(String sid) {
-        return getStatus(NOT_FOUND_CODE, "not found", sid);
+        return getStatus(NOT_FOUND_CODE, NO_MESSAGES, sid);
     }
 
     private NatsMessage getRequestTimeoutStatus(String sid) {
