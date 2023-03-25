@@ -14,7 +14,6 @@
 package io.nats.client;
 
 import io.nats.client.api.ConsumerInfo;
-import io.nats.client.support.PullStatus;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -206,11 +205,4 @@ public interface JetStreamSubscription extends Subscription {
      * @throws JetStreamApiException the request had an error related to the data
      */
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
-
-    /**
-     * Get the current status of pull requests for this subscription
-     * ! Pull subscriptions only. Push subscription will throw IllegalStateException
-     * @return the PullStatus object
-     */
-    PullStatus getPullStatus();
 }
