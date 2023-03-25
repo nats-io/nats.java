@@ -16,27 +16,24 @@ package io.nats.client.impl;
 import io.nats.client.JetStreamStatusException;
 import io.nats.client.Message;
 import io.nats.client.PullRequestOptions;
-import io.nats.client.support.PullStatus;
 import io.nats.client.support.Status;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-
-import static io.nats.client.support.NatsJetStreamConstants.NATS_PENDING_BYTES;
-import static io.nats.client.support.NatsJetStreamConstants.NATS_PENDING_MESSAGES;
+import static io.nats.client.support.NatsJetStreamConstants.*;
 import static io.nats.client.support.Status.*;
 
 class PullMessageManager extends MessageManager {
 
-    protected final AtomicLong pendingMessages;
-    protected final AtomicLong pendingBytes;
-    protected final AtomicBoolean trackingBytes;
+    protected final Object pendingLock;
+    protected Long pendingMessages;
+    protected Long pendingBytes;
+    protected boolean trackingBytes;
 
     protected PullMessageManager(NatsConnection conn, boolean syncMode) {
         super(conn, syncMode);
-        pendingMessages = new AtomicLong(0);
-        pendingBytes = new AtomicLong(0);
-        trackingBytes = new AtomicBoolean(false);
+        pendingLock = new Object();
+        trackingBytes = false;
+        pendingMessages = 0L;
+        pendingBytes = 0L;
     }
 
     @Override
@@ -47,9 +44,11 @@ class PullMessageManager extends MessageManager {
 
     @Override
     protected void startPullRequest(PullRequestOptions pro) {
-        pendingMessages.addAndGet(pro.getBatchSize());
-        pendingBytes.addAndGet(pro.getMaxBytes());
-        trackingBytes.set(pendingBytes.get() > 0);
+        synchronized (pendingLock) {
+            pendingMessages += pro.getBatchSize();
+            pendingBytes += pro.getMaxBytes();
+            trackingBytes = (pendingBytes > 0);
+        }
         initIdleHeartbeat(pro.getIdleHeartbeat(), -1);
         if (hb) {
             initOrResetHeartbeatTimer();
@@ -59,54 +58,42 @@ class PullMessageManager extends MessageManager {
         }
     }
 
-    @Override
-    protected PullStatus getPullStatus() {
-        return new PullStatus(pendingMessages.get(), pendingBytes.get(), hb);
-    }
-
     private void trackPending(long m, long b) {
-        boolean reachedEnd = false;
-        if (m > 0) {
-            if (pendingMessages.addAndGet(-m) < 1) {
-                reachedEnd = true;
+        synchronized (pendingLock) {
+            if (m > 0) {
+                pendingMessages -= m;
             }
-        }
-        if (trackingBytes.get() && b > 0) {
-            if (pendingBytes.addAndGet(-b) < 1) {
-                reachedEnd = true;
+            if (trackingBytes && b > 0) {
+                pendingBytes -= b;
             }
-        }
-        if (reachedEnd) {
-            pendingMessages.set(0);
-            pendingBytes.set(0);
-            trackingBytes.set(false);
-            if (hb) {
-                shutdownHeartbeatTimer();
+            if (pendingMessages < 1 || (trackingBytes && pendingBytes < 1)) {
+                pendingMessages = 0L;
+                pendingBytes = 0L;
+                trackingBytes = false;
+                if (hb) {
+                    shutdownHeartbeatTimer();
+                }
             }
         }
     }
 
     @Override
     protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
-        if (hb) {
-            messageReceived();
-            Status status = msg.getStatus();
-            // only plain heartbeats do not get queued (return false == not queued)
-            //     normal message || status but not hb
-            return status == null || !status.isHeartbeat();
-        }
-        return true;
-    }
+        messageReceived(); // record message time. Used for heartbeat tracking
 
-    @Override
-    protected boolean manage(Message msg) {
-        if (msg.getStatus() == null) {
-            trackJsMessage(msg);
+        Status status = msg.getStatus();
+
+        // normal js message
+        if (status == null) {
             trackPending(1, bytesInMessage(msg));
+            return true;
+        }
+
+        // heartbeat just needed to be recorded
+        if (status.isHeartbeat()) {
             return false;
         }
 
-        Status status = msg.getStatus();
         Headers h = msg.getHeaders();
         if (h != null) {
             String s;
@@ -116,10 +103,25 @@ class PullMessageManager extends MessageManager {
         }
 
         int statusCode = status.getCode();
+        // these codes are tracked and nothing else
         if (statusCode == NOT_FOUND_CODE || statusCode == REQUEST_TIMEOUT_CODE) {
-            return true; // ignored
+            return false;
         }
 
+        // CONFLICT_CODE + BATCH_COMPLETED is discarded b/c it is handled other ways (return false)
+        // all other statuses are passed on (return true)
+        return statusCode != CONFLICT_CODE || !status.getMessage().startsWith(BATCH_COMPLETED);
+    }
+
+    @Override
+    protected boolean manage(Message msg) {
+        if (msg.getStatus() == null) {
+            trackJsMessage(msg);
+            return false;
+        }
+
+        Status status = msg.getStatus();
+        int statusCode = status.getCode();
         if (statusCode == CONFLICT_CODE) {
             // sometimes just a warning
             if (status.getMessage().contains("Exceed")) {
