@@ -115,4 +115,6 @@ public interface NatsJetStreamConstants {
     String EXCEEDED_MAX_REQUEST_BATCH     = "Exceeded MaxRequestBatch"; // 409
     String EXCEEDED_MAX_REQUEST_EXPIRES   = "Exceeded MaxRequestExpires"; // 409
     String EXCEEDED_MAX_REQUEST_MAX_BYTES = "Exceeded MaxRequestMaxBytes"; // 409
+
+    String BATCH_COMPLETED                = "Batch Completed"; // 409 informational
 }

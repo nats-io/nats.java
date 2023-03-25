@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.Message;
 import io.nats.client.PullRequestOptions;
-import io.nats.client.support.PullStatus;
 
 import java.time.Duration;
 import java.util.Timer;
@@ -71,10 +70,6 @@ abstract class MessageManager {
 
     protected void startPullRequest(PullRequestOptions pullRequestOptions) {
         // does nothing - only implemented for pulls, but in base class since instance is always referenced as MessageManager, not subclass
-    }
-
-    protected PullStatus getPullStatus() {
-        return null;
     }
 
     protected void messageReceived() {

@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.JetStreamReader;
 import io.nats.client.Message;
 import io.nats.client.PullRequestOptions;
-import io.nats.client.support.PullStatus;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -332,13 +331,5 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     @Override
     public JetStreamReader reader(final int batchSize, final int repullAt) {
         return new JetStreamReaderImpl(this, batchSize, repullAt);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public PullStatus getPullStatus() {
-        return manager.getPullStatus();
     }
 }
