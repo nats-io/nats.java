@@ -239,7 +239,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     private static AtomicReference<HeartbeatErrorSimulator> setFactory(JetStream js) {
         AtomicReference<HeartbeatErrorSimulator> simRef = new AtomicReference<>();
-        ((NatsJetStream)js)._pushStandardMessageManagerFactory = (conn, lJs, stream, so, serverCC, qmode, dispatcher) -> {
+        ((NatsJetStream)js)._pushMessageManagerFactory = (conn, lJs, stream, so, serverCC, qmode, dispatcher) -> {
             HeartbeatErrorSimulator sim = new HeartbeatErrorSimulator(conn, lJs, stream, so, serverCC, qmode, dispatcher);
             simRef.set(sim);
             return sim;

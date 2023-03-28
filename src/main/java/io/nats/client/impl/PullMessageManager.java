@@ -18,7 +18,8 @@ import io.nats.client.Message;
 import io.nats.client.PullRequestOptions;
 import io.nats.client.support.Status;
 
-import static io.nats.client.support.NatsJetStreamConstants.*;
+import static io.nats.client.support.NatsJetStreamConstants.NATS_PENDING_BYTES;
+import static io.nats.client.support.NatsJetStreamConstants.NATS_PENDING_MESSAGES;
 import static io.nats.client.support.Status.*;
 
 class PullMessageManager extends MessageManager {
@@ -49,7 +50,7 @@ class PullMessageManager extends MessageManager {
             pendingBytes += pro.getMaxBytes();
             trackingBytes = (pendingBytes > 0);
         }
-        initIdleHeartbeat(pro.getIdleHeartbeat(), -1);
+        configureIdleHeartbeat(pro.getIdleHeartbeat(), -1);
         if (hb) {
             initOrResetHeartbeatTimer();
         }
@@ -63,7 +64,7 @@ class PullMessageManager extends MessageManager {
             if (m > 0) {
                 pendingMessages -= m;
             }
-            if (trackingBytes && b > 0) {
+            if (b > 0) {
                 pendingBytes -= b;
             }
             if (pendingMessages < 1 || (trackingBytes && pendingBytes < 1)) {
@@ -103,14 +104,9 @@ class PullMessageManager extends MessageManager {
         }
 
         int statusCode = status.getCode();
-        // these codes are tracked and nothing else
-        if (statusCode == NOT_FOUND_CODE || statusCode == REQUEST_TIMEOUT_CODE) {
-            return false;
-        }
-
-        // CONFLICT_CODE + BATCH_COMPLETED is discarded b/c it is handled other ways (return false)
-        // all other statuses are passed on (return true)
-        return statusCode != CONFLICT_CODE || !status.getMessage().startsWith(BATCH_COMPLETED);
+        // not found or timeout only have message/byte tracking, so no need to allow them tobe queued (return false)
+        // all other statuses are either warnings or errors and handled in manage
+        return statusCode != NOT_FOUND_CODE && statusCode != REQUEST_TIMEOUT_CODE;
     }
 
     @Override

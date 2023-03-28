@@ -668,6 +668,36 @@ public class JetStreamPullTests extends JetStreamTestBase {
         assertFalse(pro.isNoWait());
     }
 
+    static class TestHbPullMessageManager extends PullMessageManager {
+        public TestHbPullMessageManager(NatsConnection conn, boolean syncMode) {
+            super(conn, syncMode);
+        }
+
+        @Override
+        protected void startPullRequest(PullRequestOptions pro) {
+            super.startPullRequest(PullRequestOptions.builder(10).idleHeartbeat(500).expiresIn(1500).build());
+        }
+    }
+
+    @Test
+    public void testHb() throws Exception {
+        // The test makes the pull request without heartbeats so the server does not send them
+        // The TestHbPullMessageManager tricks the manager into thinking that heartbeats are in the pr,
+        // so it sets up the timer/etc.
+        TestHandler handler = new TestHandler();
+        runInJsServer(handler, nc -> {
+            createDefaultTestStream(nc);
+            JetStream js = nc.jetStream();
+            ((NatsJetStream)js)._pullMessageManagerFactory =
+                (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new TestHbPullMessageManager(mmConn, mmSyncMode);
+            PullSubscribeOptions so = ConsumerConfiguration.builder().inactiveThreshold(5000).buildPullSubscribeOptions();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, so);
+            sub.pull(PullRequestOptions.builder(10).expiresIn(1500).build());
+            assertNull(sub.nextMessage(1600));
+        });
+        assertTrue(handler.getHeartbeatAlarms().size() > 0);
+    }
+
     interface ConflictSetup {
         JetStreamSubscription setup(JetStreamManagement jsm, JetStream js) throws Exception;
     }

@@ -739,4 +739,33 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertClientError(JsSubPushAsyncCantSetPending, () -> js.subscribe(SUBJECT, d, m ->{}, false, psoAsyncNope2Bytes));
         });
     }
+
+    static class TestHbPushMessageManager extends PushMessageManager {
+        public TestHbPushMessageManager(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration originalCc, boolean queueMode, boolean syncMode) {
+            super(conn, js, stream, so,
+                ConsumerConfiguration.builder(originalCc).idleHeartbeat(500).build(), queueMode, syncMode);
+        }
+
+        @Override
+        protected void startPullRequest(PullRequestOptions pro) {
+            super.startPullRequest(PullRequestOptions.builder(10).idleHeartbeat(500).expiresIn(2500).build());
+        }
+    }
+
+    @Test
+    public void testHb() throws Exception {
+        // The test makes the pull consumer heartbeats so the server does not send them
+        // The TestHbPushMessageManager tricks the manager into thinking that heartbeats are on,
+        // so it sets up the timer/etc.
+        TestHandler handler = new TestHandler();
+        runInJsServer(handler, nc -> {
+            createDefaultTestStream(nc);
+            JetStream js = nc.jetStream();
+            ((NatsJetStream)js)._pushMessageManagerFactory = TestHbPushMessageManager::new;
+            PushSubscribeOptions so = ConsumerConfiguration.builder().inactiveThreshold(5000).buildPushSubscribeOptions();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, so);
+            assertNull(sub.nextMessage(1600));
+        });
+        assertTrue(handler.getHeartbeatAlarms().size() > 0);
+    }
 }
