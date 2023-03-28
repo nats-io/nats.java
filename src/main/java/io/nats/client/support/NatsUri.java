@@ -70,7 +70,9 @@ public class NatsUri {
     }
 
     public NatsUri reHost(String newHost) throws URISyntaxException {
-        return new NatsUri(uri.toString().replace(uri.getHost(), newHost));
+        URI reUri = new URI(uri.getScheme(), uri.getUserInfo(), newHost, uri.getPort(), null, null, null);
+        return new NatsUri(reUri);
+
     }
 
     @Override
