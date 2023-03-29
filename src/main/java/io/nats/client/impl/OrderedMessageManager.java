@@ -49,7 +49,7 @@ class OrderedMessageManager extends PushMessageManager {
             return true; // wrong sid is throwaway from previous consumer that errored
         }
 
-        if (msg.getStatus() == null) {
+        if (msg.isJetStream()) {
             long receivedConsumerSeq = msg.metaData().consumerSequence();
             if (expectedExternalConsumerSeq != receivedConsumerSeq) {
                 handleErrorCondition();
