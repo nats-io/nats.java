@@ -25,16 +25,16 @@ import static io.nats.client.support.Status.*;
 class PullMessageManager extends MessageManager {
 
     protected final Object pendingLock;
-    protected Long pendingMessages;
-    protected Long pendingBytes;
+    protected long pendingMessages;
+    protected long pendingBytes;
     protected boolean trackingBytes;
 
     protected PullMessageManager(NatsConnection conn, boolean syncMode) {
         super(conn, syncMode);
         pendingLock = new Object();
         trackingBytes = false;
-        pendingMessages = 0L;
-        pendingBytes = 0L;
+        pendingMessages = 0;
+        pendingBytes = 0;
     }
 
     @Override
@@ -61,15 +61,11 @@ class PullMessageManager extends MessageManager {
 
     private void trackPending(long m, long b) {
         synchronized (pendingLock) {
-            if (m > 0) {
-                pendingMessages -= m;
-            }
-            if (b > 0) {
-                pendingBytes -= b;
-            }
+            pendingMessages -= m;
+            pendingBytes -= b;
             if (pendingMessages < 1 || (trackingBytes && pendingBytes < 1)) {
-                pendingMessages = 0L;
-                pendingBytes = 0L;
+                pendingMessages = 0;
+                pendingBytes = 0;
                 trackingBytes = false;
                 if (hb) {
                     shutdownHeartbeatTimer();
@@ -97,26 +93,33 @@ class PullMessageManager extends MessageManager {
 
         Headers h = msg.getHeaders();
         if (h != null) {
-            String s;
-            long m = ((s = h.getFirst(NATS_PENDING_MESSAGES)) == null) ? -1 : Long.parseLong(s);
-            long b = ((s = h.getFirst(NATS_PENDING_BYTES)) == null) ? -1 : Long.parseLong(s);
-            trackPending(m, b);
+            String s = h.getFirst(NATS_PENDING_MESSAGES);
+            if (s != null) {
+                try {
+                    long m = Long.parseLong(s);
+                    long b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
+                    trackPending(m, b);
+                }
+                catch (Exception ignore) {}
+            }
         }
 
-        int statusCode = status.getCode();
-        // not found or timeout only have message/byte tracking, so no need to allow them tobe queued (return false)
+        // not found or timeout only have message/byte tracking, so no need for them to be queued (return false)
         // all other statuses are either warnings or errors and handled in manage
+        int statusCode = status.getCode();
         return statusCode != NOT_FOUND_CODE && statusCode != REQUEST_TIMEOUT_CODE;
     }
 
     @Override
     protected boolean manage(Message msg) {
-        if (msg.getStatus() == null) {
+        Status status = msg.getStatus();
+
+        // normal js message
+        if (status == null) {
             trackJsMessage(msg);
             return false;
         }
 
-        Status status = msg.getStatus();
         int statusCode = status.getCode();
         if (statusCode == CONFLICT_CODE) {
             // sometimes just a warning
@@ -127,7 +130,7 @@ class PullMessageManager extends MessageManager {
             // fall through
         }
 
-        // all others are fatal
+        // all others are errors
         conn.executeCallback((c, el) -> el.pullStatusError(c, sub, status));
         if (syncMode) {
             throw new JetStreamStatusException(sub, status);

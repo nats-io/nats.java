@@ -22,7 +22,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.NatsJetStreamClientError.JsSubOrderedNotAllowOnQueues;
 import static org.junit.jupiter.api.Assertions.*;
@@ -153,10 +152,12 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
     }
 
     static class HeartbeatErrorSimulator extends PushMessageManager {
-        public CountDownLatch latch = new CountDownLatch(2);
+        public final CountDownLatch latch;
 
-        public HeartbeatErrorSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
+        public HeartbeatErrorSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode,
+                                       CountDownLatch latch) {
             super(conn, js, stream, so, serverCC, queueMode, syncMode);
+            this.latch = latch;
         }
 
         @Override
@@ -171,11 +172,33 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
         }
     }
 
-    static class HeartbeatErrorOrderedSimulator extends OrderedMessageManager {
-        public CountDownLatch latch = new CountDownLatch(2);
+    static class OrderedHeartbeatErrorSimulator extends OrderedMessageManager {
+        public final CountDownLatch latch;
 
-        public HeartbeatErrorOrderedSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
+        public OrderedHeartbeatErrorSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode,
+                                              CountDownLatch latch) {
             super(conn, js, stream, so, serverCC, queueMode, syncMode);
+            this.latch = latch;
+        }
+
+        @Override
+        protected void handleHeartbeatError() {
+            super.handleHeartbeatError();
+            latch.countDown();
+        }
+
+        @Override
+        protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
+            return false;
+        }
+    }
+
+    static class PullHeartbeatErrorSimulator extends PullMessageManager {
+        public final CountDownLatch latch;
+
+        public PullHeartbeatErrorSimulator(NatsConnection conn, boolean syncMode, CountDownLatch latch) {
+            super(conn, syncMode);
+            this.latch = latch;
         }
 
         @Override
@@ -194,37 +217,40 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
     public void testHeartbeatError() throws Exception {
         TestHandler testHandler = new TestHandler();
         runInJsServer(testHandler, nc -> {
-            JetStream js = nc.jetStream();
-            JetStreamManagement jsm = nc.jetStreamManagement();
+            createDefaultTestStream(nc);
 
-            String subject = "hbe";
-            createMemoryStream(jsm, "hbestream", subject);
+            JetStream js = nc.jetStream();
 
             Dispatcher d = nc.createDispatcher();
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().flowControl(2000).idleHeartbeat(100).build();
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().idleHeartbeat(100).build();
 
             PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
-            AtomicReference<HeartbeatErrorSimulator> simRef = setFactory(js);
-            JetStreamSubscription sub = js.subscribe(subject, pso);
-            validate(sub, testHandler, simRef.get().latch, null);
+            CountDownLatch latch = setupFactory(js);
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            validate(sub, testHandler, latch, null);
 
-            simRef = setFactory(js);
-            sub = js.subscribe(subject, d, m -> {}, false, pso);
-            validate(sub, testHandler, simRef.get().latch, d);
+            latch = setupFactory(js);
+            sub = js.subscribe(SUBJECT, d, m -> {}, false, pso);
+            validate(sub, testHandler, latch, d);
 
             pso = PushSubscribeOptions.builder().ordered(true).configuration(cc).build();
-            AtomicReference<HeartbeatErrorOrderedSimulator> simOrderedRef = setOrderedFactory(js);
-            sub = js.subscribe(subject, pso);
-            validate(sub, testHandler, simOrderedRef.get().latch, null);
+            latch = setupOrderedFactory(js);
+            sub = js.subscribe(SUBJECT, pso);
+            validate(sub, testHandler, latch, null);
 
-            simOrderedRef = setOrderedFactory(js);
-            sub = js.subscribe(subject, d, m -> {}, false, pso);
-            validate(sub, testHandler, simOrderedRef.get().latch, d);
+            latch = setupOrderedFactory(js);
+            sub = js.subscribe(SUBJECT, d, m -> {}, false, pso);
+            validate(sub, testHandler, latch, d);
+
+            latch = setupPulLFactory(js);
+            sub = js.subscribe(SUBJECT, PullSubscribeOptions.DEFAULT_PULL_OPTS);
+            sub.pull(PullRequestOptions.builder(1).idleHeartbeat(100).expiresIn(2000).build());
+            validate(sub, testHandler, latch, null);
         });
     }
 
     private static void validate(JetStreamSubscription sub, TestHandler handler, CountDownLatch latch, Dispatcher d) throws InterruptedException {
-        latch.await(10, TimeUnit.SECONDS);
+        latch.await(2, TimeUnit.SECONDS);
         if (d == null) {
             sub.unsubscribe();
         }
@@ -234,26 +260,29 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
         assertEquals(0, latch.getCount());
         assertTrue(handler.getHeartbeatAlarms().size() > 0);
         handler.reset();
-        assertEquals(0, handler.getHeartbeatAlarms().size());
     }
 
-    private static AtomicReference<HeartbeatErrorSimulator> setFactory(JetStream js) {
-        AtomicReference<HeartbeatErrorSimulator> simRef = new AtomicReference<>();
-        ((NatsJetStream)js)._pushMessageManagerFactory = (conn, lJs, stream, so, serverCC, qmode, dispatcher) -> {
-            HeartbeatErrorSimulator sim = new HeartbeatErrorSimulator(conn, lJs, stream, so, serverCC, qmode, dispatcher);
-            simRef.set(sim);
-            return sim;
-        };
-        return simRef;
+    private static CountDownLatch setupFactory(JetStream js) {
+        CountDownLatch latch = new CountDownLatch(2);
+        ((NatsJetStream)js)._pushMessageManagerFactory =
+            (conn, lJs, stream, so, serverCC, qmode, dispatcher) ->
+                new HeartbeatErrorSimulator(conn, lJs, stream, so, serverCC, qmode, dispatcher, latch);
+        return latch;
     }
 
-    private static AtomicReference<HeartbeatErrorOrderedSimulator> setOrderedFactory(JetStream js) {
-        AtomicReference<HeartbeatErrorOrderedSimulator> simRef = new AtomicReference<>();
-        ((NatsJetStream)js)._pushOrderedMessageManagerFactory = (conn, lJs, stream, so, serverCC, qmode, dispatcher) -> {
-            HeartbeatErrorOrderedSimulator sim = new HeartbeatErrorOrderedSimulator(conn, lJs, stream, so, serverCC, qmode, dispatcher);
-            simRef.set(sim);
-            return sim;
-        };
-        return simRef;
+    private static CountDownLatch setupOrderedFactory(JetStream js) {
+        CountDownLatch latch = new CountDownLatch(2);
+        ((NatsJetStream)js)._pushOrderedMessageManagerFactory =
+            (conn, lJs, stream, so, serverCC, qmode, dispatcher) ->
+                new OrderedHeartbeatErrorSimulator(conn, lJs, stream, so, serverCC, qmode, dispatcher, latch);
+        return latch;
+    }
+
+    private static CountDownLatch setupPulLFactory(JetStream js) {
+        CountDownLatch latch = new CountDownLatch(2);
+        ((NatsJetStream)js)._pullMessageManagerFactory =
+            (conn, lJs, stream, so, serverCC, qmode, dispatcher) ->
+                new PullHeartbeatErrorSimulator(conn, false, latch);
+        return latch;
     }
 }

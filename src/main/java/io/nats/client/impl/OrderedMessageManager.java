@@ -39,14 +39,14 @@ class OrderedMessageManager extends PushMessageManager {
 
     @Override
     protected void startup(NatsJetStreamSubscription sub) {
-        targetSid.set(sub.getSID());
         super.startup(sub);
+        targetSid.set(sub.getSID());
     }
 
     @Override
     protected boolean manage(Message msg) {
         if (!msg.getSID().equals(targetSid.get())) {
-            return true;
+            return true; // wrong sid is throwaway from previous consumer that errored
         }
 
         if (msg.getStatus() == null) {
