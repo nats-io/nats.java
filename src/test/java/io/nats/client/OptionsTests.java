@@ -641,8 +641,8 @@ public class OptionsTests {
     String[] schemes = new String[]   { "NATS", "unk",  "tls",  "opentls",  "ws",   "wss", "nats"};
     boolean[] secures = new boolean[] { false,  false,  true,   true,       false,  true,  false};
     boolean[] wses = new boolean[]    { false,  false,  false,  false,      true,   true,  false};
-    String[] hosts = new String[]     { "host", "1.2.3.4", "[1:2:3:4::5]", null};
-    boolean[] ips = new boolean[]     { false,  true,      true,           false};
+    String[] hosts = new String[]     { "host", "1.2.3.4", "[1:2:3:4::5]", null, "nats"};
+    boolean[] ips = new boolean[]     { false,  true,      true,           false, false};
     Integer[] ports = new Integer[]   {1122, null};
     String[] userInfos = new String[] {null, "u:p"};
 
@@ -719,7 +719,10 @@ public class OptionsTests {
             ? scheme + "://" + host + ":" + port
             : scheme + "://" + userInfo + "@" + host + ":" + port;
         assertEquals(expectedUri, uri.toString());
-        assertEquals(expectedUri.replace(host, "rehost"), uri.reHost("rehost").toString());
+        expectedUri = userInfo == null
+            ? scheme + "://rehost:" + port
+            : scheme + "://" + userInfo + "@rehost:" + port;
+        assertEquals(expectedUri, uri.reHost("rehost").toString());
         assertEquals(ip, uri.hostIsIpAddress());
     }
 
