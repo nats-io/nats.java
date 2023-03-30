@@ -24,10 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -72,6 +69,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         // copy constructor
         validate(StreamConfiguration.builder(testSc).build(), false);
 
+        Map<String, String> metaData = new HashMap<>(); metaData.put("meta-foo", "meta-bar");
+
         // builder
         StreamConfiguration.Builder builder = StreamConfiguration.builder()
             .name(testSc.getName())
@@ -100,7 +99,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .mirrorDirect(testSc.getMirrorDirect())
             .denyDelete(testSc.getDenyDelete())
             .denyPurge(testSc.getDenyPurge())
-            .discardNewPerSubject(testSc.isDiscardNewPerSubject());
+            .discardNewPerSubject(testSc.isDiscardNewPerSubject())
+            .metadata(metaData);
         validate(builder.build(), false);
         validate(builder.addSources((Source)null).build(), false);
 

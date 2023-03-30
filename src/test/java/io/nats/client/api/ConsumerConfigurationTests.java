@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 import static io.nats.client.api.ConsumerConfiguration.*;
 import static io.nats.client.support.NatsJetStreamClientError.JsConsumerNameDurableMismatch;
@@ -32,6 +34,7 @@ public class ConsumerConfigurationTests extends TestBase {
     @Test
     public void testBuilder() {
         ZonedDateTime zdt = ZonedDateTime.of(2012, 1, 12, 6, 30, 1, 500, DateTimeUtils.ZONE_ID_GMT);
+        Map<String, String> metaData = new HashMap<>(); metaData.put("meta-foo", "meta-bar");
 
         ConsumerConfiguration c = ConsumerConfiguration.builder()
             .ackPolicy(AckPolicy.Explicit)
@@ -59,6 +62,7 @@ public class ConsumerConfigurationTests extends TestBase {
             .headersOnly(true)
             .memStorage(true)
             .backoff(1000, 2000, 3000)
+            .metadata(metaData)
             .build();
 
         assertAsBuilt(c, zdt);
@@ -249,6 +253,8 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(1), c.getBackoff().get(0));
         assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
         assertEquals(Duration.ofSeconds(3), c.getBackoff().get(2));
+        assertEquals(1, c.getMetadata().size());
+        assertEquals("meta-bar", c.getMetadata().get("meta-foo"));
     }
 
     @Test
@@ -285,6 +291,8 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(1), c.getBackoff().get(0));
         assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
         assertEquals(Duration.ofSeconds(3), c.getBackoff().get(2));
+        assertEquals(1, c.getMetadata().size());
+        assertEquals("meta-bar", c.getMetadata().get("meta-foo"));
 
         assertDefaultCc(new ConsumerConfiguration(JsonValue.EMPTY_MAP));
     }
