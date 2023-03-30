@@ -85,7 +85,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testStreamMetaData() throws Exception {
+    public void testStreamMetadata() throws Exception {
         runInJsServer(nc -> {
             Map<String, String> metaData = new HashMap<>(); metaData.put("meta-foo", "meta-bar");
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -815,7 +815,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testConsumerMetaData() throws Exception {
+    public void testConsumerMetadata() throws Exception {
         runInJsServer(nc -> {
             Map<String, String> metaData = new HashMap<>(); metaData.put("meta-foo", "meta-bar");
             JetStreamManagement jsm = nc.jetStreamManagement();
