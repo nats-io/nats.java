@@ -51,7 +51,11 @@ public class OptionsTests {
     @Test
     public void testDefaultOptions() {
         Options o = new Options.Builder().build();
+        _testDefaultOptions(o);
+        _testDefaultOptions(new Options.Builder(o).build());
+    }
 
+    private static void _testDefaultOptions(Options o) {
         assertEquals(1, o.getServers().size(), "default one server");
         assertEquals(1, o.getUnprocessedServers().size(), "default one server");
         assertEquals(Options.DEFAULT_URL, o.getServers().toArray()[0].toString(), "default url");
@@ -91,8 +95,13 @@ public class OptionsTests {
 
         assertTrue(o.getErrorListener() instanceof ErrorListenerLoggerImpl, "error handler");
         assertNull(o.getConnectionListener(), "disconnect handler");
+        assertFalse(o.isOldRequestStyle(), "default oldstyle");
+    }
 
-        // COVERAGE
+    @Test
+    public void testOldStyle() {
+        Options o = new Options.Builder().build();
+        assertFalse(o.isOldRequestStyle(), "default oldstyle");
         o.setOldRequestStyle(true);
         assertTrue(o.isOldRequestStyle(), "default oldstyle");
     }
@@ -103,6 +112,11 @@ public class OptionsTests {
             .noEcho().oldRequestStyle().noHeaders().noNoResponders()
             .discardMessagesWhenOutgoingQueueFull()
             .build();
+        _testChainedBooleanOptions(o);
+        _testChainedBooleanOptions(new Options.Builder(o).build());
+    }
+
+    private static void _testChainedBooleanOptions(Options o) {
         assertNull(o.getUsernameChars(), "default username");
         assertTrue(o.isVerbose(), "chained verbose");
         assertTrue(o.isPedantic(), "chained pedantic");
@@ -118,6 +132,11 @@ public class OptionsTests {
     @Test
     public void testChainedStringOptions() {
         Options o = new Options.Builder().userInfo("hello".toCharArray(), "world".toCharArray()).connectionName("name").build();
+        _testChainedStringOptions(o);
+        _testChainedStringOptions(new Options.Builder(o).build());
+    }
+
+    private static void _testChainedStringOptions(Options o) {
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertArrayEquals("hello".toCharArray(), o.getUsernameChars(), "chained username");
         assertArrayEquals("world".toCharArray(), o.getPasswordChars(), "chained password");
@@ -129,6 +148,11 @@ public class OptionsTests {
         SSLContext ctx = TestSSLUtils.createTestSSLContext();
         SSLContext.setDefault(ctx);
         Options o = new Options.Builder().secure().build();
+        _testChainedSecure(ctx, o);
+        _testChainedSecure(ctx, new Options.Builder(o).build());
+    }
+
+    private static void _testChainedSecure(SSLContext ctx, Options o) {
         assertEquals(ctx, o.getSslContext(), "chained context");
     }
 
@@ -136,6 +160,11 @@ public class OptionsTests {
     public void testChainedSSLOptions() throws Exception {
         SSLContext ctx = TestSSLUtils.createTestSSLContext();
         Options o = new Options.Builder().sslContext(ctx).build();
+        _testChainedSSLOptions(ctx, o);
+        _testChainedSSLOptions(ctx, new Options.Builder(o).build());
+    }
+
+    private static void _testChainedSSLOptions(SSLContext ctx, Options o) {
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertEquals(ctx, o.getSslContext(), "chained context");
     }
@@ -146,6 +175,11 @@ public class OptionsTests {
             .maxControlLine(400)
             .maxMessagesInOutgoingQueue(500)
             .build();
+        _testChainedIntOptions(o);
+        _testChainedIntOptions(new Options.Builder(o).build());
+    }
+
+    private static void _testChainedIntOptions(Options o) {
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertEquals(100, o.getMaxReconnect(), "chained max reconnect");
         assertEquals(200, o.getMaxPingsOut(), "chained ping max");
@@ -162,6 +196,11 @@ public class OptionsTests {
             .reconnectJitter(Duration.ofMillis(505))
             .reconnectJitterTls(Duration.ofMillis(606))
             .build();
+        _testChainedDurationOptions(o);
+        _testChainedDurationOptions(new Options.Builder(o).build());
+    }
+
+    private static void _testChainedDurationOptions(Options o) {
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertEquals(Duration.ofMillis(101), o.getReconnectWait(), "chained reconnect wait");
         assertEquals(Duration.ofMillis(202), o.getConnectionTimeout(), "chained connection timeout");
@@ -195,6 +234,11 @@ public class OptionsTests {
     public void testChainedErrorHandler() {
         TestHandler handler = new TestHandler();
         Options o = new Options.Builder().errorListener(handler).build();
+        _testChainedErrorHandler(handler, o);
+        _testChainedErrorHandler(handler, new Options.Builder(o).build());
+    }
+
+    private static void _testChainedErrorHandler(TestHandler handler, Options o) {
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertEquals(handler, o.getErrorListener(), "chained error handler");
     }
@@ -203,6 +247,11 @@ public class OptionsTests {
     public void testChainedConnectionListener() {
         ConnectionListener cHandler = (c, e) -> System.out.println("connection event" + e);
         Options o = new Options.Builder().connectionListener(cHandler).build();
+        _testChainedConnectionListener(cHandler, o);
+        _testChainedConnectionListener(cHandler, new Options.Builder(o).build());
+    }
+
+    private static void _testChainedConnectionListener(ConnectionListener cHandler, Options o) {
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertTrue(o.getErrorListener() instanceof ErrorListenerLoggerImpl, "error handler");
         assertSame(cHandler, o.getConnectionListener(), "chained connection handler");
@@ -221,6 +270,11 @@ public class OptionsTests {
         props.setProperty(Options.PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, "true");
 
         Options o = new Options.Builder(props).build();
+        _testPropertiesBooleanBuilder(o);
+        _testPropertiesBooleanBuilder(new Options.Builder(o).build());
+    }
+
+    private static void _testPropertiesBooleanBuilder(Options o) {
         assertNull(o.getUsernameChars(), "default username chars");
         assertTrue(o.isVerbose(), "property verbose");
         assertTrue(o.isPedantic(), "property pedantic");
@@ -240,10 +294,8 @@ public class OptionsTests {
         props.setProperty(Options.PROP_CONNECTION_NAME, "name");
 
         Options o = new Options.Builder(props).build();
-        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
-        assertArrayEquals("hello".toCharArray(), o.getUsernameChars(), "property username");
-        assertArrayEquals("world".toCharArray(), o.getPasswordChars(), "property password");
-        assertEquals("name", o.getConnectionName(), "property connection name");
+        _testPropertiesStringOptions(o);
+        _testPropertiesStringOptions(new Options.Builder(o).build());
 
         // COVERAGE
         props.setProperty(Options.PROP_CONNECTION_NAME, "");
@@ -251,6 +303,13 @@ public class OptionsTests {
 
         props.remove(Options.PROP_CONNECTION_NAME);
         new Options.Builder(props).build();
+    }
+
+    private static void _testPropertiesStringOptions(Options o) {
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
+        assertArrayEquals("hello".toCharArray(), o.getUsernameChars(), "property username");
+        assertArrayEquals("world".toCharArray(), o.getPasswordChars(), "property password");
+        assertEquals("name", o.getConnectionName(), "property connection name");
     }
 
     @Test
@@ -261,6 +320,11 @@ public class OptionsTests {
         props.setProperty(Options.PROP_SECURE, "true");
 
         Options o = new Options.Builder(props).build();
+        _testPropertiesSSLOptions(o);
+        _testPropertiesSSLOptions(new Options.Builder(o).build());
+    }
+
+    private static void _testPropertiesSSLOptions(Options o) {
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertNotNull(o.getSslContext(), "property context");
     }
@@ -273,7 +337,6 @@ public class OptionsTests {
 
         o = new Options.Builder().clientSideLimitChecks(true).build();
         assertTrue(o.clientSideLimitChecks());
-
         o = new Options.Builder()
             .clientSideLimitChecks(false)
             .serverPool(new NatsServerPool())
@@ -299,6 +362,11 @@ public class OptionsTests {
         props.setProperty(Options.PROP_NO_RESOLVE_HOSTNAMES, "true");
 
         Options o = new Options.Builder(props).build();
+        _testPropertiesCoverageOptions(o);
+        _testPropertiesCoverageOptions(new Options.Builder(o).build());
+    }
+
+    private static void _testPropertiesCoverageOptions(Options o) {
         assertNull(o.getSslContext(), "property context");
         assertTrue(o.isNoHeaders());
         assertTrue(o.isNoNoResponders());
@@ -318,6 +386,11 @@ public class OptionsTests {
         props.setProperty(Options.PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "500");
 
         Options o = new Options.Builder(props).build();
+        _testPropertyIntOptions(o);
+        _testPropertyIntOptions(new Options.Builder(o).build());
+    }
+
+    private static void _testPropertyIntOptions(Options o) {
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertEquals(100, o.getMaxReconnect(), "property max reconnect");
         assertEquals(200, o.getMaxPingsOut(), "property ping max");
@@ -339,6 +412,11 @@ public class OptionsTests {
         props.setProperty(Options.PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "-1");
 
         Options o = new Options.Builder(props).build();
+        _testDefaultPropertyIntOptions(o);
+        _testDefaultPropertyIntOptions(new Options.Builder(o).build());
+    }
+
+    private static void _testDefaultPropertyIntOptions(Options o) {
         assertEquals(Options.DEFAULT_MAX_CONTROL_LINE, o.getMaxControlLine(), "default max control line");
         assertEquals(Options.DEFAULT_RECONNECT_WAIT, o.getReconnectWait(), "default reconnect wait");
         assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, o.getConnectionTimeout(), "default connection timeout");
@@ -360,6 +438,11 @@ public class OptionsTests {
         props.setProperty(Options.PROP_RECONNECT_JITTER_TLS, "606");
 
         Options o = new Options.Builder(props).build();
+        _testPropertyDurationOptions(o);
+        _testPropertyDurationOptions(new Options.Builder(o).build());
+    }
+
+    private static void _testPropertyDurationOptions(Options o) {
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertEquals(Duration.ofMillis(101), o.getReconnectWait(), "property reconnect wait");
         assertEquals(Duration.ofMillis(202), o.getConnectionTimeout(), "property connection timeout");
@@ -523,8 +606,13 @@ public class OptionsTests {
     }
 
     @Test
+    public void testThrowOnNoOpts() {
+        assertThrows(IllegalArgumentException.class, () -> new Options.Builder((Options) null));
+    }
+
+    @Test
     public void testThrowOnNoProps() {
-        assertThrows(IllegalArgumentException.class, () -> new Options.Builder(null));
+        assertThrows(IllegalArgumentException.class, () -> new Options.Builder((Properties) null));
     }
 
     @Test
