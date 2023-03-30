@@ -52,7 +52,7 @@ class PushMessageManager extends MessageManager {
             fc = false;
         }
         else {
-            initIdleHeartbeat(originalCc.getIdleHeartbeat(), so.getMessageAlarmTime());
+            configureIdleHeartbeat(originalCc.getIdleHeartbeat(), so.getMessageAlarmTime());
             fc = hb && originalCc.isFlowControl(); // can't have fc w/o heartbeat
         }
     }
@@ -73,7 +73,7 @@ class PushMessageManager extends MessageManager {
     @Override
     protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
         if (hb) {
-            messageReceived();
+            messageReceived(); // only need to track when heartbeats are expected
             Status status = msg.getStatus();
             if (status != null) {
                 // only plain heartbeats do not get queued
@@ -109,10 +109,10 @@ class PushMessageManager extends MessageManager {
         // otherwise they are simply known statuses
         Status status = msg.getStatus();
         if (fc) {
-            boolean sfc = status.isFlowControl();
-            String fcSubject = sfc ? msg.getReplyTo() : extractFcSubject(msg);
+            boolean isFlowControl = status.isFlowControl();
+            String fcSubject = isFlowControl ? msg.getReplyTo() : extractFcSubject(msg);
             if (fcSubject != null) {
-                processFlowControl(fcSubject, sfc ? HEARTBEAT : FLOW_CONTROL);
+                processFlowControl(fcSubject, isFlowControl ? FLOW_CONTROL : HEARTBEAT);
                 return;
             }
         }

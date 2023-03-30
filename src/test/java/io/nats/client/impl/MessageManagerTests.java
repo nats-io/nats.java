@@ -327,11 +327,11 @@ public class MessageManagerTests extends JetStreamTestBase {
         // coverage sequences
         pmm.manage(getTestJsMessage(1, sid));
         assertEquals(1, pmm.getLastStreamSequence());
-        assertEquals(1, pmm.getInternalConsumerSequence());
+        assertEquals(1, pmm.getLastConsumerSequence());
 
         pmm.manage(getTestJsMessage(2, sid));
         assertEquals(2, pmm.getLastStreamSequence());
-        assertEquals(2, pmm.getInternalConsumerSequence());
+        assertEquals(2, pmm.getLastConsumerSequence());
 
         // coverage extractFcSubject
         assertNull(pmm.extractFcSubject(getTestJsMessage(4, sid)));
@@ -366,11 +366,11 @@ public class MessageManagerTests extends JetStreamTestBase {
         // coverage sequences
         pmm.manage(getTestJsMessage(1, sid));
         assertEquals(1, pmm.getLastStreamSequence());
-        assertEquals(1, pmm.getInternalConsumerSequence());
+        assertEquals(1, pmm.getLastConsumerSequence());
 
         pmm.manage(getTestJsMessage(2, sid));
         assertEquals(2, pmm.getLastStreamSequence());
-        assertEquals(2, pmm.getInternalConsumerSequence());
+        assertEquals(2, pmm.getLastConsumerSequence());
 
         // coverage beforeQueueProcessor
         assertTrue(pmm.beforeQueueProcessorImpl(getFlowControl(1, sid)));
