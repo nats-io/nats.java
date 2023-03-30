@@ -17,41 +17,39 @@ import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
-import io.nats.client.support.Status;
 
 import java.util.concurrent.atomic.AtomicReference;
 
 class OrderedMessageManager extends PushMessageManager {
 
-    private long expectedExternalConsumerSeq;
-    private final AtomicReference<String> targetSid;
+    protected long expectedExternalConsumerSeq;
+    protected final AtomicReference<String> targetSid;
 
     protected OrderedMessageManager(NatsConnection conn,
                           NatsJetStream js,
                           String stream,
                           SubscribeOptions so,
-                          ConsumerConfiguration serverCC,
+                          ConsumerConfiguration originalCc,
                           boolean queueMode,
                           boolean syncMode) {
-        super(conn, js, stream, so, serverCC, queueMode, syncMode);
+        super(conn, js, stream, so, originalCc, queueMode, syncMode);
         expectedExternalConsumerSeq = 1; // always starts at 1
         targetSid = new AtomicReference<>();
     }
 
     @Override
     protected void startup(NatsJetStreamSubscription sub) {
-        targetSid.set(sub.getSID());
         super.startup(sub);
+        targetSid.set(sub.getSID());
     }
 
     @Override
     protected boolean manage(Message msg) {
         if (!msg.getSID().equals(targetSid.get())) {
-            return true;
+            return true; // wrong sid is throwaway from previous consumer that errored
         }
 
-        Status status = msg.getStatus();
-        if (status == null) {
+        if (msg.isJetStream()) {
             long receivedConsumerSeq = msg.metaData().consumerSequence();
             if (expectedExternalConsumerSeq != receivedConsumerSeq) {
                 handleErrorCondition();
@@ -63,7 +61,7 @@ class OrderedMessageManager extends PushMessageManager {
         }
 
         super.manageStatus(msg);
-        return true; // all status are managed
+        return true; // all statuses are managed
     }
 
     private void handleErrorCondition() {

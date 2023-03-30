@@ -255,7 +255,8 @@ public abstract class JsonValueUtils {
             return new JsonValue(new ArrayList<>((Set)o));
         }
         if (o instanceof String) {
-            return new JsonValue((String)o);
+            String s = ((String)o).trim();
+            return s.length() == 0 ? new JsonValue() : new JsonValue(s);
         }
         if (o instanceof Boolean) {
             return new JsonValue((Boolean)o);

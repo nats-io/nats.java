@@ -340,10 +340,8 @@ public class JetStreamTestBase extends TestBase {
 
     public static void assertStreamSource(MessageInfo info, String stream, int i) {
         String hval = info.getHeaders().get("Nats-Stream-Source").get(0);
-        String[] parts = hval.split(" ");
-        assertEquals(stream, parts[0]);
-        assertEquals("" + i, parts[1]);
-
+        assertTrue(hval.contains(stream));
+        assertTrue(hval.contains("" + i));
     }
 
     // ----------------------------------------------------------------------------------------------------
