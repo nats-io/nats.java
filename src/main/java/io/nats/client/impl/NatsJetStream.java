@@ -225,7 +225,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             SubscribeOptions so, ConsumerConfiguration cc, boolean queueMode, boolean syncMode);
     }
 
-    MessageManagerFactory _pushStandardMessageManagerFactory = PushMessageManager::new;
+    MessageManagerFactory _pushMessageManagerFactory = PushMessageManager::new;
     MessageManagerFactory _pushOrderedMessageManagerFactory = OrderedMessageManager::new;
     MessageManagerFactory _pullMessageManagerFactory =
         (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new PullMessageManager(mmConn, mmSyncMode);
@@ -397,7 +397,6 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         }
 
         // 6. create the subscription. lambda needs final or effectively final vars
-        NatsJetStreamSubscription sub;
         final MessageManager mm;
         final NatsSubscriptionFactory subFactory;
         if (isPullMode) {
@@ -406,7 +405,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
                 -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, this, fnlStream, settledConsumerName, mm);
         }
         else {
-            MessageManagerFactory mmFactory = so.isOrdered() ? _pushOrderedMessageManagerFactory : _pushStandardMessageManagerFactory;
+            MessageManagerFactory mmFactory = so.isOrdered() ? _pushOrderedMessageManagerFactory : _pushMessageManagerFactory;
             mm = mmFactory.createMessageManager(conn, this, fnlStream, so, settledServerCC, false, dispatcher == null);
             subFactory = (sid, lSubject, lQgroup, lConn, lDispatcher) -> {
                 NatsJetStreamSubscription nsub = new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,
@@ -417,11 +416,12 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
                 return nsub;
             };
         }
+        NatsJetStreamSubscription sub;
         if (dispatcher == null) {
             sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, subFactory);
         }
         else {
-            AsyncMessageHandler handler = new AsyncMessageHandler(userHandler, isAutoAck, settledServerCC, mm);
+            AsyncMessageHandler handler = new AsyncMessageHandler(mm, userHandler, isAutoAck, settledServerCC);
             sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(fnlInboxDeliver, qgroup, handler, subFactory);
         }
 
@@ -484,26 +484,24 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
     static class AsyncMessageHandler implements MessageHandler {
         MessageManager manager;
-        List<MessageHandler> handlers;
+        MessageHandler userHandler;
+        boolean autoAck;
 
-        public AsyncMessageHandler(MessageHandler userHandler, boolean isAutoAck, ConsumerConfiguration settledServerCC, MessageManager manager) {
-            handlers = new ArrayList<>();
-            handlers.add(userHandler);
-            if (isAutoAck && settledServerCC.getAckPolicy() != AckPolicy.None) {
-                handlers.add(Message::ack);
-            };
-
+        public AsyncMessageHandler(MessageManager manager, MessageHandler userHandler, boolean isAutoAck, ConsumerConfiguration settledServerCC) {
             this.manager = manager;
+            this.userHandler = userHandler;
+            autoAck = isAutoAck && settledServerCC.getAckPolicy() != AckPolicy.None;
         }
 
         @Override
         public void onMessage(Message msg) throws InterruptedException {
             if (manager.manage(msg)) {
-                return;
+                return;  // manager handled the message
             }
 
-            for (MessageHandler mh : handlers) {
-                mh.onMessage(msg);
+            userHandler.onMessage(msg);
+            if (autoAck) {
+                msg.ack();
             }
         }
     }

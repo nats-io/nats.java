@@ -672,21 +672,18 @@ public class JetStreamPullTests extends JetStreamTestBase {
         JetStreamSubscription setup(JetStreamManagement jsm, JetStream js) throws Exception;
     }
 
-    private boolean versionIsBefore(Connection nc, String skipVersion) {
-        if (skipVersion == null) {
-            return false;
-        }
-        return nc.getServerInfo().isOlderThanVersion(skipVersion);
+    private boolean versionIsBefore(Connection nc, String targetVersion) {
+        return targetVersion != null && nc.getServerInfo().isOlderThanVersion(targetVersion);
     }
 
     static final int TYPE_ERROR = 1;
     static final int TYPE_WARNING = 2;
     static final int TYPE_NONE = 0;
-    private void testConflictStatus(String statusText, int type, boolean syncMode, String skipVersion, ConflictSetup setup) throws Exception {
+    private void testConflictStatus(String statusText, int type, boolean syncMode, String targetVersion, ConflictSetup setup) throws Exception {
         TestHandler handler = new TestHandler();
         AtomicBoolean skip = new AtomicBoolean(false);
         runInJsServer(handler, nc -> {
-            skip.set(versionIsBefore(nc, skipVersion));
+            skip.set(versionIsBefore(nc, targetVersion));
             if (skip.get()) {
                 return;
             }
@@ -708,16 +705,16 @@ public class JetStreamPullTests extends JetStreamTestBase {
         }
     }
 
-    private static void checkHandler(String statusText, int type, TestHandler handler) {
+    private void checkHandler(String statusText, int type, TestHandler handler) {
         if (type == TYPE_ERROR) {
             assertEquals(0, handler.getPullStatusWarnings().size());
             TestHandler.StatusEvent se = handler.getPullStatusErrors().get(0);
             assertTrue(se.status.getMessage().startsWith(statusText));
         }
         else if (type == TYPE_WARNING) {
-            assertEquals(0, handler.getPullStatusErrors().size());
             TestHandler.StatusEvent se = handler.getPullStatusWarnings().get(0);
             assertTrue(se.status.getMessage().startsWith(statusText));
+            assertEquals(0, handler.getPullStatusErrors().size());
         }
         else {
             assertEquals(0, handler.getPullStatusWarnings().size());
@@ -824,7 +821,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testExceedsMaxRequestBytesNthMessage() throws Exception {
-        PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
         TestHandler handler = new TestHandler();
         AtomicBoolean skip = new AtomicBoolean(false);
         runInJsServer(handler, nc -> {
@@ -836,6 +832,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
             jsm.addOrUpdateConsumer(STREAM, builder().durable(durable(1)).build());
+            PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
 
             // subject 7 + reply 52 + bytes 100 = 159
@@ -858,7 +855,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testExceedsMaxRequestBytesExactBytes() throws Exception {
-        PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
         TestHandler handler = new TestHandler();
         AtomicBoolean skip = new AtomicBoolean(false);
         runInJsServer(handler, nc -> {
@@ -870,6 +866,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
             jsm.addOrUpdateConsumer(STREAM, builder().durable(durable(1)).build());
+            PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
 
             // 159 + 180 + 661 = 1000

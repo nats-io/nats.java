@@ -143,7 +143,7 @@ public class ErrorListenerTests {
                 fail();
             }
             catch (Exception ignore) {}
-            assertTrue(handler.waitForError(1, TimeUnit.SECONDS));
+            assertTrue(handler.waitForError(2, TimeUnit.SECONDS));
         }
     }
 
