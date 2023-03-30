@@ -55,6 +55,7 @@ public class Options {
     // BUILD CONSTRUCTOR PROPS * update build props constructor to read new props
     // BUILDER METHODS * add a chainable method in builder for new variable
     // BUILD IMPL * update build() implementation if needed
+    // BUILDER COPY CONSTRUCTOR * update builder constructor to ensure new variables are set
     // CONSTRUCTOR * update constructor to ensure new variables are set from builder
     // GETTERS * update getter to be able to retrieve class variable value
     // ----------------------------------------------------------------------------------------------------
@@ -204,7 +205,6 @@ public class Options {
      * This value is used internally to limit the number of messages sent in a single network I/O.
      * The value returned by {@link #getBufferSize() getBufferSize()} is used first, but if the buffer
      * size is large and the message sizes are small, this limit comes into play.
-     * 
      * The choice of 1000 is arbitrary and based on testing across several operating systems. Use buffer
      * size for tuning.
      */
@@ -213,11 +213,9 @@ public class Options {
     /**
      * This value is used internally to limit the number of messages allowed in the outgoing queue. When
      * this limit is reached, publish requests will be blocked until the queue can clear.
-     * 
      * Because this value is in messages, the memory size associated with this value depends on the actual
      * size of messages. If 0 byte messages are used, then DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE will take up the minimal
      * space. If 1024 byte messages are used then approximately 5Mb is used for the queue (plus overhead for subjects, etc..)
-     * 
      * We are using messages, not bytes, to allow a simplification in the underlying library, and use LinkedBlockingQueue as
      * the core element in the queue.
      */
@@ -356,7 +354,6 @@ public class Options {
     /**
      * Property used to configure a builder from a Properties object. {@value},
      *  see {@link Builder#sslContext(SSLContext) sslContext}.
-     * 
      * This property is a boolean flag, but it tells the options parser to use the
      * default SSL context. Set the default context before creating the options.
      */
@@ -365,8 +362,7 @@ public class Options {
     /**
      * Property used to configure a builder from a Properties object. 
      * {@value}, see {@link Builder#sslContext(SSLContext) sslContext}.
-     * 
-     * This property is a boolean flag, but it tells the options parser to use the
+     * This property is a boolean flag, but it tells the options parser to use
      * an SSL context that takes any server TLS certificate and does not provide
      * its own. The server must have tls_verify turned OFF for this option to work.
      */
@@ -500,7 +496,6 @@ public class Options {
     /**
      * Property used to set class name for ServerPool implementation
      * {@link Builder#serverPool(ServerPool) serverPool}.
-     *
      * IMPORTANT! ServerPool IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
      */
     public static final String PROP_SERVERS_POOL_IMPLEMENTATION_CLASS = "servers_pool_implementation_class";
@@ -601,7 +596,7 @@ public class Options {
         // ----------------------------------------------------------------------------------------------------
         // BUILDER VARIABLES
         // ----------------------------------------------------------------------------------------------------
-        private final List<NatsUri> natsUris = new ArrayList<>();
+        private final List<NatsUri> natsServerUris = new ArrayList<>();
         private final List<String> unprocessedServers = new ArrayList<>();
         private boolean noRandomize = false;
         private boolean noResolveHostnames = false;
@@ -664,8 +659,7 @@ public class Options {
          * Constructs a new {@code Builder} from a {@link Properties} object.
          * 
          * <p>If {@link Options#PROP_SECURE PROP_SECURE} is set, the builder will
-         * try to to get the default context{@link SSLContext#getDefault() getDefault()}.
-         * 
+         * try to get the default context{@link SSLContext#getDefault() getDefault()}.
          * If a context can't be found, no context is set and an IllegalArgumentException is thrown.
          * 
          * <p>Methods called on the builder after construction can override the properties.
@@ -900,8 +894,8 @@ public class Options {
                     try {
                         String unprocessed = s.trim();
                         NatsUri nuri = new NatsUri(unprocessed);
-                        if (!natsUris.contains(nuri)) {
-                            natsUris.add(nuri);
+                        if (!natsServerUris.contains(nuri)) {
+                            natsServerUris.add(nuri);
                             unprocessedServers.add(unprocessed);
                         }
                     }
@@ -1054,8 +1048,8 @@ public class Options {
         }
 
         /**
-         * Enable connection trace messages. Messages are printed to standard out. This options is for very fine
-         * grained debugging of connection issues.
+         * Enable connection trace messages. Messages are printed to standard out. This option is for very
+         * fine-grained debugging of connection issues.
          * @return the Builder for chaining
          */
         public Builder traceConnection() {
@@ -1204,7 +1198,6 @@ public class Options {
          * and capped by {@link #maxPingsOut(int) maxPingsOut()}. As of 2.4.4 the library
          * may way up to 2 * time to send a ping. Incoming traffic from the server can postpone
          * the next ping to avoid pings taking up bandwidth during busy messaging.
-         * 
          * Keep in mind that a ping requires a round trip to the server. Setting this value to a small
          * number can result in quick failures due to maxPingsOut being reached, these failures will
          * force a disconnect/reconnect which can result in messages being held back or failed. In general,
@@ -1259,7 +1252,6 @@ public class Options {
          * Set the maximum number of bytes to buffer in the client when trying to
          * reconnect. When this value is exceeded the client will start to drop messages.
          * The count of dropped messages can be read from the {@link Statistics#getDroppedCount() Statistics}.
-         * 
          * A value of zero will disable the reconnect buffer, a value less than zero means unlimited. Caution
          * should be used for negative numbers as they can result in an unreliable network connection plus a
          * high message rate leading to an out of memory error.
@@ -1274,13 +1266,11 @@ public class Options {
 
         /**
          * Set the username and password for basic authentication.
-         * 
          * If the user and password are set in the server URL, they will override these values. However, in a clustering situation,
          * these values can be used as a fallback.
-         *
          * use the char[] version instead for better security
          *
-         * @param userName a non-empty user name
+         * @param userName a non-empty userName
          * @param password the password, in plain text
          * @return the Builder for chaining
          */
@@ -1292,11 +1282,10 @@ public class Options {
 
         /**
          * Set the username and password for basic authentication.
-         * 
          * If the user and password are set in the server URL, they will override these values. However, in a clustering situation,
          * these values can be used as a fallback.
          * 
-         * @param userName a non-empty user name
+         * @param userName a non-empty userName
          * @param password the password, in plain text
          * @return the Builder for chaining
          */
@@ -1308,7 +1297,6 @@ public class Options {
 
         /**
          * Set the token for token-based authentication.
-         * 
          * If a token is provided in a server URI it overrides this value.
          * 
          * @param token The token
@@ -1323,7 +1311,6 @@ public class Options {
 
         /**
          * Set the token for token-based authentication.
-         * 
          * If a token is provided in a server URI it overrides this value.
          * 
          * @param token The token
@@ -1385,10 +1372,9 @@ public class Options {
          * Set the {@link ExecutorService ExecutorService} used to run threaded tasks. The default is a
          * cached thread pool that names threads after the connection name (or a default). This executor
          * is used for reading and writing the underlying sockets as well as for each Dispatcher.
-         * 
          * The default executor uses a short keepalive time, 500ms, to insure quick shutdowns. This is reasonable
-         * since most threads from the executor are long lived. If you customize, be sure to keep the shutdown
-         * effect in mind, exectors can block for their keepalive time. The default executor also marks threads
+         * since most threads from the executor are long-lived. If you customize, be sure to keep the shutdown
+         * effect in mind, executors can block for their keepalive time. The default executor also marks threads
          * with priority normal and as non-daemon.
          * 
          * @param executor The ExecutorService to use for connections built with these options.
@@ -1514,12 +1500,12 @@ public class Options {
                 throw new IllegalStateException("Options can't have token and username");
             }
             
-            if (natsUris.size() == 0) {
+            if (natsServerUris.size() == 0) {
                 server(DEFAULT_URL);
             }
             else if (sslContext == null) { // see if we need to provide one
-                for (int i = 0; sslContext == null && i < natsUris.size(); i++) {
-                    NatsUri natsUri = natsUris.get(i);
+                for (int i = 0; sslContext == null && i < natsServerUris.size(); i++) {
+                    NatsUri natsUri = natsServerUris.get(i);
                     switch (natsUri.getScheme()) {
                         case TLS_PROTOCOL:
                         case SECURE_WEBSOCKET_PROTOCOL:
@@ -1545,16 +1531,75 @@ public class Options {
             }
             return new Options(this);
         }
+
+        // ----------------------------------------------------------------------------------------------------
+        // BUILDER COPY CONSTRUCTOR
+        // ----------------------------------------------------------------------------------------------------
+        public Builder(Options o) {
+            if (o == null) {
+                throw new IllegalArgumentException("Options cannot be null");
+            }
+
+            this.natsServerUris.addAll(o.natsServerUris);
+            this.unprocessedServers.addAll(o.unprocessedServers);
+            this.noRandomize = o.noRandomize;
+            this.noResolveHostnames = o.noResolveHostnames;
+            this.connectionName = o.connectionName;
+            this.verbose = o.verbose;
+            this.pedantic = o.pedantic;
+            this.sslContext = o.sslContext;
+            this.maxReconnect = o.maxReconnect;
+            this.reconnectWait = o.reconnectWait;
+            this.reconnectJitter = o.reconnectJitter;
+            this.reconnectJitterTls = o.reconnectJitterTls;
+            this.connectionTimeout = o.connectionTimeout;
+            this.pingInterval = o.pingInterval;
+            this.requestCleanupInterval = o.requestCleanupInterval;
+            this.maxPingsOut = o.maxPingsOut;
+            this.reconnectBufferSize = o.reconnectBufferSize;
+            this.username = o.username;
+            this.password = o.password;
+            this.token = o.token;
+            this.useOldRequestStyle = o.useOldRequestStyle;
+            this.maxControlLine = o.maxControlLine;
+            this.bufferSize = o.bufferSize;
+            this.noEcho = o.noEcho;
+            this.noHeaders = o.noHeaders;
+            this.noNoResponders = o.noNoResponders;
+            this.clientSideLimitChecks = o.clientSideLimitChecks;
+            this.utf8Support = o.utf8Support;
+            this.inboxPrefix = o.inboxPrefix;
+            this.traceConnection = o.traceConnection;
+            this.maxMessagesInOutgoingQueue = o.maxMessagesInOutgoingQueue;
+            this.discardMessagesWhenOutgoingQueueFull = o.discardMessagesWhenOutgoingQueueFull;
+
+            this.authHandler = o.authHandler;
+            this.reconnectDelayHandler = o.reconnectDelayHandler;
+
+            this.errorListener = o.errorListener;
+            this.connectionListener = o.connectionListener;
+            this.dataPortType = o.dataPortType;
+            this.trackAdvancedStats = o.trackAdvancedStats;
+            this.executor = o.executor;
+            this.httpRequestInterceptors = o.httpRequestInterceptors;
+            this.proxy = o.proxy;
+
+            this.ignoreDiscoveredServers = o.ignoreDiscoveredServers;
+
+            this.serverPool = o.serverPool;
+        }
     }
 
     // ----------------------------------------------------------------------------------------------------
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------------------------------
     private Options(Builder b) {
-        if (b.natsUris.size() == 0) {
-            b.natsUris.add(DEFAULT_NATS_URI);
+        if (b.natsServerUris.size() == 0) {
+            this.natsServerUris = Collections.singletonList(DEFAULT_NATS_URI);
         }
-        this.natsServerUris = Collections.unmodifiableList(b.natsUris);
+        else {
+            this.natsServerUris = Collections.unmodifiableList(b.natsServerUris);
+        }
         this.unprocessedServers = b.unprocessedServers;  // exactly how the user gave them
         this.noRandomize = b.noRandomize;
         this.noResolveHostnames = b.noResolveHostnames;
@@ -1755,7 +1800,7 @@ public class Options {
     }
 
     /**
-     * @return clientSideLimitChecks flag, see {@link Builder#clientSideLimitChecks() clientSideLimitChecks()} in the builder doc
+     * @return clientSideLimitChecks flag
      */
     public boolean clientSideLimitChecks() {
         return clientSideLimitChecks;
