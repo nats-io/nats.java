@@ -24,14 +24,12 @@ import static io.nats.client.support.Status.*;
 
 class PullMessageManager extends MessageManager {
 
-    protected final Object pendingLock;
     protected long pendingMessages;
     protected long pendingBytes;
     protected boolean trackingBytes;
 
     protected PullMessageManager(NatsConnection conn, boolean syncMode) {
         super(conn, syncMode);
-        pendingLock = new Object();
         trackingBytes = false;
         pendingMessages = 0;
         pendingBytes = 0;
@@ -45,22 +43,22 @@ class PullMessageManager extends MessageManager {
 
     @Override
     protected void startPullRequest(PullRequestOptions pro) {
-        synchronized (pendingLock) {
+        synchronized (stateChangeLock) {
             pendingMessages += pro.getBatchSize();
             pendingBytes += pro.getMaxBytes();
             trackingBytes = (pendingBytes > 0);
-        }
-        configureIdleHeartbeat(pro.getIdleHeartbeat(), -1);
-        if (hb) {
-            initOrResetHeartbeatTimer();
-        }
-        else {
-            shutdownHeartbeatTimer();
+            configureIdleHeartbeat(pro.getIdleHeartbeat(), -1);
+            if (hb) {
+                initOrResetHeartbeatTimer();
+            }
+            else {
+                shutdownHeartbeatTimer();
+            }
         }
     }
 
     private void trackPending(long m, long b) {
-        synchronized (pendingLock) {
+        synchronized (stateChangeLock) {
             pendingMessages -= m;
             pendingBytes -= b;
             if (pendingMessages < 1 || (trackingBytes && pendingBytes < 1)) {

@@ -23,10 +23,11 @@ import java.util.TimerTask;
 abstract class MessageManager {
     protected static final int THRESHOLD = 3;
 
+    protected final Object stateChangeLock;
     protected final NatsConnection conn;
     protected final boolean syncMode;
 
-    protected NatsJetStreamSubscription sub;
+    protected NatsJetStreamSubscription sub; // not final it is not set until after construction
 
     protected long lastStreamSeq;
     protected long lastConsumerSeq;
@@ -36,11 +37,12 @@ abstract class MessageManager {
     protected boolean hb;
     protected long idleHeartbeatSetting;
     protected long alarmPeriodSetting;
-
     protected TimerTask heartbeatTimerTask;
     protected Timer heartbeatTimer;
 
     protected MessageManager(NatsConnection conn, boolean syncMode) {
+        stateChangeLock = new Object();
+
         this.conn = conn;
         this.syncMode = syncMode;
         lastStreamSeq = 0;
@@ -50,7 +52,7 @@ abstract class MessageManager {
         idleHeartbeatSetting = 0;
         alarmPeriodSetting = 0;
 
-        messageReceived(); // initializes lastMsgReceived;
+        lastMsgReceived = System.currentTimeMillis();
     }
 
     protected boolean isSyncMode()           { return syncMode; }
@@ -74,7 +76,9 @@ abstract class MessageManager {
     }
 
     protected void messageReceived() {
-        lastMsgReceived = System.currentTimeMillis();
+        synchronized (stateChangeLock) {
+            lastMsgReceived = System.currentTimeMillis();
+        }
     }
 
     protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
@@ -84,9 +88,11 @@ abstract class MessageManager {
     abstract protected boolean manage(Message msg);
 
     protected void trackJsMessage(Message msg) {
-        NatsJetStreamMetaData meta = msg.metaData();
-        lastStreamSeq = meta.streamSequence();
-        lastConsumerSeq++;
+        synchronized (stateChangeLock) {
+            NatsJetStreamMetaData meta = msg.metaData();
+            lastStreamSeq = meta.streamSequence();
+            lastConsumerSeq++;
+        }
     }
 
     protected void handleHeartbeatError() {
@@ -94,45 +100,47 @@ abstract class MessageManager {
     }
 
     protected void configureIdleHeartbeat(Duration configIdleHeartbeat, long configMessageAlarmTime) {
-        idleHeartbeatSetting = configIdleHeartbeat == null ? 0 : configIdleHeartbeat.toMillis();
-        if (idleHeartbeatSetting <= 0) {
-            alarmPeriodSetting = 0;
-            hb = false;
-        }
-        else {
-            if (configMessageAlarmTime < idleHeartbeatSetting) {
-                alarmPeriodSetting = idleHeartbeatSetting * THRESHOLD;
+        synchronized (stateChangeLock) {
+            idleHeartbeatSetting = configIdleHeartbeat == null ? 0 : configIdleHeartbeat.toMillis();
+            if (idleHeartbeatSetting <= 0) {
+                alarmPeriodSetting = 0;
+                hb = false;
             }
             else {
-                alarmPeriodSetting = configMessageAlarmTime;
+                if (configMessageAlarmTime < idleHeartbeatSetting) {
+                    alarmPeriodSetting = idleHeartbeatSetting * THRESHOLD;
+                }
+                else {
+                    alarmPeriodSetting = configMessageAlarmTime;
+                }
+                hb = true;
             }
-            hb = true;
         }
     }
 
-    synchronized protected void initOrResetHeartbeatTimer() {
-        shutdownHeartbeatTimer();
-        heartbeatTimer = new Timer();
-        heartbeatTimerTask = new TimerTask() {
-            @Override
-            public void run() {
-                long sinceLast = System.currentTimeMillis() - lastMsgReceived;
-                if (sinceLast > alarmPeriodSetting) {
-                    handleHeartbeatError();
+    protected void initOrResetHeartbeatTimer() {
+        synchronized (stateChangeLock) {
+            shutdownHeartbeatTimer();
+            heartbeatTimer = new Timer();
+            heartbeatTimerTask = new TimerTask() {
+                @Override
+                public void run() {
+                    long sinceLast = System.currentTimeMillis() - lastMsgReceived;
+                    if (sinceLast > alarmPeriodSetting) {
+                        handleHeartbeatError();
+                    }
                 }
+            };
+            heartbeatTimer.schedule(heartbeatTimerTask, alarmPeriodSetting, alarmPeriodSetting);
+        }
+    }
+
+    protected void shutdownHeartbeatTimer() {
+        synchronized (stateChangeLock) {
+            if (heartbeatTimer != null) {
+                heartbeatTimer.cancel();
+                heartbeatTimer = null;
             }
-        };
-        scheduleHeartbeatTimerTask();
-    }
-
-    synchronized private void scheduleHeartbeatTimerTask() {
-        heartbeatTimer.schedule(heartbeatTimerTask, alarmPeriodSetting, alarmPeriodSetting);
-    }
-
-    synchronized protected void shutdownHeartbeatTimer() {
-        if (heartbeatTimer != null) {
-            heartbeatTimer.cancel();
-            heartbeatTimer = null;
         }
     }
 }
