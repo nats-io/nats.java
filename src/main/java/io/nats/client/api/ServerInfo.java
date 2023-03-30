@@ -148,28 +148,42 @@ public class ServerInfo {
         return cluster;
     }
 
-    private String getComparableVersion(String vString) {
-        try {
-            String[] v = vString.replaceAll("v", "").replaceAll("-", ".").split("\\Q.\\E");
-            return padded(v[0]) + padded(v[1]) + padded(v[2]) + normalExtra(vString);
-        }
-        catch (NumberFormatException nfe) {
-            return "";
-        }
-    }
+    class Version implements Comparable<Version> {
+        Integer major;
+        Integer minor;
+        Integer patch;
+        String extra;
 
-    private static String padded(String vcomp) {
-        int x = Integer.parseInt(vcomp);
-        if (x < 10) {
-            return "000" + x;
+        Version(String v) {
+            try {
+                String[] split = v.replaceAll("v", "").replaceAll("-", ".").split("\\Q.\\E");
+                major = Integer.parseInt(split[0]);
+                minor = Integer.parseInt(split[1]);
+                patch = Integer.parseInt(split[2]);
+                extra = split.length == 3 ? "zzzzz" : split[3];
+            }
+            catch (NumberFormatException nfe) {
+                major = 0;
+                minor = 0;
+                patch = 0;
+                extra = "";
+            }
         }
-        if (x < 100) {
-            return "00" + x;
+
+        @Override
+        public int compareTo(Version o) {
+            int c = major.compareTo(o.major);
+            if (c == 0) {
+                c = minor.compareTo(o.minor);
+                if (c == 0) {
+                    c = patch.compareTo(o.patch);
+                    if (c == 0) {
+                        c = extra.compareTo(o.extra);
+                    }
+                }
+            }
+            return c;
         }
-        if (x < 1000) {
-            return "0" + x;
-        }
-        return "" + x;
     }
 
     private static String normalExtra(String vString) {
@@ -178,23 +192,23 @@ public class ServerInfo {
     }
 
     public boolean isNewerVersionThan(String vTarget) {
-        return getComparableVersion(version).compareTo(getComparableVersion(vTarget)) > 0;
+        return new Version(version).compareTo(new Version(vTarget)) > 0;
     }
 
     public boolean isSameVersion(String vTarget) {
-        return getComparableVersion(version).compareTo(getComparableVersion(vTarget)) == 0;
+        return new Version(version).compareTo(new Version(vTarget)) == 0;
     }
 
     public boolean isOlderThanVersion(String vTarget) {
-        return getComparableVersion(version).compareTo(getComparableVersion(vTarget)) < 0;
+        return new Version(version).compareTo(new Version(vTarget)) < 0;
     }
 
     public boolean isSameOrOlderThanVersion(String vTarget) {
-        return getComparableVersion(version).compareTo(getComparableVersion(vTarget)) <= 0;
+        return new Version(version).compareTo(new Version(vTarget)) <= 0;
     }
 
     public boolean isSameOrNewerThanVersion(String vTarget) {
-        return getComparableVersion(version).compareTo(getComparableVersion(vTarget)) >= 0;
+        return new Version(version).compareTo(new Version(vTarget)) >= 0;
     }
 
     @Override

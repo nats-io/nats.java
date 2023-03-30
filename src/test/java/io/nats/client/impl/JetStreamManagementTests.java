@@ -100,8 +100,13 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             StreamInfo si = jsm.addStream(sc);
             assertNotNull(si.getConfiguration());
             sc = si.getConfiguration();
-            assertEquals(1, sc.getMetadata().size());
-            assertEquals("meta-bar", sc.getMetadata().get("meta-foo"));
+            if (nc.getServerInfo().isNewerVersionThan("2.9.99")) {
+                assertEquals(1, sc.getMetadata().size());
+                assertEquals("meta-bar", sc.getMetadata().get("meta-foo"));
+            }
+            else {
+                assertNull(sc.getMetadata());
+            }
         });
     }
 
@@ -822,8 +827,13 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 .build();
 
             ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
-            assertEquals(1, ci.getConsumerConfiguration().getMetadata().size());
-            assertEquals("meta-bar", ci.getConsumerConfiguration().getMetadata().get("meta-foo"));
+            if (nc.getServerInfo().isNewerVersionThan("2.9.99")) {
+                assertEquals(1, ci.getConsumerConfiguration().getMetadata().size());
+                assertEquals("meta-bar", ci.getConsumerConfiguration().getMetadata().get("meta-foo"));
+            }
+            else {
+                assertNull(ci.getConsumerConfiguration().getMetadata());
+            }
         });
     }
 
