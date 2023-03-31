@@ -41,10 +41,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             StreamConfiguration sc = StreamConfiguration.builder()
-                    .name(STREAM)
-                    .storageType(StorageType.Memory)
-                    .subjects(subject(0), subject(1))
-                    .build();
+                .name(STREAM)
+                .storageType(StorageType.Memory)
+                .subjects(subject(0), subject(1))
+                .build();
 
             StreamInfo si = jsm.addStream(sc);
             assertNotNull(si.getStreamState().toString()); // coverage
@@ -81,6 +81,32 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(0, ss.getFirstSequence());
             assertEquals(0, ss.getLastSequence());
             assertEquals(0, ss.getConsumerCount());
+        });
+    }
+
+    @Test
+    public void testStreamMetadata() throws Exception {
+        runInJsServer(nc -> {
+            Map<String, String> metaData = new HashMap<>(); metaData.put("meta-foo", "meta-bar");
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            StreamConfiguration sc = StreamConfiguration.builder()
+                .name(STREAM)
+                .storageType(StorageType.Memory)
+                .subjects(subject(0), subject(1))
+                .metadata(metaData)
+                .build();
+
+            StreamInfo si = jsm.addStream(sc);
+            assertNotNull(si.getConfiguration());
+            sc = si.getConfiguration();
+            if (nc.getServerInfo().isNewerVersionThan("2.9.99")) {
+                assertEquals(1, sc.getMetadata().size());
+                assertEquals("meta-bar", sc.getMetadata().get("meta-foo"));
+            }
+            else {
+                assertNull(sc.getMetadata());
+            }
         });
     }
 
@@ -786,6 +812,29 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         List<String> consumers = jsm.getConsumerNames(STREAM);
         assertEquals(1, consumers.size());
         assertEquals(cc.getDurable(), consumers.get(0));
+    }
+
+    @Test
+    public void testConsumerMetadata() throws Exception {
+        runInJsServer(nc -> {
+            Map<String, String> metaData = new HashMap<>(); metaData.put("meta-foo", "meta-bar");
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            createDefaultTestStream(jsm);
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                .durable(DURABLE)
+                .metadata(metaData)
+                .build();
+
+            ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
+            if (nc.getServerInfo().isNewerVersionThan("2.9.99")) {
+                assertEquals(1, ci.getConsumerConfiguration().getMetadata().size());
+                assertEquals("meta-bar", ci.getConsumerConfiguration().getMetadata().get("meta-foo"));
+            }
+            else {
+                assertNull(ci.getConsumerConfiguration().getMetadata());
+            }
+        });
     }
 
     @Test

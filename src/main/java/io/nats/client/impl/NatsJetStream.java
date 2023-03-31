@@ -476,6 +476,15 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
             if (numReplicas != null && !numReplicas.equals(serverCcc.numReplicas)) { changes.add("numReplicas"); };
 
+            if (metadata == null) {
+                if (serverCcc.metadata != null) {
+                    changes.add("metadata");
+                }
+            }
+            else if (!metadata.equals(serverCcc.metadata)) {
+                changes.add("metadata");
+            }
+
             // do not need to check Durable because the original is retrieved by the durable name
 
             return changes;
