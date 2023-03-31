@@ -16,6 +16,7 @@ package io.nats.client.api;
 import io.nats.client.support.JsonParseException;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
+import io.nats.client.support.Version;
 
 import java.util.Arrays;
 import java.util.List;
@@ -148,67 +149,24 @@ public class ServerInfo {
         return cluster;
     }
 
-    static class Version implements Comparable<Version> {
-        Integer major;
-        Integer minor;
-        Integer patch;
-        String extra;
-
-        Version(String v) {
-            try {
-                String[] split = v.replaceAll("v", "").replaceAll("-", ".").split("\\Q.\\E");
-                major = Integer.parseInt(split[0]);
-                minor = Integer.parseInt(split[1]);
-                patch = Integer.parseInt(split[2]);
-                extra = split.length == 3 ? "zzzzz" : split[3];
-            }
-            catch (NumberFormatException nfe) {
-                major = 0;
-                minor = 0;
-                patch = 0;
-                extra = "";
-            }
-        }
-
-        @Override
-        public int compareTo(Version o) {
-            int c = major.compareTo(o.major);
-            if (c == 0) {
-                c = minor.compareTo(o.minor);
-                if (c == 0) {
-                    c = patch.compareTo(o.patch);
-                    if (c == 0) {
-                        c = extra.compareTo(o.extra);
-                    }
-                }
-            }
-            return c;
-        }
-    }
-
-    private static String normalExtra(String vString) {
-        int at = vString.indexOf("-");
-        return at == -1 ? "~" : vString.substring(at).toLowerCase();
-    }
-
     public boolean isNewerVersionThan(String vTarget) {
-        return new Version(version).compareTo(new Version(vTarget)) > 0;
+        return Version.isNewer(version, vTarget);
     }
 
     public boolean isSameVersion(String vTarget) {
-        return new Version(version).compareTo(new Version(vTarget)) == 0;
+        return Version.isSame(version, vTarget);
     }
 
     public boolean isOlderThanVersion(String vTarget) {
-        return new Version(version).compareTo(new Version(vTarget)) < 0;
+        return Version.isOlder(version, vTarget);
     }
 
     public boolean isSameOrOlderThanVersion(String vTarget) {
-        return new Version(version).compareTo(new Version(vTarget)) <= 0;
+        return Version.isSameOrOlder(version, vTarget);
     }
 
     public boolean isSameOrNewerThanVersion(String vTarget) {
-        return new Version(version).compareTo(new Version(vTarget)) >= 0;
+        return Version.isSameOrNewer(version, vTarget);
     }
 
     @Override
