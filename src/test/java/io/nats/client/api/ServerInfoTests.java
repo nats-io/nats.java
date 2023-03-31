@@ -13,6 +13,7 @@
 
 package io.nats.client.api;
 
+import io.nats.client.support.ServerVersion;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
@@ -58,17 +59,17 @@ public class ServerInfoTests {
     @Test
     public void testServerVersionComparisonsWork() {
         ServerInfo si234 = new ServerInfo(json.replace("1.2.3", "2.3.4"));
-        ServerInfo si235AlphaDot1 = new ServerInfo(json.replace("1.2.3", "2.3.5-alpha.1"));
-        ServerInfo si235AlphaDash2 = new ServerInfo(json.replace("1.2.3", "2.3.5-alpha-2"));
-        ServerInfo si235BetaDot1 = new ServerInfo(json.replace("1.2.3", "2.3.5-beta.1"));
-        ServerInfo si235BetaDash2 = new ServerInfo(json.replace("1.2.3", "2.3.5-beta-2"));
+        ServerInfo si235A1 = new ServerInfo(json.replace("1.2.3", "2.3.5-alpha.1"));
+        ServerInfo si235A2 = new ServerInfo(json.replace("1.2.3", "2.3.5-alpha-2"));
+        ServerInfo si235B1 = new ServerInfo(json.replace("1.2.3", "v2.3.5-beta.1"));
+        ServerInfo si235B2 = new ServerInfo(json.replace("1.2.3", "v2.3.5-beta-2"));
         ServerInfo si235 = new ServerInfo(json.replace("1.2.3", "2.3.5"));
 
-        ServerInfo[] infos = new ServerInfo[]{si234, si235AlphaDot1, si235AlphaDash2, si235BetaDot1, si235BetaDash2, si235};
+        ServerInfo[] infos = new ServerInfo[]{si234, si235A1, si235A2, si235B1, si235B2, si235};
         for (int i = 0; i < infos.length; i++) {
             ServerInfo si = infos[i];
             for (int j = 0; j < infos.length; j++) {
-                String v2 = infos[j].getVersion();
+                String v2 = new ServerVersion(infos[j].getVersion()).toString();
                 if (i == j) {
                     assertTrue(si.isSameVersion(v2));
                     assertTrue(si.isSameOrOlderThanVersion(v2));

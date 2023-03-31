@@ -16,7 +16,7 @@ package io.nats.client.api;
 import io.nats.client.support.JsonParseException;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
-import io.nats.client.support.Version;
+import io.nats.client.support.ServerVersion;
 
 import java.util.Arrays;
 import java.util.List;
@@ -150,23 +150,23 @@ public class ServerInfo {
     }
 
     public boolean isNewerVersionThan(String vTarget) {
-        return Version.isNewer(version, vTarget);
+        return ServerVersion.isNewer(version, vTarget);
     }
 
     public boolean isSameVersion(String vTarget) {
-        return Version.isSame(version, vTarget);
+        return ServerVersion.isSame(version, vTarget);
     }
 
     public boolean isOlderThanVersion(String vTarget) {
-        return Version.isOlder(version, vTarget);
+        return ServerVersion.isOlder(version, vTarget);
     }
 
     public boolean isSameOrOlderThanVersion(String vTarget) {
-        return Version.isSameOrOlder(version, vTarget);
+        return ServerVersion.isSameOrOlder(version, vTarget);
     }
 
     public boolean isSameOrNewerThanVersion(String vTarget) {
-        return Version.isSameOrNewer(version, vTarget);
+        return ServerVersion.isSameOrNewer(version, vTarget);
     }
 
     @Override
