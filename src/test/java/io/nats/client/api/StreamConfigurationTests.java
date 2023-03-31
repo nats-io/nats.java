@@ -394,9 +394,6 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals("dest.>", sc.getRepublish().getDestination());
         assertTrue(sc.getRepublish().isHeadersOnly());
 
-        assertEquals(1, sc.getMetadata().size());
-        assertEquals("meta-bar", sc.getMetadata().get("meta-foo"));
-
         ZonedDateTime zdt = DateTimeUtils.parseDateTime("2020-11-05T19:33:21.163377Z");
 
         if (serverTest) {
@@ -428,6 +425,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
             validateSource(sc.getSources().get(0), "s0", 737, "s0sub", "s0api", "s0dlvrsub", zdt);
             validateSource(sc.getSources().get(1), "s1", 738, "s1sub", "s1api", "s1dlvrsub", zdt);
+
+            assertEquals(1, sc.getMetadata().size());
+            assertEquals("meta-bar", sc.getMetadata().get("meta-foo"));
         }
     }
 
