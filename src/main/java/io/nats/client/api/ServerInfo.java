@@ -148,7 +148,7 @@ public class ServerInfo {
         return cluster;
     }
 
-    class Version implements Comparable<Version> {
+    static class Version implements Comparable<Version> {
         Integer major;
         Integer minor;
         Integer patch;
