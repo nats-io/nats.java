@@ -1123,7 +1123,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder metadata(Map<String, String> metadata) {
-            this.metadata = metadata;
+            this.metadata = metadata == null || metadata.size() == 0 ? null : metadata;
             return this;
         }
 

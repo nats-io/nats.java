@@ -394,6 +394,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals("dest.>", sc.getRepublish().getDestination());
         assertTrue(sc.getRepublish().isHeadersOnly());
 
+        assertEquals(1, sc.getMetadata().size());
+        assertEquals("meta-bar", sc.getMetadata().get("meta-foo"));
+
         ZonedDateTime zdt = DateTimeUtils.parseDateTime("2020-11-05T19:33:21.163377Z");
 
         if (serverTest) {

@@ -34,7 +34,7 @@ public class ConsumerConfigurationTests extends TestBase {
     @Test
     public void testBuilder() {
         ZonedDateTime zdt = ZonedDateTime.of(2012, 1, 12, 6, 30, 1, 500, DateTimeUtils.ZONE_ID_GMT);
-        Map<String, String> metaData = new HashMap<>(); metaData.put("meta-foo", "meta-bar");
+        Map<String, String> metadata = new HashMap<>(); metadata.put("meta-foo", "meta-bar");
 
         ConsumerConfiguration c = ConsumerConfiguration.builder()
             .ackPolicy(AckPolicy.Explicit)
@@ -62,7 +62,7 @@ public class ConsumerConfigurationTests extends TestBase {
             .headersOnly(true)
             .memStorage(true)
             .backoff(1000, 2000, 3000)
-            .metadata(metaData)
+            .metadata(metadata)
             .build();
 
         assertAsBuilt(c, zdt);
@@ -328,6 +328,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(0, c.getBackoff().size());
     }
 
+    @SuppressWarnings("ObviousNullCheck")
     @Test
     public void testUtilityMethods() {
         assertEquals(1, ConsumerConfiguration.getOrUnset(1));
