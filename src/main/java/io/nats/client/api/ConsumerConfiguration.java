@@ -23,7 +23,9 @@ import io.nats.client.support.JsonValue;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
@@ -86,6 +88,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final Boolean headersOnly;
     protected final Boolean memStorage;
     protected final List<Duration> backoff;
+    protected final Map<String, String> metadata;
 
     protected ConsumerConfiguration(ConsumerConfiguration cc) {
         this.deliverPolicy = cc.deliverPolicy;
@@ -115,6 +118,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.headersOnly = cc.headersOnly;
         this.memStorage = cc.memStorage;
         this.backoff = new ArrayList<>(cc.backoff);
+        this.metadata = cc.metadata == null ? null : new HashMap<>(cc.metadata);
     }
 
     ConsumerConfiguration(JsonValue v) {
@@ -150,6 +154,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         memStorage = readBoolean(v, MEM_STORAGE, null);
 
         backoff = readNanosList(v, BACKOFF);
+        metadata = readStringStringMap(v, METADATA);
     }
 
     // For the builder
@@ -186,6 +191,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.memStorage = b.memStorage;
 
         this.backoff = b.backoff;
+        this.metadata = b.metadata;
     }
 
     /**
@@ -222,6 +228,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addDurations(sb, BACKOFF, backoff);
         JsonUtils.addField(sb, NUM_REPLICAS, numReplicas);
         JsonUtils.addField(sb, MEM_STORAGE, memStorage);
+        JsonUtils.addField(sb, METADATA, metadata);
         return endJson(sb).toString();
     }
 
@@ -437,6 +444,14 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
+     * Metadata for the consumer
+     * @return the metadata map. Might be null.
+     */
+    public Map<String, String> getMetadata() {
+        return metadata;
+    }
+
+    /**
      * Get the number of consumer replicas.
      * @return the replicas count
      */
@@ -610,7 +625,8 @@ public class ConsumerConfiguration implements JsonSerializable {
         private Boolean headersOnly;
         private Boolean memStorage;
 
-        private List<Duration> backoff = new ArrayList<>();
+        private final List<Duration> backoff = new ArrayList<>();
+        private Map<String, String> metadata;
 
         public Builder() {}
 
@@ -647,7 +663,10 @@ public class ConsumerConfiguration implements JsonSerializable {
                 this.headersOnly = cc.headersOnly;
                 this.memStorage = cc.memStorage;
 
-                this.backoff = new ArrayList<>(cc.backoff);
+                this.backoff.addAll(cc.backoff);
+                if (cc.metadata != null) {
+                     this.metadata = new HashMap<>(cc.metadata);
+                }
             }
         }
 
@@ -1099,6 +1118,16 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
+         * Sets the metadata for the configuration
+         * @param metadata the metadata map
+         * @return Builder
+         */
+        public Builder metadata(Map<String, String> metadata) {
+            this.metadata = metadata == null || metadata.size() == 0 ? null : metadata;
+            return this;
+        }
+
+        /**
          * Builds the ConsumerConfiguration
          * @return The consumer configuration.
          */
@@ -1154,6 +1183,7 @@ public class ConsumerConfiguration implements JsonSerializable {
             ", memStorage=" + memStorage +
             ", inactiveThreshold=" + inactiveThreshold +
             ", backoff=" + backoff +
+            ", metadata=" + metadata +
             '}';
     }
 

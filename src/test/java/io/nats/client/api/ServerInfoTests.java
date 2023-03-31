@@ -13,6 +13,7 @@
 
 package io.nats.client.api;
 
+import io.nats.client.support.ServerVersion;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
@@ -57,69 +58,53 @@ public class ServerInfoTests {
 
     @Test
     public void testServerVersionComparisonsWork() {
-        ServerInfo info = new ServerInfo(json);
+        ServerInfo si234 = new ServerInfo(json.replace("1.2.3", "2.3.4"));
+        ServerInfo si235A1 = new ServerInfo(json.replace("1.2.3", "2.3.5-alpha.1"));
+        ServerInfo si235A2 = new ServerInfo(json.replace("1.2.3", "2.3.5-alpha-2"));
+        ServerInfo si235B1 = new ServerInfo(json.replace("1.2.3", "v2.3.5-beta.1"));
+        ServerInfo si235B2 = new ServerInfo(json.replace("1.2.3", "v2.3.5-beta-2"));
+        ServerInfo si235 = new ServerInfo(json.replace("1.2.3", "2.3.5"));
 
-        ServerInfo info234 = new ServerInfo(json.replace("1.2.3", "2.3.4"));
-        ServerInfo info235 = new ServerInfo(json.replace("1.2.3", "2.3.5"));
-        ServerInfo info235Beta2 = new ServerInfo(json.replace("1.2.3", "2.3.5-beta.2"));
-        assertTrue(info.isOlderThanVersion("2.3.4"));
-        assertTrue(info234.isOlderThanVersion("2.3.5"));
-        assertTrue(info235.isNewerVersionThan("2.3.5-beta.2"));
-        assertTrue(info.isSameVersion("1.2.3"));
-        assertTrue(info234.isSameVersion("2.3.4"));
-        assertTrue(info235.isSameVersion("2.3.5"));
-        assertTrue(info235Beta2.isSameVersion("2.3.5-beta.2"));
-        assertFalse(info235.isSameVersion("2.3.4"));
-        assertFalse(info235Beta2.isSameVersion("2.3.5"));
-        assertTrue(info234.isNewerVersionThan("1.2.3"));
-        assertTrue(info235.isNewerVersionThan("2.3.4"));
-        assertTrue(info235Beta2.isOlderThanVersion("2.3.5"));
+        ServerInfo[] infos = new ServerInfo[]{si234, si235A1, si235A2, si235B1, si235B2, si235};
+        for (int i = 0; i < infos.length; i++) {
+            ServerInfo si = infos[i];
+            for (int j = 0; j < infos.length; j++) {
+                String v2 = new ServerVersion(infos[j].getVersion()).toString();
+                if (i == j) {
+                    assertTrue(si.isSameVersion(v2));
+                    assertTrue(si.isSameOrOlderThanVersion(v2));
+                    assertTrue(si.isSameOrNewerThanVersion(v2));
+                    assertFalse(si.isNewerVersionThan(v2));
+                    assertFalse(si.isOlderThanVersion(v2));
+                }
+                else {
+                    assertFalse(si.isSameVersion(v2));
+                    if (i < j) {
+                        assertTrue(si.isOlderThanVersion(v2));
+                        assertTrue(si.isSameOrOlderThanVersion(v2));
+                        assertFalse(si.isNewerVersionThan(v2));
+                        assertFalse(si.isSameOrNewerThanVersion(v2));
+                    }
+                    else { // i > j
+                        assertFalse(si.isOlderThanVersion(v2));
+                        assertFalse(si.isSameOrOlderThanVersion(v2));
+                        assertTrue(si.isNewerVersionThan(v2));
+                        assertTrue(si.isSameOrNewerThanVersion(v2));
+                    }
+                }
+            }
+        }
 
-        assertTrue(info234.isNewerVersionThan("not-a-number"));
-        assertFalse(info234.isNewerVersionThan("2.3.5"));
-        assertFalse(info235.isOlderThanVersion("2.3.4"));
+        assertTrue(si234.isNewerVersionThan("not-a-number.2.3"));
+        assertTrue(si234.isNewerVersionThan("1.not-a-number.3"));
+        assertTrue(si234.isNewerVersionThan("1.2.not-a-number"));
 
-        assertFalse(info235.isSameOrOlderThanVersion("2.3.4"));
-        assertFalse(info235Beta2.isSameOrOlderThanVersion("2.3.4"));
-        assertTrue(info234.isSameOrOlderThanVersion("2.3.4"));
-        assertTrue(info.isSameOrOlderThanVersion("2.3.4"));
-
-        assertTrue(info235.isSameOrNewerThanVersion("2.3.4"));
-        assertTrue(info235Beta2.isSameOrNewerThanVersion("2.3.4"));
-        assertTrue(info234.isSameOrNewerThanVersion("2.3.4"));
-        assertFalse(info.isSameOrNewerThanVersion("2.3.4"));
-        assertFalse(info234.isSameOrNewerThanVersion("2.3.5-beta.2"));
-
-        ServerInfo info2310 = new ServerInfo(json.replace("1.2.3", "2.3.10"));
-        ServerInfo info2103 = new ServerInfo(json.replace("1.2.3", "2.10.3"));
-        assertTrue(info235.isOlderThanVersion("2.3.10"));
-        assertTrue(info235.isOlderThanVersion("2.10.3"));
-        assertTrue(info2310.isSameVersion("2.3.10"));
-        assertTrue(info2310.isNewerVersionThan("2.3.5"));
-        assertTrue(info2310.isOlderThanVersion("2.10.3"));
-        assertTrue(info2103.isSameVersion("2.10.3"));
-        assertTrue(info2103.isNewerVersionThan("2.3.5"));
-        assertTrue(info2103.isNewerVersionThan("2.3.10"));
-
-        ServerInfo infoAlpha1 = new ServerInfo(json.replace("1.2.3", "1.0.0-alpha1"));
-        ServerInfo infoAlpha2 = new ServerInfo(json.replace("1.2.3", "1.0.0-alpha2"));
-        ServerInfo infoBeta1 = new ServerInfo(json.replace("1.2.3", "1.0.0-beta1"));
-
-        assertTrue(infoAlpha1.isSameVersion("1.0.0-alpha1"));
-        assertTrue(infoAlpha1.isOlderThanVersion("1.0.0-alpha2"));
-        assertTrue(infoAlpha1.isOlderThanVersion("1.0.0-beta1"));
-        assertTrue(infoAlpha2.isNewerVersionThan("1.0.0-alpha1"));
-        assertTrue(infoAlpha2.isOlderThanVersion("1.0.0-beta1"));
-        assertTrue(infoBeta1.isNewerVersionThan("1.0.0-alpha1"));
-        assertTrue(infoBeta1.isNewerVersionThan("1.0.0-alpha2"));
-
-        // coverage for
-        ServerInfo infoPadded1 = new ServerInfo(json.replace("1.2.3", "1.20.30"));
-        ServerInfo infoPadded2 = new ServerInfo(json.replace("1.2.3", "40.500.6000"));
-        assertTrue(infoPadded1.isSameVersion("1.20.30"));
-        assertTrue(infoPadded2.isSameVersion("40.500.6000"));
-        assertTrue(infoPadded2.isNewerVersionThan(infoPadded1.getVersion()));
-        assertTrue(infoPadded1.isOlderThanVersion(infoPadded2.getVersion()));
+        ServerInfo siPadded1 = new ServerInfo(json.replace("1.2.3", "1.20.30"));
+        ServerInfo siPadded2 = new ServerInfo(json.replace("1.2.3", "40.500.6000"));
+        assertTrue(siPadded1.isSameVersion("1.20.30"));
+        assertTrue(siPadded2.isSameVersion("40.500.6000"));
+        assertTrue(siPadded2.isNewerVersionThan(siPadded1.getVersion()));
+        assertTrue(siPadded1.isOlderThanVersion(siPadded2.getVersion()));
     }
 
     @Test

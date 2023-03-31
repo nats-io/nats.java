@@ -21,7 +21,9 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.api.ConsumerConfiguration.*;
@@ -815,6 +817,26 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // unset
             changeOkPull(js, pullDurableBuilder().maxBatch(-1));
             changeOkPull(js, pullDurableBuilder().maxBytes(-1));
+
+            // metadata
+            Map<String, String> metadataA = new HashMap<>(); metadataA.put("a", "A");
+            Map<String, String> metadataB = new HashMap<>(); metadataA.put("b", "B");
+
+            if (nc.getServerInfo().isNewerVersionThan("2.9.99")) {
+                // metadata server null versus new not null
+                nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pushDurableBuilder().build());
+                changeExPush(js, pushDurableBuilder().metadata(metadataA), "metadata");
+
+                // metadata server not null versus new null
+                nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pushDurableBuilder().metadata(metadataA).build());
+                changeExPush(js, pushDurableBuilder(), "metadata");
+
+                // metadata server not null versus new not null but different
+                changeExPush(js, pushDurableBuilder().metadata(metadataB), "metadata");
+
+                // metadata server not null versus new not null and same
+                changeOkPush(js, pushDurableBuilder().metadata(metadataA));
+            }
         });
     }
 

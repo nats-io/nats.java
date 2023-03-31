@@ -18,10 +18,7 @@ import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
@@ -67,6 +64,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final boolean denyDelete;
     private final boolean denyPurge;
     private final boolean discardNewPerSubject;
+    private final Map<String, String> metadata;
 
     static StreamConfiguration instance(JsonValue v) {
         Builder builder = new Builder();
@@ -97,6 +95,7 @@ public class StreamConfiguration implements JsonSerializable {
         builder.denyDelete(readBoolean(v, DENY_DELETE));
         builder.denyPurge(readBoolean(v, DENY_PURGE));
         builder.discardNewPerSubject(readBoolean(v, DISCARD_NEW_PER_SUBJECT));
+        builder.metadata(readStringStringMap(v, METADATA));
 
         return builder.build();
     }
@@ -130,6 +129,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.denyDelete = b.denyDelete;
         this.denyPurge = b.denyPurge;
         this.discardNewPerSubject = b.discardNewPerSubject;
+        this.metadata = b.metadata;
     }
 
     /**
@@ -175,6 +175,7 @@ public class StreamConfiguration implements JsonSerializable {
         addFldWhenTrue(sb, DENY_DELETE, denyDelete);
         addFldWhenTrue(sb, DENY_PURGE, denyPurge);
         addFldWhenTrue(sb, DISCARD_NEW_PER_SUBJECT, discardNewPerSubject);
+        addField(sb, METADATA, metadata);
 
         return endJson(sb).toString();
     }
@@ -284,7 +285,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Gets whether or not acknowledgements are required in this stream configuration.
+     * Gets whether acknowledgements are required in this stream configuration.
      * @return true if acknowedgments are not required.
      */
     public boolean getNoAck() {
@@ -398,6 +399,14 @@ public class StreamConfiguration implements JsonSerializable {
         return discardNewPerSubject;
     }
 
+    /**
+     * Metadata for the consumer
+     * @return the metadata map. Might be null.
+     */
+    public Map<String, String> getMetadata() {
+        return metadata;
+    }
+
     @Override
     public String toString() {
         return "StreamConfiguration{" +
@@ -426,6 +435,7 @@ public class StreamConfiguration implements JsonSerializable {
             ", " + objectString("mirror", mirror) +
             ", " + objectString("placement", placement) +
             ", sources=" + sources +
+            ", metadata=" + metadata +
             '}';
     }
 
@@ -482,6 +492,7 @@ public class StreamConfiguration implements JsonSerializable {
         private boolean denyDelete = false;
         private boolean denyPurge = false;
         private boolean discardNewPerSubject = false;
+        private Map<String, String> metadata;
 
         /**
          * Default Builder
@@ -521,6 +532,9 @@ public class StreamConfiguration implements JsonSerializable {
                 this.denyDelete = sc.denyDelete;
                 this.denyPurge = sc.denyPurge;
                 this.discardNewPerSubject = sc.discardNewPerSubject;
+                if (sc.metadata != null) {
+                    this.metadata = new HashMap<>(sc.metadata);
+                }
             }
         }
 
@@ -910,6 +924,16 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder seal() {
             this.sealed = true;
+            return this;
+        }
+
+        /**
+         * Sets the metadata for the configuration
+         * @param metadata the metadata map
+         * @return Builder
+         */
+        public Builder metadata(Map<String, String> metadata) {
+            this.metadata = metadata;
             return this;
         }
 
