@@ -14,40 +14,28 @@
 package io.nats.client.impl;
 
 import io.nats.client.ConsumeOptions;
-import io.nats.client.EndlessConsumer;
 import io.nats.client.Message;
+import io.nats.client.MessageConsumer;
 import io.nats.client.PullRequestOptions;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-public class NatsEndlessConsumer extends NatsMessageConsumer implements EndlessConsumer {
+public class NatsEndlessConsumer extends NatsMessageConsumer implements MessageConsumer {
     private final PullRequestOptions pro;
-    private final int repullAt;
     private int currentBatchRed;
     private boolean keepGoing = true;
 
     public NatsEndlessConsumer(NatsJetStreamPullSubscription sub, ConsumeOptions options) {
-        super(sub, options);
-        pro = PullRequestOptions.builder(options.getBatchSize()).expiresIn(options.getExpiresIn()).build();
-        repullAt = options.getRepullAt();
+        super(options);
+        pro = PullRequestOptions.builder(options.getBatchSize()).expiresIn(options.getExpiresInMillis()).build();
         currentBatchRed = 0;
         sub.pull(pro);
     }
 
-    @Override
-    public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
-        return track(sub.nextMessage(timeout));
-    }
-
-    @Override
-    public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
-        return track(sub.nextMessage(timeoutMillis));
-    }
-
     private Message track(Message msg) {
         if (msg != null) {
-            if (++currentBatchRed == repullAt) {
+            if (++currentBatchRed == consumeOptions.getThresholdMessages()) {
                 if (keepGoing) {
                     sub.pull(pro);
                 }

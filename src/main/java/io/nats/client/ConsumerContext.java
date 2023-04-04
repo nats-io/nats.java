@@ -16,7 +16,6 @@ package io.nats.client;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  * TODO
@@ -24,12 +23,10 @@ import java.util.List;
 public interface ConsumerContext {
     String getName();
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
-    List<Message> fetchAll(int count) throws IOException, JetStreamApiException;
-    List<Message> fetchAll(int count, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
     FetchConsumer fetch(int count) throws IOException, JetStreamApiException;
-    FetchConsumer fetch(int count, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
-    EndlessConsumer consume() throws IOException, JetStreamApiException;
-    EndlessConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    FetchConsumer fetch(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    MessageConsumer consume() throws IOException, JetStreamApiException;
+    MessageConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
     MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException;
     MessageConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 }

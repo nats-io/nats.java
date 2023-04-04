@@ -29,8 +29,8 @@ public interface StreamContext {
     StreamInfo getStreamInfo(StreamInfoOptions options)  throws IOException, JetStreamApiException;
 
     ConsumerInfo createConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException;
-    boolean deleteConsumer(String consumer) throws IOException, JetStreamApiException;
+    boolean deleteConsumer(String consumerName) throws IOException, JetStreamApiException;
 
-    ConsumerContext getConsumerContext(String consumer) throws IOException, JetStreamApiException;
+    ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException;
     ConsumerContext getConsumerContext(ConsumerConfiguration config) throws IOException, JetStreamApiException;
 }

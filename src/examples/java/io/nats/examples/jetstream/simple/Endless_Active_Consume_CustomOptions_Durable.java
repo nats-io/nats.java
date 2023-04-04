@@ -2,7 +2,6 @@ package io.nats.examples.jetstream.simple;
 
 import io.nats.client.*;
 
-import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static io.nats.examples.jetstream.simple.SimpleUtils.*;
@@ -35,13 +34,13 @@ public class Endless_Active_Consume_CustomOptions_Durable {
 
             // We want custom consume options
             ConsumeOptions co = ConsumeOptions.builder()
-                .expiresIn(Duration.ofSeconds(3))
+                .expiresIn(3000)
                 .batchSize(BATCH_SIZE)
-                .repullPercent(REPULL_PCT)
+                .thresholdPercent(REPULL_PCT)
                 .build();
 
             // create and use the iterator
-            EndlessConsumer consumer = consumerContext.consume(co);
+            MessageConsumer consumer = consumerContext.consume(co);
 
             boolean state = true;
             int count = 0;

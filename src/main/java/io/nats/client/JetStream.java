@@ -485,7 +485,7 @@ public interface JetStream {
      */
     JetStreamSubscription subscribe(String subject, PullSubscribeOptions options) throws IOException, JetStreamApiException;
 
-    StreamContext getStreamContext(String stream) throws IOException, JetStreamApiException;
-    ConsumerContext getConsumerContext(String stream, String consumer) throws IOException, JetStreamApiException;
-    ConsumerContext getConsumerContext(String stream, ConsumerConfiguration config) throws IOException, JetStreamApiException;
+    StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException;
+    ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException;
+    ConsumerContext getConsumerContext(String streamName, ConsumerConfiguration consumerConfiguration) throws IOException, JetStreamApiException;
 }

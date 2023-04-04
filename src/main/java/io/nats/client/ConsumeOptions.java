@@ -13,43 +13,35 @@
 
 package io.nats.client;
 
-import java.time.Duration;
+import io.nats.client.support.Validator;
 
 /**
  * TODO
  */
 public class ConsumeOptions {
     public static final int DEFAULT_BATCH_SIZE = 100;
-    public static final int DEFAULT_MAX_BYTES = 0;
-    public static final int DEFAULT_REPULL_PERCENT = 25;
-    public static final Duration DEFAULT_EXPIRES_IN = Duration.ofSeconds(30);
-    public static final Duration DEFAULT_IDLE_HEARTBEAT = Duration.ofSeconds(15);
+    public static final int DEFAULT_THRESHOLD_PERCENT = 25;
+    public static final long DEFAULT_EXPIRES_IN_MS = 30000;
+    public static final long DEFAULT_IDLE_HEARTBEAT_MS = 15000;
 
     public static final ConsumeOptions DEFAULT_OPTIONS = builder().build();
-    public static final ConsumeOptions XLARGE_PAYLOAD = predefined(10);
-    public static final ConsumeOptions LARGE_PAYLOAD = predefined(20);
-    public static final ConsumeOptions MEDIUM_PAYLOAD = predefined(50);
-    public static final ConsumeOptions SMALL_PAYLOAD = predefined(DEFAULT_BATCH_SIZE);
-    public static final ConsumeOptions DEFAULT_FETCH_ALL_OPTIONS = builder().expiresIn(10000).build();
 
     private final int batchSize;
     private final int maxBytes;
-    private final int repullAt;
-    private final Duration expiresIn;
-    private final Duration idleHeartbeat;
+    private final long expiresIn;
+    private final long idleHeartbeat;
+    private final int thresholdMessages;
+    private final int thresholdBytes;
 
-    public ConsumeOptions(Builder b) {
+    // todo minimums and validation
+    private ConsumeOptions(Builder b) {
         this.batchSize = b.batchSize;
         this.maxBytes = b.maxBytes;
         this.expiresIn = b.expiresIn;
         this.idleHeartbeat = b.idleHeartbeat;
 
-        if (maxBytes > DEFAULT_MAX_BYTES) {
-            repullAt = maxBytes * b.repullPercent / DEFAULT_BATCH_SIZE;
-        }
-        else {
-            repullAt = batchSize * b.repullPercent / DEFAULT_BATCH_SIZE;
-        }
+        thresholdMessages = Math.max(1, batchSize * b.thresholdPct / 100);
+        thresholdBytes = maxBytes > 0 ? Math.max(1, maxBytes * b.thresholdPct / 100) : Integer.MAX_VALUE;
     }
 
     public int getBatchSize() {
@@ -60,21 +52,25 @@ public class ConsumeOptions {
         return maxBytes;
     }
 
-    public int getRepullAt() {
-        return repullAt;
-    }
-
-    public Duration getExpiresIn() {
+    public long getExpiresInMillis() {
         return expiresIn;
     }
 
-    public Duration getIdleHeartbeat() {
+    public long getIdleHeartbeatMillis() {
         return idleHeartbeat;
     }
 
+    public int getThresholdMessages() {
+        return thresholdMessages;
+    }
+
+    public int getThresholdBytes() {
+        return thresholdBytes;
+    }
+
     /**
-     * Creates a builder for the pull options, with batch size since it's always required
-     * @return a pull options builder
+     * Creates a builder for the consume options
+     * @return a ConsumeOptions builder
      */
     public static Builder builder() {
         return new Builder();
@@ -86,59 +82,45 @@ public class ConsumeOptions {
 
     public static class Builder {
         private int batchSize = DEFAULT_BATCH_SIZE;
-        private int maxBytes = DEFAULT_MAX_BYTES;
-        private int repullPercent = DEFAULT_REPULL_PERCENT;
-        private Duration expiresIn = DEFAULT_EXPIRES_IN;
-        private Duration idleHeartbeat = DEFAULT_IDLE_HEARTBEAT;
+        private int maxBytes = -1;
+        private int thresholdPct = DEFAULT_THRESHOLD_PERCENT;
+        private long expiresIn = DEFAULT_EXPIRES_IN_MS;
+        private long idleHeartbeat = DEFAULT_IDLE_HEARTBEAT_MS;
+        private boolean ordered;
 
         /**
-         * Set the batch size for the pull
+         * Set the maximum number of messages to consume for Fetch
+         * or the batch size for each pull during Consume.
          * @param batchSize the size of the batch. Must be greater than 0
          * @return the builder
          */
         public Builder batchSize(int batchSize) {
-            this.batchSize = batchSize < 1 ? DEFAULT_BATCH_SIZE : batchSize;
+            this.batchSize = Validator.validateGtZero(batchSize, "Batch Size");
             return this;
         }
 
         /**
-         * The maximum bytes for the pull
+         * The maximum bytes to consume for Fetch or the maximum bytes for each pull during Consume.
+         * When set (a value greater than zero,) it is used in conjunction with batch size, meaning
+         * whichever limit is reached first is respected.
          * @param maxBytes the maximum bytes
          * @return the builder
          */
         public Builder maxBytes(int maxBytes) {
-            this.maxBytes = maxBytes < 1 ? -1 : maxBytes;
+            this.maxBytes = (int)Validator.validateGtEqZero(maxBytes, "Max Bytes");
             return this;
         }
 
         /**
-         * Set the repull at. Applies to max bytes if max bytes is specified,
-         * otherwise applies to batch
-         * @return the builder
-         */
-        public Builder repullPercent(int repullPct) {
-            this.repullPercent = repullPct < 1 ? DEFAULT_REPULL_PERCENT : Math.min(repullPct, 75);
-            return this;
-        }
-
-        /**
-         * Set the expires time in millis
+         * In Fetch, sets the maximum amount of time to wait to reach the batch size or max byte.
+         * In Consume, sets the maximum amount of time for an individual pull to be open
+         * before issuing a replacement pull.
          * @param expiresInMillis the millis
          * @return the builder
          */
         public Builder expiresIn(long expiresInMillis) {
-            this.expiresIn = Duration.ofMillis(expiresInMillis);
-            return this;
-        }
-
-        /**
-         * Set the expires duration
-         * @param expiresIn the duration
-         * @return the builder
-         */
-        public Builder expiresIn(Duration expiresIn) {
-            this.expiresIn = expiresIn;
-            return this;
+            this.expiresIn = expiresInMillis;
+            return idleHeartbeat(expiresInMillis / 2);
         }
 
         /**
@@ -147,23 +129,30 @@ public class ConsumeOptions {
          * @return the builder
          */
         public Builder idleHeartbeat(long idleHeartbeatMillis) {
-            this.idleHeartbeat = Duration.ofMillis(idleHeartbeatMillis);
+            this.idleHeartbeat = idleHeartbeatMillis;
             return this;
         }
 
         /**
-         * Set the idle heartbeat duration
-         * @param idleHeartbeat the duration
+         * Set the threshold percent of max bytes (if max bytes is specified) or messages
+         * that will trigger issuing pull requests to keep messages flowing.
+         * Only applies to endless consumes
+         * For instance if the batch size is 100 and the re-pull percent is 25,
+         * the first pull will be for 100, and then when 25 messages have been received
+         * another 75 will be requested, keeping the number of messages in transit always at 100.
          * @return the builder
          */
-        public Builder idleHeartbeat(Duration idleHeartbeat) {
-            this.idleHeartbeat = idleHeartbeat;
+        public Builder thresholdPercent(int thresholdPct) {
+            if (thresholdPct < 1 || thresholdPct > 100) {
+                throw new IllegalArgumentException("Threshold percent must be between 1 and 100 inclusive.");
+            }
+            this.thresholdPct = thresholdPct;
             return this;
         }
 
         /**
-         * Build the SimpleConsumerOptions. Validates that the batch size is greater than 0
-         * @return the built PullRequestOptions
+         * Build the ConsumeOptions.
+         * @return the built ConsumeOptions
          */
         public ConsumeOptions build() {
             return new ConsumeOptions(this);

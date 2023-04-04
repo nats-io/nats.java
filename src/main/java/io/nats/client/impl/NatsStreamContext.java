@@ -28,13 +28,18 @@ import java.io.IOException;
  * TODO
  */
 public class NatsStreamContext implements StreamContext {
-    private final NatsJetStreamManagement jsm;
-    private final String stream;
+    final NatsJetStreamManagement jsm;
+    final String stream;
 
     NatsStreamContext(NatsConnection connection, JetStreamOptions jsOptions, String stream) throws IOException, JetStreamApiException {
         jsm = new NatsJetStreamManagement(connection, jsOptions);
         this.stream = stream;
-        getStreamInfo();
+        jsm.getStreamInfo(stream);
+    }
+
+    NatsStreamContext(NatsStreamContext streamContext) throws IOException, JetStreamApiException {
+        jsm = streamContext.jsm;
+        stream = streamContext.stream;
     }
 
     @Override
@@ -58,13 +63,13 @@ public class NatsStreamContext implements StreamContext {
     }
 
     @Override
-    public boolean deleteConsumer(String consumer) throws IOException, JetStreamApiException {
-        return jsm.deleteConsumer(stream, consumer);
+    public boolean deleteConsumer(String consumerName) throws IOException, JetStreamApiException {
+        return jsm.deleteConsumer(stream, consumerName);
     }
 
     @Override
-    public ConsumerContext getConsumerContext(String consumer) throws IOException, JetStreamApiException {
-        return new NatsConsumerContext(jsm.conn, jsm.jso, stream, consumer);
+    public ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException {
+        return new NatsConsumerContext(jsm.conn, jsm.jso, stream, consumerName);
     }
 
     @Override

@@ -18,10 +18,10 @@ public class SimpleUtils {
     public static String STREAM = "simple-stream";
     public static String SUBJECT = "simple-subject";
     public static String CONSUMER = "simple-durable";
-    public static int COUNT = 20;
+    public static int SIMPLE_COUNT = 20;
 
     public static void setupStreamAndDataAndConsumer(Connection nc) throws IOException, JetStreamApiException {
-        setupStreamAndDataAndConsumer(nc, STREAM, SUBJECT, COUNT, CONSUMER);
+        setupStreamAndDataAndConsumer(nc, STREAM, SUBJECT, SIMPLE_COUNT, CONSUMER);
     }
 
     public static void setupStreamAndDataAndConsumer(Connection nc, int count) throws IOException, JetStreamApiException {
@@ -35,7 +35,7 @@ public class SimpleUtils {
     }
 
     public static void setupStreamAndData(Connection nc) throws IOException, JetStreamApiException {
-        setupStreamAndData(nc, STREAM, SUBJECT, COUNT);
+        setupStreamAndData(nc, STREAM, SUBJECT, SIMPLE_COUNT);
     }
 
     public static void setupStreamAndData(Connection nc, String stream, String subject, int count) throws IOException, JetStreamApiException {

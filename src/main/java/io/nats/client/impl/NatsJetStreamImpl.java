@@ -55,8 +55,8 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     // ----------------------------------------------------------------------------------------------------
     // Management that is also needed by regular context
     // ----------------------------------------------------------------------------------------------------
-    ConsumerInfo _getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException {
-        String subj = String.format(JSAPI_CONSUMER_INFO, streamName, consumer);
+    ConsumerInfo _getConsumerInfo(String streamName, String consumerName) throws IOException, JetStreamApiException {
+        String subj = String.format(JSAPI_CONSUMER_INFO, streamName, consumerName);
         Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
     }
@@ -146,9 +146,9 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     // ----------------------------------------------------------------------------------------------------
     // General Utils
     // ----------------------------------------------------------------------------------------------------
-    ConsumerInfo lookupConsumerInfo(String stream, String consumer) throws IOException, JetStreamApiException {
+    ConsumerInfo lookupConsumerInfo(String streamName, String consumerName) throws IOException, JetStreamApiException {
         try {
-            return _getConsumerInfo(stream, consumer);
+            return _getConsumerInfo(streamName, consumerName);
         }
         catch (JetStreamApiException e) {
             // the right side of this condition...  ( starting here \/ ) is for backward compatibility with server versions that did not provide api error codes

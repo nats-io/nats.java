@@ -677,28 +677,28 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             // some testing of new name
             if (atLeast290) {
-                addConsumer(jsm, atLeast290, 3, false, null, ConsumerConfiguration.builder()
+                addConsumer(jsm, true, 3, false, null, ConsumerConfiguration.builder()
                     .durable(durable(3))
                     .name(durable(3))
                     .build());
 
-                addConsumer(jsm, atLeast290, 4, true, null, ConsumerConfiguration.builder()
+                addConsumer(jsm, true, 4, true, null, ConsumerConfiguration.builder()
                     .durable(durable(4))
                     .name(durable(4))
                     .deliverSubject(deliver(4))
                     .build());
 
-                addConsumer(jsm, atLeast290, 5, false, ">", ConsumerConfiguration.builder()
+                addConsumer(jsm, true, 5, false, ">", ConsumerConfiguration.builder()
                     .durable(durable(5))
                     .filterSubject(">")
                     .build());
 
-                addConsumer(jsm, atLeast290, 6, false, subjectDot(">"), ConsumerConfiguration.builder()
+                addConsumer(jsm, true, 6, false, subjectDot(">"), ConsumerConfiguration.builder()
                     .durable(durable(6))
                     .filterSubject(subjectDot(">"))
                     .build());
 
-                addConsumer(jsm, atLeast290, 7, false, subjectDot("foo"), ConsumerConfiguration.builder()
+                addConsumer(jsm, true, 7, false, subjectDot("foo"), ConsumerConfiguration.builder()
                     .durable(durable(7))
                     .filterSubject(subjectDot("foo"))
                     .build());

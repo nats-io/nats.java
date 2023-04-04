@@ -14,5 +14,5 @@
 package io.nats.client;
 
 public interface FetchConsumer extends MessageConsumer {
-    Message nextMessage();
+    Message nextMessage() throws InterruptedException;
 }

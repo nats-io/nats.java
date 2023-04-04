@@ -616,17 +616,23 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     }
 
     @Override
-    public StreamContext getStreamContext(String stream) throws IOException, JetStreamApiException {
-        return new NatsStreamContext(conn, jso, stream);
+    public StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException {
+        return getNatsStreamContext(streamName);
+    }
+
+    private NatsStreamContext getNatsStreamContext(String streamName) throws IOException, JetStreamApiException {
+        return new NatsStreamContext(conn, jso, streamName);
     }
 
     @Override
-    public ConsumerContext getConsumerContext(String stream, String consumer) throws IOException, JetStreamApiException {
-        return new NatsConsumerContext(conn, jso, stream, consumer);
+    public ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException {
+        Validator.required(consumerName, "Consumer Name");
+        return new NatsConsumerContext(getNatsStreamContext(streamName), consumerName, null);
     }
 
     @Override
-    public ConsumerContext getConsumerContext(String stream, ConsumerConfiguration config) throws IOException, JetStreamApiException {
-        return new NatsConsumerContext(conn, jso, stream, config);
+    public ConsumerContext getConsumerContext(String streamName, ConsumerConfiguration consumerConfiguration) throws IOException, JetStreamApiException {
+        Validator.required(consumerConfiguration, "Consumer Configuration");
+        return new NatsConsumerContext(getNatsStreamContext(streamName), null, consumerConfiguration);
     }
 }

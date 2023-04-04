@@ -129,7 +129,7 @@ public interface JetStreamManagement {
      * @throws JetStreamApiException the request had an error related to the data
      * @return true if the delete succeeded
      */
-    boolean deleteConsumer(String streamName, String consumer) throws IOException, JetStreamApiException;
+    boolean deleteConsumer(String streamName, String consumerName) throws IOException, JetStreamApiException;
 
     /**
      * Gets the info for an existing consumer.

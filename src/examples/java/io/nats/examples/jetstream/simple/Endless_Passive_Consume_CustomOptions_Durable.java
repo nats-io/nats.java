@@ -2,7 +2,6 @@ package io.nats.examples.jetstream.simple;
 
 import io.nats.client.*;
 
-import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -37,9 +36,9 @@ public class Endless_Passive_Consume_CustomOptions_Durable {
 
             // We want custom consume options
             ConsumeOptions co = ConsumeOptions.builder()
-                .expiresIn(Duration.ofSeconds(3))
+                .expiresIn(3000)
                 .batchSize(BATCH_SIZE)
-                .repullPercent(REPULL_PCT)
+                .thresholdPercent(REPULL_PCT)
                 .build();
 
             final AtomicInteger count = new AtomicInteger();

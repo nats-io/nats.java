@@ -131,10 +131,10 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
-    public boolean deleteConsumer(String streamName, String consumer) throws IOException, JetStreamApiException {
+    public boolean deleteConsumer(String streamName, String consumerName) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
-        validateNotNull(consumer, "consumer");
-        String subj = String.format(JSAPI_CONSUMER_DELETE, streamName, consumer);
+        validateNotNull(consumerName, "Consumer Name");
+        String subj = String.format(JSAPI_CONSUMER_DELETE, streamName, consumerName);
         Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
@@ -143,8 +143,8 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
-    public ConsumerInfo getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException {
-        return super._getConsumerInfo(streamName, consumer);
+    public ConsumerInfo getConsumerInfo(String streamName, String consumerName) throws IOException, JetStreamApiException {
+        return super._getConsumerInfo(streamName, consumerName);
     }
 
     /**
