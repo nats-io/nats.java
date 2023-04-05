@@ -127,7 +127,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         }
 
         try {
-            long start = System.currentTimeMillis();
+            long start = System.nanoTime();
 
             Duration expires = Duration.ofMillis(
                 maxWaitMillis > MIN_MILLIS
@@ -138,9 +138,10 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
             // timeout > 0 process as many messages we can in that time period
             // If we get a message that either manager handles, we try again, but
             // with a shorter timeout based on what we already used up
-            long timeLeft = maxWaitMillis;
-            while (batchLeft > 0 && timeLeft > 0) {
-                Message msg = nextMessageInternal( Duration.ofMillis(timeLeft) );
+            long maxWaitNanos = maxWaitMillis * 1_000_000;
+            long timeLeftNanos = maxWaitNanos;
+            while (batchLeft > 0 && timeLeftNanos > 0) {
+                Message msg = nextMessageInternal( Duration.ofNanos(timeLeftNanos) );
                 if (msg == null) {
                     return messages; // normal timeout
                 }
@@ -149,7 +150,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                     batchLeft--;
                 }
                 // try again while we have time
-                timeLeft = maxWaitMillis - (System.currentTimeMillis() - start);
+                timeLeftNanos = maxWaitNanos - (System.nanoTime() - start);
             }
         }
         catch (InterruptedException e) {
