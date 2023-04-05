@@ -352,8 +352,9 @@ public class JetStreamTestBase extends TestBase {
         ensureNotBound(sub);
     }
 
-    public static void unsubscribeEnsureNotBound(Dispatcher dispatcher, JetStreamSubscription sub) {
+    public static void unsubscribeEnsureNotBound(Dispatcher dispatcher, JetStreamSubscription sub) throws JetStreamApiException, IOException {
         dispatcher.unsubscribe(sub);
+        ensureNotBound(sub);
     }
 
     public static void ensureNotBound(JetStreamSubscription sub) throws IOException, JetStreamApiException {
@@ -376,9 +377,5 @@ public class JetStreamTestBase extends TestBase {
             latch.await(1, TimeUnit.SECONDS);
         }
         assertEquals(0, latch.getCount());
-    }
-
-    public static Options.Builder optsWithEl(ErrorListener el) {
-        return new Options.Builder().errorListener(el);
     }
 }

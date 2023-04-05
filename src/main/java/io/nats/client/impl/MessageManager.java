@@ -21,6 +21,8 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 abstract class MessageManager {
+    public enum ManageResult {MESSAGE, STATUS, TERMINUS, ERROR}
+
     protected static final int THRESHOLD = 3;
 
     protected final Object stateChangeLock;
@@ -84,8 +86,7 @@ abstract class MessageManager {
     protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
         return true;
     }
-
-    abstract protected boolean manage(Message msg);
+    abstract protected ManageResult manage(Message msg);
 
     protected void trackJsMessage(Message msg) {
         synchronized (stateChangeLock) {

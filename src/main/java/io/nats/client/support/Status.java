@@ -28,6 +28,19 @@ public class Status {
     public static final int REQUEST_TIMEOUT_CODE = 408;
     public static final int CONFLICT_CODE = 409;
 
+    public static String BAD_REQUEST                    = "Bad Request"; // 400
+    public static String NO_MESSAGES                    = "No Messages"; // 404
+    public static String CONSUMER_DELETED               = "Consumer Deleted"; // 409
+    public static String CONSUMER_IS_PUSH_BASED         = "Consumer is push based"; // 409
+
+    public static String MESSAGE_SIZE_EXCEEDS_MAX_BYTES = "Message Size Exceeds MaxBytes"; // 409
+    public static String EXCEEDED_MAX_WAITING           = "Exceeded MaxWaiting"; // 409
+    public static String EXCEEDED_MAX_REQUEST_BATCH     = "Exceeded MaxRequestBatch"; // 409
+    public static String EXCEEDED_MAX_REQUEST_EXPIRES   = "Exceeded MaxRequestExpires"; // 409
+    public static String EXCEEDED_MAX_REQUEST_MAX_BYTES = "Exceeded MaxRequestMaxBytes"; // 409
+
+    public static String BATCH_COMPLETED                = "Batch Completed"; // 409 informational
+
     private final int code;
     private final String message;
 

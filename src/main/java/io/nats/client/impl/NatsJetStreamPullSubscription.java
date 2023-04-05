@@ -144,12 +144,17 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                 if (msg == null) {
                     return messages; // normal timeout
                 }
-                if (!manager.manage(msg)) { // not null and not managed means JS Message
-                    messages.add(msg);
-                    batchLeft--;
+                switch (manager.manage(msg)) {
+                    case MESSAGE:
+                        messages.add(msg);
+                        batchLeft--;
+                        break;
+                    case TERMINUS:
+                    case ERROR:
+                        return messages;
                 }
-                // try again while we have time
-                timeLeft = maxWaitMillis - (System.currentTimeMillis() - start);
+                // case STATUS, try again while we have time
+                timeLeft = maxWaitMillis - Math.abs(System.currentTimeMillis() - start);
             }
         }
         catch (InterruptedException e) {
@@ -161,15 +166,23 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     private List<Message> drainAlreadyBuffered(int batchSize) {
         List<Message> messages = new ArrayList<>(batchSize);
         try {
-            Message msg = nextMessageInternal(null); // null means do not wait, it's either already here or not
-            while (msg != null) {
-                if (!manager.manage(msg)) { // not null and not managed means JS Message
-                    messages.add(msg);
-                    if (messages.size() == batchSize) {
-                        return messages;
-                    }
+            while (true) {
+                Message msg = nextMessageInternal(null);
+                if (msg == null) {
+                    return messages; // no more message currently queued
                 }
-                msg = nextMessageInternal(null);
+                switch (manager.manage(msg)) {
+                    case MESSAGE:
+                        messages.add(msg);
+                        if (messages.size() == batchSize) {
+                            return messages;
+                        }
+                        break;
+                    case TERMINUS:
+                    case ERROR:
+                        return messages;
+                }
+                // case STATUS, we need to try again
             }
         }
         catch (InterruptedException ignore) {

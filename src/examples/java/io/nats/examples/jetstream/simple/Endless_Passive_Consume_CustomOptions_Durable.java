@@ -22,8 +22,8 @@ public class Endless_Passive_Consume_CustomOptions_Durable {
     public static void main(String[] args) {
         try (Connection nc = Nats.connect()) {
 
-            setupStream(nc.jetStreamManagement(), STREAM, SUBJECT);
-            setupConsumer(nc.jetStreamManagement(), STREAM, CONSUMER);
+            setupStream(nc.jetStreamManagement(), SIMPLE_STREAM, SIMPLE_SUBJECT);
+            setupConsumer(nc.jetStreamManagement(), SIMPLE_STREAM, SIMPLE_CONSUMER_NAME, null);
 
             // JetStream context
             JetStream js = nc.jetStream();
@@ -32,7 +32,7 @@ public class Endless_Passive_Consume_CustomOptions_Durable {
             Thread pubThread = startPublish(js);
 
             // Consumer[Context]
-            ConsumerContext consumerContext = js.getConsumerContext(STREAM, CONSUMER);
+            ConsumerContext consumerContext = js.getConsumerContext(SIMPLE_STREAM, SIMPLE_CONSUMER_NAME);
 
             // We want custom consume options
             ConsumeOptions co = ConsumeOptions.builder()
@@ -83,7 +83,7 @@ public class Endless_Passive_Consume_CustomOptions_Durable {
                 String text = new NUID().next();
                 for (int x = 1; x <= count; x++) {
                     try {
-                        js.publish(SUBJECT, ("simple-message-" + text + "-" + x).getBytes());
+                        js.publish(SIMPLE_SUBJECT, ("simple-message-" + text + "-" + x).getBytes());
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }

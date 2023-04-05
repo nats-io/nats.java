@@ -18,6 +18,7 @@ import io.nats.client.Message;
 import io.nats.client.PullRequestOptions;
 import io.nats.client.support.Status;
 
+import static io.nats.client.impl.MessageManager.ManageResult.*;
 import static io.nats.client.support.NatsJetStreamConstants.NATS_PENDING_BYTES;
 import static io.nats.client.support.NatsJetStreamConstants.NATS_PENDING_MESSAGES;
 import static io.nats.client.support.Status.*;
@@ -60,8 +61,12 @@ class PullMessageManager extends MessageManager {
     private void trackPending(long m, long b) {
         synchronized (stateChangeLock) {
             pendingMessages -= m;
-            pendingBytes -= b;
-            if (pendingMessages < 1 || (trackingBytes && pendingBytes < 1)) {
+            boolean zero = pendingMessages < 1;
+            if (trackingBytes) {
+                pendingBytes -= b;
+                zero |= pendingBytes < 1;
+            }
+            if (zero) {
                 pendingMessages = 0;
                 pendingBytes = 0;
                 trackingBytes = false;
@@ -102,39 +107,47 @@ class PullMessageManager extends MessageManager {
             }
         }
 
-        // not found or timeout only have message/byte tracking, so no need for them to be queued (return false)
-        // all other statuses are either warnings or errors and handled in manage
-        int statusCode = status.getCode();
-        return statusCode != NOT_FOUND_CODE && statusCode != REQUEST_TIMEOUT_CODE;
+        return true;
     }
 
     @Override
-    protected boolean manage(Message msg) {
+    protected ManageResult manage(Message msg) {
         Status status = msg.getStatus();
 
         // normal js message
         if (status == null) {
             trackJsMessage(msg);
-            return false;
+            return MESSAGE;
         }
 
-        int statusCode = status.getCode();
-        if (statusCode == CONFLICT_CODE) {
-            // sometimes just a warning
-            if (status.getMessage().contains("Exceed")) {
-                conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
-                return true;
-            }
-            // fall through
+        // sync mode terminal message indicator for next message
+        switch (status.getCode()) {
+            case NOT_FOUND_CODE:
+            case REQUEST_TIMEOUT_CODE:
+                return TERMINUS;
+
+            case CONFLICT_CODE:
+                // sometimes just a warning
+                String statMsg = status.getMessage();
+                if (statMsg.startsWith("Exceeded Max")) {
+                    conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
+                    return STATUS;
+                }
+
+                if (statMsg.equals(BATCH_COMPLETED) ||
+                    statMsg.equals(MESSAGE_SIZE_EXCEEDS_MAX_BYTES))
+                {
+                    return TERMINUS;
+                }
+                break;
         }
 
-        // all others are errors
+        // fall through, all others are errors
         conn.executeCallback((c, el) -> el.pullStatusError(c, sub, status));
         if (syncMode) {
             throw new JetStreamStatusException(sub, status);
         }
-
-        return true; // all status are managed
+        return ERROR;
     }
 
     private long bytesInMessage(Message msg) {

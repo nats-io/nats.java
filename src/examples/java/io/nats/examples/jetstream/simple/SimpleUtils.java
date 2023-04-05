@@ -11,31 +11,28 @@ import java.io.IOException;
 
 import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
 
-/**
- * This example will demonstrate simplified consuming using iterate
- */
 public class SimpleUtils {
-    public static String STREAM = "simple-stream";
-    public static String SUBJECT = "simple-subject";
-    public static String CONSUMER = "simple-durable";
-    public static int SIMPLE_COUNT = 20;
+    public static String SIMPLE_STREAM = "simple-stream";
+    public static String SIMPLE_SUBJECT = "simple-subject";
+    public static String SIMPLE_CONSUMER_NAME = "simple-consumer";
+    public static int SIMPLE_MESSAGE_COUNT = 20;
 
     public static void setupStreamAndDataAndConsumer(Connection nc) throws IOException, JetStreamApiException {
-        setupStreamAndDataAndConsumer(nc, STREAM, SUBJECT, SIMPLE_COUNT, CONSUMER);
+        setupStreamAndDataAndConsumer(nc, SIMPLE_STREAM, SIMPLE_SUBJECT, SIMPLE_MESSAGE_COUNT, SIMPLE_CONSUMER_NAME);
     }
 
     public static void setupStreamAndDataAndConsumer(Connection nc, int count) throws IOException, JetStreamApiException {
-        setupStreamAndDataAndConsumer(nc, STREAM, SUBJECT, count, CONSUMER);
+        setupStreamAndDataAndConsumer(nc, SIMPLE_STREAM, SIMPLE_SUBJECT, count, SIMPLE_CONSUMER_NAME);
     }
 
     public static void setupStreamAndDataAndConsumer(Connection nc, String stream, String subject, int count, String durable) throws IOException, JetStreamApiException {
         setupStream(nc.jetStreamManagement(), stream, subject);
         setupPublish(nc.jetStream(), subject, count);
-        setupConsumer(nc.jetStreamManagement(), stream, durable);
+        setupConsumer(nc.jetStreamManagement(), stream, durable, null);
     }
 
     public static void setupStreamAndData(Connection nc) throws IOException, JetStreamApiException {
-        setupStreamAndData(nc, STREAM, SUBJECT, SIMPLE_COUNT);
+        setupStreamAndData(nc, SIMPLE_STREAM, SIMPLE_SUBJECT, SIMPLE_MESSAGE_COUNT);
     }
 
     public static void setupStreamAndData(Connection nc, String stream, String subject, int count) throws IOException, JetStreamApiException {
@@ -44,7 +41,7 @@ public class SimpleUtils {
     }
 
     public static void setupStream(Connection nc) throws IOException, JetStreamApiException {
-        setupStream(nc.jetStreamManagement(), STREAM, SUBJECT);
+        setupStream(nc.jetStreamManagement(), SIMPLE_STREAM, SIMPLE_SUBJECT);
     }
 
     public static void setupStream(JetStreamManagement jsm, String stream, String subject) throws IOException, JetStreamApiException {
@@ -57,10 +54,11 @@ public class SimpleUtils {
         }
     }
 
-    public static void setupConsumer(JetStreamManagement jsm, String stream, String durable) throws IOException, JetStreamApiException {
+    public static void setupConsumer(JetStreamManagement jsm, String stream, String durable, String name) throws IOException, JetStreamApiException {
         // Create durable consumer
         ConsumerConfiguration cc =
             ConsumerConfiguration.builder()
+                .name(name)
                 .durable(durable)
                 .build();
         jsm.addOrUpdateConsumer(stream, cc);

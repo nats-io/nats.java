@@ -727,7 +727,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .flowControl(1000)
                 .headersOnly(true)
                 .maxExpires(30000)
-                .inactiveThreshold(40000)
                 .ackWait(2000)
                 .build();
             jsm.addOrUpdateConsumer(STREAM, cc);

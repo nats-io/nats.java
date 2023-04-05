@@ -605,10 +605,8 @@ public class ReconnectTests {
                 long now = System.currentTimeMillis();
                 times.add(now - lastEvent);
                 lastEvent = now;
-                debug.append("TRH D ").append(System.currentTimeMillis()).append(" ").append(type).append(" ").append(times.get(times.size() - 1)).append("\n");
             }
             else {
-                debug.append("TRH E ").append(System.currentTimeMillis()).append(" ").append(type).append("\n");
             }
         }
     }

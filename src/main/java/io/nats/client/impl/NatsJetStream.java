@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static io.nats.client.PushSubscribeOptions.DEFAULT_PUSH_OPTS;
+import static io.nats.client.impl.MessageManager.ManageResult;
 import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.support.Validator.*;
 
@@ -504,13 +505,11 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
         @Override
         public void onMessage(Message msg) throws InterruptedException {
-            if (manager.manage(msg)) {
-                return;  // manager handled the message
-            }
-
-            userHandler.onMessage(msg);
-            if (autoAck) {
-                msg.ack();
+            if (manager.manage(msg) == ManageResult.MESSAGE) {
+                userHandler.onMessage(msg);
+                if (autoAck) {
+                    msg.ack();
+                }
             }
         }
     }

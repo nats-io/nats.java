@@ -657,6 +657,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             iae = assertThrows(IllegalArgumentException.class, () -> jsm.addOrUpdateConsumer(STREAM, cc));
             assertTrue(iae.getMessage().contains("Durable cannot be null"));
 
+            final ConsumerConfiguration cc2 = ConsumerConfiguration.builder().durable(DURABLE).inactiveThreshold(10000).build();
+            iae = assertThrows(IllegalArgumentException.class, () -> jsm.addOrUpdateConsumer(STREAM, cc2));
+            assertTrue(iae.getMessage().contains("Inactive Threshold"));
+
             // with and w/o deliver subject for push/pull
             addConsumer(jsm, atLeast290, 1, false, null, ConsumerConfiguration.builder()
                 .durable(durable(1))

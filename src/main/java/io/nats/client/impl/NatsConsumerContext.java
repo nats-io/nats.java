@@ -72,7 +72,7 @@ public class NatsConsumerContext extends NatsStreamContext implements ConsumerCo
     private NatsJetStreamPullSubscription makeSubscription() throws IOException, JetStreamApiException {
         PullSubscribeOptions pso;
         if (consumer == null) {
-            pso = PullSubscribeOptions.builder().stream(stream).configuration(userCc).build();
+            pso = ConsumerConfiguration.builder(userCc).buildPullSubscribeOptions(stream);
         }
         else {
             pso = PullSubscribeOptions.bind(stream, consumer);
@@ -81,29 +81,30 @@ public class NatsConsumerContext extends NatsStreamContext implements ConsumerCo
     }
 
     /* inner */ class NatsFetchConsumer extends NatsMessageConsumer implements FetchConsumer {
-        final long expiration;
         public NatsFetchConsumer(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
             super(consumeOptions);
             setSub(makeSubscription());
-            sub.pull(PullRequestOptions
-                .builder(consumeOptions.getBatchSize())
+            sub.pull(PullRequestOptions.builder(consumeOptions.getBatchSize())
+                .maxBytes(consumeOptions.getMaxBytes())
                 .expiresIn(consumeOptions.getExpiresInMillis())
                 .idleHeartbeat(consumeOptions.getIdleHeartbeatMillis())
                 .build()
             );
-            expiration = System.currentTimeMillis() + consumeOptions.getExpiresInMillis() - 50;
         }
 
         @Override
         public Message nextMessage() throws InterruptedException {
+            Message m;
             if (pmm.pendingMessages < 1 || (pmm.trackingBytes && pmm.pendingBytes < 1)) {
-                return null;
+                m = sub.nextMessage(null); // null means don't wait, the queue either has something already or it doesn't
             }
-            long timeLeft = expiration - System.currentTimeMillis();
-            if (timeLeft > 0) {
-                return sub.nextMessage(timeLeft);
+            else {
+                m = sub.nextMessage(consumeOptions.getExpiresInMillis());
             }
-            return null;
+            if (m == null) {
+                // todo unsubscribe on a different thread so can return right away;
+            }
+            return m;
         }
     }
 

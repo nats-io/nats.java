@@ -20,6 +20,9 @@ import io.nats.client.api.DeliverPolicy;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.nats.client.impl.MessageManager.ManageResult.MESSAGE;
+import static io.nats.client.impl.MessageManager.ManageResult.STATUS;
+
 class OrderedMessageManager extends PushMessageManager {
 
     protected long expectedExternalConsumerSeq;
@@ -44,24 +47,23 @@ class OrderedMessageManager extends PushMessageManager {
     }
 
     @Override
-    protected boolean manage(Message msg) {
+    protected ManageResult manage(Message msg) {
         if (!msg.getSID().equals(targetSid.get())) {
-            return true; // wrong sid is throwaway from previous consumer that errored
+            return STATUS; // wrong sid is throwaway from previous consumer that errored
         }
 
         if (msg.isJetStream()) {
             long receivedConsumerSeq = msg.metaData().consumerSequence();
             if (expectedExternalConsumerSeq != receivedConsumerSeq) {
                 handleErrorCondition();
-                return true;
+                return STATUS; // error is handled because hope
             }
             trackJsMessage(msg);
             expectedExternalConsumerSeq++;
-            return false;
+            return MESSAGE;
         }
 
-        super.manageStatus(msg);
-        return true; // all statuses are managed
+        return super.manageStatus(msg);
     }
 
     private void handleErrorCondition() {

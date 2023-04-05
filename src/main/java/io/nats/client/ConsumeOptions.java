@@ -140,6 +140,7 @@ public class ConsumeOptions {
          * For instance if the batch size is 100 and the re-pull percent is 25,
          * the first pull will be for 100, and then when 25 messages have been received
          * another 75 will be requested, keeping the number of messages in transit always at 100.
+         * @param thresholdPct the percent from 1 to 100 inclusive.
          * @return the builder
          */
         public Builder thresholdPercent(int thresholdPct) {

@@ -1145,11 +1145,37 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
+         * Builds the PushSubscribeOptions with this configuration.
+         * Providing the stream is a hint for the subscription process that
+         * saves a call to the server. Assumes the stream is the correct stream
+         * for the subject filter, otherwise the server will return an error
+         * which the subscription call will raise to the user.
+         * @param stream the stream for this consumer
+         * @return The PushSubscribeOptions.
+         */
+        public PushSubscribeOptions buildPushSubscribeOptions(String stream) {
+            return PushSubscribeOptions.builder().configuration(build()).stream(stream).build();
+        }
+
+        /**
          * Builds the PullSubscribeOptions with this configuration
          * @return The PullSubscribeOptions.
          */
         public PullSubscribeOptions buildPullSubscribeOptions() {
             return PullSubscribeOptions.builder().configuration(build()).build();
+        }
+
+        /**
+         * Builds the PullSubscribeOptions with this configuration
+         * Providing the stream is a hint for the subscription process that
+         * saves a call to the server. Assumes the stream is the correct stream
+         * for the subject filter, otherwise the server will return an error
+         * which the subscription call will raise to the user.
+         * @param stream the stream for this consumer
+         * @return The PullSubscribeOptions.
+         */
+        public PullSubscribeOptions buildPullSubscribeOptions(String stream) {
+            return PullSubscribeOptions.builder().configuration(build()).stream(stream).build();
         }
     }
 
