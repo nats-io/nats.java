@@ -149,7 +149,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                     batchLeft--;
                 }
                 // try again while we have time
-                timeLeft = maxWaitMillis - (System.currentTimeMillis() - start);
+                timeLeft = maxWaitMillis - Math.abs(System.currentTimeMillis() - start);
             }
         }
         catch (InterruptedException e) {
