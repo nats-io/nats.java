@@ -23,8 +23,9 @@ import java.io.IOException;
 public interface ConsumerContext {
     String getName();
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
-    FetchConsumer fetch(int count) throws IOException, JetStreamApiException;
-    FetchConsumer fetch(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    FetchConsumer fetch(int maxMessages) throws IOException, JetStreamApiException;
+    FetchConsumer fetch(int maxBytes, int maxMessages) throws IOException, JetStreamApiException;
+    FetchConsumer fetch(FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
     MessageConsumer consume() throws IOException, JetStreamApiException;
     MessageConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
     MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException;

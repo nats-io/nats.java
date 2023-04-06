@@ -81,7 +81,7 @@ public class Endless_Active_Consume_CustomOptions_Durable {
     private static Thread startPublish(JetStream js) {
         Thread t = new Thread(() -> {
             while (true) {
-                int count = ThreadLocalRandom.current().nextInt(BATCH_SIZE) + (BATCH_SIZE/2);
+                int count = ThreadLocalRandom.current().nextInt(BATCH_SIZE) + (BATCH_SIZE /2);
                 String text = new NUID().next();
                 for (int x = 1; x <= count; x++) {
                     try {

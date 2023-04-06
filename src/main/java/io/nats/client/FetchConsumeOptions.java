@@ -14,27 +14,27 @@
 package io.nats.client;
 
 /**
- * Consume Options are provided to customize the consume operation.
+ * Fetch Consume Options are provided to customize the fetch operation.
  */
-public class ConsumeOptions extends BaseConsumeOptions {
+public class FetchConsumeOptions extends BaseConsumeOptions {
 
-    private ConsumeOptions(Builder b) {
+    private FetchConsumeOptions(Builder b) {
         super(b);
     }
 
     /**
-     * The initial batch message size.
-     * @return the initial batch message size
+     * The maximum number of messages to fetch
+     * @return the maximum number of messages to fetch
      */
-    public int getBatchSize() {
+    public int getMaxMessages() {
         return messages;
     }
 
     /**
-     * The initial batch byte size.
-     * @return the initial batch byte size
+     * The maximum number of bytes to fetch
+     * @return the maximum number of bytes to fetch
      */
-    public int getBatchBytes() {
+    public int getMaxBytes() {
         return bytes;
     }
 
@@ -43,37 +43,37 @@ public class ConsumeOptions extends BaseConsumeOptions {
     }
 
     public static class Builder
-        extends BaseConsumeOptions.Builder<Builder, ConsumeOptions> {
+        extends BaseConsumeOptions.Builder<Builder, FetchConsumeOptions> {
 
         protected Builder getThis() { return this; }
 
         /**
-         * Set the initial batch message size.
-         * @param batchSize the batch size. Must be greater than 0
+         * Set the maximum number of messages to fetch
+         * @param messages the number of messages. Must be greater than 0
          * @return the builder
          */
-        public Builder batchSize(int batchSize) {
-            return super.messages(batchSize);
+        public Builder maxMessages(int messages) {
+            return super.messages(messages);
         }
 
         /**
-         * Set the initial batch byte size. When set (a value greater than zero,)
-         * it is used in conjunction with batch size, meaning whichever limit is reached
+         * The maximum bytes to consume for Fetch. When set (a value greater than zero,)
+         * it is used in conjunction with max messages, meaning whichever limit is reached
          * first is respected.
-         * @param bytes the batch bytes
+         * @param bytes the maximum bytes
          * @param messages the number of messages. Must be greater than 0.
          * @return the builder
          */
-        public Builder batchBytes(int bytes, int messages) {
+        public Builder maxBytes(int bytes, int messages) {
             return super.bytes(bytes, messages);
         }
 
         /**
-         * Build the ConsumeOptions.
-         * @return the built ConsumeOptions
+         * Build the FetchConsumeOptions.
+         * @return the built FetchConsumeOptions
          */
-        public ConsumeOptions build() {
-            return new ConsumeOptions(this);
+        public FetchConsumeOptions build() {
+            return new FetchConsumeOptions(this);
         }
     }
 }

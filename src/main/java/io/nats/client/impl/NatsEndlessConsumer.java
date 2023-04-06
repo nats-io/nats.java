@@ -28,7 +28,7 @@ public class NatsEndlessConsumer extends NatsMessageConsumer implements MessageC
 
     public NatsEndlessConsumer(NatsJetStreamPullSubscription sub, ConsumeOptions options) {
         super(options);
-        pro = PullRequestOptions.builder(options.getBatchSize()).expiresIn(options.getExpiresInMillis()).build();
+        pro = PullRequestOptions.builder(options.getBatchSize()).expiresIn(options.getExpires()).build();
         currentBatchRed = 0;
         sub.pull(pro);
     }

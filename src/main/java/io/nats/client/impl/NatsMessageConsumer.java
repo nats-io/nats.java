@@ -13,7 +13,7 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.ConsumeOptions;
+import io.nats.client.BaseConsumeOptions;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
 import io.nats.client.MessageConsumer;
@@ -27,9 +27,9 @@ class NatsMessageConsumer implements MessageConsumer {
     protected final Object subLock;
     protected NatsJetStreamPullSubscription sub;
     protected PullMessageManager pmm;
-    protected ConsumeOptions consumeOptions;
+    protected BaseConsumeOptions consumeOptions;
 
-    NatsMessageConsumer(ConsumeOptions consumeOptions) {
+    NatsMessageConsumer(BaseConsumeOptions consumeOptions) {
         subLock = new Object();
         this.consumeOptions = consumeOptions;
     }

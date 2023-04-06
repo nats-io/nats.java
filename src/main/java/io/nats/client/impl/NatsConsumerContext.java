@@ -20,8 +20,6 @@ import io.nats.client.support.Validator;
 
 import java.io.IOException;
 
-import static io.nats.client.ConsumeOptions.DEFAULT_OPTIONS;
-
 /**
  * TODO
  */
@@ -65,10 +63,6 @@ public class NatsConsumerContext extends NatsStreamContext implements ConsumerCo
         return jsm.getConsumerInfo(stream, consumer);
     }
 
-    private ConsumeOptions orDefault(ConsumeOptions consumeOptions) {
-        return consumeOptions == null ? DEFAULT_OPTIONS : consumeOptions;
-    }
-
     private NatsJetStreamPullSubscription makeSubscription() throws IOException, JetStreamApiException {
         PullSubscribeOptions pso;
         if (consumer == null) {
@@ -81,13 +75,13 @@ public class NatsConsumerContext extends NatsStreamContext implements ConsumerCo
     }
 
     /* inner */ class NatsFetchConsumer extends NatsMessageConsumer implements FetchConsumer {
-        public NatsFetchConsumer(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+        public NatsFetchConsumer(FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
             super(consumeOptions);
             setSub(makeSubscription());
-            sub.pull(PullRequestOptions.builder(consumeOptions.getBatchSize())
+            sub.pull(PullRequestOptions.builder(consumeOptions.getMaxMessages())
                 .maxBytes(consumeOptions.getMaxBytes())
-                .expiresIn(consumeOptions.getExpiresInMillis())
-                .idleHeartbeat(consumeOptions.getIdleHeartbeatMillis())
+                .expiresIn(consumeOptions.getExpires())
+                .idleHeartbeat(consumeOptions.getIdleHeartbeat())
                 .build()
             );
         }
@@ -99,7 +93,7 @@ public class NatsConsumerContext extends NatsStreamContext implements ConsumerCo
                 m = sub.nextMessage(null); // null means don't wait, the queue either has something already or it doesn't
             }
             else {
-                m = sub.nextMessage(consumeOptions.getExpiresInMillis());
+                m = sub.nextMessage(consumeOptions.getExpires());
             }
             if (m == null) {
                 // todo unsubscribe on a different thread so can return right away;
@@ -109,16 +103,19 @@ public class NatsConsumerContext extends NatsStreamContext implements ConsumerCo
     }
 
     @Override
-    public FetchConsumer fetch(int count) throws IOException, JetStreamApiException {
-        return fetch(ConsumeOptions.builder().batchSize(count).build());
+    public FetchConsumer fetch(int maxMessages) throws IOException, JetStreamApiException {
+        return fetch(FetchConsumeOptions.builder().maxMessages(maxMessages).build());
     }
 
     @Override
-    public FetchConsumer fetch(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public FetchConsumer fetch(int maxBytes, int maxMessages) throws IOException, JetStreamApiException {
+        return fetch(FetchConsumeOptions.builder().maxBytes(maxBytes, maxMessages).build());
+    }
+
+    @Override
+    public FetchConsumer fetch(FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(consumeOptions, "Consume Options");
-        PullSubscribeOptions pso = PullSubscribeOptions.bind(stream, consumer);
-        NatsJetStreamPullSubscription sub = (NatsJetStreamPullSubscription)js.subscribe(null, pso);
-        return new NatsFetchConsumer(orDefault(consumeOptions));
+        return new NatsFetchConsumer(consumeOptions);
     }
 
     @Override
