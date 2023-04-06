@@ -22,6 +22,7 @@ import io.nats.client.support.Status;
 import static io.nats.client.ErrorListener.FlowControlSource;
 import static io.nats.client.ErrorListener.FlowControlSource.FLOW_CONTROL;
 import static io.nats.client.ErrorListener.FlowControlSource.HEARTBEAT;
+import static io.nats.client.impl.MessageManager.ManageResult.*;
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 
 class PushMessageManager extends MessageManager {
@@ -94,32 +95,34 @@ class PushMessageManager extends MessageManager {
     }
 
     @Override
-    protected boolean manage(Message msg) {
+    protected ManageResult manage(Message msg) {
         if (msg.getStatus() == null) {
             trackJsMessage(msg);
-            return false;
+            return MESSAGE;
         }
-        manageStatus(msg);
-        return true; // all status are managed
+
+        return manageStatus(msg);
     }
 
-    protected void manageStatus(Message msg) {
+    protected ManageResult manageStatus(Message msg) {
         // this checks fc, hb and unknown
         // only process fc and hb if those flags are set
         // otherwise they are simply known statuses
         Status status = msg.getStatus();
         if (fc) {
-            boolean isFlowControl = status.isFlowControl();
-            String fcSubject = isFlowControl ? msg.getReplyTo() : extractFcSubject(msg);
+            boolean isFcNotHb = status.isFlowControl();
+            String fcSubject = isFcNotHb ? msg.getReplyTo() : extractFcSubject(msg);
             if (fcSubject != null) {
-                processFlowControl(fcSubject, isFlowControl ? FLOW_CONTROL : HEARTBEAT);
-                return;
+                processFlowControl(fcSubject, isFcNotHb ? FLOW_CONTROL : HEARTBEAT);
+                return STATUS;
             }
         }
+
         conn.executeCallback((c, el) -> el.unhandledStatus(c, sub, status));
         if (syncMode) {
             throw new JetStreamStatusException(sub, status);
         }
+        return ERROR;
     }
 
     private void processFlowControl(String fcSubject, FlowControlSource source) {

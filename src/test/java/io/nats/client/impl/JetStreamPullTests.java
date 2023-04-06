@@ -25,7 +25,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.nats.client.api.ConsumerConfiguration.builder;
-import static io.nats.client.support.NatsJetStreamConstants.*;
+import static io.nats.client.support.Status.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPullTests extends JetStreamTestBase {
@@ -746,7 +746,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testMessageSizeExceedsMaxBytes() throws Exception {
         PullSubscribeOptions so = ConsumerConfiguration.builder().buildPullSubscribeOptions();
-        testConflictStatus(MESSAGE_SIZE_EXCEEDS_MAX_BYTES, TYPE_WARNING, true, "2.9.0", (jsm, js) -> {
+        testConflictStatus(MESSAGE_SIZE_EXCEEDS_MAX_BYTES, TYPE_NONE, true, "2.9.0", (jsm, js) -> {
             js.publish(SUBJECT, new byte[1000]);
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pull(PullRequestOptions.builder(1).maxBytes(100).build());
@@ -785,6 +785,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(null, so);
             sub.pullExpiresIn(1, 10000);
             jsm.deleteConsumer(STREAM, durable(1));
+            sleep(100);
             return sub;
         });
     }
@@ -849,7 +850,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertNull(sub.nextMessage(500));
         });
         if (!skip.get()) {
-            checkHandler(MESSAGE_SIZE_EXCEEDS_MAX_BYTES, TYPE_WARNING, handler);
+            checkHandler(MESSAGE_SIZE_EXCEEDS_MAX_BYTES, TYPE_NONE, handler);
         }
     }
 

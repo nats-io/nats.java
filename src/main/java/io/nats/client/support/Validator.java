@@ -131,10 +131,11 @@ public abstract class Validator {
         return s;
     }
 
-    public static void required(Object o, String label) {
+    public static <T> T required(T o, String label) {
         if (o == null) {
             throw new IllegalArgumentException(label + " cannot be null or empty.");
         }
+        return o;
     }
 
     public static void required(List<?> l, String label) {

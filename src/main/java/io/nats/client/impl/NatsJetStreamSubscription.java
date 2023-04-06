@@ -97,13 +97,22 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
 
     protected Message _nextUnmanagedNullOrLteZero(Duration timeout) throws InterruptedException {
         // timeout null means don't wait at all, timeout <= 0 means wait forever
-        // until we get an actual no (null) message or we get a message
-        // that the managers do not handle
-        Message msg = nextMessageInternal(timeout);
-        while (msg != null && manager.manage(msg)) {
-            msg = nextMessageInternal(timeout);
+        // until we get an actual no (null) message, or we get a message
+        // that the managers do not handle or are pull terminal indicator status message
+        while (true) {
+            Message msg = nextMessageInternal(timeout);
+            if (msg == null) {
+                return null; // no message currently queued
+            }
+            switch (manager.manage(msg)) {
+                case MESSAGE:
+                    return msg;
+                case TERMINUS:
+                case ERROR:
+                    return null;
+            }
+            // case STATUS, we need to try again
         }
-        return msg;
     }
 
     protected static final long MIN_MILLIS = 20;
@@ -121,10 +130,14 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
             if (msg == null) {
                 return null; // normal timeout
             }
-            if (!manager.manage(msg)) { // not managed means JS Message
-                return msg;
+            switch (manager.manage(msg)) {
+                case MESSAGE:
+                    return msg;
+                case TERMINUS:
+                case ERROR:
+                    return null;
             }
-            // managed so try again while we have time
+            // case STATUS, try again while we have time
             elapsed = System.currentTimeMillis() - start;
         }
         return null;

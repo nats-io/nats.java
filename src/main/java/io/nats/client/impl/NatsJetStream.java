@@ -24,10 +24,11 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static io.nats.client.PushSubscribeOptions.DEFAULT_PUSH_OPTS;
+import static io.nats.client.impl.MessageManager.ManageResult;
 import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.support.Validator.*;
 
-public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
+public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
     public NatsJetStream(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
         super(connection, jsOptions);
@@ -504,13 +505,11 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
 
         @Override
         public void onMessage(Message msg) throws InterruptedException {
-            if (manager.manage(msg)) {
-                return;  // manager handled the message
-            }
-
-            userHandler.onMessage(msg);
-            if (autoAck) {
-                msg.ack();
+            if (manager.manage(msg) == ManageResult.MESSAGE) {
+                userHandler.onMessage(msg);
+                if (autoAck) {
+                    msg.ack();
+                }
             }
         }
     }
@@ -615,24 +614,24 @@ public class NatsJetStream extends NatsJetStreamImplBase implements JetStream {
         return options == null || !options.isBind();
     }
 
-    // ----------------------------------------------------------------------------------------------------
-    // General Utils
-    // ----------------------------------------------------------------------------------------------------
-    ConsumerInfo lookupConsumerInfo(String stream, String consumer) throws IOException, JetStreamApiException {
-        try {
-            return _getConsumerInfo(stream, consumer);
-        }
-        catch (JetStreamApiException e) {
-            // the right side of this condition...  ( starting here \/ ) is for backward compatibility with server versions that did not provide api error codes
-            if (e.getApiErrorCode() == JS_CONSUMER_NOT_FOUND_ERR || (e.getErrorCode() == 404 && e.getErrorDescription().contains("consumer"))) {
-                return null;
-            }
-            throw e;
-        }
+    @Override
+    public StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException {
+        return getNatsStreamContext(streamName);
     }
 
-    protected String lookupStreamBySubject(String subject) throws IOException, JetStreamApiException {
-        List<String> list = _getStreamNames(subject);
-        return list.size() == 1 ? list.get(0) : null;
+    private NatsStreamContext getNatsStreamContext(String streamName) throws IOException, JetStreamApiException {
+        return new NatsStreamContext(conn, jso, streamName);
+    }
+
+    @Override
+    public ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException {
+        Validator.required(consumerName, "Consumer Name");
+        return new NatsConsumerContext(getNatsStreamContext(streamName), consumerName, null);
+    }
+
+    @Override
+    public ConsumerContext getConsumerContext(String streamName, ConsumerConfiguration consumerConfiguration) throws IOException, JetStreamApiException {
+        Validator.required(consumerConfiguration, "Consumer Configuration");
+        return new NatsConsumerContext(getNatsStreamContext(streamName), null, consumerConfiguration);
     }
 }

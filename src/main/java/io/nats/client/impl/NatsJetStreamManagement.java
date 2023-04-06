@@ -19,11 +19,12 @@ import io.nats.client.api.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 
 import static io.nats.client.support.Validator.*;
 
-public class NatsJetStreamManagement extends NatsJetStreamImplBase implements JetStreamManagement {
+public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStreamManagement {
 
     public NatsJetStreamManagement(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
         super(connection, jsOptions);
@@ -124,6 +125,10 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
         validateStreamName(streamName, true);
         validateNotNull(config, "Config");
         validateNotNull(config.getDurable(), "Durable"); // durable name is required when creating consumers
+        Duration d = config.getInactiveThreshold();
+        if (d != null && !d.isZero()) {
+            throw new IllegalArgumentException("Durable consumers cannot have an Inactive Threshold.");
+        }
         return _createConsumer(streamName, config);
     }
 
@@ -131,10 +136,10 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      * {@inheritDoc}
      */
     @Override
-    public boolean deleteConsumer(String streamName, String consumer) throws IOException, JetStreamApiException {
+    public boolean deleteConsumer(String streamName, String consumerName) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
-        validateNotNull(consumer, "consumer");
-        String subj = String.format(JSAPI_CONSUMER_DELETE, streamName, consumer);
+        validateNotNull(consumerName, "Consumer Name");
+        String subj = String.format(JSAPI_CONSUMER_DELETE, streamName, consumerName);
         Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
@@ -143,8 +148,8 @@ public class NatsJetStreamManagement extends NatsJetStreamImplBase implements Je
      * {@inheritDoc}
      */
     @Override
-    public ConsumerInfo getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException {
-        return super._getConsumerInfo(streamName, consumer);
+    public ConsumerInfo getConsumerInfo(String streamName, String consumerName) throws IOException, JetStreamApiException {
+        return super._getConsumerInfo(streamName, consumerName);
     }
 
     /**

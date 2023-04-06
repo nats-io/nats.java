@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static io.nats.client.support.NatsJetStreamClientError.JsConsumerCreate290NotAvailable;
 
-class NatsJetStreamImplBase implements NatsJetStreamConstants {
+class NatsJetStreamImpl implements NatsJetStreamConstants {
 
     // currently the only thing we care about caching is the allowDirect setting
     static class CachedStreamInfo {
@@ -46,7 +46,7 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
     // ----------------------------------------------------------------------------------------------------
     // Create / Init
     // ----------------------------------------------------------------------------------------------------
-    NatsJetStreamImplBase(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
+    NatsJetStreamImpl(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
         conn = connection;
         jso = JetStreamOptions.builder(jsOptions).build(); // builder handles null
         consumerCreate290Available = conn.getInfo().isSameOrNewerThanVersion("2.9.0") && !jso.isOptOut290ConsumerCreate();
@@ -55,8 +55,8 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
     // ----------------------------------------------------------------------------------------------------
     // Management that is also needed by regular context
     // ----------------------------------------------------------------------------------------------------
-    ConsumerInfo _getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException {
-        String subj = String.format(JSAPI_CONSUMER_INFO, streamName, consumer);
+    ConsumerInfo _getConsumerInfo(String streamName, String consumerName) throws IOException, JetStreamApiException {
+        String subj = String.format(JSAPI_CONSUMER_INFO, streamName, consumerName);
         Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
     }
@@ -141,6 +141,27 @@ class NatsJetStreamImplBase implements NatsJetStreamConstants {
             snr.process(resp);
         }
         return snr.getStrings();
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // General Utils
+    // ----------------------------------------------------------------------------------------------------
+    ConsumerInfo lookupConsumerInfo(String streamName, String consumerName) throws IOException, JetStreamApiException {
+        try {
+            return _getConsumerInfo(streamName, consumerName);
+        }
+        catch (JetStreamApiException e) {
+            // the right side of this condition...  ( starting here \/ ) is for backward compatibility with server versions that did not provide api error codes
+            if (e.getApiErrorCode() == JS_CONSUMER_NOT_FOUND_ERR || (e.getErrorCode() == 404 && e.getErrorDescription().contains("consumer"))) {
+                return null;
+            }
+            throw e;
+        }
+    }
+
+    String lookupStreamBySubject(String subject) throws IOException, JetStreamApiException {
+        List<String> list = _getStreamNames(subject);
+        return list.size() == 1 ? list.get(0) : null;
     }
 
     // ----------------------------------------------------------------------------------------------------

@@ -123,13 +123,13 @@ public interface JetStreamManagement {
     /**
      * Deletes a consumer.
      * @param streamName name of the stream
-     * @param consumer the name of the consumer.
+     * @param consumerName the name of the consumer.
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      * @return true if the delete succeeded
      */
-    boolean deleteConsumer(String streamName, String consumer) throws IOException, JetStreamApiException;
+    boolean deleteConsumer(String streamName, String consumerName) throws IOException, JetStreamApiException;
 
     /**
      * Gets the info for an existing consumer.

@@ -24,7 +24,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-import static io.nats.client.support.NatsJetStreamConstants.*;
+import static io.nats.client.impl.MessageManager.ManageResult;
+import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 import static io.nats.client.support.Status.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -94,7 +95,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         String sid = sub.getSID();
 
         assertTrue(manager.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
-        assertFalse(manager.manage(getTestJsMessage(1, sid)));
+        assertEquals(ManageResult.MESSAGE, manager.manage(getTestJsMessage(1, sid)));
 
         assertEquals(!manager.hb, manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
 
@@ -102,8 +103,8 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertTrue(manager.beforeQueueProcessorImpl(getFlowControl(1, sid)));
         assertTrue(manager.beforeQueueProcessorImpl(getFcHeartbeat(1, sid)));
         if (manager.fc) {
-            assertTrue(manager.manage(getFlowControl(1, sid)));
-            assertTrue(manager.manage(getFcHeartbeat(1, sid)));
+            assertEquals(ManageResult.STATUS, manager.manage(getFlowControl(1, sid)));
+            assertEquals(ManageResult.STATUS, manager.manage(getFcHeartbeat(1, sid)));
         }
         else {
             if (manager.syncMode) {
@@ -111,8 +112,8 @@ public class MessageManagerTests extends JetStreamTestBase {
                 assertThrows(JetStreamStatusException.class, () -> manager.manage(getFcHeartbeat(1, sid)));
             }
             else {
-                manager.manage(getFlowControl(1, sid));
-                manager.manage(getFcHeartbeat(1, sid));
+                assertEquals(ManageResult.ERROR, manager.manage(getFlowControl(1, sid)));
+                assertEquals(ManageResult.ERROR, manager.manage(getFcHeartbeat(1, sid)));
             }
             unhandledCodes.add(FLOW_OR_HEARTBEAT_STATUS_CODE); // fc
             unhandledCodes.add(FLOW_OR_HEARTBEAT_STATUS_CODE); // hb
@@ -123,7 +124,7 @@ public class MessageManagerTests extends JetStreamTestBase {
             assertThrows(JetStreamStatusException.class, () -> manager.manage(getUnkownStatus(sid)));
         }
         else {
-            manager.manage(getUnkownStatus(sid));
+            assertEquals(ManageResult.ERROR, manager.manage(getUnkownStatus(sid)));
         }
         unhandledCodes.add(999);
 
@@ -151,6 +152,69 @@ public class MessageManagerTests extends JetStreamTestBase {
             pullMgr.startPullRequest(PullRequestOptions.builder(1).idleHeartbeat(100).build());
             testPullBqpAndManage(sub, handler, pullMgr);
         });
+    }
+
+    private void testPullBqpAndManage(NatsJetStreamSubscription sub, TestHandler handler, PullMessageManager manager) {
+        handler.reset();
+        String sid = sub.getSID();
+
+        // only plain heartbeats don't get queued
+        assertFalse(manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
+
+        assertTrue(manager.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
+        assertTrue(manager.beforeQueueProcessorImpl(getNotFoundStatus(sid)));
+        assertTrue(manager.beforeQueueProcessorImpl(getRequestTimeoutStatus(sid)));
+        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, BATCH_COMPLETED)));
+        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, MESSAGE_SIZE_EXCEEDS_MAX_BYTES)));
+        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_WAITING)));
+        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_BATCH)));
+        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_EXPIRES)));
+        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_MAX_BYTES)));
+        assertTrue(manager.beforeQueueProcessorImpl(getBadRequest(sid)));
+        assertTrue(manager.beforeQueueProcessorImpl(getUnkownStatus(sid)));
+        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, CONSUMER_DELETED)));
+        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, CONSUMER_IS_PUSH_BASED)));
+
+        assertEquals(ManageResult.MESSAGE, manager.manage(getTestJsMessage(1, sid)));
+        assertEquals(ManageResult.TERMINUS, manager.manage(getNotFoundStatus(sid)));
+        assertEquals(ManageResult.TERMINUS, manager.manage(getRequestTimeoutStatus(sid)));
+        assertEquals(ManageResult.TERMINUS, manager.manage(getConflictStatus(sid, BATCH_COMPLETED)));
+        assertEquals(ManageResult.TERMINUS, manager.manage(getConflictStatus(sid, MESSAGE_SIZE_EXCEEDS_MAX_BYTES)));
+        assertEquals(ManageResult.STATUS, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_WAITING)));
+        assertEquals(ManageResult.STATUS, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_BATCH)));
+        assertEquals(ManageResult.STATUS, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_EXPIRES)));
+        assertEquals(ManageResult.STATUS, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_MAX_BYTES)));
+
+        if (manager.syncMode) {
+            assertThrows(JetStreamStatusException.class, () -> manager.manage(getBadRequest(sid)));
+            assertThrows(JetStreamStatusException.class, () -> manager.manage(getUnkownStatus(sid)));
+            assertThrows(JetStreamStatusException.class, () -> manager.manage(getConflictStatus(sid, CONSUMER_DELETED)));
+            assertThrows(JetStreamStatusException.class, () -> manager.manage(getConflictStatus(sid, CONSUMER_IS_PUSH_BASED)));
+        }
+        else {
+            assertEquals(ManageResult.ERROR, manager.manage(getBadRequest(sid)));
+            assertEquals(ManageResult.ERROR, manager.manage(getUnkownStatus(sid)));
+            assertEquals(ManageResult.ERROR, manager.manage(getConflictStatus(sid, CONSUMER_DELETED)));
+            assertEquals(ManageResult.ERROR, manager.manage(getConflictStatus(sid, CONSUMER_IS_PUSH_BASED)));
+        }
+
+        sleep(100);
+
+        List<TestHandler.StatusEvent> list = handler.getPullStatusWarnings();
+        assertEquals(4, list.size());
+        for (TestHandler.StatusEvent se : list) {
+            assertSame(sub.getSID(), se.sid);
+            assertEquals(CONFLICT_CODE, se.status.getCode());
+        }
+
+        list = handler.getPullStatusErrors();
+        assertEquals(4, list.size());
+        int[] codes = new int[]{BAD_REQUEST_CODE, 999, CONFLICT_CODE, CONFLICT_CODE};
+        for (int x = 0; x < list.size(); x++) {
+            TestHandler.StatusEvent se = list.get(x);
+            assertSame(sub.getSID(), se.sid);
+            assertEquals(codes[x], se.status.getCode());
+        }
     }
 
     @Test
@@ -217,71 +281,6 @@ public class MessageManagerTests extends JetStreamTestBase {
             assertEquals(0, handler.getHeartbeatAlarms().size());
             assertNull(pullMgr.heartbeatTimer);
         });
-    }
-
-    private void testPullBqpAndManage(NatsJetStreamSubscription sub, TestHandler handler, PullMessageManager manager) {
-        handler.reset();
-        String sid = sub.getSID();
-
-        assertTrue(manager.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
-        assertFalse(manager.manage(getTestJsMessage(1, sid)));
-
-        // tracks but doesn't queue
-        assertFalse(manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
-        assertFalse(manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
-        assertFalse(manager.beforeQueueProcessorImpl(getNotFoundStatus(sid)));
-        assertFalse(manager.beforeQueueProcessorImpl(getRequestTimeoutStatus(sid)));
-
-        // warnings get queued
-        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, MESSAGE_SIZE_EXCEEDS_MAX_BYTES)));
-        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_WAITING)));
-        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_BATCH)));
-        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_EXPIRES)));
-        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_MAX_BYTES)));
-
-        manager.manage(getConflictStatus(sid, MESSAGE_SIZE_EXCEEDS_MAX_BYTES));
-        manager.manage(getConflictStatus(sid, EXCEEDED_MAX_WAITING));
-        manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_BATCH));
-        manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_EXPIRES));
-        manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_MAX_BYTES));
-
-        // errors get queued
-        assertTrue(manager.beforeQueueProcessorImpl(getBadRequest(sid)));
-        assertTrue(manager.beforeQueueProcessorImpl(getUnkownStatus(sid)));
-        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, CONSUMER_DELETED)));
-        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, CONSUMER_IS_PUSH_BASED)));
-
-        if (manager.syncMode) {
-            assertThrows(JetStreamStatusException.class, () -> manager.manage(getBadRequest(sid)));
-            assertThrows(JetStreamStatusException.class, () -> manager.manage(getUnkownStatus(sid)));
-            assertThrows(JetStreamStatusException.class, () -> manager.manage(getConflictStatus(sid, CONSUMER_DELETED)));
-            assertThrows(JetStreamStatusException.class, () -> manager.manage(getConflictStatus(sid, CONSUMER_IS_PUSH_BASED)));
-        }
-        else {
-            manager.manage(getBadRequest(sid));
-            manager.manage(getUnkownStatus(sid));
-            manager.manage(getConflictStatus(sid, CONSUMER_DELETED));
-            manager.manage(getConflictStatus(sid, CONSUMER_IS_PUSH_BASED));
-        }
-
-        sleep(100);
-
-        List<TestHandler.StatusEvent> list = handler.getPullStatusWarnings();
-        assertEquals(5, list.size());
-        for (int x = 0; x < list.size(); x++) {
-            TestHandler.StatusEvent se = list.get(x);
-            assertSame(sub.getSID(), se.sid);
-            assertEquals(CONFLICT_CODE, se.status.getCode());
-        }
-
-        list = handler.getPullStatusErrors();
-        assertEquals(4, list.size());
-        int[] codes = new int[]{BAD_REQUEST_CODE, 999, CONFLICT_CODE, CONFLICT_CODE};
-        for (int x = 0; x < list.size(); x++) {
-            TestHandler.StatusEvent se = list.get(x);
-            assertSame(sub.getSID(), se.sid);
-            assertEquals(codes[x], se.status.getCode());
-        }
     }
 
     @Test
@@ -379,7 +378,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertTrue(pmm.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
 
         // coverage manager
-        assertFalse(pmm.manage(getTestJsMessage(1, sid)));
+        assertEquals(ManageResult.MESSAGE, pmm.manage(getTestJsMessage(1, sid)));
         assertThrows(JetStreamStatusException.class, () -> pmm.manage(getFlowControl(1, sid)));
         assertThrows(JetStreamStatusException.class, () -> pmm.manage(getFcHeartbeat(1, sid)));
 
@@ -635,13 +634,8 @@ public class MessageManagerTests extends JetStreamTestBase {
         }
 
         @Override
-        protected boolean manage(Message msg) {
-            return false;
-        }
-
-        @Override
-        protected void startup(NatsJetStreamSubscription sub) {
-            this.sub = sub;
+        protected ManageResult manage(Message msg) {
+            return ManageResult.MESSAGE;
         }
 
         @Override
