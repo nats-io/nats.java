@@ -13,7 +13,7 @@ public class SimpleFetch {
     private static final String SUBJECT = "simple-subject";
     private static final String CONSUMER_NAME_PREFIX = "simple-consumer";
     private static final int MESSAGES = 20;
-    private static final int EXPIRES_SECONDS = 1;
+    private static final int EXPIRES_SECONDS = 2;
 
     // change this is you need to...
     public static String SERVER = "nats://localhost:4222";
@@ -120,7 +120,7 @@ public class SimpleFetch {
         }
         else if (maxMessages > MESSAGES) {
             System.out.println("=== Fetch (" + maxMessages + ") is larger than available messages (" + MESSAGES + ")");
-            System.out.println("=== FetchConsumeOption \"expires in\" is 3 seconds.");
+            System.out.println("=== FetchConsumeOption \"expires in\" is " + EXPIRES_SECONDS + " seconds.");
             System.out.println("=== nextMessage() blocks until expiration when there are no messages, then returns null.");
         }
         else {

@@ -63,7 +63,7 @@ public class BaseConsumeOptions {
             this.expiresIn = b.expiresIn;
         }
         else {
-            throw new IllegalArgumentException("Expires must be between 1 and 60 seconds inclusive.");
+            throw new IllegalArgumentException("Expires must be between " + MIN_EXPIRES_MILLS + " and " + MAX_EXPIRES_MILLIS + " seconds inclusive.");
         }
 
         this.idleHeartbeat = this.expiresIn * MAX_IDLE_HEARTBEAT_PCT / 100;

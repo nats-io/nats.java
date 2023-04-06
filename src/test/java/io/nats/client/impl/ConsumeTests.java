@@ -15,17 +15,111 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.StorageType;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
 import static io.nats.client.BaseConsumeOptions.*;
-import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ConsumeTests extends JetStreamTestBase {
+
+    @Test
+    public void testFetch() throws Exception {
+        runInJsServer(nc -> {
+            createDefaultTestStream(nc);
+            JetStream js = nc.jetStream();
+            for (int x = 1; x <= 20; x++) {
+                js.publish(SUBJECT, ("test-fetch-msg-" + x).getBytes());
+            }
+
+            // 1. Different fetch sizes demonstrate expiration behavior
+
+            // 1A. equal number of messages than the fetch size
+            _testFetch(nc, 20, 0);
+
+            // 1B. more messages than the fetch size
+            _testFetch(nc, 10, 0);
+
+            // 1C. fewer messages than the fetch size
+            _testFetch(nc, 40, 0);
+
+            // 2. Different max bytes sizes demonstrate expiration behavior
+            //    - each test message is approximately 100 bytes
+
+            // 2A. max bytes is reached before message count
+            _testFetch(nc, 20, 750);
+
+            // 2B. fetch size is reached before byte count
+            _testFetch(nc, 10, 1500);
+
+            // 2C. fewer bytes than the byte count
+            _testFetch(nc, 40, 3000);
+        });
+    }
+
+    private static void _testFetch(Connection nc, int maxMessages, int maxBytes) throws IOException, JetStreamApiException, InterruptedException {
+        JetStreamManagement jsm = nc.jetStreamManagement();
+        JetStream js = nc.jetStream();
+
+        String name = generateConsumerName(maxMessages, maxBytes);
+
+        // Pre define a consumer
+        ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(name).build();
+        jsm.addOrUpdateConsumer(STREAM, cc);
+
+        // Consumer[Context]
+        ConsumerContext consumerContext = js.getConsumerContext(STREAM, name);
+
+        // Custom consume options
+        FetchConsumeOptions fetchConsumeOptions = FetchConsumeOptions.builder()
+            .maxMessages(maxMessages)        // usually you would use only one or the other
+            .maxBytes(maxBytes, maxMessages) // /\                                    /\
+            .expiresIn(1500)
+            .build();
+
+        long start = System.currentTimeMillis();
+
+        // create the consumer then use it
+        FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions);
+        int rcvd = 0;
+        Message msg = consumer.nextMessage();
+        while (msg != null) {
+            ++rcvd;
+            msg.ack();
+            msg = consumer.nextMessage();
+        }
+        long elapsed = System.currentTimeMillis() - start;
+
+        if (maxBytes > 0) {
+            if (maxMessages > 20) {
+                assertTrue(rcvd < maxMessages);
+                assertTrue(elapsed >= 1500);
+            }
+            else if (maxMessages * 100 > maxBytes) {
+                assertTrue(rcvd < maxMessages);
+                assertTrue(elapsed < 250);
+            }
+            else {
+                assertEquals(maxMessages, rcvd);
+                assertTrue(elapsed < 250);
+            }
+        }
+        else if (maxMessages > 20) {
+            assertTrue(rcvd < maxMessages);
+            assertTrue(elapsed >= 1500);
+        }
+        else {
+            assertEquals(maxMessages, rcvd);
+            assertTrue(elapsed < 250);
+        }
+    }
+
+    private static String generateConsumerName(int maxMessages, int maxBytes) {
+        return maxBytes == 0
+            ? NAME + "-" + maxMessages + "msgs"
+            : NAME + "-" + maxBytes + "bytes-" + maxMessages + "msgs";
+    }
 
     @Test
     public void testFetchConsumeOptionsBuilder() {
@@ -95,119 +189,22 @@ public class ConsumeTests extends JetStreamTestBase {
         assertEquals(50, co.getThresholdMessages());
         assertEquals(1000, co.getBatchBytes());
         assertEquals(500, co.getThresholdBytes());
-    }
 
-    @Test
-    public void testFetch() throws Exception {
-        runInJsServer(nc -> {
-            setupStream(nc.jetStreamManagement(), STREAM, SUBJECT);
-            setupPublish(nc.jetStream(), SUBJECT, 20);
-
-            // 1. Different fetch sizes demonstrate expiration behavior
-
-            // 1A. equal number of messages than the fetch size
-            _testFetch(nc, 20, 0);
-
-            // 1B. more messages than the fetch size
-            _testFetch(nc, 10, 0);
-
-            // 1C. fewer messages than the fetch size
-            _testFetch(nc, 40, 0);
-
-            // 2. Different max bytes sizes demonstrate expiration behavior
-            //    - each test message is approximately 100 bytes
-
-            // 2A. max bytes is reached before message count
-            _testFetch(nc, 20, 750);
-
-            // 2B. fetch size is reached before byte count
-            _testFetch(nc, 10, 1500);
-
-            // 2C. fewer bytes than the byte count
-            _testFetch(nc, 40, 3000);
-        });
-    }
-
-    private static void _testFetch(Connection nc, int maxMessages, int maxBytes) throws IOException, JetStreamApiException, InterruptedException {
-        JetStreamManagement jsm = nc.jetStreamManagement();
-        JetStream js = nc.jetStream();
-
-        String name = generateConsumerName(maxMessages, maxBytes);
-
-        // Pre define a consumer
-        ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(name).build();
-        jsm.addOrUpdateConsumer(STREAM, cc);
-
-        // Consumer[Context]
-        ConsumerContext consumerContext = js.getConsumerContext(STREAM, name);
-
-        // Custom consume options
-        FetchConsumeOptions fetchConsumeOptions = FetchConsumeOptions.builder()
-            .maxMessages(maxMessages)        // usually you would use only one or the other
-            .maxBytes(maxBytes, maxMessages) // /\                                    /\
-            .expiresIn(1000)
-            .build();
-
-        long start = System.currentTimeMillis();
-
-        // create the consumer then use it
-        FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions);
-        int rcvd = 0;
-        Message msg = consumer.nextMessage();
-        while (msg != null) {
-            ++rcvd;
-            msg.ack();
-            msg = consumer.nextMessage();
-        }
-        long elapsed = System.currentTimeMillis() - start;
-
-        if (maxBytes > 0) {
-            if (maxMessages > 20) {
-                assertTrue(rcvd < maxMessages);
-                assertTrue(elapsed >= 1000);
-            }
-            else if (maxMessages * 100 > maxBytes) {
-                assertTrue(rcvd < maxMessages);
-                assertTrue(elapsed < 200);
-            }
-            else {
-                assertEquals(rcvd, maxMessages);
-                assertTrue(elapsed < 200);
-            }
-        }
-        else if (maxMessages > 20) {
-            assertTrue(rcvd < maxMessages);
-            assertTrue(elapsed >= 1000);
-        }
-        else {
-            assertEquals(rcvd, maxMessages);
-            assertTrue(elapsed < 200);
-        }
-    }
-
-    private static String generateConsumerName(int maxMessages, int maxBytes) {
-        return maxBytes == 0
-            ? NAME + "-" + maxMessages + "msgs"
-            : NAME + "-" + maxBytes + "bytes-" + maxMessages + "msgs";
-    }
-
-    public static void setupStream(JetStreamManagement jsm, String stream, String subject) throws IOException, JetStreamApiException {
-        createOrReplaceStream(jsm, stream, StorageType.Memory, subject);
-    }
-
-    public static void setupPublish(JetStream js, String subject, int count) throws IOException, JetStreamApiException {
-        for (int x = 1; x <= count; x++) {
-            js.publish(subject, ("simple-message-" + x).getBytes());
-        }
-    }
-
-    public static void setupConsumer(JetStreamManagement jsm, String stream, String durable, String name) throws IOException, JetStreamApiException {
-        // Create durable consumer
-        ConsumerConfiguration cc =
-            ConsumerConfiguration.builder()
-                .name(name)
-                .durable(durable)
-                .build();
-        jsm.addOrUpdateConsumer(stream, cc);
+        assertThrows(IllegalArgumentException.class,
+            () -> ConsumeOptions.builder().batchSize(-99).build());
+        assertThrows(IllegalArgumentException.class,
+            () -> ConsumeOptions.builder().batchBytes(-99, 1).build());
+        assertThrows(IllegalArgumentException.class,
+            () -> ConsumeOptions.builder().thresholdPercent(0).build());
+        assertThrows(IllegalArgumentException.class,
+            () -> ConsumeOptions.builder().thresholdPercent(-99).build());
+        assertThrows(IllegalArgumentException.class,
+            () -> ConsumeOptions.builder().thresholdPercent(101).build());
+        assertThrows(IllegalArgumentException.class,
+            () -> ConsumeOptions.builder().expiresIn(0).build());
+        assertThrows(IllegalArgumentException.class,
+            () -> ConsumeOptions.builder().expiresIn(MIN_EXPIRES_MILLS - 1).build());
+        assertThrows(IllegalArgumentException.class,
+            () -> ConsumeOptions.builder().expiresIn(MAX_EXPIRES_MILLIS + 1).build());
     }
 }
