@@ -13,25 +13,23 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.BaseConsumeOptions;
+import io.nats.client.ConsumerSubscription;
 import io.nats.client.JetStreamApiException;
-import io.nats.client.Message;
-import io.nats.client.MessageConsumer;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-class NatsMessageConsumer implements MessageConsumer {
+class NatsConsumerSubscription implements ConsumerSubscription {
     protected final Object subLock;
     protected NatsJetStreamPullSubscription sub;
     protected PullMessageManager pmm;
-    protected BaseConsumeOptions consumeOptions;
+    protected boolean active;
 
-    NatsMessageConsumer(BaseConsumeOptions consumeOptions) {
+    NatsConsumerSubscription() {
         subLock = new Object();
-        this.consumeOptions = consumeOptions;
+        active = true;
     }
 
     protected void setSub(NatsJetStreamPullSubscription sub) {
@@ -42,20 +40,14 @@ class NatsMessageConsumer implements MessageConsumer {
     }
 
     @Override
-    public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
-        return null;
-    }
-
-    @Override
-    public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
-        return null;
-    }
-
-    @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
         synchronized (subLock) {
             return sub.getConsumerInfo();
         }
+    }
+
+    public boolean isActive() {
+        return active;
     }
 
     @Override
@@ -66,6 +58,7 @@ class NatsMessageConsumer implements MessageConsumer {
     @Override
     public void unsubscribe(int after) {
         synchronized (subLock) {
+            active = false;
             if (sub.getNatsDispatcher() != null) {
                 sub.getDispatcher().unsubscribe(sub, after);
                 sub.getNatsDispatcher().stop(false);

@@ -13,55 +13,50 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.ConsumeOptions;
-import io.nats.client.Message;
-import io.nats.client.MessageConsumer;
-import io.nats.client.PullRequestOptions;
+import io.nats.client.*;
 
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
+import java.io.IOException;
 
-public class NatsEndlessConsumer extends NatsMessageConsumer implements MessageConsumer {
+public class NatsEndlessConsumer extends NatsConsumerSubscription implements ConsumerSubscription, EndlessConsumer {
     private final PullRequestOptions pro;
-    private int currentBatchRed;
-    private boolean keepGoing = true;
+    private final int thresholdMessages;
+    private final int thresholdBytes;
 
-    public NatsEndlessConsumer(NatsJetStreamPullSubscription sub, ConsumeOptions options) {
-        super(options);
-        pro = PullRequestOptions.builder(options.getBatchSize()).expiresIn(options.getExpires()).build();
-        currentBatchRed = 0;
-        sub.pull(pro);
+    public NatsEndlessConsumer(NatsConsumerContext.NjsPullSubscriptionMaker subMaker, ConsumeOptions opts) throws IOException, JetStreamApiException {
+        setSub(subMaker.makeSubscription());
+
+        int bm = opts.getBatchSize();
+        int bb = opts.getBatchBytes();
+
+        PullRequestOptions firstPro = PullRequestOptions.builder(bm)
+            .maxBytes(bb)
+            .expiresIn(opts.getExpires())
+            .idleHeartbeat(opts.getIdleHeartbeat())
+            .build();
+        sub.pull(firstPro);
+
+        int repullMessages = Math.max(1, bm * opts.getThresholdPercent() / 100);
+        int repullBytes = bb == 0 ? 0 : Math.max(1, bb * opts.getThresholdPercent() / 100);
+        pro = PullRequestOptions.builder(repullMessages)
+            .maxBytes(repullBytes)
+            .expiresIn(opts.getExpires())
+            .idleHeartbeat(opts.getIdleHeartbeat())
+            .build();
+
+        thresholdMessages = bm - repullMessages;
+        thresholdBytes = bb == 0 ? Integer.MIN_VALUE : bb - repullBytes;
     }
 
-    private Message track(Message msg) {
+    @Override
+    public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
+        Message msg = sub.nextMessage(timeoutMillis);
         if (msg != null) {
-            if (++currentBatchRed == consumeOptions.getThresholdMessages()) {
-                if (keepGoing) {
-                    sub.pull(pro);
-                }
-            }
-            if (currentBatchRed == pro.getBatchSize()) {
-                currentBatchRed = 0;
+            if (active &&
+                (pmm.pendingMessages <= thresholdMessages || pmm.pendingBytes <= thresholdBytes))
+            {
+                sub.pull(pro);
             }
         }
         return msg;
-    }
-
-    @Override
-    public void unsubscribe() {
-        keepGoing = false;
-        super.unsubscribe();
-    }
-
-    @Override
-    public void unsubscribe(int after) {
-        keepGoing = false;
-        super.unsubscribe(after);
-    }
-
-    @Override
-    public CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException {
-        keepGoing = false;
-        return super.drain(timeout);
     }
 }

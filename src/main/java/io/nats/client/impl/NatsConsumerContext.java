@@ -20,6 +20,8 @@ import io.nats.client.support.Validator;
 
 import java.io.IOException;
 
+import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
+
 /**
  * TODO
  */
@@ -63,7 +65,11 @@ public class NatsConsumerContext extends NatsStreamContext implements ConsumerCo
         return jsm.getConsumerInfo(stream, consumer);
     }
 
-    private NatsJetStreamPullSubscription makeSubscription() throws IOException, JetStreamApiException {
+    interface NjsPullSubscriptionMaker {
+        NatsJetStreamPullSubscription makeSubscription() throws IOException, JetStreamApiException;
+    }
+
+    NatsJetStreamPullSubscription makeSubscription() throws IOException, JetStreamApiException {
         PullSubscribeOptions pso;
         if (consumer == null) {
             pso = ConsumerConfiguration.builder(userCc).buildPullSubscribeOptions(stream);
@@ -72,34 +78,6 @@ public class NatsConsumerContext extends NatsStreamContext implements ConsumerCo
             pso = PullSubscribeOptions.bind(stream, consumer);
         }
         return (NatsJetStreamPullSubscription)js.subscribe(null, pso);
-    }
-
-    /* inner */ class NatsFetchConsumer extends NatsMessageConsumer implements FetchConsumer {
-        public NatsFetchConsumer(FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
-            super(consumeOptions);
-            setSub(makeSubscription());
-            sub.pull(PullRequestOptions.builder(consumeOptions.getMaxMessages())
-                .maxBytes(consumeOptions.getMaxBytes())
-                .expiresIn(consumeOptions.getExpires())
-                .idleHeartbeat(consumeOptions.getIdleHeartbeat())
-                .build()
-            );
-        }
-
-        @Override
-        public Message nextMessage() throws InterruptedException {
-            Message m;
-            if (pmm.pendingMessages < 1 || (pmm.trackingBytes && pmm.pendingBytes < 1)) {
-                m = sub.nextMessage(null); // null means don't wait, the queue either has something already or it doesn't
-            }
-            else {
-                m = sub.nextMessage(consumeOptions.getExpires());
-            }
-            if (m == null) {
-                // todo unsubscribe on a different thread so can return right away;
-            }
-            return m;
-        }
     }
 
     @Override
@@ -114,28 +92,28 @@ public class NatsConsumerContext extends NatsStreamContext implements ConsumerCo
 
     @Override
     public FetchConsumer fetch(FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+        Validator.required(consumeOptions, "Fetch Consume Options");
+        return new NatsFetchConsumer(this::makeSubscription, consumeOptions);
+    }
+
+    @Override
+    public EndlessConsumer consume() throws IOException, JetStreamApiException {
+        return new NatsEndlessConsumer(this::makeSubscription, DEFAULT_CONSUME_OPTIONS);
+    }
+
+    @Override
+    public EndlessConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(consumeOptions, "Consume Options");
-        return new NatsFetchConsumer(consumeOptions);
+        return new NatsEndlessConsumer(this::makeSubscription, consumeOptions);
     }
 
     @Override
-    public MessageConsumer consume() throws IOException, JetStreamApiException {
-        return consume((ConsumeOptions)null);
+    public ConsumerSubscription consume(MessageHandler handler) throws IOException, JetStreamApiException {
+        throw new IllegalStateException("Not Implemented");
     }
 
     @Override
-    public MessageConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
-        return null;
-    }
-
-    @Override
-    public MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException {
-        return null;
-    }
-
-
-    @Override
-    public MessageConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
-        return null;
+    public ConsumerSubscription consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+        throw new IllegalStateException("Not Implemented");
     }
 }

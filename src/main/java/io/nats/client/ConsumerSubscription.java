@@ -16,18 +16,12 @@ package io.nats.client;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 
-/**
- * TODO
- */
-public interface ConsumerContext {
-    String getName();
+public interface ConsumerSubscription {
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
-    FetchConsumer fetch(int maxMessages) throws IOException, JetStreamApiException;
-    FetchConsumer fetch(int maxBytes, int maxMessages) throws IOException, JetStreamApiException;
-    FetchConsumer fetch(FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
-    EndlessConsumer consume() throws IOException, JetStreamApiException;
-    EndlessConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
-    ConsumerSubscription consume(MessageHandler handler) throws IOException, JetStreamApiException;
-    ConsumerSubscription consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    void unsubscribe();
+    void unsubscribe(int after);
+    CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException;
 }

@@ -31,42 +31,38 @@ public class BaseConsumeOptions {
     protected final int bytes;
     protected final long expiresIn;
     protected final long idleHeartbeat;
-    protected final int thresholdMessages;
-    protected final int thresholdBytes;
+    protected final int thresholdPercent;
 
     @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
     protected BaseConsumeOptions(Builder b) {
-        this.messages = b.messages == -1
+        messages = b.messages == -1
             ? DEFAULT_MESSAGE_COUNT
             : Validator.validateGtZero(b.messages, "Batch Size or Max Message Count");
 
-        this.bytes = b.bytes == -1 ? 0
+        bytes = b.bytes == -1 ? 0
             : (int)Validator.validateGtEqZero(b.bytes, "Max Bytes");
 
-        int threshPct;
         if (b.thresholdPct == -1) {
-            threshPct = DEFAULT_THRESHOLD_PERCENT;
+            thresholdPercent = DEFAULT_THRESHOLD_PERCENT;
         }
         else if (b.thresholdPct >= 1 && b.thresholdPct <= 100) {
-            threshPct = b.thresholdPct;
+            thresholdPercent = b.thresholdPct;
         }
         else {
             throw new IllegalArgumentException("Threshold percent must be between 1 and 100 inclusive.");
         }
-        thresholdMessages = Math.max(1, messages * threshPct / 100);
-        thresholdBytes = Math.max(0, bytes * threshPct / 100);
 
         if (b.expiresIn == -1) {
-            this.expiresIn = DEFAULT_EXPIRES_IN_MS;
+            expiresIn = DEFAULT_EXPIRES_IN_MS;
         }
         else if (b.expiresIn >= MIN_EXPIRES_MILLS && b.expiresIn <= MAX_EXPIRES_MILLIS) {
-            this.expiresIn = b.expiresIn;
+            expiresIn = b.expiresIn;
         }
         else {
             throw new IllegalArgumentException("Expires must be between " + MIN_EXPIRES_MILLS + " and " + MAX_EXPIRES_MILLIS + " seconds inclusive.");
         }
 
-        this.idleHeartbeat = this.expiresIn * MAX_IDLE_HEARTBEAT_PCT / 100;
+        idleHeartbeat = expiresIn * MAX_IDLE_HEARTBEAT_PCT / 100;
     }
 
     public long getExpires() {
@@ -77,12 +73,8 @@ public class BaseConsumeOptions {
         return idleHeartbeat;
     }
 
-    public int getThresholdMessages() {
-        return thresholdMessages;
-    }
-
-    public int getThresholdBytes() {
-        return thresholdBytes;
+    public int getThresholdPercent() {
+        return thresholdPercent;
     }
 
     protected static abstract class Builder<B, CO> {
