@@ -44,6 +44,11 @@ public class ConsumeTests extends JetStreamTestBase {
             // 1C. fewer messages than the fetch size
             _testFetch(nc, 40, 0);
 
+            // don't test bytes before 2.9.1
+            if (nc.getServerInfo().isOlderThanVersion("2.9.1")) {
+                return;
+            }
+
             // 2. Different max bytes sizes demonstrate expiration behavior
             //    - each test message is approximately 100 bytes
 
