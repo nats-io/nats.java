@@ -13,6 +13,11 @@
 
 package io.nats.client;
 
+/**
+ * A fetch consumer gets messages by calling nextMessage.
+ * nextMessage returns null when there are no more messages
+ * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
+ */
 public interface FetchConsumer extends SimpleConsumer {
     Message nextMessage() throws InterruptedException;
 }

@@ -15,6 +15,7 @@ package io.nats.client;
 
 /**
  * Fetch Consume Options are provided to customize the fetch operation.
+ * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class FetchConsumeOptions extends BaseConsumeOptions {
     private FetchConsumeOptions(Builder b) {

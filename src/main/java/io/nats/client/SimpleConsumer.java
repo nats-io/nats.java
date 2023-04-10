@@ -19,6 +19,11 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * The Simple Consumer interface is the core interface replacing
+ * a subscription for a simplified consumer.
+ * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
+ */
 public interface SimpleConsumer {
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
     void unsubscribe();
