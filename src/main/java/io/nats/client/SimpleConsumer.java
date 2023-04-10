@@ -19,9 +19,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-public interface MessageConsumer {
-    Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException;
-    Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException;
+public interface SimpleConsumer {
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
     void unsubscribe();
     void unsubscribe(int after);

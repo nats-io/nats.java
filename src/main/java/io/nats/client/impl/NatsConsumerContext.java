@@ -20,6 +20,8 @@ import io.nats.client.support.Validator;
 
 import java.io.IOException;
 
+import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
+
 /**
  * TODO
  */
@@ -63,42 +65,23 @@ public class NatsConsumerContext extends NatsStreamContext implements ConsumerCo
         return jsm.getConsumerInfo(stream, consumer);
     }
 
-    private NatsJetStreamPullSubscription makeSubscription() throws IOException, JetStreamApiException {
-        PullSubscribeOptions pso;
-        if (consumer == null) {
-            pso = ConsumerConfiguration.builder(userCc).buildPullSubscribeOptions(stream);
-        }
-        else {
-            pso = PullSubscribeOptions.bind(stream, consumer);
-        }
-        return (NatsJetStreamPullSubscription)js.subscribe(null, pso);
-    }
+    class Mediator {
+        Dispatcher dispatcher;
 
-    /* inner */ class NatsFetchConsumer extends NatsMessageConsumer implements FetchConsumer {
-        public NatsFetchConsumer(FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
-            super(consumeOptions);
-            setSub(makeSubscription());
-            sub.pull(PullRequestOptions.builder(consumeOptions.getMaxMessages())
-                .maxBytes(consumeOptions.getMaxBytes())
-                .expiresIn(consumeOptions.getExpires())
-                .idleHeartbeat(consumeOptions.getIdleHeartbeat())
-                .build()
-            );
-        }
-
-        @Override
-        public Message nextMessage() throws InterruptedException {
-            Message m;
-            if (pmm.pendingMessages < 1 || (pmm.trackingBytes && pmm.pendingBytes < 1)) {
-                m = sub.nextMessage(null); // null means don't wait, the queue either has something already or it doesn't
+        public NatsJetStreamPullSubscription makeSubscription(MessageHandler messageHandler) throws IOException, JetStreamApiException {
+            PullSubscribeOptions pso;
+            if (consumer == null) {
+                pso = ConsumerConfiguration.builder(userCc).buildPullSubscribeOptions(stream);
             }
             else {
-                m = sub.nextMessage(consumeOptions.getExpires());
+                pso = PullSubscribeOptions.bind(stream, consumer);
             }
-            if (m == null) {
-                // todo unsubscribe on a different thread so can return right away;
+            if (messageHandler == null) {
+                return (NatsJetStreamPullSubscription)js.subscribe(null, pso);
             }
-            return m;
+
+            dispatcher = js.conn.createDispatcher();
+            return  (NatsJetStreamPullSubscription)js.subscribe(null, dispatcher, messageHandler, pso);
         }
     }
 
@@ -114,28 +97,31 @@ public class NatsConsumerContext extends NatsStreamContext implements ConsumerCo
 
     @Override
     public FetchConsumer fetch(FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+        Validator.required(consumeOptions, "Fetch Consume Options");
+        return new NatsFetchConsumer(new Mediator(), consumeOptions);
+    }
+
+    @Override
+    public ManualConsumer consume() throws IOException, JetStreamApiException {
+        return new NatsManualConsumer(new Mediator(), DEFAULT_CONSUME_OPTIONS);
+    }
+
+    @Override
+    public ManualConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(consumeOptions, "Consume Options");
-        return new NatsFetchConsumer(consumeOptions);
+        return new NatsManualConsumer(new Mediator(), consumeOptions);
     }
 
     @Override
-    public MessageConsumer consume() throws IOException, JetStreamApiException {
-        return consume((ConsumeOptions)null);
+    public SimpleConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException {
+        Validator.required(handler, "Message Handler");
+        return new NatsSimpleConsumer(new Mediator(), handler, DEFAULT_CONSUME_OPTIONS);
     }
 
     @Override
-    public MessageConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
-        return null;
-    }
-
-    @Override
-    public MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException {
-        return null;
-    }
-
-
-    @Override
-    public MessageConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
-        return null;
+    public SimpleConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+        Validator.required(handler, "Message Handler");
+        Validator.required(consumeOptions, "Consume Options");
+        return new NatsSimpleConsumer(new Mediator(), handler, consumeOptions);
     }
 }

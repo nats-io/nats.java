@@ -11,7 +11,7 @@ import java.io.IOException;
 
 import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
 
-public class SimpleUtils {
+public class Utils {
     public static String SIMPLE_STREAM = "simple-stream";
     public static String SIMPLE_SUBJECT = "simple-subject";
     public static String SIMPLE_CONSUMER_NAME = "simple-consumer";

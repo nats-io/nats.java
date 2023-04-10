@@ -13,42 +13,29 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.BaseConsumeOptions;
 import io.nats.client.JetStreamApiException;
-import io.nats.client.Message;
-import io.nats.client.MessageConsumer;
+import io.nats.client.SimpleConsumer;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-class NatsMessageConsumer implements MessageConsumer {
-    protected final Object subLock;
+class NatsSimpleConsumerBase implements SimpleConsumer {
     protected NatsJetStreamPullSubscription sub;
     protected PullMessageManager pmm;
-    protected BaseConsumeOptions consumeOptions;
+    protected final Object subLock;
+    protected boolean active;
 
-    NatsMessageConsumer(BaseConsumeOptions consumeOptions) {
+    NatsSimpleConsumerBase() {
         subLock = new Object();
-        this.consumeOptions = consumeOptions;
+        active = true;
     }
 
-    protected void setSub(NatsJetStreamPullSubscription sub) {
-        synchronized (subLock) {
-            this.sub = sub;
-            pmm = (PullMessageManager)sub.manager;
-        }
-    }
-
-    @Override
-    public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
-        return null;
-    }
-
-    @Override
-    public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
-        return null;
+    // Synchronized by caller if necessary
+    protected void initSub(NatsJetStreamPullSubscription sub) {
+        this.sub = sub;
+        pmm = (PullMessageManager)sub.manager;
     }
 
     @Override
@@ -56,6 +43,10 @@ class NatsMessageConsumer implements MessageConsumer {
         synchronized (subLock) {
             return sub.getConsumerInfo();
         }
+    }
+
+    public boolean isActive() {
+        return active;
     }
 
     @Override
@@ -66,6 +57,7 @@ class NatsMessageConsumer implements MessageConsumer {
     @Override
     public void unsubscribe(int after) {
         synchronized (subLock) {
+            active = false;
             if (sub.getNatsDispatcher() != null) {
                 sub.getDispatcher().unsubscribe(sub, after);
                 sub.getNatsDispatcher().stop(false);

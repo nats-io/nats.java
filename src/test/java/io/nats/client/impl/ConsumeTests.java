@@ -18,6 +18,8 @@ import io.nats.client.api.ConsumerConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.BaseConsumeOptions.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -127,38 +129,149 @@ public class ConsumeTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testConsumeManual() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            createDefaultTestStream(jsm);
+            JetStream js = nc.jetStream();
+
+            // Pre define a consumer
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(NAME).build();
+            jsm.addOrUpdateConsumer(STREAM, cc);
+
+            // Consumer[Context]
+            ConsumerContext consumerContext = js.getConsumerContext(STREAM, NAME);
+
+            int stopCount = 500;
+
+            // create the consumer then use it
+            ManualConsumer consumer = consumerContext.consume();
+            AtomicInteger count = new AtomicInteger();
+            Thread consumeThread = new Thread(() -> {
+                try {
+                    while (count.get() < stopCount) {
+                        Message msg = consumer.nextMessage(1000);
+                        if (msg != null) {
+                            msg.ack();
+                            count.incrementAndGet();
+                        }
+                    }
+
+                    Thread.sleep(50); // allows more messages to come across
+                    consumer.drain(Duration.ofSeconds(1));
+
+                    Message msg = consumer.nextMessage(1000);
+                    while (msg != null) {
+                        msg.ack();
+                        count.incrementAndGet();
+                        msg = consumer.nextMessage(1000);
+                    }
+                }
+                catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            consumeThread.start();
+
+            Publisher publisher = new Publisher(js, SUBJECT, 25);
+            Thread pubThread = new Thread(publisher);
+            pubThread.start();
+
+            consumeThread.join();
+            publisher.stop();
+            pubThread.join();
+
+            assertTrue(count.incrementAndGet() > 500);
+        });
+    }
+
+    @Test
+    public void testConsumeWithHandler() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            createDefaultTestStream(jsm);
+            JetStream js = nc.jetStream();
+
+            // Pre define a consumer
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(NAME).build();
+            jsm.addOrUpdateConsumer(STREAM, cc);
+
+            // Consumer[Context]
+            ConsumerContext consumerContext = js.getConsumerContext(STREAM, NAME);
+
+            int stopCount = 500;
+
+            // create the consumer then use it
+            ManualConsumer consumer = consumerContext.consume();
+            AtomicInteger count = new AtomicInteger();
+            Thread consumeThread = new Thread(() -> {
+                try {
+                    while (count.get() < stopCount) {
+                        Message msg = consumer.nextMessage(1000);
+                        if (msg != null) {
+                            msg.ack();
+                            count.incrementAndGet();
+                        }
+                    }
+
+                    Thread.sleep(50); // allows more messages to come across
+                    consumer.drain(Duration.ofSeconds(1));
+
+                    Message msg = consumer.nextMessage(1000);
+                    while (msg != null) {
+                        msg.ack();
+                        count.incrementAndGet();
+                        msg = consumer.nextMessage(1000);
+                    }
+                }
+                catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            consumeThread.start();
+
+            Publisher publisher = new Publisher(js, SUBJECT, 25);
+            Thread pubThread = new Thread(publisher);
+            pubThread.start();
+
+            consumeThread.join();
+            publisher.stop();
+            pubThread.join();
+
+            assertTrue(count.incrementAndGet() > 500);
+        });
+    }
+
+    @Test
     public void testFetchConsumeOptionsBuilder() {
         FetchConsumeOptions fco = FetchConsumeOptions.builder().build();
         assertEquals(DEFAULT_MESSAGE_COUNT, fco.getMaxMessages());
         assertEquals(DEFAULT_EXPIRES_IN_MS, fco.getExpires());
-        assertEquals(Math.max(1, DEFAULT_MESSAGE_COUNT * DEFAULT_THRESHOLD_PERCENT / 100), fco.getThresholdMessages());
+        assertEquals(DEFAULT_THRESHOLD_PERCENT, fco.getThresholdPercent());
         assertEquals(0, fco.getMaxBytes());
-        assertEquals(0, fco.getThresholdBytes());
         assertEquals(DEFAULT_EXPIRES_IN_MS * MAX_IDLE_HEARTBEAT_PCT / 100, fco.getIdleHeartbeat());
 
         fco = FetchConsumeOptions.builder().maxMessages(1000).build();
         assertEquals(1000, fco.getMaxMessages());
-        assertEquals(1000 * DEFAULT_THRESHOLD_PERCENT / 100, fco.getThresholdMessages());
         assertEquals(0, fco.getMaxBytes());
-        assertEquals(0, fco.getThresholdBytes());
+        assertEquals(DEFAULT_THRESHOLD_PERCENT, fco.getThresholdPercent());
 
         fco = FetchConsumeOptions.builder().maxMessages(1000).thresholdPercent(50).build();
         assertEquals(1000, fco.getMaxMessages());
-        assertEquals(500, fco.getThresholdMessages());
         assertEquals(0, fco.getMaxBytes());
-        assertEquals(0, fco.getThresholdBytes());
+        assertEquals(50, fco.getThresholdPercent());
 
         fco = FetchConsumeOptions.builder().maxBytes(1000, 100).build();
         assertEquals(100, fco.getMaxMessages());
-        assertEquals(100 * DEFAULT_THRESHOLD_PERCENT / 100, fco.getThresholdMessages());
         assertEquals(1000, fco.getMaxBytes());
-        assertEquals(1000 * DEFAULT_THRESHOLD_PERCENT / 100, fco.getThresholdBytes());
+        assertEquals(DEFAULT_THRESHOLD_PERCENT, fco.getThresholdPercent());
 
         fco = FetchConsumeOptions.builder().maxBytes(1000, 100).thresholdPercent(50).build();
         assertEquals(100, fco.getMaxMessages());
-        assertEquals(50, fco.getThresholdMessages());
         assertEquals(1000, fco.getMaxBytes());
-        assertEquals(500, fco.getThresholdBytes());
+        assertEquals(50, fco.getThresholdPercent());
     }
 
     @Test
@@ -166,34 +279,29 @@ public class ConsumeTests extends JetStreamTestBase {
         ConsumeOptions co = ConsumeOptions.builder().build();
         assertEquals(DEFAULT_MESSAGE_COUNT, co.getBatchSize());
         assertEquals(DEFAULT_EXPIRES_IN_MS, co.getExpires());
-        assertEquals(Math.max(1, DEFAULT_MESSAGE_COUNT * DEFAULT_THRESHOLD_PERCENT / 100), co.getThresholdMessages());
+        assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
         assertEquals(0, co.getBatchBytes());
-        assertEquals(0, co.getThresholdBytes());
         assertEquals(DEFAULT_EXPIRES_IN_MS * MAX_IDLE_HEARTBEAT_PCT / 100, co.getIdleHeartbeat());
 
         co = ConsumeOptions.builder().batchSize(1000).build();
         assertEquals(1000, co.getBatchSize());
-        assertEquals(1000 * DEFAULT_THRESHOLD_PERCENT / 100, co.getThresholdMessages());
         assertEquals(0, co.getBatchBytes());
-        assertEquals(0, co.getThresholdBytes());
+        assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
 
         co = ConsumeOptions.builder().batchSize(1000).thresholdPercent(50).build();
         assertEquals(1000, co.getBatchSize());
-        assertEquals(500, co.getThresholdMessages());
         assertEquals(0, co.getBatchBytes());
-        assertEquals(0, co.getThresholdBytes());
+        assertEquals(50, co.getThresholdPercent());
 
         co = ConsumeOptions.builder().batchBytes(1000, 100).build();
         assertEquals(100, co.getBatchSize());
-        assertEquals(100 * DEFAULT_THRESHOLD_PERCENT / 100, co.getThresholdMessages());
         assertEquals(1000, co.getBatchBytes());
-        assertEquals(1000 * DEFAULT_THRESHOLD_PERCENT / 100, co.getThresholdBytes());
+        assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
 
         co = ConsumeOptions.builder().batchBytes(1000, 100).thresholdPercent(50).build();
         assertEquals(100, co.getBatchSize());
-        assertEquals(50, co.getThresholdMessages());
         assertEquals(1000, co.getBatchBytes());
-        assertEquals(500, co.getThresholdBytes());
+        assertEquals(50, co.getThresholdPercent());
 
         assertThrows(IllegalArgumentException.class,
             () -> ConsumeOptions.builder().batchSize(-99).build());

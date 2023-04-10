@@ -25,11 +25,11 @@ import java.util.List;
 public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
     NatsJetStreamPullSubscription(String sid, String subject,
-                                  NatsConnection connection,
+                                  NatsConnection connection, NatsDispatcher dispatcher,
                                   NatsJetStream js,
                                   String stream, String consumer,
                                   MessageManager manager) {
-        super(sid, subject, null, connection, null, js, stream, consumer, manager);
+        super(sid, subject, null, connection, dispatcher, js, stream, consumer, manager);
     }
 
     @Override

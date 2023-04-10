@@ -485,6 +485,20 @@ public interface JetStream {
      */
     JetStreamSubscription subscribe(String subject, PullSubscribeOptions options) throws IOException, JetStreamApiException;
 
+    /**
+     * Create an asynchronous subscription to the specified subject in the mode of pull, with additional options
+     *
+     * @param subject The subject to subscribe to
+     * @param dispatcher The dispatcher to handle this subscription
+     * @param handler The target for the messages
+     * @param options pull subscription options
+     * @return The subscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, PullSubscribeOptions options) throws IOException, JetStreamApiException;
+
     StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException;
     ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException;
     ConsumerContext getConsumerContext(String streamName, ConsumerConfiguration consumerConfiguration) throws IOException, JetStreamApiException;

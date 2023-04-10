@@ -13,6 +13,6 @@
 
 package io.nats.client;
 
-public interface FetchConsumer extends SimpleConsumer {
-    Message nextMessage() throws InterruptedException;
+public interface ManualConsumer extends SimpleConsumer {
+    Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException;
 }
