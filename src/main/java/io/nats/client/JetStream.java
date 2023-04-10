@@ -13,7 +13,6 @@
 
 package io.nats.client;
 
-import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.PublishAck;
 import io.nats.client.impl.Headers;
 
@@ -499,7 +498,40 @@ public interface JetStream {
      */
     JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, PullSubscribeOptions options) throws IOException, JetStreamApiException;
 
+    /**
+     * Create a stream context for a specific named stream. Verifies that the stream exists.
+     * EXPERIMENTAL API SUBJECT TO CHANGE
+     * @param streamName the name of the stream
+     * @return a StreamContext object
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
     StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException;
+
+    /**
+     * Create a consumer context for a specific named stream and specific named consumer.
+     * Verifies that the stream and consumer exist.
+     * EXPERIMENTAL API SUBJECT TO CHANGE
+     * @param streamName the name of the stream
+     * @param consumerName the name of the consumer
+     * @return a ConsumerContext object
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
     ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException;
-    ConsumerContext getConsumerContext(String streamName, ConsumerConfiguration consumerConfiguration) throws IOException, JetStreamApiException;
+
+//    /**
+//     * Create a consumer context for a specific named stream and specific named consumer.
+//     * Verifies that the stream and consumer exist.
+//     * EXPERIMENTAL API SUBJECT TO CHANGE
+//     * @param streamName the name of the stream
+//     * @param consumerConfiguration TODO
+//     * @return a ConsumerContext object
+//     * @throws IOException covers various communication issues with the NATS
+//     *         server such as timeout or interruption
+//     * @throws JetStreamApiException the request had an error related to the data
+//     */
+//    ConsumerContext getConsumerContext(String streamName, ConsumerConfiguration consumerConfiguration) throws IOException, JetStreamApiException;
 }

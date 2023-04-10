@@ -23,7 +23,7 @@ import java.io.IOException;
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
 
 /**
- * TODO
+ * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class NatsConsumerContext extends NatsStreamContext implements ConsumerContext {
 

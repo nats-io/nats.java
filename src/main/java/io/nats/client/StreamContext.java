@@ -21,7 +21,7 @@ import io.nats.client.api.StreamInfoOptions;
 import java.io.IOException;
 
 /**
- * TODO
+ * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public interface StreamContext {
     String getStream();
@@ -32,5 +32,5 @@ public interface StreamContext {
     boolean deleteConsumer(String consumerName) throws IOException, JetStreamApiException;
 
     ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException;
-    ConsumerContext getConsumerContext(ConsumerConfiguration config) throws IOException, JetStreamApiException;
+//    ConsumerContext getConsumerContext(ConsumerConfiguration config) throws IOException, JetStreamApiException;
 }

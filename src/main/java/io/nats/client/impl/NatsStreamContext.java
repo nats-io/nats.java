@@ -25,9 +25,9 @@ import io.nats.client.api.StreamInfoOptions;
 import java.io.IOException;
 
 /**
- * TODO
+ * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
-public class NatsStreamContext implements StreamContext {
+class NatsStreamContext implements StreamContext {
     final NatsJetStreamManagement jsm;
     final String stream;
 
@@ -72,8 +72,8 @@ public class NatsStreamContext implements StreamContext {
         return new NatsConsumerContext(jsm.conn, jsm.jso, stream, consumerName);
     }
 
-    @Override
-    public ConsumerContext getConsumerContext(ConsumerConfiguration config) throws IOException, JetStreamApiException {
-        return new NatsConsumerContext(jsm.conn, jsm.jso, stream, config);
-    }
+//    @Override
+//    public ConsumerContext getConsumerContext(ConsumerConfiguration config) throws IOException, JetStreamApiException {
+//        return new NatsConsumerContext(jsm.conn, jsm.jso, stream, config);
+//    }
 }

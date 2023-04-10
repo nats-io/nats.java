@@ -18,7 +18,7 @@ import io.nats.client.api.ConsumerInfo;
 import java.io.IOException;
 
 /**
- * TODO
+ * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public interface ConsumerContext {
     String getName();

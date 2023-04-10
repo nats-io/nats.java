@@ -610,6 +610,9 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         return createSubscription(subject, null, null, null, false, null, options);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, PullSubscribeOptions options) throws IOException, JetStreamApiException {
         validateSubject(subject, isSubjectRequired(options));
@@ -623,6 +626,9 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         return options == null || !options.isBind();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException {
         return getNatsStreamContext(streamName);
@@ -632,15 +638,21 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         return new NatsStreamContext(conn, jso, streamName);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException {
         Validator.required(consumerName, "Consumer Name");
         return new NatsConsumerContext(getNatsStreamContext(streamName), consumerName, null);
     }
 
-    @Override
-    public ConsumerContext getConsumerContext(String streamName, ConsumerConfiguration consumerConfiguration) throws IOException, JetStreamApiException {
-        Validator.required(consumerConfiguration, "Consumer Configuration");
-        return new NatsConsumerContext(getNatsStreamContext(streamName), null, consumerConfiguration);
-    }
+//    /**
+//     * {@inheritDoc}
+//     */
+//    @Override
+//    public ConsumerContext getConsumerContext(String streamName, ConsumerConfiguration consumerConfiguration) throws IOException, JetStreamApiException {
+//        Validator.required(consumerConfiguration, "Consumer Configuration");
+//        return new NatsConsumerContext(getNatsStreamContext(streamName), null, consumerConfiguration);
+//    }
 }
