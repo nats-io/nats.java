@@ -13,6 +13,6 @@
 
 package io.nats.client;
 
-public interface FetchConsumer extends ConsumerSubscription {
+public interface FetchConsumer extends SimpleConsumer {
     Message nextMessage() throws InterruptedException;
 }

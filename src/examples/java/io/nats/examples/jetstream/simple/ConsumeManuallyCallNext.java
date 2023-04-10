@@ -4,14 +4,11 @@ import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 
 import java.time.Duration;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * This example will demonstrate simplified fetch
+ * This example will demonstrate simplified manual consume
  */
-public class SimpleConsume {
+public class ConsumeManuallyCallNext {
     private static final String STREAM = "simple-stream";
     private static final String SUBJECT = "simple-subject";
     private static final int STOP_COUNT = 500;
@@ -28,7 +25,7 @@ public class SimpleConsume {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
-            SimpleUtils.setupStream(jsm, STREAM, SUBJECT);
+            Utils.setupStream(jsm, STREAM, SUBJECT);
 
             String name = "simple-consumer-" + NUID.nextGlobal();
 
@@ -40,7 +37,7 @@ public class SimpleConsume {
             ConsumerContext consumerContext = js.getConsumerContext(STREAM, name);
 
             // create the consumer then use it
-            EndlessConsumer consumer = consumerContext.consume();
+            ManualConsumer consumer = consumerContext.consume();
 
             long start = System.nanoTime();
             Thread consumeThread = new Thread(() -> {
@@ -58,8 +55,8 @@ public class SimpleConsume {
                     }
                     report("Main Loop Stopped", start, count);
 
-                    System.out.println("Pausing for effect...let some more messages come in.");
-                    Thread.sleep(JITTER * 3 / 2); // so at least one more message comes across
+                    System.out.println("Pausing for effect...allow more messages come across.");
+                    Thread.sleep(JITTER * 2); // allows more messages to come across
                     consumer.drain(Duration.ofSeconds(1));
 
                     System.out.println("Starting post-drain loop.");
@@ -78,23 +75,12 @@ public class SimpleConsume {
             });
             consumeThread.start();
 
-            AtomicInteger pubNo = new AtomicInteger();
-            AtomicBoolean pubGo = new AtomicBoolean(true);
-            Thread pubThread = new Thread(() -> {
-                try {
-                    while (pubGo.get()) {
-                        Thread.sleep(ThreadLocalRandom.current().nextLong(JITTER));
-                        js.publish(SUBJECT, ("simple-message-" + pubNo.incrementAndGet()).getBytes());
-                    }
-                }
-                catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            });
+            Publisher publisher = new Publisher(js, SUBJECT, JITTER);
+            Thread pubThread = new Thread(publisher);
             pubThread.start();
 
             consumeThread.join();
-            pubGo.set(false);
+            publisher.stop();
             pubThread.join();
         }
         catch (Exception e) {

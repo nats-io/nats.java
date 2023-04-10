@@ -17,27 +17,24 @@ import io.nats.client.*;
 
 import java.io.IOException;
 
-import static io.nats.client.impl.NatsConsumerContext.NjsPullSubscriptionMaker;
+class NatsFetchConsumer extends NatsSimpleConsumerBase implements FetchConsumer {
+    private final long maxWaitNanos;
+    private final long start;
 
-class NatsFetchConsumer extends NatsConsumerSubscription implements FetchConsumer {
-    long start;
-    long maxWaitNanos;
-    public NatsFetchConsumer(NjsPullSubscriptionMaker subMaker, FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
-        setSub(subMaker.makeSubscription());
+    public NatsFetchConsumer(NatsConsumerContext.Mediator mediator, FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+        initSub(mediator.makeSubscription(null));
+        maxWaitNanos = consumeOptions.getExpires() * 1_000_000;
         sub.pull(PullRequestOptions.builder(consumeOptions.getMaxMessages())
             .maxBytes(consumeOptions.getMaxBytes())
             .expiresIn(consumeOptions.getExpires())
             .idleHeartbeat(consumeOptions.getIdleHeartbeat())
             .build()
         );
-        maxWaitNanos = consumeOptions.getExpires() * 1_000_000;
+        start = System.nanoTime();
     }
 
     @Override
     public Message nextMessage() throws InterruptedException {
-        if (start == 0) {
-            start = System.nanoTime();
-        }
         Message m;
         if (pmm.pendingMessages < 1 || (pmm.trackingBytes && pmm.pendingBytes < 1)) {
             // nothing pending means the client has already received all it is going to

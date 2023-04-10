@@ -13,17 +13,30 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.*;
+import io.nats.client.ConsumeOptions;
+import io.nats.client.JetStreamApiException;
+import io.nats.client.MessageHandler;
+import io.nats.client.PullRequestOptions;
 
 import java.io.IOException;
 
-public class NatsEndlessConsumer extends NatsConsumerSubscription implements ConsumerSubscription, EndlessConsumer {
-    private final PullRequestOptions pro;
-    private final int thresholdMessages;
-    private final int thresholdBytes;
+class NatsSimpleConsumer extends NatsSimpleConsumerBase {
+    protected final PullRequestOptions repullPro;
+    protected final int thresholdMessages;
+    protected final int thresholdBytes;
+    protected final NatsConsumerContext.Mediator mediator;
 
-    public NatsEndlessConsumer(NatsConsumerContext.NjsPullSubscriptionMaker subMaker, ConsumeOptions opts) throws IOException, JetStreamApiException {
-        setSub(subMaker.makeSubscription());
+    NatsSimpleConsumer(NatsConsumerContext.Mediator mediator, final MessageHandler messageHandler, ConsumeOptions opts) throws IOException, JetStreamApiException {
+        this.mediator = mediator;
+        if (messageHandler == null) {
+            initSub(mediator.makeSubscription(null));
+        }
+        else {
+            initSub(mediator.makeSubscription(msg -> {
+                checkForRepull();
+                messageHandler.onMessage(msg);
+            }));
+        }
 
         int bm = opts.getBatchSize();
         int bb = opts.getBatchBytes();
@@ -33,11 +46,10 @@ public class NatsEndlessConsumer extends NatsConsumerSubscription implements Con
             .expiresIn(opts.getExpires())
             .idleHeartbeat(opts.getIdleHeartbeat())
             .build();
-        sub.pull(firstPro);
 
         int repullMessages = Math.max(1, bm * opts.getThresholdPercent() / 100);
         int repullBytes = bb == 0 ? 0 : Math.max(1, bb * opts.getThresholdPercent() / 100);
-        pro = PullRequestOptions.builder(repullMessages)
+        repullPro = PullRequestOptions.builder(repullMessages)
             .maxBytes(repullBytes)
             .expiresIn(opts.getExpires())
             .idleHeartbeat(opts.getIdleHeartbeat())
@@ -45,18 +57,14 @@ public class NatsEndlessConsumer extends NatsConsumerSubscription implements Con
 
         thresholdMessages = bm - repullMessages;
         thresholdBytes = bb == 0 ? Integer.MIN_VALUE : bb - repullBytes;
+        sub.pull(firstPro);
     }
 
-    @Override
-    public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
-        Message msg = sub.nextMessage(timeoutMillis);
-        if (msg != null) {
-            if (active &&
-                (pmm.pendingMessages <= thresholdMessages || pmm.pendingBytes <= thresholdBytes))
-            {
-                sub.pull(pro);
-            }
+    protected void checkForRepull() {
+        if (active &&
+            (pmm.pendingMessages <= thresholdMessages || pmm.pendingBytes <= thresholdBytes))
+        {
+            sub.pull(repullPro);
         }
-        return msg;
     }
 }

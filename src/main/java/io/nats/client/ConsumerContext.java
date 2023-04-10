@@ -26,8 +26,8 @@ public interface ConsumerContext {
     FetchConsumer fetch(int maxMessages) throws IOException, JetStreamApiException;
     FetchConsumer fetch(int maxBytes, int maxMessages) throws IOException, JetStreamApiException;
     FetchConsumer fetch(FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
-    EndlessConsumer consume() throws IOException, JetStreamApiException;
-    EndlessConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
-    ConsumerSubscription consume(MessageHandler handler) throws IOException, JetStreamApiException;
-    ConsumerSubscription consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    ManualConsumer consume() throws IOException, JetStreamApiException;
+    ManualConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    SimpleConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException;
+    SimpleConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 }

@@ -25,7 +25,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -213,6 +215,38 @@ public class JetStreamTestBase extends TestBase {
             messages.add(iter.next());
         }
         return messages;
+    }
+
+    public static class Publisher implements Runnable {
+        private final JetStream js;
+        private final String subject;
+        private final int jitter;
+        private final AtomicBoolean keepGoing = new AtomicBoolean(true);
+        private int dataId;
+
+        public Publisher(JetStream js, String subject, int jitter) {
+            this.js = js;
+            this.subject = subject;
+            this.jitter = jitter;
+        }
+
+        public void stop() {
+            keepGoing.set(false);
+        }
+
+        @Override
+        public void run() {
+            try {
+                while (keepGoing.get()) {
+                    if (jitter > 0) {
+                        Thread.sleep(ThreadLocalRandom.current().nextLong(jitter));
+                    }
+                    js.publish(subject, dataBytes(++dataId));
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     // ----------------------------------------------------------------------------------------------------

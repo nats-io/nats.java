@@ -13,15 +13,6 @@
 
 package io.nats.client;
 
-import io.nats.client.api.ConsumerInfo;
-
-import java.io.IOException;
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-
-public interface ConsumerSubscription {
-    ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
-    void unsubscribe();
-    void unsubscribe(int after);
-    CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException;
+public interface ManualConsumer extends SimpleConsumer {
+    Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException;
 }

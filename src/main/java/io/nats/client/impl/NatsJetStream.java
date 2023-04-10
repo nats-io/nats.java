@@ -403,7 +403,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         if (isPullMode) {
             mm = _pullMessageManagerFactory.createMessageManager(conn, this, fnlStream, so, settledServerCC, false, dispatcher == null);
             subFactory = (sid, lSubject, lQgroup, lConn, lDispatcher)
-                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, this, fnlStream, settledConsumerName, mm);
+                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, lDispatcher, this, fnlStream, settledConsumerName, mm);
         }
         else {
             MessageManagerFactory mmFactory = so.isOrdered() ? _pushOrderedMessageManagerFactory : _pushMessageManagerFactory;
@@ -605,9 +605,18 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subject, PullSubscribeOptions options) throws IOException, JetStreamApiException {
-        validateNotNull(options, "Pull Subscribe Options");
         validateSubject(subject, isSubjectRequired(options));
+        validateNotNull(options, "Pull Subscribe Options");
         return createSubscription(subject, null, null, null, false, null, options);
+    }
+
+    @Override
+    public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, PullSubscribeOptions options) throws IOException, JetStreamApiException {
+        validateSubject(subject, isSubjectRequired(options));
+        validateNotNull(dispatcher, "Dispatcher");
+        validateNotNull(handler, "Handler");
+        validateNotNull(options, "Pull Subscribe Options");
+        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, false, null, options);
     }
 
     private boolean isSubjectRequired(SubscribeOptions options) {

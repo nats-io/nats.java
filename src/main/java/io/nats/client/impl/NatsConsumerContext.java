@@ -65,19 +65,24 @@ public class NatsConsumerContext extends NatsStreamContext implements ConsumerCo
         return jsm.getConsumerInfo(stream, consumer);
     }
 
-    interface NjsPullSubscriptionMaker {
-        NatsJetStreamPullSubscription makeSubscription() throws IOException, JetStreamApiException;
-    }
+    class Mediator {
+        Dispatcher dispatcher;
 
-    NatsJetStreamPullSubscription makeSubscription() throws IOException, JetStreamApiException {
-        PullSubscribeOptions pso;
-        if (consumer == null) {
-            pso = ConsumerConfiguration.builder(userCc).buildPullSubscribeOptions(stream);
+        public NatsJetStreamPullSubscription makeSubscription(MessageHandler messageHandler) throws IOException, JetStreamApiException {
+            PullSubscribeOptions pso;
+            if (consumer == null) {
+                pso = ConsumerConfiguration.builder(userCc).buildPullSubscribeOptions(stream);
+            }
+            else {
+                pso = PullSubscribeOptions.bind(stream, consumer);
+            }
+            if (messageHandler == null) {
+                return (NatsJetStreamPullSubscription)js.subscribe(null, pso);
+            }
+
+            dispatcher = js.conn.createDispatcher();
+            return  (NatsJetStreamPullSubscription)js.subscribe(null, dispatcher, messageHandler, pso);
         }
-        else {
-            pso = PullSubscribeOptions.bind(stream, consumer);
-        }
-        return (NatsJetStreamPullSubscription)js.subscribe(null, pso);
     }
 
     @Override
@@ -93,27 +98,30 @@ public class NatsConsumerContext extends NatsStreamContext implements ConsumerCo
     @Override
     public FetchConsumer fetch(FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(consumeOptions, "Fetch Consume Options");
-        return new NatsFetchConsumer(this::makeSubscription, consumeOptions);
+        return new NatsFetchConsumer(new Mediator(), consumeOptions);
     }
 
     @Override
-    public EndlessConsumer consume() throws IOException, JetStreamApiException {
-        return new NatsEndlessConsumer(this::makeSubscription, DEFAULT_CONSUME_OPTIONS);
+    public ManualConsumer consume() throws IOException, JetStreamApiException {
+        return new NatsManualConsumer(new Mediator(), DEFAULT_CONSUME_OPTIONS);
     }
 
     @Override
-    public EndlessConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public ManualConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(consumeOptions, "Consume Options");
-        return new NatsEndlessConsumer(this::makeSubscription, consumeOptions);
+        return new NatsManualConsumer(new Mediator(), consumeOptions);
     }
 
     @Override
-    public ConsumerSubscription consume(MessageHandler handler) throws IOException, JetStreamApiException {
-        throw new IllegalStateException("Not Implemented");
+    public SimpleConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException {
+        Validator.required(handler, "Message Handler");
+        return new NatsSimpleConsumer(new Mediator(), handler, DEFAULT_CONSUME_OPTIONS);
     }
 
     @Override
-    public ConsumerSubscription consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
-        throw new IllegalStateException("Not Implemented");
+    public SimpleConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+        Validator.required(handler, "Message Handler");
+        Validator.required(consumeOptions, "Consume Options");
+        return new NatsSimpleConsumer(new Mediator(), handler, consumeOptions);
     }
 }

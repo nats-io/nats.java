@@ -13,30 +13,29 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.ConsumerSubscription;
 import io.nats.client.JetStreamApiException;
+import io.nats.client.SimpleConsumer;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-class NatsConsumerSubscription implements ConsumerSubscription {
-    protected final Object subLock;
+class NatsSimpleConsumerBase implements SimpleConsumer {
     protected NatsJetStreamPullSubscription sub;
     protected PullMessageManager pmm;
+    protected final Object subLock;
     protected boolean active;
 
-    NatsConsumerSubscription() {
+    NatsSimpleConsumerBase() {
         subLock = new Object();
         active = true;
     }
 
-    protected void setSub(NatsJetStreamPullSubscription sub) {
-        synchronized (subLock) {
-            this.sub = sub;
-            pmm = (PullMessageManager)sub.manager;
-        }
+    // Synchronized by caller if necessary
+    protected void initSub(NatsJetStreamPullSubscription sub) {
+        this.sub = sub;
+        pmm = (PullMessageManager)sub.manager;
     }
 
     @Override

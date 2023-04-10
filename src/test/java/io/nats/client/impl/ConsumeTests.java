@@ -18,6 +18,8 @@ import io.nats.client.api.ConsumerConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.BaseConsumeOptions.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -124,6 +126,122 @@ public class ConsumeTests extends JetStreamTestBase {
         return maxBytes == 0
             ? NAME + "-" + maxMessages + "msgs"
             : NAME + "-" + maxBytes + "bytes-" + maxMessages + "msgs";
+    }
+
+    @Test
+    public void testConsumeManual() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            createDefaultTestStream(jsm);
+            JetStream js = nc.jetStream();
+
+            // Pre define a consumer
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(NAME).build();
+            jsm.addOrUpdateConsumer(STREAM, cc);
+
+            // Consumer[Context]
+            ConsumerContext consumerContext = js.getConsumerContext(STREAM, NAME);
+
+            int stopCount = 500;
+
+            // create the consumer then use it
+            ManualConsumer consumer = consumerContext.consume();
+            AtomicInteger count = new AtomicInteger();
+            Thread consumeThread = new Thread(() -> {
+                try {
+                    while (count.get() < stopCount) {
+                        Message msg = consumer.nextMessage(1000);
+                        if (msg != null) {
+                            msg.ack();
+                            count.incrementAndGet();
+                        }
+                    }
+
+                    Thread.sleep(50); // allows more messages to come across
+                    consumer.drain(Duration.ofSeconds(1));
+
+                    Message msg = consumer.nextMessage(1000);
+                    while (msg != null) {
+                        msg.ack();
+                        count.incrementAndGet();
+                        msg = consumer.nextMessage(1000);
+                    }
+                }
+                catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            consumeThread.start();
+
+            Publisher publisher = new Publisher(js, SUBJECT, 25);
+            Thread pubThread = new Thread(publisher);
+            pubThread.start();
+
+            consumeThread.join();
+            publisher.stop();
+            pubThread.join();
+
+            assertTrue(count.incrementAndGet() > 500);
+        });
+    }
+
+    @Test
+    public void testConsumeWithHandler() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            createDefaultTestStream(jsm);
+            JetStream js = nc.jetStream();
+
+            // Pre define a consumer
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(NAME).build();
+            jsm.addOrUpdateConsumer(STREAM, cc);
+
+            // Consumer[Context]
+            ConsumerContext consumerContext = js.getConsumerContext(STREAM, NAME);
+
+            int stopCount = 500;
+
+            // create the consumer then use it
+            ManualConsumer consumer = consumerContext.consume();
+            AtomicInteger count = new AtomicInteger();
+            Thread consumeThread = new Thread(() -> {
+                try {
+                    while (count.get() < stopCount) {
+                        Message msg = consumer.nextMessage(1000);
+                        if (msg != null) {
+                            msg.ack();
+                            count.incrementAndGet();
+                        }
+                    }
+
+                    Thread.sleep(50); // allows more messages to come across
+                    consumer.drain(Duration.ofSeconds(1));
+
+                    Message msg = consumer.nextMessage(1000);
+                    while (msg != null) {
+                        msg.ack();
+                        count.incrementAndGet();
+                        msg = consumer.nextMessage(1000);
+                    }
+                }
+                catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            consumeThread.start();
+
+            Publisher publisher = new Publisher(js, SUBJECT, 25);
+            Thread pubThread = new Thread(publisher);
+            pubThread.start();
+
+            consumeThread.join();
+            publisher.stop();
+            pubThread.join();
+
+            assertTrue(count.incrementAndGet() > 500);
+        });
     }
 
     @Test
