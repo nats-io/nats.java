@@ -101,6 +101,7 @@ class NatsConnection implements Connection {
     private final boolean advancedTracking;
 
     private final ServerPool serverPool;
+    private final boolean optCancelOn503;
 
     NatsConnection(Options options) {
         boolean trace = options.isTraceConnection();
@@ -156,6 +157,8 @@ class NatsConnection implements Connection {
 
         serverPool = options.getServerPool() == null ? new NatsServerPool() : options.getServerPool();
         serverPool.initialize(options);
+
+        optCancelOn503 = !options.isDontCancelNoResponders();
 
         timeTrace(trace, "connection object created");
     }
@@ -1071,7 +1074,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException {
-        return requestInternal(subject, null, body, timeout, true);
+        return requestInternal(subject, null, body, timeout, optCancelOn503);
     }
 
     /**
@@ -1079,7 +1082,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public Message request(String subject, Headers headers, byte[] body, Duration timeout) throws InterruptedException {
-        return requestInternal(subject, headers, body, timeout, true);
+        return requestInternal(subject, headers, body, timeout, optCancelOn503);
     }
 
     /**
@@ -1088,7 +1091,7 @@ class NatsConnection implements Connection {
     @Override
     public Message request(Message message, Duration timeout) throws InterruptedException {
         validateNotNull(message, "Message");
-        return requestInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, true);
+        return requestInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, optCancelOn503);
     }
 
     Message requestInternal(String subject, Headers headers, byte[] data, Duration timeout, boolean cancelOn503) throws InterruptedException {
@@ -1105,7 +1108,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public CompletableFuture<Message> request(String subject, byte[] body) {
-        return requestFutureInternal(subject, null, body, null, true);
+        return requestFutureInternal(subject, null, body, null, optCancelOn503);
     }
 
     /**
@@ -1113,7 +1116,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public CompletableFuture<Message> request(String subject, Headers headers, byte[] body) {
-        return requestFutureInternal(subject, headers, body, null, true);
+        return requestFutureInternal(subject, headers, body, null, optCancelOn503);
     }
 
     /**
@@ -1121,7 +1124,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public CompletableFuture<Message> requestWithTimeout(String subject, byte[] body, Duration timeout) {
-        return requestFutureInternal(subject, null, body, timeout, true);
+        return requestFutureInternal(subject, null, body, timeout, optCancelOn503);
     }
 
     /**
@@ -1129,7 +1132,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public CompletableFuture<Message> requestWithTimeout(String subject, Headers headers, byte[] body, Duration timeout) {
-        return requestFutureInternal(subject, headers, body, timeout, true);
+        return requestFutureInternal(subject, headers, body, timeout, optCancelOn503);
     }
 
     /**
@@ -1138,7 +1141,7 @@ class NatsConnection implements Connection {
     @Override
     public CompletableFuture<Message> requestWithTimeout(Message message, Duration timeout) {
         validateNotNull(message, "Message");
-        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, true);
+        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, optCancelOn503);
     }
 
     /**
@@ -1147,7 +1150,7 @@ class NatsConnection implements Connection {
     @Override
     public CompletableFuture<Message> request(Message message) {
         validateNotNull(message, "Message");
-        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), null, true);
+        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), null, optCancelOn503);
     }
 
     CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, Duration futureTimeout, boolean cancelOn503) {
@@ -1213,8 +1216,13 @@ class NatsConnection implements Connection {
                 responsesRespondedTo.put(key, f);
             }
             statistics.decrementOutstandingRequests();
-            if (msg.isStatusMessage() && msg.getStatus().getCode() == 503 && f.isCancelOn503()) {
-                f.cancel(true);
+            if (msg.isStatusMessage() && msg.getStatus().getCode() == 503) {
+                if (f.isCancelOn503()) {
+                    f.cancel(true);
+                }
+                else {
+                    f.completeExceptionally(new JetStreamStatusException(msg.getStatus()));
+                }
             }
             else {
                 f.complete(msg);

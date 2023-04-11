@@ -329,6 +329,10 @@ public class Options {
      */
     public static final String PROP_NO_RESOLVE_HOSTNAMES = PFX + "noResolveHostnames";
     /**
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#dontCancelNoResponders() dontCancelNoResponders}.
+     */
+    public static final String PROP_DONT_CANCEL_NO_RESPONDERS = PFX + "dontCancelNoResponders";
+    /**
      * Property used to configure a builder from a Properties object. {@value},
      * see {@link Builder#servers(String[]) servers}. The value can be a comma-separated list of server URLs.
      */
@@ -489,7 +493,7 @@ public class Options {
     static final String OPTION_NORESPONDERS = "no_responders";
 
     /**
-     * Property used to set the whether to ignore discovered servers when connecting
+     * Property used to set whether to ignore discovered servers when connecting
      */
     public static final String PROP_IGNORE_DISCOVERED_SERVERS = "ignore_discovered_servers";
 
@@ -507,6 +511,7 @@ public class Options {
     private final List<String> unprocessedServers;
     private final boolean noRandomize;
     private final boolean noResolveHostnames;
+    private final boolean dontCancelNoResponders;
     private final String connectionName;
     private final boolean verbose;
     private final boolean pedantic;
@@ -600,6 +605,7 @@ public class Options {
         private final List<String> unprocessedServers = new ArrayList<>();
         private boolean noRandomize = false;
         private boolean noResolveHostnames = false;
+        private boolean dontCancelNoResponders = false;
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
         private boolean verbose = false;
         private boolean pedantic = false;
@@ -703,6 +709,10 @@ public class Options {
 
             if (props.containsKey(PROP_NO_RESOLVE_HOSTNAMES)) {
                 noResolveHostnames = Boolean.parseBoolean(props.getProperty(PROP_NO_RESOLVE_HOSTNAMES));
+            }
+
+            if (props.containsKey(PROP_DONT_CANCEL_NO_RESPONDERS)) {
+                dontCancelNoResponders = Boolean.parseBoolean(props.getProperty(PROP_DONT_CANCEL_NO_RESPONDERS));
             }
 
             if (props.containsKey(PROP_SECURE)) {
@@ -936,6 +946,11 @@ public class Options {
          */
         public Builder noResolveHostnames() {
             this.noResolveHostnames = true;
+            return this;
+        }
+
+        public Builder dontCancelNoResponders() {
+            this.dontCancelNoResponders = true;
             return this;
         }
 
@@ -1544,6 +1559,7 @@ public class Options {
             this.unprocessedServers.addAll(o.unprocessedServers);
             this.noRandomize = o.noRandomize;
             this.noResolveHostnames = o.noResolveHostnames;
+            this.dontCancelNoResponders = o.dontCancelNoResponders;
             this.connectionName = o.connectionName;
             this.verbose = o.verbose;
             this.pedantic = o.pedantic;
@@ -1603,6 +1619,7 @@ public class Options {
         this.unprocessedServers = b.unprocessedServers;  // exactly how the user gave them
         this.noRandomize = b.noRandomize;
         this.noResolveHostnames = b.noResolveHostnames;
+        this.dontCancelNoResponders = b.dontCancelNoResponders;
         this.connectionName = b.connectionName;
         this.verbose = b.verbose;
         this.pedantic = b.pedantic;
@@ -1753,6 +1770,13 @@ public class Options {
      */
     public boolean isNoResolveHostnames() {
         return noResolveHostnames;
+    }
+
+    /**
+     * @return should complete with exception futures for requests that get no responders instead of cancelling the future, see {@link Builder#dontCancelNoResponders() dontCancelNoResponders()} in the builder doc
+     */
+    public boolean isDontCancelNoResponders() {
+        return dontCancelNoResponders;
     }
 
     /**
