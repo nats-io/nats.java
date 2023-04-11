@@ -23,11 +23,13 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 import static io.nats.client.support.ApiConstants.DESCRIPTION;
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.mapBuilder;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -336,6 +338,7 @@ public final class JsonUtilsTests {
         assertEquals(9223372036854775807L, readLong("\"num\":9223372036854775807", RE, 0));
         assertNull(readLong("\"num\":12345678", MISSING_RE));
         assertEquals(-1, readLong("\"num\":12345678", MISSING_RE, -1));
+        assertEquals(12345678, readLong("\"num\":12345678", RE));
 
         AtomicLong al = new AtomicLong();
         readLong("\"num\":999", RE, al::set);
@@ -387,7 +390,6 @@ public final class JsonUtilsTests {
     @Test
     public void testMiscCoverage() {
         Pattern ipattern = integer_pattern("foo");
-        //noinspection deprecation
         Pattern npattern = number_pattern("foo"); // coverage for deprecated
 
         assertEquals(ipattern.pattern(), npattern.pattern());
@@ -395,7 +397,41 @@ public final class JsonUtilsTests {
         assertEquals(0, getMapOfLists("\"bad\": ").size());
         assertEquals("\"field\": ", removeObject("\"field\": ", "notfound"));
 
-        printFormatted(JsonParser.parseUnchecked(dataAsString("StreamInfo.json")));
+        String json = dataAsString("StreamInfo.json");
+        printFormatted(JsonParser.parseUnchecked(json));
+
+        Pattern p = JsonUtils.number_pattern("duplicate_window");
+        assertEquals(Duration.ofNanos(120000000000L), JsonUtils.readNanos(json, p));
+        assertEquals(Duration.ofNanos(120000000000L), JsonUtils.readNanos(json, p, Duration.ZERO));
+
+        AtomicReference<Duration> ard = new AtomicReference<>();
+        JsonUtils.readNanos(json, p, ard::set);
+        assertEquals(Duration.ofNanos(120000000000L), ard.get());
+
+        p = JsonUtils.number_pattern("not_found");
+        assertNull(JsonUtils.readNanos(json, p));
+        assertEquals(Duration.ofNanos(1), JsonUtils.readNanos(json, p, Duration.ofNanos(1)));
+
+        ard.set(null);
+        JsonUtils.readNanos(json, p, ard::set);
+        assertNull(ard.get());
+
+        Pattern RE = buildPattern("foo", FieldType.jsonString);
+        Pattern MISSING_RE = buildPattern("x", FieldType.jsonString);
+        byte[] bytes = readBytes("\"foo\":\"bytes\"", RE);
+        assertNotNull(bytes);
+        assertEquals("bytes", new String(bytes));
+        bytes = readBytes("\"foo\":\"bytes\"", MISSING_RE);
+        assertNull(bytes);
+
+        Map<String, Long> map = getMapOfLongs(mapBuilder().put("a", Long.MAX_VALUE).put("b", Long.MAX_VALUE - 1).toJson());
+        assertEquals(2, map.size());
+        assertEquals(Long.MAX_VALUE, map.get("a"));
+        assertEquals(Long.MAX_VALUE - 1, map.get("b"));
+
+        assertEquals("Foobar", normalize("fooBar"));
+        assertEquals("deprecated", objectString("name", "deprecated"));
+        assertEquals("name=null", objectString("name", null));
     }
 
     @Test

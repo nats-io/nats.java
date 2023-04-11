@@ -29,4 +29,5 @@ public interface SimpleConsumer {
     void unsubscribe();
     void unsubscribe(int after);
     CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException;
+    boolean isActive();
 }

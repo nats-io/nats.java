@@ -18,7 +18,6 @@ import io.nats.client.support.JsonValue;
 import java.time.Duration;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.objectString;
 import static io.nats.client.support.JsonValueUtils.*;
 
 abstract class SourceInfoBase {
@@ -82,8 +81,8 @@ abstract class SourceInfoBase {
             "name='" + getName() + '\'' +
             ", lag=" + getLag() +
             ", active=" + getActive() +
-            ", " + objectString("external", external) +
-            ", " + objectString("error", error) +
+            ", " + external +
+            ", " + error +
             '}';
     }
 }

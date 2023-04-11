@@ -432,8 +432,8 @@ public class StreamConfiguration implements JsonSerializable {
             ", denyDelete=" + denyDelete +
             ", denyPurge=" + denyPurge +
             ", discardNewPerSubject=" + discardNewPerSubject +
-            ", " + objectString("mirror", mirror) +
-            ", " + objectString("placement", placement) +
+            ", " + mirror +
+            ", " + placement +
             ", sources=" + sources +
             ", metadata=" + metadata +
             '}';

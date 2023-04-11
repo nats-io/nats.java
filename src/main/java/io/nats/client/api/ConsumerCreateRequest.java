@@ -54,7 +54,7 @@ public class ConsumerCreateRequest implements JsonSerializable {
     public String toString() {
         return "ConsumerCreateRequest{" +
                 "streamName='" + streamName + '\'' +
-                ", " + objectString("config", config) +
+                ", " + config +
                 '}';
     }
 }

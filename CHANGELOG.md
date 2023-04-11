@@ -1,5 +1,30 @@
 # Change Log
 
+## 2.16.10
+
+#### JetStream
+
+* For JS Subs, expose the consumer name since it's already tracked #869 @scottf
+* Part 1 in pull handling improvements #870 @scottf
+* Part 2 in pull handling improvements #871 @scottf
+* Time used fetching should never be negative #878 @liu-jianyang
+* Pull-fetch-time-left #879 @liu-jianyang
+* Simplification Part 1 #848 @scottf
+* Simplification (Experimental) Part 2 #882 @scottf
+* Simplification pre-experimental-release #884 @scottf
+
+#### Core
+
+* fix rehost #874 @scottf
+* Options Builder constructor that takes existing Options #875 @scottf
+* StreamConfiguration and ConsumerConfiguration metadata support #877 @scottf
+
+#### Misc / Test
+
+* JsonValue improvement #868 @scottf
+* consume test for bytes can't run until at least 2.9.1 #883 @scottf
+* added metadata map to service and endpoints #862 @scottf
+
 ## 2.16.9
 
 #### Core
