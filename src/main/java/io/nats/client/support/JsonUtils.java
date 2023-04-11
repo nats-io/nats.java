@@ -13,7 +13,6 @@
 
 package io.nats.client.support;
 
-import io.nats.client.api.SequenceInfo;
 import io.nats.client.impl.Headers;
 
 import java.nio.charset.StandardCharsets;
@@ -386,12 +385,10 @@ public abstract class JsonUtils {
         return "\"" + c.getSimpleName() + "\":";
     }
 
+    @Deprecated
     public static String objectString(String name, Object o) {
         if (o == null) {
             return name + "=null";
-        }
-        if (o instanceof SequenceInfo) {
-            return o.toString().replace("SequenceInfo", name);
         }
         return o.toString();
     }

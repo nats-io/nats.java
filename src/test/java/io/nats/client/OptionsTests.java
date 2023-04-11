@@ -633,7 +633,8 @@ public class OptionsTests {
     @Test
     public void testServers() {
         String[] serverUrls = {URL_PROTO_HOST_PORT_8080, URL_HOST_PORT_8081};
-        assertServersAndUnprocessed(true, new Options.Builder().servers(serverUrls).build());
+        Options options = new Options.Builder().servers(serverUrls).build();
+        assertServersAndUnprocessed(true, options);
     }
 
     @Test
@@ -663,6 +664,7 @@ public class OptionsTests {
         if (two) {
             assertEquals(URL_PROTO_HOST_PORT_8081, serverArray[1].toString(), "property server");
             assertEquals(URL_HOST_PORT_8081, un.get(1), "unprocessed server");
+            assertEquals(URL_PROTO_HOST_PORT_8080 + "," + URL_PROTO_HOST_PORT_8081, NatsUri.join(",", o.getNatsServerUris())); // coverage
         }
     }
 
@@ -707,7 +709,7 @@ public class OptionsTests {
     }
 
     @Test
-    public void testSetExectuor() {
+    public void testSetExecutor() {
         ExecutorService exec = Executors.newCachedThreadPool();
         Options options = new Options.Builder().executor(exec).build();
         assertEquals(exec, options.getExecutor());

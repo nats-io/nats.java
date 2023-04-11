@@ -679,6 +679,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     static final int TYPE_ERROR = 1;
     static final int TYPE_WARNING = 2;
     static final int TYPE_NONE = 0;
+    // TODO TEST SYNC MODE
     private void testConflictStatus(String statusText, int type, boolean syncMode, String targetVersion, ConflictSetup setup) throws Exception {
         TestHandler handler = new TestHandler();
         AtomicBoolean skip = new AtomicBoolean(false);
@@ -785,7 +786,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(null, so);
             sub.pullExpiresIn(1, 10000);
             jsm.deleteConsumer(STREAM, durable(1));
-            sleep(100);
+            sleep(200);
             return sub;
         });
     }

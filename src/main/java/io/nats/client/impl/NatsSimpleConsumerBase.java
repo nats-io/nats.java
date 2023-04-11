@@ -45,6 +45,7 @@ class NatsSimpleConsumerBase implements SimpleConsumer {
         }
     }
 
+    @Override
     public boolean isActive() {
         return active;
     }
@@ -60,7 +61,6 @@ class NatsSimpleConsumerBase implements SimpleConsumer {
             active = false;
             if (sub.getNatsDispatcher() != null) {
                 sub.getDispatcher().unsubscribe(sub, after);
-                sub.getNatsDispatcher().stop(false);
             }
             else {
                 sub.unsubscribe(after);
@@ -71,6 +71,7 @@ class NatsSimpleConsumerBase implements SimpleConsumer {
     @Override
     public CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException {
         synchronized (subLock) {
+            active = false;
             if (sub.getNatsDispatcher() != null) {
                 return sub.getDispatcher().drain(timeout);
             }

@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.ConsumerInfo;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -241,6 +242,68 @@ public class ConsumeTests extends JetStreamTestBase {
             pubThread.join();
 
             assertTrue(count.incrementAndGet() > 500);
+        });
+    }
+
+    @Test
+    public void testUnsubscribeCoverage() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            createDefaultTestStream(jsm);
+            JetStream js = nc.jetStream();
+
+            // Pre define a consumer
+            jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder().durable(name(1)).build());
+            jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder().durable(name(2)).build());
+            jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder().durable(name(3)).build());
+            jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder().durable(name(4)).build());
+
+            // Consumer[Context]
+            ConsumerContext ctx1 = js.getConsumerContext(STREAM, name(1));
+            ConsumerContext ctx2 = js.getConsumerContext(STREAM, name(2));
+            ConsumerContext ctx3 = js.getConsumerContext(STREAM, name(3));
+            ConsumerContext ctx4 = js.getConsumerContext(STREAM, name(4));
+
+            ConsumerInfo ci1 = ctx1.getConsumerInfo();
+            ConsumerInfo ci2 = ctx2.getConsumerInfo();
+            ConsumerInfo ci3 = ctx3.getConsumerInfo();
+            ConsumerInfo ci4 = ctx4.getConsumerInfo();
+
+            assertEquals(name(1), ci1.getName());
+            assertEquals(name(2), ci2.getName());
+            assertEquals(name(3), ci3.getName());
+            assertEquals(name(4), ci4.getName());
+
+            ManualConsumer con1 = ctx1.consume();
+            ManualConsumer con2 = ctx2.consume();
+            SimpleConsumer con3 = ctx3.consume(m -> {});
+            SimpleConsumer con4 = ctx4.consume(m -> {});
+
+            ci1 = con1.getConsumerInfo();
+            ci2 = con2.getConsumerInfo();
+            ci3 = con3.getConsumerInfo();
+            ci4 = con4.getConsumerInfo();
+
+            assertEquals(name(1), ci1.getName());
+            assertEquals(name(2), ci2.getName());
+            assertEquals(name(3), ci3.getName());
+            assertEquals(name(4), ci4.getName());
+
+            assertTrue(con1.isActive());
+            assertTrue(con2.isActive());
+            assertTrue(con3.isActive());
+            assertTrue(con4.isActive());
+
+            con1.unsubscribe();
+            con2.drain(Duration.ofSeconds(1));
+            con3.unsubscribe();
+            con4.drain(Duration.ofSeconds(1));
+
+            assertFalse(con1.isActive());
+            assertFalse(con2.isActive());
+            assertFalse(con3.isActive());
+            assertFalse(con4.isActive());
         });
     }
 
