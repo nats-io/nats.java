@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -21,7 +21,7 @@ import io.nats.client.Options;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-public class DontCancelOnNoResponders {
+public class ReportNoResponders {
     public static void main(String[] args) throws IOException {
 
         // without new option
