@@ -68,8 +68,8 @@ public class Status {
         return message;
     }
 
-    public String getStatus() {
-        return "(" + code + ") " + message;
+    public String getMessageWithCode() {
+        return code + " " + message;
     }
 
     private static String extractMessage(Token messageToken) {

@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static io.nats.client.support.NatsJetStreamClientError.JsConsumerCreate290NotAvailable;
+import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
 
 class NatsJetStreamImpl implements NatsJetStreamConstants {
 
@@ -175,9 +176,9 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         }
     }
 
-    Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, Duration timeout, boolean cancelOn503) throws IOException {
+    Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, Duration timeout, CancelAction cancelAction) throws IOException {
         try {
-            return responseRequired(conn.requestInternal(subject, headers, data, timeout, cancelOn503));
+            return responseRequired(conn.requestInternal(subject, headers, data, timeout, cancelAction));
         } catch (InterruptedException e) {
             throw new IOException(e);
         }

@@ -41,7 +41,7 @@ public class DontCancelOnNoResponders {
 
         // new option
         options = new Options.Builder().server(Options.DEFAULT_URL)
-            .dontCancelNoResponders()
+            .reportNoResponders()
             .build();
 
         try (Connection nc = Nats.connect(options)) {

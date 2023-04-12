@@ -52,7 +52,7 @@ public class JetStreamStatusException extends IllegalStateException {
      * @param status the status
      */
     public JetStreamStatusException(Status status) {
-        super(status.getStatus());
+        super(status.getMessageWithCode());
         this.sub = null;
         this.description = status.toString();
         this.status = status;
