@@ -694,8 +694,8 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testNatsRequestCompletableFuture() throws InterruptedException {
-        // todo test all cancel actions
         NatsRequestCompletableFuture f = new NatsRequestCompletableFuture(CancelAction.CANCEL, Duration.ofHours(-1));
+        assertEquals(CancelAction.CANCEL, f.getCancelAction());
         assertTrue(f.hasExceededTimeout());
         assertFalse(f.wasCancelledClosing());
         assertFalse(f.wasCancelledTimedOut());
@@ -703,6 +703,12 @@ public class RequestTests extends TestBase {
         f.cancelTimedOut(); // not real use, just testing flags
         assertTrue(f.wasCancelledClosing());
         assertTrue(f.wasCancelledTimedOut());
+
+        f = new NatsRequestCompletableFuture(CancelAction.COMPLETE, Duration.ofHours(-1));
+        assertEquals(CancelAction.COMPLETE, f.getCancelAction());
+
+        f = new NatsRequestCompletableFuture(CancelAction.REPORT, Duration.ofHours(-1));
+        assertEquals(CancelAction.REPORT, f.getCancelAction());
 
         // coverage for null timeout
         f = new NatsRequestCompletableFuture(CancelAction.CANCEL, null);

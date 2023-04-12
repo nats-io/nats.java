@@ -16,21 +16,25 @@ package io.nats.client;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static io.nats.client.utils.TestBase.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class RequestTests {
 
     @Test
-    public void testRequestNoResponder() {
+    public void testRequestNoResponder() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-            nc.request("isanybody.outhere", "hello world".getBytes()).get();
-            fail();
-        }
-        catch (Exception e) {
-            assertTrue(e instanceof CancellationException);
+             Connection ncCancel = standardConnection(ts.getURI());
+             Connection ncReport = standardConnection(standardOptionsBuilder(ts.getURI()).reportNoResponders().build());
+        )
+        {
+            assertThrows(CancellationException.class, () -> ncCancel.request(subject(999), null).get());
+            ExecutionException ee = assertThrows(ExecutionException.class, () -> ncReport.request(subject(999), null).get());
+            assertTrue(ee.getCause() instanceof JetStreamStatusException);
+            assertTrue(ee.getMessage().contains("503 No Responders Available For Request"));
         }
     }
 }
