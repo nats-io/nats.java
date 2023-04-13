@@ -708,7 +708,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
                     sub.nextMessage(500);
                 }
             }
-            sleep(100); // give enough time for handler to receive message
+            sleep(200); // give enough time for handler to receive message
         });
 
         if (!skip.get()) {
