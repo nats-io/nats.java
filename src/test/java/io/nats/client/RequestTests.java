@@ -13,12 +13,14 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.TestHandler;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 
-import static io.nats.client.utils.TestBase.*;
+import static io.nats.client.utils.TestBase.standardConnection;
+import static io.nats.client.utils.TestBase.subject;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,15 +28,18 @@ public class RequestTests {
 
     @Test
     public void testRequestNoResponder() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-             Connection ncCancel = standardConnection(ts.getURI());
-             Connection ncReport = standardConnection(standardOptionsBuilder(ts.getURI()).reportNoResponders().build());
-        )
-        {
-            assertThrows(CancellationException.class, () -> ncCancel.request(subject(999), null).get());
-            ExecutionException ee = assertThrows(ExecutionException.class, () -> ncReport.request(subject(999), null).get());
-            assertTrue(ee.getCause() instanceof JetStreamStatusException);
-            assertTrue(ee.getMessage().contains("503 No Responders Available For Request"));
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options optCancel = Options.builder().server(ts.getURI()).errorListener(new TestHandler()).build();
+            Options optReport = Options.builder().server(ts.getURI()).reportNoResponders().errorListener(new TestHandler()).build();
+            try (Connection ncCancel = standardConnection(optCancel);
+                 Connection ncReport = standardConnection(optReport);
+            )
+            {
+                assertThrows(CancellationException.class, () -> ncCancel.request(subject(999), null).get());
+                ExecutionException ee = assertThrows(ExecutionException.class, () -> ncReport.request(subject(999), null).get());
+                assertTrue(ee.getCause() instanceof JetStreamStatusException);
+                assertTrue(ee.getMessage().contains("503 No Responders Available For Request"));
+            }
         }
     }
 }
