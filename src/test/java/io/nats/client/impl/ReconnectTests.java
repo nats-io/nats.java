@@ -441,7 +441,7 @@ public class ReconnectTests {
         }
 
         // Thrash in and out of connect status
-        // server starts thrashCount times so we should succeed thrashCount x
+        // server starts thrashCount times, so we should succeed thrashCount x
         for (int i=0;i<thrashCount;i++) {
             checkReconnectingStatus(nc);
 
@@ -520,7 +520,7 @@ public class ReconnectTests {
                     build();
 
             handler.prepForStatusChange(Events.DISCOVERED_SERVERS);
-            nc = (NatsConnection) standardConnection(options);
+            nc = (NatsConnection) longConnectionWait(options);
             assertEquals(nc.getConnectedUrl(), ts.getURI());
 
             flushAndWaitLong(nc, handler); // make sure we get the new server via info

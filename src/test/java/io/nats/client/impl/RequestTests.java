@@ -462,13 +462,14 @@ public class RequestTests extends TestBase {
             Connection nc = Nats.connect(options);
             try {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-                
-                Future<Message> incoming = nc.request("subject", null);
-                // incoming.cancel(true); // sff I don't think this call helps the test or matters.
-                // This flaps sometimes. I think it's better to check it as soon as possible
-                //   hence removing the cancel call
-                assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
-            } finally {
+                NatsRequestCompletableFuture incoming = (NatsRequestCompletableFuture)nc.request("subject", null);
+                incoming.cancel(true);
+                NatsStatistics stats = ((NatsStatistics)nc.getStatistics());
+                // sometimes if the machine is very fast, the request gets a reply (even if it's no responders)
+                // so there is either an outstanding or a received
+                assertEquals(1, stats.getOutstandingRequests() + stats.getRepliesReceived());
+            }
+            finally {
                 nc.close();
                 assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
