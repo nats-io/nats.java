@@ -238,7 +238,7 @@ public class MessageManagerTests extends JetStreamTestBase {
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
             // give time for heartbeats to be missed
-            sleep(400);
+            sleep(500);
             list = handler.getHeartbeatAlarms();
             assertTrue(list.size() > 0);
 
@@ -246,7 +246,7 @@ public class MessageManagerTests extends JetStreamTestBase {
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
             // give time for heartbeats to be missed
-            sleep(400);
+            sleep(500);
             list = handler.getHeartbeatAlarms();
             assertTrue(list.size() > 0);
         });

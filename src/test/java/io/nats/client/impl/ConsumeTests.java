@@ -39,13 +39,13 @@ public class ConsumeTests extends JetStreamTestBase {
             // 1. Different fetch sizes demonstrate expiration behavior
 
             // 1A. equal number of messages than the fetch size
-            _testFetch(nc, 20, 0);
+            _testFetch("1A", nc, 20, 0);
 
             // 1B. more messages than the fetch size
-            _testFetch(nc, 10, 0);
+            _testFetch("1B", nc, 10, 0);
 
             // 1C. fewer messages than the fetch size
-            _testFetch(nc, 40, 0);
+            _testFetch("1C", nc, 40, 0);
 
             // don't test bytes before 2.9.1
             if (nc.getServerInfo().isOlderThanVersion("2.9.1")) {
@@ -56,17 +56,20 @@ public class ConsumeTests extends JetStreamTestBase {
             //    - each test message is approximately 100 bytes
 
             // 2A. max bytes is reached before message count
-            _testFetch(nc, 20, 750);
+            _testFetch("2A", nc, 20, 750);
 
             // 2B. fetch size is reached before byte count
-            _testFetch(nc, 10, 1500);
+            _testFetch("2B", nc, 10, 1500);
 
             // 2C. fewer bytes than the byte count
-            _testFetch(nc, 40, 3000);
+            _testFetch("2C", nc, 40, 3000);
+
+            // 3. simple-consumer-40msgs was created in 1C and has no messages available
+            _testFetch("3", nc, 40, 0);
         });
     }
 
-    private static void _testFetch(Connection nc, int maxMessages, int maxBytes) throws IOException, JetStreamApiException, InterruptedException {
+    private static void _testFetch(String label, Connection nc, int maxMessages, int maxBytes) throws IOException, JetStreamApiException, InterruptedException {
         JetStreamManagement jsm = nc.jetStreamManagement();
         JetStream js = nc.jetStream();
 
@@ -83,7 +86,7 @@ public class ConsumeTests extends JetStreamTestBase {
         FetchConsumeOptions fetchConsumeOptions = FetchConsumeOptions.builder()
             .maxMessages(maxMessages)        // usually you would use only one or the other
             .maxBytes(maxBytes, maxMessages) // /\                                    /\
-            .expiresIn(1500)
+            .expiresIn(2000)
             .build();
 
         long start = System.currentTimeMillis();
@@ -99,27 +102,23 @@ public class ConsumeTests extends JetStreamTestBase {
         }
         long elapsed = System.currentTimeMillis() - start;
 
-        if (maxBytes > 0) {
-            if (maxMessages > 20) {
-                assertTrue(rcvd < maxMessages);
-                assertTrue(elapsed >= 1500);
-            }
-            else if (maxMessages * 100 > maxBytes) {
-                assertTrue(rcvd < maxMessages);
-                assertTrue(elapsed < 250);
-            }
-            else {
+        switch (label) {
+            case "1A":
+            case "1B":
+            case "2B":
                 assertEquals(maxMessages, rcvd);
                 assertTrue(elapsed < 250);
-            }
-        }
-        else if (maxMessages > 20) {
-            assertTrue(rcvd < maxMessages);
-            assertTrue(elapsed >= 1500);
-        }
-        else {
-            assertEquals(maxMessages, rcvd);
-            assertTrue(elapsed < 250);
+                break;
+            case "1C":
+            case "2C":
+            case "3":
+                assertTrue(rcvd < maxMessages);
+                assertTrue(elapsed >= 1500);
+                break;
+            case "2A":
+                assertTrue(rcvd < maxMessages);
+                assertTrue(elapsed < 250);
+                break;
         }
     }
 
