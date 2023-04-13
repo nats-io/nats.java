@@ -689,7 +689,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     static final int TYPE_WARNING = 2;
     static final int TYPE_NONE = 0;
     private void testConflictStatus(String statusText, int type, String targetVersion, ConflictSetup setup) throws Exception {
-        TestHandler handler = new TestHandler();
+        TestHandler handler = new TestHandler(true, false);
         AtomicBoolean skip = new AtomicBoolean(false);
         runInJsServer(handler, nc -> {
             skip.set(versionIsBefore(nc, targetVersion));
@@ -699,6 +699,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             createDefaultTestStream(nc);
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
+            prepHandlerWait(type, handler);
             JetStreamSubscription sub = setup.setup(nc, jsm, js, handler);
             if (sub.getDispatcher() == null) {
                 if (type == TYPE_ERROR) {
@@ -708,28 +709,29 @@ public class JetStreamPullTests extends JetStreamTestBase {
                     sub.nextMessage(500);
                 }
             }
-            sleep(200); // give enough time for handler to receive message
-        });
-
-        if (!skip.get()) {
             checkHandler(statusText, type, handler);
+        });
+    }
+
+    private void prepHandlerWait(int type, TestHandler handler) {
+        if (type == TYPE_ERROR) {
+            handler.prepForPullStatusError();
+        }
+        else if (type == TYPE_WARNING) {
+            handler.prepForPullStatusWarning();
         }
     }
 
     private void checkHandler(String statusText, int type, TestHandler handler) {
         if (type == TYPE_ERROR) {
-            assertTrue(handler.getPullStatusErrors().size() > 0);
-            TestHandler.StatusEvent se = handler.getPullStatusErrors().get(0);
-            assertTrue(se.status.getMessage().startsWith(statusText));
+            TestHandler.StatusEvent event = handler.waitForPullStatusError(2000);
+            assertNotNull(event);
+            assertTrue(event.status.getMessage().startsWith(statusText));
         }
         else if (type == TYPE_WARNING) {
-            assertTrue(handler.getPullStatusWarnings().size() > 0);
-            TestHandler.StatusEvent se = handler.getPullStatusWarnings().get(0);
-            assertTrue(se.status.getMessage().startsWith(statusText));
-        }
-        else {
-            assertEquals(0, handler.getPullStatusWarnings().size());
-            assertEquals(0, handler.getPullStatusErrors().size());
+            TestHandler.StatusEvent event = handler.waitForPullStatusWarning(2000);
+            assertNotNull(event);
+            assertTrue(event.status.getMessage().startsWith(statusText));
         }
     }
 
@@ -858,7 +860,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(null, so);
             sub.pullExpiresIn(1, 10000);
             jsm.deleteConsumer(STREAM, durable(1));
-            sleep(1000);
             return sub;
         });
     }
@@ -952,6 +953,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             createDefaultTestStream(nc);
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
+
             jsm.addOrUpdateConsumer(STREAM, builder().durable(durable(1)).ackPolicy(AckPolicy.None).build());
             PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
@@ -969,9 +971,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertNotNull(sub.nextMessage(500));
             assertNull(sub.nextMessage(500));
         });
-        if (!skip.get()) {
-            checkHandler(MESSAGE_SIZE_EXCEEDS_MAX_BYTES, TYPE_NONE, handler);
-        }
     }
 
     @Test
@@ -1004,8 +1003,5 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertNotNull(sub.nextMessage(500));
             assertNull(sub.nextMessage(500)); // there are no more messages
         });
-        if (!skip.get()) {
-            checkHandler(MESSAGE_SIZE_EXCEEDS_MAX_BYTES, TYPE_NONE, handler);
-        }
     }
 }

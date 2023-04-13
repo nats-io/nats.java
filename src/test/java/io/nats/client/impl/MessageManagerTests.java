@@ -223,32 +223,34 @@ public class MessageManagerTests extends JetStreamTestBase {
         runInJsServer(handler, nc -> {
             PushMessageManager pushMgr = getPushManager(nc, push_xhb_xfc(), null, false, true, false);
             NatsJetStreamSubscription sub = mockSub((NatsConnection)nc, pushMgr);
-            pushMgr.startup(sub);
-            List<TestHandler.HeartbeatAlarmEvent> list = handler.getHeartbeatAlarms();
-            assertEquals(0, list.size());
+            List<TestHandler.HeartbeatAlarmEvent> list;
 
+            handler.prepForHeartbeatAlarm();
+            pushMgr.startup(sub);
+            TestHandler.HeartbeatAlarmEvent event = handler.waitForHeartbeatAlarm(100);
+            assertNull(event);
+
+            handler.prepForHeartbeatAlarm();
             pushMgr = getPushManager(nc, push_xhb_xfc(), null, false, false, false);
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
-            list = handler.getHeartbeatAlarms();
-            assertEquals(0, list.size());
+            event = handler.waitForHeartbeatAlarm(100);
+            assertNull(event);
 
+            handler.prepForHeartbeatAlarm();
             PushSubscribeOptions pso = ConsumerConfiguration.builder().idleHeartbeat(100).buildPushSubscribeOptions();
             pushMgr = getPushManager(nc, pso, null, false, true, false);
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
-            // give time for heartbeats to be missed
-            sleep(500);
-            list = handler.getHeartbeatAlarms();
-            assertTrue(list.size() > 0);
+            event = handler.waitForHeartbeatAlarm(500); // give time for heartbeats to be missed
+            assertNotNull(event);
 
+            handler.prepForHeartbeatAlarm();
             pushMgr = getPushManager(nc, pso, null, false, false, false);
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
-            // give time for heartbeats to be missed
-            sleep(500);
-            list = handler.getHeartbeatAlarms();
-            assertTrue(list.size() > 0);
+            event = handler.waitForHeartbeatAlarm(500); // give time for heartbeats to be missed
+            assertNotNull(event);
         });
     }
 

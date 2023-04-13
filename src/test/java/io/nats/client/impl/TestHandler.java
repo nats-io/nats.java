@@ -35,6 +35,9 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     private CompletableFuture<Boolean> statusChanged;
     private CompletableFuture<Boolean> slowSubscriber;
     private CompletableFuture<Boolean> errorWaitFuture;
+    private CompletableFuture<HeartbeatAlarmEvent> heartbeatAlarmEventWaitFuture;
+    private CompletableFuture<StatusEvent> pullStatusWarningWaitFuture;
+    private CompletableFuture<StatusEvent> pullStatusErrorWaitFuture;
     private Events eventToWaitFor;
     private String errorToWaitFor;
 
@@ -78,6 +81,28 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         flowControlProcesseds.clear();
     }
 
+    private boolean waitForBooleanFuture(CompletableFuture<Boolean> future, long timeout, TimeUnit units) {
+        try {
+            return future.get(timeout, units);
+        } catch (TimeoutException | ExecutionException | InterruptedException e) {
+            if (printExceptions) {
+                e.printStackTrace();
+            }
+            return false;
+        }
+    }
+
+    private <T> T waitForFuture(CompletableFuture<T> future, long waitInMillis) {
+        try {
+            return future.get(waitInMillis, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException | ExecutionException | InterruptedException e) {
+            if (printExceptions) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+    }
+
     public void prepForStatusChange(Events waitFor) {
         lock.lock();
         try {
@@ -91,19 +116,8 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         }
     }
 
-    private boolean waitForFuture(CompletableFuture<Boolean> future, long timeout, TimeUnit units) {
-        try {
-            return future.get(timeout, units);
-        } catch (TimeoutException | ExecutionException | InterruptedException e) {
-            if (printExceptions) {
-                e.printStackTrace();
-            }
-            return false;
-        }
-    }
-
     public boolean waitForStatusChange(long timeout, TimeUnit units) {
-        return waitForFuture(statusChanged, timeout, units);
+        return waitForBooleanFuture(statusChanged, timeout, units);
     }
 
     public void exceptionOccurred(Connection conn, Exception exp) {
@@ -135,7 +149,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public boolean waitForError(long timeout, TimeUnit units) {
-        return waitForFuture(errorWaitFuture, timeout, units);
+        return waitForBooleanFuture(errorWaitFuture, timeout, units);
     }
 
     public void errorOccurred(Connection conn, String type) {
@@ -323,19 +337,88 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         unhandledStatuses.add(new StatusEvent(sub, status));
     }
 
+    public void prepForPullStatusWarning() {
+        lock.lock();
+        try {
+            pullStatusWarningWaitFuture = new CompletableFuture<>();
+        }
+        finally {
+            lock.unlock();
+        }
+    }
+
+    public StatusEvent waitForPullStatusWarning(long waitInMillis) {
+        return waitForFuture(pullStatusWarningWaitFuture, waitInMillis);
+    }
+
     @Override
     public void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {
-        pullStatusWarnings.add(new StatusEvent(sub, status));
+        lock.lock();
+        try {
+            StatusEvent event = new StatusEvent(sub, status);
+            pullStatusWarnings.add(event);
+            if (pullStatusWarningWaitFuture != null) {
+                pullStatusWarningWaitFuture.complete(event);
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void prepForPullStatusError() {
+        lock.lock();
+        try {
+            pullStatusErrorWaitFuture = new CompletableFuture<>();
+        }
+        finally {
+            lock.unlock();
+        }
+    }
+
+    public StatusEvent waitForPullStatusError(long waitInMillis) {
+        return waitForFuture(pullStatusErrorWaitFuture, waitInMillis);
     }
 
     @Override
     public void pullStatusError(Connection conn, JetStreamSubscription sub, Status status) {
-        pullStatusErrors.add(new StatusEvent(sub, status));
+        lock.lock();
+        try {
+            StatusEvent event = new StatusEvent(sub, status);
+            pullStatusErrors.add(event);
+            if (pullStatusErrorWaitFuture != null) {
+                pullStatusErrorWaitFuture.complete(event);
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void prepForHeartbeatAlarm() {
+        lock.lock();
+        try {
+            heartbeatAlarmEventWaitFuture = new CompletableFuture<>();
+        }
+        finally {
+            lock.unlock();
+        }
+    }
+
+    public HeartbeatAlarmEvent waitForHeartbeatAlarm(long waitInMillis) {
+        return waitForFuture(heartbeatAlarmEventWaitFuture, waitInMillis);
     }
 
     @Override
     public void heartbeatAlarm(Connection conn, JetStreamSubscription sub, long lastStreamSequence, long lastConsumerSequence) {
-        heartbeatAlarms.add(new HeartbeatAlarmEvent(sub, lastStreamSequence, lastConsumerSequence));
+        lock.lock();
+        try {
+            HeartbeatAlarmEvent event = new HeartbeatAlarmEvent(sub, lastStreamSequence, lastConsumerSequence);
+            heartbeatAlarms.add(event);
+            if (heartbeatAlarmEventWaitFuture != null) {
+                heartbeatAlarmEventWaitFuture.complete(event);
+            }
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override

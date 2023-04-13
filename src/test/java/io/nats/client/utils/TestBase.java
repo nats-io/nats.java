@@ -53,6 +53,7 @@ public class TestBase {
     public static final String HAS_TIC        = "has`tic";
 
     public static final long STANDARD_CONNECTION_WAIT_MS = 5000;
+    public static final long LONG_CONNECTION_WAIT_MS = 7500;
     public static final long STANDARD_FLUSH_TIMEOUT_MS = 2000;
     public static final long MEDIUM_FLUSH_TIMEOUT_MS = 5000;
     public static final long LONG_TIMEOUT_MS = 15000;
@@ -466,6 +467,10 @@ public class TestBase {
 
     public static Connection standardConnectionWait(Connection conn) {
         return connectionWait(conn, STANDARD_CONNECTION_WAIT_MS);
+    }
+
+    public static Connection longConnectionWait(Options options) throws IOException, InterruptedException {
+        return connectionWait( Nats.connect(options), LONG_CONNECTION_WAIT_MS );
     }
 
     public static Connection connectionWait(Connection conn, long millis) {
