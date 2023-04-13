@@ -68,6 +68,10 @@ public class Status {
         return message;
     }
 
+    public String getMessageWithCode() {
+        return code + " " + message;
+    }
+
     private static String extractMessage(Token messageToken) {
         return messageToken.hasValue() ? messageToken.getValue() : null;
     }

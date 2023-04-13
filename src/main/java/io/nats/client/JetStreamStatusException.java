@@ -48,6 +48,17 @@ public class JetStreamStatusException extends IllegalStateException {
     }
 
     /**
+     * Construct an exception with a status message
+     * @param status the status
+     */
+    public JetStreamStatusException(Status status) {
+        super(status.getMessageWithCode());
+        this.sub = null;
+        this.description = status.toString();
+        this.status = status;
+    }
+
+    /**
      * Get the subscription this issue occurred on
      *
      * @return the subscription

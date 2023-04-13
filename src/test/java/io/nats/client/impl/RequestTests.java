@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class RequestTests extends TestBase {
@@ -693,7 +694,8 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testNatsRequestCompletableFuture() throws InterruptedException {
-        NatsRequestCompletableFuture f = new NatsRequestCompletableFuture(true, Duration.ofHours(-1));
+        NatsRequestCompletableFuture f = new NatsRequestCompletableFuture(CancelAction.CANCEL, Duration.ofHours(-1));
+        assertEquals(CancelAction.CANCEL, f.getCancelAction());
         assertTrue(f.hasExceededTimeout());
         assertFalse(f.wasCancelledClosing());
         assertFalse(f.wasCancelledTimedOut());
@@ -702,8 +704,14 @@ public class RequestTests extends TestBase {
         assertTrue(f.wasCancelledClosing());
         assertTrue(f.wasCancelledTimedOut());
 
+        f = new NatsRequestCompletableFuture(CancelAction.COMPLETE, Duration.ofHours(-1));
+        assertEquals(CancelAction.COMPLETE, f.getCancelAction());
+
+        f = new NatsRequestCompletableFuture(CancelAction.REPORT, Duration.ofHours(-1));
+        assertEquals(CancelAction.REPORT, f.getCancelAction());
+
         // coverage for null timeout
-        f = new NatsRequestCompletableFuture(true, null);
+        f = new NatsRequestCompletableFuture(CancelAction.CANCEL, null);
         Thread.sleep(Options.DEFAULT_REQUEST_CLEANUP_INTERVAL.toMillis() + 100);
         assertTrue(f.hasExceededTimeout());
     }

@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import static io.nats.client.PushSubscribeOptions.DEFAULT_PUSH_OPTS;
 import static io.nats.client.impl.MessageManager.ManageResult;
 import static io.nats.client.support.NatsJetStreamClientError.*;
+import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
 import static io.nats.client.support.Validator.*;
 
 public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
@@ -148,7 +149,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
         Duration timeout = options == null ? jso.getRequestTimeout() : options.getStreamTimeout();
 
-        Message resp = makeInternalRequestResponseRequired(subject, merged, data, timeout, false);
+        Message resp = makeInternalRequestResponseRequired(subject, merged, data, timeout, CancelAction.COMPLETE);
         return processPublishResponse(resp, options);
     }
 
@@ -160,7 +161,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             return null;
         }
 
-        CompletableFuture<Message> future = conn.requestFutureInternal(subject, merged, data, knownTimeout, false);
+        CompletableFuture<Message> future = conn.requestFutureInternal(subject, merged, data, knownTimeout, CancelAction.COMPLETE);
 
         return future.thenCompose(resp -> {
             try {
@@ -174,13 +175,13 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
     private PublishAck processPublishResponse(Message resp, PublishOptions options) throws IOException, JetStreamApiException {
         if (resp.isStatusMessage()) {
-            throw new IOException("Error Publishing: " + resp.getStatus().getCode() + " " + resp.getStatus().getMessage());
+            throw new IOException("Error Publishing: " + resp.getStatus().getMessageWithCode());
         }
 
         PublishAck ack = new PublishAck(resp);
         String ackStream = ack.getStream();
         String pubStream = options == null ? null : options.getStream();
-        // stream specified in options but different than ack should not happen but...
+        // stream specified in options but different from ack should not happen but...
         if (pubStream != null && !pubStream.equals(ackStream)) {
             throw new IOException("Expected ack from stream " + pubStream + ", received from: " + ackStream);
         }

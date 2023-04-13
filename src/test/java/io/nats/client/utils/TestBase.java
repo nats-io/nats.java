@@ -428,11 +428,19 @@ public class TestBase {
             .build();
     }
 
+    public static Options.Builder standardOptionsBuilder() {
+        return Options.builder().errorListener(new TestHandler());
+    }
+
     public static Options standardOptions(String serverURL) {
         return Options.builder()
             .server(serverURL)
             .errorListener(new TestHandler())
             .build();
+    }
+
+    public static Options.Builder standardOptionsBuilder(String serverURL) {
+        return Options.builder().server(serverURL).errorListener(new TestHandler());
     }
 
     public static Connection standardConnection() throws IOException, InterruptedException {

@@ -7,16 +7,20 @@ import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * This is an internal class and is only public for access.
+ */
 public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
+    public enum CancelAction { CANCEL, REPORT, COMPLETE }
     private static final long DEFAULT_TIMEOUT = Options.DEFAULT_REQUEST_CLEANUP_INTERVAL.toMillis(); // currently 5 seconds
 
-    private final boolean cancelOn503;
+    private final CancelAction cancelAction;
     private final long timeOutAfter;
     private boolean wasCancelledClosing;
     private boolean wasCancelledTimedOut;
 
-    public NatsRequestCompletableFuture(boolean cancelOn503, Duration timeout) {
-        this.cancelOn503 = cancelOn503;
+    public NatsRequestCompletableFuture(CancelAction cancelAction, Duration timeout) {
+        this.cancelAction = cancelAction;
         timeOutAfter = System.currentTimeMillis() + 10 + (timeout == null ? DEFAULT_TIMEOUT : timeout.toMillis());
         // 10 extra millis allows for communication time, probably more than needed but...
     }
@@ -31,8 +35,8 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
         completeExceptionally(new CancellationException("Future cancelled, response not registered in time, likely due to server disconnect."));
     }
 
-    public boolean isCancelOn503() {
-        return cancelOn503;
+    public CancelAction getCancelAction() {
+        return cancelAction;
     }
 
     public boolean hasExceededTimeout() {
