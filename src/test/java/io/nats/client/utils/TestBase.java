@@ -422,25 +422,20 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     // connect or wait for a connection
     // ----------------------------------------------------------------------------------------------------
-    public static Options standardOptions() {
-        return Options.builder()
-            .errorListener(new TestHandler())
-            .build();
-    }
-
     public static Options.Builder standardOptionsBuilder() {
-        return Options.builder().errorListener(new TestHandler());
-    }
-
-    public static Options standardOptions(String serverURL) {
-        return Options.builder()
-            .server(serverURL)
-            .errorListener(new TestHandler())
-            .build();
+        return Options.builder().reportNoResponders().errorListener(new TestHandler());
     }
 
     public static Options.Builder standardOptionsBuilder(String serverURL) {
-        return Options.builder().server(serverURL).errorListener(new TestHandler());
+        return standardOptionsBuilder().server(serverURL);
+    }
+
+    public static Options standardOptions() {
+        return standardOptionsBuilder().build();
+    }
+
+    public static Options standardOptions(String serverURL) {
+        return standardOptionsBuilder(serverURL).build();
     }
 
     public static Connection standardConnection() throws IOException, InterruptedException {

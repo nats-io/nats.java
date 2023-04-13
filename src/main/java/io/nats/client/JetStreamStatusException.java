@@ -19,48 +19,43 @@ import io.nats.client.support.Status;
  * JetStreamStatusException is used to indicate an unknown status message was received.
  */
 public class JetStreamStatusException extends IllegalStateException {
+    @Deprecated
     public static final String DEFAULT_DESCRIPTION = "Unknown or unprocessed status message";
 
     private final JetStreamSubscription sub;
-    private final String description;
     private final Status status;
 
     /**
-     * Construct an exception with a status message
+     * Construct JetStreamStatusException for a subscription and a status
      * @param sub the subscription
      * @param status the status
      */
     public JetStreamStatusException(JetStreamSubscription sub, Status status) {
-        this(sub, DEFAULT_DESCRIPTION, status);
+        this(sub, status, status.getMessageWithCode());
     }
 
     /**
-     * Construct an exception with a status message
-     * @param sub the subscription
-     * @param description custom description
-     * @param status the status
+     * Construct JetStreamStatusException for a subscription and a status and a custom message
+     * @param sub     the subscription
+     * @param status  the status
+     * @param message the exception message
      */
-    public JetStreamStatusException(JetStreamSubscription sub, String description, Status status) {
-        super(description + ": " + status.getMessage());
+    public JetStreamStatusException(JetStreamSubscription sub, Status status, String message) {
+        super(message);
         this.sub = sub;
-        this.description = description;
         this.status = status;
     }
 
     /**
-     * Construct an exception with a status message
+     * Construct JetStreamStatusException for a status
      * @param status the status
      */
     public JetStreamStatusException(Status status) {
-        super(status.getMessageWithCode());
-        this.sub = null;
-        this.description = status.toString();
-        this.status = status;
+        this(null, status, status.getMessageWithCode());
     }
 
     /**
      * Get the subscription this issue occurred on
-     *
      * @return the subscription
      */
     public JetStreamSubscription getSubscription() {
@@ -71,8 +66,9 @@ public class JetStreamStatusException extends IllegalStateException {
      * Get the description
      * @return the description
      */
+    @Deprecated
     public String getDescription() {
-        return description;
+        return getMessage();
     }
 
     /**

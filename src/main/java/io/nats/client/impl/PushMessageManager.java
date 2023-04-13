@@ -120,7 +120,8 @@ class PushMessageManager extends MessageManager {
 
         conn.executeCallback((c, el) -> el.unhandledStatus(c, sub, status));
         if (syncMode) {
-            throw new JetStreamStatusException(sub, status);
+            throw new JetStreamStatusException(sub, status,
+                "Unknown or unprocessed status message: " + status.getMessageWithCode());
         }
         return ERROR;
     }
