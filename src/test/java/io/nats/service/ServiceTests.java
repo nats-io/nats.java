@@ -149,6 +149,8 @@ public class ServiceTests extends JetStreamTestBase {
 
                 assertNotEquals(serviceId1, serviceId2);
 
+                sleep(1000); // just make sure services are all started, for slow CI machines
+
                 // service request execution
                 int requestCount = 10;
                 for (int x = 0; x < requestCount; x++) {

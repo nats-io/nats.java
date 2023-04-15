@@ -542,10 +542,11 @@ public class ReconnectTests {
         //System.setProperty("javax.net.debug", "all");
         TestSSLUtils.setKeystoreSystemParameters();
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls_noip.conf", false)) {
-            Options options = new Options.Builder().
-                                server("tls://localhost:"+ts.getPort()).
-                                maxReconnects(0).
-                                build();
+            Options options = new Options.Builder()
+                .server("tls://localhost:"+ts.getPort())
+                .connectionTimeout(Duration.ofSeconds(5))
+                .maxReconnects(0)
+                .build();
             assertCanConnect(options);
         }
     }
