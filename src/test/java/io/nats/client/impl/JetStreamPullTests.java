@@ -703,10 +703,10 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamSubscription sub = setup.setup(nc, jsm, js, handler);
             if (sub.getDispatcher() == null) {
                 if (type == TYPE_ERROR) {
-                    assertThrows(JetStreamStatusException.class, () -> sub.nextMessage(500));
+                    assertThrows(JetStreamStatusException.class, () -> sub.nextMessage(1000));
                 }
                 else {
-                    sub.nextMessage(500);
+                    sub.nextMessage(1000);
                 }
             }
             checkHandler(statusText, type, handler);

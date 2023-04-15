@@ -24,13 +24,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class TestHandler implements ErrorListener, ConnectionListener {
-    private final AtomicInteger count = new AtomicInteger();
-
-    private final HashMap<Events,AtomicInteger> eventCounts = new HashMap<>();
-    private final HashMap<String,AtomicInteger> errorCounts = new HashMap<>();
     private final ReentrantLock lock = new ReentrantLock();
 
+    private final AtomicInteger count = new AtomicInteger();
     private final AtomicInteger exceptionCount = new AtomicInteger();
+    private final HashMap<Events,AtomicInteger> eventCounts = new HashMap<>();
+    private final HashMap<String,AtomicInteger> errorCounts = new HashMap<>();
+
+    private Connection lastEventConnection;
 
     private CompletableFuture<Boolean> statusChanged;
     private CompletableFuture<Boolean> slowSubscriber;
@@ -41,14 +42,13 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     private Events eventToWaitFor;
     private String errorToWaitFor;
 
-    private Connection connection;
     private final List<Consumer> slowConsumers = new ArrayList<>();
     private final List<Message> discardedMessages = new ArrayList<>();
     private final List<StatusEvent> unhandledStatuses = new ArrayList<>();
     private final List<StatusEvent> pullStatusWarnings = new ArrayList<>();
     private final List<StatusEvent> pullStatusErrors = new ArrayList<>();
     private final List<HeartbeatAlarmEvent> heartbeatAlarms = new ArrayList<>();
-    private final List<FlowControlProcessedEvent> flowControlProcesseds = new ArrayList<>();
+    private final List<FlowControlProcessedEvent> flowControlProcessedEvents = new ArrayList<>();
 
     private final boolean printExceptions;
     private final boolean verbose;
@@ -64,12 +64,16 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     public void reset() {
         count.set(0);
+        exceptionCount.set(0);
         eventCounts.clear();
         errorCounts.clear();
-        exceptionCount.set(0);
+        lastEventConnection = null;
         statusChanged = null;
         slowSubscriber = null;
         errorWaitFuture = null;
+        heartbeatAlarmEventWaitFuture = null;
+        pullStatusWarningWaitFuture = null;
+        pullStatusErrorWaitFuture = null;
         eventToWaitFor = null;
         errorToWaitFor = null;
         slowConsumers.clear();
@@ -78,7 +82,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         pullStatusWarnings.clear();
         pullStatusErrors.clear();
         heartbeatAlarms.clear();
-        flowControlProcesseds.clear();
+        flowControlProcessedEvents.clear();
     }
 
     private boolean waitForBooleanFuture(CompletableFuture<Boolean> future, long timeout, TimeUnit units) {
@@ -121,7 +125,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public void exceptionOccurred(Connection conn, Exception exp) {
-        connection = conn;
+        lastEventConnection = conn;
         count.incrementAndGet();
         exceptionCount.incrementAndGet();
 
@@ -153,7 +157,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public void errorOccurred(Connection conn, String type) {
-        connection = conn;
+        lastEventConnection = conn;
         count.incrementAndGet();
 
         lock.lock();
@@ -176,7 +180,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public void messageDiscarded(Connection conn, Message msg) {
-        connection = conn;
+        lastEventConnection = conn;
         count.incrementAndGet();
 
         lock.lock();
@@ -191,7 +195,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public void connectionEvent(Connection conn, Events type) {
-        connection = conn;
+        lastEventConnection = conn;
         count.incrementAndGet();
 
         lock.lock();
@@ -276,7 +280,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public List<FlowControlProcessedEvent> getFlowControlProcessedEvents() {
-        return flowControlProcesseds;
+        return flowControlProcessedEvents;
     }
 
     public int getCount() {
@@ -328,8 +332,8 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         }
     }
 
-    public Connection getConnection() {
-        return connection;
+    public Connection getLastEventConnection() {
+        return lastEventConnection;
     }
 
     @Override
@@ -423,7 +427,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     @Override
     public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String subject, FlowControlSource source) {
-        ErrorListener.super.flowControlProcessed(conn, sub, subject, source);
+        flowControlProcessedEvents.add(new FlowControlProcessedEvent(sub, subject, source));
     }
 
     public static class StatusEvent {
@@ -478,7 +482,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
         @Override
         public String toString() {
-            return "FlowControlProcessedEvent{" +
+            return "FlowControlEvent{" +
                 "sid='" + sid + '\'' +
                 ", subject='" + subject + '\'' +
                 ", source=" + source +

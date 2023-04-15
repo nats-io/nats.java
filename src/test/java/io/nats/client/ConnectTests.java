@@ -254,7 +254,7 @@ public class ConnectTests {
 
             handler.waitForStatusChange(1, TimeUnit.SECONDS);
 
-            nc = handler.getConnection();
+            nc = handler.getLastEventConnection();
             assertNotNull(nc);
             assertConnected(nc);
             standardCloseConnection(nc);
@@ -272,7 +272,7 @@ public class ConnectTests {
 
         sleep(5000); // No server at this point, let it fail and try to start over
 
-        Connection nc = handler.getConnection(); // will be disconnected, but should be there
+        Connection nc = handler.getLastEventConnection(); // will be disconnected, but should be there
         assertNotNull(nc);
 
         handler.prepForStatusChange(Events.RECONNECTED);
