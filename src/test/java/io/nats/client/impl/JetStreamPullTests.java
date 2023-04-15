@@ -737,7 +737,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testExceedsMaxWaitingSyncSub() throws Exception {
-        testConflictStatus(EXCEEDED_MAX_WAITING, TYPE_WARNING, null, (nc, jsm, js, handler) -> {
+        testConflictStatus(EXCEEDED_MAX_WAITING, TYPE_WARNING, "2.9.0", (nc, jsm, js, handler) -> {
             PullSubscribeOptions so = makePso(b -> b.maxPullWaiting(1));
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pull(1);
@@ -748,7 +748,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testExceedsMaxWaitingAsyncSub() throws Exception {
-        testConflictStatus(EXCEEDED_MAX_WAITING, TYPE_WARNING, null, (nc, jsm, js, handler) -> {
+        testConflictStatus(EXCEEDED_MAX_WAITING, TYPE_WARNING, "2.9.0", (nc, jsm, js, handler) -> {
             Dispatcher d = nc.createDispatcher();
             PullSubscribeOptions so = makePso(b -> b.maxPullWaiting(1));
             JetStreamSubscription sub = js.subscribe(SUBJECT, d, m -> {}, so);
@@ -760,7 +760,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testExceedsMaxRequestBatchSyncSub() throws Exception {
-        testConflictStatus(EXCEEDED_MAX_REQUEST_BATCH, TYPE_WARNING, null, (nc, jsm, js, handler) -> {
+        testConflictStatus(EXCEEDED_MAX_REQUEST_BATCH, TYPE_WARNING, "2.9.0", (nc, jsm, js, handler) -> {
             PullSubscribeOptions so = makePso(b -> b.maxBatch(1));
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pull(2);
@@ -770,7 +770,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testExceedsMaxRequestBatchAsyncSub() throws Exception {
-        testConflictStatus(EXCEEDED_MAX_REQUEST_BATCH, TYPE_WARNING, null, (nc, jsm, js, handler) -> {
+        testConflictStatus(EXCEEDED_MAX_REQUEST_BATCH, TYPE_WARNING, "2.9.0", (nc, jsm, js, handler) -> {
             Dispatcher d = nc.createDispatcher();
             PullSubscribeOptions so = makePso(b -> b.maxBatch(1));
             JetStreamSubscription sub = js.subscribe(SUBJECT, d, m -> {}, so);
@@ -804,7 +804,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testExceedsMaxRequestExpiresSyncSub() throws Exception {
-        testConflictStatus(EXCEEDED_MAX_REQUEST_EXPIRES, TYPE_WARNING, null, (nc, jsm, js, handler) -> {
+        testConflictStatus(EXCEEDED_MAX_REQUEST_EXPIRES, TYPE_WARNING, "2.9.0", (nc, jsm, js, handler) -> {
             PullSubscribeOptions so = makePso(b -> b.maxExpires(1000));
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pullExpiresIn(1, 2000);
@@ -814,7 +814,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testExceedsMaxRequestExpiresAsyncSub() throws Exception {
-        testConflictStatus(EXCEEDED_MAX_REQUEST_EXPIRES, TYPE_WARNING, null, (nc, jsm, js, handler) -> {
+        testConflictStatus(EXCEEDED_MAX_REQUEST_EXPIRES, TYPE_WARNING, "2.9.0", (nc, jsm, js, handler) -> {
             Dispatcher d = nc.createDispatcher();
             PullSubscribeOptions so = makePso(b -> b.maxExpires(1000));
             JetStreamSubscription sub = js.subscribe(SUBJECT, d, m -> {}, so);
@@ -825,7 +825,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testConsumerIsPushBasedSyncSub() throws Exception {
-        testConflictStatus(CONSUMER_IS_PUSH_BASED, TYPE_ERROR, null, (nc, jsm, js, handler) -> {
+        testConflictStatus(CONSUMER_IS_PUSH_BASED, TYPE_ERROR, "2.9.0", (nc, jsm, js, handler) -> {
             jsm.addOrUpdateConsumer(STREAM, builder().durable(durable(1)).ackPolicy(AckPolicy.None).build());
             PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
             JetStreamSubscription sub = js.subscribe(null, so);
@@ -839,7 +839,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testConsumerIsPushBasedAsyncSub() throws Exception {
-        testConflictStatus(CONSUMER_IS_PUSH_BASED, TYPE_ERROR, null, (nc, jsm, js, handler) -> {
+        testConflictStatus(CONSUMER_IS_PUSH_BASED, TYPE_ERROR, "2.9.0", (nc, jsm, js, handler) -> {
             jsm.addOrUpdateConsumer(STREAM, builder().durable(durable(1)).ackPolicy(AckPolicy.None).build());
             Dispatcher d = nc.createDispatcher();
             PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
@@ -880,7 +880,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testBadRequestSyncSub() throws Exception {
-        testConflictStatus(BAD_REQUEST, TYPE_ERROR, null, (nc, jsm, js, handler) -> {
+        testConflictStatus(BAD_REQUEST, TYPE_ERROR, "2.9.0", (nc, jsm, js, handler) -> {
             PullSubscribeOptions so = makePso(b -> b);
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pull(PullRequestOptions.builder(1).noWait().idleHeartbeat(1).build());
@@ -890,7 +890,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testBadRequestAsyncSub() throws Exception {
-        testConflictStatus(BAD_REQUEST, TYPE_ERROR, null, (nc, jsm, js, handler) -> {
+        testConflictStatus(BAD_REQUEST, TYPE_ERROR, "2.9.0", (nc, jsm, js, handler) -> {
             Dispatcher d = nc.createDispatcher();
             PullSubscribeOptions so = makePso(b -> b);
             JetStreamSubscription sub = js.subscribe(SUBJECT, d, m -> {}, so);
@@ -901,7 +901,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testNotFoundSyncSub() throws Exception {
-        testConflictStatus(NO_MESSAGES, TYPE_NONE, null, (nc, jsm, js, handler) -> {
+        testConflictStatus(NO_MESSAGES, TYPE_NONE, "2.9.0", (nc, jsm, js, handler) -> {
             PullSubscribeOptions so = makePso(b -> b);
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pullNoWait(1);
@@ -911,7 +911,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testNotFoundAsyncSub() throws Exception {
-        testConflictStatus(NO_MESSAGES, TYPE_NONE, null, (nc, jsm, js, handler) -> {
+        testConflictStatus(NO_MESSAGES, TYPE_NONE, "2.9.0", (nc, jsm, js, handler) -> {
             Dispatcher d = nc.createDispatcher();
             PullSubscribeOptions so = makePso(b -> b);
             JetStreamSubscription sub = js.subscribe(SUBJECT, d, m -> {}, so);
@@ -922,7 +922,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testExceedsMaxRequestBytes1stMessageSyncSub() throws Exception {
-        testConflictStatus(EXCEEDED_MAX_REQUEST_MAX_BYTES, TYPE_WARNING, null, (nc, jsm, js, handler) -> {
+        testConflictStatus(EXCEEDED_MAX_REQUEST_MAX_BYTES, TYPE_WARNING, "2.9.0", (nc, jsm, js, handler) -> {
             PullSubscribeOptions so = makePso(b -> b.maxBytes(1));
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pull(PullRequestOptions.builder(1).maxBytes(2).build());
@@ -932,7 +932,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testExceedsMaxRequestBytes1stMessageAsyncSub() throws Exception {
-        testConflictStatus(EXCEEDED_MAX_REQUEST_MAX_BYTES, TYPE_WARNING, null, (nc, jsm, js, handler) -> {
+        testConflictStatus(EXCEEDED_MAX_REQUEST_MAX_BYTES, TYPE_WARNING, "2.9.0", (nc, jsm, js, handler) -> {
             Dispatcher d = nc.createDispatcher();
             PullSubscribeOptions so = makePso(b -> b.maxBytes(1));
             JetStreamSubscription sub = js.subscribe(SUBJECT, d, m -> {}, so);
