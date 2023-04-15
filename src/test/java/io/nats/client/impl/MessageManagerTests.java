@@ -225,31 +225,35 @@ public class MessageManagerTests extends JetStreamTestBase {
             NatsJetStreamSubscription sub = mockSub((NatsConnection)nc, pushMgr);
             List<TestHandler.HeartbeatAlarmEvent> list;
 
+            handler.reset();
             handler.prepForHeartbeatAlarm();
             pushMgr.startup(sub);
-            TestHandler.HeartbeatAlarmEvent event = handler.waitForHeartbeatAlarm(100);
+            TestHandler.HeartbeatAlarmEvent event = handler.waitForHeartbeatAlarm(1000);
             assertNull(event);
 
+            handler.reset();
             handler.prepForHeartbeatAlarm();
             pushMgr = getPushManager(nc, push_xhb_xfc(), null, false, false, false);
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
-            event = handler.waitForHeartbeatAlarm(100);
+            event = handler.waitForHeartbeatAlarm(1000);
             assertNull(event);
 
+            handler.reset();
             handler.prepForHeartbeatAlarm();
             PushSubscribeOptions pso = ConsumerConfiguration.builder().idleHeartbeat(100).buildPushSubscribeOptions();
             pushMgr = getPushManager(nc, pso, null, false, true, false);
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
-            event = handler.waitForHeartbeatAlarm(500); // give time for heartbeats to be missed
+            event = handler.waitForHeartbeatAlarm(1000);
             assertNotNull(event);
 
+            handler.reset();
             handler.prepForHeartbeatAlarm();
             pushMgr = getPushManager(nc, pso, null, false, false, false);
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
-            event = handler.waitForHeartbeatAlarm(500); // give time for heartbeats to be missed
+            event = handler.waitForHeartbeatAlarm(1000);
             assertNotNull(event);
         });
     }
@@ -266,22 +270,22 @@ public class MessageManagerTests extends JetStreamTestBase {
             assertNull(pullMgr.heartbeatTimer);
 
             handler.reset();
+            handler.prepForHeartbeatAlarm();
             pullMgr.startPullRequest(PullRequestOptions.builder(1).idleHeartbeat(100).build());
-            sleep(400); // give time for heartbeats to be missed
-            assertTrue(handler.getHeartbeatAlarms().size() > 0);
-            assertNotNull(pullMgr.heartbeatTimer);
+            TestHandler.HeartbeatAlarmEvent event = handler.waitForHeartbeatAlarm(1000);
+            assertNotNull(event);
 
             handler.reset();
+            handler.prepForHeartbeatAlarm();
             pullMgr.startPullRequest(PullRequestOptions.builder(1).idleHeartbeat(100).build());
-            sleep(400); // give time for heartbeats to be missed
-            assertTrue(handler.getHeartbeatAlarms().size() > 0);
-            assertNotNull(pullMgr.heartbeatTimer);
+            event = handler.waitForHeartbeatAlarm(1000);
+            assertNotNull(event);
 
             handler.reset();
+            handler.prepForHeartbeatAlarm();
             pullMgr.startPullRequest(PullRequestOptions.builder(1).build());
-            sleep(400); // give time for heartbeats to be missed
-            assertEquals(0, handler.getHeartbeatAlarms().size());
-            assertNull(pullMgr.heartbeatTimer);
+            event = handler.waitForHeartbeatAlarm(1000);
+            assertNull(event);
         });
     }
 

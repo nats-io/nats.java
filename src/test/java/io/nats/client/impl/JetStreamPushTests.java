@@ -597,16 +597,8 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
     @Test
     public void testPushSyncFlowControl() throws Exception {
-        AtomicInteger fcps = new AtomicInteger();
-
-        ErrorListener el = new ErrorListener() {
-            @Override
-            public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String subject, FlowControlSource source) {
-                fcps.incrementAndGet();
-            }
-        };
-
-        Options.Builder ob = new Options.Builder().errorListener(el);
+        TestHandler handler = new TestHandler();
+        Options.Builder ob = new Options.Builder().errorListener(handler);
 
         runInJsServer(ob, nc -> {
             // Create our JetStream context.
@@ -621,7 +613,8 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             // publish some messages
             for (int x = 100_000; x < MSG_COUNT + 100_000; x++) {
-                byte[] fill = (""+ x).getBytes();
+                //noinspection ConcatenationWithEmptyString
+                byte[] fill = ("" + x).getBytes();
                 System.arraycopy(fill, 0, data, 0, 6);
                 js.publish(NatsMessage.builder().subject(SUBJECT).data(data).build());
             }
@@ -643,7 +636,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             }
 
             assertEquals(MSG_COUNT, count);
-            assertTrue(fcps.get() > 0);
+            assertTrue(handler.getFlowControlProcessedEvents().size() > 0);
 
             // coverage for subscribe options heartbeat directly
             cc = ConsumerConfiguration.builder().idleHeartbeat(100).build();

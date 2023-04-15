@@ -873,7 +873,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(null, d, m -> {}, so);
             sub.pullExpiresIn(1, 10000);
             jsm.deleteConsumer(STREAM, durable(1));
-            sleep(1000);
             return sub;
         });
     }
