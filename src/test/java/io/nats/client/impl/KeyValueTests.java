@@ -626,13 +626,16 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.purge(KEY);
             kv.create(KEY, "abcde".getBytes());
 
-            // 9. allowed to update a key that is deleted, as long as you have its revision
-            kv.purge(KEY);
+            // TODO This is temporary unless server is changed/fixed
+            if (nc.getServerInfo().isOlderThanVersion("2.9.16")) {
+                // 9. allowed to update a key that is deleted, as long as you have its revision
+                kv.purge(KEY);
 
-            sleep(200); // a little pause to make sure things get flushed
-            System.out.println("HERE");
-            hist = kv.history(KEY);
-            kv.update(KEY, "abcdef".getBytes(), hist.get(hist.size() - 1).getRevision());
+                sleep(200); // a little pause to make sure things get flushed
+                System.out.println("HERE");
+                hist = kv.history(KEY);
+                kv.update(KEY, "abcdef".getBytes(), hist.get(hist.size() - 1).getRevision());
+            }
         });
     }
 
