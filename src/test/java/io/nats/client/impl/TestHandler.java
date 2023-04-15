@@ -360,6 +360,9 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         lock.lock();
         try {
             StatusEvent event = new StatusEvent(sub, status);
+            if (verbose) {
+                report("pullStatusWarning",  event);
+            }
             pullStatusWarnings.add(event);
             if (pullStatusWarningWaitFuture != null) {
                 pullStatusWarningWaitFuture.complete(event);
@@ -388,6 +391,9 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         lock.lock();
         try {
             StatusEvent event = new StatusEvent(sub, status);
+            if (verbose) {
+                report("pullStatusError",  event);
+            }
             pullStatusErrors.add(event);
             if (pullStatusErrorWaitFuture != null) {
                 pullStatusErrorWaitFuture.complete(event);
@@ -416,6 +422,9 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         lock.lock();
         try {
             HeartbeatAlarmEvent event = new HeartbeatAlarmEvent(sub, lastStreamSequence, lastConsumerSequence);
+            if (verbose) {
+                report("heartbeatAlarm",  event);
+            }
             heartbeatAlarms.add(event);
             if (heartbeatAlarmEventWaitFuture != null) {
                 heartbeatAlarmEventWaitFuture.complete(event);
