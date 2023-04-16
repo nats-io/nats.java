@@ -156,16 +156,8 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
     @Test
     public void testPushAsyncFlowControl() throws Exception {
-        AtomicInteger fcps = new AtomicInteger();
-
-        ErrorListener el = new ErrorListener() {
-            @Override
-            public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String subject, FlowControlSource source) {
-                fcps.incrementAndGet();
-            }
-        };
-
-        Options.Builder ob = new Options.Builder().errorListener(el);
+        TestHandler testHandler = new TestHandler();
+        Options.Builder ob = new Options.Builder().errorListener(testHandler);
 
         runInJsServer(ob, nc -> {
             // Create our JetStream context.
@@ -211,7 +203,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             awaitAndAssert(msgLatch);
 
             assertEquals(MSG_COUNT, count.get());
-            assertTrue(fcps.get() > 0);
+            assertTrue(testHandler.getFlowControlProcessedEvents().size() > 0);
         });
     }
 
