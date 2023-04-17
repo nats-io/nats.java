@@ -26,10 +26,10 @@ public class HttpRequestTests {
         HttpRequest request = new HttpRequest();
         assertEquals("GET", request.getMethod());
         assertEquals("/", request.getURI());
-        assertEquals("1.0", request.getVersion());
+        assertEquals("1.1", request.getVersion());
         assertEquals(new Headers(), request.getHeaders());
         assertEquals(
-            "GET / HTTP/1.0\r\n" +
+            "GET / HTTP/1.1\r\n" +
             "\r\n",
             request.toString());
     }
