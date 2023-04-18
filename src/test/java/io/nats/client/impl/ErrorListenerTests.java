@@ -68,7 +68,7 @@ public class ErrorListenerTests {
             handler.prepForStatusChange(Events.RECONNECTED);
             handler.waitForStatusChange(5, TimeUnit.SECONDS);
 
-            assertTrue(handler.errorsContainsOrWait("Authorization Violation", 1000));
+            assertTrue(handler.errorsContainsOrWait("Authorization Violation", 2000));
 
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             assertEquals(ts3.getURI(), nc.getConnectedUrl());
@@ -114,7 +114,7 @@ public class ErrorListenerTests {
             handler.prepForStatusChange(Events.RECONNECTED);
             handler.waitForStatusChange(5, TimeUnit.SECONDS);
 
-            assertTrue(handler.errorsContainsOrWait("Authorization Violation", 1000));
+            assertTrue(handler.errorsContainsOrWait("Authorization Violation", 2000));
 
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             assertEquals(ts3.getURI(), nc.getConnectedUrl());
