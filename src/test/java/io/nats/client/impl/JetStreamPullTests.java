@@ -689,7 +689,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     static final int TYPE_WARNING = 2;
     static final int TYPE_NONE = 0;
     private void testConflictStatus(String statusText, int type, String targetVersion, ConflictSetup setup) throws Exception {
-        TestHandler handler = new TestHandler(true, true);
+        TestHandler handler = new TestHandler();
         AtomicBoolean skip = new AtomicBoolean(false);
         runInJsServer(handler, nc -> {
             skip.set(versionIsBefore(nc, targetVersion));
@@ -703,8 +703,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamSubscription sub = setup.setup(nc, jsm, js, handler);
             if (sub.getDispatcher() == null) {
                 if (type == TYPE_ERROR) {
-                    JetStreamStatusException e = assertThrows(JetStreamStatusException.class, () -> sub.nextMessage(1000));
-                    System.out.println(e);
+                    assertThrows(JetStreamStatusException.class, () -> sub.nextMessage(1000));
                 }
                 else {
                     sub.nextMessage(1000);
@@ -725,15 +724,10 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     private void checkHandler(String statusText, int type, TestHandler handler) {
         if (type == TYPE_ERROR) {
-            TestHandler.StatusEvent event = handler.waitForPullStatusError(2000);
-            System.out.println(event);
-            assertNotNull(event);
-            assertTrue(event.status.getMessage().startsWith(statusText));
+            handler.pullStatusErrorOrWait(statusText, 2000);
         }
         else if (type == TYPE_WARNING) {
-            TestHandler.StatusEvent event = handler.waitForPullStatusWarning(2000);
-            assertNotNull(event);
-            assertTrue(event.status.getMessage().startsWith(statusText));
+            handler.pullStatusWarningOrWait(statusText, 2000);
         }
     }
 
