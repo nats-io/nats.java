@@ -492,8 +492,11 @@ public class RequestTests extends TestBase {
                 incoming = nc.request("subject", null);
                 incoming.cancel(true);
 
-                Thread.sleep(2 * cleanupInterval);
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                long sleep = 2 * cleanupInterval;
+                long timeout = 10 * cleanupInterval;
+
+                sleep(sleep);
+                assertTrueByTimeout(timeout, () -> ((NatsStatistics)nc.getStatistics()).getOutstandingRequests() == 0);
 
                 // Make sure it is still running
                 incoming = nc.request("subject", null);
@@ -503,8 +506,8 @@ public class RequestTests extends TestBase {
                 incoming = nc.request("subject", null);
                 incoming.cancel(true);
 
-                Thread.sleep(2 * cleanupInterval);
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                sleep(sleep);
+                assertTrueByTimeout(timeout, () -> ((NatsStatistics)nc.getStatistics()).getOutstandingRequests() == 0);
             } finally {
                 nc.close();
                 assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
