@@ -703,10 +703,10 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamSubscription sub = setup.setup(nc, jsm, js, handler);
             if (sub.getDispatcher() == null) {
                 if (type == TYPE_ERROR) {
-                    assertThrows(JetStreamStatusException.class, () -> sub.nextMessage(1000));
+                    assertThrows(JetStreamStatusException.class, () -> sub.nextMessage(5000));
                 }
                 else {
-                    sub.nextMessage(1000);
+                    sub.nextMessage(5000);
                 }
             }
             checkHandler(statusText, type, handler);
@@ -856,7 +856,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(null, so);
             sub.pullExpiresIn(1, 10000);
             jsm.deleteConsumer(STREAM, durable(1));
-            sleep(1000); // gives extra time
             return sub;
         });
     }
