@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
+import java.util.function.Supplier;
 
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_ARGUMENT;
@@ -513,6 +514,17 @@ public class TestBase {
 
     private static String expectingMessage(Connection conn, Connection.Status expecting) {
         return "Failed expecting Connection Status " + expecting.name() + " but was " + conn.getStatus();
+    }
+
+    public static void assertTrueByTimeout(long millis, Supplier<Boolean> test) {
+        long times = (millis + 99) / 100;
+        for (long x = 0; x < times; x++) {
+            sleep(100);
+            if (test.get()) {
+                return;
+            }
+        }
+        fail();
     }
 
     // ----------------------------------------------------------------------------------------------------
