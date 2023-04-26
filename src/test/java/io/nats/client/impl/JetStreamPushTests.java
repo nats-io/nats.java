@@ -607,7 +607,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             // create the stream.
             createDefaultTestStream(nc);
 
-            byte[] data = new byte[8192];
+            byte[] data = new byte[1024*10];
 
             int MSG_COUNT = 1000;
 
@@ -620,7 +620,6 @@ public class JetStreamPushTests extends JetStreamTestBase {
             }
 
             // reset the counters
-            int count = 0;
             Set<String> set = new HashSet<>();
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder().flowControl(1000).build();
@@ -628,14 +627,12 @@ public class JetStreamPushTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
             for (int x = 0; x < MSG_COUNT; x++) {
                 Message msg = sub.nextMessage(1000);
-                String id = new String(Arrays.copyOf(msg.getData(), 6));
-                if (set.add(id)) {
-                    count++;
-                }
+                set.add(new String(Arrays.copyOf(msg.getData(), 6)));
                 msg.ack();
+                sleep(5); // slow it down, easier to get flow control
             }
 
-            assertEquals(MSG_COUNT, count);
+            assertEquals(MSG_COUNT, set.size());
             assertTrue(handler.getFlowControlProcessedEvents().size() > 0);
 
             // coverage for subscribe options heartbeat directly

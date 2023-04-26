@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class TestHandler implements ErrorListener, ConnectionListener {
     private final ReentrantLock lock = new ReentrantLock();
@@ -42,6 +44,8 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     private Events eventToWaitFor;
     private String errorToWaitFor;
 
+    private final List<String> errors = new ArrayList<>();
+    private final List<Exception> exceptions = new ArrayList<>();
     private final List<Consumer> slowConsumers = new ArrayList<>();
     private final List<Message> discardedMessages = new ArrayList<>();
     private final List<StatusEvent> unhandledStatuses = new ArrayList<>();
@@ -76,6 +80,8 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         pullStatusErrorWaitFuture = null;
         eventToWaitFor = null;
         errorToWaitFor = null;
+        errors.clear();
+        exceptions.clear();
         slowConsumers.clear();
         discardedMessages.clear();
         unhandledStatuses.clear();
@@ -126,6 +132,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     public void exceptionOccurred(Connection conn, Exception exp) {
         lastEventConnection = conn;
+        exceptions.add(exp);
         count.incrementAndGet();
         exceptionCount.incrementAndGet();
 
@@ -152,27 +159,36 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         }
     }
 
+    public boolean waitForError(long timeout) {
+        return waitForBooleanFuture(errorWaitFuture, timeout, TimeUnit.MILLISECONDS);
+    }
+
     public boolean waitForError(long timeout, TimeUnit units) {
         return waitForBooleanFuture(errorWaitFuture, timeout, units);
     }
 
-    public void errorOccurred(Connection conn, String type) {
+    public boolean errorsContainsOrWait(String contains, long timeout) {
+        return _OrWait(timeout, () -> errors, (s) -> s.contains(contains));
+    }
+
+    public void errorOccurred(Connection conn, String errorText) {
         lastEventConnection = conn;
+        errors.add(errorText);
         count.incrementAndGet();
 
         lock.lock();
         try {
-            AtomicInteger counter = errorCounts.get(type);
+            AtomicInteger counter = errorCounts.get(errorText);
             if (counter == null) {
                 counter = new AtomicInteger();
-                errorCounts.put(type, counter);
+                errorCounts.put(errorText, counter);
             }
             counter.incrementAndGet();
-            if (errorWaitFuture != null && type.equals(errorToWaitFor)) {
+            if (errorWaitFuture != null && errorText.contains(errorToWaitFor)) {
                 errorWaitFuture.complete(Boolean.TRUE);
             }
             if (verbose) {
-                report("errorOccurred",  type);
+                report("errorOccurred",  errorText);
             }
         } finally {
             lock.unlock();
@@ -252,7 +268,15 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     private void report(String func, Object message) {
-        System.out.println("" + System.currentTimeMillis() + " [TestHelper." + func + "] " + message);
+        System.out.println("[" + System.currentTimeMillis() + " TestHelper." + func + "] " + message);
+    }
+
+    public List<String> getErrors() {
+        return errors;
+    }
+
+    public List<Exception> getExceptions() {
+        return exceptions;
     }
 
     public List<Consumer> getSlowConsumers() {
@@ -355,6 +379,28 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         return waitForFuture(pullStatusWarningWaitFuture, waitInMillis);
     }
 
+    public boolean pullStatusWarningOrWait(String contains, long timeout) {
+        return _OrWait(timeout, () -> pullStatusWarnings,
+            (se) -> se.status.getMessage().contains(contains));
+    }
+
+    public <T> boolean _OrWait(long timeout, Supplier<List<T>> listSupplier, Predicate<T> predicate) {
+        long start = System.currentTimeMillis();
+        do {
+            List<T> list = listSupplier.get();
+            int size = list.size();
+            //noinspection ForLoopReplaceableByForEach
+            for (int i = 0; i < size; i++) {
+                if (predicate.test(list.get(i))) {
+                    return true;
+                }
+            }
+        }
+        while (System.currentTimeMillis() - start <= timeout);
+        return false;
+    }
+
+
     @Override
     public void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {
         lock.lock();
@@ -384,6 +430,11 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     public StatusEvent waitForPullStatusError(long waitInMillis) {
         return waitForFuture(pullStatusErrorWaitFuture, waitInMillis);
+    }
+
+    public boolean pullStatusErrorOrWait(String contains, long timeout) {
+        return _OrWait(timeout, () -> pullStatusErrors,
+            (se) -> se.status.getMessage().contains(contains));
     }
 
     @Override
