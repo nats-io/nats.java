@@ -32,6 +32,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import static io.nats.client.support.Encoding.uriDecode;
 import static io.nats.client.support.NatsConstants.*;
@@ -546,6 +547,7 @@ public class Options {
 
     private final ErrorListener errorListener;
     private final ConnectionListener connectionListener;
+    private final Consumer<Message> beforePublicationMessageListener;
     private final String dataPortType;
 
     private final boolean trackAdvancedStats;
@@ -647,6 +649,7 @@ public class Options {
         private ExecutorService executor;
         private List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
         private Proxy proxy;
+        private Consumer<Message> beforePublicationMessageListener = null;
 
         /**
          * Constructs a new Builder with the default values.
@@ -1490,6 +1493,16 @@ public class Options {
         }
 
         /**
+         * Set the listener to be invoked on each message before it is published
+         * @param beforePublicationMessageListener the listener
+         * @return the Builder for chaining
+         */
+        public Builder beforePublicationMessageListener(Consumer<Message> beforePublicationMessageListener) {
+            this.beforePublicationMessageListener = beforePublicationMessageListener;
+            return this;
+        }
+
+        /**
          * Build an Options object from this Builder.
          * 
          * <p>If the Options builder was not provided with a server, a default one will be included
@@ -1603,6 +1616,8 @@ public class Options {
             this.ignoreDiscoveredServers = o.ignoreDiscoveredServers;
 
             this.serverPool = o.serverPool;
+
+            this.beforePublicationMessageListener = o.beforePublicationMessageListener;
         }
     }
 
@@ -1663,6 +1678,8 @@ public class Options {
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
 
         this.serverPool = b.serverPool;
+
+        this.beforePublicationMessageListener = b.beforePublicationMessageListener;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -2037,6 +2054,13 @@ public class Options {
      */
     public ServerPool getServerPool() {
         return serverPool;
+    }
+
+    /**
+     * @return message consumer to be invoked on each message right before it is published
+     */
+    public Consumer<Message> getBeforePublicationMessageListener() {
+        return null;
     }
 
     public URI createURIForServer(String serverURI) throws URISyntaxException {

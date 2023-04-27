@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Message;
 import io.nats.client.Options;
 
 import java.io.IOException;
@@ -25,6 +26,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 
 import static io.nats.client.support.BuilderBase.bufferAllocSize;
 import static io.nats.client.support.NatsConstants.*;
@@ -47,9 +49,13 @@ class NatsConnectionWriter implements Runnable {
     private final MessageQueue outgoing;
     private final MessageQueue reconnectOutgoing;
     private final long reconnectBufferSize;
+    private final Consumer<Message> beforePublicationMessageListener;
 
-    NatsConnectionWriter(NatsConnection connection) {
+    NatsConnectionWriter(NatsConnection connection, Consumer<Message> beforePublicationMessageListener) {
         this.connection = connection;
+        this.beforePublicationMessageListener = beforePublicationMessageListener == null
+                ? ignored -> {}
+                : beforePublicationMessageListener;
 
         this.running = new AtomicBoolean(false);
         this.reconnectMode = new AtomicBoolean(false);
@@ -115,6 +121,7 @@ class NatsConnectionWriter implements Runnable {
         int sbl = sendBufferLength.get();
 
         while (msg != null) {
+            beforePublicationMessageListener.accept(msg);
             long size = msg.getSizeInBytes();
 
             if (sendPosition + size > sbl) {

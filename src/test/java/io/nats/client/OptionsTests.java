@@ -96,6 +96,8 @@ public class OptionsTests {
         assertTrue(o.getErrorListener() instanceof ErrorListenerLoggerImpl, "error handler");
         assertNull(o.getConnectionListener(), "disconnect handler");
         assertFalse(o.isOldRequestStyle(), "default oldstyle");
+
+        assertNull(o.getBeforePublicationMessageListener(), "before publication message handler");
     }
 
     @Test
@@ -869,6 +871,19 @@ public class OptionsTests {
         assertEquals("user", o.getUsername());
         assertEquals("pass", o.getPassword());
         assertNull(o.getToken());
+    }
+
+    @Test
+    public void testChainedBeforePublicationMessageListener() {
+        java.util.function.Consumer<Message> mHandler = m -> System.out.println("message" + m);
+        Options o = new Options.Builder().beforePublicationMessageListener(mHandler).build();
+        _testChainedBeforePublicationMessageListener(mHandler, o);
+        _testChainedBeforePublicationMessageListener(mHandler, new Options.Builder(o).build());
+    }
+
+    private static void _testChainedBeforePublicationMessageListener(java.util.function.Consumer<Message> mHandler, Options o) {
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
+        assertSame(mHandler, o.getBeforePublicationMessageListener(), "chained connection handler");
     }
 
 /* These next three require that no default is set anywhere, if another test
