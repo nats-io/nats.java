@@ -28,7 +28,7 @@ import static io.nats.client.support.NatsConstants.CRLF;
 public class HttpRequest {
     private String method = "GET";
     private String uri = "/";
-    private String version = "1.0";
+    private String version = "1.1";
     private final Headers headers = new Headers();
 
     /**
@@ -85,7 +85,7 @@ public class HttpRequest {
     }
 
     /**
-     * @return the HTTP version to use for this request. Defaults to "1.0"
+     * @return the HTTP version to use for this request. Defaults to "1.1"
      */
     public String getVersion() {
         return version;
