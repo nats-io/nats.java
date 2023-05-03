@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.ConsumerInfo;
+import io.nats.client.impl.MessageManager.ManageResult;
 import io.nats.client.support.NatsJetStreamConstants;
 
 import java.io.IOException;
@@ -83,7 +84,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
             return _nextUnmanagedNullOrLteZero(timeout);
         }
 
-        return _nextUnmanaged(timeout.toMillis());
+        return _nextUnmanaged(timeout.toMillis(), null);
     }
 
     @Override
@@ -92,7 +93,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
             return _nextUnmanagedNullOrLteZero(Duration.ZERO);
         }
 
-        return _nextUnmanaged(timeoutMillis);
+        return _nextUnmanaged(timeoutMillis, null);
     }
 
     protected Message _nextUnmanagedNullOrLteZero(Duration timeout) throws InterruptedException {
@@ -104,29 +105,25 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
             if (msg == null) {
                 return null; // no message currently queued
             }
-            switch (manager.manage(msg)) {
-                case MESSAGE:
+            if (manager.manage(msg) == ManageResult.MESSAGE) {
                     return msg;
-                case TERMINUS:
-                case ERROR:
-                    return null;
             }
-            // case STATUS, we need to try again
+            // since this is strictly called from user calls of nextMessage, non-messages are considered managed
         }
     }
 
     protected static final long MIN_MILLIS = 20;
     protected static final long EXPIRE_LESS_MILLIS = 10;
 
-    protected Message _nextUnmanaged(long timeout) throws InterruptedException {
-
+    protected Message _nextUnmanaged(long timeout, String replyMatch) throws InterruptedException {
         // timeout > 0 process as many messages we can in that time period
         // If we get a message that either manager handles, we try again, but
         // with a shorter timeout based on what we already used up
-        long elapsed = 0;
-        long start = System.currentTimeMillis();
-        while (elapsed < timeout) {
-            Message msg = nextMessageInternal( Duration.ofMillis(Math.max(MIN_MILLIS, timeout - elapsed)) );
+        long start = System.nanoTime();
+        long timeoutNanos = timeout * 1_000_000;
+        long timeLeftNanos = timeoutNanos;
+        while (timeLeftNanos > 0) {
+            Message msg = nextMessageInternal( Duration.ofNanos(timeLeftNanos) );
             if (msg == null) {
                 return null; // normal timeout
             }
@@ -135,10 +132,14 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                     return msg;
                 case TERMINUS:
                 case ERROR:
-                    return null;
+                    // reply match will be null on pushes and all status are "managed" so ignored in this loop
+                    // otherwise (pull) if there is a match, the status applies
+                    if (replyMatch != null && replyMatch.equals(msg.getSubject())) {
+                        return null;
+                    }
             }
-            // case STATUS, try again while we have time
-            elapsed = System.currentTimeMillis() - start;
+            // case push managed / pull not match / other ManageResult (i.e. STATUS), try again while we have time
+            timeLeftNanos = timeoutNanos - (System.nanoTime() - start);
         }
         return null;
     }

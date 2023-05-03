@@ -370,7 +370,16 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         }
 
         // 4. If no deliver subject (inbox) provided or found, make an inbox.
-        final String fnlInboxDeliver = inboxDeliver == null ? conn.createInbox() : inboxDeliver;
+        final String fnlInboxDeliver;
+        if (isPullMode) {
+            fnlInboxDeliver = conn.createInbox() + ".*";
+        }
+        else if (inboxDeliver == null) {
+            fnlInboxDeliver = conn.createInbox();
+        }
+        else {
+            fnlInboxDeliver = inboxDeliver;
+        }
 
         // 5. If consumer does not exist, create and settle on the config. Name will have to wait
         //    If the consumer exists, I know what the settled info is

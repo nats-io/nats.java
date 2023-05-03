@@ -268,8 +268,8 @@ public class NatsJsUtils {
         return extractId(m.getData());
     }
 
-    public static void publishInBackground(JetStream js, String subject, String prefix, int count) {
-        new Thread(() -> {
+    public static Thread publishInBackground(JetStream js, String subject, String prefix, int count) {
+        Thread t = new Thread(() -> {
             try {
                 for (int x = 1; x <= count; x++) {
                     String data = prefix + "-" + x;
@@ -283,7 +283,9 @@ public class NatsJsUtils {
                 e.printStackTrace();
                 System.exit(-1);
             }
-        }).start();
+        });
+        t.start();
+        return t;
     }
 
     // ----------------------------------------------------------------------------------------------------
