@@ -1,5 +1,26 @@
 # Change Log
 
+## 2.16.11
+
+#### Core
+
+* New connection option reportNoResponders #887 @scottf
+* WS Http Request Version Default To 1.1 #891 @aditya-agarwal-groww
+
+#### JetStream
+
+* better pull error message and async tests #888 @scottf
+* better handle pull status message comes from a previous pull #899 @scottf
+
+#### Misc / Test
+
+* Test Improvements #886 @scottf
+* Test tuning #889 @scottf
+* Server regression issue was fixed, setting test back #890 @scottf
+* test harness - more flexible way to wait for errors/exceptions #894 @scottf
+* flappers - trying more time #895 @scottf
+* Update plugin repository to refer to existing services after Bintray shutdown #897 @cpiotr
+
 ## 2.16.10
 
 #### JetStream
