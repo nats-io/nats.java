@@ -66,7 +66,9 @@ public class WebsocketInputStream extends InputStream {
             in.skip(header.getPayloadLength());
             return -1;
         }
-        length = in.read(buffer, offset, length);
+        final long headerPayloadLength = header.getPayloadLength();
+        final int payloadLength = Math.min(length, headerPayloadLength > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int)headerPayloadLength);
+        length = in.read(buffer, offset, payloadLength);
         if (-1 == length) {
             return length;
         }
