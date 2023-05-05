@@ -87,9 +87,9 @@ Replace `{major.minor.patch}` with the correct version in the examples.
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.10/jnats-2.16.10.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.10/jnats-2.16.10.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.11/jnats-2.16.11.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.11/jnats-2.16.11.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.10/jnats-2.16.10-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.10/jnats-2.16.10-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.11/jnats-2.16.11-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.16.11/jnats-2.16.11-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
