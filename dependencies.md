@@ -12,7 +12,7 @@ This file lists the dependencies used in this repository.
 
 | Dependency                                      | License                                 |
 |-------------------------------------------------|-----------------------------------------|
-| io.nats:jnats-server-runner:1.0.14              | Apache 2.0 License                      |
+| io.nats:jnats-server-runner:1.2.5               | Apache 2.0 License                      |
 | org.apiguardian:apiguardian-api:1.1.0           | Apache 2.0 License                      |
 | org.junit.jupiter:junit-jupiter:5.9.0           | Eclipse Public License v2.0             |
 | org.junit:junit-bom:5.9.0                       | Eclipse Public License v2.0             |
