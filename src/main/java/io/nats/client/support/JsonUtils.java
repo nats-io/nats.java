@@ -296,11 +296,11 @@ public abstract class JsonUtils {
      * Appends a json field to a string builder.
      * @param sb string builder
      * @param fname fieldname
-     * @param strArray field value
+     * @param strings field value
      */
-    public static void addStrings(StringBuilder sb, String fname, String[] strArray) {
-        if (strArray != null && strArray.length > 0) {
-            addStrings(sb, fname, Arrays.asList(strArray));
+    public static void addStrings(StringBuilder sb, String fname, String[] strings) {
+        if (strings != null && strings.length > 0) {
+            _addStrings(sb, fname, Arrays.asList(strings));
         }
     }
 
@@ -312,12 +312,16 @@ public abstract class JsonUtils {
      */
     public static void addStrings(StringBuilder sb, String fname, List<String> strings) {
         if (strings != null && strings.size() > 0) {
-            _addList(sb, fname, strings, (sbs, s) -> {
-                sb.append(Q);
-                jsonEncode(sb, s);
-                sb.append(Q);
-            });
+            _addStrings(sb, fname, strings);
         }
+    }
+
+    private static void _addStrings(StringBuilder sb, String fname, List<String> strings) {
+        _addList(sb, fname, strings, (sbs, s) -> {
+            sb.append(Q);
+            jsonEncode(sb, s);
+            sb.append(Q);
+        });
     }
 
     /**
