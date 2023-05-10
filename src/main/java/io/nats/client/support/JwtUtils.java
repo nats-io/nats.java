@@ -33,122 +33,6 @@ public abstract class JwtUtils {
 
     private JwtUtils() {} /* ensures cannot be constructed */
 
-    protected abstract static class NatsClaim<T> implements JsonSerializable {
-        public int version = 2;
-        public String type;
-        public String issuerAccount;
-        public String[] tags;
-
-        protected abstract T getThis();
-
-        public NatsClaim(String type, String issuerAccount) {
-            this.type = type;
-            this.issuerAccount = issuerAccount;
-        }
-
-        public T tags(String[] tags) {
-            this.tags = tags;
-            return getThis();
-        }
-
-        @Override
-        public String toJson() {
-            StringBuilder sb = beginJson();
-            natsToJson(sb);
-            return endJson(sb).toString();
-        }
-
-        protected void natsToJson(StringBuilder sb) {
-            JsonUtils.addField(sb, "issuer_account", issuerAccount);
-            JsonUtils.addStrings(sb, "tags", tags);
-            JsonUtils.addField(sb, "type", type);
-            JsonUtils.addField(sb, "version", version);
-        }
-    }
-
-    public static class Permission implements JsonSerializable {
-        public String[] allow;
-        public String[] deny;
-
-        public Permission allow(String[] allow) {
-            this.allow = allow;
-            return this;
-        }
-
-        public Permission deny(String[] deny) {
-            this.deny = deny;
-            return this;
-        }
-
-        @Override
-        public String toJson() {
-            StringBuilder sb = beginJson();
-            JsonUtils.addStrings(sb, "allow", allow);
-            JsonUtils.addStrings(sb, "deny", deny);
-            return endJson(sb).toString();
-        }
-    }
-
-    public static class UserClaim extends NatsClaim<UserClaim> {
-        public Permission pub;
-        public Permission sub;
-
-        public UserClaim(String issuerAccount) {
-            super("user", issuerAccount);
-        }
-
-        public UserClaim pub(Permission pub) {
-            this.pub = pub;
-            return this;
-        }
-
-        public UserClaim sub(Permission sub) {
-            this.sub = sub;
-            return this;
-        }
-
-        @Override
-        protected UserClaim getThis() {
-            return this;
-        }
-
-        @Override
-        public String toJson() {
-            StringBuilder sb = beginJson();
-            natsToJson(sb);
-            JsonUtils.addField(sb, "pub", pub);
-            JsonUtils.addField(sb, "sub", sub);
-            return endJson(sb).toString();
-        }
-    }
-
-    static class Claim implements JsonSerializable {
-        Duration exp;
-        long iat;
-        String iss;
-        String jti;
-        String name;
-        JsonSerializable nats;
-        String sub;
-
-        @Override
-        public String toJson() {
-            StringBuilder sb = beginJson();
-            if (exp != null && !exp.isZero() && !exp.isNegative()) {
-                long seconds = exp.toMillis() / 1000;
-                JsonUtils.addField(sb, "exp", iat + seconds);
-            }
-            JsonUtils.addField(sb, "iat", iat);
-            JsonUtils.addFieldEvenEmpty(sb, "jti", jti);
-            JsonUtils.addField(sb, "iss", iss);
-            JsonUtils.addField(sb, "name", name);
-            JsonUtils.addField(sb, "nats", nats);
-            JsonUtils.addField(sb, "sub", sub);
-
-            return endJson(sb).toString();
-        }
-    }
-
     private static final String ENCODED_CLAIM_HEADER =
             toBase64Url("{\"typ\":\"JWT\", \"alg\":\"ed25519-nkey\"}");
 
@@ -327,5 +211,116 @@ public abstract class JwtUtils {
 
         // append signature to header and body and return it
         return ENCODED_CLAIM_HEADER + "." + encBody + "." + encSig;
+    }
+
+    public static class UserClaim extends NatsClaim<UserClaim> {
+        public Permission pub;
+        public Permission sub;
+
+        public UserClaim(String issuerAccount) {
+            super("user", issuerAccount);
+        }
+
+        public UserClaim pub(Permission pub) {
+            this.pub = pub;
+            return this;
+        }
+
+        public UserClaim sub(Permission sub) {
+            this.sub = sub;
+            return this;
+        }
+
+        @Override
+        protected UserClaim getThis() {
+            return this;
+        }
+
+        @Override
+        protected void subAppendJson(StringBuilder sb) {
+            JsonUtils.addField(sb, "pub", pub);
+            JsonUtils.addField(sb, "sub", sub);
+        }
+    }
+
+    protected abstract static class NatsClaim<T> implements JsonSerializable {
+        public int version = 2;
+        public String type;
+        public String issuerAccount;
+        public String[] tags;
+
+        protected abstract T getThis();
+
+        protected NatsClaim(String type, String issuerAccount) {
+            this.type = type;
+            this.issuerAccount = issuerAccount;
+        }
+
+        public T tags(String[] tags) {
+            this.tags = tags;
+            return getThis();
+        }
+
+        protected abstract void subAppendJson(StringBuilder sb);
+
+        @Override
+        public String toJson() {
+            StringBuilder sb = beginJson();
+            JsonUtils.addField(sb, "issuer_account", issuerAccount);
+            JsonUtils.addStrings(sb, "tags", tags);
+            JsonUtils.addField(sb, "type", type);
+            JsonUtils.addField(sb, "version", version);
+            subAppendJson(sb);
+            return endJson(sb).toString();
+        }
+    }
+
+    public static class Permission implements JsonSerializable {
+        public String[] allow;
+        public String[] deny;
+
+        public Permission allow(String... allow) {
+            this.allow = allow;
+            return this;
+        }
+
+        public Permission deny(String... deny) {
+            this.deny = deny;
+            return this;
+        }
+
+        @Override
+        public String toJson() {
+            StringBuilder sb = beginJson();
+            JsonUtils.addStrings(sb, "allow", allow);
+            JsonUtils.addStrings(sb, "deny", deny);
+            return endJson(sb).toString();
+        }
+    }
+
+    static class Claim implements JsonSerializable {
+        Duration exp;
+        long iat;
+        String iss;
+        String jti;
+        String name;
+        JsonSerializable nats;
+        String sub;
+
+        @Override
+        public String toJson() {
+            StringBuilder sb = beginJson();
+            if (exp != null && !exp.isZero() && !exp.isNegative()) {
+                long seconds = exp.toMillis() / 1000;
+                JsonUtils.addField(sb, "exp", iat + seconds);
+            }
+            JsonUtils.addField(sb, "iat", iat);
+            JsonUtils.addFieldEvenEmpty(sb, "jti", jti);
+            JsonUtils.addField(sb, "iss", iss);
+            JsonUtils.addField(sb, "name", name);
+            JsonUtils.addField(sb, "nats", nats);
+            JsonUtils.addField(sb, "sub", sub);
+            return endJson(sb).toString();
+        }
     }
 }
