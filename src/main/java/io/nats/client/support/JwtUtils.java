@@ -36,6 +36,8 @@ public abstract class JwtUtils {
     private static final String ENCODED_CLAIM_HEADER =
             toBase64Url("{\"typ\":\"JWT\", \"alg\":\"ed25519-nkey\"}");
 
+    private static final long NO_LIMIT = -1;
+
     /**
      * Format string with `%s` placeholder for the JWT token followed
      * by the user NKey seed. This can be directly used as such:
@@ -216,6 +218,9 @@ public abstract class JwtUtils {
     public static class UserClaim extends NatsClaim<UserClaim> {
         public Permission pub;
         public Permission sub;
+        public long subs = NO_LIMIT;
+        public long data = NO_LIMIT;
+        public long payload = NO_LIMIT;
 
         public UserClaim(String issuerAccount) {
             super("user", issuerAccount);
@@ -231,6 +236,21 @@ public abstract class JwtUtils {
             return this;
         }
 
+        public UserClaim subs(long subs) {
+            this.subs = subs;
+            return this;
+        }
+
+        public UserClaim data(long data) {
+            this.data = data;
+            return this;
+        }
+
+        public UserClaim payload(long payload) {
+            this.payload = payload;
+            return this;
+        }
+
         @Override
         protected UserClaim getThis() {
             return this;
@@ -240,6 +260,9 @@ public abstract class JwtUtils {
         protected void subAppendJson(StringBuilder sb) {
             JsonUtils.addField(sb, "pub", pub);
             JsonUtils.addField(sb, "sub", sub);
+            JsonUtils.addFieldAllowNegativeOne(sb, "subs", subs);
+            JsonUtils.addFieldAllowNegativeOne(sb, "data", data);
+            JsonUtils.addFieldAllowNegativeOne(sb, "payload", payload);
         }
     }
 
