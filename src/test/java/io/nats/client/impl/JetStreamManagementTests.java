@@ -836,7 +836,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 assertEquals("meta-bar", ci.getConsumerConfiguration().getMetadata().get("meta-foo"));
             }
             else {
-                assertNull(ci.getConsumerConfiguration().getMetadata());
+                assertNotNull(ci.getConsumerConfiguration().getMetadata());
+                assertEquals(0, ci.getConsumerConfiguration().getMetadata().size());
             }
         });
     }
