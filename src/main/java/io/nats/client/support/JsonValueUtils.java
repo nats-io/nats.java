@@ -171,14 +171,18 @@ public abstract class JsonValueUtils {
     public static List<Long> readLongList(JsonValue jsonValue, String key) {
         return read(jsonValue, key, v -> listOf(v, JsonValueUtils::getLong));
     }
-
     public static List<Duration> readNanosList(JsonValue jsonValue, String key) {
-        return read(jsonValue, key,
+        return readNanosList(jsonValue, key, false);
+    }
+
+    public static List<Duration> readNanosList(JsonValue jsonValue, String key, boolean nullIfEmpty) {
+        List<Duration> list = read(jsonValue, key,
             v -> listOf(v, vv -> {
                 Long l = getLong(vv);
                 return l == null ? null : Duration.ofNanos(l);
             })
         );
+        return list.size() == 0 && nullIfEmpty ? null : list;
     }
 
     public static byte[] readBytes(JsonValue jsonValue, String key) {
