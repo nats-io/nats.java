@@ -237,6 +237,20 @@ public abstract class JsonUtils {
      * Appends a json field to a string builder.
      * @param sb string builder
      * @param fname fieldname
+     * @param value field value
+     */
+    public static void addFieldWhenGteMinusOne(StringBuilder sb, String fname, Long value) {
+        if (value != null && value >= -1) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
+        }
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
      * @param value duration value
      */
     public static void addFieldAsNanos(StringBuilder sb, String fname, Duration value) {

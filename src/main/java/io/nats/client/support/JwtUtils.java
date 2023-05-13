@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.List;
 
 import static io.nats.client.support.Encoding.base32Encode;
 import static io.nats.client.support.Encoding.toBase64Url;
@@ -35,6 +36,8 @@ public abstract class JwtUtils {
 
     private static final String ENCODED_CLAIM_HEADER =
             toBase64Url("{\"typ\":\"JWT\", \"alg\":\"ed25519-nkey\"}");
+
+    private static final long NO_LIMIT = -1;
 
     /**
      * Format string with `%s` placeholder for the JWT token followed
@@ -213,12 +216,51 @@ public abstract class JwtUtils {
         return ENCODED_CLAIM_HEADER + "." + encBody + "." + encSig;
     }
 
-    public static class UserClaim extends NatsClaim<UserClaim> {
-        public Permission pub;
-        public Permission sub;
+    public static class UserClaim implements JsonSerializable {
+        public String issuerAccount;            // User
+        public String[] tags;                   // User/GenericFields
+        public String type = "user";            // User/GenericFields
+        public int version = 2;                 // User/GenericFields
+        public Permission pub;                  // User/UserPermissionLimits/Permissions
+        public Permission sub;                  // User/UserPermissionLimits/Permissions
+        public ResponsePermission resp;         // User/UserPermissionLimits/Permissions
+        public String[] src;                    // User/UserPermissionLimits/Limits/UserLimits
+        public List<TimeRange> times;           // User/UserPermissionLimits/Limits/UserLimits
+        public String locale;                   // User/UserPermissionLimits/Limits/UserLimits
+        public long subs = NO_LIMIT;            // User/UserPermissionLimits/Limits/NatsLimits
+        public long data = NO_LIMIT;            // User/UserPermissionLimits/Limits/NatsLimits
+        public long payload = NO_LIMIT;         // User/UserPermissionLimits/Limits/NatsLimits
+        public boolean bearerToken;             // User/UserPermissionLimits
+        public String[] allowedConnectionTypes; // User/UserPermissionLimits
 
         public UserClaim(String issuerAccount) {
-            super("user", issuerAccount);
+            this.issuerAccount = issuerAccount;
+        }
+
+        @Override
+        public String toJson() {
+            StringBuilder sb = beginJson();
+            JsonUtils.addField(sb, "issuer_account", issuerAccount);
+            JsonUtils.addStrings(sb, "tags", tags);
+            JsonUtils.addField(sb, "type", type);
+            JsonUtils.addField(sb, "version", version);
+            JsonUtils.addField(sb, "pub", pub);
+            JsonUtils.addField(sb, "sub", sub);
+            JsonUtils.addField(sb, "resp", resp);
+            JsonUtils.addStrings(sb, "src", src);
+            JsonUtils.addJsons(sb, "times", times);
+            JsonUtils.addField(sb, "times_location", locale);
+            JsonUtils.addFieldWhenGteMinusOne(sb, "subs", subs);
+            JsonUtils.addFieldWhenGteMinusOne(sb, "data", data);
+            JsonUtils.addFieldWhenGteMinusOne(sb, "payload", payload);
+            JsonUtils.addFldWhenTrue(sb, "bearer_token", bearerToken);
+            JsonUtils.addStrings(sb, "allowed_connection_types", allowedConnectionTypes);
+            return endJson(sb).toString();
+        }
+
+        public UserClaim tags(String... tags) {
+            this.tags = tags;
+            return this;
         }
 
         public UserClaim pub(Permission pub) {
@@ -231,46 +273,94 @@ public abstract class JwtUtils {
             return this;
         }
 
-        @Override
-        protected UserClaim getThis() {
+        public UserClaim resp(ResponsePermission resp) {
+            this.resp = resp;
             return this;
         }
 
-        @Override
-        protected void subAppendJson(StringBuilder sb) {
-            JsonUtils.addField(sb, "pub", pub);
-            JsonUtils.addField(sb, "sub", sub);
+        public UserClaim src(String... src) {
+            this.src = src;
+            return this;
+        }
+
+        public UserClaim times(List<TimeRange> times) {
+            this.times = times;
+            return this;
+        }
+
+        public UserClaim locale(String locale) {
+            this.locale = locale;
+            return this;
+        }
+
+        public UserClaim subs(long subs) {
+            this.subs = subs;
+            return this;
+        }
+
+        public UserClaim data(long data) {
+            this.data = data;
+            return this;
+        }
+
+        public UserClaim payload(long payload) {
+            this.payload = payload;
+            return this;
+        }
+
+        public UserClaim bearerToken(boolean bearerToken) {
+            this.bearerToken = bearerToken;
+            return this;
+        }
+
+        public UserClaim allowedConnectionTypes(String... allowedConnectionTypes) {
+            this.allowedConnectionTypes = allowedConnectionTypes;
+            return this;
         }
     }
 
-    protected abstract static class NatsClaim<T> implements JsonSerializable {
-        public int version = 2;
-        public String type;
-        public String issuerAccount;
-        public String[] tags;
+    public static class TimeRange implements JsonSerializable {
+        public String start;
+        public String end;
 
-        protected abstract T getThis();
-
-        protected NatsClaim(String type, String issuerAccount) {
-            this.type = type;
-            this.issuerAccount = issuerAccount;
+        public TimeRange(String start, String end) {
+            this.start = start;
+            this.end = end;
         }
-
-        public T tags(String[] tags) {
-            this.tags = tags;
-            return getThis();
-        }
-
-        protected abstract void subAppendJson(StringBuilder sb);
 
         @Override
         public String toJson() {
             StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "issuer_account", issuerAccount);
-            JsonUtils.addStrings(sb, "tags", tags);
-            JsonUtils.addField(sb, "type", type);
-            JsonUtils.addField(sb, "version", version);
-            subAppendJson(sb);
+            JsonUtils.addField(sb, "start", start);
+            JsonUtils.addField(sb, "end", end);
+            return endJson(sb).toString();
+        }
+    }
+
+    public static class ResponsePermission implements JsonSerializable {
+        public int maxMsgs;
+        public Duration expires;
+
+        public ResponsePermission maxMsgs(int maxMsgs) {
+            this.maxMsgs = maxMsgs;
+            return this;
+        }
+
+        public ResponsePermission expires(Duration expires) {
+            this.expires = expires;
+            return this;
+        }
+
+        public ResponsePermission expires(long expiresMillis) {
+            this.expires = Duration.ofMillis(expiresMillis);
+            return this;
+        }
+
+        @Override
+        public String toJson() {
+            StringBuilder sb = beginJson();
+            JsonUtils.addField(sb, "max", maxMsgs);
+            JsonUtils.addFieldAsNanos(sb, "ttl", expires);
             return endJson(sb).toString();
         }
     }
