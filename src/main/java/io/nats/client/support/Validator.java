@@ -549,4 +549,47 @@ public abstract class Validator {
     public static boolean isSemVer(String s) {
         return SEMVER_PATTERN.matcher(s).find();
     }
+
+    public static <T> boolean listsAreEqual(List<T> l1, List<T> l2, boolean nullSecondEqualsEmptyFirst)
+    {
+        if (l1 == null)
+        {
+            return l2 == null;
+        }
+
+        if (l2 == null)
+        {
+            return nullSecondEqualsEmptyFirst && l1.size() == 0;
+        }
+
+        return l1.equals(l2);
+    }
+
+
+    public static boolean mapsAreEqual(Map<String, String> m1, Map<String, String> m2, boolean nullSecondEqualsEmptyFirst)
+    {
+        if (m1 == m2)
+        {
+            return true;
+        }
+
+        if (m2 == null)
+        {
+            return nullSecondEqualsEmptyFirst && m1.size() == 0;
+        }
+
+        if (m1.size() != m2.size()) {
+            return false;
+        }
+
+        for (Map.Entry<String, String> entry : m1.entrySet())
+        {
+            if (!entry.getValue().equals(m2.get(entry.getKey()))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
 }

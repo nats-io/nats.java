@@ -469,6 +469,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             if (maxPullWaiting != null && !maxPullWaiting.equals(serverCcc.getMaxPullWaiting())) { changes.add("maxPullWaiting"); };
             if (maxBatch != null && !maxBatch.equals(serverCcc.getMaxBatch())) { changes.add("maxBatch"); };
             if (maxBytes != null && !maxBytes.equals(serverCcc.getMaxBytes())) { changes.add("maxBytes"); };
+            if (numReplicas != null && !numReplicas.equals(serverCcc.numReplicas)) { changes.add("numReplicas"); };
 
             if (ackWait != null && !ackWait.equals(getOrUnset(serverCcc.ackWait))) { changes.add("ackWait"); };
             if (idleHeartbeat != null && !idleHeartbeat.equals(getOrUnset(serverCcc.idleHeartbeat))) { changes.add("idleHeartbeat"); };
@@ -483,18 +484,8 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             if (deliverSubject != null && !deliverSubject.equals(serverCcc.deliverSubject)) { changes.add("deliverSubject"); };
             if (deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup)) { changes.add("deliverGroup"); };
 
-            if (!backoff.equals(serverCcc.backoff)) { changes.add("backoff"); }; // backoff will never be null, but can be empty
-
-            if (numReplicas != null && !numReplicas.equals(serverCcc.numReplicas)) { changes.add("numReplicas"); };
-
-            if (metadata == null) {
-                if (serverCcc.metadata != null) {
-                    changes.add("metadata");
-                }
-            }
-            else if (!metadata.equals(serverCcc.metadata)) {
-                changes.add("metadata");
-            }
+            if (backoff != null && !listsAreEqual(backoff, serverCcc.backoff, true)) { changes.add("backoff"); };
+            if (metadata != null && !mapsAreEqual(metadata, serverCcc.metadata, true)) { changes.add("metadata"); };
 
             // do not need to check Durable because the original is retrieved by the durable name
 

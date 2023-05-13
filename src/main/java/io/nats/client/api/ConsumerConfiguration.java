@@ -22,10 +22,7 @@ import io.nats.client.support.JsonValue;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
@@ -117,7 +114,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.flowControl = cc.flowControl;
         this.headersOnly = cc.headersOnly;
         this.memStorage = cc.memStorage;
-        this.backoff = new ArrayList<>(cc.backoff);
+        this.backoff = cc.backoff == null ? null : new ArrayList<>(cc.backoff);
         this.metadata = cc.metadata == null ? null : new HashMap<>(cc.metadata);
     }
 
@@ -153,7 +150,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         headersOnly = readBoolean(v, HEADERS_ONLY, null);
         memStorage = readBoolean(v, MEM_STORAGE, null);
 
-        backoff = readNanosList(v, BACKOFF);
+        backoff = readNanosList(v, BACKOFF, true);
         metadata = readStringStringMap(v, METADATA);
     }
 
@@ -440,15 +437,15 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return the list
      */
     public List<Duration> getBackoff() {
-        return backoff;
+        return backoff == null ? Collections.emptyList() : backoff;
     }
 
     /**
-     * Metadata for the consumer
-     * @return the metadata map. Might be null.
+     * Metadata for the consumer; may be empty, will never be null.
+     * @return the metadata map
      */
     public Map<String, String> getMetadata() {
-        return metadata;
+        return metadata == null ? Collections.emptyMap() : metadata;
     }
 
     /**
@@ -570,6 +567,22 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
+     * Gets whether backoff for this consumer configuration was set or left unset
+     * @return true if num backoff was set by the user
+     */
+    public boolean backoffWasSet() {
+        return backoff != null;
+    }
+
+    /**
+     * Gets whether metadata for this consumer configuration was set or left unset
+     * @return true if num metadata was set by the user
+     */
+    public boolean metadataWasSet() {
+        return metadata != null;
+    }
+
+    /**
      * Creates a builder for the options.
      * @return a publish options builder
      */
@@ -625,7 +638,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         private Boolean headersOnly;
         private Boolean memStorage;
 
-        private final List<Duration> backoff = new ArrayList<>();
+        private List<Duration> backoff;
         private Map<String, String> metadata;
 
         public Builder() {}
@@ -663,9 +676,11 @@ public class ConsumerConfiguration implements JsonSerializable {
                 this.headersOnly = cc.headersOnly;
                 this.memStorage = cc.memStorage;
 
-                this.backoff.addAll(cc.backoff);
+                if (cc.backoff != null) {
+                    this.backoff = new ArrayList<>(cc.backoff);
+                }
                 if (cc.metadata != null) {
-                     this.metadata = new HashMap<>(cc.metadata);
+                    this.metadata = new HashMap<>(cc.metadata);
                 }
             }
         }
@@ -1084,15 +1099,22 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder backoff(Duration... backoffs) {
-            this.backoff.clear();
-            if (backoffs != null) {
-                for (Duration d : backoffs) {
-                    if (d != null) {
+            if (backoffs == null || (backoffs.length == 1 && backoffs[0] == null))
+            {
+                backoff = null;
+            }
+            else
+            {
+                backoff = new ArrayList<>();
+                for (Duration d : backoffs)
+                {
+                    if (d != null)
+                    {
                         if (d.toNanos() < DURATION_MIN_LONG)
                         {
                             throw new IllegalArgumentException("Backoff cannot be less than " + DURATION_MIN_LONG);
                         }
-                        this.backoff.add(d);
+                        backoff.add(d);
                     }
                 }
             }
@@ -1105,8 +1127,11 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder backoff(long... backoffsMillis) {
-            this.backoff.clear();
-            if (backoffsMillis != null) {
+            if (backoffsMillis == null) {
+                backoff = null;
+            }
+            else {
+                backoff = new ArrayList<>();
                 for (long ms : backoffsMillis) {
                     if (ms < DURATION_MIN_LONG) {
                         throw new IllegalArgumentException("Backoff cannot be less than " + DURATION_MIN_LONG);
@@ -1123,7 +1148,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder metadata(Map<String, String> metadata) {
-            this.metadata = metadata == null || metadata.size() == 0 ? null : metadata;
+            this.metadata = metadata == null || metadata.size() == 0 ? null : new HashMap<>(metadata);
             return this;
         }
 
