@@ -4,8 +4,10 @@ import io.nats.client.NKey;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
-import static io.nats.client.support.JwtUtils.issueUserJWT;
+import static io.nats.client.support.JwtUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -17,7 +19,7 @@ public class JwtUtilsTests {
         NKey signingKey = NKey.fromSeed("SAANJIBNEKGCRUWJCPIWUXFBFJLR36FJTFKGBGKAT7AQXH2LVFNQWZJMQU".toCharArray());
         String accountId = "ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6";
         String jwt = issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()), null, null, null, 1633043378);
-        String cred = String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
+        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
         /*
             Generated JWT:
             {
@@ -58,7 +60,7 @@ public class JwtUtilsTests {
         NKey signingKey = NKey.fromSeed("SAANJIBNEKGCRUWJCPIWUXFBFJLR36FJTFKGBGKAT7AQXH2LVFNQWZJMQU".toCharArray());
         String accountId = "ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6";
         String jwt = issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()), "name", Duration.ofSeconds(100), new String[]{"tag1", "tag\\two"}, 1633043378);
-        String cred = String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
+        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
         /*
             Generated JWT:
             {
@@ -103,17 +105,17 @@ public class JwtUtilsTests {
         NKey userKey = NKey.fromSeed("SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY".toCharArray());
         NKey signingKey = NKey.fromSeed("SAANJIBNEKGCRUWJCPIWUXFBFJLR36FJTFKGBGKAT7AQXH2LVFNQWZJMQU".toCharArray());
 
-        JwtUtils.UserClaim userClaim = new JwtUtils.UserClaim("ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6")
-            .pub(new JwtUtils.Permission()
+        UserClaim userClaim = new UserClaim("ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6")
+            .pub(new Permission()
                 .allow(new String[] {"pub-allow-subject"})
                 .deny(new String[] {"pub-deny-subject"}))
-            .sub(new JwtUtils.Permission()
+            .sub(new Permission()
                 .allow(new String[] {"sub-allow-subject"})
                 .deny(new String[] {"sub-deny-subject"}))
             .tags(new String[]{"tag1", "tag\\two"});
 
         String jwt = issueUserJWT(signingKey, new String(userKey.getPublicKey()), null, null, 1633043378, userClaim);
-        String cred = String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
+        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
 
         /*
             Generated JWT:
@@ -164,13 +166,13 @@ public class JwtUtilsTests {
         NKey userKey = NKey.fromSeed("SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY".toCharArray());
         NKey signingKey = NKey.fromSeed("SAANJIBNEKGCRUWJCPIWUXFBFJLR36FJTFKGBGKAT7AQXH2LVFNQWZJMQU".toCharArray());
 
-        JwtUtils.UserClaim userClaim = new JwtUtils.UserClaim("ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6")
+        UserClaim userClaim = new UserClaim("ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6")
                 .subs(1)
                 .data(2)
                 .payload(3);
 
         String jwt = issueUserJWT(signingKey, new String(userKey.getPublicKey()), null, null, 1633043378, userClaim);
-        String cred = String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
+        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
 
         /*
             Generated JWT:
@@ -189,7 +191,7 @@ public class JwtUtilsTests {
                 },
                 "sub": "UA6KOMQ67XOE3FHE37W4OXADVXVYISBNLTBUT2LSY5VFKAIJ7CRDR2RZ"
             }
-         */
+        */
 
         assertEquals("-----BEGIN NATS USER JWT-----\n" +
                 "eyJ0eXAiOiJKV1QiLCAiYWxnIjoiZWQyNTUxOS1ua2V5In0.eyJpYXQiOjE2MzMwNDMzNzgsImp0aSI6IkVLNUpHR0VYVEhKWUZZM0VYSEZXSVVQTE5HWU82QjRaSUZETk43V1k2NVFYVEhMT0JPVUEiLCJpc3MiOiJBRFE0QllNNUtJQ1I1T1hEU1AzUzNXVko1Q1lFT1JHUUtUNzJTVlJGMlpEVkE3TFRGS01DSVBHWSIsIm5hbWUiOiJVQTZLT01RNjdYT0UzRkhFMzdXNE9YQURWWFZZSVNCTkxUQlVUMkxTWTVWRktBSUo3Q1JEUjJSWiIsIm5hdHMiOnsiaXNzdWVyX2FjY291bnQiOiJBQ1haUkFMSUwyMldSRVREUlhZS09ZREI3WEMzRTdNQlNWVVNVTUZBQ082T001VlBSTkZNT09PNiIsInR5cGUiOiJ1c2VyIiwidmVyc2lvbiI6Miwic3VicyI6MSwiZGF0YSI6MiwicGF5bG9hZCI6M30sInN1YiI6IlVBNktPTVE2N1hPRTNGSEUzN1c0T1hBRFZYVllJU0JOTFRCVVQyTFNZNVZGS0FJSjdDUkRSMlJaIn0.7nMNv_ugIM28U9va9cQR64LwbQZYEz7DZqJnD7Z-h49ZXp0PB96bHXfvzwgBgxNuTvlnWpnBmt5XtF33PlRMDw\n" +
@@ -232,4 +234,74 @@ public class JwtUtilsTests {
         String accountId = "ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6";
         assertThrows(IllegalArgumentException.class, () -> issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()), null, null, null, 1633043378));
     }
+
+    @Test
+    public void userJwt() throws Exception {
+        UserClaim uc = new UserClaim("test-issuer-account");
+        assertEquals(DEFAULT_JSON, uc.toJson());
+        System.out.println(DEFAULT_JSON);
+
+        List<TimeRange> times = new ArrayList<>();
+        times.add(new TimeRange("01:15:00", "03:15:00"));
+
+        uc.tags("tag1", "tag2")
+            .pub(new Permission().allow("pa1", "pa2").deny("pd1", "pd2"))
+            .sub(new Permission().allow("sa1", "sa2").deny("sd1", "sd2"))
+            .resp(new ResponsePermission().maxMsgs(99).expires(999))
+            .src("src1", "src2")
+            .times(times)
+            .locale("US/Eastern")
+            .subs(42)
+            .data(43)
+            .payload(44)
+            .bearerToken(true)
+            .allowedConnectionTypes("nats", "tls");
+        assertEquals(FULL_JSON, uc.toJson());
+    }
+
+    private static final String DEFAULT_JSON = "{\"issuer_account\":\"test-issuer-account\",\"type\":\"user\",\"version\":2,\"subs\":-1,\"data\":-1,\"payload\":-1}";
+    private static final String FULL_JSON = "{\"issuer_account\":\"test-issuer-account\",\"tags\":[\"tag1\",\"tag2\"],\"type\":\"user\",\"version\":2,\"pub\":{\"allow\":[\"pa1\",\"pa2\"],\"deny\":[\"pd1\",\"pd2\"]},\"sub\":{\"allow\":[\"sa1\",\"sa2\"],\"deny\":[\"sd1\",\"sd2\"]},\"resp\":{\"max\":99,\"ttl\":999000000},\"src\":[\"src1\",\"src2\"],\"times\":[{\"start\":\"01:15:00\",\"end\":\"03:15:00\"}],\"times_location\":\"US\\/Eastern\",\"subs\":42,\"data\":43,\"payload\":44,\"bearer_token\":true,\"allowed_connection_types\":[\"nats\",\"tls\"]}";
+
+    /*
+        DEFAULT_JSON
+        {
+            "issuer_account": "test-issuer-account",
+            "type": "user",
+            "version": 2,
+            "subs": -1,
+            "data": -1,
+            "payload": -1
+        }
+
+        FULL_JSON
+        {
+            "issuer_account": "test-issuer-account",
+            "tags": ["tag1", "tag2"],
+            "type": "user",
+            "version": 2,
+            "pub": {
+                "allow": ["pa1", "pa2"],
+                "deny": ["pd1", "pd2"]
+            },
+            "sub": {
+                "allow": ["sa1", "sa2"],
+                "deny": ["sd1", "sd2"]
+            },
+            "resp": {
+                "max": 99,
+                "ttl": 999000000
+            },
+            "src": ["src1", "src2"],
+            "times": [{
+                "start": "01:15:00",
+                "end": "03:15:00"
+            }],
+            "times_location": "US\/Eastern",
+            "subs": 42,
+            "data": 43,
+            "payload": 44,
+            "bearer_token": true,
+            "allowed_connection_types": ["nats", "tls"]
+        }
+    */
 }
