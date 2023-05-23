@@ -521,6 +521,10 @@ public abstract class Validator {
         return l == 0 || l < -1;
     }
 
+    public static boolean gteZero(long l) {
+        return l >= 0;
+    }
+
     public static Duration ensureNotNullAndNotLessThanMin(Duration provided, Duration minimum, Duration dflt)
     {
         return provided == null || provided.toNanos() < minimum.toNanos() ? dflt : provided;

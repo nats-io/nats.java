@@ -66,10 +66,7 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
          * @return the builder
          */
         public Builder maxBytes(int bytes) {
-            if (this.messages == -1) {
-                return super.bytes(bytes, DEFAULT_MESSAGE_COUNT_WHEN_BYTES);
-            }
-            return super.bytes(bytes, messages);
+            return super.bytes(bytes);
         }
 
         /**

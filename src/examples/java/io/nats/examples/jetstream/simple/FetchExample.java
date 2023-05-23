@@ -27,7 +27,7 @@ public class FetchExample {
     private static final String STREAM = "fetch-stream";
     private static final String SUBJECT = "fetch-subject";
     private static final String MESSAGE_TEXT = "fetch";
-    private static final String CONSUMER_NAME_PREFIX = "simple-consumer";
+    private static final String CONSUMER_NAME_PREFIX = "fetch-consumer";
     private static final int MESSAGES = 20;
     private static final int EXPIRES_SECONDS = 2;
 
@@ -54,20 +54,20 @@ public class FetchExample {
             // 1C. fewer messages than the fetch max messages
             simpleFetch(jsm, js, "1C", 40, 0);
 
+            // 1D. "fetch-consumer-40-messages" was created in 1C and has no messages available
+            simpleFetch(jsm, js, "1D", 40, 0);
+
             // 2. Different max bytes sizes demonstrate expiration behavior
             //    - each test message is approximately 100 bytes
 
             // 2A. max bytes is reached before message count
-            simpleFetch(jsm, js, "2A", 10, 750);
+            simpleFetch(jsm, js, "2A", 0, 700);
 
             // 2B. fetch max messages is reached before byte count
             simpleFetch(jsm, js, "2B", 10, 1500);
 
             // 2C. fewer bytes than the byte count
-            simpleFetch(jsm, js, "2C", 25, 3000);
-
-            // 3. simple-consumer-40msgs was created in 1C and has no messages available
-            simpleFetch(jsm, js, "3", 40, 0);
+            simpleFetch(jsm, js, "2C", 0, 3000);
         }
         catch (IOException ioe) {
             // problem making the connection or
@@ -95,12 +95,18 @@ public class FetchExample {
             return; // the stream or consumer did not exist
         }
 
-        // Custom consume options
-        FetchConsumeOptions fetchConsumeOptions = FetchConsumeOptions.builder()
-            .maxMessages(maxMessages)        // usually you would use only one or the other
-            .maxBytes(maxBytes, maxMessages) // /\                                    /\
-            .expiresIn(EXPIRES_SECONDS * 1000)
-            .build();
+        // Custom FetchConsumeOptions
+        FetchConsumeOptions.Builder builder = FetchConsumeOptions.builder().expiresIn(EXPIRES_SECONDS * 1000);
+        if (maxMessages == 0) {
+            builder.maxBytes(maxBytes);
+        }
+        else if (maxBytes == 0) {
+            builder.maxMessages(maxMessages);
+        }
+        else {
+            builder.maxBytes(maxBytes, maxMessages);
+        }
+        FetchConsumeOptions fetchConsumeOptions = builder.build();
 
         printExplanation(label, consumerName, maxMessages, maxBytes);
 
@@ -108,11 +114,11 @@ public class FetchExample {
 
         // create the consumer then use it
         FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions);
-        int rcvd = 0;
+        int received = 0;
         try {
             Message msg = consumer.nextMessage();
             while (msg != null) {
-                ++rcvd;
+                ++received;
                 msg.ack();
                 msg = consumer.nextMessage();
             }
@@ -132,17 +138,21 @@ public class FetchExample {
         }
         long elapsed = System.currentTimeMillis() - start;
 
-        printSummary(rcvd, elapsed);
+        printSummary(received, elapsed);
     }
 
     private static String generateConsumerName(int maxMessages, int maxBytes) {
-        return maxBytes == 0
-            ? CONSUMER_NAME_PREFIX + "-" + maxMessages + "msgs"
-            : CONSUMER_NAME_PREFIX + "-" + maxBytes + "bytes-" + maxMessages + "msgs";
+        if (maxBytes == 0) {
+            return CONSUMER_NAME_PREFIX + "-" + maxMessages + "-messages";
+        }
+        if (maxMessages == 0) {
+            return CONSUMER_NAME_PREFIX + "-" + maxBytes + "-bytes-unlimited-messages";
+        }
+        return CONSUMER_NAME_PREFIX + "-" + maxBytes + "-bytes-" + maxMessages + "-messages";
     }
 
-    private static void printSummary(int rcvd, long elapsed) {
-        System.out.println("+++ " + rcvd + " message(s) were received in " + elapsed + "ms\n");
+    private static void printSummary(int received, long elapsed) {
+        System.out.println("+++ " + received + " message(s) were received in " + elapsed + "ms\n");
     }
 
     private static void printExplanation(String label, String name, int maxMessages, int maxBytes) {
@@ -159,21 +169,21 @@ public class FetchExample {
                 System.out.println("=== FetchConsumeOption \"expires in\" is " + EXPIRES_SECONDS + " seconds.");
                 System.out.println("=== nextMessage() blocks until expiration when there are no messages available, then returns null.");
                 break;
-            case "2A":
-                System.out.println("=== Max bytes (" + maxBytes + ") will be reached before fetch message count (" + MESSAGES + ")");
-                System.out.println("=== nextMessage() will return null when consume is done");
-                break;
-            case "2B":
-                System.out.println("=== Fetch count (" + maxMessages + ") will be reached before max bytes (" + maxBytes + ")");
-                System.out.println("=== nextMessage() will return null when consume is done");
-                break;
-            case "2C":
-                System.out.println("=== Max bytes (" + maxBytes + ") is larger than available bytes.");
+            case "1D":
+                System.out.println("=== Fetch (" + maxMessages + ") is larger than available messages (0)");
                 System.out.println("=== FetchConsumeOption \"expires in\" is " + EXPIRES_SECONDS + " seconds.");
                 System.out.println("=== nextMessage() blocks until expiration when there are no messages available, then returns null.");
                 break;
-            case "3":
-                System.out.println("=== Fetch (" + maxMessages + ") is larger than available messages (0)");
+            case "2A":
+                System.out.println("=== Max bytes (" + maxBytes + ") will be reached.");
+                System.out.println("=== nextMessage() will return null when consume is done");
+                break;
+            case "2B":
+                System.out.println("=== Fetch max messages (" + maxMessages + ") will be reached before max bytes (" + maxBytes + ")");
+                System.out.println("=== nextMessage() will return null when consume is done");
+                break;
+            case "2C":
+                System.out.println("=== Max bytes (" + maxBytes + ") is larger than available bytes (approximately 2000).");
                 System.out.println("=== FetchConsumeOption \"expires in\" is " + EXPIRES_SECONDS + " seconds.");
                 System.out.println("=== nextMessage() blocks until expiration when there are no messages available, then returns null.");
                 break;

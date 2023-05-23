@@ -13,8 +13,6 @@
 
 package io.nats.client;
 
-import io.nats.client.support.Validator;
-
 /**
  * Base Consume Options are provided to customize the way the consume and
  * fetch operate. It is the base class for ConsumeOptions and FetchConsumeOptions.
@@ -37,12 +35,8 @@ public class BaseConsumeOptions {
 
     @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
     protected BaseConsumeOptions(Builder b) {
-        messages = b.messages == -1
-            ? DEFAULT_MESSAGE_COUNT
-            : Validator.validateGtZero(b.messages, "Batch Size or Max Message Count");
-
-        bytes = b.bytes == -1 ? 0
-            : (int)Validator.validateGtEqZero(b.bytes, "Max Bytes");
+        messages = b.messages;
+        bytes = b.bytes;
 
         if (b.thresholdPercent == -1) {
             thresholdPercent = DEFAULT_THRESHOLD_PERCENT;
@@ -88,7 +82,7 @@ public class BaseConsumeOptions {
     }
 
     protected static abstract class Builder<B, CO> {
-        protected int messages = -1;
+        protected int messages = DEFAULT_MESSAGE_COUNT;
         protected int bytes = -1;
         protected int thresholdPercent = -1;
         protected long expiresIn = -1;
@@ -96,14 +90,18 @@ public class BaseConsumeOptions {
         protected abstract B getThis();
 
         protected B messages(int messages) {
-            this.messages = messages;
+            this.messages = messages < 1 ? DEFAULT_MESSAGE_COUNT : messages;
+            return getThis();
+        }
+
+        protected B bytes(int bytes) {
+            this.bytes = bytes < 1 ? 0 : bytes;
             return getThis();
         }
 
         protected B bytes(int bytes, int messages) {
-            this.bytes = bytes;
-            this.messages = messages;
-            return getThis();
+            messages(messages);
+            return bytes(bytes);
         }
 
         /**
