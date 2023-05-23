@@ -14,25 +14,22 @@
 package io.nats.client.impl;
 
 import io.nats.client.ConsumeOptions;
-import io.nats.client.JetStreamApiException;
 import io.nats.client.MessageHandler;
 import io.nats.client.PullRequestOptions;
-
-import java.io.IOException;
 
 class NatsSimpleConsumer extends NatsSimpleConsumerBase {
     protected final PullRequestOptions repullPro;
     protected final int thresholdMessages;
     protected final int thresholdBytes;
-    protected final NatsConsumerContext.Mediator mediator;
+    protected final NatsConsumerContext.SubscriptionMaker subscriptionMaker;
 
-    NatsSimpleConsumer(NatsConsumerContext.Mediator mediator, final MessageHandler messageHandler, ConsumeOptions opts) throws IOException, JetStreamApiException {
-        this.mediator = mediator;
+    NatsSimpleConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, final MessageHandler messageHandler, ConsumeOptions opts) {
+        this.subscriptionMaker = subscriptionMaker;
         if (messageHandler == null) {
-            initSub(mediator.makeSubscription(null));
+            initSub(subscriptionMaker.makeSubscription(null));
         }
         else {
-            initSub(mediator.makeSubscription(msg -> {
+            initSub(subscriptionMaker.makeSubscription(msg -> {
                 checkForRepull();
                 messageHandler.onMessage(msg);
             }));
@@ -43,7 +40,7 @@ class NatsSimpleConsumer extends NatsSimpleConsumerBase {
 
         PullRequestOptions firstPro = PullRequestOptions.builder(bm)
             .maxBytes(bb)
-            .expiresIn(opts.getExpires())
+            .expiresIn(opts.getExpiresIn())
             .idleHeartbeat(opts.getIdleHeartbeat())
             .build();
 
@@ -51,7 +48,7 @@ class NatsSimpleConsumer extends NatsSimpleConsumerBase {
         int repullBytes = bb == 0 ? 0 : Math.max(1, bb * opts.getThresholdPercent() / 100);
         repullPro = PullRequestOptions.builder(repullMessages)
             .maxBytes(repullBytes)
-            .expiresIn(opts.getExpires())
+            .expiresIn(opts.getExpiresIn())
             .idleHeartbeat(opts.getIdleHeartbeat())
             .build();
 
@@ -62,7 +59,8 @@ class NatsSimpleConsumer extends NatsSimpleConsumerBase {
 
     protected void checkForRepull() {
         if (active &&
-            (pmm.pendingMessages <= thresholdMessages || pmm.pendingBytes <= thresholdBytes))
+            (pmm.pendingMessages <= thresholdMessages
+                || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
         {
             sub.pull(repullPro);
         }

@@ -95,7 +95,7 @@ public interface Consumer {
     public void clearDroppedCount();
 
     /**
-     * @return whether or not this consumer is still processing messages.
+     * @return whether this consumer is still processing messages.
      * For a subscription the answer is false after unsubscribe. For a dispatcher, false after stop.
      */
     public boolean isActive();

@@ -18,6 +18,8 @@ package io.nats.client;
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class FetchConsumeOptions extends BaseConsumeOptions {
+    public static FetchConsumeOptions DEFAULT_FETCH_OPTIONS = FetchConsumeOptions.builder().build();
+
     private FetchConsumeOptions(Builder b) {
         super(b);
     }
@@ -48,12 +50,26 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
         protected Builder getThis() { return this; }
 
         /**
-         * Set the maximum number of messages to fetch
+         * Set the maximum number of messages to fetch.
          * @param messages the number of messages. Must be greater than 0
          * @return the builder
          */
         public Builder maxMessages(int messages) {
             return super.messages(messages);
+        }
+
+        /**
+         * The maximum bytes to consume for Fetch. When set (a value greater than zero,)
+         * it is used in conjunction with max messages, meaning whichever limit is reached
+         * first is respected.
+         * @param bytes the maximum bytes
+         * @return the builder
+         */
+        public Builder maxBytes(int bytes) {
+            if (this.messages == -1) {
+                return super.bytes(bytes, DEFAULT_MESSAGE_COUNT_WHEN_BYTES);
+            }
+            return super.bytes(bytes, messages);
         }
 
         /**

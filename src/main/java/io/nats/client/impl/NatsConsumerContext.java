@@ -19,25 +19,29 @@ import io.nats.client.api.ConsumerInfo;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
+import java.time.Duration;
 
+import static io.nats.client.BaseConsumeOptions.*;
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
+import static io.nats.client.impl.NatsJetStreamSubscription.EXPIRE_ADJUSTMENT;
 
 /**
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
-public class NatsConsumerContext extends NatsStreamContext implements ConsumerContext {
+public class NatsConsumerContext implements ConsumerContext {
 
+    private final NatsStreamContext streamContext;
     private final NatsJetStream js;
     private final ConsumerConfiguration userCc;
-    private String consumer;
+    private String consumerName;
 
     NatsConsumerContext(NatsStreamContext streamContext, String consumerName, ConsumerConfiguration cc) throws IOException, JetStreamApiException {
-        super(streamContext);
-        js = new NatsJetStream(jsm.conn, jsm.jso);
+        this.streamContext = streamContext;
+        js = new NatsJetStream(streamContext.jsm.conn, streamContext.jsm.jso);
         if (consumerName != null) {
-            consumer = consumerName;
+            this.consumerName = consumerName;
             userCc = null;
-            jsm.getConsumerInfo(stream, consumer);
+            streamContext.jsm.getConsumerInfo(streamContext.streamName, this.consumerName);  // this is just verifying that the Consumer exists
         }
         else {
             userCc = cc;
@@ -49,79 +53,131 @@ public class NatsConsumerContext extends NatsStreamContext implements ConsumerCo
         this(new NatsStreamContext(connection, jsOptions, streamName), consumerName, cc);
     }
 
+    // this constructor is chained like this because I want it to validate consumer name first,
+    // before making a NatsStreamContext which will hit the server. Basically fail faster
     NatsConsumerContext(NatsConnection connection, JetStreamOptions jsOptions, String stream, String consumerName) throws IOException, JetStreamApiException {
         this(connection, jsOptions, stream, Validator.required(consumerName, "Consumer Name"), null);
     }
 
-    NatsConsumerContext(NatsConnection connection, JetStreamOptions jsOptions, String stream, ConsumerConfiguration consumerConfiguration) throws IOException, JetStreamApiException {
-        this(connection, jsOptions, stream, null, Validator.required(consumerConfiguration, "Consumer Configuration"));
-    }
-
-    public String getName() {
-        return consumer;
+    public String getConsumerName() {
+        return consumerName;
     }
 
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
-        return jsm.getConsumerInfo(stream, consumer);
+        return streamContext.jsm.getConsumerInfo(streamContext.streamName, consumerName);
     }
 
-    class Mediator {
+    class SubscriptionMaker {
         Dispatcher dispatcher;
 
-        public NatsJetStreamPullSubscription makeSubscription(MessageHandler messageHandler) throws IOException, JetStreamApiException {
+        public NatsJetStreamPullSubscription makeSubscription(MessageHandler messageHandler) {
             PullSubscribeOptions pso;
-            if (consumer == null) {
-                pso = ConsumerConfiguration.builder(userCc).buildPullSubscribeOptions(stream);
+            if (consumerName == null) {
+                pso = PullSubscribeOptions.builder()
+                    .configuration(userCc)
+                    .stream(streamContext.streamName)
+                    .raiseStatusWarnings(false)
+                    .build();
             }
             else {
-                pso = PullSubscribeOptions.bind(stream, consumer);
+                pso = PullSubscribeOptions.builder()
+                    .stream(streamContext.streamName)
+                    .durable(consumerName)
+                    .bind(true)
+                    .raiseStatusWarnings(false)
+                    .build();
             }
+
             if (messageHandler == null) {
-                return (NatsJetStreamPullSubscription)js.subscribe(null, pso);
+                try {
+                    return (NatsJetStreamPullSubscription)js.subscribe(null, pso);
+                }
+                catch (RuntimeException r) {
+                    throw r;
+                }
+                catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
             }
 
             dispatcher = js.conn.createDispatcher();
-            return  (NatsJetStreamPullSubscription)js.subscribe(null, dispatcher, messageHandler, pso);
+            try {
+                return (NatsJetStreamPullSubscription)js.subscribe(null, dispatcher, messageHandler, pso);
+            }
+            catch (RuntimeException r) {
+                throw r;
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
     @Override
-    public FetchConsumer fetch(int maxMessages) throws IOException, JetStreamApiException {
+    public Message next() throws IOException, InterruptedException, JetStreamStatusCheckedException {
+        return next(DEFAULT_EXPIRES_IN_MS);
+    }
+
+    @Override
+    public Message next(Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException {
+        return next(maxWait == null ? DEFAULT_EXPIRES_IN_MS : maxWait.toMillis());
+    }
+
+    @Override
+    public Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException {
+        if (maxWaitMillis < MIN_EXPIRES_MILLS) {
+            throw new IllegalArgumentException("Max wait must be at least " + MIN_EXPIRES_MILLS + " milliseconds.");
+        }
+
+        long expires = maxWaitMillis - EXPIRE_ADJUSTMENT;
+
+        NatsJetStreamPullSubscription sub = new SubscriptionMaker().makeSubscription(null);
+        sub._pull(PullRequestOptions.builder(1).expiresIn(expires).build());
+        try {
+            return sub.nextMessage(maxWaitMillis);
+        }
+        catch (JetStreamStatusException e) {
+            throw new JetStreamStatusCheckedException(e);
+        }
+    }
+
+    @Override
+    public FetchConsumer fetchMessages(int maxMessages) {
         return fetch(FetchConsumeOptions.builder().maxMessages(maxMessages).build());
     }
 
     @Override
-    public FetchConsumer fetch(int maxBytes, int maxMessages) throws IOException, JetStreamApiException {
-        return fetch(FetchConsumeOptions.builder().maxBytes(maxBytes, maxMessages).build());
+    public FetchConsumer fetchBytes(int maxBytes) {
+        return fetch(FetchConsumeOptions.builder().maxBytes(maxBytes, DEFAULT_MESSAGE_COUNT_WHEN_BYTES).build());
     }
 
     @Override
-    public FetchConsumer fetch(FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
-        Validator.required(consumeOptions, "Fetch Consume Options");
-        return new NatsFetchConsumer(new Mediator(), consumeOptions);
-    }
-
-    @Override
-    public ManualConsumer consume() throws IOException, JetStreamApiException {
-        return new NatsManualConsumer(new Mediator(), DEFAULT_CONSUME_OPTIONS);
-    }
-
-    @Override
-    public ManualConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public FetchConsumer fetch(FetchConsumeOptions consumeOptions) {
         Validator.required(consumeOptions, "Consume Options");
-        return new NatsManualConsumer(new Mediator(), consumeOptions);
+        return new NatsFetchConsumer(new SubscriptionMaker(), consumeOptions);
     }
 
     @Override
-    public SimpleConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException {
+    public ManualConsumer consume() {
+        return new NatsManualConsumer(new SubscriptionMaker(), DEFAULT_CONSUME_OPTIONS);
+    }
+
+    @Override
+    public ManualConsumer consume(ConsumeOptions consumeOptions) {
+        Validator.required(consumeOptions, "Consume Options");
+        return new NatsManualConsumer(new SubscriptionMaker(), consumeOptions);
+    }
+
+    @Override
+    public SimpleConsumer consume(MessageHandler handler) {
         Validator.required(handler, "Message Handler");
-        return new NatsSimpleConsumer(new Mediator(), handler, DEFAULT_CONSUME_OPTIONS);
+        return new NatsSimpleConsumer(new SubscriptionMaker(), handler, DEFAULT_CONSUME_OPTIONS);
     }
 
     @Override
-    public SimpleConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public SimpleConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) {
         Validator.required(handler, "Message Handler");
         Validator.required(consumeOptions, "Consume Options");
-        return new NatsSimpleConsumer(new Mediator(), handler, consumeOptions);
+        return new NatsSimpleConsumer(new SubscriptionMaker(), handler, consumeOptions);
     }
 }

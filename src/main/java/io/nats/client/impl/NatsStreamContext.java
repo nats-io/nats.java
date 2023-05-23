@@ -29,51 +29,46 @@ import java.io.IOException;
  */
 class NatsStreamContext implements StreamContext {
     final NatsJetStreamManagement jsm;
-    final String stream;
+    final String streamName;
 
-    NatsStreamContext(NatsConnection connection, JetStreamOptions jsOptions, String stream) throws IOException, JetStreamApiException {
+    NatsStreamContext(NatsConnection connection, JetStreamOptions jsOptions, String streamName) throws IOException, JetStreamApiException {
         jsm = new NatsJetStreamManagement(connection, jsOptions);
-        this.stream = stream;
-        jsm.getStreamInfo(stream);
+        this.streamName = streamName;
+        jsm.getStreamInfo(streamName); // this is just verifying that the stream exists
     }
 
-    NatsStreamContext(NatsStreamContext streamContext) throws IOException, JetStreamApiException {
+    NatsStreamContext(NatsStreamContext streamContext) {
         jsm = streamContext.jsm;
-        stream = streamContext.stream;
+        streamName = streamContext.streamName;
     }
 
     @Override
-    public String getStream() {
-        return stream;
+    public String getStreamName() {
+        return streamName;
     }
 
     @Override
     public StreamInfo getStreamInfo() throws IOException, JetStreamApiException {
-        return jsm.getStreamInfo(stream);
+        return jsm.getStreamInfo(streamName);
     }
 
     @Override
     public StreamInfo getStreamInfo(StreamInfoOptions options) throws IOException, JetStreamApiException {
-        return jsm.getStreamInfo(stream, options);
+        return jsm.getStreamInfo(streamName, options);
     }
 
     @Override
     public ConsumerInfo createConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException {
-        return jsm.addOrUpdateConsumer(stream, config);
+        return jsm.addOrUpdateConsumer(streamName, config);
     }
 
     @Override
     public boolean deleteConsumer(String consumerName) throws IOException, JetStreamApiException {
-        return jsm.deleteConsumer(stream, consumerName);
+        return jsm.deleteConsumer(streamName, consumerName);
     }
 
     @Override
     public ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException {
-        return new NatsConsumerContext(jsm.conn, jsm.jso, stream, consumerName);
+        return new NatsConsumerContext(jsm.conn, jsm.jso, streamName, consumerName);
     }
-
-//    @Override
-//    public ConsumerContext getConsumerContext(ConsumerConfiguration config) throws IOException, JetStreamApiException {
-//        return new NatsConsumerContext(jsm.conn, jsm.jso, stream, config);
-//    }
 }

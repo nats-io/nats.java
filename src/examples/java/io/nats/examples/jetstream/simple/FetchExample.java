@@ -1,4 +1,4 @@
-// Copyright 2020-2023 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -14,73 +14,86 @@
 package io.nats.examples.jetstream.simple;
 
 import io.nats.client.*;
-import io.nats.client.api.ConsumerConfiguration;
 
 import java.io.IOException;
+
+import static io.nats.examples.jetstream.simple.Utils.*;
 
 /**
  * This example will demonstrate simplified fetch
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class FetchExample {
-    private static final String STREAM = "simple-stream";
-    private static final String SUBJECT = "simple-subject";
+    private static final String STREAM = "fetch-stream";
+    private static final String SUBJECT = "fetch-subject";
+    private static final String MESSAGE_TEXT = "fetch";
     private static final String CONSUMER_NAME_PREFIX = "simple-consumer";
     private static final int MESSAGES = 20;
     private static final int EXPIRES_SECONDS = 2;
 
-    // change this is you need to...
     public static String SERVER = "nats://localhost:4222";
 
     public static void main(String[] args) {
         Options options = Options.builder().server(SERVER).build();
         try (Connection nc = Nats.connect(options)) {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = nc.jetStream();
 
-            Utils.setupStreamAndData(nc, STREAM, SUBJECT, 20);
+            // set's up the stream and publish data
+            createOrReplaceStream(jsm, STREAM, SUBJECT);
+            setupPublish(js, SUBJECT, MESSAGE_TEXT, MESSAGES);
 
             // 1. Different fetch max messages demonstrate expiration behavior
 
             // 1A. equal number of messages to the fetch max messages
-            simpleFetch("1A", nc, 20, 0);
+            simpleFetch(jsm, js, "1A", 20, 0);
 
             // 1B. more messages than the fetch max messages
-            simpleFetch("1B", nc, 10, 0);
+            simpleFetch(jsm, js, "1B", 10, 0);
 
             // 1C. fewer messages than the fetch max messages
-            simpleFetch("1C", nc, 40, 0);
+            simpleFetch(jsm, js, "1C", 40, 0);
 
             // 2. Different max bytes sizes demonstrate expiration behavior
             //    - each test message is approximately 100 bytes
 
             // 2A. max bytes is reached before message count
-            simpleFetch("2A", nc, 10, 750);
+            simpleFetch(jsm, js, "2A", 10, 750);
 
             // 2B. fetch max messages is reached before byte count
-            simpleFetch("2B", nc, 10, 1500);
+            simpleFetch(jsm, js, "2B", 10, 1500);
 
             // 2C. fewer bytes than the byte count
-            simpleFetch("2C", nc, 25, 3000);
+            simpleFetch(jsm, js, "2C", 25, 3000);
 
             // 3. simple-consumer-40msgs was created in 1C and has no messages available
-            simpleFetch("3", nc, 40, 0);
+            simpleFetch(jsm, js, "3", 40, 0);
         }
-        catch (Exception e) {
-            e.printStackTrace();
+        catch (IOException ioe) {
+            // problem making the connection or
+        }
+        catch (InterruptedException e) {
+            // thread interruption in the body of the example
         }
     }
 
-    private static void simpleFetch(String label, Connection nc, int maxMessages, int maxBytes) throws IOException, JetStreamApiException, InterruptedException {
-        JetStreamManagement jsm = nc.jetStreamManagement();
-        JetStream js = nc.jetStream();
-
-        String name = generateConsumerName(maxMessages, maxBytes);
+    private static void simpleFetch(JetStreamManagement jsm, JetStream js, String label, int maxMessages, int maxBytes) {
+        String consumerName = generateConsumerName(maxMessages, maxBytes);
 
         // Pre define a consumer
-        ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(name).build();
-        jsm.addOrUpdateConsumer(STREAM, cc);
+        createConsumer(jsm, STREAM, consumerName);
 
-        // Consumer[Context]
-        ConsumerContext consumerContext = js.getConsumerContext(STREAM, name);
+        // Create the Consumer Context
+        ConsumerContext consumerContext;
+        try {
+            consumerContext = js.getConsumerContext(STREAM, consumerName);
+        }
+        catch (IOException e) {
+            return; // likely a connection problem
+        }
+        catch (JetStreamApiException e) {
+            return; // the stream or consumer did not exist
+        }
 
         // Custom consume options
         FetchConsumeOptions fetchConsumeOptions = FetchConsumeOptions.builder()
@@ -89,18 +102,33 @@ public class FetchExample {
             .expiresIn(EXPIRES_SECONDS * 1000)
             .build();
 
-        printExplanation(label, name, maxMessages, maxBytes);
+        printExplanation(label, consumerName, maxMessages, maxBytes);
 
         long start = System.currentTimeMillis();
 
         // create the consumer then use it
         FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions);
         int rcvd = 0;
-        Message msg = consumer.nextMessage();
-        while (msg != null) {
-            ++rcvd;
-            msg.ack();
-            msg = consumer.nextMessage();
+        try {
+            Message msg = consumer.nextMessage();
+            while (msg != null) {
+                ++rcvd;
+                msg.ack();
+                msg = consumer.nextMessage();
+            }
+        }
+        catch (InterruptedException e) {
+            // this should never happen unless the
+            // developer interrupts this thread
+            System.err.println("Treating InterruptedException as fatal error.");
+            System.exit(-1);
+        }
+        catch (JetStreamStatusCheckedException e) {
+            // either the consumer was deleted in the middle
+            // of the pull or there is a new status from the
+            // server that this client is not aware of
+            System.err.println("Treating JetStreamStatusCheckedException as fatal error.");
+            System.exit(-1);
         }
         long elapsed = System.currentTimeMillis() - start;
 

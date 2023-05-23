@@ -201,15 +201,17 @@ public class MessageManagerTests extends JetStreamTestBase {
         sleep(100);
 
         List<TestHandler.StatusEvent> list = handler.getPullStatusWarnings();
-        assertEquals(4, list.size());
-        for (TestHandler.StatusEvent se : list) {
+        int[] codes = new int[]{NOT_FOUND_CODE, REQUEST_TIMEOUT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE};
+        assertEquals(6, list.size());
+        for (int x = 0; x < list.size(); x++) {
+            TestHandler.StatusEvent se = list.get(x);
             assertSame(sub.getSID(), se.sid);
-            assertEquals(CONFLICT_CODE, se.status.getCode());
+            assertEquals(codes[x], se.status.getCode());
         }
 
         list = handler.getPullStatusErrors();
         assertEquals(4, list.size());
-        int[] codes = new int[]{BAD_REQUEST_CODE, 999, CONFLICT_CODE, CONFLICT_CODE};
+        codes = new int[]{BAD_REQUEST_CODE, 999, CONFLICT_CODE, CONFLICT_CODE};
         for (int x = 0; x < list.size(); x++) {
             TestHandler.StatusEvent se = list.get(x);
             assertSame(sub.getSID(), se.sid);
@@ -530,7 +532,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     private PullMessageManager getPullManager(Connection conn, NatsJetStreamSubscription sub, boolean syncMode) {
-        PullMessageManager manager = new PullMessageManager((NatsConnection) conn, syncMode);
+        PullMessageManager manager = new PullMessageManager((NatsConnection) conn, PullSubscribeOptions.DEFAULT_PULL_OPTS, syncMode);
         if (sub != null) {
             manager.startup(sub);
         }
@@ -636,7 +638,7 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     static class TestMessageManager extends MessageManager {
         public TestMessageManager() {
-            super(null, true);
+            super(null, PushSubscribeOptions.DEFAULT_PUSH_OPTS, true);
         }
 
         @Override

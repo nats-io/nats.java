@@ -24,13 +24,10 @@ import java.io.IOException;
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public interface StreamContext {
-    String getStream();
-    StreamInfo getStreamInfo()  throws IOException, JetStreamApiException;
-    StreamInfo getStreamInfo(StreamInfoOptions options)  throws IOException, JetStreamApiException;
-
+    String getStreamName();
+    StreamInfo getStreamInfo() throws IOException, JetStreamApiException;
+    StreamInfo getStreamInfo(StreamInfoOptions options) throws IOException, JetStreamApiException;
     ConsumerInfo createConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException;
     boolean deleteConsumer(String consumerName) throws IOException, JetStreamApiException;
-
     ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException;
-//    ConsumerContext getConsumerContext(ConsumerConfiguration config) throws IOException, JetStreamApiException;
 }

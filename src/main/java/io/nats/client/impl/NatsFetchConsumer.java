@@ -15,47 +15,50 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 
-import java.io.IOException;
-
 class NatsFetchConsumer extends NatsSimpleConsumerBase implements FetchConsumer {
     private final long maxWaitNanos;
-    private final long start;
+    private long start;
 
-    public NatsFetchConsumer(NatsConsumerContext.Mediator mediator, FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
-        initSub(mediator.makeSubscription(null));
-        maxWaitNanos = consumeOptions.getExpires() * 1_000_000;
-        sub.pull(PullRequestOptions.builder(consumeOptions.getMaxMessages())
+    public NatsFetchConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, FetchConsumeOptions consumeOptions) {
+        initSub(subscriptionMaker.makeSubscription(null));
+        maxWaitNanos = consumeOptions.getExpiresIn() * 1_000_000;
+        sub._pull(PullRequestOptions.builder(consumeOptions.getMaxMessages())
             .maxBytes(consumeOptions.getMaxBytes())
-            .expiresIn(consumeOptions.getExpires())
+            .expiresIn(consumeOptions.getExpiresIn())
             .idleHeartbeat(consumeOptions.getIdleHeartbeat())
             .build()
         );
-        start = System.nanoTime();
+        start = -1;
     }
 
     @Override
-    public Message nextMessage() throws InterruptedException {
-        Message m;
-        if (pmm.pendingMessages < 1 || (pmm.trackingBytes && pmm.pendingBytes < 1)) {
-            // nothing pending means the client has already received all it is going to
-            // null for nextMessage means don't wait, the queue either has something already
-            // or there aren't any messages left
-            m = sub.nextMessage(null);
-        }
-        else {
+    public Message nextMessage() throws InterruptedException, JetStreamStatusCheckedException {
+        try {
+            if (start == -1) {
+                start = System.nanoTime();
+            }
+
+            if (pmm.pendingMessages < 1 || (pmm.trackingBytes && pmm.pendingBytes < 1)) {
+                // nothing pending means the client has already received all it is going to
+                // null for nextMessage means don't wait, the queue either has something already
+                // or there aren't any messages left
+                return sub._nextUnmanagedNullOrLteZero(null); // null means don't wait
+            }
+
             long timeLeftMillis = (maxWaitNanos - (System.nanoTime() - start)) / 1_000_000;
             if (timeLeftMillis < 1) {
-                m = sub.nextMessage(null);
+                return sub._nextUnmanagedNullOrLteZero(null); // null means don't wait
             }
-            else {
-                m = sub.nextMessage(timeLeftMillis);
-            }
+
+            return sub.nextMessage(timeLeftMillis);
         }
-        if (m == null) {
-            // if we are out of messages, unsub, but do it on a
-            // separate thread, so we can return to the user w/o waiting
-            sub.connection.getExecutor().submit(() -> unsubscribe(-1));
+        catch (InterruptedException r) {
+            stopInternal();
+            throw r;
         }
-        return m;
+        catch (JetStreamStatusException e) {
+            stopInternal();
+            throw new JetStreamStatusCheckedException(e);
+        }
     }
 }

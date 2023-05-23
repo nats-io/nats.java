@@ -16,18 +16,22 @@ package io.nats.client;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
+import java.time.Duration;
 
 /**
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public interface ConsumerContext {
-    String getName();
+    String getConsumerName();
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
-    FetchConsumer fetch(int maxMessages) throws IOException, JetStreamApiException;
-    FetchConsumer fetch(int maxBytes, int maxMessages) throws IOException, JetStreamApiException;
-    FetchConsumer fetch(FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
-    ManualConsumer consume() throws IOException, JetStreamApiException;
-    ManualConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
-    SimpleConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException;
-    SimpleConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    Message next() throws IOException, InterruptedException, JetStreamStatusCheckedException;
+    Message next(Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException;
+    Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException;
+    FetchConsumer fetchMessages(int maxMessages);
+    FetchConsumer fetchBytes(int maxBytes);
+    FetchConsumer fetch(FetchConsumeOptions consumeOptions);
+    ManualConsumer consume();
+    ManualConsumer consume(ConsumeOptions consumeOptions);
+    SimpleConsumer consume(MessageHandler handler);
+    SimpleConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions);
 }

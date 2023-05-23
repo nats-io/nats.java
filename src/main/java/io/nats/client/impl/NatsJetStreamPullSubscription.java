@@ -56,7 +56,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         _pull(pullRequestOptions);
     }
 
-    private String _pull(PullRequestOptions pullRequestOptions) {
+    protected String _pull(PullRequestOptions pullRequestOptions) {
         String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
         manager.startPullRequest(pullRequestOptions);
         String pullId = getSubject().replace("*", Long.toString(this.pullId.incrementAndGet()));
@@ -139,9 +139,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
             long start = System.nanoTime();
 
             Duration expires = Duration.ofMillis(
-                maxWaitMillis > MIN_MILLIS
-                    ? maxWaitMillis - EXPIRE_LESS_MILLIS
-                    : maxWaitMillis);
+                maxWaitMillis > MIN_MILLIS ? maxWaitMillis - EXPIRE_ADJUSTMENT : maxWaitMillis);
             String pullId = _pull(PullRequestOptions.builder(batchLeft).expiresIn(expires).build());
 
             // timeout > 0 process as many messages we can in that time period
@@ -195,7 +193,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
             }
         }
         catch (InterruptedException ignore) {
-            // shouldn't ever happen in reality
+            Thread.currentThread().interrupt();
         }
         return messages;
     }

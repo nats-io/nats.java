@@ -1,4 +1,4 @@
-// Copyright 2020-2023 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -13,17 +13,9 @@
 
 package io.nats.client;
 
-import io.nats.client.api.ConsumerInfo;
+public class JetStreamStatusCheckedException extends Exception {
 
-import java.io.IOException;
-
-/**
- * The Simple Consumer interface is the core interface replacing
- * a subscription for a simplified consumer.
- * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
- */
-public interface SimpleConsumer {
-    ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
-    void stop() throws InterruptedException;
-    boolean isActive();
+    public JetStreamStatusCheckedException(JetStreamStatusException cause) {
+        super(cause);
+    }
 }

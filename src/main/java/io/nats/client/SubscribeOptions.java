@@ -31,19 +31,21 @@ public abstract class SubscribeOptions {
     protected final boolean pull;
     protected final boolean bind;
     protected final boolean ordered;
+    protected final boolean raiseStatusWarnings;
     protected final long messageAlarmTime;
     protected final ConsumerConfiguration consumerConfig;
     protected final long pendingMessageLimit; // Only applicable for non dispatched (sync) push consumers.
     protected final long pendingByteLimit; // Only applicable for non dispatched (sync) push consumers.
 
     @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
-    protected SubscribeOptions(Builder builder, boolean isPull, boolean isOrdered,
+    protected SubscribeOptions(Builder builder, boolean isPull,
                                String deliverSubject, String deliverGroup,
                                long pendingMessageLimit, long pendingByteLimit) {
 
         pull = isPull;
         bind = builder.bind;
-        ordered = isOrdered;
+        ordered = builder.ordered;
+        raiseStatusWarnings = builder.raiseStatusWarnings;
         messageAlarmTime = builder.messageAlarmTime;
 
         if (ordered && bind) {
@@ -66,7 +68,7 @@ public abstract class SubscribeOptions {
         this.pendingMessageLimit = pendingMessageLimit;
         this.pendingByteLimit = pendingByteLimit;
 
-        if (isOrdered) {
+        if (ordered) {
             validateNotSupplied(deliverGroup, JsSoOrderedNotAllowedWithDeliverGroup);
             validateNotSupplied(durable, JsSoOrderedNotAllowedWithDurable);
             validateNotSupplied(deliverSubject, JsSoOrderedNotAllowedWithDeliverSubject);
@@ -151,6 +153,14 @@ public abstract class SubscribeOptions {
     }
 
     /**
+     * Gets whether status message warnings should be raised to error listener. 
+     * @return the raiseStatusWarnings flag
+     */
+    public boolean raiseStatusWarnings() {
+        return raiseStatusWarnings;
+    }
+
+    /**
      * Get the time amount of time allowed to elapse without a heartbeat.
      * If not set will default to 3 times the idle heartbeat setting
      * @return the message alarm time
@@ -203,6 +213,8 @@ public abstract class SubscribeOptions {
         String name;
         ConsumerConfiguration cc;
         long messageAlarmTime = -1;
+        boolean ordered;
+        boolean raiseStatusWarnings = true;
 
         protected abstract B getThis();
 
@@ -270,6 +282,18 @@ public abstract class SubscribeOptions {
          */
         public B messageAlarmTime(long messageAlarmTime) {
             this.messageAlarmTime = messageAlarmTime;
+            return getThis();
+        }
+
+        /**
+         * raise warnings reduces the traffic to error listeners for warnings.
+         * Default is true.
+         *
+         * @param raiseStatusWarnings whether to raise warnings
+         * @return the builder
+         */
+        public B raiseStatusWarnings(boolean raiseStatusWarnings) {
+            this.raiseStatusWarnings = raiseStatusWarnings;
             return getThis();
         }
 

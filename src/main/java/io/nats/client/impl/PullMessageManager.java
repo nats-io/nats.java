@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.JetStreamStatusException;
 import io.nats.client.Message;
 import io.nats.client.PullRequestOptions;
+import io.nats.client.SubscribeOptions;
 import io.nats.client.support.Status;
 
 import static io.nats.client.impl.MessageManager.ManageResult.*;
@@ -29,8 +30,8 @@ class PullMessageManager extends MessageManager {
     protected long pendingBytes;
     protected boolean trackingBytes;
 
-    protected PullMessageManager(NatsConnection conn, boolean syncMode) {
-        super(conn, syncMode);
+    protected PullMessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
+        super(conn, so, syncMode);
         trackingBytes = false;
         pendingMessages = 0;
         pendingBytes = 0;
@@ -124,13 +125,18 @@ class PullMessageManager extends MessageManager {
         switch (status.getCode()) {
             case NOT_FOUND_CODE:
             case REQUEST_TIMEOUT_CODE:
+                if (so.raiseStatusWarnings()) {
+                    conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
+                }
                 return TERMINUS;
 
             case CONFLICT_CODE:
                 // sometimes just a warning
                 String statMsg = status.getMessage();
                 if (statMsg.startsWith("Exceeded Max")) {
-                    conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
+                    if (so.raiseStatusWarnings()) {
+                        conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
+                    }
                     return STATUS;
                 }
 

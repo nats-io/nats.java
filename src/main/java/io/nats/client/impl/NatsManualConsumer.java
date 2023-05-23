@@ -13,25 +13,37 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.ConsumeOptions;
-import io.nats.client.JetStreamApiException;
-import io.nats.client.ManualConsumer;
-import io.nats.client.Message;
+import io.nats.client.*;
 
-import java.io.IOException;
+import java.time.Duration;
 
 public class NatsManualConsumer extends NatsSimpleConsumer implements ManualConsumer {
 
-    public NatsManualConsumer(NatsConsumerContext.Mediator mediator, ConsumeOptions opts) throws IOException, JetStreamApiException {
-        super(mediator, null, opts);
+    public NatsManualConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, ConsumeOptions opts) {
+        super(subscriptionMaker, null, opts);
     }
 
     @Override
-    public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
-        Message msg = sub.nextMessage(timeoutMillis);
-        if (msg != null) {
-            checkForRepull();
+    public Message nextMessage(Duration timeout) throws InterruptedException, JetStreamStatusCheckedException {
+        return null;
+    }
+
+    @Override
+    public Message nextMessage(long timeoutMillis) throws InterruptedException, JetStreamStatusCheckedException {
+        try {
+            Message msg = sub.nextMessage(timeoutMillis);
+            if (msg != null) {
+                checkForRepull();
+            }
+            return msg;
         }
-        return msg;
+        catch (InterruptedException r) {
+            stopInternal();
+            throw r;
+        }
+        catch (JetStreamStatusException e) {
+            stopInternal();
+            throw new JetStreamStatusCheckedException(e);
+        }
     }
 }

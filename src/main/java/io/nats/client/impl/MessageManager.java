@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.Message;
 import io.nats.client.PullRequestOptions;
+import io.nats.client.SubscribeOptions;
 
 import java.time.Duration;
 import java.util.Timer;
@@ -27,6 +28,7 @@ abstract class MessageManager {
 
     protected final Object stateChangeLock;
     protected final NatsConnection conn;
+    protected final SubscribeOptions so;
     protected final boolean syncMode;
 
     protected NatsJetStreamSubscription sub; // not final it is not set until after construction
@@ -42,10 +44,11 @@ abstract class MessageManager {
     protected TimerTask heartbeatTimerTask;
     protected Timer heartbeatTimer;
 
-    protected MessageManager(NatsConnection conn, boolean syncMode) {
+    protected MessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
         stateChangeLock = new Object();
 
         this.conn = conn;
+        this.so = so;
         this.syncMode = syncMode;
         lastStreamSeq = 0;
         lastConsumerSeq = 0;

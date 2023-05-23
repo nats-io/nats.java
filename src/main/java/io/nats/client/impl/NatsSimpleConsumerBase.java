@@ -19,7 +19,6 @@ import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
 
 class NatsSimpleConsumerBase implements SimpleConsumer {
     protected NatsJetStreamPullSubscription sub;
@@ -29,13 +28,13 @@ class NatsSimpleConsumerBase implements SimpleConsumer {
 
     NatsSimpleConsumerBase() {
         subLock = new Object();
-        active = true;
     }
 
     // Synchronized by caller if necessary
     protected void initSub(NatsJetStreamPullSubscription sub) {
         this.sub = sub;
         pmm = (PullMessageManager)sub.manager;
+        active = true;
     }
 
     @Override
@@ -51,31 +50,26 @@ class NatsSimpleConsumerBase implements SimpleConsumer {
     }
 
     @Override
-    public void unsubscribe() {
-        unsubscribe(-1);
-    }
-
-    @Override
-    public void unsubscribe(int after) {
+    public void stop() throws InterruptedException {
         synchronized (subLock) {
             active = false;
+            // drain here but not really worried about whether it finishes properly
+            // so intentionally not waiting using the future that drain(...) gives
             if (sub.getNatsDispatcher() != null) {
-                sub.getDispatcher().unsubscribe(sub, after);
+                sub.getDispatcher().drain(Duration.ofMillis(30000));
             }
             else {
-                sub.unsubscribe(after);
+                sub.drain(Duration.ofMillis(30000));
             }
         }
     }
 
-    @Override
-    public CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException {
-        synchronized (subLock) {
-            active = false;
-            if (sub.getNatsDispatcher() != null) {
-                return sub.getDispatcher().drain(timeout);
-            }
-            return sub.drain(timeout);
+    protected void stopInternal() {
+        try {
+            stop();
+        }
+        catch (InterruptedException ignore) {
+            // exception on exception nothing really to do
         }
     }
 }

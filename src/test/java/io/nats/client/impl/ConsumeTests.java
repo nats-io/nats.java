@@ -18,8 +18,6 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.BaseConsumeOptions.*;
@@ -69,7 +67,7 @@ public class ConsumeTests extends JetStreamTestBase {
         });
     }
 
-    private static void _testFetch(String label, Connection nc, int maxMessages, int maxBytes) throws IOException, JetStreamApiException, InterruptedException {
+    private static void _testFetch(String label, Connection nc, int maxMessages, int maxBytes) throws Exception {
         JetStreamManagement jsm = nc.jetStreamManagement();
         JetStream js = nc.jetStream();
 
@@ -86,7 +84,7 @@ public class ConsumeTests extends JetStreamTestBase {
         FetchConsumeOptions fetchConsumeOptions = FetchConsumeOptions.builder()
             .maxMessages(maxMessages)        // usually you would use only one or the other
             .maxBytes(maxBytes, maxMessages) // /\                                    /\
-            .expiresIn(2000)
+            .expiresIn(3000)
             .build();
 
         long start = System.currentTimeMillis();
@@ -159,7 +157,7 @@ public class ConsumeTests extends JetStreamTestBase {
                     }
 
                     Thread.sleep(50); // allows more messages to come across
-                    consumer.drain(Duration.ofSeconds(1));
+                    consumer.stop();
 
                     Message msg = consumer.nextMessage(1000);
                     while (msg != null) {
@@ -168,8 +166,8 @@ public class ConsumeTests extends JetStreamTestBase {
                         msg = consumer.nextMessage(1000);
                     }
                 }
-                catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                catch (Exception e) {
+                    fail(e);
                 }
             });
             consumeThread.start();
@@ -217,7 +215,7 @@ public class ConsumeTests extends JetStreamTestBase {
                     }
 
                     Thread.sleep(50); // allows more messages to come across
-                    consumer.drain(Duration.ofSeconds(1));
+                    consumer.stop();
 
                     Message msg = consumer.nextMessage(1000);
                     while (msg != null) {
@@ -226,8 +224,8 @@ public class ConsumeTests extends JetStreamTestBase {
                         msg = consumer.nextMessage(1000);
                     }
                 }
-                catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                catch (Exception e) {
+                    fail(e);
                 }
             });
             consumeThread.start();
@@ -294,10 +292,10 @@ public class ConsumeTests extends JetStreamTestBase {
             assertTrue(con3.isActive());
             assertTrue(con4.isActive());
 
-            con1.unsubscribe();
-            con2.drain(Duration.ofSeconds(1));
-            con3.unsubscribe();
-            con4.drain(Duration.ofSeconds(1));
+            con1.stop();
+            con2.stop();
+            con3.stop();
+            con4.stop();
 
             assertFalse(con1.isActive());
             assertFalse(con2.isActive());
@@ -310,10 +308,10 @@ public class ConsumeTests extends JetStreamTestBase {
     public void testFetchConsumeOptionsBuilder() {
         FetchConsumeOptions fco = FetchConsumeOptions.builder().build();
         assertEquals(DEFAULT_MESSAGE_COUNT, fco.getMaxMessages());
-        assertEquals(DEFAULT_EXPIRES_IN_MS, fco.getExpires());
+        assertEquals(DEFAULT_EXPIRES_IN_MS, fco.getExpiresIn());
         assertEquals(DEFAULT_THRESHOLD_PERCENT, fco.getThresholdPercent());
         assertEquals(0, fco.getMaxBytes());
-        assertEquals(DEFAULT_EXPIRES_IN_MS * MAX_IDLE_HEARTBEAT_PCT / 100, fco.getIdleHeartbeat());
+        assertEquals(DEFAULT_EXPIRES_IN_MS * MAX_IDLE_HEARTBEAT_PERCENT / 100, fco.getIdleHeartbeat());
 
         fco = FetchConsumeOptions.builder().maxMessages(1000).build();
         assertEquals(1000, fco.getMaxMessages());
@@ -340,10 +338,10 @@ public class ConsumeTests extends JetStreamTestBase {
     public void testConsumeOptionsBuilder() {
         ConsumeOptions co = ConsumeOptions.builder().build();
         assertEquals(DEFAULT_MESSAGE_COUNT, co.getBatchSize());
-        assertEquals(DEFAULT_EXPIRES_IN_MS, co.getExpires());
+        assertEquals(DEFAULT_EXPIRES_IN_MS, co.getExpiresIn());
         assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
         assertEquals(0, co.getBatchBytes());
-        assertEquals(DEFAULT_EXPIRES_IN_MS * MAX_IDLE_HEARTBEAT_PCT / 100, co.getIdleHeartbeat());
+        assertEquals(DEFAULT_EXPIRES_IN_MS * MAX_IDLE_HEARTBEAT_PERCENT / 100, co.getIdleHeartbeat());
 
         co = ConsumeOptions.builder().batchSize(1000).build();
         assertEquals(1000, co.getBatchSize());
@@ -379,7 +377,5 @@ public class ConsumeTests extends JetStreamTestBase {
             () -> ConsumeOptions.builder().expiresIn(0).build());
         assertThrows(IllegalArgumentException.class,
             () -> ConsumeOptions.builder().expiresIn(MIN_EXPIRES_MILLS - 1).build());
-        assertThrows(IllegalArgumentException.class,
-            () -> ConsumeOptions.builder().expiresIn(MAX_EXPIRES_MILLIS + 1).build());
     }
 }

@@ -19,5 +19,5 @@ package io.nats.client;
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public interface FetchConsumer extends SimpleConsumer {
-    Message nextMessage() throws InterruptedException;
+    Message nextMessage() throws InterruptedException, JetStreamStatusCheckedException;
 }

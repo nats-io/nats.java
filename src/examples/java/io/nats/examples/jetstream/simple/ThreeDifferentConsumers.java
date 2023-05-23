@@ -1,4 +1,4 @@
-// Copyright 2020-2023 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -14,14 +14,13 @@
 package io.nats.examples.jetstream.simple;
 
 import io.nats.client.*;
-import io.nats.client.api.ConsumerConfiguration;
 
+import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static io.nats.examples.jetstream.simple.Utils.Publisher;
-import static io.nats.examples.jetstream.simple.Utils.setupStream;
+import static io.nats.examples.jetstream.simple.Utils.*;
 
 /**
  * This example will demonstrate all 3 simplified consumes running at the same time.
@@ -29,35 +28,47 @@ import static io.nats.examples.jetstream.simple.Utils.setupStream;
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class ThreeDifferentConsumers {
-    private static final String STREAM = "simple-stream";
-    private static final String SUBJECT = "simple-subject";
+    private static final String STREAM = "three-stream";
+    private static final String SUBJECT = "three-subject";
+    private static final String MESSAGE_TEXT = "three";
     private static final int REPORT_EVERY = 100;
     private static final int JITTER = 30;
 
-    // change this is you need to...
-    public static String SERVER = "nats://localhost:4222";
+    private static final String SERVER = "nats://localhost:4222";
 
     public static void main(String[] args) {
         Options options = Options.builder().server(SERVER).build();
         try (Connection nc = Nats.connect(options)) {
-
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
-            setupStream(jsm, STREAM, SUBJECT);
+            // set's up the stream and create a durable consumer
+            createOrReplaceStream(jsm, STREAM, SUBJECT);
 
-            String name1 = "next-" + NUID.nextGlobal();
-            String name2 = "handle-" + NUID.nextGlobal();
-            String name3 = "fetch-" + NUID.nextGlobal();
+            String consumerName1 = "next-" + NUID.nextGlobal();
+            String consumerName2 = "handle-" + NUID.nextGlobal();
+            String consumerName3 = "fetch-" + NUID.nextGlobal();
 
-            jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder().durable(name1).build());
-            jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder().durable(name2).build());
-            jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder().durable(name3).build());
+            createConsumer(jsm, STREAM, consumerName1);
+            createConsumer(jsm, STREAM, consumerName2);
+            createConsumer(jsm, STREAM, consumerName3);
 
-            // Consumer[Context]
-            ConsumerContext ctx1 = js.getConsumerContext(STREAM, name1);
-            ConsumerContext ctx2 = js.getConsumerContext(STREAM, name2);
-            ConsumerContext ctx3 = js.getConsumerContext(STREAM, name3);
+            // Create the Consumer Contexts
+            ConsumerContext ctx1;
+            ConsumerContext ctx2;
+            ConsumerContext ctx3;
+            ConsumerContext consumerContext;
+            try {
+                ctx1 = js.getConsumerContext(STREAM, consumerName1);
+                ctx2 = js.getConsumerContext(STREAM, consumerName2);
+                ctx3 = js.getConsumerContext(STREAM, consumerName3);
+            }
+            catch (IOException e) {
+                return; // likely a connection problem
+            }
+            catch (JetStreamApiException e) {
+                return; // the stream or consumer did not exist
+            }
 
             // create the consumer then use it
             ManualConsumer con1 = ctx1.consume();
@@ -66,8 +77,8 @@ public class ThreeDifferentConsumers {
                 long mark = System.currentTimeMillis();
                 int count = 0;
                 long report = randomReportInterval();
-                try {
-                    while (true) {
+                while (true) {
+                    try {
                         Message msg = con1.nextMessage(1000);
                         if (msg != null) {
                             msg.ack();
@@ -79,14 +90,22 @@ public class ThreeDifferentConsumers {
                             }
                         }
                     }
-                }
-                catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                    catch (InterruptedException e) {
+                        // this should never happen unless the
+                        // developer interrupts this thread
+                        return;
+                    }
+                    catch (JetStreamStatusCheckedException e) {
+                        // either the consumer was deleted in the middle
+                        // of the pull or there is a new status from the
+                        // server that this client is not aware of
+                        return;
+                    }
                 }
             });
             con1Thread.start();
 
-            Publisher publisher = new Publisher(js, SUBJECT, JITTER);
+            Publisher publisher = new Publisher(js, SUBJECT, MESSAGE_TEXT, JITTER);
             Thread pubThread = new Thread(publisher);
             pubThread.start();
 
@@ -104,6 +123,7 @@ public class ThreeDifferentConsumers {
                     atomicReport.set(randomReportInterval());
                 }
             };
+            // keep the handler so it stays in scope or if you want to call stop
             SimpleConsumer con2 = ctx2.consume(handler);
 
             Thread.sleep(1000); // just makes the consumers be reading different messages
@@ -113,7 +133,7 @@ public class ThreeDifferentConsumers {
                 long report = randomReportInterval();
                 try {
                     while (true) {
-                        FetchConsumer fc = ctx3.fetch(REPORT_EVERY);
+                        FetchConsumer fc = ctx3.fetchMessages(REPORT_EVERY);
                         Message msg = fc.nextMessage();
                         while (msg != null) {
                             msg.ack();
@@ -127,16 +147,28 @@ public class ThreeDifferentConsumers {
                         }
                     }
                 }
-                catch (Exception e) {
-                    throw new RuntimeException(e);
+                catch (InterruptedException e) {
+                    // this should never happen unless the
+                    // developer interrupts this thread
+                    System.err.println("Treating InterruptedException as fatal error.");
+                    System.exit(-1);
+                }
+                catch (JetStreamStatusCheckedException e) {
+                    // either the consumer was deleted in the middle
+                    // of the pull or there is a new status from the
+                    // server that this client is not aware of
+                    System.err.println("Treating JetStreamStatusCheckedException as fatal error.");
+                    System.exit(-1);
                 }
             });
             con2Thread.start();
-
             con2Thread.join(); // never ends so program runs until stopped.
         }
-        catch (Exception e) {
-            e.printStackTrace();
+        catch (IOException ioe) {
+            // problem making the connection or
+        }
+        catch (InterruptedException e) {
+            // thread interruption in the body of the example
         }
     }
 

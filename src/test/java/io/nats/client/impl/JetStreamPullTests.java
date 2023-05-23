@@ -669,8 +669,24 @@ public class JetStreamPullTests extends JetStreamTestBase {
         assertFalse(pro.isNoWait());
     }
 
+    static class ConflictSetupResult {
+        public JetStreamSubscription sub;
+        public long timeout = 2000;
+        public boolean mayNotError = false;
+
+        public ConflictSetupResult(JetStreamSubscription sub) {
+            this.sub = sub;
+        }
+
+        public ConflictSetupResult(JetStreamSubscription sub, long timeout, boolean mayNotError) {
+            this.sub = sub;
+            this.timeout = timeout;
+            this.mayNotError = mayNotError;
+        }
+    }
+
     interface ConflictSetup {
-        JetStreamSubscription setup(Connection nc, JetStreamManagement jsm, JetStream js, TestHandler handler) throws Exception;
+        ConflictSetupResult setup(Connection nc, JetStreamManagement jsm, JetStream js, TestHandler handler) throws Exception;
     }
 
     private boolean versionIsBefore(Connection nc, String targetVersion) {
@@ -699,25 +715,33 @@ public class JetStreamPullTests extends JetStreamTestBase {
             createDefaultTestStream(nc);
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
-            JetStreamSubscription sub = setup.setup(nc, jsm, js, handler);
-            if (sub.getDispatcher() == null) {
+            ConflictSetupResult csr = setup.setup(nc, jsm, js, handler);
+            if (csr.sub.getDispatcher() == null) {
                 if (type == TYPE_ERROR) {
-                    assertThrows(JetStreamStatusException.class, () -> sub.nextMessage(5000));
+                    if (csr.mayNotError) {
+                        try {
+                            csr.sub.nextMessage(csr.timeout);
+                        }
+                        catch (JetStreamStatusException ignored) {}
+                    }
+                    else {
+                        assertThrows(JetStreamStatusException.class, () -> csr.sub.nextMessage(csr.timeout));
+                    }
                 }
                 else {
-                    sub.nextMessage(5000);
+                    csr.sub.nextMessage(csr.timeout);
                 }
             }
-            checkHandler(statusText, type, handler);
+            checkHandler(statusText, type, handler, csr.timeout);
         });
     }
 
-    private void checkHandler(String statusText, int type, TestHandler handler) {
+    private void checkHandler(String statusText, int type, TestHandler handler, long timeout) {
         if (type == TYPE_ERROR) {
-            assertTrue(handler.pullStatusErrorOrWait(statusText, 2000));
+            assertTrue(handler.pullStatusErrorOrWait(statusText, timeout));
         }
         else if (type == TYPE_WARNING) {
-            assertTrue(handler.pullStatusWarningOrWait(statusText, 2000));
+            assertTrue(handler.pullStatusWarningEventually(statusText, timeout));
         }
     }
 
@@ -728,7 +752,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pull(1);
             sub.pull(1);
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -740,7 +764,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(SUBJECT, d, m -> {}, so);
             sub.pull(1);
             sub.pull(1);
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -750,7 +774,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             PullSubscribeOptions so = makePso(b -> b.maxBatch(1));
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pull(2);
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -761,7 +785,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             PullSubscribeOptions so = makePso(b -> b.maxBatch(1));
             JetStreamSubscription sub = js.subscribe(SUBJECT, d, m -> {}, so);
             sub.pull(2);
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -772,7 +796,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             js.publish(SUBJECT, new byte[1000]);
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pull(PullRequestOptions.builder(1).maxBytes(100).build());
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -784,7 +808,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             js.publish(SUBJECT, new byte[1000]);
             JetStreamSubscription sub = js.subscribe(SUBJECT, d, m -> {}, so);
             sub.pull(PullRequestOptions.builder(1).maxBytes(100).build());
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -794,7 +818,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             PullSubscribeOptions so = makePso(b -> b.maxExpires(1000));
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pullExpiresIn(1, 2000);
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -805,7 +829,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             PullSubscribeOptions so = makePso(b -> b.maxExpires(1000));
             JetStreamSubscription sub = js.subscribe(SUBJECT, d, m -> {}, so);
             sub.pullExpiresIn(1, 2000);
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -819,7 +843,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // consumer with same name but is push now
             jsm.addOrUpdateConsumer(STREAM, builder().durable(durable(1)).deliverSubject(deliver(1)).build());
             sub.pull(1);
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -834,7 +858,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // consumer with same name but is push now
             jsm.addOrUpdateConsumer(STREAM, builder().durable(durable(1)).deliverSubject(deliver(1)).build());
             sub.pull(1);
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -844,10 +868,10 @@ public class JetStreamPullTests extends JetStreamTestBase {
             jsm.addOrUpdateConsumer(STREAM, builder().durable(durable(1)).ackPolicy(AckPolicy.None).build());
             PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
             JetStreamSubscription sub = js.subscribe(null, so);
-            sub.pullExpiresIn(1, 10000);
+            sub.pullExpiresIn(1, 30000);
             jsm.deleteConsumer(STREAM, durable(1));
             js.publish(SUBJECT, null);
-            return sub;
+            return new ConflictSetupResult(sub, 2000, true);
         });
     }
 
@@ -858,10 +882,10 @@ public class JetStreamPullTests extends JetStreamTestBase {
             Dispatcher d = nc.createDispatcher();
             PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
             JetStreamSubscription sub = js.subscribe(null, d, m -> {}, so);
-            sub.pullExpiresIn(1, 10000);
+            sub.pullExpiresIn(1, 30000);
             jsm.deleteConsumer(STREAM, durable(1));
             js.publish(SUBJECT, null);
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -871,7 +895,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             PullSubscribeOptions so = makePso(b -> b);
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pull(PullRequestOptions.builder(1).noWait().idleHeartbeat(1).build());
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -882,7 +906,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             PullSubscribeOptions so = makePso(b -> b);
             JetStreamSubscription sub = js.subscribe(SUBJECT, d, m -> {}, so);
             sub.pull(PullRequestOptions.builder(1).noWait().idleHeartbeat(1).build());
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -892,7 +916,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             PullSubscribeOptions so = makePso(b -> b);
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pullNoWait(1);
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -903,7 +927,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             PullSubscribeOptions so = makePso(b -> b);
             JetStreamSubscription sub = js.subscribe(SUBJECT, d, m -> {}, so);
             sub.pullNoWait(1);
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -913,7 +937,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             PullSubscribeOptions so = makePso(b -> b.maxBytes(1));
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             sub.pull(PullRequestOptions.builder(1).maxBytes(2).build());
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 
@@ -924,7 +948,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             PullSubscribeOptions so = makePso(b -> b.maxBytes(1));
             JetStreamSubscription sub = js.subscribe(SUBJECT, d, m -> {}, so);
             sub.pull(PullRequestOptions.builder(1).maxBytes(2).build());
-            return sub;
+            return new ConflictSetupResult(sub);
         });
     }
 

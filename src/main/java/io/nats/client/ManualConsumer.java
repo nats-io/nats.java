@@ -13,6 +13,9 @@
 
 package io.nats.client;
 
+import java.time.Duration;
+
 public interface ManualConsumer extends SimpleConsumer {
-    Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException;
+    Message nextMessage(Duration timeout) throws InterruptedException, JetStreamStatusCheckedException;
+    Message nextMessage(long timeoutMillis) throws InterruptedException, JetStreamStatusCheckedException;
 }

@@ -16,17 +16,18 @@ package io.nats.client;
 import io.nats.client.support.Validator;
 
 /**
- * Base Consume Options are provided to customize the way the
- * consume and fetch operate. It is the base class for FetchConsumeOptions
+ * Base Consume Options are provided to customize the way the consume and
+ * fetch operate. It is the base class for ConsumeOptions and FetchConsumeOptions.
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class BaseConsumeOptions {
-    public static final int DEFAULT_MESSAGE_COUNT = 100;
+    public static final int DEFAULT_MESSAGE_COUNT = 500;
+    public static final int DEFAULT_MESSAGE_COUNT_WHEN_BYTES = 1_000_000;
     public static final int DEFAULT_THRESHOLD_PERCENT = 25;
     public static final long DEFAULT_EXPIRES_IN_MS = 30000;
     public static final long MIN_EXPIRES_MILLS = 1000;
-    public static final long MAX_EXPIRES_MILLIS = 60000;
-    public static final int MAX_IDLE_HEARTBEAT_PCT = 50;
+    public static final long MAX_HEARTBEAT_MILLIS = 30000;
+    public static final int MAX_IDLE_HEARTBEAT_PERCENT = 50;
 
     protected final int messages;
     protected final int bytes;
@@ -43,11 +44,11 @@ public class BaseConsumeOptions {
         bytes = b.bytes == -1 ? 0
             : (int)Validator.validateGtEqZero(b.bytes, "Max Bytes");
 
-        if (b.thresholdPct == -1) {
+        if (b.thresholdPercent == -1) {
             thresholdPercent = DEFAULT_THRESHOLD_PERCENT;
         }
-        else if (b.thresholdPct >= 1 && b.thresholdPct <= 100) {
-            thresholdPercent = b.thresholdPct;
+        else if (b.thresholdPercent >= 1 && b.thresholdPercent <= 100) {
+            thresholdPercent = b.thresholdPercent;
         }
         else {
             throw new IllegalArgumentException("Threshold percent must be between 1 and 100 inclusive.");
@@ -56,17 +57,25 @@ public class BaseConsumeOptions {
         if (b.expiresIn == -1) {
             expiresIn = DEFAULT_EXPIRES_IN_MS;
         }
-        else if (b.expiresIn >= MIN_EXPIRES_MILLS && b.expiresIn <= MAX_EXPIRES_MILLIS) {
+        else if (b.expiresIn >= MIN_EXPIRES_MILLS) {
             expiresIn = b.expiresIn;
         }
         else {
-            throw new IllegalArgumentException("Expires must be between " + MIN_EXPIRES_MILLS + " and " + MAX_EXPIRES_MILLIS + " seconds inclusive.");
+            throw new IllegalArgumentException("Expires must be greater than or equal to " + MIN_EXPIRES_MILLS);
         }
 
-        idleHeartbeat = expiresIn * MAX_IDLE_HEARTBEAT_PCT / 100;
+        idleHeartbeat = Math.min(MAX_HEARTBEAT_MILLIS, expiresIn * MAX_IDLE_HEARTBEAT_PERCENT / 100);
     }
 
-    public long getExpires() {
+    public int getMessages() {
+        return messages;
+    }
+
+    public int getBytes() {
+        return bytes;
+    }
+
+    public long getExpiresIn() {
         return expiresIn;
     }
 
@@ -79,10 +88,10 @@ public class BaseConsumeOptions {
     }
 
     protected static abstract class Builder<B, CO> {
-        private int messages = -1;
-        private int bytes = -1;
-        private int thresholdPct = -1;
-        private long expiresIn = -1;
+        protected int messages = -1;
+        protected int bytes = -1;
+        protected int thresholdPercent = -1;
+        protected long expiresIn = -1;
 
         protected abstract B getThis();
 
@@ -116,17 +125,17 @@ public class BaseConsumeOptions {
          * For instance if the batch size is 100 and the re-pull percent is 25,
          * the first pull will be for 100, and then when 25 messages have been received
          * another 75 will be requested, keeping the number of messages in transit always at 100.
-         * @param thresholdPct the percent from 1 to 100 inclusive.
+         * @param thresholdPercent the percent from 1 to 100 inclusive.
          * @return the builder
          */
-        public B thresholdPercent(int thresholdPct) {
-            this.thresholdPct = thresholdPct;
+        public B thresholdPercent(int thresholdPercent) {
+            this.thresholdPercent = thresholdPercent;
             return getThis();
         }
 
         /**
-         * Build the ConsumeOptions.
-         * @return the built ConsumeOptions
+         * Build the options.
+         * @return the built options
          */
         public abstract CO build();
     }

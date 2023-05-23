@@ -63,11 +63,11 @@ public class ConsumeOptions extends BaseConsumeOptions {
          * it is used in conjunction with batch size, meaning whichever limit is reached
          * first is respected.
          * @param bytes the batch bytes
-         * @param messages the number of messages. Must be greater than 0.
+         * @param batchSize the batch size. Must be greater than 0.
          * @return the builder
          */
-        public Builder batchBytes(int bytes, int messages) {
-            return super.bytes(bytes, messages);
+        public Builder batchBytes(int bytes, int batchSize) {
+            return super.bytes(bytes, batchSize);
         }
 
         /**

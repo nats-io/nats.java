@@ -1,4 +1,4 @@
-// Copyright 2020-2023 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -14,46 +14,49 @@
 package io.nats.examples.jetstream.simple;
 
 import io.nats.client.*;
-import io.nats.client.api.ConsumerConfiguration;
 
-import java.time.Duration;
+import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.nats.examples.jetstream.simple.Utils.Publisher;
-import static io.nats.examples.jetstream.simple.Utils.setupStream;
+import static io.nats.examples.jetstream.simple.Utils.*;
 
 /**
  * This example will demonstrate simplified consume with a handler
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class ConsumeWithHandler {
-    private static final String STREAM = "simple-stream";
-    private static final String SUBJECT = "simple-subject";
+    private static final String STREAM = "consume-handler-stream";
+    private static final String SUBJECT = "consume-handler-subject";
+    private static final String CONSUMER_NAME = "consume-handler-consumer";
+    private static final String MESSAGE_TEXT = "consume-handler";
     private static final int STOP_COUNT = 500;
     private static final int REPORT_EVERY = 50;
     private static final int JITTER = 20;
 
-    // change this is you need to...
-    public static String SERVER = "nats://localhost:4222";
+    private static final String SERVER = "nats://localhost:4222";
 
     public static void main(String[] args) {
         Options options = Options.builder().server(SERVER).build();
         try (Connection nc = Nats.connect(options)) {
-
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
-            setupStream(jsm, STREAM, SUBJECT);
+            // set's up the stream and create a durable consumer
+            createOrReplaceStream(jsm, STREAM, SUBJECT);
+            createConsumer(jsm, STREAM, CONSUMER_NAME);
 
-            String name = "simple-consumer-" + NUID.nextGlobal();
-
-            // Pre define a consumer
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(name).build();
-            jsm.addOrUpdateConsumer(STREAM, cc);
-
-            // Consumer[Context]
-            ConsumerContext consumerContext = js.getConsumerContext(STREAM, name);
+            // Create the Consumer Context
+            ConsumerContext consumerContext;
+            try {
+                consumerContext = js.getConsumerContext(STREAM, CONSUMER_NAME);
+            }
+            catch (IOException e) {
+                return; // likely a connection problem
+            }
+            catch (JetStreamApiException e) {
+                return; // the stream or consumer did not exist
+            }
 
             long start = System.nanoTime();
             CountDownLatch latch = new CountDownLatch(1);
@@ -72,23 +75,26 @@ public class ConsumeWithHandler {
             // create the consumer then use it
             SimpleConsumer consumer = consumerContext.consume(handler);
 
-            Publisher publisher = new Publisher(js, SUBJECT, JITTER);
+            Publisher publisher = new Publisher(js, SUBJECT, MESSAGE_TEXT, JITTER);
             Thread pubThread = new Thread(publisher);
             pubThread.start();
 
             latch.await();
             Thread.sleep(JITTER * 2); // allows more messages to come across
-            publisher.stop();
+            publisher.stopPublishing();
             pubThread.join();
 
-            System.out.println("Start draining...");
-            consumer.drain(Duration.ofSeconds(1));
+            System.out.println("Stop the consumer...");
+            consumer.stop();
 
             Thread.sleep(250); // let consumer get messages post drain
             report("Final", start, atomicCount.get());
         }
-        catch (Exception e) {
-            e.printStackTrace();
+        catch (IOException ioe) {
+            // problem making the connection or
+        }
+        catch (InterruptedException e) {
+            // thread interruption in the body of the example
         }
     }
 
