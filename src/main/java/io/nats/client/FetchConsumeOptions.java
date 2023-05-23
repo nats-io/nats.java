@@ -51,11 +51,23 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
 
         /**
          * Set the maximum number of messages to fetch.
-         * @param messages the number of messages. Must be greater than 0
+         * @param maxMessages the number of messages. Must be greater than 0
+         *                    or will default to {@value BaseConsumeOptions#DEFAULT_MESSAGE_COUNT_WHEN_BYTES}
          * @return the builder
          */
-        public Builder maxMessages(int messages) {
-            return super.messages(messages);
+        public Builder maxMessages(int maxMessages) {
+            return super.messages(maxMessages);
+        }
+
+        /**
+         * The maximum bytes to consume for Fetch. When set (a value greater than zero,)
+         * it is used in conjunction with max messages, meaning whichever limit is reached
+         * first is respected.
+         * @param maxBytes the maximum bytes
+         * @return the builder
+         */
+        public Builder maxBytes(int maxBytes) {
+            return super.bytes(maxBytes);
         }
 
         /**
@@ -63,22 +75,12 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
          * it is used in conjunction with max messages, meaning whichever limit is reached
          * first is respected.
          * @param bytes the maximum bytes
+         * @param maxMessages the maximum number of messages. Must be greater than 0
+         *                    or will default to {@value BaseConsumeOptions#DEFAULT_MESSAGE_COUNT_WHEN_BYTES}
          * @return the builder
          */
-        public Builder maxBytes(int bytes) {
-            return super.bytes(bytes);
-        }
-
-        /**
-         * The maximum bytes to consume for Fetch. When set (a value greater than zero,)
-         * it is used in conjunction with max messages, meaning whichever limit is reached
-         * first is respected.
-         * @param bytes the maximum bytes
-         * @param messages the number of messages. Must be greater than 0.
-         * @return the builder
-         */
-        public Builder maxBytes(int bytes, int messages) {
-            return super.bytes(bytes, messages);
+        public Builder maxBytes(int bytes, int maxMessages) {
+            return super.messagesAndBytes(maxMessages, bytes);
         }
 
         /**

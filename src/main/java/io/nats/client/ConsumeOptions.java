@@ -31,7 +31,6 @@ public class ConsumeOptions extends BaseConsumeOptions {
     public int getBatchSize() {
         return messages;
     }
-
     /**
      * The initial batch byte size.
      * @return the initial batch byte size
@@ -50,24 +49,22 @@ public class ConsumeOptions extends BaseConsumeOptions {
         protected Builder getThis() { return this; }
 
         /**
-         * Set the initial batch message size.
+         * Set the initial batch size in messages.
          * @param batchSize the batch size. Must be greater than 0
+         *                  or will default to {@value BaseConsumeOptions#DEFAULT_MESSAGE_COUNT_WHEN_BYTES}
          * @return the builder
          */
         public Builder batchSize(int batchSize) {
-            return super.messages(batchSize);
+            return super.messagesAndBytes(batchSize, -1);
         }
 
         /**
-         * Set the initial batch byte size. When set (a value greater than zero,)
-         * it is used in conjunction with batch size, meaning whichever limit is reached
-         * first is respected.
-         * @param bytes the batch bytes
-         * @param batchSize the batch size. Must be greater than 0.
+         * Set the initial batch size in bytes.
+         * @param batchBytes the batch bytes
          * @return the builder
          */
-        public Builder batchBytes(int bytes, int batchSize) {
-            return super.bytes(bytes, batchSize);
+        public Builder batchBytes(int batchBytes) {
+            return super.messagesAndBytes(-1, batchBytes);
         }
 
         /**

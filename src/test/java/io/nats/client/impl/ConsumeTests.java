@@ -37,13 +37,16 @@ public class ConsumeTests extends JetStreamTestBase {
             // 1. Different fetch sizes demonstrate expiration behavior
 
             // 1A. equal number of messages than the fetch size
-            _testFetch("1A", nc, 20, 0);
+            _testFetch("1A", nc, 20, 0, 20);
 
             // 1B. more messages than the fetch size
-            _testFetch("1B", nc, 10, 0);
+            _testFetch("1B", nc, 10, 0, 10);
 
             // 1C. fewer messages than the fetch size
-            _testFetch("1C", nc, 40, 0);
+            _testFetch("1C", nc, 40, 0, 40);
+
+            // 1D. simple-consumer-40msgs was created in 1C and has no messages available
+            _testFetch("1D", nc, 40, 0, 40);
 
             // don't test bytes before 2.9.1
             if (nc.getServerInfo().isOlderThanVersion("2.9.1")) {
@@ -54,20 +57,17 @@ public class ConsumeTests extends JetStreamTestBase {
             //    - each test message is approximately 100 bytes
 
             // 2A. max bytes is reached before message count
-            _testFetch("2A", nc, 20, 750);
+            _testFetch("2A", nc, 0, 750, 20);
 
             // 2B. fetch size is reached before byte count
-            _testFetch("2B", nc, 10, 1500);
+            _testFetch("2B", nc, 10, 1500, 10);
 
             // 2C. fewer bytes than the byte count
-            _testFetch("2C", nc, 40, 3000);
-
-            // 3. simple-consumer-40msgs was created in 1C and has no messages available
-            _testFetch("3", nc, 40, 0);
+            _testFetch("2C", nc, 0, 3000, 40);
         });
     }
 
-    private static void _testFetch(String label, Connection nc, int maxMessages, int maxBytes) throws Exception {
+    private static void _testFetch(String label, Connection nc, int maxMessages, int maxBytes, int testAmount) throws Exception {
         JetStreamManagement jsm = nc.jetStreamManagement();
         JetStream js = nc.jetStream();
 
@@ -81,11 +81,17 @@ public class ConsumeTests extends JetStreamTestBase {
         ConsumerContext consumerContext = js.getConsumerContext(STREAM, name);
 
         // Custom consume options
-        FetchConsumeOptions fetchConsumeOptions = FetchConsumeOptions.builder()
-            .maxMessages(maxMessages)        // usually you would use only one or the other
-            .maxBytes(maxBytes, maxMessages) // /\                                    /\
-            .expiresIn(3000)
-            .build();
+        FetchConsumeOptions.Builder builder = FetchConsumeOptions.builder().expiresIn(2000);
+        if (maxMessages == 0) {
+            builder.maxBytes(maxBytes);
+        }
+        else if (maxBytes == 0) {
+            builder.maxMessages(maxMessages);
+        }
+        else {
+            builder.maxBytes(maxBytes, maxMessages);
+        }
+        FetchConsumeOptions fetchConsumeOptions = builder.build();
 
         long start = System.currentTimeMillis();
 
@@ -104,17 +110,17 @@ public class ConsumeTests extends JetStreamTestBase {
             case "1A":
             case "1B":
             case "2B":
-                assertEquals(maxMessages, rcvd);
+                assertEquals(testAmount, rcvd);
                 assertTrue(elapsed < 250);
                 break;
             case "1C":
+            case "1D":
             case "2C":
-            case "3":
-                assertTrue(rcvd < maxMessages);
+                assertTrue(rcvd < testAmount);
                 assertTrue(elapsed >= 1500);
                 break;
             case "2A":
-                assertTrue(rcvd < maxMessages);
+                assertTrue(rcvd < testAmount);
                 assertTrue(elapsed < 250);
                 break;
         }
@@ -353,20 +359,16 @@ public class ConsumeTests extends JetStreamTestBase {
         assertEquals(0, co.getBatchBytes());
         assertEquals(50, co.getThresholdPercent());
 
-        co = ConsumeOptions.builder().batchBytes(1000, 100).build();
-        assertEquals(100, co.getBatchSize());
+        co = ConsumeOptions.builder().batchBytes(1000).build();
+        assertEquals(DEFAULT_MESSAGE_COUNT_WHEN_BYTES, co.getBatchSize());
         assertEquals(1000, co.getBatchBytes());
         assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
 
-        co = ConsumeOptions.builder().batchBytes(1000, 100).thresholdPercent(50).build();
-        assertEquals(100, co.getBatchSize());
+        co = ConsumeOptions.builder().batchBytes(1000).thresholdPercent(50).build();
+        assertEquals(DEFAULT_MESSAGE_COUNT_WHEN_BYTES, co.getBatchSize());
         assertEquals(1000, co.getBatchBytes());
         assertEquals(50, co.getThresholdPercent());
 
-        assertThrows(IllegalArgumentException.class,
-            () -> ConsumeOptions.builder().batchSize(-99).build());
-        assertThrows(IllegalArgumentException.class,
-            () -> ConsumeOptions.builder().batchBytes(-99, 1).build());
         assertThrows(IllegalArgumentException.class,
             () -> ConsumeOptions.builder().thresholdPercent(0).build());
         assertThrows(IllegalArgumentException.class,

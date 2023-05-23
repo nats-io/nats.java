@@ -57,6 +57,11 @@ public class FetchExample {
             // 1D. "fetch-consumer-40-messages" was created in 1C and has no messages available
             simpleFetch(jsm, js, "1D", 40, 0);
 
+            // bytes don't work before server v2.9.1
+            if (nc.getServerInfo().isOlderThanVersion("2.9.1")) {
+                return;
+            }
+
             // 2. Different max bytes sizes demonstrate expiration behavior
             //    - each test message is approximately 100 bytes
 

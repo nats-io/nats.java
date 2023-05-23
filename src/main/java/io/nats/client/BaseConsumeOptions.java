@@ -35,8 +35,13 @@ public class BaseConsumeOptions {
 
     @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
     protected BaseConsumeOptions(Builder b) {
-        messages = b.messages;
         bytes = b.bytes;
+        if (bytes > 0) {
+            messages = b.messages == -1 ? DEFAULT_MESSAGE_COUNT_WHEN_BYTES : b.messages;
+        }
+        else {
+            messages = b.messages == -1 ? DEFAULT_MESSAGE_COUNT : b.messages;
+        }
 
         if (b.thresholdPercent == -1) {
             thresholdPercent = DEFAULT_THRESHOLD_PERCENT;
@@ -61,14 +66,6 @@ public class BaseConsumeOptions {
         idleHeartbeat = Math.min(MAX_HEARTBEAT_MILLIS, expiresIn * MAX_IDLE_HEARTBEAT_PERCENT / 100);
     }
 
-    public int getMessages() {
-        return messages;
-    }
-
-    public int getBytes() {
-        return bytes;
-    }
-
     public long getExpiresIn() {
         return expiresIn;
     }
@@ -82,15 +79,15 @@ public class BaseConsumeOptions {
     }
 
     protected static abstract class Builder<B, CO> {
-        protected int messages = DEFAULT_MESSAGE_COUNT;
-        protected int bytes = -1;
+        protected int messages = -1;
+        protected int bytes = 0;
         protected int thresholdPercent = -1;
         protected long expiresIn = -1;
 
         protected abstract B getThis();
 
         protected B messages(int messages) {
-            this.messages = messages < 1 ? DEFAULT_MESSAGE_COUNT : messages;
+            this.messages = messages < 1 ? -1 : messages;
             return getThis();
         }
 
@@ -99,7 +96,7 @@ public class BaseConsumeOptions {
             return getThis();
         }
 
-        protected B bytes(int bytes, int messages) {
+        protected B messagesAndBytes(int messages, int bytes) {
             messages(messages);
             return bytes(bytes);
         }
