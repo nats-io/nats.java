@@ -145,11 +145,11 @@ public class MessageManagerTests extends JetStreamTestBase {
             NatsJetStreamSubscription sub = genericPullSub(nc);
 
             PullMessageManager pullMgr = getPullManager(nc, sub, true);
-            pullMgr.startPullRequest(PullRequestOptions.builder(1).build(), false);
+            pullMgr.startPullRequest(PullRequestOptions.builder(1).build(), true);
             testPullBqpAndManage(sub, handler, pullMgr);
 
             pullMgr = getPullManager(nc, sub, true);
-            pullMgr.startPullRequest(PullRequestOptions.builder(1).idleHeartbeat(100).build(), false);
+            pullMgr.startPullRequest(PullRequestOptions.builder(1).idleHeartbeat(100).build(), true);
             testPullBqpAndManage(sub, handler, pullMgr);
         });
     }

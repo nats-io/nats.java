@@ -25,6 +25,7 @@ public interface JetStreamReader {
      * the subscription is unsubscribed or the client connection is closed.
      * @param timeout the maximum time to wait
      * @return the next message for this subscriber or null if there is a timeout
+     * @throws InterruptedException if one is thrown, in order to propagate it up
      * @throws IllegalStateException if the subscription belongs to a dispatcher, or is not active
      */
     Message nextMessage(Duration timeout) throws InterruptedException;
@@ -35,6 +36,7 @@ public interface JetStreamReader {
      * the subscription is unsubscribed or the client connection is closed.
      * @param timeoutMillis the maximum time to wait
      * @return the next message for this subscriber or null if there is a timeout
+     * @throws InterruptedException if one is thrown, in order to propagate it up
      * @throws IllegalStateException if the subscription belongs to a dispatcher, or is not active
      */
     Message nextMessage(long timeoutMillis) throws InterruptedException;

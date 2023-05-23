@@ -77,14 +77,14 @@ test {
     maxHeapSize = "2g"
     testLogging {
         exceptionFormat = 'full'
-        events "started", "passed", "skipped", "failed"
+        events "failed"
     }
     retry {
         failOnPassedAfterRetry = false
         maxFailures = 5
         maxRetries = 5
     }
-    maxParallelForks = Runtime.runtime.availableProcessors()
+    maxParallelForks = Math.min(2, Runtime.runtime.availableProcessors())
 }
 
 javadoc {
