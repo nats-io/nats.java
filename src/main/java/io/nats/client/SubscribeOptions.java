@@ -31,7 +31,6 @@ public abstract class SubscribeOptions {
     protected final boolean pull;
     protected final boolean bind;
     protected final boolean ordered;
-    protected final boolean raiseStatusWarnings;
     protected final long messageAlarmTime;
     protected final ConsumerConfiguration consumerConfig;
     protected final long pendingMessageLimit; // Only applicable for non dispatched (sync) push consumers.
@@ -45,7 +44,6 @@ public abstract class SubscribeOptions {
         pull = isPull;
         bind = builder.bind;
         ordered = builder.ordered;
-        raiseStatusWarnings = builder.raiseStatusWarnings;
         messageAlarmTime = builder.messageAlarmTime;
 
         if (ordered && bind) {
@@ -150,14 +148,6 @@ public abstract class SubscribeOptions {
      */
     public boolean isOrdered() {
         return ordered;
-    }
-
-    /**
-     * Gets whether status message warnings should be raised to error listener. 
-     * @return the raiseStatusWarnings flag
-     */
-    public boolean raiseStatusWarnings() {
-        return raiseStatusWarnings;
     }
 
     /**
@@ -282,18 +272,6 @@ public abstract class SubscribeOptions {
          */
         public B messageAlarmTime(long messageAlarmTime) {
             this.messageAlarmTime = messageAlarmTime;
-            return getThis();
-        }
-
-        /**
-         * raise warnings reduces the traffic to error listeners for warnings.
-         * Default is true.
-         *
-         * @param raiseStatusWarnings whether to raise warnings
-         * @return the builder
-         */
-        public B raiseStatusWarnings(boolean raiseStatusWarnings) {
-            this.raiseStatusWarnings = raiseStatusWarnings;
             return getThis();
         }
 

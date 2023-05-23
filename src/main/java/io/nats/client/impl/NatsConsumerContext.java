@@ -59,10 +59,18 @@ public class NatsConsumerContext implements ConsumerContext {
         this(connection, jsOptions, stream, Validator.required(consumerName, "Consumer Name"), null);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public String getConsumerName() {
         return consumerName;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
         return streamContext.jsm.getConsumerInfo(streamContext.streamName, consumerName);
     }
@@ -76,16 +84,10 @@ public class NatsConsumerContext implements ConsumerContext {
                 pso = PullSubscribeOptions.builder()
                     .configuration(userCc)
                     .stream(streamContext.streamName)
-                    .raiseStatusWarnings(false)
                     .build();
             }
             else {
-                pso = PullSubscribeOptions.builder()
-                    .stream(streamContext.streamName)
-                    .durable(consumerName)
-                    .bind(true)
-                    .raiseStatusWarnings(false)
-                    .build();
+                pso = PullSubscribeOptions.bind(streamContext.streamName, consumerName);
             }
 
             if (messageHandler == null) {
@@ -113,16 +115,25 @@ public class NatsConsumerContext implements ConsumerContext {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Message next() throws IOException, InterruptedException, JetStreamStatusCheckedException {
         return next(DEFAULT_EXPIRES_IN_MS);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Message next(Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException {
         return next(maxWait == null ? DEFAULT_EXPIRES_IN_MS : maxWait.toMillis());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException {
         if (maxWaitMillis < MIN_EXPIRES_MILLS) {
@@ -132,7 +143,7 @@ public class NatsConsumerContext implements ConsumerContext {
         long expires = maxWaitMillis - EXPIRE_ADJUSTMENT;
 
         NatsJetStreamPullSubscription sub = new SubscriptionMaker().makeSubscription(null);
-        sub._pull(PullRequestOptions.builder(1).expiresIn(expires).build());
+        sub._pull(PullRequestOptions.builder(1).expiresIn(expires).build(), false);
         try {
             return sub.nextMessage(maxWaitMillis);
         }
@@ -141,39 +152,60 @@ public class NatsConsumerContext implements ConsumerContext {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public FetchConsumer fetchMessages(int maxMessages) {
         return fetch(FetchConsumeOptions.builder().maxMessages(maxMessages).build());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public FetchConsumer fetchBytes(int maxBytes) {
         return fetch(FetchConsumeOptions.builder().maxBytes(maxBytes, DEFAULT_MESSAGE_COUNT_WHEN_BYTES).build());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public FetchConsumer fetch(FetchConsumeOptions consumeOptions) {
-        Validator.required(consumeOptions, "Consume Options");
-        return new NatsFetchConsumer(new SubscriptionMaker(), consumeOptions);
+    public FetchConsumer fetch(FetchConsumeOptions fetchConsumeOptions) {
+        Validator.required(fetchConsumeOptions, "Fetch Consume Options");
+        return new NatsFetchConsumer(new SubscriptionMaker(), fetchConsumeOptions);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ManualConsumer consume() {
         return new NatsManualConsumer(new SubscriptionMaker(), DEFAULT_CONSUME_OPTIONS);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ManualConsumer consume(ConsumeOptions consumeOptions) {
         Validator.required(consumeOptions, "Consume Options");
         return new NatsManualConsumer(new SubscriptionMaker(), consumeOptions);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public SimpleConsumer consume(MessageHandler handler) {
         Validator.required(handler, "Message Handler");
         return new NatsSimpleConsumer(new SubscriptionMaker(), handler, DEFAULT_CONSUME_OPTIONS);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public SimpleConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) {
         Validator.required(handler, "Message Handler");

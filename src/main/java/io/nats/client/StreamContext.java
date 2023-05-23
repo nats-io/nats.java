@@ -24,10 +24,69 @@ import java.io.IOException;
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public interface StreamContext {
+    /**
+     * Gets the stream name that was used to create the context.
+     * EXPERIMENTAL API SUBJECT TO CHANGE
+     * @return the stream name
+     */
     String getStreamName();
+
+    /**
+     * Gets information about the stream for this context.
+     * EXPERIMENTAL API SUBJECT TO CHANGE
+     * Does not retrieve any optional data.
+     * See the overloaded version that accepts StreamInfoOptions
+     * @return stream information
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data,
+     *         most likely the stream has been removed since the context was created.
+     */
     StreamInfo getStreamInfo() throws IOException, JetStreamApiException;
+
+    /**
+     * Gets information about the stream for this context.
+     * EXPERIMENTAL API SUBJECT TO CHANGE
+     * @param options the stream info options. If null, request will not return any optional data.
+     * @return stream information
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data,
+     *         most likely the stream has been removed since the context was created.
+     */
     StreamInfo getStreamInfo(StreamInfoOptions options) throws IOException, JetStreamApiException;
+
+    /**
+     * Management function to creates a consumer on this stream.
+     * EXPERIMENTAL API SUBJECT TO CHANGE
+     * @param config the consumer configuration to use.
+     * @return consumer information.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
     ConsumerInfo createConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException;
+
+    /**
+     * Management function to deletes a consumer.
+     * EXPERIMENTAL API SUBJECT TO CHANGE
+     * @param consumerName the name of the consumer.
+     * @return true if the delete succeeded
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data, for instance the consumer does not exist.
+     */
     boolean deleteConsumer(String consumerName) throws IOException, JetStreamApiException;
+
+    /**
+     * Create a consumer context for on the context's stream and specific named consumer.
+     * Verifies that the consumer exists.
+     * EXPERIMENTAL API SUBJECT TO CHANGE
+     * @param consumerName the name of the consumer
+     * @return a ConsumerContext object
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
     ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException;
 }

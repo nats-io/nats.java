@@ -33,7 +33,7 @@ public class NatsManualConsumer extends NatsSimpleConsumer implements ManualCons
         try {
             Message msg = sub.nextMessage(timeoutMillis);
             if (msg != null) {
-                checkForRepull();
+                checkForRePull();
             }
             return msg;
         }

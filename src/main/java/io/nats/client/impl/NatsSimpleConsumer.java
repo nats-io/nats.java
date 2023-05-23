@@ -18,7 +18,7 @@ import io.nats.client.MessageHandler;
 import io.nats.client.PullRequestOptions;
 
 class NatsSimpleConsumer extends NatsSimpleConsumerBase {
-    protected final PullRequestOptions repullPro;
+    protected final PullRequestOptions rePullPro;
     protected final int thresholdMessages;
     protected final int thresholdBytes;
     protected final NatsConsumerContext.SubscriptionMaker subscriptionMaker;
@@ -30,7 +30,7 @@ class NatsSimpleConsumer extends NatsSimpleConsumerBase {
         }
         else {
             initSub(subscriptionMaker.makeSubscription(msg -> {
-                checkForRepull();
+                checkForRePull();
                 messageHandler.onMessage(msg);
             }));
         }
@@ -46,7 +46,7 @@ class NatsSimpleConsumer extends NatsSimpleConsumerBase {
 
         int repullMessages = Math.max(1, bm * opts.getThresholdPercent() / 100);
         int repullBytes = bb == 0 ? 0 : Math.max(1, bb * opts.getThresholdPercent() / 100);
-        repullPro = PullRequestOptions.builder(repullMessages)
+        rePullPro = PullRequestOptions.builder(repullMessages)
             .maxBytes(repullBytes)
             .expiresIn(opts.getExpiresIn())
             .idleHeartbeat(opts.getIdleHeartbeat())
@@ -57,12 +57,12 @@ class NatsSimpleConsumer extends NatsSimpleConsumerBase {
         sub.pull(firstPro);
     }
 
-    protected void checkForRepull() {
+    protected void checkForRePull() {
         if (active &&
             (pmm.pendingMessages <= thresholdMessages
                 || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
         {
-            sub.pull(repullPro);
+            sub.pull(rePullPro);
         }
     }
 }

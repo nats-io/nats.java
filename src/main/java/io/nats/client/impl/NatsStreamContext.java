@@ -42,31 +42,49 @@ class NatsStreamContext implements StreamContext {
         streamName = streamContext.streamName;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getStreamName() {
         return streamName;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public StreamInfo getStreamInfo() throws IOException, JetStreamApiException {
         return jsm.getStreamInfo(streamName);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public StreamInfo getStreamInfo(StreamInfoOptions options) throws IOException, JetStreamApiException {
         return jsm.getStreamInfo(streamName, options);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ConsumerInfo createConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException {
         return jsm.addOrUpdateConsumer(streamName, config);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean deleteConsumer(String consumerName) throws IOException, JetStreamApiException {
         return jsm.deleteConsumer(streamName, consumerName);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException {
         return new NatsConsumerContext(jsm.conn, jsm.jso, streamName, consumerName);

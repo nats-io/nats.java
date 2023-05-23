@@ -37,6 +37,9 @@ class NatsSimpleConsumerBase implements SimpleConsumer {
         active = true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
         synchronized (subLock) {
@@ -44,11 +47,25 @@ class NatsSimpleConsumerBase implements SimpleConsumer {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean isActive() {
         return active;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean hasPending() {
+        return pmm.pendingMessages > 0 || (pmm.trackingBytes && pmm.pendingBytes > 0);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void stop() throws InterruptedException {
         synchronized (subLock) {

@@ -311,10 +311,10 @@ from both streams and directly from other NATS producers.
 ### The JetStream Context
 
 After establishing a connection as described above, create a JetStream Context.
-   
-   ```java
-   JetStream js = nc.jetStream();
-   ```
+
+```java
+JetStream js = nc.jetStream();
+```
 
 You can pass options to configure the JetStream client, although the defaults should
 suffice for most users.  See the `JetStreamOptions` class.
@@ -331,13 +331,13 @@ before publishing. You can publish in either a synchronous or asynchronous manne
 **Synchronous:**
 
 ```java
-       // create a typical NATS message
-       Message msg = NatsMessage.builder()
-               .subject("foo")
-               .data("hello", StandardCharsets.UTF_8)
-               .build();
-      
-       PublishAck pa = js.publish(msg);
+// create a typical NATS message
+Message msg = NatsMessage.builder()
+   .subject("foo")
+   .data("hello", StandardCharsets.UTF_8)
+   .build();
+
+PublishAck pa = js.publish(msg);
 ```
 
 See `NatsJsPub.java` in the JetStream examples for a detailed and runnable example.
@@ -358,16 +358,16 @@ The PublishOptions are immutable, but the builder an be re-used for expectations
 For example:
 
 ```java
-      PublishOptions.Builder pubOptsBuilder = PublishOptions.builder()
-              .expectedStream("TEST")
-              .messageId("mid1");
-      PublishAck pa = js.publish("foo", null, pubOptsBuilder.build());
-      
-      pubOptsBuilder.clearExpected()
-              .setExpectedLastMsgId("mid1")
-              .setExpectedLastSequence(1)
-              .messageId("mid2");
-      pa = js.publish("foo", null, pubOptsBuilder.build());
+PublishOptions.Builder pubOptsBuilder = PublishOptions.builder()
+        .expectedStream("TEST")
+        .messageId("mid1");
+PublishAck pa = js.publish("foo", null, pubOptsBuilder.build());
+
+pubOptsBuilder.clearExpected()
+        .setExpectedLastMsgId("mid1")
+        .setExpectedLastSequence(1)
+        .messageId("mid2");
+pa = js.publish("foo", null, pubOptsBuilder.build());
 ```
 
 See `NatsJsPubWithOptionsUseCases.java` in the JetStream examples for a detailed and runnable example.
@@ -375,22 +375,21 @@ See `NatsJsPubWithOptionsUseCases.java` in the JetStream examples for a detailed
 **Asynchronous:**
 
 ```java
+List<CompletableFuture<PublishAck>> futures = new ArrayList<>();
+for (int x = 1; x < roundCount; x++) {
+    // create a typical NATS message
+    Message msg = NatsMessage.builder()
+    .subject("foo")
+    .data("hello", StandardCharsets.UTF_8)
+    .build();
 
-      List<CompletableFuture<PublishAck>> futures = new ArrayList<>();
-      for (int x = 1; x < roundCount; x++) {
-          // create a typical NATS message
-          Message msg = NatsMessage.builder()
-          .subject("foo")
-          .data("hello", StandardCharsets.UTF_8)
-          .build();
+    // Publish a message
+    futures.add(js.publishAsync(msg));
+}
 
-          // Publish a message
-          futures.add(js.publishAsync(msg));
-     }
-
-     for (CompletableFuture<PublishAck> future : futures) {
-         ... process the futures
-     }
+for (CompletableFuture<PublishAck> future : futures) {
+   ... process the futures
+}
 ```
 
 See the `NatsJsPubAsync.java` in the JetStream examples for a detailed and runnable example.
@@ -412,20 +411,20 @@ Push subscriptions can be synchronous or asynchronous. The server *pushes* messa
 **Asynchronous:**
 
 ```java
-        Dispatcher disp = ...;
+Dispatcher disp = ...;
 
-        MessageHandler handler = (msg) -> {
-        // Process the message.
-        // Ack the message depending on the ack model
-        };
+MessageHandler handler = (msg) -> {
+// Process the message.
+// Ack the message depending on the ack model
+};
 
-        PushSubscribeOptions so = PushSubscribeOptions.builder()
-            .durable("optional-durable-name")
-            .build();
-        
-        boolean autoAck = ...
-        
-        js.subscribe("my-subject", disp, handler, autoAck);
+PushSubscribeOptions so = PushSubscribeOptions.builder()
+   .durable("optional-durable-name")
+   .build();
+
+boolean autoAck = ...
+
+js.subscribe("my-subject", disp, handler, autoAck);
 ```
 
 See the `NatsJsPushSubWithHandler.java` in the JetStream examples for a detailed and runnable example.
@@ -435,15 +434,15 @@ See the `NatsJsPushSubWithHandler.java` in the JetStream examples for a detailed
 See `NatsJsPushSub.java` in the JetStream examples for a detailed and runnable example.
 
 ```java
-         PushSubscribeOptions so = PushSubscribeOptions.builder()
-                 .durable("optional-durable-name")
-                 .build();
+PushSubscribeOptions so = PushSubscribeOptions.builder()
+        .durable("optional-durable-name")
+        .build();
 
-         // Subscribe synchronously, then just wait for messages.
-         JetStreamSubscription sub = js.subscribe("subject", so);
-         nc.flush(Duration.ofSeconds(5));
+// Subscribe synchronously, then just wait for messages.
+JetStreamSubscription sub = js.subscribe("subject", so);
+nc.flush(Duration.ofSeconds(5));
 
-         Message msg = sub.nextMessage(Duration.ofSeconds(1));
+Message msg = sub.nextMessage(Duration.ofSeconds(1));
 ```
 
 ### Pull Subscriptions
@@ -452,31 +451,44 @@ Pull subscriptions are always synchronous. The server organizes messages into a 
 which it sends when requested.
 
 ```java
-        PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-            .durable("durable-name-is-optional")
-            .build();
-        JetStreamSubscription sub = js.subscribe("subject", pullOptions);
+PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
+   .durable("durable-name-is-optional")
+   .build();
+JetStreamSubscription sub = js.subscribe("subject", pullOptions);
 ```
+
+**Bind:**
 
 Pull subscriptions allow for binding to existing consumers.
 The best practice is to provide `null` for the subscribe subject, but if you do
 provide it, it must match the consumer subject filter, or you will receive an
 `IllegalArgumentException`. See client errors below and `JsSubSubjectDoesNotMatchFilter 90011`
 
+1. Short Form
 
-```java
-        PullSubscribeOptions pullOptions = PullSubscribeOptions.bind("stream", "durable-name");
-        JetStreamSubscription sub = js.subscribe(null, pullOptions);
-```
+    ```java
+    PullSubscribeOptions pullOptions = PullSubscribeOptions.bind("stream", "durable-name");
+    JetStreamSubscription sub = js.subscribe(null, pullOptions);
+    ```
+
+2. Long Form
+
+    ```java
+    PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
+        .stream("stream")
+        .durable("durable-name")
+        .bind(true)
+        .build();
+    ```
 
 **Fetch:**
 
 ```java
-        List<Message> message = sub.fetch(100, Duration.ofSeconds(1));
-        for (Message m : messages) {
-            // process message
-            m.ack();
-        }
+List<Message> message = sub.fetch(100, Duration.ofSeconds(1));
+for (Message m : messages) {
+   // process message
+   m.ack();
+}
 ```
 
 The fetch method is a *macro* pull that uses advanced pulls under the covers to return a list of messages.
@@ -522,9 +534,9 @@ in the JetStream examples for a detailed and runnable example.
 **Batch Size:**
 
 ```java
-        sub.pull(100);
-        ...
-        Message m = sub.nextMessage(Duration.ofSeconds(1));
+sub.pull(100);
+...
+Message m = sub.nextMessage(Duration.ofSeconds(1));
 ```
 
 This is an advanced / raw pull that specifies a batch size. When asked, the server will send whatever
@@ -542,9 +554,9 @@ in the JetStream examples for detailed and runnable example.
 **No Wait and Batch Size:**
 
 ```java
-        sub.pullNoWait(100);
-        ...
-        Message m = sub.nextMessage(Duration.ofSeconds(1));
+sub.pullNoWait(100);
+...
+Message m = sub.nextMessage(Duration.ofSeconds(1));
 ```
 
 This is an advanced / raw pull that also specifies a batch size. 
@@ -559,15 +571,15 @@ See the `NatsJsPullSubNoWaitUseCases.java` in the JetStream examples for a detai
 **Expires In and Batch Size:**
 
 ```java
-        sub.pullExpiresIn(100, Duration.ofSeconds(3));
-        ...
-        Message m = sub.nextMessage(Duration.ofSeconds(4));
+sub.pullExpiresIn(100, Duration.ofSeconds(3));
+...
+Message m = sub.nextMessage(Duration.ofSeconds(4));
 ```
 
 Another advanced version of pull specifies a maximum time to wait for the batch to fill.
 The server sends messages up until the batch is filled or the time expires. It's important to
 set your client's nextMessage timeout to be longer than the time you've asked the server to expire in.
-Once nextMessage returns null, you know your pull is done and you can make another one.
+Once nextMessage returns null, you know your pull is done, and you can make another one.
 
 See `NatsJsPullSubExpire.java` and `NatsJsPullSubExpireUseCases.java`
 in the JetStream examples for detailed and runnable examples.

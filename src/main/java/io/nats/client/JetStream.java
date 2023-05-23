@@ -521,17 +521,4 @@ public interface JetStream {
      * @throws JetStreamApiException the request had an error related to the data
      */
     ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException;
-
-//    /**
-//     * Create a consumer context for a specific named stream and specific named consumer.
-//     * Verifies that the stream and consumer exist.
-//     * EXPERIMENTAL API SUBJECT TO CHANGE
-//     * @param streamName the name of the stream
-//     * @param consumerConfiguration TODO
-//     * @return a ConsumerContext object
-//     * @throws IOException covers various communication issues with the NATS
-//     *         server such as timeout or interruption
-//     * @throws JetStreamApiException the request had an error related to the data
-//     */
-//    ConsumerContext getConsumerContext(String streamName, ConsumerConfiguration consumerConfiguration) throws IOException, JetStreamApiException;
 }

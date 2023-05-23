@@ -145,11 +145,11 @@ public class MessageManagerTests extends JetStreamTestBase {
             NatsJetStreamSubscription sub = genericPullSub(nc);
 
             PullMessageManager pullMgr = getPullManager(nc, sub, true);
-            pullMgr.startPullRequest(PullRequestOptions.builder(1).build());
+            pullMgr.startPullRequest(PullRequestOptions.builder(1).build(), false);
             testPullBqpAndManage(sub, handler, pullMgr);
 
             pullMgr = getPullManager(nc, sub, true);
-            pullMgr.startPullRequest(PullRequestOptions.builder(1).idleHeartbeat(100).build());
+            pullMgr.startPullRequest(PullRequestOptions.builder(1).idleHeartbeat(100).build(), false);
             testPullBqpAndManage(sub, handler, pullMgr);
         });
     }
@@ -225,7 +225,6 @@ public class MessageManagerTests extends JetStreamTestBase {
         runInJsServer(handler, nc -> {
             PushMessageManager pushMgr = getPushManager(nc, push_xhb_xfc(), null, false, true, false);
             NatsJetStreamSubscription sub = mockSub((NatsConnection)nc, pushMgr);
-            List<TestHandler.HeartbeatAlarmEvent> list;
 
             handler.reset();
             handler.prepForHeartbeatAlarm();
@@ -267,25 +266,25 @@ public class MessageManagerTests extends JetStreamTestBase {
             PullMessageManager pullMgr = getPullManager(nc, null, true);
             NatsJetStreamSubscription sub = mockSub((NatsConnection)nc, pullMgr);
             pullMgr.startup(sub);
-            pullMgr.startPullRequest(PullRequestOptions.builder(1).build());
+            pullMgr.startPullRequest(PullRequestOptions.builder(1).build(), false);
             assertEquals(0, handler.getHeartbeatAlarms().size());
             assertNull(pullMgr.heartbeatTimer);
 
             handler.reset();
             handler.prepForHeartbeatAlarm();
-            pullMgr.startPullRequest(PullRequestOptions.builder(1).idleHeartbeat(100).build());
+            pullMgr.startPullRequest(PullRequestOptions.builder(1).idleHeartbeat(100).build(), false);
             TestHandler.HeartbeatAlarmEvent event = handler.waitForHeartbeatAlarm(1000);
             assertNotNull(event);
 
             handler.reset();
             handler.prepForHeartbeatAlarm();
-            pullMgr.startPullRequest(PullRequestOptions.builder(1).idleHeartbeat(100).build());
+            pullMgr.startPullRequest(PullRequestOptions.builder(1).idleHeartbeat(100).build(), false);
             event = handler.waitForHeartbeatAlarm(1000);
             assertNotNull(event);
 
             handler.reset();
             handler.prepForHeartbeatAlarm();
-            pullMgr.startPullRequest(PullRequestOptions.builder(1).build());
+            pullMgr.startPullRequest(PullRequestOptions.builder(1).build(), false);
             event = handler.waitForHeartbeatAlarm(1000);
             assertNull(event);
         });

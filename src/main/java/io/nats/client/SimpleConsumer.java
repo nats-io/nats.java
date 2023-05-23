@@ -23,7 +23,34 @@ import java.io.IOException;
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public interface SimpleConsumer {
+    /**
+     * Gets information about the consumer behind this subscription.
+     * @return consumer information
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
+
+    /**
+     * Stop the Simple Consumer from asking for any more messages from the server.
+     * Messages do not immediately stop
+     * @throws InterruptedException if one is thrown, in order to propagate it up
+     */
     void stop() throws InterruptedException;
+
+    /**
+     * Whether the Simple Consumer is active. Returns true until stop has been called.
+     * @return the active state
+     */
     boolean isActive();
+
+    /**
+     * Whether the Simple Consumer has pending messages to be sent from the server.
+     * This does not indicate that messages are coming, just that the server has not fulfilled
+     * the current request. Mostly helpful after stop has been called to check if any more messages
+     * are coming
+     * @return the pending state
+     */
+    boolean hasPending();
 }

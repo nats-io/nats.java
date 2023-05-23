@@ -19,15 +19,15 @@ class NatsFetchConsumer extends NatsSimpleConsumerBase implements FetchConsumer 
     private final long maxWaitNanos;
     private long start;
 
-    public NatsFetchConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, FetchConsumeOptions consumeOptions) {
+    public NatsFetchConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, FetchConsumeOptions fetchConsumeOptions) {
         initSub(subscriptionMaker.makeSubscription(null));
-        maxWaitNanos = consumeOptions.getExpiresIn() * 1_000_000;
-        sub._pull(PullRequestOptions.builder(consumeOptions.getMaxMessages())
-            .maxBytes(consumeOptions.getMaxBytes())
-            .expiresIn(consumeOptions.getExpiresIn())
-            .idleHeartbeat(consumeOptions.getIdleHeartbeat())
-            .build()
-        );
+        maxWaitNanos = fetchConsumeOptions.getExpiresIn() * 1_000_000;
+        sub._pull(PullRequestOptions.builder(fetchConsumeOptions.getMaxMessages())
+            .maxBytes(fetchConsumeOptions.getMaxBytes())
+            .expiresIn(fetchConsumeOptions.getExpiresIn())
+            .idleHeartbeat(fetchConsumeOptions.getIdleHeartbeat())
+            .build(),
+            false);
         start = -1;
     }
 
@@ -38,7 +38,7 @@ class NatsFetchConsumer extends NatsSimpleConsumerBase implements FetchConsumer 
                 start = System.nanoTime();
             }
 
-            if (pmm.pendingMessages < 1 || (pmm.trackingBytes && pmm.pendingBytes < 1)) {
+            if (!hasPending()) {
                 // nothing pending means the client has already received all it is going to
                 // null for nextMessage means don't wait, the queue either has something already
                 // or there aren't any messages left

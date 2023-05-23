@@ -45,7 +45,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pull(int batchSize) {
-        _pull(PullRequestOptions.builder(batchSize).build());
+        _pull(PullRequestOptions.builder(batchSize).build(), true);
     }
 
     /**
@@ -53,12 +53,12 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pull(PullRequestOptions pullRequestOptions) {
-        _pull(pullRequestOptions);
+        _pull(pullRequestOptions, true);
     }
 
-    protected String _pull(PullRequestOptions pullRequestOptions) {
+    protected String _pull(PullRequestOptions pullRequestOptions, boolean raiseStatusWarnings) {
         String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
-        manager.startPullRequest(pullRequestOptions);
+        manager.startPullRequest(pullRequestOptions, raiseStatusWarnings);
         String pullId = getSubject().replace("*", Long.toString(this.pullId.incrementAndGet()));
         connection.publish(publishSubject, pullId, pullRequestOptions.serialize());
         connection.lenientFlushBuffer();
@@ -70,7 +70,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
      */
     @Override
     public void pullNoWait(int batchSize) {
-        _pull(PullRequestOptions.noWait(batchSize).build());
+        _pull(PullRequestOptions.noWait(batchSize).build(), true);
     }
 
     /**
@@ -79,7 +79,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     @Override
     public void pullNoWait(int batchSize, Duration expiresIn) {
         durationGtZeroRequired(expiresIn, "NoWait Expires In");
-        _pull(PullRequestOptions.noWait(batchSize).expiresIn(expiresIn).build());
+        _pull(PullRequestOptions.noWait(batchSize).expiresIn(expiresIn).build(), true);
     }
 
     /**
@@ -88,7 +88,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     @Override
     public void pullNoWait(int batchSize, long expiresInMillis) {
         durationGtZeroRequired(expiresInMillis, "NoWait Expires In");
-        _pull(PullRequestOptions.noWait(batchSize).expiresIn(expiresInMillis).build());
+        _pull(PullRequestOptions.noWait(batchSize).expiresIn(expiresInMillis).build(), true);
     }
 
     /**
@@ -97,7 +97,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     @Override
     public void pullExpiresIn(int batchSize, Duration expiresIn) {
         durationGtZeroRequired(expiresIn, "Expires In");
-        _pull(PullRequestOptions.builder(batchSize).expiresIn(expiresIn).build());
+        _pull(PullRequestOptions.builder(batchSize).expiresIn(expiresIn).build(), true);
     }
 
     /**
@@ -106,7 +106,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     @Override
     public void pullExpiresIn(int batchSize, long expiresInMillis) {
         durationGtZeroRequired(expiresInMillis, "Expires In");
-        _pull(PullRequestOptions.builder(batchSize).expiresIn(expiresInMillis).build());
+        _pull(PullRequestOptions.builder(batchSize).expiresIn(expiresInMillis).build(), true);
     }
 
     /**
@@ -140,7 +140,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
             Duration expires = Duration.ofMillis(
                 maxWaitMillis > MIN_MILLIS ? maxWaitMillis - EXPIRE_ADJUSTMENT : maxWaitMillis);
-            String pullId = _pull(PullRequestOptions.builder(batchLeft).expiresIn(expires).build());
+            String pullId = _pull(PullRequestOptions.builder(batchLeft).expiresIn(expires).build(), false);
 
             // timeout > 0 process as many messages we can in that time period
             // If we get a message that either manager handles, we try again, but
@@ -248,7 +248,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         }
 
         // if there were some messages buffered, reduce the raw pull batch size
-        String pullId = _pull(PullRequestOptions.builder(batchLeft).expiresIn(maxWaitMillis).build());
+        String pullId = _pull(PullRequestOptions.builder(batchLeft).expiresIn(maxWaitMillis).build(), false);
 
         final long timeout = maxWaitMillis;
 

@@ -29,6 +29,7 @@ class PullMessageManager extends MessageManager {
     protected long pendingMessages;
     protected long pendingBytes;
     protected boolean trackingBytes;
+    protected boolean raiseStatusWarnings;
 
     protected PullMessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
         super(conn, so, syncMode);
@@ -44,8 +45,9 @@ class PullMessageManager extends MessageManager {
     }
 
     @Override
-    protected void startPullRequest(PullRequestOptions pro) {
+    protected void startPullRequest(PullRequestOptions pro, boolean raiseStatusWarnings) {
         synchronized (stateChangeLock) {
+            this.raiseStatusWarnings = raiseStatusWarnings;
             pendingMessages += pro.getBatchSize();
             pendingBytes += pro.getMaxBytes();
             trackingBytes = (pendingBytes > 0);
@@ -125,7 +127,7 @@ class PullMessageManager extends MessageManager {
         switch (status.getCode()) {
             case NOT_FOUND_CODE:
             case REQUEST_TIMEOUT_CODE:
-                if (so.raiseStatusWarnings()) {
+                if (raiseStatusWarnings) {
                     conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
                 }
                 return TERMINUS;
@@ -134,7 +136,7 @@ class PullMessageManager extends MessageManager {
                 // sometimes just a warning
                 String statMsg = status.getMessage();
                 if (statMsg.startsWith("Exceeded Max")) {
-                    if (so.raiseStatusWarnings()) {
+                    if (raiseStatusWarnings) {
                         conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
                     }
                     return STATUS;
