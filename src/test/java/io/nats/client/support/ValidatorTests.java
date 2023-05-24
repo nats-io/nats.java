@@ -563,11 +563,15 @@ public class ValidatorTests {
 
         Map<String, String> m3 = new HashMap<>();
         m3.put("three", "3");
+        m3.put("two", "4");
 
-        Map<String, String> m4 = null;
+        Map<String, String> m4 = new HashMap<>();
+        m3.put("four", "4");
+
         Map<String, String> m5 = null;
+        Map<String, String> m6 = null;
 
-        Map<String, String> m6 = new HashMap<>();
+        Map<String, String> m7 = new HashMap<>();
 
         assertTrue(mapsAreEqual(m1, m1, true));
         assertTrue(mapsAreEqual(m1, m1, false));
@@ -575,16 +579,20 @@ public class ValidatorTests {
         assertTrue(mapsAreEqual(m1, m2, false));
         assertFalse(mapsAreEqual(m1, m3, true));
         assertFalse(mapsAreEqual(m1, m3, false));
+        assertFalse(mapsAreEqual(m1, m4, true));
+        assertFalse(mapsAreEqual(m1, m4, false));
+        assertFalse(mapsAreEqual(m1, m5, true));
+        assertFalse(mapsAreEqual(m1, m5, false));
 
-        assertFalse(mapsAreEqual(m4, m1, true));
-        assertFalse(mapsAreEqual(m4, m1, false));
+        assertFalse(mapsAreEqual(m5, m1, true));
+        assertFalse(mapsAreEqual(m5, m1, false));
 
-        assertTrue(mapsAreEqual(m4, m5, true));
-        assertTrue(mapsAreEqual(m4, m5, false));
-        assertFalse(mapsAreEqual(m4, m6, true));
-        assertFalse(mapsAreEqual(m4, m6, false));
+        assertTrue(mapsAreEqual(m5, m6, true));
+        assertTrue(mapsAreEqual(m5, m6, false));
+        assertFalse(mapsAreEqual(m5, m7, true));
+        assertFalse(mapsAreEqual(m5, m7, false));
 
-        assertTrue(mapsAreEqual(m6, m4, true));
-        assertFalse(mapsAreEqual(m6, m4, false));
+        assertTrue(mapsAreEqual(m7, m5, true));
+        assertFalse(mapsAreEqual(m7, m5, false));
     }
 }

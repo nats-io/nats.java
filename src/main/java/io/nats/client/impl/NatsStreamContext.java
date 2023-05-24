@@ -13,16 +13,11 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.ConsumerContext;
-import io.nats.client.JetStreamApiException;
-import io.nats.client.JetStreamOptions;
-import io.nats.client.StreamContext;
-import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.ConsumerInfo;
-import io.nats.client.api.StreamInfo;
-import io.nats.client.api.StreamInfoOptions;
+import io.nats.client.*;
+import io.nats.client.api.*;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
@@ -35,11 +30,6 @@ class NatsStreamContext implements StreamContext {
         jsm = new NatsJetStreamManagement(connection, jsOptions);
         this.streamName = streamName;
         jsm.getStreamInfo(streamName); // this is just verifying that the stream exists
-    }
-
-    NatsStreamContext(NatsStreamContext streamContext) {
-        jsm = streamContext.jsm;
-        streamName = streamContext.streamName;
     }
 
     /**
@@ -70,7 +60,31 @@ class NatsStreamContext implements StreamContext {
      * {@inheritDoc}
      */
     @Override
-    public ConsumerInfo createConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException {
+    public PurgeResponse purge() throws IOException, JetStreamApiException {
+        return jsm.purgeStream(streamName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public PurgeResponse purge(PurgeOptions options) throws IOException, JetStreamApiException {
+        return jsm.purgeStream(streamName, options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException {
+        return new NatsConsumerContext(this, consumerName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ConsumerInfo addConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException {
         return jsm.addOrUpdateConsumer(streamName, config);
     }
 
@@ -86,7 +100,71 @@ class NatsStreamContext implements StreamContext {
      * {@inheritDoc}
      */
     @Override
-    public ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException {
-        return new NatsConsumerContext(this, consumerName);
+    public ConsumerInfo getConsumerInfo(String consumerName) throws IOException, JetStreamApiException {
+        return jsm.getConsumerInfo(streamName, consumerName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<String> getConsumerNames() throws IOException, JetStreamApiException {
+        return jsm.getConsumerNames(streamName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<ConsumerInfo> getConsumers() throws IOException, JetStreamApiException {
+        return jsm.getConsumers(streamName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageInfo getMessage(long seq) throws IOException, JetStreamApiException {
+        return jsm.getMessage(streamName, seq);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageInfo getLastMessage(String subject) throws IOException, JetStreamApiException {
+        return jsm.getLastMessage(streamName, subject);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageInfo getFirstMessage(String subject) throws IOException, JetStreamApiException {
+        return jsm.getFirstMessage(streamName, subject);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageInfo getNextMessage(long seq, String subject) throws IOException, JetStreamApiException {
+        return jsm.getNextMessage(streamName, seq, subject);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean deleteMessage(long seq) throws IOException, JetStreamApiException {
+        return jsm.deleteMessage(streamName, seq);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean deleteMessage(long seq, boolean erase) throws IOException, JetStreamApiException {
+        return jsm.deleteMessage(streamName, seq, erase);
     }
 }

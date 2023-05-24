@@ -134,13 +134,13 @@ public interface JetStreamManagement {
     /**
      * Gets the info for an existing consumer.
      * @param streamName name of the stream
-     * @param consumer the consumer name to use.
+     * @param consumerName the name of the consumer.
      * @return consumer information
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    ConsumerInfo getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException;
+    ConsumerInfo getConsumerInfo(String streamName, String consumerName) throws IOException, JetStreamApiException;
 
     /**
      * Return a list of consumers by name
@@ -249,7 +249,7 @@ public interface JetStreamManagement {
 
     /**
      * Deletes a message, overwriting the message data with garbage
-     * This can be considered an expensive (time consuming) operation, but is more secure.
+     * This can be considered an expensive (time-consuming) operation, but is more secure.
      * @param streamName name of the stream
      * @param seq the sequence number of the message
      * @throws IOException covers various communication issues with the NATS
