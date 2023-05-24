@@ -77,7 +77,7 @@ test {
     maxHeapSize = "2g"
     testLogging {
         exceptionFormat = 'full'
-        events "failed", "skipped"
+        events "started", "passed", "skipped", "failed"
     }
     retry {
         failOnPassedAfterRetry = false
