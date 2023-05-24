@@ -51,11 +51,12 @@ public class ConsumeWithHandler {
             try {
                 consumerContext = js.getConsumerContext(STREAM, CONSUMER_NAME);
             }
-            catch (IOException e) {
-                return; // likely a connection problem
-            }
-            catch (JetStreamApiException e) {
-                return; // the stream or consumer did not exist
+            catch (JetStreamApiException | IOException e) {
+                // JetStreamApiException:
+                //      the stream or consumer did not exist
+                // IOException:
+                //      likely a connection problem
+                return;
             }
 
             long start = System.nanoTime();
@@ -73,7 +74,18 @@ public class ConsumeWithHandler {
             };
 
             // create the consumer then use it
-            SimpleConsumer consumer = consumerContext.consume(handler);
+            SimpleConsumer consumer;
+            try {
+                consumer = consumerContext.consume(handler);
+            }
+            catch (JetStreamApiException | IOException e) {
+                // JetStreamApiException:
+                //      1. the stream or consumer did not exist
+                //      2. api calls under the covers theoretically this could fail, but practically it won't.
+                // IOException:
+                //      likely a connection problem
+                return;
+            }
 
             Publisher publisher = new Publisher(js, SUBJECT, MESSAGE_TEXT, JITTER);
             Thread pubThread = new Thread(publisher);
@@ -90,14 +102,11 @@ public class ConsumeWithHandler {
             Thread.sleep(250); // let consumer get messages post drain
             report("Final", start, atomicCount.get());
         }
-        catch (IOException ioe) {
-            // problem making the connection or
-        }
-        catch (InterruptedException e) {
-            // thread interruption in the body of the example
-        }
-        catch (JetStreamApiException e) {
-            throw new RuntimeException(e);
+        catch (IOException | InterruptedException ioe) {
+            // IOException:
+            //      problem making the connection
+            // InterruptedException:
+            //      thread interruption in the body of the example
         }
     }
 

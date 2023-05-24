@@ -93,11 +93,12 @@ public class FetchExample {
         try {
             consumerContext = js.getConsumerContext(STREAM, consumerName);
         }
-        catch (IOException e) {
-            return; // likely a connection problem
-        }
-        catch (JetStreamApiException e) {
-            return; // the stream or consumer did not exist
+        catch (JetStreamApiException | IOException e) {
+            // JetStreamApiException:
+            //      the stream or consumer did not exist
+            // IOException:
+            //      likely a connection problem
+            return;
         }
 
         // Custom FetchConsumeOptions
@@ -128,27 +129,18 @@ public class FetchExample {
                 msg = consumer.nextMessage();
             }
         }
-        catch (IOException e) {
-            // probably a connection problem in the middle of next
-            System.err.println("IOException should be handled properly, just exiting here.");
-            System.exit(-1);
-        }
-        catch (InterruptedException e) {
-            // this should never happen unless the
-            // developer interrupts this thread
-            System.err.println("InterruptedException should be handled properly, just exiting here.");
-            System.exit(-1);
-        }
-        catch (JetStreamStatusCheckedException e) {
-            // either the consumer was deleted in the middle
-            // of the pull or there is a new status from the
-            // server that this client is not aware of
-            System.err.println("JetStreamStatusCheckedException should be handled properly, just exiting here.");
-            System.exit(-1);
-        }
-        catch (JetStreamApiException e) {
-            // making the underlying subscription
-            System.err.println("JetStreamApiException should be handled properly, just exiting here.");
+        catch (JetStreamApiException | JetStreamStatusCheckedException | IOException | InterruptedException e) {
+            // JetStreamApiException:
+            //      api calls under the covers theoretically this could fail, but practically it won't.
+            // JetStreamStatusCheckedException:
+            //      Either the consumer was deleted in the middle
+            //      of the pull or there is a new status from the
+            //      server that this client is not aware of
+            // IOException:
+            //      likely a connection problem
+            // InterruptedException:
+            //      developer interrupted this thread?
+            System.err.println("Exception should be handled properly, just exiting here.");
             System.exit(-1);
         }
         long elapsed = System.currentTimeMillis() - start;

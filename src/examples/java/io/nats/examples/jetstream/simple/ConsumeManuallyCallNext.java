@@ -52,14 +52,12 @@ public class ConsumeManuallyCallNext {
                 consumerContext = js.getConsumerContext(STREAM, CONSUMER_NAME);
                 consumer = consumerContext.consume();
             }
-            catch (IOException e) {
-                return; // likely a connection problem
-            }
-            catch (JetStreamApiException e) {
-                // the stream or consumer did not exist
-                // or unlikely, but a subscribe call could technically fail
-                // if the client made an invalid api call or the communication
-                // was corrupted across the wire
+            catch (JetStreamApiException | IOException e) {
+                // JetStreamApiException:
+                //      1. the stream or consumer did not exist
+                //      2. api calls under the covers theoretically this could fail, but practically it won't.
+                // IOException:
+                //      likely a connection problem
                 return;
             }
 
@@ -91,15 +89,13 @@ public class ConsumeManuallyCallNext {
                         msg = consumer.nextMessage(1000);
                     }
                 }
-                catch (InterruptedException e) {
-                    // this should never happen unless the
-                    // developer interrupts this thread
-                    return;
-                }
-                catch (JetStreamStatusCheckedException e) {
-                    // either the consumer was deleted in the middle
-                    // of the pull or there is a new status from the
-                    // server that this client is not aware of
+                catch (JetStreamStatusCheckedException |InterruptedException e) {
+                    // JetStreamStatusCheckedException:
+                    //      Either the consumer was deleted in the middle
+                    //      of the pull or there is a new status from the
+                    //      server that this client is not aware of
+                    // InterruptedException:
+                    //      developer interrupted this thread?
                     return;
                 }
 
@@ -115,11 +111,11 @@ public class ConsumeManuallyCallNext {
             publisher.stopPublishing();
             pubThread.join();
         }
-        catch (IOException ioe) {
-            // problem making the connection or
-        }
-        catch (InterruptedException e) {
-            // thread interruption in the body of the example
+        catch (IOException | InterruptedException ioe) {
+            // IOException:
+            //      problem making the connection
+            // InterruptedException:
+            //      thread interruption in the body of the example
         }
     }
 

@@ -46,11 +46,12 @@ public class NextExample {
             try {
                 consumerContext = js.getConsumerContext(STREAM, CONSUMER_NAME);
             }
-            catch (IOException e) {
-                return; // likely a connection problem
-            }
-            catch (JetStreamApiException e) {
-                return; // the stream or consumer did not exist
+            catch (JetStreamApiException | IOException e) {
+                // JetStreamApiException:
+                //      the stream or consumer did not exist
+                // IOException:
+                //      likely a connection problem
+                return;
             }
 
             int count = 20;
@@ -70,17 +71,15 @@ public class NextExample {
                         }
                         js.publish(SUBJECT, ("message-" + x).getBytes());
                     }
-                    catch (JetStreamApiException e) {
-                        // the publish somehow was rejected by the server
+                    catch (JetStreamApiException | IOException | InterruptedException e) {
+                        // JetStreamApiException:
+                        //      The "publish" somehow was rejected by the server.
+                        //      Unlikely w/o publish option expectations.
+                        // IOException:
+                        //      likely a connection problem
+                        // InterruptedException:
+                        //      developer interrupted this thread?
                         throw new RuntimeException(e);
-                    }
-                    catch (IOException e) {
-                        return; // likely a connection problem
-                    }
-                    catch (InterruptedException e) {
-                        // this should never happen unless the
-                        // developer interrupts this thread
-                        return;
                     }
                 }
             });
@@ -100,34 +99,28 @@ public class NextExample {
                         System.out.println("Waited " + elapsed + "ms for message, got " + new String(m.getData()));
                     }
                 }
-                catch (IOException e) {
-                    // probably a connection problem in the middle of next
-                    return;
-                }
-                catch (InterruptedException e) {
-                    // this should never happen unless the
-                    // developer interrupts this thread
-                    return;
-                }
-                catch (JetStreamStatusCheckedException e) {
-                    // either the consumer was deleted in the middle
-                    // of the pull or there is a new status from the
-                    // server that this client is not aware of
-                    return;
-                }
-                catch (JetStreamApiException e) {
-                    // making the underlying subscription
+                catch (JetStreamApiException | JetStreamStatusCheckedException | IOException | InterruptedException e) {
+                    // JetStreamApiException:
+                    //      api calls under the covers theoretically this could fail, but practically it won't.
+                    // JetStreamStatusCheckedException:
+                    //      Either the consumer was deleted in the middle
+                    //      of the pull or there is a new status from the
+                    //      server that this client is not aware of
+                    // IOException:
+                    //      likely a connection problem
+                    // InterruptedException:
+                    //      developer interrupted this thread?
                     return;
                 }
             }
 
             t.join();
         }
-        catch (IOException ioe) {
-            // problem making the connection
-        }
-        catch (InterruptedException e) {
-            // thread interruption in the body of the example
+        catch (IOException | InterruptedException ioe) {
+            // IOException:
+            //      problem making the connection
+            // InterruptedException:
+            //      thread interruption in the body of the example
         }
     }
 }
