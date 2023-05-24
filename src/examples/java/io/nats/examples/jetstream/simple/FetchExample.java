@@ -14,10 +14,12 @@
 package io.nats.examples.jetstream.simple;
 
 import io.nats.client.*;
+import io.nats.client.api.ConsumerConfiguration;
 
 import java.io.IOException;
 
-import static io.nats.examples.jetstream.simple.Utils.*;
+import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
+import static io.nats.examples.jetstream.simple.Utils.setupPublish;
 
 /**
  * This example will demonstrate simplified fetch
@@ -46,16 +48,16 @@ public class FetchExample {
             // 1. Different fetch max messages demonstrate expiration behavior
 
             // 1A. equal number of messages to the fetch max messages
-            simpleFetch(jsm, js, "1A", 20, 0);
+            simpleFetch(nc, js, "1A", 20, 0);
 
             // 1B. more messages than the fetch max messages
-            simpleFetch(jsm, js, "1B", 10, 0);
+            simpleFetch(nc, js, "1B", 10, 0);
 
             // 1C. fewer messages than the fetch max messages
-            simpleFetch(jsm, js, "1C", 40, 0);
+            simpleFetch(nc, js, "1C", 40, 0);
 
             // 1D. "fetch-consumer-40-messages" was created in 1C and has no messages available
-            simpleFetch(jsm, js, "1D", 40, 0);
+            simpleFetch(nc, js, "1D", 40, 0);
 
             // bytes don't work before server v2.9.1
             if (nc.getServerInfo().isOlderThanVersion("2.9.1")) {
@@ -66,13 +68,13 @@ public class FetchExample {
             //    - each test message is approximately 100 bytes
 
             // 2A. max bytes is reached before message count
-            simpleFetch(jsm, js, "2A", 0, 700);
+            simpleFetch(nc, js, "2A", 0, 700);
 
             // 2B. fetch max messages is reached before byte count
-            simpleFetch(jsm, js, "2B", 10, 1500);
+            simpleFetch(nc, js, "2B", 10, 1500);
 
             // 2C. fewer bytes than the byte count
-            simpleFetch(jsm, js, "2C", 0, 3000);
+            simpleFetch(nc, js, "2C", 0, 3000);
         }
         catch (IOException ioe) {
             // problem making the connection or
@@ -82,15 +84,15 @@ public class FetchExample {
         }
     }
 
-    private static void simpleFetch(JetStreamManagement jsm, JetStream js, String label, int maxMessages, int maxBytes) {
+    private static void simpleFetch(Connection nc, JetStream js, String label, int maxMessages, int maxBytes) {
         String consumerName = generateConsumerName(maxMessages, maxBytes);
 
-        // Pre define a consumer
-        createConsumer(jsm, STREAM, consumerName);
-
-        // Create the Consumer Context
+        // get stream context, create consumer and get the consumer context
+        StreamContext streamContext;
         ConsumerContext consumerContext;
         try {
+            streamContext = nc.streamContext(STREAM);
+            streamContext.addConsumer(ConsumerConfiguration.builder().durable(consumerName).build());
             consumerContext = js.getConsumerContext(STREAM, consumerName);
         }
         catch (JetStreamApiException | IOException e) {

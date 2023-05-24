@@ -14,13 +14,15 @@
 package io.nats.examples.jetstream.simple;
 
 import io.nats.client.*;
+import io.nats.client.api.ConsumerConfiguration;
 
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static io.nats.examples.jetstream.simple.Utils.*;
+import static io.nats.examples.jetstream.simple.Utils.Publisher;
+import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
 
 /**
  * This example will demonstrate all 3 simplified consumes running at the same time.
@@ -49,16 +51,17 @@ public class ThreeDifferentConsumers {
             String consumerName2 = "handle-" + NUID.nextGlobal();
             String consumerName3 = "fetch-" + NUID.nextGlobal();
 
-            createConsumer(jsm, STREAM, consumerName1);
-            createConsumer(jsm, STREAM, consumerName2);
-            createConsumer(jsm, STREAM, consumerName3);
-
-            // Create the Consumer Contexts
+            // get stream context, create consumers and get the consumer contexts
+            StreamContext streamContext;
             ConsumerContext ctx1;
             ConsumerContext ctx2;
             ConsumerContext ctx3;
             ConsumerContext consumerContext;
             try {
+                streamContext = nc.streamContext(STREAM);
+                streamContext.addConsumer(ConsumerConfiguration.builder().durable(consumerName1).build());
+                streamContext.addConsumer(ConsumerConfiguration.builder().durable(consumerName2).build());
+                streamContext.addConsumer(ConsumerConfiguration.builder().durable(consumerName3).build());
                 ctx1 = js.getConsumerContext(STREAM, consumerName1);
                 ctx2 = js.getConsumerContext(STREAM, consumerName2);
                 ctx3 = js.getConsumerContext(STREAM, consumerName3);

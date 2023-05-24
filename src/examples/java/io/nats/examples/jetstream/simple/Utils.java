@@ -15,7 +15,6 @@ package io.nats.examples.jetstream.simple;
 
 import io.nats.client.JetStream;
 import io.nats.client.JetStreamManagement;
-import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 
@@ -49,21 +48,6 @@ public class Utils {
         }
         catch (Exception e) {
             System.err.println("Fatal error, publish failure.");
-            System.exit(-1);
-        }
-    }
-
-    public static void createConsumer(JetStreamManagement jsm, String stream, String durable) {
-        // Create durable consumer
-        ConsumerConfiguration cc =
-            ConsumerConfiguration.builder()
-                .durable(durable)
-                .build();
-        try {
-            jsm.addOrUpdateConsumer(stream, cc);
-        }
-        catch (Exception e) {
-            System.err.println("Fatal error, cannot create consumer.");
             System.exit(-1);
         }
     }

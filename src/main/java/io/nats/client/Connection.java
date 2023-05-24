@@ -563,6 +563,25 @@ public interface Connection extends AutoCloseable {
     Duration RTT() throws IOException;
 
     /**
+     * Gets a stream context.
+     * @param streamName the stream for the context
+     * @return a StreamContext instance.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     */
+    StreamContext streamContext(String streamName) throws IOException, JetStreamApiException;
+
+    /**
+     * Gets a stream context.
+     * @param streamName the stream for the context
+     * @param options JetStream options.
+     * @return a StreamContext instance.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     */
+    StreamContext streamContext(String streamName, JetStreamOptions options) throws IOException, JetStreamApiException;
+
+    /**
      * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
      * and consumers.
      * @return a JetStream instance.

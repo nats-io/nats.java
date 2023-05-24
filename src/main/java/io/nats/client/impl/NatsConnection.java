@@ -2128,6 +2128,20 @@ class NatsConnection implements Connection {
         }
     }
 
+    @Override
+    public StreamContext streamContext(String streamName) throws IOException, JetStreamApiException {
+        Validator.validateStreamName(streamName, true);
+        ensureNotClosing();
+        return new NatsStreamContext(this, null, streamName);
+    }
+
+    @Override
+    public StreamContext streamContext(String streamName, JetStreamOptions options) throws IOException, JetStreamApiException {
+        Validator.validateStreamName(streamName, true);
+        ensureNotClosing();
+        return new NatsStreamContext(this, options, streamName);
+    }
+
     /**
      * {@inheritDoc}
      */

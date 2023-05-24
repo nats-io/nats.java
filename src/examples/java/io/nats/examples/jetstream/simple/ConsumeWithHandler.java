@@ -14,12 +14,14 @@
 package io.nats.examples.jetstream.simple;
 
 import io.nats.client.*;
+import io.nats.client.api.ConsumerConfiguration;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.nats.examples.jetstream.simple.Utils.*;
+import static io.nats.examples.jetstream.simple.Utils.Publisher;
+import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
 
 /**
  * This example will demonstrate simplified consume with a handler
@@ -39,17 +41,16 @@ public class ConsumeWithHandler {
     public static void main(String[] args) {
         Options options = Options.builder().server(SERVER).build();
         try (Connection nc = Nats.connect(options)) {
-            JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
+            createOrReplaceStream(nc.jetStreamManagement(), STREAM, SUBJECT);
 
-            // set's up the stream and create a durable consumer
-            createOrReplaceStream(jsm, STREAM, SUBJECT);
-            createConsumer(jsm, STREAM, CONSUMER_NAME);
-
-            // Create the Consumer Context
+            // get stream context, create consumer and get the consumer context
+            StreamContext streamContext;
             ConsumerContext consumerContext;
             try {
-                consumerContext = js.getConsumerContext(STREAM, CONSUMER_NAME);
+                streamContext = nc.streamContext(STREAM);
+                streamContext.addConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
+                consumerContext = streamContext.getConsumerContext(CONSUMER_NAME);
             }
             catch (JetStreamApiException | IOException e) {
                 // JetStreamApiException:

@@ -14,10 +14,12 @@
 package io.nats.examples.jetstream.simple;
 
 import io.nats.client.*;
+import io.nats.client.api.ConsumerConfiguration;
 
 import java.io.IOException;
 
-import static io.nats.examples.jetstream.simple.Utils.*;
+import static io.nats.examples.jetstream.simple.Utils.Publisher;
+import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
 
 /**
  * This example will demonstrate simplified manual consume.
@@ -37,19 +39,17 @@ public class ConsumeManuallyCallNext {
     public static void main(String[] args) {
         Options options = Options.builder().server(SERVER).build();
         try (Connection nc = Nats.connect(options)) {
-            JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
+            createOrReplaceStream(nc.jetStreamManagement(), STREAM, SUBJECT);
 
-            // set's up the stream and create a durable consumer
-            createOrReplaceStream(jsm, STREAM, SUBJECT);
-            createConsumer(jsm, STREAM, CONSUMER_NAME);
-
-            // Create the Consumer Context
-            // Get the Manual Consumer from the context
+            // get stream context, create consumer, get the consumer context, get a manual consumer
+            StreamContext streamContext;
             ConsumerContext consumerContext;
             ManualConsumer consumer;
             try {
-                consumerContext = js.getConsumerContext(STREAM, CONSUMER_NAME);
+                streamContext = nc.streamContext(STREAM);
+                streamContext.addConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
+                consumerContext = streamContext.getConsumerContext(CONSUMER_NAME);
                 consumer = consumerContext.consume();
             }
             catch (JetStreamApiException | IOException e) {
