@@ -102,7 +102,7 @@ public class NextExample {
                 }
                 catch (IOException e) {
                     // probably a connection problem in the middle of next
-                    throw new RuntimeException(e);
+                    return;
                 }
                 catch (InterruptedException e) {
                     // this should never happen unless the
@@ -115,12 +115,16 @@ public class NextExample {
                     // server that this client is not aware of
                     return;
                 }
+                catch (JetStreamApiException e) {
+                    // making the underlying subscription
+                    return;
+                }
             }
 
             t.join();
         }
         catch (IOException ioe) {
-            // problem making the connection or
+            // problem making the connection
         }
         catch (InterruptedException e) {
             // thread interruption in the body of the example

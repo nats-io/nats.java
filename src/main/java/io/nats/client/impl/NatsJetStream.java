@@ -647,6 +647,6 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     public ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException {
         Validator.required(streamName, "Stream Name");
         Validator.required(consumerName, "Consumer Name");
-        return new NatsConsumerContext(getNatsStreamContext(streamName), consumerName, null);
+        return getNatsStreamContext(streamName).getConsumerContext(consumerName);
     }
 }

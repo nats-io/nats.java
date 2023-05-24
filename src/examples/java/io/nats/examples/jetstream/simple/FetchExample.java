@@ -118,9 +118,9 @@ public class FetchExample {
         long start = System.currentTimeMillis();
 
         // create the consumer then use it
-        FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions);
         int received = 0;
         try {
+            FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions);
             Message msg = consumer.nextMessage();
             while (msg != null) {
                 ++received;
@@ -128,17 +128,27 @@ public class FetchExample {
                 msg = consumer.nextMessage();
             }
         }
+        catch (IOException e) {
+            // probably a connection problem in the middle of next
+            System.err.println("IOException should be handled properly, just exiting here.");
+            System.exit(-1);
+        }
         catch (InterruptedException e) {
             // this should never happen unless the
             // developer interrupts this thread
-            System.err.println("Treating InterruptedException as fatal error.");
+            System.err.println("InterruptedException should be handled properly, just exiting here.");
             System.exit(-1);
         }
         catch (JetStreamStatusCheckedException e) {
             // either the consumer was deleted in the middle
             // of the pull or there is a new status from the
             // server that this client is not aware of
-            System.err.println("Treating JetStreamStatusCheckedException as fatal error.");
+            System.err.println("JetStreamStatusCheckedException should be handled properly, just exiting here.");
+            System.exit(-1);
+        }
+        catch (JetStreamApiException e) {
+            // making the underlying subscription
+            System.err.println("JetStreamApiException should be handled properly, just exiting here.");
             System.exit(-1);
         }
         long elapsed = System.currentTimeMillis() - start;

@@ -345,6 +345,10 @@ public abstract class Validator {
         return l;
     }
 
+    public static boolean isGtEqZero(long l) {
+        return l >= 0;
+    }
+
     public static long validateGtEqZero(long l, String label) {
         if (l < 0) {
             throw new IllegalArgumentException(label + " must be greater than or equal to zero");
@@ -521,10 +525,6 @@ public abstract class Validator {
         return l == 0 || l < -1;
     }
 
-    public static boolean gteZero(long l) {
-        return l >= 0;
-    }
-
     public static Duration ensureNotNullAndNotLessThanMin(Duration provided, Duration minimum, Duration dflt)
     {
         return provided == null || provided.toNanos() < minimum.toNanos() ? dflt : provided;
@@ -572,9 +572,9 @@ public abstract class Validator {
 
     public static boolean mapsAreEqual(Map<String, String> m1, Map<String, String> m2, boolean nullSecondEqualsEmptyFirst)
     {
-        if (m1 == m2)
+        if (m1 == null)
         {
-            return true;
+            return m2 == null;
         }
 
         if (m2 == null)

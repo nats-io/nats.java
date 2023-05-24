@@ -21,19 +21,19 @@ import io.nats.client.api.StreamInfoOptions;
 import java.io.IOException;
 
 /**
+ * The Stream Context provide a set of operations for managing the stream
+ * and its contents and managing consumers.
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public interface StreamContext {
     /**
      * Gets the stream name that was used to create the context.
-     * EXPERIMENTAL API SUBJECT TO CHANGE
      * @return the stream name
      */
     String getStreamName();
 
     /**
      * Gets information about the stream for this context.
-     * EXPERIMENTAL API SUBJECT TO CHANGE
      * Does not retrieve any optional data.
      * See the overloaded version that accepts StreamInfoOptions
      * @return stream information
@@ -46,7 +46,6 @@ public interface StreamContext {
 
     /**
      * Gets information about the stream for this context.
-     * EXPERIMENTAL API SUBJECT TO CHANGE
      * @param options the stream info options. If null, request will not return any optional data.
      * @return stream information
      * @throws IOException covers various communication issues with the NATS
@@ -58,7 +57,6 @@ public interface StreamContext {
 
     /**
      * Management function to creates a consumer on this stream.
-     * EXPERIMENTAL API SUBJECT TO CHANGE
      * @param config the consumer configuration to use.
      * @return consumer information.
      * @throws IOException covers various communication issues with the NATS
@@ -69,7 +67,6 @@ public interface StreamContext {
 
     /**
      * Management function to deletes a consumer.
-     * EXPERIMENTAL API SUBJECT TO CHANGE
      * @param consumerName the name of the consumer.
      * @return true if the delete succeeded
      * @throws IOException covers various communication issues with the NATS
@@ -81,7 +78,6 @@ public interface StreamContext {
     /**
      * Create a consumer context for on the context's stream and specific named consumer.
      * Verifies that the consumer exists.
-     * EXPERIMENTAL API SUBJECT TO CHANGE
      * @param consumerName the name of the consumer
      * @return a ConsumerContext object
      * @throws IOException covers various communication issues with the NATS

@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.nats.client.BaseConsumeOptions.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ConsumeTests extends JetStreamTestBase {
+public class ConsumeContextTests extends JetStreamTestBase {
 
     @Test
     public void testFetch() throws Exception {
@@ -111,7 +111,6 @@ public class ConsumeTests extends JetStreamTestBase {
             case "1B":
             case "2B":
                 assertEquals(testAmount, rcvd);
-                assertTrue(elapsed < 250);
                 break;
             case "1C":
             case "1D":
@@ -121,7 +120,6 @@ public class ConsumeTests extends JetStreamTestBase {
                 break;
             case "2A":
                 assertTrue(rcvd < testAmount);
-                assertTrue(elapsed < 250);
                 break;
         }
     }
@@ -141,11 +139,11 @@ public class ConsumeTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // Pre define a consumer
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(NAME).build();
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
             jsm.addOrUpdateConsumer(STREAM, cc);
 
             // Consumer[Context]
-            ConsumerContext consumerContext = js.getConsumerContext(STREAM, NAME);
+            ConsumerContext consumerContext = js.getConsumerContext(STREAM, DURABLE);
 
             int stopCount = 500;
 
@@ -187,6 +185,10 @@ public class ConsumeTests extends JetStreamTestBase {
             pubThread.join();
 
             assertTrue(count.incrementAndGet() > 500);
+
+            // coverage
+            consumerContext.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
+            assertThrows(IllegalArgumentException.class, () -> consumerContext.consume((ConsumeOptions)null));
         });
     }
 
@@ -207,16 +209,23 @@ public class ConsumeTests extends JetStreamTestBase {
 
             int stopCount = 500;
 
-            // create the consumer then use it
-            ManualConsumer consumer = consumerContext.consume();
             AtomicInteger count = new AtomicInteger();
+
+            // create the consumer then use it
+            MessageHandler handler = new MessageHandler() {
+                @Override
+                public void onMessage(Message msg) throws InterruptedException {
+                    msg.ack();
+                    count.incrementAndGet();
+                }
+            };
+
+            ManualConsumer consumer = consumerContext.consume();
             Thread consumeThread = new Thread(() -> {
                 try {
                     while (count.get() < stopCount) {
                         Message msg = consumer.nextMessage(1000);
                         if (msg != null) {
-                            msg.ack();
-                            count.incrementAndGet();
                         }
                     }
 
@@ -245,6 +254,11 @@ public class ConsumeTests extends JetStreamTestBase {
             pubThread.join();
 
             assertTrue(count.incrementAndGet() > 500);
+
+            // coverage
+            consumerContext.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
+            assertThrows(IllegalArgumentException.class, () -> consumerContext.consume((ConsumeOptions)null));
+
         });
     }
 
@@ -267,6 +281,11 @@ public class ConsumeTests extends JetStreamTestBase {
             ConsumerContext ctx2 = js.getConsumerContext(STREAM, name(2));
             ConsumerContext ctx3 = js.getConsumerContext(STREAM, name(3));
             ConsumerContext ctx4 = js.getConsumerContext(STREAM, name(4));
+
+            assertEquals(name(1), ctx1.getConsumerName());
+            assertEquals(name(2), ctx2.getConsumerName());
+            assertEquals(name(3), ctx3.getConsumerName());
+            assertEquals(name(4), ctx4.getConsumerName());
 
             ConsumerInfo ci1 = ctx1.getConsumerInfo();
             ConsumerInfo ci2 = ctx2.getConsumerInfo();

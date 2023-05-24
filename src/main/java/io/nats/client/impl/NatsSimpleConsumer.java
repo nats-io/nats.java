@@ -14,8 +14,11 @@
 package io.nats.client.impl;
 
 import io.nats.client.ConsumeOptions;
+import io.nats.client.JetStreamApiException;
 import io.nats.client.MessageHandler;
 import io.nats.client.PullRequestOptions;
+
+import java.io.IOException;
 
 class NatsSimpleConsumer extends NatsSimpleConsumerBase {
     protected final PullRequestOptions rePullPro;
@@ -23,7 +26,7 @@ class NatsSimpleConsumer extends NatsSimpleConsumerBase {
     protected final int thresholdBytes;
     protected final NatsConsumerContext.SubscriptionMaker subscriptionMaker;
 
-    NatsSimpleConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, final MessageHandler messageHandler, ConsumeOptions opts) {
+    NatsSimpleConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, final MessageHandler messageHandler, ConsumeOptions opts) throws IOException, JetStreamApiException {
         this.subscriptionMaker = subscriptionMaker;
         if (messageHandler == null) {
             initSub(subscriptionMaker.makeSubscription(null));

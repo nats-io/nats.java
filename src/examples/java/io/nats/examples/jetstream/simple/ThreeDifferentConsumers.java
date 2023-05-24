@@ -71,7 +71,16 @@ public class ThreeDifferentConsumers {
             }
 
             // create the consumer then use it
-            ManualConsumer con1 = ctx1.consume();
+            ManualConsumer con1;
+            try {
+                con1 = ctx1.consume();
+            }
+            catch (JetStreamApiException e) {
+                // unlikely, but a subscribe call could technically fail
+                // if the client made an invalid api call or the communication
+                // was corrupted across the wire
+                return;
+            }
 
             Thread con1Thread = new Thread(() -> {
                 long mark = System.currentTimeMillis();
@@ -124,7 +133,15 @@ public class ThreeDifferentConsumers {
                 }
             };
             // keep the handler so it stays in scope or if you want to call stop
-            SimpleConsumer con2 = ctx2.consume(handler);
+            SimpleConsumer con2;
+            try {
+                con2 = ctx2.consume(handler);
+            }
+            catch (JetStreamApiException e) {
+                // unlikely, but a subscribe call could technically fail if the client made an invalid api call
+                // or the communication was corrupted across the wire
+                return;
+            }
 
             Thread.sleep(1000); // just makes the consumers be reading different messages
             Thread con2Thread = new Thread(() -> {
@@ -147,17 +164,27 @@ public class ThreeDifferentConsumers {
                         }
                     }
                 }
+                catch (IOException e) {
+                    // probably a connection problem in the middle of next
+                    System.err.println("IOException should be handled properly, just exiting here.");
+                    System.exit(-1);
+                }
                 catch (InterruptedException e) {
                     // this should never happen unless the
                     // developer interrupts this thread
-                    System.err.println("Treating InterruptedException as fatal error.");
+                    System.err.println("InterruptedException should be handled properly, just exiting here.");
                     System.exit(-1);
                 }
                 catch (JetStreamStatusCheckedException e) {
                     // either the consumer was deleted in the middle
                     // of the pull or there is a new status from the
                     // server that this client is not aware of
-                    System.err.println("Treating JetStreamStatusCheckedException as fatal error.");
+                    System.err.println("JetStreamStatusCheckedException should be handled properly, just exiting here.");
+                    System.exit(-1);
+                }
+                catch (JetStreamApiException e) {
+                    // making the underlying subscription
+                    System.err.println("JetStreamApiException should be handled properly, just exiting here.");
                     System.exit(-1);
                 }
             });
@@ -165,7 +192,7 @@ public class ThreeDifferentConsumers {
             con2Thread.join(); // never ends so program runs until stopped.
         }
         catch (IOException ioe) {
-            // problem making the connection or
+            // problem making the connection
         }
         catch (InterruptedException e) {
             // thread interruption in the body of the example

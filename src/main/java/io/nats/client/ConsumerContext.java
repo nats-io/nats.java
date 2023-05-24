@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.time.Duration;
 
 /**
+ * The Consumer Context provides a convenient interface around a defined JetStream Consumer
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public interface ConsumerContext {
@@ -33,8 +34,7 @@ public interface ConsumerContext {
      * @return consumer information
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data,
-     *         most likely the consumer has been removed since the context was created.
+     * @throws JetStreamApiException the request had an error related to the data
      */
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
 
@@ -46,8 +46,9 @@ public interface ConsumerContext {
      * @throws InterruptedException if one is thrown, in order to propagate it up
      * @throws JetStreamStatusCheckedException an exception representing a status that requires attention,
      *         such as the consumer was deleted on the server in the middle of use.
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    Message next() throws IOException, InterruptedException, JetStreamStatusCheckedException;
+    Message next() throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException;
 
     /**
      * Read the next message with provide max wait
@@ -58,8 +59,9 @@ public interface ConsumerContext {
      * @throws InterruptedException if one is thrown, in order to propagate it up
      * @throws JetStreamStatusCheckedException an exception representing a status that requires attention,
      *         such as the consumer was deleted on the server in the middle of use.
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    Message next(Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException;
+    Message next(Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException;
 
     /**
      * Read the next message with provide max wait
@@ -70,57 +72,79 @@ public interface ConsumerContext {
      * @throws InterruptedException if one is thrown, in order to propagate it up
      * @throws JetStreamStatusCheckedException an exception representing a status that requires attention,
      *         such as the consumer was deleted on the server in the middle of use.
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException;
+    Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException;
 
     /**
      * Create a one use Fetch Consumer using all defaults other than the number of messages. See {@link FetchConsumer}
      * @param maxMessages the maximum number of message to consume
      * @return the FetchConsumer instance
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    FetchConsumer fetchMessages(int maxMessages);
+    FetchConsumer fetchMessages(int maxMessages) throws IOException, JetStreamApiException;
 
     /**
      * Create a one use Fetch Consumer using all defaults other than the number of bytes. See {@link FetchConsumer}
      * @param maxBytes the maximum number of bytes to consume
      * @return the FetchConsumer instance
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    FetchConsumer fetchBytes(int maxBytes);
+    FetchConsumer fetchBytes(int maxBytes) throws IOException, JetStreamApiException;
 
     /**
      * Create a one use Fetch Consumer with complete custom consume options. See {@link FetchConsumer}
      * @param fetchConsumeOptions the custom fetch consume options. See {@link FetchConsumeOptions}
      * @return the FetchConsumer instance
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    FetchConsumer fetch(FetchConsumeOptions fetchConsumeOptions);
+    FetchConsumer fetch(FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException;
 
     /**
      * Create a long-running Manual Consumer with default ConsumeOptions. See {@link ConsumeOptions}
      * Manual Consumers require the developer call nextMessage. See {@link ManualConsumer}
      * @return the ManualConsumer instance
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    ManualConsumer consume();
+    ManualConsumer consume() throws IOException, JetStreamApiException;
 
     /**
      * Create a long-running Manual Consumer with custom ConsumeOptions. See {@link ManualConsumer} and {@link ConsumeOptions}
      * Manual Consumers require the developer call nextMessage.
      * @param consumeOptions the custom consume options
      * @return the ManualConsumer instance
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    ManualConsumer consume(ConsumeOptions consumeOptions);
+    ManualConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 
     /**
      * Create a long-running Simple Consumer with default ConsumeOptions. See {@link SimpleConsumer} and  {@link ConsumeOptions}
      * @param handler the MessageHandler used for receiving messages.
      * @return the SimpleConsumer instance
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    SimpleConsumer consume(MessageHandler handler);
+    SimpleConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException;
 
     /**
      * Create a long-running Simple Consumer with custom ConsumeOptions. See {@link SimpleConsumer} and  {@link ConsumeOptions}
      * @param handler the MessageHandler used for receiving messages.
      * @param consumeOptions the custom consume options
      * @return the SimpleConsumer instance
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    SimpleConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions);
+    SimpleConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 }

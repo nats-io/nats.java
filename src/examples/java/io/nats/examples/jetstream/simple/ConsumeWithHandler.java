@@ -96,6 +96,9 @@ public class ConsumeWithHandler {
         catch (InterruptedException e) {
             // thread interruption in the body of the example
         }
+        catch (JetStreamApiException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static void report(String label, long start, int count) {

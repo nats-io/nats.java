@@ -45,19 +45,23 @@ public class ConsumeManuallyCallNext {
             createConsumer(jsm, STREAM, CONSUMER_NAME);
 
             // Create the Consumer Context
+            // Get the Manual Consumer from the context
             ConsumerContext consumerContext;
+            ManualConsumer consumer;
             try {
                 consumerContext = js.getConsumerContext(STREAM, CONSUMER_NAME);
+                consumer = consumerContext.consume();
             }
             catch (IOException e) {
                 return; // likely a connection problem
             }
             catch (JetStreamApiException e) {
-                return; // the stream or consumer did not exist
+                // the stream or consumer did not exist
+                // or unlikely, but a subscribe call could technically fail
+                // if the client made an invalid api call or the communication
+                // was corrupted across the wire
+                return;
             }
-
-            // Get the Manual Consumer from the context
-            ManualConsumer consumer = consumerContext.consume();
 
             long start = System.nanoTime();
             Thread consumeThread = new Thread(() -> {

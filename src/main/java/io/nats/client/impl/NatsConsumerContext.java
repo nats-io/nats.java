@@ -33,30 +33,14 @@ public class NatsConsumerContext implements ConsumerContext {
     private final NatsStreamContext streamContext;
     private final NatsJetStream js;
     private final ConsumerConfiguration userCc;
-    private String consumerName;
+    private final String consumerName;
 
-    NatsConsumerContext(NatsStreamContext streamContext, String consumerName, ConsumerConfiguration cc) throws IOException, JetStreamApiException {
+    NatsConsumerContext(NatsStreamContext streamContext, String consumerName) throws IOException, JetStreamApiException {
         this.streamContext = streamContext;
         js = new NatsJetStream(streamContext.jsm.conn, streamContext.jsm.jso);
-        if (consumerName != null) {
-            this.consumerName = consumerName;
-            userCc = null;
-            streamContext.jsm.getConsumerInfo(streamContext.streamName, this.consumerName);  // this is just verifying that the Consumer exists
-        }
-        else {
-            userCc = cc;
-        }
-    }
-
-    private NatsConsumerContext(NatsConnection connection, JetStreamOptions jsOptions, String streamName,
-                                String consumerName, ConsumerConfiguration cc) throws IOException, JetStreamApiException {
-        this(new NatsStreamContext(connection, jsOptions, streamName), consumerName, cc);
-    }
-
-    // this constructor is chained like this because I want it to validate consumer name first,
-    // before making a NatsStreamContext which will hit the server. Basically fail faster
-    NatsConsumerContext(NatsConnection connection, JetStreamOptions jsOptions, String stream, String consumerName) throws IOException, JetStreamApiException {
-        this(connection, jsOptions, stream, Validator.required(consumerName, "Consumer Name"), null);
+        this.consumerName = consumerName;
+        userCc = null;
+        streamContext.jsm.getConsumerInfo(streamContext.streamName, this.consumerName);  // this is just verifying that the Consumer exists
     }
 
     /**
@@ -78,40 +62,14 @@ public class NatsConsumerContext implements ConsumerContext {
     class SubscriptionMaker {
         Dispatcher dispatcher;
 
-        public NatsJetStreamPullSubscription makeSubscription(MessageHandler messageHandler) {
-            PullSubscribeOptions pso;
-            if (consumerName == null) {
-                pso = PullSubscribeOptions.builder()
-                    .configuration(userCc)
-                    .stream(streamContext.streamName)
-                    .build();
-            }
-            else {
-                pso = PullSubscribeOptions.bind(streamContext.streamName, consumerName);
-            }
-
+        public NatsJetStreamPullSubscription makeSubscription(MessageHandler messageHandler) throws IOException, JetStreamApiException {
+            PullSubscribeOptions pso = PullSubscribeOptions.bind(streamContext.streamName, consumerName);
             if (messageHandler == null) {
-                try {
-                    return (NatsJetStreamPullSubscription)js.subscribe(null, pso);
-                }
-                catch (RuntimeException r) {
-                    throw r;
-                }
-                catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
+                return (NatsJetStreamPullSubscription)js.subscribe(null, pso);
             }
 
             dispatcher = js.conn.createDispatcher();
-            try {
-                return (NatsJetStreamPullSubscription)js.subscribe(null, dispatcher, messageHandler, pso);
-            }
-            catch (RuntimeException r) {
-                throw r;
-            }
-            catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+            return (NatsJetStreamPullSubscription)js.subscribe(null, dispatcher, messageHandler, pso);
         }
     }
 
@@ -119,7 +77,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public Message next() throws IOException, InterruptedException, JetStreamStatusCheckedException {
+    public Message next() throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
         return next(DEFAULT_EXPIRES_IN_MS);
     }
 
@@ -127,7 +85,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public Message next(Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException {
+    public Message next(Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
         return next(maxWait == null ? DEFAULT_EXPIRES_IN_MS : maxWait.toMillis());
     }
 
@@ -135,7 +93,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException {
+    public Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
         if (maxWaitMillis < MIN_EXPIRES_MILLS) {
             throw new IllegalArgumentException("Max wait must be at least " + MIN_EXPIRES_MILLS + " milliseconds.");
         }
@@ -156,7 +114,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public FetchConsumer fetchMessages(int maxMessages) {
+    public FetchConsumer fetchMessages(int maxMessages) throws IOException, JetStreamApiException {
         return fetch(FetchConsumeOptions.builder().maxMessages(maxMessages).build());
     }
 
@@ -164,7 +122,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public FetchConsumer fetchBytes(int maxBytes) {
+    public FetchConsumer fetchBytes(int maxBytes) throws IOException, JetStreamApiException {
         return fetch(FetchConsumeOptions.builder().maxBytes(maxBytes, DEFAULT_MESSAGE_COUNT_WHEN_BYTES).build());
     }
 
@@ -172,7 +130,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public FetchConsumer fetch(FetchConsumeOptions fetchConsumeOptions) {
+    public FetchConsumer fetch(FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException {
         Validator.required(fetchConsumeOptions, "Fetch Consume Options");
         return new NatsFetchConsumer(new SubscriptionMaker(), fetchConsumeOptions);
     }
@@ -181,7 +139,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public ManualConsumer consume() {
+    public ManualConsumer consume() throws IOException, JetStreamApiException {
         return new NatsManualConsumer(new SubscriptionMaker(), DEFAULT_CONSUME_OPTIONS);
     }
 
@@ -189,7 +147,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public ManualConsumer consume(ConsumeOptions consumeOptions) {
+    public ManualConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(consumeOptions, "Consume Options");
         return new NatsManualConsumer(new SubscriptionMaker(), consumeOptions);
     }
@@ -198,7 +156,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public SimpleConsumer consume(MessageHandler handler) {
+    public SimpleConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException {
         Validator.required(handler, "Message Handler");
         return new NatsSimpleConsumer(new SubscriptionMaker(), handler, DEFAULT_CONSUME_OPTIONS);
     }
@@ -207,7 +165,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public SimpleConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) {
+    public SimpleConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(handler, "Message Handler");
         Validator.required(consumeOptions, "Consume Options");
         return new NatsSimpleConsumer(new SubscriptionMaker(), handler, consumeOptions);
