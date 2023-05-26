@@ -17,8 +17,7 @@ import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
@@ -96,8 +95,13 @@ public class ConsumeWithHandler {
 
             // once the consumer is stopped, the client will drain messages
             System.out.println("Stop the consumer...");
-            CompletableFuture<Boolean> stopFuture = consumer.stop();
-            stopFuture.wait(1000);
+            CompletableFuture<Boolean> stopFuture = consumer.stop(1000);
+            try {
+                stopFuture.get(1, TimeUnit.SECONDS);
+            }
+            catch (ExecutionException | TimeoutException e) {
+                // from the future.get
+            }
 
             report("Final", start, atomicCount.get());
         }

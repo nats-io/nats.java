@@ -36,7 +36,10 @@ public interface SimpleConsumer {
     /**
      * Stop the Simple Consumer from asking for any more messages from the server.
      * Messages do not immediately stop
+     * @param timeout The time to wait for the stop to succeed, pass 0 to wait
+     *                forever. Stop involves moving messages to and from the server
+     *                so a very short timeout is not recommended.
      * @throws InterruptedException if one is thrown, in order to propagate it up
      */
-    CompletableFuture<Boolean> stop() throws InterruptedException;
+    CompletableFuture<Boolean> stop(long timeout) throws InterruptedException;
 }

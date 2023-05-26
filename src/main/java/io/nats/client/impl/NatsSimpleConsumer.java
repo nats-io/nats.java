@@ -41,22 +41,23 @@ class NatsSimpleConsumer extends NatsSimpleConsumerBase {
         int bm = opts.getBatchSize();
         int bb = opts.getBatchBytes();
 
-        int repullMessages = Math.max(1, bm * opts.getThresholdPercent() / 100);
-        int repullBytes = bb == 0 ? 0 : Math.max(1, bb * opts.getThresholdPercent() / 100);
-        rePullPro = PullRequestOptions.builder(repullMessages)
-            .maxBytes(repullBytes)
+        int rePullMessages = Math.max(1, bm * opts.getThresholdPercent() / 100);
+        int rePullBytes = bb == 0 ? 0 : Math.max(1, bb * opts.getThresholdPercent() / 100);
+        rePullPro = PullRequestOptions.builder(rePullMessages)
+            .maxBytes(rePullBytes)
             .expiresIn(opts.getExpiresIn())
             .idleHeartbeat(opts.getIdleHeartbeat())
             .build();
 
-        thresholdMessages = bm - repullMessages;
-        thresholdBytes = bb == 0 ? Integer.MIN_VALUE : bb - repullBytes;
+        thresholdMessages = bm - rePullMessages;
+        thresholdBytes = bb == 0 ? Integer.MIN_VALUE : bb - rePullBytes;
 
-        nscBasePull(PullRequestOptions.builder(bm)
-            .maxBytes(bb)
-            .expiresIn(opts.getExpiresIn())
-            .idleHeartbeat(opts.getIdleHeartbeat())
-            .build());
+        sub._pull(PullRequestOptions.builder(bm)
+                .maxBytes(bb)
+                .expiresIn(opts.getExpiresIn())
+                .idleHeartbeat(opts.getIdleHeartbeat())
+                .build(),
+            false);
     }
 
     protected void checkForRePull() {
@@ -64,7 +65,7 @@ class NatsSimpleConsumer extends NatsSimpleConsumerBase {
             (pmm.pendingMessages <= thresholdMessages
                 || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
         {
-            nscBasePull(rePullPro);
+            sub._pull(rePullPro, false);
         }
     }
 }

@@ -14,7 +14,6 @@
 package io.nats.client.impl;
 
 import io.nats.client.JetStreamApiException;
-import io.nats.client.PullRequestOptions;
 import io.nats.client.SimpleConsumer;
 import io.nats.client.api.ConsumerInfo;
 
@@ -27,7 +26,6 @@ class NatsSimpleConsumerBase implements SimpleConsumer {
     protected PullMessageManager pmm;
     protected final Object subLock;
     protected CompletableFuture<Boolean> drainFuture;
-    protected Duration drainTimeout;
 
     NatsSimpleConsumerBase() {
         subLock = new Object();
@@ -37,11 +35,6 @@ class NatsSimpleConsumerBase implements SimpleConsumer {
     protected void initSub(NatsJetStreamPullSubscription sub) {
         this.sub = sub;
         pmm = (PullMessageManager)sub.manager;
-    }
-
-    protected void nscBasePull(PullRequestOptions pro) {
-        sub._pull(pro, false);
-        drainTimeout = pro.getExpiresIn().plusSeconds(1);
     }
 
     /**
@@ -58,14 +51,14 @@ class NatsSimpleConsumerBase implements SimpleConsumer {
      * {@inheritDoc}
      */
     @Override
-    public CompletableFuture<Boolean> stop() throws InterruptedException {
+    public CompletableFuture<Boolean> stop(long timeout) throws InterruptedException {
         synchronized (subLock) {
             if (drainFuture == null) {
                 if (sub.getNatsDispatcher() != null) {
-                    drainFuture = sub.getDispatcher().drain(drainTimeout);
+                    drainFuture = sub.getDispatcher().drain(Duration.ofMillis(timeout));
                 }
                 else {
-                    drainFuture = sub.drain(drainTimeout);
+                    drainFuture = sub.drain(Duration.ofMillis(timeout));
                 }
             }
             return drainFuture;

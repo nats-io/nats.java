@@ -79,7 +79,7 @@ public class ConsumeManuallyCallNext {
 
                     System.out.println("Pausing for effect...allow more messages come across.");
                     Thread.sleep(JITTER * 2); // allows more messages to come across
-                    consumer.stop();
+                    consumer.stop(1000);
 
                     System.out.println("Starting post-drain loop.");
                     Message msg = consumer.nextMessage(1000);

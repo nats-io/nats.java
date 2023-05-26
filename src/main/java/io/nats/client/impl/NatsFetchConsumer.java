@@ -29,7 +29,7 @@ class NatsFetchConsumer extends NatsSimpleConsumerBase implements FetchConsumer 
             .expiresIn(fetchConsumeOptions.getExpiresIn())
             .idleHeartbeat(fetchConsumeOptions.getIdleHeartbeat())
             .build();
-        nscBasePull(pro);
+        sub._pull(pro, false);
         startNanos = -1;
     }
 
