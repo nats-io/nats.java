@@ -97,7 +97,7 @@ public class NatsConsumerContext implements ConsumerContext {
         long expires = maxWaitMillis - EXPIRE_ADJUSTMENT;
 
         NatsJetStreamPullSubscription sub = new SubscriptionMaker().makeSubscription(null);
-        sub._pull(PullRequestOptions.builder(1).expiresIn(expires).build(), false);
+        sub._pull(PullRequestOptions.builder(1).expiresIn(expires).build(), false, null);
         try {
             return sub.nextMessage(maxWaitMillis);
         }

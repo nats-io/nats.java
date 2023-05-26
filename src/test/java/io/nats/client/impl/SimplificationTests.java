@@ -16,16 +16,92 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
+import io.nats.client.api.MessageInfo;
+import io.nats.client.api.StreamInfoOptions;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.CompletableFuture;
+import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.BaseConsumeOptions.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ConsumeContextTests extends JetStreamTestBase {
+public class SimplificationTests extends JetStreamTestBase {
+
+    @Test
+    public void testStreamContext() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = nc.jetStream();
+
+            assertThrows(JetStreamApiException.class, () -> js.streamContext(STREAM));
+
+            createDefaultTestStream(jsm);
+
+            StreamContext streamContext = js.streamContext(STREAM);
+            assertEquals(STREAM, streamContext.getStreamName());
+
+            assertThrows(JetStreamApiException.class, () -> streamContext.consumerContext(DURABLE));
+            assertThrows(JetStreamApiException.class, () -> streamContext.deleteConsumer(DURABLE));
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
+            ConsumerContext consumerContext = streamContext.addConsumer(cc);
+            ConsumerInfo ci = consumerContext.getConsumerInfo();
+            assertEquals(STREAM, ci.getStreamName());
+            assertEquals(DURABLE, ci.getName());
+
+            ci = streamContext.getConsumerInfo(DURABLE);
+            assertNotNull(ci);
+            assertEquals(STREAM, ci.getStreamName());
+            assertEquals(DURABLE, ci.getName());
+
+            assertEquals(1, streamContext.getConsumerNames().size());
+
+            assertEquals(1, streamContext.getConsumers().size());
+            assertNotNull(streamContext.consumerContext(DURABLE));
+            streamContext.deleteConsumer(DURABLE);
+
+            assertThrows(JetStreamApiException.class, () -> streamContext.consumerContext(DURABLE));
+            assertThrows(JetStreamApiException.class, () -> streamContext.deleteConsumer(DURABLE));
+
+            // coverage
+            js.publish(SUBJECT, "one".getBytes());
+            js.publish(SUBJECT, "two".getBytes());
+            js.publish(SUBJECT, "three".getBytes());
+            js.publish(SUBJECT, "four".getBytes());
+            js.publish(SUBJECT, "five".getBytes());
+            js.publish(SUBJECT, "six".getBytes());
+
+            assertTrue(streamContext.deleteMessage(3));
+            assertTrue(streamContext.deleteMessage(4, true));
+
+            MessageInfo mi = streamContext.getMessage(1);
+            assertEquals(1, mi.getSeq());
+
+            mi = streamContext.getFirstMessage(SUBJECT);
+            assertEquals(1, mi.getSeq());
+
+            mi = streamContext.getLastMessage(SUBJECT);
+            assertEquals(6, mi.getSeq());
+
+            mi = streamContext.getNextMessage(3, SUBJECT);
+            assertEquals(5, mi.getSeq());
+
+            assertNotNull(streamContext.getStreamInfo());
+            assertNotNull(streamContext.getStreamInfo(StreamInfoOptions.builder().build()));
+
+            streamContext.purge(PurgeOptions.builder().sequence(5).build());
+            assertThrows(JetStreamApiException.class, () -> streamContext.getMessage(1));
+
+            mi = streamContext.getFirstMessage(SUBJECT);
+            assertEquals(5, mi.getSeq());
+
+            streamContext.purge();
+            assertThrows(JetStreamApiException.class, () -> streamContext.getFirstMessage(SUBJECT));
+        });
+    }
 
     @Test
     public void testFetch() throws Exception {
@@ -165,7 +241,7 @@ public class ConsumeContextTests extends JetStreamTestBase {
                     }
 
                     Thread.sleep(50); // allows more messages to come across
-                    consumer.stop();
+                    consumer.stop(200);
 
                     Message msg = consumer.nextMessage(1000);
                     while (msg != null) {
@@ -188,7 +264,7 @@ public class ConsumeContextTests extends JetStreamTestBase {
             publisher.stop();
             pubThread.join();
 
-            assertTrue(count.incrementAndGet() > 500);
+            assertTrue(count.get() > 500);
 
             // coverage
             consumerContext.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
@@ -196,14 +272,14 @@ public class ConsumeContextTests extends JetStreamTestBase {
         });
     }
 
-    // disabled until fixed
-//    @Test
+    @Test
     public void testConsumeWithHandler() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createDefaultTestStream(jsm);
             JetStream js = nc.jetStream();
+            jsPublish(js, SUBJECT, 2500);
 
             // Pre define a consumer
             ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(NAME).build();
@@ -214,61 +290,49 @@ public class ConsumeContextTests extends JetStreamTestBase {
 
             int stopCount = 500;
 
-            AtomicInteger count = new AtomicInteger();
-
-            // create the consumer then use it
-            MessageHandler handler = new MessageHandler() {
-                @Override
-                public void onMessage(Message msg) throws InterruptedException {
-                    msg.ack();
-                    count.incrementAndGet();
+            CountDownLatch latch = new CountDownLatch(1);
+            AtomicInteger atomicCount = new AtomicInteger();
+            MessageHandler handler = msg -> {
+                msg.ack();
+                if (atomicCount.incrementAndGet() == stopCount) {
+                    latch.countDown();
                 }
             };
 
-            ManualConsumer consumer = consumerContext.consume();
-            Thread consumeThread = new Thread(() -> {
-                try {
-                    while (count.get() < stopCount) {
-                        Message msg = consumer.nextMessage(1000);
-                        if (msg != null) {
-                        }
-                    }
-
-                    Thread.sleep(50); // allows more messages to come across
-                    consumer.stop();
-
-                    Message msg = consumer.nextMessage(1000);
-                    while (msg != null) {
-                        msg.ack();
-                        count.incrementAndGet();
-                        msg = consumer.nextMessage(1000);
-                    }
-                }
-                catch (Exception e) {
-                    fail(e);
-                }
-            });
-            consumeThread.start();
-
-            Publisher publisher = new Publisher(js, SUBJECT, 25);
-            Thread pubThread = new Thread(publisher);
-            pubThread.start();
-
-            consumeThread.join();
-            publisher.stop();
-            pubThread.join();
-
-            assertTrue(count.incrementAndGet() > 500);
-
-            // coverage
-            consumerContext.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
-            assertThrows(IllegalArgumentException.class, () -> consumerContext.consume((ConsumeOptions)null));
-
+            SimpleConsumer consumer = consumerContext.consume(handler);
+            latch.await();
+            consumer.stop(200);
+            assertTrue(atomicCount.get() > 500);
         });
     }
 
     @Test
-    public void testUnsubscribeCoverage() throws Exception {
+    public void testNext() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            createDefaultTestStream(jsm);
+            JetStream js = nc.jetStream();
+            jsPublish(js, SUBJECT, 4);
+
+            // Pre define a consumer
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(NAME).build();
+            jsm.addOrUpdateConsumer(STREAM, cc);
+
+            // Consumer[Context]
+            ConsumerContext consumerContext = js.consumerContext(STREAM, NAME);
+
+            assertThrows(IllegalArgumentException.class, () -> consumerContext.next(1));
+            assertNotNull(consumerContext.next(1000));
+            assertNotNull(consumerContext.next(Duration.ofMillis(1000)));
+            assertNotNull(consumerContext.next(null));
+            assertNotNull(consumerContext.next());
+            assertNull(consumerContext.next(1000));
+        });
+    }
+
+    @Test
+    public void testCoverage() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
@@ -281,52 +345,35 @@ public class ConsumeContextTests extends JetStreamTestBase {
             jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder().durable(name(3)).build());
             jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder().durable(name(4)).build());
 
+            // Stream[Context]
+            StreamContext sctx1 = nc.streamContext(STREAM);
+            nc.streamContext(STREAM, JetStreamOptions.DEFAULT_JS_OPTIONS);
+            js.streamContext(STREAM);
+
             // Consumer[Context]
-            ConsumerContext ctx1 = js.consumerContext(STREAM, name(1));
-            ConsumerContext ctx2 = js.consumerContext(STREAM, name(2));
-            ConsumerContext ctx3 = js.consumerContext(STREAM, name(3));
-            ConsumerContext ctx4 = js.consumerContext(STREAM, name(4));
+            ConsumerContext cctx1 = nc.consumerContext(STREAM, name(1));
+            ConsumerContext cctx2 = nc.consumerContext(STREAM, name(2), JetStreamOptions.DEFAULT_JS_OPTIONS);
+            ConsumerContext cctx3 = js.consumerContext(STREAM, name(3));
+            ConsumerContext cctx4 = sctx1.consumerContext(name(4));
+            ConsumerContext cctx5 = sctx1.addConsumer(ConsumerConfiguration.builder().durable(name(5)).build());
+            ConsumerContext cctx6 = sctx1.addConsumer(ConsumerConfiguration.builder().durable(name(6)).build());
 
-            assertEquals(name(1), ctx1.getConsumerName());
-            assertEquals(name(2), ctx2.getConsumerName());
-            assertEquals(name(3), ctx3.getConsumerName());
-            assertEquals(name(4), ctx4.getConsumerName());
-
-            ConsumerInfo ci1 = ctx1.getConsumerInfo();
-            ConsumerInfo ci2 = ctx2.getConsumerInfo();
-            ConsumerInfo ci3 = ctx3.getConsumerInfo();
-            ConsumerInfo ci4 = ctx4.getConsumerInfo();
-
-            assertEquals(name(1), ci1.getName());
-            assertEquals(name(2), ci2.getName());
-            assertEquals(name(3), ci3.getName());
-            assertEquals(name(4), ci4.getName());
-
-            ManualConsumer con1 = ctx1.consume();
-            ManualConsumer con2 = ctx2.consume();
-            SimpleConsumer con3 = ctx3.consume(m -> {});
-            SimpleConsumer con4 = ctx4.consume(m -> {});
-
-            ci1 = con1.getConsumerInfo();
-            ci2 = con2.getConsumerInfo();
-            ci3 = con3.getConsumerInfo();
-            ci4 = con4.getConsumerInfo();
-
-            assertEquals(name(1), ci1.getName());
-            assertEquals(name(2), ci2.getName());
-            assertEquals(name(3), ci3.getName());
-            assertEquals(name(4), ci4.getName());
-
-            CompletableFuture<Boolean> cf1 = con1.stop();
-            CompletableFuture<Boolean> cf2 = con2.stop();
-            CompletableFuture<Boolean> cf3 = con3.stop();
-            CompletableFuture<Boolean> cf4 = con4.stop();
-
-            assertTrue(cf1.get(1, TimeUnit.SECONDS));
-            assertTrue(cf2.get(1, TimeUnit.SECONDS));
-            assertTrue(cf3.get(1, TimeUnit.SECONDS));
-            assertTrue(cf4.get(1, TimeUnit.SECONDS));
+            closeConsumer(cctx1.consume(), name(1), true);
+            closeConsumer(cctx2.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS), name(2), true);
+            closeConsumer(cctx3.consume(m -> {}), name(3), true);
+            closeConsumer(cctx4.consume(m -> {}, ConsumeOptions.DEFAULT_CONSUME_OPTIONS), name(4), true);
+            closeConsumer(cctx5.fetchMessages(1), name(5), false);
+            closeConsumer(cctx6.fetchBytes(1000), name(6), false);
         });
+    }
+
+    private void closeConsumer(SimpleConsumer con, String name, boolean doStop) throws Exception {
+        ConsumerInfo ci = con.getConsumerInfo();
+        assertEquals(name, ci.getName());
+        if (doStop) {
+            assertTrue(con.stop(100).get(100, TimeUnit.MILLISECONDS));
+        }
+        con.close();
     }
 
     @Test

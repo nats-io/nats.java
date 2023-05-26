@@ -20,7 +20,7 @@ import io.nats.client.PullRequestOptions;
 
 import java.io.IOException;
 
-class NatsSimpleConsumer extends NatsSimpleConsumerBase {
+class NatsSimpleConsumer extends NatsSimpleConsumerBase implements TrackPendingListener {
     protected final PullRequestOptions rePullPro;
     protected final int thresholdMessages;
     protected final int thresholdBytes;
@@ -28,15 +28,7 @@ class NatsSimpleConsumer extends NatsSimpleConsumerBase {
 
     NatsSimpleConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, final MessageHandler messageHandler, ConsumeOptions opts) throws IOException, JetStreamApiException {
         this.subscriptionMaker = subscriptionMaker;
-        if (messageHandler == null) {
-            initSub(subscriptionMaker.makeSubscription(null));
-        }
-        else {
-            initSub(subscriptionMaker.makeSubscription(msg -> {
-                checkForRePull();
-                messageHandler.onMessage(msg);
-            }));
-        }
+        initSub(subscriptionMaker.makeSubscription(messageHandler));
 
         int bm = opts.getBatchSize();
         int bb = opts.getBatchBytes();
@@ -57,15 +49,16 @@ class NatsSimpleConsumer extends NatsSimpleConsumerBase {
                 .expiresIn(opts.getExpiresIn())
                 .idleHeartbeat(opts.getIdleHeartbeat())
                 .build(),
-            false);
+            false, this);
     }
 
-    protected void checkForRePull() {
+    @Override
+    public void track(int pendingMessages, long pendingBytes, boolean trackingBytes) {
         if (drainFuture == null &&
             (pmm.pendingMessages <= thresholdMessages
                 || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
         {
-            sub._pull(rePullPro, false);
+            sub._pull(rePullPro, false, this);
         }
     }
 }

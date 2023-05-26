@@ -45,7 +45,7 @@ public class ConsumeWithHandler {
 
             // publishing so there are lots of messages
             System.out.println("Publishing...");
-            publish(js, SUBJECT, MESSAGE_TEXT, 10_000);
+            publish(js, SUBJECT, MESSAGE_TEXT, 2500);
 
             // get stream context, create consumer and get the consumer context
             StreamContext streamContext;
@@ -53,7 +53,7 @@ public class ConsumeWithHandler {
             try {
                 streamContext = nc.streamContext(STREAM);
                 streamContext.addConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
-                consumerContext = streamContext.getConsumerContext(CONSUMER_NAME);
+                consumerContext = streamContext.consumerContext(CONSUMER_NAME);
             }
             catch (JetStreamApiException | IOException e) {
                 // JetStreamApiException:

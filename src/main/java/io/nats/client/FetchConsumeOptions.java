@@ -74,13 +74,13 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
          * The maximum bytes to consume for Fetch. When set (a value greater than zero,)
          * it is used in conjunction with max messages, meaning whichever limit is reached
          * first is respected.
-         * @param bytes the maximum bytes
+         * @param maxBytes the maximum bytes
          * @param maxMessages the maximum number of messages. Must be greater than 0
          *                    or will default to {@value BaseConsumeOptions#DEFAULT_MESSAGE_COUNT_WHEN_BYTES}
          * @return the builder
          */
-        public Builder maxBytes(int bytes, int maxMessages) {
-            return super.messagesAndBytes(maxMessages, bytes);
+        public Builder maxBytes(int maxBytes, int maxMessages) {
+            return super.messagesAndBytes(maxMessages, maxBytes);
         }
 
         /**

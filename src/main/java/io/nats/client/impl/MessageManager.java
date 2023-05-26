@@ -76,8 +76,8 @@ abstract class MessageManager {
         shutdownHeartbeatTimer();
     }
 
-    protected void startPullRequest(PullRequestOptions pullRequestOptions, boolean raiseStatusWarnings) {
-        // does nothing - only implemented for pulls, but in base class since instance is always referenced as MessageManager, not subclass
+    protected void startPullRequest(PullRequestOptions pullRequestOptions, boolean raiseStatusWarnings, TrackPendingListener trackPendingListener) {
+        // does nothing - only implemented for pulls, but in base class since instance is referenced as MessageManager, not subclass
     }
 
     protected void messageReceived() {

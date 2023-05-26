@@ -81,7 +81,7 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException;
+    ConsumerContext consumerContext(String consumerName) throws IOException, JetStreamApiException;
 
     /**
      * Management function to creates a consumer on this stream.

@@ -30,6 +30,7 @@ class PullMessageManager extends MessageManager {
     protected long pendingBytes;
     protected boolean trackingBytes;
     protected boolean raiseStatusWarnings;
+    protected TrackPendingListener trackPendingListener;
 
     protected PullMessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
         super(conn, so, syncMode);
@@ -45,9 +46,10 @@ class PullMessageManager extends MessageManager {
     }
 
     @Override
-    protected void startPullRequest(PullRequestOptions pro, boolean raiseStatusWarnings) {
+    protected void startPullRequest(PullRequestOptions pro, boolean raiseStatusWarnings, TrackPendingListener trackPendingListener) {
         synchronized (stateChangeLock) {
             this.raiseStatusWarnings = raiseStatusWarnings;
+            this.trackPendingListener = trackPendingListener;
             pendingMessages += pro.getBatchSize();
             pendingBytes += pro.getMaxBytes();
             trackingBytes = (pendingBytes > 0);
@@ -76,6 +78,9 @@ class PullMessageManager extends MessageManager {
                 if (hb) {
                     shutdownHeartbeatTimer();
                 }
+            }
+            if (trackPendingListener != null) {
+                trackPendingListener.track(pendingMessages, pendingBytes, trackingBytes);
             }
         }
     }

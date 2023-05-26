@@ -64,4 +64,18 @@ class NatsSimpleConsumerBase implements SimpleConsumer {
             return drainFuture;
         }
     }
+
+    @Override
+    public void close() throws Exception {
+        synchronized (subLock) {
+            if (drainFuture == null && sub.isActive()) {
+                if (sub.getNatsDispatcher() != null) {
+                    sub.getDispatcher().unsubscribe(sub);
+                }
+                else {
+                    sub.unsubscribe();
+                }
+            }
+        }
+    }
 }

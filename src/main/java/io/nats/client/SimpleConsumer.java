@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture;
  * a subscription for a simplified consumer.
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
-public interface SimpleConsumer {
+public interface SimpleConsumer extends AutoCloseable {
     /**
      * Gets information about the consumer behind this subscription.
      * @return consumer information

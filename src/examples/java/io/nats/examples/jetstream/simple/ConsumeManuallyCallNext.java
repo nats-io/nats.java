@@ -49,7 +49,7 @@ public class ConsumeManuallyCallNext {
             try {
                 streamContext = nc.streamContext(STREAM);
                 streamContext.addConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
-                consumerContext = streamContext.getConsumerContext(CONSUMER_NAME);
+                consumerContext = streamContext.consumerContext(CONSUMER_NAME);
                 consumer = consumerContext.consume();
             }
             catch (JetStreamApiException | IOException e) {
