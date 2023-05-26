@@ -21,9 +21,9 @@ import java.util.Map;
 import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.DESCRIPTION;
-import static io.nats.client.support.ApiConstants.SUBJECTS;
-import static io.nats.client.support.JsonValueUtils.readString;
-import static io.nats.client.support.JsonValueUtils.readStringList;
+import static io.nats.client.support.ApiConstants.ENDPOINTS;
+import static io.nats.client.support.JsonUtils.listEquals;
+import static io.nats.client.support.JsonValueUtils.*;
 
 /**
  * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
@@ -32,12 +32,12 @@ public class InfoResponse extends ServiceResponse {
     public static final String TYPE = "io.nats.micro.v1.info_response";
 
     private final String description;
-    private final List<String> subjects;
+    private final List<Endpoint> endpoints;
 
-    public InfoResponse(String id, String name, String version, Map<String, String> metadata, String description, List<String> subjects) {
+    public InfoResponse(String id, String name, String version, Map<String, String> metadata, String description, List<Endpoint> endpoints) {
         super(TYPE, id, name, version, metadata);
         this.description = description;
-        this.subjects = subjects;
+        this.endpoints = endpoints;
     }
 
     public InfoResponse(byte[] jsonBytes) {
@@ -47,13 +47,14 @@ public class InfoResponse extends ServiceResponse {
     private InfoResponse(JsonValue jv) {
         super(TYPE, jv);
         description = readString(jv, DESCRIPTION);
-        subjects = readStringList(jv, SUBJECTS);
+        endpoints = read(jv, ENDPOINTS, v -> listOf(v, Endpoint::new));
+
     }
 
     @Override
     protected void subToJson(StringBuilder sb) {
         JsonUtils.addField(sb, DESCRIPTION, description);
-        JsonUtils.addStrings(sb, SUBJECTS, subjects);
+        JsonUtils.addJsons(sb, ENDPOINTS, endpoints);
     }
 
     /**
@@ -65,11 +66,11 @@ public class InfoResponse extends ServiceResponse {
     }
 
     /**
-     * Subjects that can be invoked
-     * @return the subjects
+     * List of endpoints
+     * @return the endpoints
      */
-    public List<String> getSubjects() {
-        return subjects;
+    public List<Endpoint> getEndpoints() {
+        return endpoints;
     }
 
     @Override
@@ -81,14 +82,14 @@ public class InfoResponse extends ServiceResponse {
         InfoResponse that = (InfoResponse) o;
 
         if (!Objects.equals(description, that.description)) return false;
-        return Objects.equals(subjects, that.subjects);
+        return listEquals(endpoints, that.endpoints);
     }
 
     @Override
     public int hashCode() {
         int result = super.hashCode();
         result = 31 * result + (description != null ? description.hashCode() : 0);
-        result = 31 * result + (subjects != null ? subjects.hashCode() : 0);
+        result = 31 * result + (endpoints != null ? endpoints.hashCode() : 0);
         return result;
     }
 }

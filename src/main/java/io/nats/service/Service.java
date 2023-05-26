@@ -64,6 +64,7 @@ public class Service {
         // ! also while we are here, we need to collect the endpoints for the SchemaResponse
         Dispatcher dTemp = null;
         List<String> infoSubjects = new ArrayList<>();
+        List<Endpoint> infoEndpoints = new ArrayList<>();
         serviceContexts = new HashMap<>();
         for (ServiceEndpoint se : b.serviceEndpoints.values()) {
             if (se.getDispatcher() == null) {
@@ -76,6 +77,7 @@ public class Service {
                 serviceContexts.put(se.getName(), new EndpointContext(conn, null, true, se));
             }
             infoSubjects.add(se.getSubject());
+            infoEndpoints.add(se.getEndpoint());
         }
         if (dTemp != null) {
             dInternals.add(dTemp);
@@ -83,7 +85,7 @@ public class Service {
 
         // build static responses
         pingResponse = new PingResponse(id, b.name, b.version, b.metadata);
-        infoResponse = new InfoResponse(id, b.name, b.version, b.metadata, b.description, infoSubjects);
+        infoResponse = new InfoResponse(id, b.name, b.version, b.metadata, b.description, infoEndpoints);
 
         if (b.pingDispatcher == null || b.infoDispatcher == null || b.schemaDispatcher == null || b.statsDispatcher == null) {
             dTemp = conn.createDispatcher();
