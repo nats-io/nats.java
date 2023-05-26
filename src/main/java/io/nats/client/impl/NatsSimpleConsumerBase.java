@@ -14,17 +14,20 @@
 package io.nats.client.impl;
 
 import io.nats.client.JetStreamApiException;
+import io.nats.client.PullRequestOptions;
 import io.nats.client.SimpleConsumer;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 
 class NatsSimpleConsumerBase implements SimpleConsumer {
     protected NatsJetStreamPullSubscription sub;
     protected PullMessageManager pmm;
     protected final Object subLock;
-    protected boolean active;
+    protected CompletableFuture<Boolean> drainFuture;
+    protected Duration drainTimeout;
 
     NatsSimpleConsumerBase() {
         subLock = new Object();
@@ -34,7 +37,11 @@ class NatsSimpleConsumerBase implements SimpleConsumer {
     protected void initSub(NatsJetStreamPullSubscription sub) {
         this.sub = sub;
         pmm = (PullMessageManager)sub.manager;
-        active = true;
+    }
+
+    protected void nscBasePull(PullRequestOptions pro) {
+        sub._pull(pro, false);
+        drainTimeout = pro.getExpiresIn().plusSeconds(1);
     }
 
     /**
@@ -51,42 +58,17 @@ class NatsSimpleConsumerBase implements SimpleConsumer {
      * {@inheritDoc}
      */
     @Override
-    public boolean isActive() {
-        return active;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean hasPending() {
-        return pmm.pendingMessages > 0 || (pmm.trackingBytes && pmm.pendingBytes > 0);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void stop() throws InterruptedException {
+    public CompletableFuture<Boolean> stop() throws InterruptedException {
         synchronized (subLock) {
-            active = false;
-            // drain here but not really worried about whether it finishes properly
-            // so intentionally not waiting using the future that drain(...) gives
-            if (sub.getNatsDispatcher() != null) {
-                sub.getDispatcher().drain(Duration.ofMillis(30000));
+            if (drainFuture == null) {
+                if (sub.getNatsDispatcher() != null) {
+                    drainFuture = sub.getDispatcher().drain(drainTimeout);
+                }
+                else {
+                    drainFuture = sub.drain(drainTimeout);
+                }
             }
-            else {
-                sub.drain(Duration.ofMillis(30000));
-            }
-        }
-    }
-
-    protected void stopInternal() {
-        try {
-            stop();
-        }
-        catch (InterruptedException ignore) {
-            // exception on exception nothing really to do
+            return drainFuture;
         }
     }
 }

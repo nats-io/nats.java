@@ -40,7 +40,7 @@ public class Utils {
         }
     }
 
-    public static void setupPublish(JetStream js, String subject, String messageText, int count) {
+    public static void publish(JetStream js, String subject, String messageText, int count) {
         try {
             for (int x = 1; x <= count; x++) {
                 js.publish(subject, (messageText + "-" + x).getBytes());

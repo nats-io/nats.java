@@ -19,47 +19,39 @@ import java.io.IOException;
 
 class NatsFetchConsumer extends NatsSimpleConsumerBase implements FetchConsumer {
     private final long maxWaitNanos;
-    private long start;
+    private long startNanos;
 
     public NatsFetchConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException {
         initSub(subscriptionMaker.makeSubscription(null));
         maxWaitNanos = fetchConsumeOptions.getExpiresIn() * 1_000_000;
-        sub._pull(PullRequestOptions.builder(fetchConsumeOptions.getMaxMessages())
+        PullRequestOptions pro = PullRequestOptions.builder(fetchConsumeOptions.getMaxMessages())
             .maxBytes(fetchConsumeOptions.getMaxBytes())
             .expiresIn(fetchConsumeOptions.getExpiresIn())
             .idleHeartbeat(fetchConsumeOptions.getIdleHeartbeat())
-            .build(),
-            false);
-        start = -1;
+            .build();
+        nscBasePull(pro);
+        startNanos = -1;
     }
 
     @Override
     public Message nextMessage() throws InterruptedException, JetStreamStatusCheckedException {
         try {
-            if (start == -1) {
-                start = System.nanoTime();
+            if (startNanos == -1) {
+                startNanos = System.nanoTime();
             }
 
-            if (!hasPending()) {
-                // nothing pending means the client has already received all it is going to
-                // null for nextMessage means don't wait, the queue either has something already
-                // or there aren't any messages left
-                return sub._nextUnmanagedNullOrLteZero(null); // null means don't wait
-            }
+            long timeLeftMillis = (maxWaitNanos - (System.nanoTime() - startNanos)) / 1_000_000;
 
-            long timeLeftMillis = (maxWaitNanos - (System.nanoTime() - start)) / 1_000_000;
-            if (timeLeftMillis < 1) {
+            // if the manager thinks it has received everything in the pull, it means
+            // that all the messages are already in the internal queue and there is
+            // no waiting necessary
+            if (timeLeftMillis < 1 | pmm.pendingMessages < 1 || (pmm.trackingBytes && pmm.pendingBytes < 1)) {
                 return sub._nextUnmanagedNullOrLteZero(null); // null means don't wait
             }
 
             return sub.nextMessage(timeLeftMillis);
         }
-        catch (InterruptedException r) {
-            stopInternal();
-            throw r;
-        }
         catch (JetStreamStatusException e) {
-            stopInternal();
             throw new JetStreamStatusCheckedException(e);
         }
     }

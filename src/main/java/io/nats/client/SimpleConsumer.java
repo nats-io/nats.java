@@ -16,6 +16,7 @@ package io.nats.client;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The Simple Consumer interface is the core interface replacing
@@ -37,20 +38,5 @@ public interface SimpleConsumer {
      * Messages do not immediately stop
      * @throws InterruptedException if one is thrown, in order to propagate it up
      */
-    void stop() throws InterruptedException;
-
-    /**
-     * Whether the Simple Consumer is active. Returns true until stop has been called.
-     * @return the active state
-     */
-    boolean isActive();
-
-    /**
-     * Whether the Simple Consumer has pending messages to be sent from the server.
-     * This does not indicate that messages are coming, just that the server has not fulfilled
-     * the current request. Mostly helpful after stop has been called to check if any more messages
-     * are coming
-     * @return the pending state
-     */
-    boolean hasPending();
+    CompletableFuture<Boolean> stop() throws InterruptedException;
 }

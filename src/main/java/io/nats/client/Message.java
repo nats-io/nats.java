@@ -150,4 +150,9 @@ public interface Message {
 	 */
 	boolean isJetStream();
 
+	/**
+	 * Returns the number of bytes used for determining message consumption.
+	 * @return the consumption byte count or -1 if the message implementation does not support this method
+	 */
+	long consumeByteCount();
 }

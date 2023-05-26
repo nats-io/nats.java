@@ -18,6 +18,8 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.BaseConsumeOptions.*;
@@ -78,7 +80,7 @@ public class ConsumeContextTests extends JetStreamTestBase {
         jsm.addOrUpdateConsumer(STREAM, cc);
 
         // Consumer[Context]
-        ConsumerContext consumerContext = js.getConsumerContext(STREAM, name);
+        ConsumerContext consumerContext = js.consumerContext(STREAM, name);
 
         // Custom consume options
         FetchConsumeOptions.Builder builder = FetchConsumeOptions.builder().expiresIn(2000);
@@ -111,6 +113,7 @@ public class ConsumeContextTests extends JetStreamTestBase {
             case "1B":
             case "2B":
                 assertEquals(testAmount, rcvd);
+                assertTrue(elapsed < 100);
                 break;
             case "1C":
             case "1D":
@@ -120,6 +123,7 @@ public class ConsumeContextTests extends JetStreamTestBase {
                 break;
             case "2A":
                 assertTrue(rcvd < testAmount);
+                assertTrue(elapsed < 100);
                 break;
         }
     }
@@ -143,7 +147,7 @@ public class ConsumeContextTests extends JetStreamTestBase {
             jsm.addOrUpdateConsumer(STREAM, cc);
 
             // Consumer[Context]
-            ConsumerContext consumerContext = js.getConsumerContext(STREAM, DURABLE);
+            ConsumerContext consumerContext = js.consumerContext(STREAM, DURABLE);
 
             int stopCount = 500;
 
@@ -206,7 +210,7 @@ public class ConsumeContextTests extends JetStreamTestBase {
             jsm.addOrUpdateConsumer(STREAM, cc);
 
             // Consumer[Context]
-            ConsumerContext consumerContext = js.getConsumerContext(STREAM, NAME);
+            ConsumerContext consumerContext = js.consumerContext(STREAM, NAME);
 
             int stopCount = 500;
 
@@ -278,10 +282,10 @@ public class ConsumeContextTests extends JetStreamTestBase {
             jsm.addOrUpdateConsumer(STREAM, ConsumerConfiguration.builder().durable(name(4)).build());
 
             // Consumer[Context]
-            ConsumerContext ctx1 = js.getConsumerContext(STREAM, name(1));
-            ConsumerContext ctx2 = js.getConsumerContext(STREAM, name(2));
-            ConsumerContext ctx3 = js.getConsumerContext(STREAM, name(3));
-            ConsumerContext ctx4 = js.getConsumerContext(STREAM, name(4));
+            ConsumerContext ctx1 = js.consumerContext(STREAM, name(1));
+            ConsumerContext ctx2 = js.consumerContext(STREAM, name(2));
+            ConsumerContext ctx3 = js.consumerContext(STREAM, name(3));
+            ConsumerContext ctx4 = js.consumerContext(STREAM, name(4));
 
             assertEquals(name(1), ctx1.getConsumerName());
             assertEquals(name(2), ctx2.getConsumerName());
@@ -313,20 +317,15 @@ public class ConsumeContextTests extends JetStreamTestBase {
             assertEquals(name(3), ci3.getName());
             assertEquals(name(4), ci4.getName());
 
-            assertTrue(con1.isActive());
-            assertTrue(con2.isActive());
-            assertTrue(con3.isActive());
-            assertTrue(con4.isActive());
+            CompletableFuture<Boolean> cf1 = con1.stop();
+            CompletableFuture<Boolean> cf2 = con2.stop();
+            CompletableFuture<Boolean> cf3 = con3.stop();
+            CompletableFuture<Boolean> cf4 = con4.stop();
 
-            con1.stop();
-            con2.stop();
-            con3.stop();
-            con4.stop();
-
-            assertFalse(con1.isActive());
-            assertFalse(con2.isActive());
-            assertFalse(con3.isActive());
-            assertFalse(con4.isActive());
+            assertTrue(cf1.get(1, TimeUnit.SECONDS));
+            assertTrue(cf2.get(1, TimeUnit.SECONDS));
+            assertTrue(cf3.get(1, TimeUnit.SECONDS));
+            assertTrue(cf4.get(1, TimeUnit.SECONDS));
         });
     }
 

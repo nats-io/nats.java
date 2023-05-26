@@ -41,12 +41,6 @@ class NatsSimpleConsumer extends NatsSimpleConsumerBase {
         int bm = opts.getBatchSize();
         int bb = opts.getBatchBytes();
 
-        PullRequestOptions firstPro = PullRequestOptions.builder(bm)
-            .maxBytes(bb)
-            .expiresIn(opts.getExpiresIn())
-            .idleHeartbeat(opts.getIdleHeartbeat())
-            .build();
-
         int repullMessages = Math.max(1, bm * opts.getThresholdPercent() / 100);
         int repullBytes = bb == 0 ? 0 : Math.max(1, bb * opts.getThresholdPercent() / 100);
         rePullPro = PullRequestOptions.builder(repullMessages)
@@ -57,15 +51,20 @@ class NatsSimpleConsumer extends NatsSimpleConsumerBase {
 
         thresholdMessages = bm - repullMessages;
         thresholdBytes = bb == 0 ? Integer.MIN_VALUE : bb - repullBytes;
-        sub.pull(firstPro);
+
+        nscBasePull(PullRequestOptions.builder(bm)
+            .maxBytes(bb)
+            .expiresIn(opts.getExpiresIn())
+            .idleHeartbeat(opts.getIdleHeartbeat())
+            .build());
     }
 
     protected void checkForRePull() {
-        if (active &&
+        if (drainFuture == null &&
             (pmm.pendingMessages <= thresholdMessages
                 || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
         {
-            sub.pull(rePullPro);
+            nscBasePull(rePullPro);
         }
     }
 }

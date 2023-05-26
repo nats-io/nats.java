@@ -26,7 +26,7 @@ import static io.nats.client.support.Status.*;
 
 class PullMessageManager extends MessageManager {
 
-    protected long pendingMessages;
+    protected int pendingMessages;
     protected long pendingBytes;
     protected boolean trackingBytes;
     protected boolean raiseStatusWarnings;
@@ -88,7 +88,7 @@ class PullMessageManager extends MessageManager {
 
         // normal js message
         if (status == null) {
-            trackPending(1, bytesInMessage(msg));
+            trackPending(1, msg.consumeByteCount());
             return true;
         }
 
@@ -156,13 +156,5 @@ class PullMessageManager extends MessageManager {
             throw new JetStreamStatusException(sub, status);
         }
         return ERROR;
-    }
-
-    private long bytesInMessage(Message msg) {
-        NatsMessage nm = (NatsMessage) msg;
-        return nm.subject.length()
-            + nm.headerLen
-            + nm.dataLen
-            + (nm.replyTo == null ? 0 : nm.replyTo.length());
     }
 }

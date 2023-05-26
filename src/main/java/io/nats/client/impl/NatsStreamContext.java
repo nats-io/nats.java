@@ -77,15 +77,15 @@ class NatsStreamContext implements StreamContext {
      */
     @Override
     public ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException {
-        return new NatsConsumerContext(this, consumerName);
+        return new NatsConsumerContext(this, jsm.getConsumerInfo(streamName, consumerName));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public ConsumerInfo addConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException {
-        return jsm.addOrUpdateConsumer(streamName, config);
+    public ConsumerContext addConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException {
+        return new NatsConsumerContext(this, jsm.addOrUpdateConsumer(streamName, config));
     }
 
     /**

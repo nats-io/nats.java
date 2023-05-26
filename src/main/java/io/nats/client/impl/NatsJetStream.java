@@ -631,7 +631,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      * {@inheritDoc}
      */
     @Override
-    public StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException {
+    public StreamContext streamContext(String streamName) throws IOException, JetStreamApiException {
         Validator.required(streamName, "Stream Name");
         return getNatsStreamContext(streamName);
     }
@@ -644,7 +644,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      * {@inheritDoc}
      */
     @Override
-    public ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException {
+    public ConsumerContext consumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException {
         Validator.required(streamName, "Stream Name");
         Validator.required(consumerName, "Consumer Name");
         return getNatsStreamContext(streamName).getConsumerContext(consumerName);

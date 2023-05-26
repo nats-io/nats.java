@@ -24,11 +24,24 @@ public class NatsManualConsumer extends NatsSimpleConsumer implements ManualCons
         super(subscriptionMaker, null, opts);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Message nextMessage(Duration timeout) throws InterruptedException, JetStreamStatusCheckedException {
-        return null;
+        if (timeout == null) {
+            Message msg = sub.nextMessage(null);
+            if (msg != null) {
+                checkForRePull();
+            }
+            return msg;
+        }
+        return nextMessage(timeout.toMillis());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Message nextMessage(long timeoutMillis) throws InterruptedException, JetStreamStatusCheckedException {
         try {
@@ -38,12 +51,7 @@ public class NatsManualConsumer extends NatsSimpleConsumer implements ManualCons
             }
             return msg;
         }
-        catch (InterruptedException r) {
-            stopInternal();
-            throw r;
-        }
         catch (JetStreamStatusException e) {
-            stopInternal();
             throw new JetStreamStatusCheckedException(e);
         }
     }

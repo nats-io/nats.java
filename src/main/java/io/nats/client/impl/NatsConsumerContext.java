@@ -14,7 +14,6 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.support.Validator;
 
@@ -32,15 +31,12 @@ public class NatsConsumerContext implements ConsumerContext {
 
     private final NatsStreamContext streamContext;
     private final NatsJetStream js;
-    private final ConsumerConfiguration userCc;
     private final String consumerName;
 
-    NatsConsumerContext(NatsStreamContext streamContext, String consumerName) throws IOException, JetStreamApiException {
+    NatsConsumerContext(NatsStreamContext streamContext, ConsumerInfo ci) throws IOException {
         this.streamContext = streamContext;
         js = new NatsJetStream(streamContext.jsm.conn, streamContext.jsm.jso);
-        this.consumerName = consumerName;
-        userCc = null;
-        streamContext.jsm.getConsumerInfo(streamContext.streamName, this.consumerName);  // this is just verifying that the Consumer exists
+        this.consumerName = ci.getName();
     }
 
     /**

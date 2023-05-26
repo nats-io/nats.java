@@ -62,9 +62,9 @@ public class ThreeDifferentConsumers {
                 streamContext.addConsumer(ConsumerConfiguration.builder().durable(consumerName1).build());
                 streamContext.addConsumer(ConsumerConfiguration.builder().durable(consumerName2).build());
                 streamContext.addConsumer(ConsumerConfiguration.builder().durable(consumerName3).build());
-                ctx1 = js.getConsumerContext(STREAM, consumerName1);
-                ctx2 = js.getConsumerContext(STREAM, consumerName2);
-                ctx3 = js.getConsumerContext(STREAM, consumerName3);
+                ctx1 = js.consumerContext(STREAM, consumerName1);
+                ctx2 = js.consumerContext(STREAM, consumerName2);
+                ctx3 = js.consumerContext(STREAM, consumerName3);
             }
             catch (IOException e) {
                 return; // likely a connection problem

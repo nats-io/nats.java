@@ -17,11 +17,12 @@ import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.nats.examples.jetstream.simple.Utils.Publisher;
 import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
+import static io.nats.examples.jetstream.simple.Utils.publish;
 
 /**
  * This example will demonstrate simplified consume with a handler
@@ -33,8 +34,7 @@ public class ConsumeWithHandler {
     private static final String CONSUMER_NAME = "consume-handler-consumer";
     private static final String MESSAGE_TEXT = "consume-handler";
     private static final int STOP_COUNT = 500;
-    private static final int REPORT_EVERY = 50;
-    private static final int JITTER = 20;
+    private static final int REPORT_EVERY = 100;
 
     private static final String SERVER = "nats://localhost:4222";
 
@@ -43,6 +43,10 @@ public class ConsumeWithHandler {
         try (Connection nc = Nats.connect(options)) {
             JetStream js = nc.jetStream();
             createOrReplaceStream(nc.jetStreamManagement(), STREAM, SUBJECT);
+
+            // publishing so there are lots of messages
+            System.out.println("Publishing...");
+            publish(js, SUBJECT, MESSAGE_TEXT, 10_000);
 
             // get stream context, create consumer and get the consumer context
             StreamContext streamContext;
@@ -88,19 +92,13 @@ public class ConsumeWithHandler {
                 return;
             }
 
-            Publisher publisher = new Publisher(js, SUBJECT, MESSAGE_TEXT, JITTER);
-            Thread pubThread = new Thread(publisher);
-            pubThread.start();
-
             latch.await();
-            Thread.sleep(JITTER * 2); // allows more messages to come across
-            publisher.stopPublishing();
-            pubThread.join();
 
+            // once the consumer is stopped, the client will drain messages
             System.out.println("Stop the consumer...");
-            consumer.stop();
+            CompletableFuture<Boolean> stopFuture = consumer.stop();
+            stopFuture.wait(1000);
 
-            Thread.sleep(250); // let consumer get messages post drain
             report("Final", start, atomicCount.get());
         }
         catch (IOException | InterruptedException ioe) {

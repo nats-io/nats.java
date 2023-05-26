@@ -291,10 +291,8 @@ public interface JetStream {
      * </pre>
      *
      * where the sender creates a byte array immediately before calling publish.
-     *
      * See {@link #publish(String, byte[]) publish()} for more details on
      * publish during reconnect.
-     *
      * The future me be completed with an exception, either
      * an IOException covers various communication issues with the NATS server such as timeout or interruption
      * - or - a JetStreamApiException the request had an error related to the data
@@ -507,7 +505,7 @@ public interface JetStream {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException;
+    StreamContext streamContext(String streamName) throws IOException, JetStreamApiException;
 
     /**
      * Create a consumer context for a specific named stream and specific named consumer.
@@ -520,5 +518,5 @@ public interface JetStream {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException;
+    ConsumerContext consumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException;
 }

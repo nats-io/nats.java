@@ -91,7 +91,7 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    ConsumerInfo addConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException;
+    ConsumerContext addConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException;
 
     /**
      * Management function to deletes a consumer.

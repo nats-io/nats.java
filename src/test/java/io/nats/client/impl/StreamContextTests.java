@@ -30,18 +30,19 @@ public class StreamContextTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
-            assertThrows(JetStreamApiException.class, () -> js.getStreamContext(STREAM));
+            assertThrows(JetStreamApiException.class, () -> js.streamContext(STREAM));
 
             createDefaultTestStream(jsm);
 
-            StreamContext streamContext = js.getStreamContext(STREAM);
+            StreamContext streamContext = js.streamContext(STREAM);
             assertEquals(STREAM, streamContext.getStreamName());
 
             assertThrows(JetStreamApiException.class, () -> streamContext.getConsumerContext(DURABLE));
             assertThrows(JetStreamApiException.class, () -> streamContext.deleteConsumer(DURABLE));
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
-            ConsumerInfo ci = streamContext.addConsumer(cc);
+            ConsumerContext consumerContext = streamContext.addConsumer(cc);
+            ConsumerInfo ci = consumerContext.getConsumerInfo();
             assertEquals(STREAM, ci.getStreamName());
             assertEquals(DURABLE, ci.getName());
 
