@@ -67,7 +67,7 @@ public class BaseConsumeOptions {
         protected int messages = -1;
         protected long bytes = 0;
         protected int thresholdPercent = DEFAULT_THRESHOLD_PERCENT;
-        protected long expiresIn = MIN_EXPIRES_MILLS;
+        protected long expiresIn = DEFAULT_EXPIRES_IN_MILLIS;
 
         protected abstract B getThis();
 
@@ -92,7 +92,7 @@ public class BaseConsumeOptions {
          */
         public B expiresIn(long expiresInMillis) {
             if (expiresInMillis < 1) {
-                expiresIn = MIN_EXPIRES_MILLS;
+                expiresIn = DEFAULT_EXPIRES_IN_MILLIS;
             }
             else if (expiresInMillis < MIN_EXPIRES_MILLS) {
                 throw new IllegalArgumentException("Expires must be greater than or equal to " + MIN_EXPIRES_MILLS);
@@ -117,7 +117,7 @@ public class BaseConsumeOptions {
          * @return the builder
          */
         public B thresholdPercent(int thresholdPercent) {
-            this.thresholdPercent = thresholdPercent < 1 ? DEFAULT_THRESHOLD_PERCENT : Math.max(100, thresholdPercent);
+            this.thresholdPercent = thresholdPercent < 1 ? DEFAULT_THRESHOLD_PERCENT : Math.min(100, thresholdPercent);
             return getThis();
         }
 

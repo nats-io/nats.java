@@ -430,19 +430,33 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(1000, co.getBatchBytes());
         assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
 
-        co = ConsumeOptions.builder().batchBytes(1000).thresholdPercent(50).build();
-        assertEquals(DEFAULT_MESSAGE_COUNT_WHEN_BYTES, co.getBatchSize());
-        assertEquals(1000, co.getBatchBytes());
-        assertEquals(50, co.getThresholdPercent());
+        co = ConsumeOptions.builder().thresholdPercent(0).build();
+        assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
 
-        assertThrows(IllegalArgumentException.class,
-            () -> ConsumeOptions.builder().thresholdPercent(0).build());
-        assertThrows(IllegalArgumentException.class,
-            () -> ConsumeOptions.builder().thresholdPercent(-99).build());
-        assertThrows(IllegalArgumentException.class,
-            () -> ConsumeOptions.builder().thresholdPercent(101).build());
-        assertThrows(IllegalArgumentException.class,
-            () -> ConsumeOptions.builder().expiresIn(0).build());
+        co = ConsumeOptions.builder().thresholdPercent(-1).build();
+        assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
+
+        co = ConsumeOptions.builder().thresholdPercent(-999).build();
+        assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
+
+        co = ConsumeOptions.builder().thresholdPercent(99).build();
+        assertEquals(99, co.getThresholdPercent());
+
+        co = ConsumeOptions.builder().thresholdPercent(100).build();
+        assertEquals(100, co.getThresholdPercent());
+
+        co = ConsumeOptions.builder().thresholdPercent(101).build();
+        assertEquals(100, co.getThresholdPercent());
+
+        co = ConsumeOptions.builder().expiresIn(0).build();
+        assertEquals(DEFAULT_EXPIRES_IN_MILLIS, co.getExpiresIn());
+
+        co = ConsumeOptions.builder().expiresIn(-1).build();
+        assertEquals(DEFAULT_EXPIRES_IN_MILLIS, co.getExpiresIn());
+
+        co = ConsumeOptions.builder().expiresIn(-999).build();
+        assertEquals(DEFAULT_EXPIRES_IN_MILLIS, co.getExpiresIn());
+
         assertThrows(IllegalArgumentException.class,
             () -> ConsumeOptions.builder().expiresIn(MIN_EXPIRES_MILLS - 1).build());
     }
