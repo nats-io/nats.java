@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
-    AtomicLong pullId = new AtomicLong();
+    private final AtomicLong pullIdIncrementer;
 
     NatsJetStreamPullSubscription(String sid, String subject,
                                   NatsConnection connection, NatsDispatcher dispatcher,
@@ -33,6 +33,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                                   String stream, String consumer,
                                   MessageManager manager) {
         super(sid, subject, null, connection, dispatcher, js, stream, consumer, manager);
+        pullIdIncrementer = new AtomicLong();
     }
 
     @Override
@@ -58,8 +59,8 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
     protected String _pull(PullRequestOptions pullRequestOptions, boolean raiseStatusWarnings, TrackPendingListener trackPendingListener) {
         String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
-        manager.startPullRequest(pullRequestOptions, raiseStatusWarnings, trackPendingListener);
-        String pullId = getSubject().replace("*", Long.toString(this.pullId.incrementAndGet()));
+        String pullId = getSubject().replace("*", Long.toString(this.pullIdIncrementer.incrementAndGet()));
+        manager.startPullRequest(pullId, pullRequestOptions, raiseStatusWarnings, trackPendingListener);
         connection.publish(publishSubject, pullId, pullRequestOptions.serialize());
         connection.lenientFlushBuffer();
         return pullId;
@@ -139,7 +140,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
             long start = System.nanoTime();
 
             Duration expires = Duration.ofMillis(
-                maxWaitMillis > MIN_MILLIS ? maxWaitMillis - EXPIRE_ADJUSTMENT : maxWaitMillis);
+                maxWaitMillis > MIN_EXPIRE_MILLIS ? maxWaitMillis - EXPIRE_ADJUSTMENT : maxWaitMillis);
             String pullId = _pull(PullRequestOptions.builder(batchLeft).expiresIn(expires).build(), false, null);
 
             // timeout > 0 process as many messages we can in that time period
@@ -159,8 +160,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                         break;
                     case TERMINUS:
                     case ERROR:
-                        // reply match will be null on pushes, all status are "managed" anyway, so ignored in this loop
-                        // otherwise (pull) if there is a match, the status applies
+                        // if there is a match, the status applies
                         if (pullId.equals(msg.getSubject())) {
                             return messages;
                         }

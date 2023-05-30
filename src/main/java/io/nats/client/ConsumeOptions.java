@@ -25,17 +25,17 @@ public class ConsumeOptions extends BaseConsumeOptions {
     }
 
     /**
-     * The initial batch message size.
-     * @return the initial batch message size
+     * The initial batch size in messages.
+     * @return the initial batch size in messages
      */
     public int getBatchSize() {
         return messages;
     }
     /**
-     * The initial batch byte size.
-     * @return the initial batch byte size
+     * The initial batch size in bytes.
+     * @return the initial batch size in bytes
      */
-    public int getBatchBytes() {
+    public long getBatchBytes() {
         return bytes;
     }
 
@@ -49,27 +49,35 @@ public class ConsumeOptions extends BaseConsumeOptions {
         protected Builder getThis() { return this; }
 
         /**
-         * Set the initial batch size in messages.
-         * @param batchSize the batch size. Must be greater than 0
-         *                  or will default to {@value BaseConsumeOptions#DEFAULT_MESSAGE_COUNT_WHEN_BYTES}
+         * Set the initial batch size in messages and remove any previously set {@link #batchBytes(long)} constraint.
+         * <p>Less than 1 means default of {@value BaseConsumeOptions#DEFAULT_MESSAGE_COUNT} when bytes are not specified.
+         * When bytes are specified, the batch messages size is set to prioritize the batch byte amount.</p>
+         * @param batchSize the batch size in messages.
          * @return the builder
          */
         public Builder batchSize(int batchSize) {
-            return super.messagesAndBytes(batchSize, -1);
+            messages(batchSize);
+            return bytes(-1);
         }
 
         /**
-         * Set the initial batch size in bytes.
-         * @param batchBytes the batch bytes
+         * Set the initial batch size in bytes and remove any previously set batch message constraint.
+         * Less than 1 removes any previously set batch byte constraint.
+         * <p>When setting bytes to non-zero, the batch messages size is set to prioritize the batch byte size.</p>
+         * <p>Also, it is important to set the byte size greater than your largest message payload, plus some amount
+         * to account for overhead, otherwise the consume process will stall if there are no messages that fit the criteria.</p>
+         * @see Message#consumeByteCount()
+         * @param batchBytes the batch size in bytes.
          * @return the builder
          */
-        public Builder batchBytes(int batchBytes) {
-            return super.messagesAndBytes(-1, batchBytes);
+        public Builder batchBytes(long batchBytes) {
+            messages(-1);
+            return bytes(batchBytes);
         }
 
         /**
          * Build the ConsumeOptions.
-         * @return the built ConsumeOptions
+         * @return a ConsumeOptions instance
          */
         public ConsumeOptions build() {
             return new ConsumeOptions(this);

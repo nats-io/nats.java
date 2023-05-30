@@ -22,13 +22,13 @@ public class BaseConsumeOptions {
     public static final int DEFAULT_MESSAGE_COUNT = 500;
     public static final int DEFAULT_MESSAGE_COUNT_WHEN_BYTES = 1_000_000;
     public static final int DEFAULT_THRESHOLD_PERCENT = 25;
-    public static final long DEFAULT_EXPIRES_IN_MS = 30000;
+    public static final long DEFAULT_EXPIRES_IN_MILLIS = 30000;
     public static final long MIN_EXPIRES_MILLS = 1000;
     public static final long MAX_HEARTBEAT_MILLIS = 30000;
     public static final int MAX_IDLE_HEARTBEAT_PERCENT = 50;
 
     protected final int messages;
-    protected final int bytes;
+    protected final long bytes;
     protected final long expiresIn;
     protected final long idleHeartbeat;
     protected final int thresholdPercent;
@@ -43,26 +43,11 @@ public class BaseConsumeOptions {
             messages = b.messages == -1 ? DEFAULT_MESSAGE_COUNT : b.messages;
         }
 
-        if (b.thresholdPercent == -1) {
-            thresholdPercent = DEFAULT_THRESHOLD_PERCENT;
-        }
-        else if (b.thresholdPercent >= 1 && b.thresholdPercent <= 100) {
-            thresholdPercent = b.thresholdPercent;
-        }
-        else {
-            throw new IllegalArgumentException("Threshold percent must be between 1 and 100 inclusive.");
-        }
+        // validation handled in builder
+        thresholdPercent = b.thresholdPercent;
+        expiresIn = b.expiresIn;
 
-        if (b.expiresIn == -1) {
-            expiresIn = DEFAULT_EXPIRES_IN_MS;
-        }
-        else if (b.expiresIn >= MIN_EXPIRES_MILLS) {
-            expiresIn = b.expiresIn;
-        }
-        else {
-            throw new IllegalArgumentException("Expires must be greater than or equal to " + MIN_EXPIRES_MILLS);
-        }
-
+        // calculated
         idleHeartbeat = Math.min(MAX_HEARTBEAT_MILLIS, expiresIn * MAX_IDLE_HEARTBEAT_PERCENT / 100);
     }
 
@@ -80,9 +65,9 @@ public class BaseConsumeOptions {
 
     protected static abstract class Builder<B, CO> {
         protected int messages = -1;
-        protected int bytes = 0;
-        protected int thresholdPercent = -1;
-        protected long expiresIn = -1;
+        protected long bytes = 0;
+        protected int thresholdPercent = DEFAULT_THRESHOLD_PERCENT;
+        protected long expiresIn = MIN_EXPIRES_MILLS;
 
         protected abstract B getThis();
 
@@ -91,40 +76,48 @@ public class BaseConsumeOptions {
             return getThis();
         }
 
-        protected B bytes(int bytes) {
+        protected B bytes(long bytes) {
             this.bytes = bytes < 1 ? 0 : bytes;
             return getThis();
-        }
-
-        protected B messagesAndBytes(int messages, int bytes) {
-            messages(messages);
-            return bytes(bytes);
         }
 
         /**
          * In Fetch, sets the maximum amount of time to wait to reach the batch size or max byte.
          * In Consume, sets the maximum amount of time for an individual pull to be open
          * before issuing a replacement pull.
-         * @param expiresInMillis the millis
+         * <p>Zero or less will default to {@value BaseConsumeOptions#DEFAULT_EXPIRES_IN_MILLIS},
+         * otherwise, cannot be less than {@value BaseConsumeOptions#MIN_EXPIRES_MILLS}</p>
+         * @param expiresInMillis the expiration time in milliseconds
          * @return the builder
          */
         public B expiresIn(long expiresInMillis) {
-            this.expiresIn = expiresInMillis;
+            if (expiresInMillis < 1) {
+                expiresIn = MIN_EXPIRES_MILLS;
+            }
+            else if (expiresInMillis < MIN_EXPIRES_MILLS) {
+                throw new IllegalArgumentException("Expires must be greater than or equal to " + MIN_EXPIRES_MILLS);
+            }
+            else {
+                expiresIn = expiresInMillis;
+            }
             return getThis();
         }
 
         /**
          * Set the threshold percent of max bytes (if max bytes is specified) or messages
          * that will trigger issuing pull requests to keep messages flowing.
-         * Only applies to endless consumes
-         * For instance if the batch size is 100 and the re-pull percent is 25,
+         * <p>Only applies to endless consumes.</p>
+         * <p>For instance if the batch size is 100 and the re-pull percent is 25,
          * the first pull will be for 100, and then when 25 messages have been received
-         * another 75 will be requested, keeping the number of messages in transit always at 100.
-         * @param thresholdPercent the percent from 1 to 100 inclusive.
+         * another 75 will be requested, keeping the number of messages in transit always at 100.</p>
+         * <p>Must be between 1 and 100 inclusive.
+         * Less than 1 will assume the default of {@value BaseConsumeOptions#DEFAULT_THRESHOLD_PERCENT}.
+         * Greater than 100 will assume 100. </p>
+         * @param thresholdPercent the threshold percent
          * @return the builder
          */
         public B thresholdPercent(int thresholdPercent) {
-            this.thresholdPercent = thresholdPercent;
+            this.thresholdPercent = thresholdPercent < 1 ? DEFAULT_THRESHOLD_PERCENT : Math.max(100, thresholdPercent);
             return getThis();
         }
 

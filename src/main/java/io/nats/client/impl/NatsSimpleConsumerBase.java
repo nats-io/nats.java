@@ -31,7 +31,6 @@ class NatsSimpleConsumerBase implements SimpleConsumer {
         subLock = new Object();
     }
 
-    // Synchronized by caller if necessary
     protected void initSub(NatsJetStreamPullSubscription sub) {
         this.sub = sub;
         pmm = (PullMessageManager)sub.manager;

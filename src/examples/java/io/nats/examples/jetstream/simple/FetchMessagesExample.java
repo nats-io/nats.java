@@ -95,7 +95,7 @@ public class FetchMessagesExample {
             builder.maxMessages(maxMessages);
         }
         else {
-            builder.maxBytes(maxBytes, maxMessages);
+            builder.max(maxBytes, maxMessages);
         }
         FetchConsumeOptions fetchConsumeOptions = builder.build();
 

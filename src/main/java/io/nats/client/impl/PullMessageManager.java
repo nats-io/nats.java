@@ -46,7 +46,7 @@ class PullMessageManager extends MessageManager {
     }
 
     @Override
-    protected void startPullRequest(PullRequestOptions pro, boolean raiseStatusWarnings, TrackPendingListener trackPendingListener) {
+    protected void startPullRequest(String pullId, PullRequestOptions pro, boolean raiseStatusWarnings, TrackPendingListener trackPendingListener) {
         synchronized (stateChangeLock) {
             this.raiseStatusWarnings = raiseStatusWarnings;
             this.trackPendingListener = trackPendingListener;
@@ -63,7 +63,7 @@ class PullMessageManager extends MessageManager {
         }
     }
 
-    private void trackPending(long m, long b) {
+    private void trackPending(int m, long b) {
         synchronized (stateChangeLock) {
             pendingMessages -= m;
             boolean zero = pendingMessages < 1;
@@ -107,11 +107,11 @@ class PullMessageManager extends MessageManager {
             String s = h.getFirst(NATS_PENDING_MESSAGES);
             if (s != null) {
                 try {
-                    long m = Long.parseLong(s);
+                    int m = Integer.parseInt(s);
                     long b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
                     trackPending(m, b);
                 }
-                catch (Exception ignore) {}
+                catch (NumberFormatException ignore) {} // shouldn't happen but don't fail
             }
         }
 

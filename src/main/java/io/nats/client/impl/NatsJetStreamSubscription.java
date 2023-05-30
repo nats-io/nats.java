@@ -111,8 +111,8 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         }
     }
 
-    public static final long MIN_MILLIS = 20;
     public static final long EXPIRE_ADJUSTMENT = 10;
+    public static final long MIN_EXPIRE_MILLIS = 20;
 
     protected Message _nextUnmanaged(long timeout, String expectedPullId) throws InterruptedException {
         // timeout > 0 process as many messages we can in that time period

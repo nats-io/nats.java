@@ -39,6 +39,7 @@ public interface SimpleConsumer extends AutoCloseable {
      * @param timeout The time to wait for the stop to succeed, pass 0 to wait
      *                forever. Stop involves moving messages to and from the server
      *                so a very short timeout is not recommended.
+     * @return A future so you could wait for the stop to know when there are no more messages.
      * @throws InterruptedException if one is thrown, in order to propagate it up
      */
     CompletableFuture<Boolean> stop(long timeout) throws InterruptedException;

@@ -39,7 +39,7 @@ public interface ConsumerContext {
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
 
     /**
-     * Read the next message with max wait set to {@value BaseConsumeOptions#DEFAULT_EXPIRES_IN_MS} ms
+     * Read the next message with max wait set to {@value BaseConsumeOptions#DEFAULT_EXPIRES_IN_MILLIS} ms
      * @return the next message or null if the max wait expires
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption

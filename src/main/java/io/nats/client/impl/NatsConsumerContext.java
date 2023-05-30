@@ -20,7 +20,8 @@ import io.nats.client.support.Validator;
 import java.io.IOException;
 import java.time.Duration;
 
-import static io.nats.client.BaseConsumeOptions.*;
+import static io.nats.client.BaseConsumeOptions.DEFAULT_EXPIRES_IN_MILLIS;
+import static io.nats.client.BaseConsumeOptions.MIN_EXPIRES_MILLS;
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
 import static io.nats.client.impl.NatsJetStreamSubscription.EXPIRE_ADJUSTMENT;
 
@@ -55,26 +56,12 @@ public class NatsConsumerContext implements ConsumerContext {
         return streamContext.jsm.getConsumerInfo(streamContext.streamName, consumerName);
     }
 
-    class SubscriptionMaker {
-        Dispatcher dispatcher;
-
-        public NatsJetStreamPullSubscription makeSubscription(MessageHandler messageHandler) throws IOException, JetStreamApiException {
-            PullSubscribeOptions pso = PullSubscribeOptions.bind(streamContext.streamName, consumerName);
-            if (messageHandler == null) {
-                return (NatsJetStreamPullSubscription)js.subscribe(null, pso);
-            }
-
-            dispatcher = js.conn.createDispatcher();
-            return (NatsJetStreamPullSubscription)js.subscribe(null, dispatcher, messageHandler, pso);
-        }
-    }
-
     /**
      * {@inheritDoc}
      */
     @Override
     public Message next() throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
-        return next(DEFAULT_EXPIRES_IN_MS);
+        return next(DEFAULT_EXPIRES_IN_MILLIS);
     }
 
     /**
@@ -82,7 +69,7 @@ public class NatsConsumerContext implements ConsumerContext {
      */
     @Override
     public Message next(Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
-        return next(maxWait == null ? DEFAULT_EXPIRES_IN_MS : maxWait.toMillis());
+        return next(maxWait == null ? DEFAULT_EXPIRES_IN_MILLIS : maxWait.toMillis());
     }
 
     /**
@@ -119,7 +106,7 @@ public class NatsConsumerContext implements ConsumerContext {
      */
     @Override
     public FetchConsumer fetchBytes(int maxBytes) throws IOException, JetStreamApiException {
-        return fetch(FetchConsumeOptions.builder().maxBytes(maxBytes, DEFAULT_MESSAGE_COUNT_WHEN_BYTES).build());
+        return fetch(FetchConsumeOptions.builder().maxBytes(maxBytes).build());
     }
 
     /**
@@ -165,5 +152,19 @@ public class NatsConsumerContext implements ConsumerContext {
         Validator.required(handler, "Message Handler");
         Validator.required(consumeOptions, "Consume Options");
         return new NatsSimpleConsumer(new SubscriptionMaker(), handler, consumeOptions);
+    }
+
+    class SubscriptionMaker {
+        Dispatcher dispatcher;
+
+        public NatsJetStreamPullSubscription makeSubscription(MessageHandler messageHandler) throws IOException, JetStreamApiException {
+            PullSubscribeOptions pso = PullSubscribeOptions.bind(streamContext.streamName, consumerName);
+            if (messageHandler == null) {
+                return (NatsJetStreamPullSubscription)js.subscribe(null, pso);
+            }
+
+            dispatcher = js.conn.createDispatcher();
+            return (NatsJetStreamPullSubscription)js.subscribe(null, dispatcher, messageHandler, pso);
+        }
     }
 }

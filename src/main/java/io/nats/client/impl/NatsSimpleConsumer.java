@@ -23,7 +23,7 @@ import java.io.IOException;
 class NatsSimpleConsumer extends NatsSimpleConsumerBase implements TrackPendingListener {
     protected final PullRequestOptions rePullPro;
     protected final int thresholdMessages;
-    protected final int thresholdBytes;
+    protected final long thresholdBytes;
     protected final NatsConsumerContext.SubscriptionMaker subscriptionMaker;
 
     NatsSimpleConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, final MessageHandler messageHandler, ConsumeOptions opts) throws IOException, JetStreamApiException {
@@ -31,10 +31,10 @@ class NatsSimpleConsumer extends NatsSimpleConsumerBase implements TrackPendingL
         initSub(subscriptionMaker.makeSubscription(messageHandler));
 
         int bm = opts.getBatchSize();
-        int bb = opts.getBatchBytes();
+        long bb = opts.getBatchBytes();
 
         int rePullMessages = Math.max(1, bm * opts.getThresholdPercent() / 100);
-        int rePullBytes = bb == 0 ? 0 : Math.max(1, bb * opts.getThresholdPercent() / 100);
+        long rePullBytes = bb == 0 ? 0 : Math.max(1, bb * opts.getThresholdPercent() / 100);
         rePullPro = PullRequestOptions.builder(rePullMessages)
             .maxBytes(rePullBytes)
             .expiresIn(opts.getExpiresIn())

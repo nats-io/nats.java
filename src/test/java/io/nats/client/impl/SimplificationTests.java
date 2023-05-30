@@ -167,7 +167,7 @@ public class SimplificationTests extends JetStreamTestBase {
             builder.maxMessages(maxMessages);
         }
         else {
-            builder.maxBytes(maxBytes, maxMessages);
+            builder.max(maxBytes, maxMessages);
         }
         FetchConsumeOptions fetchConsumeOptions = builder.build();
 
@@ -380,10 +380,10 @@ public class SimplificationTests extends JetStreamTestBase {
     public void testFetchConsumeOptionsBuilder() {
         FetchConsumeOptions fco = FetchConsumeOptions.builder().build();
         assertEquals(DEFAULT_MESSAGE_COUNT, fco.getMaxMessages());
-        assertEquals(DEFAULT_EXPIRES_IN_MS, fco.getExpiresIn());
+        assertEquals(DEFAULT_EXPIRES_IN_MILLIS, fco.getExpiresIn());
         assertEquals(DEFAULT_THRESHOLD_PERCENT, fco.getThresholdPercent());
         assertEquals(0, fco.getMaxBytes());
-        assertEquals(DEFAULT_EXPIRES_IN_MS * MAX_IDLE_HEARTBEAT_PERCENT / 100, fco.getIdleHeartbeat());
+        assertEquals(DEFAULT_EXPIRES_IN_MILLIS * MAX_IDLE_HEARTBEAT_PERCENT / 100, fco.getIdleHeartbeat());
 
         fco = FetchConsumeOptions.builder().maxMessages(1000).build();
         assertEquals(1000, fco.getMaxMessages());
@@ -395,12 +395,12 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(0, fco.getMaxBytes());
         assertEquals(50, fco.getThresholdPercent());
 
-        fco = FetchConsumeOptions.builder().maxBytes(1000, 100).build();
+        fco = FetchConsumeOptions.builder().max(1000, 100).build();
         assertEquals(100, fco.getMaxMessages());
         assertEquals(1000, fco.getMaxBytes());
         assertEquals(DEFAULT_THRESHOLD_PERCENT, fco.getThresholdPercent());
 
-        fco = FetchConsumeOptions.builder().maxBytes(1000, 100).thresholdPercent(50).build();
+        fco = FetchConsumeOptions.builder().max(1000, 100).thresholdPercent(50).build();
         assertEquals(100, fco.getMaxMessages());
         assertEquals(1000, fco.getMaxBytes());
         assertEquals(50, fco.getThresholdPercent());
@@ -410,10 +410,10 @@ public class SimplificationTests extends JetStreamTestBase {
     public void testConsumeOptionsBuilder() {
         ConsumeOptions co = ConsumeOptions.builder().build();
         assertEquals(DEFAULT_MESSAGE_COUNT, co.getBatchSize());
-        assertEquals(DEFAULT_EXPIRES_IN_MS, co.getExpiresIn());
+        assertEquals(DEFAULT_EXPIRES_IN_MILLIS, co.getExpiresIn());
         assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
         assertEquals(0, co.getBatchBytes());
-        assertEquals(DEFAULT_EXPIRES_IN_MS * MAX_IDLE_HEARTBEAT_PERCENT / 100, co.getIdleHeartbeat());
+        assertEquals(DEFAULT_EXPIRES_IN_MILLIS * MAX_IDLE_HEARTBEAT_PERCENT / 100, co.getIdleHeartbeat());
 
         co = ConsumeOptions.builder().batchSize(1000).build();
         assertEquals(1000, co.getBatchSize());
