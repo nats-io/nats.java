@@ -150,4 +150,10 @@ public interface Message {
 	 */
 	boolean isJetStream();
 
+	/**
+	 * The number of bytes the server counts for the message when calculating byte counts.
+	 * Only applies to JetStream messages received from the server.
+	 * @return the consumption byte count or -1 if the message implementation does not support this method
+	 */
+	long consumeByteCount();
 }
