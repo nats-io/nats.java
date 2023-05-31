@@ -117,8 +117,7 @@ public interface Connection extends AutoCloseable {
      * </pre>
      *
      * where the sender creates a byte array immediately before calling publish.
-     *
-     * See {@link #publish(String, String, byte[]) publish()} for more details on 
+     * See {@link #publish(String, String, byte[]) publish()} for more details on
      * publish during reconnect.
      *
      * @param subject the subject to send the message to
@@ -139,7 +138,6 @@ public interface Connection extends AutoCloseable {
      * </pre>
      *
      * where the sender creates a byte array immediately before calling publish.
-     *
      * See {@link #publish(String, String, byte[]) publish()} for more details on
      * publish during reconnect.
      *
@@ -213,7 +211,6 @@ public interface Connection extends AutoCloseable {
      * </pre>
      *
      * where the sender creates a byte array immediately before calling publish.
-     *
      * See {@link #publish(String, String, byte[]) publish()} for more details on
      * publish during reconnect.
      *
@@ -426,13 +423,11 @@ public interface Connection extends AutoCloseable {
      * Flush the connection's buffer of outgoing messages, including sending a
      * protocol message to and from the server. Passing null is equivalent to
      * passing 0, which will wait forever.
-     * 
      * If called while the connection is closed, this method will immediately
      * throw a TimeoutException, regardless of the timeout.
-     * 
      * If called while the connection is disconnected due to network issues this
      * method will wait for up to the timeout for a reconnect or close.
-     * 
+     *
      * @param timeout The time to wait for the flush to succeed, pass 0 to wait
      *                    forever.
      * @throws TimeoutException if the timeout is exceeded
@@ -471,7 +466,6 @@ public interface Connection extends AutoCloseable {
     /**
      * Close the connection and release all blocking calls like {@link #flush flush}
      * and {@link Subscription#nextMessage(Duration) nextMessage}.
-     * 
      * If close() is called after {@link #drain(Duration) drain} it will wait up to the connection timeout
      * to return, but it will not initiate a close. The drain takes precedence and will initiate the close.
      * 
@@ -643,7 +637,7 @@ public interface Connection extends AutoCloseable {
     JetStreamManagement jetStreamManagement(JetStreamOptions options) throws IOException;
 
     /**
-     * Gets a context for working with an Key Value bucket
+     * Gets a context for working with a Key Value bucket
      * @param bucketName the bucket name
      * @return a KeyValue instance.
      * @throws IOException various IO exception such as timeout or interruption
