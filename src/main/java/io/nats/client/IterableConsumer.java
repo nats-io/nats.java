@@ -15,7 +15,7 @@ package io.nats.client;
 
 import java.time.Duration;
 
-public interface ManualConsumer extends SimpleConsumer {
+public interface IterableConsumer extends SimpleConsumer {
     /**
      * Read the next message. Return null if the calls times out.
      * Use a timeout of 0 to wait indefinitely. This could still be interrupted if

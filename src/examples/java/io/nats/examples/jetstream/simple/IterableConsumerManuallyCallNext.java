@@ -22,10 +22,10 @@ import static io.nats.examples.jetstream.simple.Utils.Publisher;
 import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
 
 /**
- * This example will demonstrate simplified manual consume.
+ * This example will demonstrate simplified IterableConsumer.
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
-public class ConsumeManuallyCallNext {
+public class IterableConsumerManuallyCallNext {
     private static final String STREAM = "manually-stream";
     private static final String SUBJECT = "manually-subject";
     private static final String CONSUMER_NAME = "manually-consumer";
@@ -42,10 +42,10 @@ public class ConsumeManuallyCallNext {
             JetStream js = nc.jetStream();
             createOrReplaceStream(nc.jetStreamManagement(), STREAM, SUBJECT);
 
-            // get stream context, create consumer, get the consumer context, get a manual consumer
+            // get stream context, create consumer, get the consumer context, get an IterableConsumer
             StreamContext streamContext;
             ConsumerContext consumerContext;
-            ManualConsumer consumer;
+            IterableConsumer consumer;
             try {
                 streamContext = nc.streamContext(STREAM);
                 streamContext.addConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());

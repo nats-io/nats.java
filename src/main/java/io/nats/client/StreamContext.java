@@ -86,7 +86,7 @@ public interface StreamContext {
     /**
      * Management function to creates a consumer on this stream.
      * @param config the consumer configuration to use.
-     * @return consumer information.
+     * @return a ConsumerContext object
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data

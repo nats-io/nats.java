@@ -39,6 +39,13 @@ public interface ConsumerContext {
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
 
     /**
+     * Gets information about the consumer behind this subscription.
+     * This returns the last read version of Consumer Info, which could technically be out of date.
+     * @return consumer information
+     */
+    ConsumerInfo getCachedConsumerInfo();
+
+    /**
      * Read the next message with max wait set to {@value BaseConsumeOptions#DEFAULT_EXPIRES_IN_MILLIS} ms
      * @return the next message or null if the max wait expires
      * @throws IOException covers various communication issues with the NATS
@@ -107,25 +114,25 @@ public interface ConsumerContext {
     FetchConsumer fetch(FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException;
 
     /**
-     * Create a long-running Manual Consumer with default ConsumeOptions. See {@link ConsumeOptions}
-     * Manual Consumers require the developer call nextMessage. See {@link ManualConsumer}
-     * @return the ManualConsumer instance
+     * Create a long-running IterableConsumer with default ConsumeOptions. See {@link ConsumeOptions}
+     * IterableConsumer require the developer call nextMessage. See {@link IterableConsumer}
+     * @return the IterableConsumer instance
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    ManualConsumer consume() throws IOException, JetStreamApiException;
+    IterableConsumer consume() throws IOException, JetStreamApiException;
 
     /**
-     * Create a long-running Manual Consumer with custom ConsumeOptions. See {@link ManualConsumer} and {@link ConsumeOptions}
-     * Manual Consumers require the developer call nextMessage.
+     * Create a long-running IterableConsumer with custom ConsumeOptions. See {@link IterableConsumer} and {@link ConsumeOptions}
+     * IterableConsumer requires the developer call nextMessage.
      * @param consumeOptions the custom consume options
-     * @return the ManualConsumer instance
+     * @return the IterableConsumer instance
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    ManualConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    IterableConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 
     /**
      * Create a long-running Simple Consumer with default ConsumeOptions. See {@link SimpleConsumer} and  {@link ConsumeOptions}

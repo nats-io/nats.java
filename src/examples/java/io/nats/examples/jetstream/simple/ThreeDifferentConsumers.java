@@ -74,7 +74,7 @@ public class ThreeDifferentConsumers {
             }
 
             // create the consumer then use it
-            ManualConsumer con1;
+            IterableConsumer con1;
             try {
                 con1 = ctx1.consume();
             }

@@ -27,7 +27,7 @@ import static io.nats.examples.jetstream.simple.Utils.publish;
  * This example will demonstrate simplified consume with a handler
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
-public class ConsumeWithHandler {
+public class SimpleConsumerHasHandler {
     private static final String STREAM = "consume-handler-stream";
     private static final String SUBJECT = "consume-handler-subject";
     private static final String CONSUMER_NAME = "consume-handler-consumer";

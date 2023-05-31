@@ -228,7 +228,7 @@ public class SimplificationTests extends JetStreamTestBase {
             int stopCount = 500;
 
             // create the consumer then use it
-            ManualConsumer consumer = consumerContext.consume();
+            IterableConsumer consumer = consumerContext.consume();
             AtomicInteger count = new AtomicInteger();
             Thread consumeThread = new Thread(() -> {
                 try {
