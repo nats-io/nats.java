@@ -22,10 +22,10 @@ import static io.nats.examples.jetstream.simple.Utils.Publisher;
 import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
 
 /**
- * This example will demonstrate simplified IterableConsumer.
+ * This example will demonstrate simplified IterableConsumer where the developer calls nextMessage.
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
-public class IterableConsumerManuallyCallNext {
+public class IterableConsumerExample {
     private static final String STREAM = "manually-stream";
     private static final String SUBJECT = "manually-subject";
     private static final String CONSUMER_NAME = "manually-consumer";

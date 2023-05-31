@@ -136,7 +136,7 @@ public class ThreeDifferentConsumers {
                 }
             };
             // keep the handler so it stays in scope or if you want to call stop
-            SimpleConsumer con2;
+            MessageConsumer con2;
             try {
                 con2 = ctx2.consume(handler);
             }

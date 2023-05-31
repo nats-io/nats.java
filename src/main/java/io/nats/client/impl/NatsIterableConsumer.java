@@ -18,7 +18,7 @@ import io.nats.client.*;
 import java.io.IOException;
 import java.time.Duration;
 
-public class NatsIterableConsumer extends NatsSimpleConsumer implements IterableConsumer {
+public class NatsIterableConsumer extends NatsMessageConsumer implements IterableConsumer {
 
     public NatsIterableConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, ConsumeOptions opts) throws IOException, JetStreamApiException {
         super(subscriptionMaker, null, opts);

@@ -20,13 +20,13 @@ import io.nats.client.PullRequestOptions;
 
 import java.io.IOException;
 
-class NatsSimpleConsumer extends NatsSimpleConsumerBase implements TrackPendingListener {
+class NatsMessageConsumer extends NatsMessageConsumerBase implements TrackPendingListener {
     protected final PullRequestOptions rePullPro;
     protected final int thresholdMessages;
     protected final long thresholdBytes;
     protected final NatsConsumerContext.SubscriptionMaker subscriptionMaker;
 
-    NatsSimpleConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, final MessageHandler messageHandler, ConsumeOptions opts) throws IOException, JetStreamApiException {
+    NatsMessageConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, final MessageHandler messageHandler, ConsumeOptions opts) throws IOException, JetStreamApiException {
         this.subscriptionMaker = subscriptionMaker;
         initSub(subscriptionMaker.makeSubscription(messageHandler));
 

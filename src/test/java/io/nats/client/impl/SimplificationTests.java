@@ -211,7 +211,7 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testConsumeManual() throws Exception {
+    public void testIterableConsumer() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
@@ -299,7 +299,7 @@ public class SimplificationTests extends JetStreamTestBase {
                 }
             };
 
-            SimpleConsumer consumer = consumerContext.consume(handler);
+            MessageConsumer consumer = consumerContext.consume(handler);
             latch.await();
             consumer.stop(200);
             assertTrue(atomicCount.get() > 500);
@@ -367,7 +367,7 @@ public class SimplificationTests extends JetStreamTestBase {
         });
     }
 
-    private void closeConsumer(SimpleConsumer con, String name, boolean doStop) throws Exception {
+    private void closeConsumer(MessageConsumer con, String name, boolean doStop) throws Exception {
         ConsumerInfo ci = con.getConsumerInfo();
         assertEquals(name, ci.getName());
         if (doStop) {

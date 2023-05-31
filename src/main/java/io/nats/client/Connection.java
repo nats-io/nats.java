@@ -564,6 +564,7 @@ public interface Connection extends AutoCloseable {
      * @return a StreamContext instance.
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
     StreamContext streamContext(String streamName) throws IOException, JetStreamApiException;
 
@@ -574,6 +575,7 @@ public interface Connection extends AutoCloseable {
      * @return a StreamContext instance.
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
     StreamContext streamContext(String streamName, JetStreamOptions options) throws IOException, JetStreamApiException;
 

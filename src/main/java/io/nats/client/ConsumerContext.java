@@ -135,23 +135,23 @@ public interface ConsumerContext {
     IterableConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 
     /**
-     * Create a long-running Simple Consumer with default ConsumeOptions. See {@link SimpleConsumer} and  {@link ConsumeOptions}
+     * Create a long-running MessageConsumer with default ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
      * @param handler the MessageHandler used for receiving messages.
-     * @return the SimpleConsumer instance
+     * @return the MessageConsumer instance
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    SimpleConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException;
+    MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException;
 
     /**
-     * Create a long-running Simple Consumer with custom ConsumeOptions. See {@link SimpleConsumer} and  {@link ConsumeOptions}
+     * Create a long-running MessageConsumer with custom ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
      * @param handler the MessageHandler used for receiving messages.
      * @param consumeOptions the custom consume options
-     * @return the SimpleConsumer instance
+     * @return the MessageConsumer instance
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    SimpleConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    MessageConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 }

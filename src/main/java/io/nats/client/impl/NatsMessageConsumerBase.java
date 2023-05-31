@@ -14,20 +14,20 @@
 package io.nats.client.impl;
 
 import io.nats.client.JetStreamApiException;
-import io.nats.client.SimpleConsumer;
+import io.nats.client.MessageConsumer;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-class NatsSimpleConsumerBase implements SimpleConsumer {
+class NatsMessageConsumerBase implements MessageConsumer {
     protected NatsJetStreamPullSubscription sub;
     protected PullMessageManager pmm;
     protected final Object subLock;
     protected CompletableFuture<Boolean> drainFuture;
 
-    NatsSimpleConsumerBase() {
+    NatsMessageConsumerBase() {
         subLock = new Object();
     }
 

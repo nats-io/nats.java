@@ -19,11 +19,11 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The Simple Consumer interface is the core interface replacing
+ * The MessageConsumer interface is the core interface replacing
  * a subscription for a simplified consumer.
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
-public interface SimpleConsumer extends AutoCloseable {
+public interface MessageConsumer extends AutoCloseable {
     /**
      * Gets information about the consumer behind this subscription.
      * @return consumer information
@@ -34,7 +34,7 @@ public interface SimpleConsumer extends AutoCloseable {
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
 
     /**
-     * Stop the Simple Consumer from asking for any more messages from the server.
+     * Stop the MessageConsumer from asking for any more messages from the server.
      * Messages do not immediately stop
      * @param timeout The time to wait for the stop to succeed, pass 0 to wait
      *                forever. Stop involves moving messages to and from the server

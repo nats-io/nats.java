@@ -18,6 +18,6 @@ package io.nats.client;
  * nextMessage returns null when there are no more messages
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
-public interface FetchConsumer extends SimpleConsumer {
+public interface FetchConsumer extends MessageConsumer {
     Message nextMessage() throws InterruptedException, JetStreamStatusCheckedException;
 }

@@ -145,19 +145,19 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public SimpleConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException {
+    public MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException {
         Validator.required(handler, "Message Handler");
-        return new NatsSimpleConsumer(new SubscriptionMaker(), handler, DEFAULT_CONSUME_OPTIONS);
+        return new NatsMessageConsumer(new SubscriptionMaker(), handler, DEFAULT_CONSUME_OPTIONS);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public SimpleConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public MessageConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(handler, "Message Handler");
         Validator.required(consumeOptions, "Consume Options");
-        return new NatsSimpleConsumer(new SubscriptionMaker(), handler, consumeOptions);
+        return new NatsMessageConsumer(new SubscriptionMaker(), handler, consumeOptions);
     }
 
     class SubscriptionMaker {

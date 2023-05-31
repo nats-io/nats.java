@@ -17,7 +17,7 @@ import io.nats.client.*;
 
 import java.io.IOException;
 
-class NatsFetchConsumer extends NatsSimpleConsumerBase implements FetchConsumer {
+class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer {
     private final long maxWaitNanos;
     private long startNanos;
 
