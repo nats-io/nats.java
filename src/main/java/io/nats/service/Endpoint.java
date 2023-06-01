@@ -39,8 +39,16 @@ public class Endpoint implements JsonSerializable {
         this(name, null, null, true);
     }
 
+    public Endpoint(String name, Map<String, String> metadata) {
+        this(name, null, metadata, true);
+    }
+
     public Endpoint(String name, String subject) {
         this(name, subject, null, true);
+    }
+
+    public Endpoint(String name, String subject, Map<String, String> metadata) {
+        this(name, subject, metadata, true);
     }
 
     // internal use constructors

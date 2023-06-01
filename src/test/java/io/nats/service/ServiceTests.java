@@ -208,7 +208,7 @@ public class ServiceTests extends JetStreamTestBase {
                     InfoResponse exp = (InfoResponse) expected;
                     InfoResponse r = (InfoResponse) response;
                     assertEquals(exp.getDescription(), r.getDescription());
-                    assertEquals(exp.getSubjects(), r.getSubjects());
+                    assertEquals(exp.getEndpoints(), r.getEndpoints());
                 };
                 verifyDiscovery(discovery.info(), infoVerifier, infoResponse1, infoResponse2);
                 verifyDiscovery(discovery.info(SERVICE_NAME_1), infoVerifier, infoResponse1);
@@ -992,14 +992,14 @@ public class ServiceTests extends JetStreamTestBase {
         iae = assertThrows(IllegalArgumentException.class, () -> new TestServiceResponses(json4.getBytes()));
         assertTrue(iae.getMessage().contains("Version cannot be null"));
 
-        InfoResponse ir1 = new InfoResponse("id", "name", "0.0.0", metadata, "desc", Arrays.asList("subject1", "subject2"));
+        Map<String, String> meta = new HashMap<>();
+        meta.put("foo", "bar");
+        Endpoint end1 = new Endpoint("endfoo", meta);
+        InfoResponse ir1 = new InfoResponse("id", "name", "0.0.0", metadata, "desc", Collections.singletonList(end1));
         InfoResponse ir2 = new InfoResponse(ir1.toJson().getBytes());
+        System.out.println(ir1.toJson());
         validateApiInOutInfoResponse(ir1);
         validateApiInOutInfoResponse(ir2);
-
-        List<EndpointResponse> endpoints = new ArrayList<>();
-        endpoints.add(new EndpointResponse("endName0", "endSubject0"));
-        endpoints.add(new EndpointResponse("endName1", "endSubject1"));
 
         ZonedDateTime serviceStarted = DateTimeUtils.gmtNow();
         ZonedDateTime[] endStarteds = new ZonedDateTime[2];
@@ -1049,9 +1049,10 @@ public class ServiceTests extends JetStreamTestBase {
     private static void validateApiInOutInfoResponse(InfoResponse r) {
         validateApiInOutServiceResponse(r, InfoResponse.TYPE);
         assertEquals("desc", r.getDescription());
-        assertEquals(2, r.getSubjects().size());
-        assertTrue(r.getSubjects().contains("subject1"));
-        assertTrue(r.getSubjects().contains("subject2"));
+        assertEquals(1, r.getEndpoints().size());
+        Endpoint endpoint = r.getEndpoints().get(0);
+        assertEquals("endfoo", endpoint.getName());
+        assertEquals("bar", endpoint.getMetadata().get("foo"));
     }
 
     private static void validateApiInOutPingResponse(PingResponse r) {
