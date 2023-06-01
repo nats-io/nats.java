@@ -114,7 +114,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     public static final long EXPIRE_ADJUSTMENT = 10;
     public static final long MIN_EXPIRE_MILLIS = 20;
 
-    protected Message _nextUnmanaged(long timeout, String expectedPullId) throws InterruptedException {
+    protected Message _nextUnmanaged(long timeout, String expectedpullSubject) throws InterruptedException {
         // timeout > 0 process as many messages we can in that time period
         // If we get a message that either manager handles, we try again, but
         // with a shorter timeout based on what we already used up
@@ -133,7 +133,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 case ERROR:
                     // reply match will be null on pushes and all status are "managed" so ignored in this loop
                     // otherwise (pull) if there is a match, the status applies
-                    if (expectedPullId != null && expectedPullId.equals(msg.getSubject())) {
+                    if (expectedpullSubject != null && expectedpullSubject.equals(msg.getSubject())) {
                         return null;
                     }
             }
