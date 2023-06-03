@@ -20,6 +20,7 @@ import io.nats.client.api.MessageInfo;
 import io.nats.client.api.StreamInfoOptions;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -36,71 +37,82 @@ public class SimplificationTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
+            assertThrows(JetStreamApiException.class, () -> nc.streamContext(STREAM));
+            assertThrows(JetStreamApiException.class, () -> nc.streamContext(STREAM, JetStreamOptions.DEFAULT_JS_OPTIONS));
             assertThrows(JetStreamApiException.class, () -> js.streamContext(STREAM));
 
-            createDefaultTestStream(jsm);
-
-            StreamContext streamContext = js.streamContext(STREAM);
+            createMemoryStream(jsm, STREAM, SUBJECT);
+            StreamContext streamContext = nc.streamContext(STREAM);
             assertEquals(STREAM, streamContext.getStreamName());
+            _testStreamContext(js, streamContext);
 
-            assertThrows(JetStreamApiException.class, () -> streamContext.consumerContext(DURABLE));
-            assertThrows(JetStreamApiException.class, () -> streamContext.deleteConsumer(DURABLE));
+            jsm.deleteStream(STREAM);
 
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
-            ConsumerContext consumerContext = streamContext.addConsumer(cc);
-            ConsumerInfo ci = consumerContext.getConsumerInfo();
-            assertEquals(STREAM, ci.getStreamName());
-            assertEquals(DURABLE, ci.getName());
-
-            ci = streamContext.getConsumerInfo(DURABLE);
-            assertNotNull(ci);
-            assertEquals(STREAM, ci.getStreamName());
-            assertEquals(DURABLE, ci.getName());
-
-            assertEquals(1, streamContext.getConsumerNames().size());
-
-            assertEquals(1, streamContext.getConsumers().size());
-            assertNotNull(streamContext.consumerContext(DURABLE));
-            streamContext.deleteConsumer(DURABLE);
-
-            assertThrows(JetStreamApiException.class, () -> streamContext.consumerContext(DURABLE));
-            assertThrows(JetStreamApiException.class, () -> streamContext.deleteConsumer(DURABLE));
-
-            // coverage
-            js.publish(SUBJECT, "one".getBytes());
-            js.publish(SUBJECT, "two".getBytes());
-            js.publish(SUBJECT, "three".getBytes());
-            js.publish(SUBJECT, "four".getBytes());
-            js.publish(SUBJECT, "five".getBytes());
-            js.publish(SUBJECT, "six".getBytes());
-
-            assertTrue(streamContext.deleteMessage(3));
-            assertTrue(streamContext.deleteMessage(4, true));
-
-            MessageInfo mi = streamContext.getMessage(1);
-            assertEquals(1, mi.getSeq());
-
-            mi = streamContext.getFirstMessage(SUBJECT);
-            assertEquals(1, mi.getSeq());
-
-            mi = streamContext.getLastMessage(SUBJECT);
-            assertEquals(6, mi.getSeq());
-
-            mi = streamContext.getNextMessage(3, SUBJECT);
-            assertEquals(5, mi.getSeq());
-
-            assertNotNull(streamContext.getStreamInfo());
-            assertNotNull(streamContext.getStreamInfo(StreamInfoOptions.builder().build()));
-
-            streamContext.purge(PurgeOptions.builder().sequence(5).build());
-            assertThrows(JetStreamApiException.class, () -> streamContext.getMessage(1));
-
-            mi = streamContext.getFirstMessage(SUBJECT);
-            assertEquals(5, mi.getSeq());
-
-            streamContext.purge();
-            assertThrows(JetStreamApiException.class, () -> streamContext.getFirstMessage(SUBJECT));
+            createMemoryStream(jsm, STREAM, SUBJECT);
+            streamContext = js.streamContext(STREAM);
+            assertEquals(STREAM, streamContext.getStreamName());
+            _testStreamContext(js, streamContext);
         });
+    }
+
+    private static void _testStreamContext(JetStream js, StreamContext streamContext) throws IOException, JetStreamApiException {
+        assertThrows(JetStreamApiException.class, () -> streamContext.consumerContext(DURABLE));
+        assertThrows(JetStreamApiException.class, () -> streamContext.deleteConsumer(DURABLE));
+
+        ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
+        ConsumerContext consumerContext = streamContext.addConsumer(cc);
+        ConsumerInfo ci = consumerContext.getConsumerInfo();
+        assertEquals(STREAM, ci.getStreamName());
+        assertEquals(DURABLE, ci.getName());
+
+        ci = streamContext.getConsumerInfo(DURABLE);
+        assertNotNull(ci);
+        assertEquals(STREAM, ci.getStreamName());
+        assertEquals(DURABLE, ci.getName());
+
+        assertEquals(1, streamContext.getConsumerNames().size());
+
+        assertEquals(1, streamContext.getConsumers().size());
+        assertNotNull(streamContext.consumerContext(DURABLE));
+        streamContext.deleteConsumer(DURABLE);
+
+        assertThrows(JetStreamApiException.class, () -> streamContext.consumerContext(DURABLE));
+        assertThrows(JetStreamApiException.class, () -> streamContext.deleteConsumer(DURABLE));
+
+        // coverage
+        js.publish(SUBJECT, "one".getBytes());
+        js.publish(SUBJECT, "two".getBytes());
+        js.publish(SUBJECT, "three".getBytes());
+        js.publish(SUBJECT, "four".getBytes());
+        js.publish(SUBJECT, "five".getBytes());
+        js.publish(SUBJECT, "six".getBytes());
+
+        assertTrue(streamContext.deleteMessage(3));
+        assertTrue(streamContext.deleteMessage(4, true));
+
+        MessageInfo mi = streamContext.getMessage(1);
+        assertEquals(1, mi.getSeq());
+
+        mi = streamContext.getFirstMessage(SUBJECT);
+        assertEquals(1, mi.getSeq());
+
+        mi = streamContext.getLastMessage(SUBJECT);
+        assertEquals(6, mi.getSeq());
+
+        mi = streamContext.getNextMessage(3, SUBJECT);
+        assertEquals(5, mi.getSeq());
+
+        assertNotNull(streamContext.getStreamInfo());
+        assertNotNull(streamContext.getStreamInfo(StreamInfoOptions.builder().build()));
+
+        streamContext.purge(PurgeOptions.builder().sequence(5).build());
+        assertThrows(JetStreamApiException.class, () -> streamContext.getMessage(1));
+
+        mi = streamContext.getFirstMessage(SUBJECT);
+        assertEquals(5, mi.getSeq());
+
+        streamContext.purge();
+        assertThrows(JetStreamApiException.class, () -> streamContext.getFirstMessage(SUBJECT));
     }
 
     @Test

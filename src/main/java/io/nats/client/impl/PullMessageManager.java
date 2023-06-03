@@ -46,7 +46,7 @@ class PullMessageManager extends MessageManager {
     }
 
     @Override
-    protected void startPullRequest(String pullId, PullRequestOptions pro, boolean raiseStatusWarnings, TrackPendingListener trackPendingListener) {
+    protected void startPullRequest(String pullSubject, PullRequestOptions pro, boolean raiseStatusWarnings, TrackPendingListener trackPendingListener) {
         synchronized (stateChangeLock) {
             this.raiseStatusWarnings = raiseStatusWarnings;
             this.trackPendingListener = trackPendingListener;

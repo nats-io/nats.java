@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
-    private final AtomicLong pullIdIncrementer;
+    private final AtomicLong pullSubjectIdHolder;
 
     NatsJetStreamPullSubscription(String sid, String subject,
                                   NatsConnection connection, NatsDispatcher dispatcher,
@@ -33,7 +33,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                                   String stream, String consumer,
                                   MessageManager manager) {
         super(sid, subject, null, connection, dispatcher, js, stream, consumer, manager);
-        pullIdIncrementer = new AtomicLong();
+        pullSubjectIdHolder = new AtomicLong();
     }
 
     @Override
@@ -59,11 +59,11 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
     protected String _pull(PullRequestOptions pullRequestOptions, boolean raiseStatusWarnings, TrackPendingListener trackPendingListener) {
         String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
-        String pullId = getSubject().replace("*", Long.toString(this.pullIdIncrementer.incrementAndGet()));
-        manager.startPullRequest(pullId, pullRequestOptions, raiseStatusWarnings, trackPendingListener);
-        connection.publish(publishSubject, pullId, pullRequestOptions.serialize());
+        String pullSubject = getSubject().replace("*", Long.toString(this.pullSubjectIdHolder.incrementAndGet()));
+        manager.startPullRequest(pullSubject, pullRequestOptions, raiseStatusWarnings, trackPendingListener);
+        connection.publish(publishSubject, pullSubject, pullRequestOptions.serialize());
         connection.lenientFlushBuffer();
-        return pullId;
+        return pullSubject;
     }
 
     /**
@@ -141,7 +141,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
             Duration expires = Duration.ofMillis(
                 maxWaitMillis > MIN_EXPIRE_MILLIS ? maxWaitMillis - EXPIRE_ADJUSTMENT : maxWaitMillis);
-            String pullId = _pull(PullRequestOptions.builder(batchLeft).expiresIn(expires).build(), false, null);
+            String pullSubject = _pull(PullRequestOptions.builder(batchLeft).expiresIn(expires).build(), false, null);
 
             // timeout > 0 process as many messages we can in that time period
             // If we get a message that either manager handles, we try again, but
@@ -161,7 +161,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                     case TERMINUS:
                     case ERROR:
                         // if there is a match, the status applies
-                        if (pullId.equals(msg.getSubject())) {
+                        if (pullSubject.equals(msg.getSubject())) {
                             return messages;
                         }
                 }
@@ -248,7 +248,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         }
 
         // if there were some messages buffered, reduce the raw pull batch size
-        String pullId = _pull(PullRequestOptions.builder(batchLeft).expiresIn(maxWaitMillis).build(), false, null);
+        String pullSubject = _pull(PullRequestOptions.builder(batchLeft).expiresIn(maxWaitMillis).build(), false, null);
 
         final long timeout = maxWaitMillis;
 
@@ -270,7 +270,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                     }
 
                     if (buffered.size() == 0) {
-                        msg = _nextUnmanaged(timeout, pullId);
+                        msg = _nextUnmanaged(timeout, pullSubject);
                         if (msg == null) {
                             done = true;
                             return false;

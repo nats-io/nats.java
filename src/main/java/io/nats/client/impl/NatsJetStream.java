@@ -369,7 +369,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             }
         }
 
-        // 4. If no deliver subject (inbox) provided or found, make an inbox.
+        // 4. If pull or no deliver subject (inbox) provided or found, make an inbox.
         final String fnlInboxDeliver;
         if (isPullMode) {
             fnlInboxDeliver = conn.createInbox() + ".*";
