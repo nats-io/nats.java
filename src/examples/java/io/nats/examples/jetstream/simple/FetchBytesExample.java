@@ -97,9 +97,6 @@ public class FetchBytesExample {
         if (maxMessages == 0) {
             builder.maxBytes(maxBytes);
         }
-        else if (maxBytes == 0) {
-            builder.maxMessages(maxMessages);
-        }
         else {
             builder.max(maxBytes, maxMessages);
         }
@@ -147,9 +144,6 @@ public class FetchBytesExample {
     }
 
     private static String generateConsumerName(int maxMessages, int maxBytes) {
-        if (maxBytes == 0) {
-            return CONSUMER_NAME_PREFIX + "-" + maxMessages + "-messages";
-        }
         if (maxMessages == 0) {
             return CONSUMER_NAME_PREFIX + "-" + maxBytes + "-bytes-unlimited-messages";
         }
@@ -174,7 +168,7 @@ public class FetchBytesExample {
                 System.out.println("=== nextMessage() will return null when consume is done");
                 break;
             case "C":
-                System.out.println("=== Max bytes (" + maxBytes + ") is larger than available bytes (2783).");
+                System.out.println("=== Max bytes (" + maxBytes + ") is larger than available bytes (about 2700).");
                 System.out.println("=== FetchConsumeOption \"expires in\" is " + EXPIRES_SECONDS + " seconds.");
                 System.out.println("=== nextMessage() blocks until expiration when there are no messages available, then returns null.");
                 break;

@@ -48,16 +48,16 @@ public class FetchMessagesExample {
             // Different fetch max messages demonstrate expiration behavior
 
             // A. equal number of messages to the fetch max messages
-            simpleFetch(nc, js, "A", 20, 0);
+            simpleFetch(nc, js, "A", 20);
 
             // B. more messages than the fetch max messages
-            simpleFetch(nc, js, "B", 10, 0);
+            simpleFetch(nc, js, "B", 10);
 
             // C. fewer messages than the fetch max messages
-            simpleFetch(nc, js, "C", 40, 0);
+            simpleFetch(nc, js, "C", 40);
 
             // D. "fetch-consumer-40-messages" was created in 1C and has no messages available
-            simpleFetch(nc, js, "D", 40, 0);
+            simpleFetch(nc, js, "D", 40);
         }
         catch (IOException ioe) {
             // problem making the connection or
@@ -67,8 +67,8 @@ public class FetchMessagesExample {
         }
     }
 
-    private static void simpleFetch(Connection nc, JetStream js, String label, int maxMessages, int maxBytes) {
-        String consumerName = generateConsumerName(maxMessages, maxBytes);
+    private static void simpleFetch(Connection nc, JetStream js, String label, int maxMessages) {
+        String consumerName = CONSUMER_NAME_PREFIX + "-" + maxMessages + "-messages";
 
         // get stream context, create consumer and get the consumer context
         StreamContext streamContext;
@@ -87,19 +87,12 @@ public class FetchMessagesExample {
         }
 
         // Custom FetchConsumeOptions
-        FetchConsumeOptions.Builder builder = FetchConsumeOptions.builder().expiresIn(EXPIRES_SECONDS * 1000);
-        if (maxMessages == 0) {
-            builder.maxBytes(maxBytes);
-        }
-        else if (maxBytes == 0) {
-            builder.maxMessages(maxMessages);
-        }
-        else {
-            builder.max(maxBytes, maxMessages);
-        }
-        FetchConsumeOptions fetchConsumeOptions = builder.build();
+        FetchConsumeOptions fetchConsumeOptions = FetchConsumeOptions.builder()
+            .maxMessages(maxMessages)
+            .expiresIn(EXPIRES_SECONDS * 1000)
+            .build();
 
-        printExplanation(label, consumerName, maxMessages, maxBytes);
+        printExplanation(label, consumerName, maxMessages);
 
         long start = System.currentTimeMillis();
 
@@ -135,21 +128,11 @@ public class FetchMessagesExample {
         printSummary(receivedMessages, elapsed);
     }
 
-    private static String generateConsumerName(int maxMessages, int maxBytes) {
-        if (maxBytes == 0) {
-            return CONSUMER_NAME_PREFIX + "-" + maxMessages + "-messages";
-        }
-        if (maxMessages == 0) {
-            return CONSUMER_NAME_PREFIX + "-" + maxBytes + "-bytes-unlimited-messages";
-        }
-        return CONSUMER_NAME_PREFIX + "-" + maxBytes + "-bytes-" + maxMessages + "-messages";
-    }
-
     private static void printSummary(int received, long elapsed) {
         System.out.println("+++ " + received + " message(s) were received in " + elapsed + "ms\n");
     }
 
-    private static void printExplanation(String label, String name, int maxMessages, int maxBytes) {
+    private static void printExplanation(String label, String name, int maxMessages) {
         System.out.println("--------------------------------------------------------------------------------");
         System.out.println(label + ". " + name);
         switch (label) {
