@@ -81,8 +81,7 @@ public class FetchBytesExample {
         ConsumerContext consumerContext;
         try {
             streamContext = nc.streamContext(STREAM);
-            streamContext.addConsumer(ConsumerConfiguration.builder().durable(consumerName).build());
-            consumerContext = js.consumerContext(STREAM, consumerName);
+            consumerContext = streamContext.addConsumer(ConsumerConfiguration.builder().durable(consumerName).build());
         }
         catch (JetStreamApiException | IOException e) {
             // JetStreamApiException:
@@ -109,8 +108,7 @@ public class FetchBytesExample {
         // create the consumer then use it
         int receivedMessages = 0;
         long receivedBytes = 0;
-        try {
-            FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions);
+        try (FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions)){
             Message msg = consumer.nextMessage();
             while (msg != null) {
                 msg.ack();
@@ -138,6 +136,9 @@ public class FetchBytesExample {
             System.err.println("Exception should be handled properly, just exiting here.");
             System.exit(-1);
         }
+        catch (Exception e) {
+            // For FetchConsumer since it is AutoCloseable
+        }
         long elapsed = System.currentTimeMillis() - start;
 
         printSummary(receivedMessages, receivedBytes, elapsed);
@@ -159,8 +160,7 @@ public class FetchBytesExample {
         System.out.println(label + ". " + name);
         switch (label) {
             case "A":
-                System.out.println("=== Max bytes (" + maxBytes + ") threshold will be met since the");
-                System.out.println("    next message would put the byte count over " + maxBytes + " bytes");
+                System.out.println("=== Max bytes (" + maxBytes + ") threshold will be met since the next message would put the byte count over " + maxBytes + " bytes");
                 System.out.println("=== nextMessage() will return null when consume is done");
                 break;
             case "B":

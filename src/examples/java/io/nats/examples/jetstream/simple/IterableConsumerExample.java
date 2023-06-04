@@ -45,12 +45,9 @@ public class IterableConsumerExample {
             // get stream context, create consumer, get the consumer context, get an IterableConsumer
             StreamContext streamContext;
             ConsumerContext consumerContext;
-            IterableConsumer consumer;
             try {
                 streamContext = nc.streamContext(STREAM);
-                streamContext.addConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
-                consumerContext = streamContext.consumerContext(CONSUMER_NAME);
-                consumer = consumerContext.consume();
+                consumerContext = streamContext.addConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
             }
             catch (JetStreamApiException | IOException e) {
                 // JetStreamApiException:
@@ -61,21 +58,21 @@ public class IterableConsumerExample {
                 return;
             }
 
-            long start = System.nanoTime();
             Thread consumeThread = new Thread(() -> {
                 int count = 0;
-                try {
+                long start = System.nanoTime();
+                try (IterableConsumer consumer = consumerContext.consume()){
                     System.out.println("Starting main loop.");
                     while (count < STOP_COUNT) {
                         Message msg = consumer.nextMessage(1000);
                         if (msg != null) {
                             msg.ack();
                             if (++count % REPORT_EVERY == 0) {
-                                report("Main Loop Running", start, count);
+                                report("Main Loop Running", System.nanoTime() - start, count);
                             }
                         }
                     }
-                    report("Main Loop Stopped", start, count);
+                    report("Main Loop Stopped", System.nanoTime() - start, count);
 
                     System.out.println("Pausing for effect...allow more messages come across.");
                     Thread.sleep(JITTER * 2); // allows more messages to come across
@@ -85,11 +82,11 @@ public class IterableConsumerExample {
                     Message msg = consumer.nextMessage(1000);
                     while (msg != null) {
                         msg.ack();
-                        report("Post Drain Loop Running", start, ++count);
+                        report("Post Drain Loop Running", System.nanoTime() - start, ++count);
                         msg = consumer.nextMessage(1000);
                     }
                 }
-                catch (JetStreamStatusCheckedException |InterruptedException e) {
+                catch (JetStreamStatusCheckedException | InterruptedException | IOException | JetStreamApiException e) {
                     // JetStreamStatusCheckedException:
                     //      Either the consumer was deleted in the middle
                     //      of the pull or there is a new status from the
@@ -98,8 +95,10 @@ public class IterableConsumerExample {
                     //      developer interrupted this thread?
                     return;
                 }
-
-                report("Done", start, count);
+                catch (Exception e) {
+                    // For IterableConsumer since it is AutoCloseable
+                }
+                report("Done", System.nanoTime() - start, count);
             });
             consumeThread.start();
 
@@ -119,8 +118,8 @@ public class IterableConsumerExample {
         }
     }
 
-    private static void report(String label, long start, int count) {
-        long ms = (System.nanoTime() - start) / 1_000_000;
+    private static void report(String label, long elapsedNanos, int count) {
+        long ms = elapsedNanos / 1_000_000;
         System.out.println(label + ": Received " + count + " messages in " + ms + "ms.");
     }
 }

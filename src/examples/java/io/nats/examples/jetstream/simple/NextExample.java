@@ -42,8 +42,7 @@ public class NextExample {
             ConsumerContext consumerContext;
             try {
                 streamContext = nc.streamContext(STREAM);
-                streamContext.addConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
-                consumerContext = streamContext.consumerContext(CONSUMER_NAME);
+                consumerContext = streamContext.addConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
             }
             catch (JetStreamApiException | IOException e) {
                 // JetStreamApiException:
@@ -91,10 +90,11 @@ public class NextExample {
                     Message m = consumerContext.next(1000);
                     long elapsed = System.currentTimeMillis() - start;
                     if (m == null) {
-                        System.err.println("Waited " + elapsed + "ms for message, got null");
+                        System.out.println("Waited " + elapsed + "ms for message, got null");
                     }
                     else {
                         ++received;
+                        m.ack();
                         System.out.println("Waited " + elapsed + "ms for message, got " + new String(m.getData()));
                     }
                 }

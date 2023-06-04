@@ -63,9 +63,9 @@ public class MessageConsumerExample {
                 return;
             }
 
-            long start = System.nanoTime();
             CountDownLatch latch = new CountDownLatch(1);
             AtomicInteger atomicCount = new AtomicInteger();
+            long start = System.nanoTime();
             MessageHandler handler = msg -> {
                 msg.ack();
                 int count = atomicCount.incrementAndGet();
@@ -78,9 +78,17 @@ public class MessageConsumerExample {
             };
 
             // create the consumer then use it
-            MessageConsumer consumer;
-            try {
-                consumer = consumerContext.consume(handler);
+            try (MessageConsumer consumer = consumerContext.consume(handler)){
+                latch.await();
+                // once the consumer is stopped, the client will drain messages
+                System.out.println("Stop the consumer...");
+                CompletableFuture<Boolean> stopFuture = consumer.stop(1000);
+                try {
+                    stopFuture.get(1, TimeUnit.SECONDS);
+                }
+                catch (ExecutionException | TimeoutException e) {
+                    // from the future.get
+                }
             }
             catch (JetStreamApiException | IOException e) {
                 // JetStreamApiException:
@@ -90,17 +98,8 @@ public class MessageConsumerExample {
                 //      likely a connection problem
                 return;
             }
-
-            latch.await();
-
-            // once the consumer is stopped, the client will drain messages
-            System.out.println("Stop the consumer...");
-            CompletableFuture<Boolean> stopFuture = consumer.stop(1000);
-            try {
-                stopFuture.get(1, TimeUnit.SECONDS);
-            }
-            catch (ExecutionException | TimeoutException e) {
-                // from the future.get
+            catch (Exception e) {
+                // For IterableConsumer since it is AutoCloseable
             }
 
             report("Final", start, atomicCount.get());
