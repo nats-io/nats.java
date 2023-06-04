@@ -128,7 +128,6 @@ class PullMessageManager extends MessageManager {
             return MESSAGE;
         }
 
-        // sync mode terminal message indicator for next message
         switch (status.getCode()) {
             case NOT_FOUND_CODE:
             case REQUEST_TIMEOUT_CODE:
