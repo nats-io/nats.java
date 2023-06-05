@@ -128,7 +128,7 @@ public class ServiceTests extends JetStreamTestBase {
                     .addServiceEndpoint(seSortD1)
                     .build();
                 String serviceId1 = service1.getId();
-                CompletableFuture<Boolean> serviceDone1 = service1.startService();
+                CompletableFuture<Boolean> serviceStoppedFuture1 = service1.startService();
 
                 Service service2 = new ServiceBuilder()
                     .name(SERVICE_NAME_2)
@@ -139,7 +139,7 @@ public class ServiceTests extends JetStreamTestBase {
                     .addServiceEndpoint(seSortD2)
                     .build();
                 String serviceId2 = service2.getId();
-                CompletableFuture<Boolean> serviceDone2 = service2.startService();
+                CompletableFuture<Boolean> serviceStoppedFuture2 = service2.startService();
 
                 assertNotEquals(serviceId1, serviceId2);
 
@@ -263,9 +263,9 @@ public class ServiceTests extends JetStreamTestBase {
 
                 // shutdown
                 service1.stop();
-                serviceDone1.get();
+                serviceStoppedFuture1.get();
                 service2.stop(new RuntimeException("Testing stop(Throwable t)"));
-                ExecutionException ee = assertThrows(ExecutionException.class, serviceDone2::get);
+                ExecutionException ee = assertThrows(ExecutionException.class, serviceStoppedFuture2::get);
                 assertTrue(ee.getMessage().contains("Testing stop(Throwable t)"));
             }
         }
