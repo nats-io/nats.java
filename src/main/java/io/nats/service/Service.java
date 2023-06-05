@@ -48,8 +48,8 @@ public class Service {
     private final PingResponse pingResponse;
     private final InfoResponse infoResponse;
 
-    private final Object stopLock;
-    private CompletableFuture<Boolean> doneFuture;
+    private final Object startStopLock;
+    private CompletableFuture<Boolean> runningIndicator;
     private ZonedDateTime started;
 
     Service(ServiceBuilder b) {
@@ -57,7 +57,7 @@ public class Service {
         conn = b.conn;
         drainTimeout = b.drainTimeout;
         dInternals = new ArrayList<>();
-        stopLock = new Object();
+        startStopLock = new Object();
 
         // set up the service contexts
         // ? do we need an internal dispatcher for any user endpoints
@@ -142,15 +142,19 @@ public class Service {
     }
 
     public CompletableFuture<Boolean> startService() {
-        doneFuture = new CompletableFuture<>();
-        for (EndpointContext ctx : serviceContexts.values()) {
-            ctx.start();
+        synchronized (startStopLock) {
+            if (runningIndicator == null) {
+                runningIndicator = new CompletableFuture<>();
+                for (EndpointContext ctx : serviceContexts.values()) {
+                    ctx.start();
+                }
+                for (EndpointContext ctx : discoveryContexts) {
+                    ctx.start();
+                }
+                started = DateTimeUtils.gmtNow();
+            }
+            return runningIndicator;
         }
-        for (EndpointContext ctx : discoveryContexts) {
-            ctx.start();
-        }
-        started = DateTimeUtils.gmtNow();
-        return doneFuture;
     }
 
     public static ServiceBuilder builder() {
@@ -170,8 +174,8 @@ public class Service {
     }
 
     public void stop(boolean drain, Throwable t) {
-        synchronized (stopLock) {
-            if (!doneFuture.isDone()) {
+        synchronized (startStopLock) {
+            if (runningIndicator != null) {
                 if (drain) {
                     List<CompletableFuture<Boolean>> futures = new ArrayList<>();
 
@@ -219,11 +223,12 @@ public class Service {
 
                 // ok we are done
                 if (t == null) {
-                    doneFuture.complete(true);
+                    runningIndicator.complete(true);
                 }
                 else {
-                    doneFuture.completeExceptionally(t);
+                    runningIndicator.completeExceptionally(t);
                 }
+                runningIndicator = null; // we don't need a copy anymore
             }
         }
     }

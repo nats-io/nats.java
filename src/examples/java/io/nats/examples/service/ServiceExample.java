@@ -104,8 +104,8 @@ public class ServiceExample {
             // ----------------------------------------------------------------------------------------------------
             // Start the services
             // ----------------------------------------------------------------------------------------------------
-            CompletableFuture<Boolean> done1 = service1.startService();
-            CompletableFuture<Boolean> done2 = service2.startService();
+            CompletableFuture<Boolean> serviceStoppedFuture1 = service1.startService();
+            CompletableFuture<Boolean> serviceStoppedFuture2 = service2.startService();
 
             // ----------------------------------------------------------------------------------------------------
             // Call the services
@@ -177,8 +177,10 @@ public class ServiceExample {
             // ----------------------------------------------------------------------------------------------------
             service1.stop();
             service2.stop();
-            System.out.println("\nService 1 done ? " + done1.get(1, TimeUnit.SECONDS));
-            System.out.println("Service 2 done ? " + done2.get(2, TimeUnit.SECONDS));
+
+            // stopping the service will complete the futures received when starting the service
+            System.out.println("\nService 1 stopped ? " + serviceStoppedFuture1.get(1, TimeUnit.SECONDS));
+            System.out.println("Service 2 stopped ? " + serviceStoppedFuture2.get(2, TimeUnit.SECONDS));
         }
         catch (Exception e) {
             e.printStackTrace();
