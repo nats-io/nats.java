@@ -76,9 +76,9 @@ class PushMessageManager extends MessageManager {
             messageReceived(); // only need to track when heartbeats are expected
             Status status = msg.getStatus();
             if (status != null) {
-                // only plain heartbeats do not get queued
+                // only fc heartbeats get queued
                 if (status.isHeartbeat()) {
-                    return hasFcSubject(msg); // true if not a plain hb
+                    return hasFcSubject(msg); // true if a fc hb
                 }
             }
         }
