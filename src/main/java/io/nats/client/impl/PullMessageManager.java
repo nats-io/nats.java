@@ -13,7 +13,6 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamStatusException;
 import io.nats.client.Message;
 import io.nats.client.PullRequestOptions;
 import io.nats.client.SubscribeOptions;
@@ -134,7 +133,7 @@ class PullMessageManager extends MessageManager {
                 if (raiseStatusWarnings) {
                     conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
                 }
-                return TERMINUS;
+                return STATUS_TERMINUS;
 
             case CONFLICT_CODE:
                 // sometimes just a warning
@@ -143,22 +142,19 @@ class PullMessageManager extends MessageManager {
                     if (raiseStatusWarnings) {
                         conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
                     }
-                    return STATUS;
+                    return STATUS_HANDLED;
                 }
 
                 if (statMsg.equals(BATCH_COMPLETED) ||
                     statMsg.equals(MESSAGE_SIZE_EXCEEDS_MAX_BYTES))
                 {
-                    return TERMINUS;
+                    return STATUS_TERMINUS;
                 }
                 break;
         }
 
         // fall through, all others are errors
         conn.executeCallback((c, el) -> el.pullStatusError(c, sub, status));
-        if (syncMode) {
-            throw new JetStreamStatusException(sub, status);
-        }
-        return ERROR;
+        return STATUS_ERROR;
     }
 }

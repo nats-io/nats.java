@@ -22,7 +22,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 abstract class MessageManager {
-    public enum ManageResult {MESSAGE, STATUS, TERMINUS, ERROR}
+    public enum ManageResult {MESSAGE, STATUS_HANDLED, STATUS_TERMINUS, STATUS_ERROR}
 
     protected static final int THRESHOLD = 3;
 

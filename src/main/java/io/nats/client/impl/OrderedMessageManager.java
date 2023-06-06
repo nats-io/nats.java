@@ -21,7 +21,7 @@ import io.nats.client.api.DeliverPolicy;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.impl.MessageManager.ManageResult.MESSAGE;
-import static io.nats.client.impl.MessageManager.ManageResult.STATUS;
+import static io.nats.client.impl.MessageManager.ManageResult.STATUS_HANDLED;
 
 class OrderedMessageManager extends PushMessageManager {
 
@@ -49,14 +49,14 @@ class OrderedMessageManager extends PushMessageManager {
     @Override
     protected ManageResult manage(Message msg) {
         if (!msg.getSID().equals(targetSid.get())) {
-            return STATUS; // wrong sid is throwaway from previous consumer that errored
+            return STATUS_HANDLED; // wrong sid is throwaway from previous consumer that errored
         }
 
         if (msg.isJetStream()) {
             long receivedConsumerSeq = msg.metaData().consumerSequence();
             if (expectedExternalConsumerSeq != receivedConsumerSeq) {
                 handleErrorCondition();
-                return STATUS;
+                return STATUS_HANDLED;
             }
             trackJsMessage(msg);
             expectedExternalConsumerSeq++;

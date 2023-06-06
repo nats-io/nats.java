@@ -977,6 +977,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertNotNull(sub.nextMessage(500));
             assertNotNull(sub.nextMessage(500));
             assertNull(sub.nextMessage(500));
+            checkHandler(MESSAGE_SIZE_EXCEEDS_MAX_BYTES, TYPE_NONE, handler, 2500);
         });
     }
 
@@ -1009,6 +1010,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertNotNull(sub.nextMessage(500));
             assertNotNull(sub.nextMessage(500));
             assertNull(sub.nextMessage(500)); // there are no more messages
+            checkHandler(MESSAGE_SIZE_EXCEEDS_MAX_BYTES, TYPE_NONE, handler, 2500);
         });
     }
 

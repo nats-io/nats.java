@@ -13,7 +13,6 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamStatusException;
 import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
@@ -77,9 +76,9 @@ class PushMessageManager extends MessageManager {
             messageReceived(); // only need to track when heartbeats are expected
             Status status = msg.getStatus();
             if (status != null) {
-                // only plain heartbeats do not get queued
+                // only fc heartbeats get queued
                 if (status.isHeartbeat()) {
-                    return hasFcSubject(msg); // true if not a plain hb
+                    return hasFcSubject(msg); // true if a fc hb
                 }
             }
         }
@@ -114,16 +113,12 @@ class PushMessageManager extends MessageManager {
             String fcSubject = isFcNotHb ? msg.getReplyTo() : extractFcSubject(msg);
             if (fcSubject != null) {
                 processFlowControl(fcSubject, isFcNotHb ? FLOW_CONTROL : HEARTBEAT);
-                return STATUS;
+                return STATUS_HANDLED;
             }
         }
 
         conn.executeCallback((c, el) -> el.unhandledStatus(c, sub, status));
-        if (syncMode) {
-            throw new JetStreamStatusException(sub, status,
-                "Unknown or unprocessed status message: " + status.getMessageWithCode());
-        }
-        return ERROR;
+        return STATUS_ERROR;
     }
 
     private void processFlowControl(String fcSubject, FlowControlSource source) {
