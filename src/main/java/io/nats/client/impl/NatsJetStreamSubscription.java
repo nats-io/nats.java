@@ -102,19 +102,19 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     protected Message _nextUnmanagedWaitForever(String expectedPullSubject) throws InterruptedException {
         while (true) {
             Message msg = nextMessageInternal(Duration.ZERO);
-            if (msg == null) {
-                return null; // no message currently queued
+            if (msg != null) { // null shouldn't happen, so just a code guard b/c nextMessageInternal can return null
+                switch (manager.manage(msg)) {
+                    case MESSAGE:
+                        return msg;
+                    case STATUS_ERROR:
+                        // if the status applies throw exception, otherwise it's ignored, fall through
+                        if (expectedPullSubject == null || expectedPullSubject.equals(msg.getSubject())) {
+                            throw new JetStreamStatusException(msg.getStatus(), this);
+                        }
+                        break;
+                }
+                // STATUS_HANDLED, STATUS_TERMINUS and STATUS_ERRORS that aren't for expected pullSubject: check again since waiting forever
             }
-            switch (manager.manage(msg)) {
-                case MESSAGE:
-                    return msg;
-                case STATUS_ERROR:
-                    // if the status applies throw exception, otherwise it's ignored, fall through
-                    if (expectedPullSubject == null || expectedPullSubject.equals(msg.getSubject())) {
-                        throw new JetStreamStatusException(this, msg.getStatus());
-                    }
-            }
-            // STATUS_HANDLED, STATUS_TERMINUS and STATUS_ERRORS that aren't for expected pullSubject: check again since waiting forever
         }
     }
 
@@ -122,7 +122,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         while (true) {
             Message msg = nextMessageInternal(null);
             if (msg == null) {
-                return null; // no message currently queued
+                return null;
             }
             switch (manager.manage(msg)) {
                 case MESSAGE:
@@ -132,13 +132,15 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                     if (expectedPullSubject == null || expectedPullSubject.equals(msg.getSubject())) {
                         return null;
                     }
+                    break;
                 case STATUS_ERROR:
                     // if the status applies throw exception, otherwise it's ignored, fall through
                     if (expectedPullSubject == null || expectedPullSubject.equals(msg.getSubject())) {
-                        throw new JetStreamStatusException(this, msg.getStatus());
+                        throw new JetStreamStatusException(msg.getStatus(), this);
                     }
+                    break;
             }
-            // case STATUS_HANDLED: regular messages might have arrived, check again
+            // STATUS_HANDLED: regular messages might have arrived, check again
         }
     }
 
@@ -159,11 +161,13 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                     if (expectedPullSubject == null || expectedPullSubject.equals(msg.getSubject())) {
                         return null;
                     }
+                    break;
                 case STATUS_ERROR:
                     // if the status applies throw exception, otherwise it's ignored, fall through
                     if (expectedPullSubject == null || expectedPullSubject.equals(msg.getSubject())) {
-                        throw new JetStreamStatusException(this, msg.getStatus());
+                        throw new JetStreamStatusException(msg.getStatus(), this);
                     }
+                    break;
             }
             // anything else, try again while we have time
             timeLeftNanos = timeoutNanos - (System.nanoTime() - start);

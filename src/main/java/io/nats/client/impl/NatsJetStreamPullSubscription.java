@@ -164,11 +164,13 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                         if (pullSubject.equals(msg.getSubject())) {
                             return messages;
                         }
+                        break;
                     case STATUS_ERROR:
                         // if there is a match, the status applies otherwise it's ignored
                         if (pullSubject.equals(msg.getSubject())) {
-                            throw new JetStreamStatusException(this, msg.getStatus());
+                            throw new JetStreamStatusException(msg.getStatus(), this);
                         }
+                        break;
                 }
                 // anything else, try again while we have time
                 timeLeftNanos = maxWaitNanos - (System.nanoTime() - start);

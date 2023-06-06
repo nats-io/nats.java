@@ -25,28 +25,15 @@ public class JetStreamStatusException extends IllegalStateException {
     private final Status status;
 
     /**
-     * Construct JetStreamStatusException for a subscription and a status and a custom message
-     * @param sub     the subscription
-     * @param status  the status
-     * @param message the exception message
+     * Construct JetStreamStatusException for a subscription and a status
+     *
+     * @param status the status
+     * @param sub    the subscription
      */
-    public JetStreamStatusException(JetStreamSubscription sub, Status status, String message) {
-        super(message);
+    public JetStreamStatusException(Status status, JetStreamSubscription sub) {
+        super(status == null ? DEFAULT_DESCRIPTION : status.getMessageWithCode());
         this.sub = sub;
         this.status = status;
-    }
-
-    private static String guardedStatusMessage(Status status) {
-        return status == null ? DEFAULT_DESCRIPTION : status.getMessageWithCode();
-    }
-
-    /**
-     * Construct JetStreamStatusException for a subscription and a status
-     * @param sub the subscription
-     * @param status the status
-     */
-    public JetStreamStatusException(JetStreamSubscription sub, Status status) {
-        this(sub, status, guardedStatusMessage(status));
     }
 
     /**
@@ -54,7 +41,7 @@ public class JetStreamStatusException extends IllegalStateException {
      * @param status the status
      */
     public JetStreamStatusException(Status status) {
-        this(null, status, guardedStatusMessage(status));
+        this(status, null);
     }
 
     /**
