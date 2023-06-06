@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.JetStreamReader;
+import io.nats.client.JetStreamStatusException;
 import io.nats.client.Message;
 import io.nats.client.PullRequestOptions;
 
@@ -158,14 +159,18 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                         messages.add(msg);
                         batchLeft--;
                         break;
-                    case TERMINUS:
-                    case ERROR:
-                        // if there is a match, the status applies
+                    case STATUS_TERMINUS:
+                        // if there is a match, the status applies otherwise it's ignored
                         if (pullSubject.equals(msg.getSubject())) {
                             return messages;
                         }
+                    case STATUS_ERROR:
+                        // if there is a match, the status applies otherwise it's ignored
+                        if (pullSubject.equals(msg.getSubject())) {
+                            throw new JetStreamStatusException(this, msg.getStatus());
+                        }
                 }
-                // case pull not match / other ManageResult (i.e. STATUS), try again while we have time
+                // anything else, try again while we have time
                 timeLeftNanos = maxWaitNanos - (System.nanoTime() - start);
             }
         }

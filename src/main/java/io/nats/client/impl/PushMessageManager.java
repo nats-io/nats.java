@@ -13,7 +13,6 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamStatusException;
 import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
@@ -114,16 +113,12 @@ class PushMessageManager extends MessageManager {
             String fcSubject = isFcNotHb ? msg.getReplyTo() : extractFcSubject(msg);
             if (fcSubject != null) {
                 processFlowControl(fcSubject, isFcNotHb ? FLOW_CONTROL : HEARTBEAT);
-                return STATUS;
+                return STATUS_HANDLED;
             }
         }
 
         conn.executeCallback((c, el) -> el.unhandledStatus(c, sub, status));
-        if (syncMode) {
-            throw new JetStreamStatusException(sub, status,
-                "Unknown or unprocessed status message: " + status.getMessageWithCode());
-        }
-        return ERROR;
+        return STATUS_ERROR;
     }
 
     private void processFlowControl(String fcSubject, FlowControlSource source) {

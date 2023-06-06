@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.ConsumerInfo;
-import io.nats.client.impl.MessageManager.ManageResult;
 import io.nats.client.support.NatsJetStreamConstants;
 
 import java.io.IOException;
@@ -29,6 +28,8 @@ import java.util.List;
 public class NatsJetStreamSubscription extends NatsSubscription implements JetStreamSubscription, NatsJetStreamConstants {
 
     public static final String SUBSCRIPTION_TYPE_DOES_NOT_SUPPORT_PULL = "Subscription type does not support pull.";
+    public static final long EXPIRE_ADJUSTMENT = 10;
+    public static final long MIN_EXPIRE_MILLIS = 20;
 
     protected final NatsJetStream js;
 
@@ -80,47 +81,71 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
 
     @Override
     public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
-        if (timeout == null || timeout.toMillis() <= 0) {
-            return _nextUnmanagedNullOrLteZero(timeout);
+        if (timeout == null) {
+            return _nextUnmanagedNoWait(null);
         }
-
-        return _nextUnmanaged(timeout.toMillis(), null);
+        long millis = timeout.toMillis();
+        if (millis <= 0) {
+            return _nextUnmanagedWaitForever(null);
+        }
+        return _nextUnmanaged(millis, null);
     }
 
     @Override
     public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
         if (timeoutMillis <= 0) {
-            return _nextUnmanagedNullOrLteZero(Duration.ZERO);
+            return _nextUnmanagedWaitForever(null);
         }
-
         return _nextUnmanaged(timeoutMillis, null);
     }
 
-    protected Message _nextUnmanagedNullOrLteZero(Duration timeout) throws InterruptedException {
-        // timeout null means don't wait at all, timeout <= 0 means wait forever
-        // until we get an actual no (null) message, or we get a message
-        // that the managers do not handle or are pull terminal indicator status message
+    protected Message _nextUnmanagedWaitForever(String expectedPullSubject) throws InterruptedException {
         while (true) {
-            Message msg = nextMessageInternal(timeout);
+            Message msg = nextMessageInternal(Duration.ZERO);
             if (msg == null) {
                 return null; // no message currently queued
             }
-            if (manager.manage(msg) == ManageResult.MESSAGE) {
-                return msg;
+            switch (manager.manage(msg)) {
+                case MESSAGE:
+                    return msg;
+                case STATUS_ERROR:
+                    // if the status applies throw exception, otherwise it's ignored, fall through
+                    if (expectedPullSubject == null || expectedPullSubject.equals(msg.getSubject())) {
+                        throw new JetStreamStatusException(this, msg.getStatus());
+                    }
             }
+            // STATUS_HANDLED, STATUS_TERMINUS and STATUS_ERRORS that aren't for expected pullSubject: check again since waiting forever
         }
     }
 
-    public static final long EXPIRE_ADJUSTMENT = 10;
-    public static final long MIN_EXPIRE_MILLIS = 20;
+    protected Message _nextUnmanagedNoWait(String expectedPullSubject) throws InterruptedException {
+        while (true) {
+            Message msg = nextMessageInternal(null);
+            if (msg == null) {
+                return null; // no message currently queued
+            }
+            switch (manager.manage(msg)) {
+                case MESSAGE:
+                    return msg;
+                case STATUS_TERMINUS:
+                    // if the status applies return null, otherwise it's ignored, fall through
+                    if (expectedPullSubject == null || expectedPullSubject.equals(msg.getSubject())) {
+                        return null;
+                    }
+                case STATUS_ERROR:
+                    // if the status applies throw exception, otherwise it's ignored, fall through
+                    if (expectedPullSubject == null || expectedPullSubject.equals(msg.getSubject())) {
+                        throw new JetStreamStatusException(this, msg.getStatus());
+                    }
+            }
+            // case STATUS_HANDLED: regular messages might have arrived, check again
+        }
+    }
 
-    protected Message _nextUnmanaged(long timeout, String expectedpullSubject) throws InterruptedException {
-        // timeout > 0 process as many messages we can in that time period
-        // If we get a message that either manager handles, we try again, but
-        // with a shorter timeout based on what we already used up
-        long start = System.nanoTime();
+    protected Message _nextUnmanaged(long timeout, String expectedPullSubject) throws InterruptedException {
         long timeoutNanos = timeout * 1_000_000;
         long timeLeftNanos = timeoutNanos;
+        long start = System.nanoTime();
         while (timeLeftNanos > 0) {
             Message msg = nextMessageInternal( Duration.ofNanos(timeLeftNanos) );
             if (msg == null) {
@@ -129,15 +154,18 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
             switch (manager.manage(msg)) {
                 case MESSAGE:
                     return msg;
-                case TERMINUS:
-                case ERROR:
-                    // reply match will be null on pushes and all status are "managed" so ignored in this loop
-                    // otherwise (pull) if there is a match, the status applies
-                    if (expectedpullSubject != null && expectedpullSubject.equals(msg.getSubject())) {
+                case STATUS_TERMINUS:
+                    // if the status applies return null, otherwise it's ignored, fall through
+                    if (expectedPullSubject == null || expectedPullSubject.equals(msg.getSubject())) {
                         return null;
                     }
+                case STATUS_ERROR:
+                    // if the status applies throw exception, otherwise it's ignored, fall through
+                    if (expectedPullSubject == null || expectedPullSubject.equals(msg.getSubject())) {
+                        throw new JetStreamStatusException(this, msg.getStatus());
+                    }
             }
-            // case push managed / pull not match / other ManageResult (i.e. STATUS), try again while we have time
+            // anything else, try again while we have time
             timeLeftNanos = timeoutNanos - (System.nanoTime() - start);
         }
         return null;

@@ -19,6 +19,7 @@ import java.io.IOException;
 
 class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer {
     private final long maxWaitNanos;
+    private final String pullSubject;
     private long startNanos;
 
     public NatsFetchConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException {
@@ -29,7 +30,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             .expiresIn(fetchConsumeOptions.getExpiresIn())
             .idleHeartbeat(fetchConsumeOptions.getIdleHeartbeat())
             .build();
-        sub._pull(pro, false, null);
+        pullSubject = sub._pull(pro, false, null);
         startNanos = -1;
     }
 
@@ -46,10 +47,10 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             // that all the messages are already in the internal queue and there is
             // no waiting necessary
             if (timeLeftMillis < 1 | pmm.pendingMessages < 1 || (pmm.trackingBytes && pmm.pendingBytes < 1)) {
-                return sub._nextUnmanagedNullOrLteZero(null); // null means don't wait
+                return sub._nextUnmanagedNoWait(pullSubject); // null means don't wait
             }
 
-            return sub.nextMessage(timeLeftMillis);
+            return sub._nextUnmanaged(timeLeftMillis, pullSubject);
         }
         catch (JetStreamStatusException e) {
             throw new JetStreamStatusCheckedException(e);
