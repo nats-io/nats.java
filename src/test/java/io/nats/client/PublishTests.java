@@ -200,7 +200,7 @@ public class PublishTests {
         try {
             runInServer(standardOptionsBuilder().noReconnect(), nc -> {
                 int maxPayload = (int)nc.getServerInfo().getMaxPayload();
-                for (int x = 1; x < 10; x++) {
+                for (int x = 1; x < 1000; x++) {
                     nc.publish("mptest", new byte[maxPayload + x]);
                 }
             });

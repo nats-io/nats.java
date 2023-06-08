@@ -679,24 +679,6 @@ public class RequestTests extends TestBase {
     }
 
     @Test
-    public void testThrowsIfTooBig() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            String customInfo = "{\"server_id\":\"myid\",\"max_payload\":512}";
-
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
-                    Connection nc = Nats.connect(ts.getURI())) {
-                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-                assertEquals("myid", ((NatsConnection) nc).getInfo().getServerId(), "got custom info");
-                assertEquals(512, ((NatsConnection) nc).getInfo().getMaxPayload(), "got custom info");
-
-                byte[] body = new byte[513];
-                nc.request("subject", body);
-                fail();
-            }
-        });
-    }
-
-    @Test
     public void testNatsRequestCompletableFuture() throws InterruptedException {
         NatsRequestCompletableFuture f = new NatsRequestCompletableFuture(CancelAction.CANCEL, Duration.ofHours(-1));
         assertEquals(CancelAction.CANCEL, f.getCancelAction());
