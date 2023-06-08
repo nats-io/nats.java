@@ -818,7 +818,6 @@ class NatsConnection implements Connection {
 
     void publishInternal(String subject, String replyTo, Headers headers, byte[] data) {
         checkIfNeedsHeaderSupport(headers);
-        checkPayloadSize(data);
 
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
@@ -841,13 +840,6 @@ class NatsConnection implements Connection {
         if (headers != null && !headers.isEmpty() && !serverInfo.get().isHeadersSupported()) {
             throw new IllegalArgumentException(
                     "Headers are not supported by the server, version: " + serverInfo.get().getVersion());
-        }
-    }
-
-    private void checkPayloadSize(byte[] body) {
-        if (options.clientSideLimitChecks() && body != null && body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
-            throw new IllegalArgumentException(
-                    "Message payload size exceed server configuration " + body.length + " vs " + this.getMaxPayload());
         }
     }
 
@@ -1155,8 +1147,6 @@ class NatsConnection implements Connection {
     }
 
     CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, Duration futureTimeout, CancelAction cancelAction) {
-        checkPayloadSize(data);
-
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
         } else if (isDraining()) {
