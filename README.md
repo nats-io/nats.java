@@ -11,6 +11,31 @@ A [Java](http://java.com) client for the [NATS messaging system](https://nats.io
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
 [![Release Badge](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml/badge.svg?event=release)](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml)
 
+## BETA / Experimental News
+
+### Simplification
+
+There is a new simplified api that makes working with streams and consumers well, simpler!
+
+Check out the examples:
+
+* [ContextExample](src/examples/java/io/nats/examples/jetstream/simple/ContextExample.java)
+* [FetchBytesExample](src/examples/java/io/nats/examples/jetstream/simple/FetchBytesExample.java)
+* [FetchMessagesExample](src/examples/java/io/nats/examples/jetstream/simple/FetchMessagesExample.java)
+* [IterableConsumerExample](src/examples/java/io/nats/examples/jetstream/simple/IterableConsumerExample.java)
+* [MessageConsumerExample](src/examples/java/io/nats/examples/jetstream/simple/MessageConsumerExample.java)
+* [NextExample](src/examples/java/io/nats/examples/jetstream/simple/NextExample.java)
+
+### Service Framework
+
+The service API allows you to easily build NATS services The services API is currently in beta functionality.
+
+The Services Framework introduces a higher-level API for implementing services with NATS. NATS has always been a strong technology on which to build services, as they are easy to write, are location and DNS independent and can be scaled up or down by simply adding or removing instances of the service.
+
+The Services Framework further streamlines their development by providing observability and standardization. The Service Framework allows your services to be discovered, queried for status and schema information without additional work.
+
+Check out the [ServiceExample](src/examples/java/io/nats/examples/service/ServiceExample.java)
+
 ## A Note on Versions
 
 This is version 2.x of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address the excessive use of threads, we created a Dispatcher construct to allow applications to control thread creation more intentionally. This version also removes all non-JDK runtime dependencies.
@@ -24,6 +49,17 @@ The NATS server renamed itself from gnatsd to nats-server around 2.4.4. This and
 Version 2.5.0 adds some back pressure to publish calls to alleviate issues when there is a slow network. This may alter performance characteristics of publishing apps, although the total performance is equivalent.
 
 Previous versions are still available in the repo.
+
+### Version 2.16.12 Max Payload Check
+
+As of version 2.16.12, there is no longer client side checking
+1. that a message payload is less than the server configuration (Core and JetStream publishes)
+2. is less than the stream configuration (JetStream publishes)
+
+Please see unit test for examples of this behavior.
+`testMaxPayload` in [PublishTests.java](src/test/java/io/nats/client/PublishTests.java)
+and
+`testMaxPayloadJs` in [JetStreamPubTests.cs](src/test/java/io/nats/client/impl/JetStreamPubTests.java)
 
 ### Version 2.16.0 Consumer Create
 

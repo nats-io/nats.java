@@ -332,11 +332,13 @@ public class OptionsTests {
     @Test
     public void testBuilderCoverageOptions() {
         Options o = new Options.Builder().build();
-        assertTrue(o.clientSideLimitChecks());
+        assertFalse(o.clientSideLimitChecks()); // clientSideLimitChecks is deprecated and always returns false
         assertNull(o.getServerPool()); // there is a default provider
 
-        o = new Options.Builder().clientSideLimitChecks(true).build();
-        assertTrue(o.clientSideLimitChecks());
+        o = new Options.Builder()
+            .clientSideLimitChecks(true).build();
+        assertFalse(o.clientSideLimitChecks()); // clientSideLimitChecks is deprecated and always returns false
+
         o = new Options.Builder()
             .clientSideLimitChecks(false)
             .serverPool(new NatsServerPool())
@@ -356,7 +358,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_NO_NORESPONDERS, "true");
         props.setProperty(Options.PROP_RECONNECT_JITTER, "1000");
         props.setProperty(Options.PROP_RECONNECT_JITTER_TLS, "2000");
-        props.setProperty(Options.PROP_CLIENT_SIDE_LIMIT_CHECKS, "true");
+        props.setProperty(Options.PROP_CLIENT_SIDE_LIMIT_CHECKS, "true"); // deprecated
         props.setProperty(Options.PROP_IGNORE_DISCOVERED_SERVERS, "true");
         props.setProperty(Options.PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, "io.nats.client.utils.CoverageServerPool");
         props.setProperty(Options.PROP_NO_RESOLVE_HOSTNAMES, "true");
@@ -370,7 +372,7 @@ public class OptionsTests {
         assertNull(o.getSslContext(), "property context");
         assertTrue(o.isNoHeaders());
         assertTrue(o.isNoNoResponders());
-        assertTrue(o.clientSideLimitChecks());
+        assertFalse(o.clientSideLimitChecks()); // clientSideLimitChecks is deprecated and always returns false
         assertTrue(o.isIgnoreDiscoveredServers());
         assertNotNull(o.getServerPool());
         assertTrue(o.isNoResolveHostnames());

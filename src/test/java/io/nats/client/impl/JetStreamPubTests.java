@@ -15,6 +15,8 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.PublishAck;
+import io.nats.client.api.StorageType;
+import io.nats.client.api.StreamConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -23,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -333,5 +336,65 @@ public class JetStreamPubTests extends JetStreamTestBase {
             assertNotNull(m);
             assertEquals(data2, new String(m.getData()));
         });
+    }
+
+    @Test
+    public void testMaxPayloadJs() throws Exception {
+        String streamName = "stream-max-payload-test";
+        String subject1 = "mptest1";
+        String subject2 = "mptest2";
+
+        try (NatsTestServer ts = new NatsTestServer(false, true))
+        {
+            Options options = standardOptionsBuilder().noReconnect().server(ts.getURI()).build();
+            long expectedSeq = 0;
+            try (Connection nc = standardConnection(options)){
+                JetStreamManagement jsm = nc.jetStreamManagement();
+                try { jsm.deleteStream(streamName); } catch (JetStreamApiException ignore) {}
+                jsm.addStream(StreamConfiguration.builder()
+                    .name(streamName)
+                    .storageType(StorageType.Memory)
+                    .subjects(subject1, subject2)
+                    .maxMsgSize(1000)
+                    .build()
+                );
+
+                JetStream js = nc.jetStream();
+                for (int x = 1; x <= 3; x++)
+                {
+                    int size = 1000 + x - 2;
+                    if (size > 1000)
+                    {
+                        JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> js.publish(subject1, new byte[size]));
+                        assertEquals(10054, e.getApiErrorCode());
+                    }
+                    else
+                    {
+                        PublishAck pa = js.publish(subject1, new byte[size]);
+                        assertEquals(++expectedSeq, pa.getSeqno());
+                    }
+                }
+            }
+
+            try (Connection nc = standardConnection(options)){
+                JetStream js = nc.jetStream();
+                for (int x = 1; x <= 3; x++)
+                {
+                    int size = 1000 + x - 2;
+                    CompletableFuture<PublishAck> paFuture = js.publishAsync(subject1, new byte[size]);
+                    if (size > 1000)
+                    {
+                        ExecutionException e = assertThrows(ExecutionException.class, () -> paFuture.get(1000, TimeUnit.MILLISECONDS));
+                        JetStreamApiException j = (JetStreamApiException)e.getCause().getCause();
+                        assertEquals(10054, j.getApiErrorCode());
+                    }
+                    else
+                    {
+                        PublishAck pa = paFuture.get(1000, TimeUnit.MILLISECONDS);
+                        assertEquals(++expectedSeq, pa.getSeqno());
+                    }
+                }
+            }
+        }
     }
 }

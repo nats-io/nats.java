@@ -25,8 +25,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.NatsConstants.*;
-import static io.nats.client.utils.TestBase.standardCloseConnection;
-import static io.nats.client.utils.TestBase.standardConnection;
+import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PublishTests {
@@ -60,22 +59,6 @@ public class PublishTests {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
                 nc.publish(null, null);
-                fail();
-            }
-        });
-    }
-
-    @Test
-    public void testThrowsIfTooBig() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            String customInfo = "{\"server_id\":\"myid\",\"max_payload\": 1000}";
-
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
-                 Connection nc = Nats.connect(ts.getURI())) {
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-
-                byte[] body = new byte[1001];
-                nc.publish("subject", null, null, body);
                 fail();
             }
         });
@@ -204,6 +187,27 @@ public class PublishTests {
                 assertEquals(bodyString, body.get(), "Body matches");
                 assertEquals(new String(headers.getSerialized()), hdrProto.get());
             }
+        }
+    }
+
+    @Test
+    public void testMaxPayload() throws Exception {
+        runInServer(standardOptionsBuilder().noReconnect(), nc -> {
+            int maxPayload = (int)nc.getServerInfo().getMaxPayload();
+            nc.publish("mptest", new byte[maxPayload-1]);
+            nc.publish("mptest", new byte[maxPayload]);
+        });
+        try {
+            runInServer(standardOptionsBuilder().noReconnect(), nc -> {
+                int maxPayload = (int)nc.getServerInfo().getMaxPayload();
+                for (int x = 1; x < 1000; x++) {
+                    nc.publish("mptest", new byte[maxPayload + x]);
+                }
+            });
+            fail("Expecting connection to be closed");
+        }
+        catch (IllegalStateException e) {
+            assertTrue(e.getMessage().contains("Connection is Closed"));
         }
     }
 }
