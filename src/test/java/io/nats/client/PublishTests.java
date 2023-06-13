@@ -207,7 +207,7 @@ public class PublishTests {
             fail("Expecting connection to be closed");
         }
         catch (IllegalStateException e) {
-            // great, expecting this
+            assertTrue(e.getMessage().contains("Connection is Closed"));
         }
     }
 }
