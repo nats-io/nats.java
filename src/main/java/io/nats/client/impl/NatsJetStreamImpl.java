@@ -98,7 +98,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     }
 
     static String generateConsumerName() {
-        return NUID.nextGlobalNoPrefix();
+        return NUID.nextGlobalSequence();
     }
 
     void _createConsumerUnsubscribeOnException(String stream, ConsumerConfiguration cc, NatsJetStreamSubscription sub) throws IOException, JetStreamApiException {
