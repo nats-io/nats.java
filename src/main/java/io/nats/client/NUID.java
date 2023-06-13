@@ -87,11 +87,18 @@ public final class NUID {
     }
 
     /**
+     * @return the next NUID string from a shared global NUID instance
+     */
+    public static synchronized String nextGlobalNoPrefix() {
+        return globalNUID.nextNoPrefix();
+    }
+
+    /**
      * Generate the next NUID string from this instance.
      *
      * @return the next NUID string from this instance.
      */
-    public final synchronized String next() {
+    public synchronized String next() {
         // Increment and capture.
         seq += inc;
         if (seq >= maxSeq) {
@@ -106,9 +113,27 @@ public final class NUID {
         // copy in the seq in base36.
         int i = b.length;
         for (long l = seq; i > preLen; l /= base) {
-            i--;
-            b[i] = digits[(int) (l % base)];
+            b[--i] = digits[(int) (l % base)];
         }
+        return new String(b);
+    }
+
+    public synchronized String nextNoPrefix() {
+        // Increment and capture.
+        seq += inc;
+        if (seq >= maxSeq) {
+            randomizePrefix();
+            resetSequential();
+        }
+
+        char[] b = new char[seqLen];
+
+        // copy in the seq in base36.
+        int ix = seqLen;
+        for (long l = seq; ix > 0; l /= base) {
+            b[--ix] = digits[(int) (l % base)];
+        }
+        System.out.println(" --> " + new String(pre) + " | "  + new String(b));
         return new String(b);
     }
 

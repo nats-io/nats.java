@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamOptions;
 import io.nats.client.Message;
+import io.nats.client.NUID;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsJetStreamConstants;
 
@@ -63,20 +64,19 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     }
 
     ConsumerInfo _createConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
-        String name = config.getName();
-        if (name != null && !consumerCreate290Available) {
+        // ConsumerConfiguration validates that name and durable are the same if both are supplied.
+        String consumerName = config.getName();
+        if (consumerName != null && !consumerCreate290Available) {
             throw JsConsumerCreate290NotAvailable.instance();
         }
-
         String durable = config.getDurable();
 
-        String consumerName = name == null ? durable : name;
-
         String subj;
-        if (consumerName == null) { // just use old template
-            subj = String.format(JSAPI_CONSUMER_CREATE, streamName);
-        }
-        else if (consumerCreate290Available) {
+        if (consumerCreate290Available) {
+            if (consumerName == null) {
+                // if both consumerName and durable are null, generate a name
+                consumerName = durable == null ? generateConsumerName() : durable;
+            }
             String fs = config.getFilterSubject();
             if (fs == null || fs.equals(">")) {
                 subj = String.format(JSAPI_CONSUMER_CREATE_V290, streamName, consumerName);
@@ -85,13 +85,20 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
                 subj = String.format(JSAPI_CONSUMER_CREATE_V290_W_FILTER, streamName, consumerName, fs);
             }
         }
-        else { // server is old and consumerName must be durable since name was checked for JsConsumerCreate290NotAvailable
+        else if (durable == null) {
+            subj = String.format(JSAPI_CONSUMER_CREATE, streamName);
+        }
+        else {
             subj = String.format(JSAPI_DURABLE_CREATE, streamName, durable);
         }
 
         ConsumerCreateRequest ccr = new ConsumerCreateRequest(streamName, config);
         Message resp = makeRequestResponseRequired(subj, ccr.serialize(), conn.getOptions().getConnectionTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
+    }
+
+    static String generateConsumerName() {
+        return NUID.nextGlobalNoPrefix();
     }
 
     void _createConsumerUnsubscribeOnException(String stream, ConsumerConfiguration cc, NatsJetStreamSubscription sub) throws IOException, JetStreamApiException {

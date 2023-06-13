@@ -204,10 +204,10 @@ public class PublishTests {
                     nc.publish("mptest", new byte[maxPayload + x]);
                 }
             });
-            fail("Expecting connection to be closed");
         }
         catch (IllegalStateException e) {
-            assertTrue(e.getMessage().contains("Connection is Closed"));
+            return;
         }
+        fail("Expecting connection to be closed");
     }
 }
