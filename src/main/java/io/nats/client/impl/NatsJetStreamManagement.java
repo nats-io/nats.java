@@ -19,7 +19,6 @@ import io.nats.client.api.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.List;
 
 import static io.nats.client.support.Validator.*;
@@ -125,11 +124,6 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     public ConsumerInfo addOrUpdateConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
         validateStreamName(streamName, true);
         validateNotNull(config, "Config");
-        validateNotNull(config.getDurable(), "Durable"); // durable name is required when creating consumers
-        Duration d = config.getInactiveThreshold();
-        if (d != null && !d.isZero()) {
-            throw new IllegalArgumentException("Durable consumers cannot have an Inactive Threshold.");
-        }
         return _createConsumer(streamName, config);
     }
 
