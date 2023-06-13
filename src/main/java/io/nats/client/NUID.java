@@ -133,7 +133,6 @@ public final class NUID {
         for (long l = seq; ix > 0; l /= base) {
             b[--ix] = digits[(int) (l % base)];
         }
-        System.out.println(" --> " + new String(pre) + " | "  + new String(b));
         return new String(b);
     }
 
