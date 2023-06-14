@@ -419,6 +419,10 @@ public class NatsJsUtils {
         return count;
     }
 
+    public static void createCleanMemStream(Connection nc, String stream, String... subs) throws IOException, JetStreamApiException {
+        createCleanMemStream(nc.jetStreamManagement(), stream, subs);
+    }
+
     public static void createCleanMemStream(JetStreamManagement jsm, String stream, String... subs) throws IOException, JetStreamApiException {
         try {
             jsm.deleteStream(stream);

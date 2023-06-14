@@ -17,7 +17,7 @@ import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 
 import java.io.IOException;
-import java.util.concurrent.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
@@ -52,7 +52,7 @@ public class MessageConsumerExample {
             ConsumerContext consumerContext;
             try {
                 streamContext = nc.streamContext(STREAM);
-                streamContext.addConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
+                streamContext.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
                 consumerContext = streamContext.consumerContext(CONSUMER_NAME);
             }
             catch (JetStreamApiException | IOException e) {
@@ -78,17 +78,12 @@ public class MessageConsumerExample {
             };
 
             // create the consumer then use it
-            try (MessageConsumer consumer = consumerContext.consume(handler)){
+            try {
+                MessageConsumer consumer = consumerContext.consume(handler);
                 latch.await();
                 // once the consumer is stopped, the client will drain messages
                 System.out.println("Stop the consumer...");
-                CompletableFuture<Boolean> stopFuture = consumer.stop(1000);
-                try {
-                    stopFuture.get(1, TimeUnit.SECONDS);
-                }
-                catch (ExecutionException | TimeoutException e) {
-                    // from the future.get
-                }
+                consumer.stop(1000);
             }
             catch (JetStreamApiException | IOException e) {
                 // JetStreamApiException:
@@ -97,9 +92,6 @@ public class MessageConsumerExample {
                 // IOException:
                 //      likely a connection problem
                 return;
-            }
-            catch (Exception e) {
-                // For IterableConsumer since it is AutoCloseable
             }
 
             report("Final", start, atomicCount.get());

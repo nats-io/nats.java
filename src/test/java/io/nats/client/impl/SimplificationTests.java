@@ -23,7 +23,6 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.BaseConsumeOptions.*;
@@ -60,7 +59,7 @@ public class SimplificationTests extends JetStreamTestBase {
         assertThrows(JetStreamApiException.class, () -> streamContext.deleteConsumer(DURABLE));
 
         ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
-        ConsumerContext consumerContext = streamContext.addConsumer(cc);
+        ConsumerContext consumerContext = streamContext.createOrUpdateConsumer(cc);
         ConsumerInfo ci = consumerContext.getConsumerInfo();
         assertEquals(STREAM, ci.getStreamName());
         assertEquals(DURABLE, ci.getName());
@@ -367,8 +366,8 @@ public class SimplificationTests extends JetStreamTestBase {
             ConsumerContext cctx2 = nc.consumerContext(STREAM, name(2), JetStreamOptions.DEFAULT_JS_OPTIONS);
             ConsumerContext cctx3 = js.consumerContext(STREAM, name(3));
             ConsumerContext cctx4 = sctx1.consumerContext(name(4));
-            ConsumerContext cctx5 = sctx1.addConsumer(ConsumerConfiguration.builder().durable(name(5)).build());
-            ConsumerContext cctx6 = sctx1.addConsumer(ConsumerConfiguration.builder().durable(name(6)).build());
+            ConsumerContext cctx5 = sctx1.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(name(5)).build());
+            ConsumerContext cctx6 = sctx1.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(name(6)).build());
 
             closeConsumer(cctx1.consume(), name(1), true);
             closeConsumer(cctx2.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS), name(2), true);
@@ -383,9 +382,8 @@ public class SimplificationTests extends JetStreamTestBase {
         ConsumerInfo ci = con.getConsumerInfo();
         assertEquals(name, ci.getName());
         if (doStop) {
-            assertTrue(con.stop(100).get(100, TimeUnit.MILLISECONDS));
+            con.stop(100);
         }
-        con.close();
     }
 
     @Test

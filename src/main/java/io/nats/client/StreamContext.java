@@ -84,14 +84,14 @@ public interface StreamContext {
     ConsumerContext consumerContext(String consumerName) throws IOException, JetStreamApiException;
 
     /**
-     * Management function to creates a consumer on this stream.
+     * Management function to create or update a consumer on this stream.
      * @param config the consumer configuration to use.
      * @return a ConsumerContext object
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    ConsumerContext addConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException;
+    ConsumerContext createOrUpdateConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException;
 
     /**
      * Management function to deletes a consumer.

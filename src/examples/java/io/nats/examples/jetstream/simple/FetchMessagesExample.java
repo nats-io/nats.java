@@ -75,7 +75,7 @@ public class FetchMessagesExample {
         ConsumerContext consumerContext;
         try {
             streamContext = nc.streamContext(STREAM);
-            consumerContext = streamContext.addConsumer(ConsumerConfiguration.builder().durable(consumerName).build());
+            consumerContext = streamContext.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(consumerName).build());
         }
         catch (JetStreamApiException | IOException e) {
             // JetStreamApiException:
@@ -97,7 +97,8 @@ public class FetchMessagesExample {
 
         // create the consumer then use it
         int receivedMessages = 0;
-        try (FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions)){
+        try {
+            FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions);
             Message msg = consumer.nextMessage();
             while (msg != null) {
                 msg.ack();
@@ -120,9 +121,6 @@ public class FetchMessagesExample {
             //      developer interrupted this thread?
             System.err.println("Exception should be handled properly, just exiting here.");
             System.exit(-1);
-        }
-        catch (Exception e) {
-            // For FetchConsumer since it is AutoCloseable
         }
         long elapsed = System.currentTimeMillis() - start;
 

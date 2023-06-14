@@ -16,14 +16,13 @@ package io.nats.client;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * The MessageConsumer interface is the core interface replacing
  * a subscription for a simplified consumer.
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
-public interface MessageConsumer extends AutoCloseable {
+public interface MessageConsumer {
     /**
      * Gets information about the consumer behind this subscription.
      * @return consumer information
@@ -35,12 +34,11 @@ public interface MessageConsumer extends AutoCloseable {
 
     /**
      * Stop the MessageConsumer from asking for any more messages from the server.
-     * Messages do not immediately stop
+     * There still may be messages available and coming across the wire.
      * @param timeout The time to wait for the stop to succeed, pass 0 to wait
      *                forever. Stop involves moving messages to and from the server
      *                so a very short timeout is not recommended.
-     * @return A future so you could wait for the stop to know when there are no more messages.
      * @throws InterruptedException if one is thrown, in order to propagate it up
      */
-    CompletableFuture<Boolean> stop(long timeout) throws InterruptedException;
+    void stop(long timeout) throws InterruptedException;
 }
