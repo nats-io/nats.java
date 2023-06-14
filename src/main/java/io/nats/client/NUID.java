@@ -110,7 +110,7 @@ public final class NUID {
         char[] b = new char[totalLen];
         System.arraycopy(pre, 0, b, 0, preLen);
 
-        // copy in the seq in base36.
+        // copy in the seq
         int i = b.length;
         for (long l = seq; i > preLen; l /= base) {
             b[--i] = digits[(int) (l % base)];
@@ -131,7 +131,7 @@ public final class NUID {
         }
 
         char[] b = new char[seqLen];
-        // copy in the seq in base36.
+        // copy in the seq
         int ix = seqLen;
         for (long l = seq; ix > 0; l /= base) {
             b[--ix] = digits[(int) (l % base)];
