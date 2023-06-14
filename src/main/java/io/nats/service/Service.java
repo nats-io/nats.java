@@ -63,7 +63,6 @@ public class Service {
         // ? do we need an internal dispatcher for any user endpoints
         // ! also while we are here, we need to collect the endpoints for the SchemaResponse
         Dispatcher dTemp = null;
-        List<String> infoSubjects = new ArrayList<>();
         List<Endpoint> infoEndpoints = new ArrayList<>();
         serviceContexts = new HashMap<>();
         for (ServiceEndpoint se : b.serviceEndpoints.values()) {
@@ -76,7 +75,6 @@ public class Service {
             else {
                 serviceContexts.put(se.getName(), new EndpointContext(conn, null, true, se));
             }
-            infoSubjects.add(se.getSubject());
             infoEndpoints.add(se.getEndpoint());
         }
         if (dTemp != null) {
