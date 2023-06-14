@@ -54,7 +54,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements TrackPendin
 
     @Override
     public void track(int pendingMessages, long pendingBytes, boolean trackingBytes) {
-        if (drainFuture == null &&
+        if (!stopped &&
             (pmm.pendingMessages <= thresholdMessages
                 || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
         {

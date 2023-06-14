@@ -50,7 +50,7 @@ public class ContextExample {
             System.out.println("S3. " + streamContext.getStreamInfo());
 
             // when you create a consumer from the stream context you get a ConsumerContext in return
-            ConsumerContext consumerContext = streamContext.addConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
+            ConsumerContext consumerContext = streamContext.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
             System.out.println("C1. " + consumerContext.getCachedConsumerInfo());
 
             // get a ConsumerContext from the connection for a pre-existing consumer

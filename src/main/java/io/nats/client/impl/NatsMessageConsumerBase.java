@@ -19,13 +19,12 @@ import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
 
 class NatsMessageConsumerBase implements MessageConsumer {
     protected NatsJetStreamPullSubscription sub;
     protected PullMessageManager pmm;
     protected final Object subLock;
-    protected CompletableFuture<Boolean> drainFuture;
+    protected boolean stopped;
 
     NatsMessageConsumerBase() {
         subLock = new Object();
@@ -50,24 +49,28 @@ class NatsMessageConsumerBase implements MessageConsumer {
      * {@inheritDoc}
      */
     @Override
-    public CompletableFuture<Boolean> stop(long timeout) throws InterruptedException {
+    public void stop(long timeout) throws InterruptedException {
         synchronized (subLock) {
-            if (drainFuture == null) {
-                if (sub.getNatsDispatcher() != null) {
-                    drainFuture = sub.getDispatcher().drain(Duration.ofMillis(timeout));
+            if (!stopped) {
+                try {
+                    if (sub.getNatsDispatcher() != null) {
+                        sub.getDispatcher().drain(Duration.ofMillis(timeout));
+                    }
+                    else {
+                        sub.drain(Duration.ofMillis(timeout));
+                    }
                 }
-                else {
-                    drainFuture = sub.drain(Duration.ofMillis(timeout));
+                finally {
+                    stopped = true;
                 }
             }
-            return drainFuture;
         }
     }
 
     @Override
-    public void close() throws Exception {
-        synchronized (subLock) {
-            if (drainFuture == null && sub.isActive()) {
+    protected void finalize() throws Throwable {
+        try {
+            if (!stopped && sub.isActive()) {
                 if (sub.getNatsDispatcher() != null) {
                     sub.getDispatcher().unsubscribe(sub);
                 }
@@ -76,5 +79,9 @@ class NatsMessageConsumerBase implements MessageConsumer {
                 }
             }
         }
+        catch (Throwable ignore) {
+            // nothing to do
+        }
+        super.finalize();
     }
 }

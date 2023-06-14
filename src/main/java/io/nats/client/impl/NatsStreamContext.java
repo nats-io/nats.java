@@ -84,7 +84,7 @@ class NatsStreamContext implements StreamContext {
      * {@inheritDoc}
      */
     @Override
-    public ConsumerContext addConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException {
+    public ConsumerContext createOrUpdateConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException {
         return new NatsConsumerContext(this, jsm.addOrUpdateConsumer(streamName, config));
     }
 

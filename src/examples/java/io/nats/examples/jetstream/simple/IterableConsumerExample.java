@@ -47,7 +47,7 @@ public class IterableConsumerExample {
             ConsumerContext consumerContext;
             try {
                 streamContext = nc.streamContext(STREAM);
-                consumerContext = streamContext.addConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
+                consumerContext = streamContext.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
             }
             catch (JetStreamApiException | IOException e) {
                 // JetStreamApiException:
@@ -61,7 +61,8 @@ public class IterableConsumerExample {
             Thread consumeThread = new Thread(() -> {
                 int count = 0;
                 long start = System.nanoTime();
-                try (IterableConsumer consumer = consumerContext.consume()){
+                try {
+                    IterableConsumer consumer = consumerContext.consume();
                     System.out.println("Starting main loop.");
                     while (count < STOP_COUNT) {
                         Message msg = consumer.nextMessage(1000);
@@ -94,9 +95,6 @@ public class IterableConsumerExample {
                     // InterruptedException:
                     //      developer interrupted this thread?
                     return;
-                }
-                catch (Exception e) {
-                    // For IterableConsumer since it is AutoCloseable
                 }
                 report("Done", System.nanoTime() - start, count);
             });
