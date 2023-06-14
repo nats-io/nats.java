@@ -992,9 +992,9 @@ public class ServiceTests extends JetStreamTestBase {
         iae = assertThrows(IllegalArgumentException.class, () -> new TestServiceResponses(json4.getBytes()));
         assertTrue(iae.getMessage().contains("Version cannot be null"));
 
-        Map<String, String> meta = new HashMap<>();
-        meta.put("foo", "bar");
-        Endpoint end1 = new Endpoint("endfoo", meta);
+        Map<String, String> endMeta = new HashMap<>();
+        endMeta.put("foo", "bar");
+        Endpoint end1 = new Endpoint("endfoo", endMeta);
         InfoResponse ir1 = new InfoResponse("id", "name", "0.0.0", metadata, "desc", Collections.singletonList(end1));
         InfoResponse ir2 = new InfoResponse(ir1.toJson().getBytes());
         System.out.println(ir1.toJson());
