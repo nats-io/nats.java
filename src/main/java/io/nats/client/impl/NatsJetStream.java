@@ -307,6 +307,9 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
         ConsumerConfiguration serverCC = null;
         String consumerName = userCC.getDurable();
+        if (consumerName == null) {
+            consumerName = userCC.getName();
+        }
         String inboxDeliver = userCC.getDeliverSubject();
 
         // 3. Does this consumer already exist?

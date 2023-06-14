@@ -654,12 +654,19 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertTrue(iae.getMessage().contains("Stream cannot be null or empty"));
             iae = assertThrows(IllegalArgumentException.class, () -> jsm.addOrUpdateConsumer(STREAM, null));
             assertTrue(iae.getMessage().contains("Config cannot be null"));
-            iae = assertThrows(IllegalArgumentException.class, () -> jsm.addOrUpdateConsumer(STREAM, cc));
-            assertTrue(iae.getMessage().contains("Durable cannot be null"));
 
+            // durable and name can both be null
+            ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
+            assertNotNull(ci.getName());
+
+            // threshold can be set for durable
             final ConsumerConfiguration cc2 = ConsumerConfiguration.builder().durable(DURABLE).inactiveThreshold(10000).build();
-            iae = assertThrows(IllegalArgumentException.class, () -> jsm.addOrUpdateConsumer(STREAM, cc2));
-            assertTrue(iae.getMessage().contains("Inactive Threshold"));
+            ci = jsm.addOrUpdateConsumer(STREAM, cc2);
+            assertEquals(10000, ci.getConsumerConfiguration().getInactiveThreshold().toMillis());
+
+            // prep for next part of test
+            jsm.deleteStream(STREAM);
+            createMemoryStream(jsm, STREAM, subjectDot(">"));
 
             // with and w/o deliver subject for push/pull
             addConsumer(jsm, atLeast290, 1, false, null, ConsumerConfiguration.builder()

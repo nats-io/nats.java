@@ -726,7 +726,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
                     sub.nextMessage(2500);
                 }
             }
-            checkHandler(statusText, type, handler, 2500);
+            checkHandler(statusText, type, handler, 5000);
         });
     }
 

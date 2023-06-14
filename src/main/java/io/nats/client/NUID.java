@@ -87,11 +87,18 @@ public final class NUID {
     }
 
     /**
+     * @return the next sequence portion of the NUID string from a shared global NUID instance
+     */
+    public static synchronized String nextGlobalSequence() {
+        return globalNUID.nextSequence();
+    }
+
+    /**
      * Generate the next NUID string from this instance.
      *
      * @return the next NUID string from this instance.
      */
-    public final synchronized String next() {
+    public synchronized String next() {
         // Increment and capture.
         seq += inc;
         if (seq >= maxSeq) {
@@ -103,16 +110,36 @@ public final class NUID {
         char[] b = new char[totalLen];
         System.arraycopy(pre, 0, b, 0, preLen);
 
-        // copy in the seq in base36.
+        // copy in the seq
         int i = b.length;
         for (long l = seq; i > preLen; l /= base) {
-            i--;
-            b[i] = digits[(int) (l % base)];
+            b[--i] = digits[(int) (l % base)];
         }
         return new String(b);
     }
 
-    // Resets the sequntial portion of the NUID
+    /**
+     * Generate the next NUID string from this instance and return only the sequence portion.
+     * @return the next sequence portion of the NUID string from a shared global NUID instance
+     */
+    public synchronized String nextSequence() {
+        // Increment and capture.
+        seq += inc;
+        if (seq >= maxSeq) {
+            randomizePrefix();
+            resetSequential();
+        }
+
+        char[] b = new char[seqLen];
+        // copy in the seq
+        int ix = seqLen;
+        for (long l = seq; ix > 0; l /= base) {
+            b[--ix] = digits[(int) (l % base)];
+        }
+        return new String(b);
+    }
+
+    // Resets the sequential portion of the NUID
     void resetSequential() {
         seq = nextLong(PRAND, maxSeq);
         inc = minInc + nextLong(PRAND, maxInc - minInc);
