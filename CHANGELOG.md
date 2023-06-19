@@ -1,5 +1,37 @@
 # Change Log
 
+## 2.16.12
+
+#### Core
+
+* WS only read payload from network stream #902 @GrafBlutwurst
+* Remove client side check against server info max_payload when publishing #922 @scottf
+
+#### JetStream
+
+* Fixed GetChanges for backoff and metadata #910 @scottf
+* Fine tuning message manger result #921 @scottf
+* Remove validation when adding or updating consumer #923 @scottf
+
+#### Simplification
+
+* Completion, tuning, address feedback, etc. #917 #919 #926 @scottf
+
+#### Service Framework
+
+* Remove schema from Service API #916 @scottf
+* Change INFO response to contain endpoint details #918 @scottf
+* Fine tune service start / stop #920 @scottf
+* Service code cleanup #925 @scottf
+
+#### Misc / Test
+
+* Update dependencies.md #904 @scottf
+* Bump GH Actions versions (Go; node12 deprecation) @philpennock
+* Enhance jwt utils #906 #909 @scottf
+* Message: Fix typo in javadoc #911 @nicoruti
+* Unit test improvements #915 @scottf
+
 ## 2.16.11
 
 #### Core
