@@ -22,7 +22,7 @@ import java.io.IOException;
  * a subscription for a simplified consumer.
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
-public interface MessageConsumer {
+public interface MessageConsumer extends AutoCloseable {
     /**
      * Gets information about the consumer behind this subscription.
      * @return consumer information

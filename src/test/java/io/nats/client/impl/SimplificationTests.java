@@ -184,16 +184,18 @@ public class SimplificationTests extends JetStreamTestBase {
 
         long start = System.currentTimeMillis();
 
-        // create the consumer then use it
-        FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions);
         int rcvd = 0;
-        Message msg = consumer.nextMessage();
-        while (msg != null) {
-            ++rcvd;
-            msg.ack();
-            msg = consumer.nextMessage();
+        long elapsed;
+        // create the consumer then use it
+        try (FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions)) {
+            Message msg = consumer.nextMessage();
+            while (msg != null) {
+                ++rcvd;
+                msg.ack();
+                msg = consumer.nextMessage();
+            }
+            elapsed = System.currentTimeMillis() - start;
         }
-        long elapsed = System.currentTimeMillis() - start;
 
         switch (label) {
             case "1A":
@@ -237,49 +239,50 @@ public class SimplificationTests extends JetStreamTestBase {
             ConsumerContext consumerContext = js.consumerContext(STREAM, DURABLE);
 
             int stopCount = 500;
-
             // create the consumer then use it
-            IterableConsumer consumer = consumerContext.consume();
-            AtomicInteger count = new AtomicInteger();
-            Thread consumeThread = new Thread(() -> {
-                try {
-                    while (count.get() < stopCount) {
+            try (IterableConsumer consumer = consumerContext.consume()) {
+                AtomicInteger count = new AtomicInteger();
+                Thread consumeThread = new Thread(() -> {
+                    try {
+                        while (count.get() < stopCount) {
+                            Message msg = consumer.nextMessage(1000);
+                            if (msg != null) {
+                                msg.ack();
+                                count.incrementAndGet();
+                            }
+                        }
+
+                        Thread.sleep(50); // allows more messages to come across
+                        consumer.stop(200);
+
                         Message msg = consumer.nextMessage(1000);
-                        if (msg != null) {
+                        while (msg != null) {
                             msg.ack();
                             count.incrementAndGet();
+                            msg = consumer.nextMessage(1000);
                         }
                     }
-
-                    Thread.sleep(50); // allows more messages to come across
-                    consumer.stop(200);
-
-                    Message msg = consumer.nextMessage(1000);
-                    while (msg != null) {
-                        msg.ack();
-                        count.incrementAndGet();
-                        msg = consumer.nextMessage(1000);
+                    catch (Exception e) {
+                        fail(e);
                     }
-                }
-                catch (Exception e) {
-                    fail(e);
-                }
-            });
-            consumeThread.start();
+                });
+                consumeThread.start();
 
-            Publisher publisher = new Publisher(js, SUBJECT, 25);
-            Thread pubThread = new Thread(publisher);
-            pubThread.start();
+                Publisher publisher = new Publisher(js, SUBJECT, 25);
+                Thread pubThread = new Thread(publisher);
+                pubThread.start();
 
-            consumeThread.join();
-            publisher.stop();
-            pubThread.join();
+                consumeThread.join();
+                publisher.stop();
+                pubThread.join();
 
-            assertTrue(count.get() > 500);
+                assertTrue(count.get() > 500);
+            }
 
             // coverage
-            consumerContext.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
-            assertThrows(IllegalArgumentException.class, () -> consumerContext.consume((ConsumeOptions)null));
+            IterableConsumer consumer = consumerContext.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
+            consumer.close();
+            assertThrows(IllegalArgumentException.class, () -> consumerContext.consume((ConsumeOptions) null));
         });
     }
 
@@ -310,10 +313,11 @@ public class SimplificationTests extends JetStreamTestBase {
                 }
             };
 
-            MessageConsumer consumer = consumerContext.consume(handler);
-            latch.await();
-            consumer.stop(200);
-            assertTrue(atomicCount.get() > 500);
+            try (MessageConsumer consumer = consumerContext.consume(handler)) {
+                latch.await();
+                consumer.stop(200);
+                assertTrue(atomicCount.get() > 500);
+            }
         });
     }
 

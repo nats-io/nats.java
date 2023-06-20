@@ -61,19 +61,18 @@ public class IterableConsumerExample {
             Thread consumeThread = new Thread(() -> {
                 int count = 0;
                 long start = System.currentTimeMillis();
-                try {
-                    IterableConsumer consumer = consumerContext.consume();
+                try (IterableConsumer consumer = consumerContext.consume()) {
                     System.out.println("Starting main loop.");
                     while (count < STOP_COUNT) {
                         Message msg = consumer.nextMessage(1000);
                         if (msg != null) {
                             msg.ack();
                             if (++count % REPORT_EVERY == 0) {
-                                report("Main Loop Running", System.nanoTime() - start, count);
+                                report("Main Loop Running", System.currentTimeMillis() - start, count);
                             }
                         }
                     }
-                    report("Main Loop Stopped", System.nanoTime() - start, count);
+                    report("Main Loop Stopped", System.currentTimeMillis() - start, count);
 
                     System.out.println("Pausing for effect...allow more messages come across.");
                     Thread.sleep(JITTER * 2); // allows more messages to come across
@@ -83,7 +82,7 @@ public class IterableConsumerExample {
                     Message msg = consumer.nextMessage(1000);
                     while (msg != null) {
                         msg.ack();
-                        report("Post-stop loop running", System.nanoTime() - start, ++count);
+                        report("Post-stop loop running", System.currentTimeMillis() - start, ++count);
                         msg = consumer.nextMessage(1000);
                     }
                 }
@@ -94,7 +93,14 @@ public class IterableConsumerExample {
                     //      server that this client is not aware of
                     // InterruptedException:
                     //      developer interrupted this thread?
-                    return;
+                    System.err.println("Exception should be handled properly, just exiting here.");
+                    System.exit(-1);
+                }
+                catch (Exception e) {
+                    // this is from the FetchConsumer being AutoCloseable, but should never be called
+                    // as work inside the close is already guarded by try/catch
+                    System.err.println("Exception should be handled properly, just exiting here.");
+                    System.exit(-1);
                 }
                 report("Done", System.currentTimeMillis() - start, count);
             });
