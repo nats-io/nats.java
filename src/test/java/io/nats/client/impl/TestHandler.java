@@ -26,7 +26,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public class TestHandler implements ErrorListener, ConnectionListener {
-    private final ReentrantLock lock = new ReentrantLock();
+    private final ReentrantLock prepLock = new ReentrantLock();
 
     private final AtomicInteger count = new AtomicInteger();
     private final AtomicInteger exceptionCount = new AtomicInteger();
@@ -114,7 +114,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public void prepForStatusChange(Events waitFor) {
-        lock.lock();
+        prepLock.lock();
         try {
             statusChanged = new CompletableFuture<>();
             eventToWaitFor = waitFor;
@@ -122,7 +122,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
                 report("prepForStatusChange",  waitFor);
             }
         } finally {
-            lock.unlock();
+            prepLock.unlock();
         }
     }
 
@@ -163,7 +163,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public void prepForError(String waitFor) {
-        lock.lock();
+        prepLock.lock();
         try {
             errorWaitFuture = new CompletableFuture<>();
             errorToWaitFor = waitFor;
@@ -171,20 +171,20 @@ public class TestHandler implements ErrorListener, ConnectionListener {
                 report("prepForError",  waitFor);
             }
         } finally {
-            lock.unlock();
+            prepLock.unlock();
         }
     }
 
     public boolean errorsEventually(String contains, long timeout) {
-        return _eventually(timeout, () -> errors, (s) -> s.contains(contains));
+        return _eventually(timeout, () -> copy(errors), (s) -> s.contains(contains));
     }
 
     public void errorOccurred(Connection conn, String errorText) {
         lastEventConnection = conn;
-        errors.add(errorText);
+        add(errors, errorText);
         count.incrementAndGet();
 
-        lock.lock();
+        prepLock.lock();
         try {
             AtomicInteger counter = errorCounts.get(errorText);
             if (counter == null) {
@@ -199,7 +199,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
                 report("errorOccurred",  errorText);
             }
         } finally {
-            lock.unlock();
+            prepLock.unlock();
         }
     }
 
@@ -207,14 +207,14 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         lastEventConnection = conn;
         count.incrementAndGet();
 
-        lock.lock();
+        prepLock.lock();
         try {
             discardedMessages.add(msg);
             if (verbose) {
                 report("messageDiscarded",  msg);
             }
         } finally {
-            lock.unlock();
+            prepLock.unlock();
         }
     }
 
@@ -222,7 +222,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         lastEventConnection = conn;
         count.incrementAndGet();
 
-        lock.lock();
+        prepLock.lock();
         try {
             AtomicInteger counter = eventCounts.get(type);
             if (counter == null) {
@@ -237,7 +237,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
                 report("connectionEvent",  type);
             }
         } finally {
-            lock.unlock();
+            prepLock.unlock();
         }
     }
 
@@ -249,7 +249,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     public void slowConsumerDetected(Connection conn, Consumer consumer) {
         count.incrementAndGet();
 
-        lock.lock();
+        prepLock.lock();
         try {
             slowConsumers.add(consumer);
             if (slowSubscriber != null) {
@@ -271,12 +271,25 @@ public class TestHandler implements ErrorListener, ConnectionListener {
                 report("slowConsumerDetected",  msg);
             }
         } finally {
-            lock.unlock();
+            prepLock.unlock();
         }
     }
 
     private void report(String func, Object message) {
         System.out.println("[" + System.currentTimeMillis() + " TestHelper." + func + "] " + message);
+    }
+
+    private final Object listLock = new Object();
+    private <T> List<T> copy(List<T> list) {
+        synchronized (listLock) {
+            return new ArrayList<>(list);
+        }
+    }
+
+    private <T> void add(List<T> list, T t) {
+        synchronized (listLock) {
+            list.add(t);
+        }
     }
 
     public List<String> getErrors() {
@@ -325,34 +338,34 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     public int getEventCount(Events type) {
         int retVal = 0;
-        lock.lock();
+        prepLock.lock();
         try {
             AtomicInteger counter = eventCounts.get(type);
             if (counter != null) {
                 retVal = counter.get();
             }
         } finally {
-            lock.unlock();
+            prepLock.unlock();
         }
         return retVal;
     }
 
     public int getErrorCount(String type) {
         int retVal = 0;
-        lock.lock();
+        prepLock.lock();
         try {
             AtomicInteger counter = errorCounts.get(type);
             if (counter != null) {
                 retVal = counter.get();
             }
         } finally {
-            lock.unlock();
+            prepLock.unlock();
         }
         return retVal;
     }
 
     public void dumpErrorCountsToStdOut() {
-        lock.lock();
+        prepLock.lock();
         try {
             System.out.println("#### Test Handler Error Counts ####");
             for (String key : errorCounts.keySet()) {
@@ -360,7 +373,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
                 System.out.println(key+": "+count);
             }
         } finally {
-            lock.unlock();
+            prepLock.unlock();
         }
     }
 
@@ -374,12 +387,12 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public void prepForPullStatusWarning() {
-        lock.lock();
+        prepLock.lock();
         try {
             pullStatusWarningWaitFuture = new CompletableFuture<>();
         }
         finally {
-            lock.unlock();
+            prepLock.unlock();
         }
     }
 
@@ -388,34 +401,34 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public boolean pullStatusWarningEventually(String contains, long timeout) {
-        return _eventually(timeout, () -> pullStatusWarnings,
+        return _eventually(timeout, () -> copy(pullStatusWarnings),
             (se) -> se.status.getMessage().contains(contains));
     }
 
     @Override
     public void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {
-        lock.lock();
+        prepLock.lock();
         try {
             StatusEvent event = new StatusEvent(sub, status);
             if (verbose) {
                 report("pullStatusWarning",  event);
             }
-            pullStatusWarnings.add(event);
+            add(pullStatusWarnings, event);
             if (pullStatusWarningWaitFuture != null) {
                 pullStatusWarningWaitFuture.complete(event);
             }
         } finally {
-            lock.unlock();
+            prepLock.unlock();
         }
     }
 
     public void prepForPullStatusError() {
-        lock.lock();
+        prepLock.lock();
         try {
             pullStatusErrorWaitFuture = new CompletableFuture<>();
         }
         finally {
-            lock.unlock();
+            prepLock.unlock();
         }
     }
 
@@ -424,34 +437,34 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public boolean pullStatusErrorOrWait(String contains, long timeout) {
-        return _eventually(timeout, () -> pullStatusErrors,
+        return _eventually(timeout, () -> copy(pullStatusErrors),
             (se) -> se.status.getMessage().contains(contains));
     }
 
     @Override
     public void pullStatusError(Connection conn, JetStreamSubscription sub, Status status) {
-        lock.lock();
+        prepLock.lock();
         try {
             StatusEvent event = new StatusEvent(sub, status);
             if (verbose) {
                 report("pullStatusError",  event);
             }
-            pullStatusErrors.add(event);
+            add(pullStatusErrors, event);
             if (pullStatusErrorWaitFuture != null) {
                 pullStatusErrorWaitFuture.complete(event);
             }
         } finally {
-            lock.unlock();
+            prepLock.unlock();
         }
     }
 
     public void prepForHeartbeatAlarm() {
-        lock.lock();
+        prepLock.lock();
         try {
             heartbeatAlarmEventWaitFuture = new CompletableFuture<>();
         }
         finally {
-            lock.unlock();
+            prepLock.unlock();
         }
     }
 
@@ -461,7 +474,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     @Override
     public void heartbeatAlarm(Connection conn, JetStreamSubscription sub, long lastStreamSequence, long lastConsumerSequence) {
-        lock.lock();
+        prepLock.lock();
         try {
             HeartbeatAlarmEvent event = new HeartbeatAlarmEvent(sub, lastStreamSequence, lastConsumerSequence);
             if (verbose) {
@@ -472,7 +485,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
                 heartbeatAlarmEventWaitFuture.complete(event);
             }
         } finally {
-            lock.unlock();
+            prepLock.unlock();
         }
     }
 

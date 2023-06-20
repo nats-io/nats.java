@@ -697,9 +697,12 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     private PullSubscribeOptions makePso(BuilderCustomizer c) {
-        return c.customize(ConsumerConfiguration.builder().ackPolicy(AckPolicy.None)).buildPullSubscribeOptions();
+        return c.customize(ConsumerConfiguration.builder().ackPolicy(AckPolicy.None)).inactiveThreshold(INACTIVE_THRESHOLD).buildPullSubscribeOptions();
     }
 
+    static final long NEXT_MESSAGE = 2500;
+    static final long WAIT_FOR_MESSAGES = 10_000;
+    static final long INACTIVE_THRESHOLD = 30_000;
     static final int TYPE_ERROR = 1;
     static final int TYPE_WARNING = 2;
     static final int TYPE_NONE = 0;
@@ -717,16 +720,16 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamSubscription sub = setup.setup(nc, jsm, js, handler);
             if (sub.getDispatcher() == null) {
                 if (type == TYPE_ERROR) {
-                    JetStreamStatusException jsse = assertThrows(JetStreamStatusException.class, () -> sub.nextMessage(2500));
+                    JetStreamStatusException jsse = assertThrows(JetStreamStatusException.class, () -> sub.nextMessage(NEXT_MESSAGE));
                     assertEquals(statusCode, jsse.getStatus().getCode());
                     assertEquals(sub.hashCode(), jsse.getSubscription().hashCode());
                     assertTrue(jsse.getDescription().contains(statusText)); // coverage
                 }
                 else {
-                    sub.nextMessage(2500);
+                    sub.nextMessage(NEXT_MESSAGE);
                 }
             }
-            checkHandler(statusText, type, handler, 5000);
+            checkHandler(statusText, type, handler, WAIT_FOR_MESSAGES);
         });
     }
 
