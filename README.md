@@ -36,7 +36,7 @@ The Services Framework further streamlines their development by providing observ
 
 Check out the [ServiceExample](src/examples/java/io/nats/examples/service/ServiceExample.java)
 
-## A Note on Versions
+## Versions Specific Notes
 
 This is version 2.x of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address the excessive use of threads, we created a Dispatcher construct to allow applications to control thread creation more intentionally. This version also removes all non-JDK runtime dependencies.
 
