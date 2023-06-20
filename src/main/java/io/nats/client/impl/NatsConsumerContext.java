@@ -111,18 +111,13 @@ public class NatsConsumerContext implements ConsumerContext {
             catch (JetStreamStatusException e) {
                 throw new JetStreamStatusCheckedException(e);
             }
-        }
-
-        @Override
-        protected void finalize() throws Throwable {
-            {
+            finally {
                 try {
                     sub.unsubscribe();
                 }
                 catch (Exception ignore) {
                     // ignored
                 }
-                super.finalize();
             }
         }
     }

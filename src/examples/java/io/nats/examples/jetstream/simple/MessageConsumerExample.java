@@ -92,7 +92,14 @@ public class MessageConsumerExample {
                 //      2. api calls under the covers theoretically this could fail, but practically it won't.
                 // IOException:
                 //      likely a connection problem
-                return;
+                System.err.println("Exception should be handled properly, just exiting here.");
+                System.exit(-1);
+            }
+            catch (Exception e) {
+                // this is from the FetchConsumer being AutoCloseable, but should never be called
+                // as work inside the close is already guarded by try/catch
+                System.err.println("Exception should be handled properly, just exiting here.");
+                System.exit(-1);
             }
 
             report("Final", start, atomicCount.get());

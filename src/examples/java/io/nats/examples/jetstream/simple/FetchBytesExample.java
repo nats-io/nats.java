@@ -107,8 +107,7 @@ public class FetchBytesExample {
         int receivedMessages = 0;
         long receivedBytes = 0;
         long start = System.currentTimeMillis();
-        try {
-            FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions);
+        try (FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions)) {
             Message msg = consumer.nextMessage();
             while (msg != null) {
                 msg.ack();
@@ -133,6 +132,12 @@ public class FetchBytesExample {
             //      likely a connection problem
             // InterruptedException:
             //      developer interrupted this thread?
+            System.err.println("Exception should be handled properly, just exiting here.");
+            System.exit(-1);
+        }
+        catch (Exception e) {
+            // this is from the FetchConsumer being AutoCloseable, but should never be called
+            // as work inside the close is already guarded by try/catch
             System.err.println("Exception should be handled properly, just exiting here.");
             System.exit(-1);
         }

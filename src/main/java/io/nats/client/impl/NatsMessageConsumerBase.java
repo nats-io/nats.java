@@ -68,7 +68,7 @@ class NatsMessageConsumerBase implements MessageConsumer {
     }
 
     @Override
-    protected void finalize() throws Throwable {
+    public void close() throws Exception {
         try {
             if (!stopped && sub.isActive()) {
                 if (sub.getNatsDispatcher() != null) {
@@ -82,6 +82,5 @@ class NatsMessageConsumerBase implements MessageConsumer {
         catch (Throwable ignore) {
             // nothing to do
         }
-        super.finalize();
     }
 }
