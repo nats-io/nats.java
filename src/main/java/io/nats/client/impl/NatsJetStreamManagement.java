@@ -100,6 +100,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      */
     @Override
     public PurgeResponse purgeStream(String streamName) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
         String subj = String.format(JSAPI_STREAM_PURGE, streamName);
         Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new PurgeResponse(resp).throwOnHasError();
@@ -110,6 +111,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      */
     @Override
     public PurgeResponse purgeStream(String streamName, PurgeOptions options) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
         validateNotNull(options, "Purge Options");
         String subj = String.format(JSAPI_STREAM_PURGE, streamName);
         byte[] body = options.toJson().getBytes(StandardCharsets.UTF_8);

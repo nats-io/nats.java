@@ -204,7 +204,6 @@ public abstract class SubscribeOptions {
         ConsumerConfiguration cc;
         long messageAlarmTime = -1;
         boolean ordered;
-        boolean raiseStatusWarnings = true;
 
         protected abstract B getThis();
 

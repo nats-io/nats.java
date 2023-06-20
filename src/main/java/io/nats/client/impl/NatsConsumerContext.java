@@ -32,11 +32,13 @@ public class NatsConsumerContext implements ConsumerContext {
 
     private final NatsStreamContext streamContext;
     private final NatsJetStream js;
+    private final PullSubscribeOptions bindPso;
     private ConsumerInfo lastConsumerInfo;
 
     NatsConsumerContext(NatsStreamContext streamContext, ConsumerInfo ci) throws IOException {
         this.streamContext = streamContext;
         js = new NatsJetStream(streamContext.jsm.conn, streamContext.jsm.jso);
+        bindPso = PullSubscribeOptions.bind(streamContext.streamName, ci.getName());
         lastConsumerInfo = ci;
     }
 
@@ -67,7 +69,7 @@ public class NatsConsumerContext implements ConsumerContext {
      */
     @Override
     public Message next() throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
-        return next(DEFAULT_EXPIRES_IN_MILLIS);
+        return new NextSub(DEFAULT_EXPIRES_IN_MILLIS).next();
     }
 
     /**
@@ -75,7 +77,10 @@ public class NatsConsumerContext implements ConsumerContext {
      */
     @Override
     public Message next(Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
-        return next(maxWait == null ? DEFAULT_EXPIRES_IN_MILLIS : maxWait.toMillis());
+        if (maxWait == null) {
+            return new NextSub(DEFAULT_EXPIRES_IN_MILLIS).next();
+        }
+        return next(maxWait.toMillis());
     }
 
     /**
@@ -86,16 +91,39 @@ public class NatsConsumerContext implements ConsumerContext {
         if (maxWaitMillis < MIN_EXPIRES_MILLS) {
             throw new IllegalArgumentException("Max wait must be at least " + MIN_EXPIRES_MILLS + " milliseconds.");
         }
+        return new NextSub(maxWaitMillis).next();
+    }
 
-        long expires = maxWaitMillis - EXPIRE_ADJUSTMENT;
+    class NextSub {
+        private final long maxWaitMillis;
+        private final NatsJetStreamPullSubscription sub;
 
-        NatsJetStreamPullSubscription sub = new SubscriptionMaker().makeSubscription(null);
-        sub._pull(PullRequestOptions.builder(1).expiresIn(expires).build(), false, null);
-        try {
-            return sub.nextMessage(maxWaitMillis);
+        public NextSub(long maxWaitMillis) throws JetStreamApiException, IOException {
+            sub = new SubscriptionMaker().makeSubscription(null);
+            this.maxWaitMillis = maxWaitMillis;
+            sub._pull(PullRequestOptions.builder(1).expiresIn(maxWaitMillis - EXPIRE_ADJUSTMENT).build(), false, null);
         }
-        catch (JetStreamStatusException e) {
-            throw new JetStreamStatusCheckedException(e);
+
+        Message next() throws JetStreamStatusCheckedException, InterruptedException {
+            try {
+                return sub.nextMessage(maxWaitMillis);
+            }
+            catch (JetStreamStatusException e) {
+                throw new JetStreamStatusCheckedException(e);
+            }
+        }
+
+        @Override
+        protected void finalize() throws Throwable {
+            {
+                try {
+                    sub.unsubscribe();
+                }
+                catch (Exception ignore) {
+                    // ignored
+                }
+                super.finalize();
+            }
         }
     }
 
@@ -164,13 +192,12 @@ public class NatsConsumerContext implements ConsumerContext {
         Dispatcher dispatcher;
 
         public NatsJetStreamPullSubscription makeSubscription(MessageHandler messageHandler) throws IOException, JetStreamApiException {
-            PullSubscribeOptions pso = PullSubscribeOptions.bind(streamContext.streamName, lastConsumerInfo.getName());
             if (messageHandler == null) {
-                return (NatsJetStreamPullSubscription)js.subscribe(null, pso);
+                return (NatsJetStreamPullSubscription)js.subscribe(null, bindPso);
             }
 
             dispatcher = js.conn.createDispatcher();
-            return (NatsJetStreamPullSubscription)js.subscribe(null, dispatcher, messageHandler, pso);
+            return (NatsJetStreamPullSubscription)js.subscribe(null, dispatcher, messageHandler, bindPso);
         }
     }
 }

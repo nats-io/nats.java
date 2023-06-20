@@ -35,6 +35,11 @@ public class NatsIterableConsumer extends NatsMessageConsumer implements Iterabl
         catch (JetStreamStatusException e) {
             throw new JetStreamStatusCheckedException(e);
         }
+        catch (IllegalStateException i) {
+            // this happens if the consumer is stopped, since it is
+            // drained/unsubscribed, so don't pass it on if it's expected
+            return null;
+        }
     }
 
     /**

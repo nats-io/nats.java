@@ -93,19 +93,20 @@ public class FetchMessagesExample {
 
         printExplanation(label, consumerName, maxMessages);
 
-        long start = System.currentTimeMillis();
-
         // create the consumer then use it
         int receivedMessages = 0;
+        long start = System.currentTimeMillis();
         try {
             FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions);
             Message msg = consumer.nextMessage();
             while (msg != null) {
                 msg.ack();
                 if (++receivedMessages == maxMessages) {
-                    break;
+                    msg = null;
                 }
-                msg = consumer.nextMessage();
+                else {
+                    msg = consumer.nextMessage();
+                }
             }
         }
         catch (JetStreamApiException | JetStreamStatusCheckedException | IOException | InterruptedException e) {
@@ -128,7 +129,7 @@ public class FetchMessagesExample {
     }
 
     private static void printSummary(int received, long elapsed) {
-        System.out.println("+++ " + received + " message(s) were received in " + elapsed + "ms\n");
+        System.out.println("+++ Fetch executed and " + received + " message(s) were received in " + elapsed + "ms\n");
     }
 
     private static void printExplanation(String label, String name, int maxMessages) {

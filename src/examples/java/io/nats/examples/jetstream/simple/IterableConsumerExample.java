@@ -60,7 +60,7 @@ public class IterableConsumerExample {
 
             Thread consumeThread = new Thread(() -> {
                 int count = 0;
-                long start = System.nanoTime();
+                long start = System.currentTimeMillis();
                 try {
                     IterableConsumer consumer = consumerContext.consume();
                     System.out.println("Starting main loop.");
@@ -79,11 +79,11 @@ public class IterableConsumerExample {
                     Thread.sleep(JITTER * 2); // allows more messages to come across
                     consumer.stop(1000);
 
-                    System.out.println("Starting post-drain loop.");
+                    System.out.println("Starting post-stop loop.");
                     Message msg = consumer.nextMessage(1000);
                     while (msg != null) {
                         msg.ack();
-                        report("Post Drain Loop Running", System.nanoTime() - start, ++count);
+                        report("Post-stop loop running", System.nanoTime() - start, ++count);
                         msg = consumer.nextMessage(1000);
                     }
                 }
@@ -96,7 +96,7 @@ public class IterableConsumerExample {
                     //      developer interrupted this thread?
                     return;
                 }
-                report("Done", System.nanoTime() - start, count);
+                report("Done", System.currentTimeMillis() - start, count);
             });
             consumeThread.start();
 
@@ -116,8 +116,7 @@ public class IterableConsumerExample {
         }
     }
 
-    private static void report(String label, long elapsedNanos, int count) {
-        long ms = elapsedNanos / 1_000_000;
+    private static void report(String label, long ms, int count) {
         System.out.println(label + ": Received " + count + " messages in " + ms + "ms.");
     }
 }

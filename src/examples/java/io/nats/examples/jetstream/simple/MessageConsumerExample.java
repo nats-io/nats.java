@@ -84,6 +84,7 @@ public class MessageConsumerExample {
                 // once the consumer is stopped, the client will drain messages
                 System.out.println("Stop the consumer...");
                 consumer.stop(1000);
+                Thread.sleep(1000); // enough for messages to drain after stop
             }
             catch (JetStreamApiException | IOException e) {
                 // JetStreamApiException:

@@ -113,7 +113,9 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                         }
                         break;
                 }
-                // STATUS_HANDLED, STATUS_TERMINUS and STATUS_ERRORS that aren't for expected pullSubject: check again since waiting forever
+                // Check again since waiting forever when:
+                // 1. Any STATUS_HANDLED or STATUS_TERMINUS
+                // 2. STATUS_ERRORS that aren't for expected pullSubject
             }
         }
     }
@@ -140,7 +142,9 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                     }
                     break;
             }
-            // STATUS_HANDLED: regular messages might have arrived, check again
+            // Check again when, regular messages might have arrived
+            // 1. Any STATUS_HANDLED
+            // 2. STATUS_TERMINUS or STATUS_ERRORS that aren't for expected pullSubject
         }
     }
 
