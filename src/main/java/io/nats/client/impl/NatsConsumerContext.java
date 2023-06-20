@@ -32,11 +32,13 @@ public class NatsConsumerContext implements ConsumerContext {
 
     private final NatsStreamContext streamContext;
     private final NatsJetStream js;
+    private final PullSubscribeOptions bindPso;
     private ConsumerInfo lastConsumerInfo;
 
     NatsConsumerContext(NatsStreamContext streamContext, ConsumerInfo ci) throws IOException {
         this.streamContext = streamContext;
         js = new NatsJetStream(streamContext.jsm.conn, streamContext.jsm.jso);
+        bindPso = PullSubscribeOptions.bind(streamContext.streamName, ci.getName());
         lastConsumerInfo = ci;
     }
 
@@ -164,13 +166,12 @@ public class NatsConsumerContext implements ConsumerContext {
         Dispatcher dispatcher;
 
         public NatsJetStreamPullSubscription makeSubscription(MessageHandler messageHandler) throws IOException, JetStreamApiException {
-            PullSubscribeOptions pso = PullSubscribeOptions.bind(streamContext.streamName, lastConsumerInfo.getName());
             if (messageHandler == null) {
-                return (NatsJetStreamPullSubscription)js.subscribe(null, pso);
+                return (NatsJetStreamPullSubscription)js.subscribe(null, bindPso);
             }
 
             dispatcher = js.conn.createDispatcher();
-            return (NatsJetStreamPullSubscription)js.subscribe(null, dispatcher, messageHandler, pso);
+            return (NatsJetStreamPullSubscription)js.subscribe(null, dispatcher, messageHandler, bindPso);
         }
     }
 }

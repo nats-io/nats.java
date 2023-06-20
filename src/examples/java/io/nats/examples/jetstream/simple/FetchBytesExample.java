@@ -103,11 +103,10 @@ public class FetchBytesExample {
 
         printExplanation(label, consumerName, maxMessages, maxBytes);
 
-        long start = System.currentTimeMillis();
-
         // create the consumer then use it
         int receivedMessages = 0;
         long receivedBytes = 0;
+        long start = System.currentTimeMillis();
         try {
             FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions);
             Message msg = consumer.nextMessage();
@@ -150,7 +149,7 @@ public class FetchBytesExample {
     }
 
     private static void printSummary(int receivedMessages, long receivedBytes, long elapsed) {
-        System.out.println("+++ " + receivedBytes + "/" + receivedMessages + " bytes/message(s) were received in " + elapsed + "ms\n");
+        System.out.println("+++ Fetch executed and " + receivedBytes + "/" + receivedMessages + " bytes/message(s) were received in " + elapsed + "ms\n");
     }
 
     private static void printExplanation(String label, String name, int maxMessages, int maxBytes) {
@@ -159,7 +158,7 @@ public class FetchBytesExample {
         switch (label) {
             case "A":
                 System.out.println("=== Max bytes (" + maxBytes + ") threshold will be met since the next message would put the byte count over " + maxBytes + " bytes");
-                System.out.println("=== nextMessage() will return null when consume is done");
+                System.out.println("=== nextMessage() will return null when consume is done.");
                 break;
             case "B":
                 System.out.println("=== Fetch max messages (" + maxMessages + ") will be reached before max bytes (" + maxBytes + ")");

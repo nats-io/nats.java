@@ -85,8 +85,8 @@ public class NextExample {
 
             int received = 0;
             while (received < count) {
-                long start = System.currentTimeMillis();
                 try {
+                    long start = System.currentTimeMillis();
                     Message m = consumerContext.next(1000);
                     long elapsed = System.currentTimeMillis() - start;
                     if (m == null) {
