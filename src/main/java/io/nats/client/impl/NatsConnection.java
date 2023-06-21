@@ -543,22 +543,27 @@ class NatsConnection implements Connection {
     }
 
     void upgradeToSecureIfNeeded(NatsUri nuri) throws IOException {
-        Options opts = getOptions();
-        ServerInfo info = getInfo();
+        Options clientOptions = getOptions();
+        ServerInfo serverInfo = getInfo();
+        boolean before2_9_19 = serverInfo.isOlderThanVersion("2.9.19");
 
-        boolean isTLSRequired = opts.isTLSRequired();
+        boolean isTLSRequired = clientOptions.isTLSRequired();
+        boolean upgradeRequired = isTLSRequired;
         if (isTLSRequired && nuri.isWebsocket()) {
             // We are already communicating over "https" websocket, so
             // do NOT try to upgrade to secure.
-            isTLSRequired = false;
+            if (before2_9_19) {
+                isTLSRequired = false;
+            }
+            upgradeRequired = false;
         }
-        if (isTLSRequired && !info.isTLSRequired()) {
+        if (isTLSRequired && !serverInfo.isTLSRequired()) {
             throw new IOException("SSL connection wanted by client.");
-        } else if (!isTLSRequired && info.isTLSRequired()) {
+        }
+        else if (!isTLSRequired && serverInfo.isTLSRequired()) {
             throw new IOException("SSL required by server.");
         }
-
-        if (isTLSRequired) {
+        if (upgradeRequired) {
             this.dataPort.upgradeToSecure();
         }
     }

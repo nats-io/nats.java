@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class InfoHandlerTests {
     @Test
     public void testInitialInfo() throws IOException, InterruptedException {
-        String customInfo = "{\"server_id\":\"myid\"}";
+        String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\"}";
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo)) {
             Connection nc = Nats.connect(ts.getURI());
@@ -46,7 +46,7 @@ public class InfoHandlerTests {
 
     @Test
     public void testUnsolicitedInfo() throws IOException, InterruptedException, ExecutionException {
-        String customInfo = "{\"server_id\":\"myid\"}";
+        String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\"}";
         CompletableFuture<Boolean> gotPong = new CompletableFuture<>();
         CompletableFuture<Boolean> sendInfo = new CompletableFuture<>();
 
@@ -62,7 +62,7 @@ public class InfoHandlerTests {
             }
 
             System.out.println("*** Mock Server @" + ts.getPort() + " sending INFO ...");
-            w.write("INFO {\"server_id\":\"replacement\"}\r\n");
+            w.write("INFO {\"server_id\":\"replacement\", \"version\":\"9.9.99\"}\r\n");
             w.flush();
 
             System.out.println("*** Mock Server @" + ts.getPort() + " sending PING ...");
@@ -108,7 +108,7 @@ public class InfoHandlerTests {
 
     @Test
     public void testLDM() throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        String customInfo = "{\"server_id\":\"myid\", \"ldm\":true}";
+        String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\", \"ldm\":true}";
         CompletableFuture<Boolean> gotPong = new CompletableFuture<>();
         CompletableFuture<Boolean> sendInfo = new CompletableFuture<>();
         CompletableFuture<ConnectionListener.Events> connectLDM = new CompletableFuture<>();

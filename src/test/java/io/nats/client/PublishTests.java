@@ -67,7 +67,7 @@ public class PublishTests {
     @Test
     public void testThrowsIfheadersNotSupported() {
         assertThrows(IllegalArgumentException.class, () -> {
-            String customInfo = "{\"server_id\":\"test\"}";
+            String customInfo = "{\"server_id\":\"test\", \"version\":\"9.9.99\"}";
 
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
                  Connection nc = Nats.connect(ts.getURI())) {

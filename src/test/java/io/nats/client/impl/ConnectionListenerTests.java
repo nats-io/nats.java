@@ -54,7 +54,7 @@ public class ConnectionListenerTests {
     public void testDiscoveredServersCountAndListenerInOptions() throws Exception {
 
         try (NatsTestServer ts = new NatsTestServer()) {
-            String customInfo = "{\"server_id\":\"myid\",\"connect_urls\": [\""+ts.getURI()+"\"]}";
+            String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\""+ts.getURI()+"\"]}";
             try (NatsServerProtocolMock ts2 = new NatsServerProtocolMock(null, customInfo)) {
                 TestHandler handler = new TestHandler();
                 Options options = new Options.Builder().

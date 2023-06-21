@@ -184,7 +184,7 @@ public class NatsServerProtocolMock implements Closeable{
                     writer.write("INFO" + this.separator + customInfo + "\r\n");
                 }
             } else {
-                writer.write("INFO" + this.separator + "{\"server_id\":\"test\", \"nonce\":\""+encoded+"\", \"headers\":true}\r\n");
+                writer.write("INFO" + this.separator + "{\"server_id\":\"test\", \"version\":\"9.9.99\", \"nonce\":\""+encoded+"\", \"headers\":true}\r\n");
             }
             writer.flush();
             this.progress = Progress.SENT_INFO;

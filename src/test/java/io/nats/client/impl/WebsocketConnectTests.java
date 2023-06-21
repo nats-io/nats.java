@@ -64,7 +64,7 @@ public class WebsocketConnectTests extends TestBase {
             SSLContext ctx = TestSSLUtils.createTestSSLContext();
             Options options = new Options.Builder().
                                 httpRequestInterceptor(req -> {
-                                    // Ideally we could validate that this header was sent to NATS server 
+                                    // Ideally we could validate that this header was sent to NATS server
                                     req.getHeaders().add("X-Ignored", "VALUE");
                                 }).
                                 server(ts.getLocalhostUri("wss")).
