@@ -330,7 +330,7 @@ public class ConnectTests {
 
     @Test
     public void testTimeCheckCoverage() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).traceConnection().build();
             assertCanConnect(options);
         }
@@ -348,7 +348,7 @@ public class ConnectTests {
 
     @Test
     public void testFlushBuffer() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
             Connection nc = standardConnection(ts.getURI());
 
             // test connected
@@ -370,7 +370,7 @@ public class ConnectTests {
 
     @Test
     public void testFlushBufferThreadSafety() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
             Connection nc = standardConnection(ts.getURI());
 
             // use two latches to sync the threads as close as
