@@ -34,7 +34,8 @@ public class ConsumerConfigurationTests extends TestBase {
     @Test
     public void testBuilder() {
         ZonedDateTime zdt = ZonedDateTime.of(2012, 1, 12, 6, 30, 1, 500, DateTimeUtils.ZONE_ID_GMT);
-        Map<String, String> metadata = new HashMap<>(); metadata.put("meta-foo", "meta-bar");
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("meta-foo", "meta-bar");
 
         ConsumerConfiguration c = ConsumerConfiguration.builder()
             .ackPolicy(AckPolicy.Explicit)
@@ -162,10 +163,10 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS + 1), c.getIdleHeartbeat());
 
         assertThrows(IllegalArgumentException.class,
-            () ->ConsumerConfiguration.builder().idleHeartbeat(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS - 1)).build());
+            () -> ConsumerConfiguration.builder().idleHeartbeat(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS - 1)).build());
 
         assertThrows(IllegalArgumentException.class,
-            () ->ConsumerConfiguration.builder().idleHeartbeat(MIN_IDLE_HEARTBEAT_MILLIS - 1).build());
+            () -> ConsumerConfiguration.builder().idleHeartbeat(MIN_IDLE_HEARTBEAT_MILLIS - 1).build());
 
         // backoff coverage
         c = ConsumerConfiguration.builder().backoff(Duration.ofSeconds(1), null, Duration.ofSeconds(2)).build();
@@ -174,9 +175,9 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
 
         assertThrows(IllegalArgumentException.class,
-            () ->ConsumerConfiguration.builder().backoff(Duration.ZERO).build());
+            () -> ConsumerConfiguration.builder().backoff(Duration.ZERO).build());
         assertThrows(IllegalArgumentException.class,
-            () ->ConsumerConfiguration.builder().backoff(Duration.ofNanos(DURATION_MIN_LONG - 1)).build());
+            () -> ConsumerConfiguration.builder().backoff(Duration.ofNanos(DURATION_MIN_LONG - 1)).build());
 
         c = ConsumerConfiguration.builder().backoff(1000, 2000).build();
         assertEquals(2, c.getBackoff().size());
@@ -184,9 +185,9 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
 
         assertThrows(IllegalArgumentException.class,
-            () ->ConsumerConfiguration.builder().backoff(0).build());
+            () -> ConsumerConfiguration.builder().backoff(0).build());
         assertThrows(IllegalArgumentException.class,
-            () ->ConsumerConfiguration.builder().backoff(DURATION_MIN_LONG - 1).build());
+            () -> ConsumerConfiguration.builder().backoff(DURATION_MIN_LONG - 1).build());
 
         assertClientError(JsConsumerNameDurableMismatch, () -> ConsumerConfiguration.builder().name(NAME).durable(DURABLE).build());
     }
@@ -297,8 +298,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertDefaultCc(new ConsumerConfiguration(JsonValue.EMPTY_MAP));
     }
 
-    private static void assertDefaultCc(ConsumerConfiguration c)
-    {
+    private static void assertDefaultCc(ConsumerConfiguration c) {
         assertEquals(DeliverPolicy.All, c.getDeliverPolicy());
         assertEquals(AckPolicy.Explicit, c.getAckPolicy());
         assertEquals(ReplayPolicy.Instant, c.getReplayPolicy());
@@ -333,7 +333,7 @@ public class ConsumerConfigurationTests extends TestBase {
     public void testUtilityMethods() {
         assertEquals(1, ConsumerConfiguration.getOrUnset(1));
         assertEquals(INTEGER_UNSET, ConsumerConfiguration.getOrUnset(INTEGER_UNSET));
-        assertEquals(INTEGER_UNSET, ConsumerConfiguration.getOrUnset((Integer)null));
+        assertEquals(INTEGER_UNSET, ConsumerConfiguration.getOrUnset((Integer) null));
 
         assertEquals(1L, ConsumerConfiguration.getOrUnsetUlong(1L));
         assertEquals(ULONG_UNSET, ConsumerConfiguration.getOrUnsetUlong(ULONG_UNSET));
@@ -342,15 +342,15 @@ public class ConsumerConfigurationTests extends TestBase {
 
         assertEquals(Duration.ZERO, ConsumerConfiguration.getOrUnset(Duration.ZERO));
         assertEquals(DURATION_UNSET, ConsumerConfiguration.getOrUnset(DURATION_UNSET));
-        assertEquals(DURATION_UNSET, ConsumerConfiguration.getOrUnset((Duration)null));
+        assertEquals(DURATION_UNSET, ConsumerConfiguration.getOrUnset((Duration) null));
 
         //noinspection ConstantConditions
         assertNull(ConsumerConfiguration.normalize(null, STANDARD_MIN));
         assertEquals(0, ConsumerConfiguration.normalize(0L, STANDARD_MIN));
         assertEquals(1, ConsumerConfiguration.normalize(1L, STANDARD_MIN));
-        assertEquals(LONG_UNSET, ConsumerConfiguration.normalize(LONG_UNSET, STANDARD_MIN));
-        assertEquals(LONG_UNSET, ConsumerConfiguration.normalize(Long.MIN_VALUE, STANDARD_MIN));
-        assertEquals(Long.MAX_VALUE, ConsumerConfiguration.normalize(Long.MAX_VALUE, STANDARD_MIN));
+        assertEquals(INTEGER_UNSET, ConsumerConfiguration.normalize(LONG_UNSET, STANDARD_MIN));
+        assertEquals(INTEGER_UNSET, ConsumerConfiguration.normalize(Long.MIN_VALUE, STANDARD_MIN));
+        assertEquals(Integer.MAX_VALUE, ConsumerConfiguration.normalize(Long.MAX_VALUE, STANDARD_MIN));
 
         //noinspection ConstantConditions
         assertNull(ConsumerConfiguration.normalizeUlong(null));
@@ -360,7 +360,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(ULONG_UNSET, ConsumerConfiguration.normalizeUlong(-1L));
 
         //noinspection ConstantConditions
-        assertNull(ConsumerConfiguration.normalize((Duration)null));
+        assertNull(ConsumerConfiguration.normalize((Duration) null));
         assertEquals(Duration.ofNanos(1), ConsumerConfiguration.normalize(Duration.ofNanos(1)));
         assertEquals(DURATION_UNSET, ConsumerConfiguration.normalize(DURATION_UNSET));
         assertEquals(DURATION_UNSET, ConsumerConfiguration.normalize(Duration.ZERO));
@@ -368,14 +368,37 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofMillis(1), ConsumerConfiguration.normalizeDuration(1));
         assertEquals(DURATION_UNSET, ConsumerConfiguration.normalizeDuration(0));
 
-        assertEquals(DEFAULT_DELIVER_POLICY, ConsumerConfiguration.GetOrDefault((DeliverPolicy)null));
+        assertEquals(DEFAULT_DELIVER_POLICY, ConsumerConfiguration.GetOrDefault((DeliverPolicy) null));
         assertEquals(DeliverPolicy.Last, ConsumerConfiguration.GetOrDefault(DeliverPolicy.Last));
 
-        assertEquals(DEFAULT_ACK_POLICY, ConsumerConfiguration.GetOrDefault((AckPolicy)null));
+        assertEquals(DEFAULT_ACK_POLICY, ConsumerConfiguration.GetOrDefault((AckPolicy) null));
         assertEquals(AckPolicy.All, ConsumerConfiguration.GetOrDefault(AckPolicy.All));
 
-        assertEquals(DEFAULT_REPLAY_POLICY, ConsumerConfiguration.GetOrDefault((ReplayPolicy)null));
+        assertEquals(DEFAULT_REPLAY_POLICY, ConsumerConfiguration.GetOrDefault((ReplayPolicy) null));
         assertEquals(ReplayPolicy.Original, ConsumerConfiguration.GetOrDefault(ReplayPolicy.Original));
+    }
+
+    @Test
+    public void testDowngradeFromLongToInt() {
+        ConsumerConfiguration cc = ConsumerConfiguration.builder()
+            .maxDeliver(Long.MAX_VALUE)
+            .maxAckPending(Long.MAX_VALUE)
+            .maxPullWaiting(Long.MAX_VALUE)
+            .maxBatch(Long.MAX_VALUE)
+            .maxBytes(Long.MAX_VALUE)
+            .build();
+
+        Long maxDeliver = cc.getMaxDeliver();
+        Long maxAckPending = cc.getMaxAckPending();
+        Long maxPullWaiting = cc.getMaxPullWaiting();
+        Long maxBatch = cc.getMaxBatch();
+        Long maxBytes = cc.getMaxBytes();
+
+        assertEquals(Integer.MAX_VALUE, maxDeliver);
+        assertEquals(Integer.MAX_VALUE, maxAckPending);
+        assertEquals(Integer.MAX_VALUE, maxPullWaiting);
+        assertEquals(Integer.MAX_VALUE, maxBatch);
+        assertEquals(Integer.MAX_VALUE, maxBytes);
     }
 }
 
