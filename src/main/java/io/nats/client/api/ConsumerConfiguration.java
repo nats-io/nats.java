@@ -53,7 +53,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     public static final long DURATION_UNSET_LONG = 0;
     public static final long DURATION_MIN_LONG = 1;
     public static final int STANDARD_MIN = 0;
-    public static final long MAX_DELIVER_MIN = 1;
+    public static final int MAX_DELIVER_MIN = 1;
 
     public static final long MIN_IDLE_HEARTBEAT_NANOS = MIN_IDLE_HEARTBEAT.toNanos();
     public static final long MIN_IDLE_HEARTBEAT_MILLIS = MIN_IDLE_HEARTBEAT.toMillis();
@@ -74,12 +74,12 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final Duration maxExpires;
     protected final Duration inactiveThreshold;
     protected final Long startSeq; // server side this is unsigned
-    protected final Long maxDeliver;
+    protected final Integer maxDeliver;
     protected final Long rateLimit; // server side this is unsigned
-    protected final Long maxAckPending;
-    protected final Long maxPullWaiting;
-    protected final Long maxBatch;
-    protected final Long maxBytes;
+    protected final Integer maxAckPending;
+    protected final Integer maxPullWaiting;
+    protected final Integer maxBatch;
+    protected final Integer maxBytes;
     protected final Integer numReplicas;
     protected final Boolean flowControl;
     protected final Boolean headersOnly;
@@ -138,12 +138,12 @@ public class ConsumerConfiguration implements JsonSerializable {
         inactiveThreshold = readNanos(v, INACTIVE_THRESHOLD);
 
         startSeq = readLong(v, OPT_START_SEQ);
-        maxDeliver = readLong(v, MAX_DELIVER);
+        maxDeliver = readInteger(v, MAX_DELIVER);
         rateLimit = readLong(v, RATE_LIMIT_BPS);
-        maxAckPending = readLong(v, MAX_ACK_PENDING);
-        maxPullWaiting = readLong(v, MAX_WAITING);
-        maxBatch = readLong(v, MAX_BATCH);
-        maxBytes = readLong(v, MAX_BYTES);
+        maxAckPending = readInteger(v, MAX_ACK_PENDING);
+        maxPullWaiting = readInteger(v, MAX_WAITING);
+        maxBatch = readInteger(v, MAX_BATCH);
+        maxBytes = readInteger(v, MAX_BYTES);
         numReplicas = readInteger(v, NUM_REPLICAS);
 
         flowControl = readBoolean(v, FLOW_CONTROL, null);
@@ -626,12 +626,12 @@ public class ConsumerConfiguration implements JsonSerializable {
         private Duration inactiveThreshold;
 
         private Long startSeq;
-        private Long maxDeliver;
+        private Integer maxDeliver;
         private Long rateLimit;
-        private Long maxAckPending;
-        private Long maxPullWaiting;
-        private Long maxBatch;
-        private Long maxBytes;
+        private Integer maxAckPending;
+        private Integer maxPullWaiting;
+        private Integer maxBatch;
+        private Integer maxBytes;
         private Integer numReplicas;
 
         private Boolean flowControl;
@@ -1243,11 +1243,6 @@ public class ConsumerConfiguration implements JsonSerializable {
         return val == null ? INTEGER_UNSET : val;
     }
 
-    protected static long getOrUnset(Long val)
-    {
-        return val == null ? LONG_UNSET : val;
-    }
-
     protected static long getOrUnsetUlong(Long val)
     {
         return val == null || val < 0 ? ULONG_UNSET : val;
@@ -1258,16 +1253,20 @@ public class ConsumerConfiguration implements JsonSerializable {
         return val == null ? DURATION_UNSET : val;
     }
 
-    protected static Long normalize(Long l, long min) {
+    protected static Integer normalize(Long l, int min) {
         if (l == null) {
             return null;
         }
 
         if (l < min) {
-            return LONG_UNSET;
+            return INTEGER_UNSET;
         }
 
-        return l;
+        if (l > Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+
+        return l.intValue();
     }
 
     protected static Long normalizeUlong(Long u)
