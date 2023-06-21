@@ -198,7 +198,7 @@ public class ConnectTests {
     @Test
     public void testFailWithMissingLineFeedAfterInfo() {
         assertThrows(IOException.class, () -> {
-            String badInfo = "{\"server_id\":\"test\"}\rmore stuff";
+            String badInfo = "{\"server_id\":\"test\", \"version\":\"9.9.99\"}\rmore stuff";
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
                 Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
                 Nats.connect(options);
@@ -209,7 +209,7 @@ public class ConnectTests {
     @Test
     public void testFailWithStuffAfterInitialInfo() {
         assertThrows(IOException.class, () -> {
-            String badInfo = "{\"server_id\":\"test\"}\r\nmore stuff";
+            String badInfo = "{\"server_id\":\"test\", \"version\":\"9.9.99\"}\r\nmore stuff";
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
                 Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
                 Nats.connect(options);
@@ -220,7 +220,7 @@ public class ConnectTests {
     @Test
     public void testFailWrongInitialInfoOP() {
         assertThrows(IOException.class, () -> {
-            String badInfo = "PING {\"server_id\":\"test\"}\r\n"; // wrong op code
+            String badInfo = "PING {\"server_id\":\"test\", \"version\":\"9.9.99\"}\r\n"; // wrong op code
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
                 ts.useCustomInfoAsFullInfo();
                 Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();

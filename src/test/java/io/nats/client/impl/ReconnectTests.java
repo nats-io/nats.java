@@ -310,7 +310,7 @@ public class ReconnectTests {
 
         try (NatsTestServer ts = new NatsTestServer()) {
             String striped = ts.getURI().substring("nats://".length()); // info doesn't have protocol
-            String customInfo = "{\"server_id\":\"myid\",\"connect_urls\": [\""+striped+"\"]}";
+            String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\""+striped+"\"]}";
             try (NatsServerProtocolMock ts2 = new NatsServerProtocolMock(null, customInfo)) {
                 Options options = new Options.Builder().
                                             server(ts2.getURI()).
