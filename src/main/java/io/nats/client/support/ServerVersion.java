@@ -34,7 +34,7 @@ public class ServerVersion implements Comparable<ServerVersion> {
             }
             mjr = Integer.parseInt(split[0]);
             mnr = Integer.parseInt(split[1]);
-            ptch = Integer.parseInt(split[2]);
+            ptch = split.length < 3 ? -1 : Integer.parseInt(split[2]);
 
             for (int i = 3; i < split.length; i++) {
                 if (i == 3) {
@@ -50,9 +50,9 @@ public class ServerVersion implements Comparable<ServerVersion> {
             mjr = -1;
         }
         if (mjr == -1) {
-            major = 0;
-            minor = 0;
-            patch = 0;
+            major = -1;
+            minor = -1;
+            patch = -1;
             extra = null;
         }
         else {

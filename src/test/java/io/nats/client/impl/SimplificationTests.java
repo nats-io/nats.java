@@ -14,10 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.ConsumerInfo;
-import io.nats.client.api.MessageInfo;
-import io.nats.client.api.StreamInfoOptions;
+import io.nats.client.api.*;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -30,9 +27,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class SimplificationTests extends JetStreamTestBase {
 
+    private boolean runTest(ServerInfo si) {
+        return si.isSameOrNewerThanVersion("2.9.1");
+    }
+
     @Test
     public void testStreamContext() throws Exception {
-        runInJsServer(nc -> {
+        runInJsServer(this::runTest, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
@@ -116,7 +117,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testFetch() throws Exception {
-        runInJsServer(nc -> {
+        runInJsServer(this::runTest, nc -> {
             createDefaultTestStream(nc);
             JetStream js = nc.jetStream();
             for (int x = 1; x <= 20; x++) {
@@ -225,7 +226,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testIterableConsumer() throws Exception {
-        runInJsServer(nc -> {
+        runInJsServer(this::runTest, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createDefaultTestStream(jsm);
@@ -288,7 +289,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testConsumeWithHandler() throws Exception {
-        runInJsServer(nc -> {
+        runInJsServer(this::runTest, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createDefaultTestStream(jsm);
@@ -323,7 +324,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testNext() throws Exception {
-        runInJsServer(nc -> {
+        runInJsServer(this::runTest, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createDefaultTestStream(jsm);
@@ -348,7 +349,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testCoverage() throws Exception {
-        runInJsServer(nc -> {
+        runInJsServer(this::runTest, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createDefaultTestStream(jsm);

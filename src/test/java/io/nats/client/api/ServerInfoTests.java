@@ -98,6 +98,10 @@ public class ServerInfoTests {
         assertTrue(si234.isNewerVersionThan("not-a-number.2.3"));
         assertTrue(si234.isNewerVersionThan("1.not-a-number.3"));
         assertTrue(si234.isNewerVersionThan("1.2.not-a-number"));
+        assertTrue(si234.isNewerVersionThan("2.3"));
+        assertFalse(si234.isOlderThanVersion("2.3"));
+        assertTrue(si235A1.isNewerVersionThan("2.3"));
+        assertFalse(si235A1.isOlderThanVersion("2.3"));
 
         ServerInfo siPadded1 = new ServerInfo(json.replace("1.2.3", "1.20.30"));
         ServerInfo siPadded2 = new ServerInfo(json.replace("1.2.3", "40.500.6000"));

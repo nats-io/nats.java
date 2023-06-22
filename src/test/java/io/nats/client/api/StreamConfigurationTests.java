@@ -39,21 +39,19 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testRoundTrip() throws Exception {
-        runInJsServer(nc -> {
-            if (nc.getServerInfo().isNewerVersionThan("2.8.4")) {
-                StreamConfiguration sc = StreamConfiguration.builder(getTestConfiguration())
-                    .mirror(null)
-                    .sources()
-                    .replicas(1)
-                    .templateOwner(null)
-                    .allowRollup(false)
-                    .allowDirect(false)
-                    .mirrorDirect(false)
-                    .sealed(false)
-                    .build();
-                JetStreamManagement jsm = nc.jetStreamManagement();
-                validate(jsm.addStream(sc).getConfiguration(), true);
-            }
+        runInJsServer(si -> si.isNewerVersionThan("2.8.4"), nc -> {
+            StreamConfiguration sc = StreamConfiguration.builder(getTestConfiguration())
+                .mirror(null)
+                .sources()
+                .replicas(1)
+                .templateOwner(null)
+                .allowRollup(false)
+                .allowDirect(false)
+                .mirrorDirect(false)
+                .sealed(false)
+                .build();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            validate(jsm.addStream(sc).getConfiguration(), true);
         });
     }
 

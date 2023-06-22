@@ -100,7 +100,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             StreamInfo si = jsm.addStream(sc);
             assertNotNull(si.getConfiguration());
             sc = si.getConfiguration();
-            if (nc.getServerInfo().isNewerVersionThan("2.9.99")) {
+            if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
                 assertEquals(1, sc.getMetadata().size());
                 assertEquals("meta-bar", sc.getMetadata().get("meta-foo"));
             }
@@ -639,7 +639,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testAddDeleteConsumer() throws Exception {
         runInJsServer(nc -> {
-            boolean atLeast290 = ((NatsConnection)nc).getInfo().isSameOrNewerThanVersion("2.9.0");
+            boolean atLeast2dot9 = ((NatsConnection)nc).getInfo().isSameOrNewerThanVersion("2.9");
 
             JetStreamManagement jsm = nc.jetStreamManagement();
 
@@ -669,11 +669,11 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             createMemoryStream(jsm, STREAM, subjectDot(">"));
 
             // with and w/o deliver subject for push/pull
-            addConsumer(jsm, atLeast290, 1, false, null, ConsumerConfiguration.builder()
+            addConsumer(jsm, atLeast2dot9, 1, false, null, ConsumerConfiguration.builder()
                 .durable(durable(1))
                 .build());
 
-            addConsumer(jsm, atLeast290, 2, true, null, ConsumerConfiguration.builder()
+            addConsumer(jsm, atLeast2dot9, 2, true, null, ConsumerConfiguration.builder()
                 .durable(durable(2))
                 .deliverSubject(deliver(2))
                 .build());
@@ -687,7 +687,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertThrows(JetStreamApiException.class, () -> jsm.deleteConsumer(STREAM, durable(1)));
 
             // some testing of new name
-            if (atLeast290) {
+            if (atLeast2dot9) {
                 addConsumer(jsm, true, 3, false, null, ConsumerConfiguration.builder()
                     .durable(durable(3))
                     .name(durable(3))
@@ -717,10 +717,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         });
     }
 
-    private static void addConsumer(JetStreamManagement jsm, boolean atLeast290, int id, boolean deliver, String fs, ConsumerConfiguration cc) throws IOException, JetStreamApiException {
+    private static void addConsumer(JetStreamManagement jsm, boolean atLeast2dot9, int id, boolean deliver, String fs, ConsumerConfiguration cc) throws IOException, JetStreamApiException {
         ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
         assertEquals(durable(id), ci.getName());
-        if (atLeast290) {
+        if (atLeast2dot9) {
             assertEquals(durable(id), ci.getConsumerConfiguration().getName());
         }
         assertEquals(durable(id), ci.getConsumerConfiguration().getDurable());
@@ -838,7 +838,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 .build();
 
             ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
-            if (nc.getServerInfo().isNewerVersionThan("2.9.99")) {
+            if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
                 assertEquals(1, ci.getConsumerConfiguration().getMetadata().size());
                 assertEquals("meta-bar", ci.getConsumerConfiguration().getMetadata().get("meta-foo"));
             }
@@ -862,7 +862,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             List<ConsumerInfo> cis = jsm.getConsumers(STREAM);
             assertEquals(SUBJECT, cis.get(0).getConsumerConfiguration().getFilterSubject());
 
-            if (nc.getServerInfo().isNewerVersionThan("2.9.99")) {
+            if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
                 // 2.10 and later you can set the filter to something that does not match
                 jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("two-ten-allows-not-matching")).build());
                 cis = jsm.getConsumers(STREAM);

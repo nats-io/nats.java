@@ -14,6 +14,7 @@
 package io.nats.client.utils;
 
 import io.nats.client.*;
+import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.NatsMessage;
 import io.nats.client.impl.TestHandler;
 import io.nats.client.support.NatsJetStreamClientError;
@@ -75,54 +76,74 @@ public class TestBase {
         void test(Connection nc1, Connection nc2) throws Exception;
     }
 
+    public interface VersionCheck {
+        boolean runTest(ServerInfo si);
+    }
+
     public static void runInServer(InServerTest inServerTest) throws Exception {
-        runInServer(false, false, inServerTest);
+        runInServer(false, false, null, null, inServerTest);
     }
 
     public static void runInServer(Options.Builder builder, InServerTest inServerTest) throws Exception {
-        runInServer(false, false, builder, inServerTest);
+        runInServer(false, false, builder, null, inServerTest);
     }
 
     public static void runInServer(boolean debug, InServerTest inServerTest) throws Exception {
-        runInServer(debug, false, inServerTest);
+        runInServer(debug, false, null, null, inServerTest);
     }
 
     public static void runInJsServer(InServerTest inServerTest) throws Exception {
-        runInServer(false, true, inServerTest);
+        runInServer(false, true, null, null, inServerTest);
     }
 
     public static void runInJsServer(ErrorListener el, InServerTest inServerTest) throws Exception {
-        Options.Builder builder = new Options.Builder().errorListener(el);
-        runInServer(false, true, builder, inServerTest);
+        runInServer(false, true, new Options.Builder().errorListener(el), null, inServerTest);
     }
 
     public static void runInJsServer(Options.Builder builder, InServerTest inServerTest) throws Exception {
-        runInServer(false, true, builder, inServerTest);
+        runInServer(false, true, builder, null, inServerTest);
+    }
+
+    public static void runInJsServer(VersionCheck vc, InServerTest inServerTest) throws Exception {
+        runInServer(false, true, null, vc, inServerTest);
     }
 
     public static void runInJsServer(boolean debug, InServerTest inServerTest) throws Exception {
-        runInServer(debug, true, inServerTest);
+        runInServer(debug, true, null, null, inServerTest);
     }
 
     public static void runInServer(boolean debug, boolean jetstream, InServerTest inServerTest) throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(debug, jetstream);
-             Connection nc = standardConnection(ts.getURI()))
-        {
-            try {
-                inServerTest.test(nc);
-            }
-            finally {
-                if (jetstream) {
-                    cleanupJs(nc);
-                }
-            }
-        }
+        runInServer(debug, jetstream, null, null, inServerTest);
     }
 
     public static void runInServer(boolean debug, boolean jetstream, Options.Builder builder, InServerTest inServerTest) throws Exception {
+        runInServer(debug, jetstream, builder, null, inServerTest);
+    }
+
+    private static ServerInfo runServerInfo;
+
+    public static void runInServer(boolean debug, boolean jetstream, Options.Builder builder, VersionCheck vc, InServerTest inServerTest) throws Exception {
+        if (vc != null && runServerInfo != null) {
+            if (!vc.runTest(runServerInfo)) {
+                return;
+            }
+            vc = null; // since we've already determined it should run, null this out so we don't check below
+        }
+
+        if (builder == null) {
+            builder = new Options.Builder();
+        }
+
         try (NatsTestServer ts = new NatsTestServer(debug, jetstream);
              Connection nc = standardConnection(builder.server(ts.getURI()).build()))
         {
+            if (vc != null) {
+                runServerInfo = nc.getServerInfo();
+                if (!vc.runTest(runServerInfo)) {
+                    return;
+                }
+            }
+
             try {
                 inServerTest.test(nc);
             }

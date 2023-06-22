@@ -107,7 +107,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testJetStreamSubscribe() throws Exception {
         runInJsServer(nc -> {
-            boolean atLeast290 = ((NatsConnection)nc).getInfo().isSameOrNewerThanVersion("2.9.0");
+            boolean atLeast2dot9 = ((NatsConnection)nc).getInfo().isSameOrNewerThanVersion("2.9");
 
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -177,8 +177,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             unsubscribeEnsureNotBound(dispatcher, sub);
             js.subscribe("", queue(102), dispatcher, mh -> {}, false, psoBind);
 
-            // test 2.9.0
-            if (atLeast290) {
+            if (atLeast2dot9) {
                 ConsumerConfiguration cc = builder().name(name(1)).build();
                 pso = PushSubscribeOptions.builder().configuration(cc).build();
                 sub = js.subscribe(SUBJECT, pso);
@@ -819,16 +818,16 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             // metadata
             Map<String, String> metadataA = new HashMap<>(); metadataA.put("a", "A");
-            Map<String, String> metadataB = new HashMap<>(); metadataA.put("b", "B");
+            Map<String, String> metadataB = new HashMap<>(); metadataB.put("b", "B");
 
-            if (nc.getServerInfo().isNewerVersionThan("2.9.99")) {
+            if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
                 // metadata server null versus new not null
                 nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pushDurableBuilder().build());
                 changeExPush(js, pushDurableBuilder().metadata(metadataA), "metadata");
 
                 // metadata server not null versus new null
                 nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pushDurableBuilder().metadata(metadataA).build());
-                changeExPush(js, pushDurableBuilder(), "metadata");
+                changeOkPush(js, pushDurableBuilder());
 
                 // metadata server not null versus new not null but different
                 changeExPush(js, pushDurableBuilder().metadata(metadataB), "metadata");
