@@ -1,5 +1,24 @@
 # Change Log
 
+## 2.16.13
+
+#### Core
+
+* Address secure Websocket changes in server 2.9.19 #931 @scottf
+
+#### JetStream
+
+* [BUG] Consumer Config fields are 32 bits (ints) not 64 bits (longs) #930 @scottf
+
+#### Simplification
+
+* Simplification Tuning and Review #927 @scottf
+* Simplification Review, Tuning, Examples, Testing 2 #929 @scottf
+
+#### Misc / Test
+
+* Better testing checks against server versions #932 @scottf
+
 ## 2.16.12
 
 #### Core
