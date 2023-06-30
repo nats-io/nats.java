@@ -196,7 +196,7 @@ public interface StreamContext {
     boolean deleteMessage(long seq, boolean erase) throws IOException, JetStreamApiException;
 
     /**
-     * Create a long-running IterableConsumer with custom ConsumeOptions. See {@link IterableConsumer} and {@link ConsumeOptions}
+     * Create a long-running IterableConsumer.
      * IterableConsumer requires the developer call nextMessage.
      * @param config the configuration for the ordered consumer
      * @return the IterableConsumer instance
@@ -219,7 +219,7 @@ public interface StreamContext {
     IterableConsumer orderedConsume(OrderedConsumerConfig config, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 
     /**
-     * Create a long-running MessageConsumer with custom ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
+     * Create a long-running MessageConsumer.
      * @param config the configuration for the ordered consumer
      * @param handler the MessageHandler used for receiving messages.
      * @return the MessageConsumer instance
