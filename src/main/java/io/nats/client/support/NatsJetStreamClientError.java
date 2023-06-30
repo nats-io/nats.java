@@ -50,7 +50,7 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError JsSoOrderedNotAllowedWithDurable = new NatsJetStreamClientError(SO, 90106, "Durable is not allowed with an ordered consumer.");
     public static final NatsJetStreamClientError JsSoOrderedNotAllowedWithDeliverSubject = new NatsJetStreamClientError(SO, 90107, "Deliver subject is not allowed with an ordered consumer.");
     public static final NatsJetStreamClientError JsSoOrderedRequiresAckPolicyNone = new NatsJetStreamClientError(SO, 90108, "Ordered consumer requires Ack Policy None.");
-    public static final NatsJetStreamClientError JsSoOrderedRequiresMaxDeliver = new NatsJetStreamClientError(SO, 90109, "Max Deliver is limited to 1 with an ordered consumer.");
+    public static final NatsJetStreamClientError JsSoOrderedRequiresMaxDeliverOfOne = new NatsJetStreamClientError(SO, 90109, "Max Deliver is limited to 1 with an ordered consumer.");
     public static final NatsJetStreamClientError JsSoNameMismatch = new NatsJetStreamClientError(SO, 90110, "Builder name must match the consumer configuration name if both are provided.");
     public static final NatsJetStreamClientError JsSoOrderedMemStorageNotSuppliedOrTrue = new NatsJetStreamClientError(SO, 90111, "Mem Storage must be true if supplied.");
     public static final NatsJetStreamClientError JsSoOrderedReplicasNotSuppliedOrOne = new NatsJetStreamClientError(SO, 90112, "Replicas must be 1 if supplied.");
@@ -73,6 +73,7 @@ public class NatsJetStreamClientError {
 
     @Deprecated // More comprehensive name
     public static final NatsJetStreamClientError JsConsumerCantUseNameBefore290 = new NatsJetStreamClientError(CON, 90301, "Name field not valid against pre v2.9.0 servers.");
+    public static final NatsJetStreamClientError JsSoOrderedRequiresMaxDeliver = new NatsJetStreamClientError(SO, 90109, "Max Deliver is limited to 1 with an ordered consumer.");
 
     private final String id;
     private final String message;

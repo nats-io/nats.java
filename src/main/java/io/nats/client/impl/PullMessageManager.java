@@ -119,14 +119,16 @@ class PullMessageManager extends MessageManager {
 
     @Override
     protected ManageResult manage(Message msg) {
-        Status status = msg.getStatus();
-
         // normal js message
-        if (status == null) {
+        if (msg.getStatus() == null) {
             trackJsMessage(msg);
             return MESSAGE;
         }
+        return manageStatus(msg);
+    }
 
+    protected ManageResult manageStatus(Message msg) {
+        Status status = msg.getStatus();
         switch (status.getCode()) {
             case NOT_FOUND_CODE:
             case REQUEST_TIMEOUT_CODE:

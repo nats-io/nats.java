@@ -36,11 +36,11 @@ public class PullSubscribeOptions extends SubscribeOptions {
      * Create PullSubscribeOptions where you are binding to
      * a specific stream, specific durable and are using bind mode
      * @param stream the stream name to bind to
-     * @param durable the durable name
+     * @param name the consumer name, commonly the durable name
      * @return push subscribe options
      */
-    public static PullSubscribeOptions bind(String stream, String durable) {
-        return new PullSubscribeOptions.Builder().stream(stream).durable(durable).bind(true).build();
+    public static PullSubscribeOptions bind(String stream, String name) {
+        return new PullSubscribeOptions.Builder().stream(stream).durable(name).bind(true).build();
     }
 
     /**

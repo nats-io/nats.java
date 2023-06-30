@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 
@@ -22,7 +23,10 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
     private final String pullSubject;
     private long startNanos;
 
-    public NatsFetchConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException {
+    public NatsFetchConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
+                             FetchConsumeOptions fetchConsumeOptions,
+                             ConsumerInfo lastConsumerInfo) throws IOException, JetStreamApiException {
+        super(lastConsumerInfo);
         initSub(subscriptionMaker.makeSubscription(null));
         maxWaitNanos = fetchConsumeOptions.getExpiresIn() * 1_000_000;
         PullRequestOptions pro = PullRequestOptions.builder(fetchConsumeOptions.getMaxMessages())

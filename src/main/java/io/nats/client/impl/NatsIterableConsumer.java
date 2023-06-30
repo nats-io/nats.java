@@ -14,14 +14,15 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 import java.time.Duration;
 
 public class NatsIterableConsumer extends NatsMessageConsumer implements IterableConsumer {
 
-    public NatsIterableConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, ConsumeOptions opts) throws IOException, JetStreamApiException {
-        super(subscriptionMaker, null, opts);
+    public NatsIterableConsumer(SimplifiedSubscriptionMaker subscriptionMaker, ConsumeOptions opts, ConsumerInfo lastConsumerInfo) throws IOException, JetStreamApiException {
+        super(subscriptionMaker, null, opts, lastConsumerInfo);
     }
 
     /**

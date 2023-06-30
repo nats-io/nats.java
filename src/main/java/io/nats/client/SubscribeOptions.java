@@ -77,7 +77,7 @@ public abstract class SubscribeOptions {
                     throw JsSoOrderedRequiresAckPolicyNone.instance();
                 }
                 if (builder.cc.getMaxDeliver() > 1) {
-                    throw JsSoOrderedRequiresMaxDeliver.instance();
+                    throw JsSoOrderedRequiresMaxDeliverOfOne.instance();
                 }
                 if (builder.cc.memStorageWasSet() && !builder.cc.isMemStorage()) {
                     throw JsSoOrderedMemStorageNotSuppliedOrTrue.instance();
@@ -85,20 +85,25 @@ public abstract class SubscribeOptions {
                 if (builder.cc.numReplicasWasSet() && builder.cc.getNumReplicas() != 1) {
                     throw JsSoOrderedReplicasNotSuppliedOrOne.instance();
                 }
-                Duration ccHb = builder.cc.getIdleHeartbeat();
-                if (ccHb != null) {
-                    hb = ccHb.toMillis();
+                if (!pull) {
+                    Duration ccHb = builder.cc.getIdleHeartbeat();
+                    if (ccHb != null) {
+                        hb = ccHb.toMillis();
+                    }
                 }
             }
-            consumerConfig = ConsumerConfiguration.builder(builder.cc)
+            ConsumerConfiguration.Builder b = ConsumerConfiguration.builder(builder.cc)
                 .ackPolicy(AckPolicy.None)
                 .maxDeliver(1)
-                .flowControl(hb)
                 .ackWait(Duration.ofHours(22))
                 .name(name)
                 .memStorage(true)
-                .numReplicas(1)
-                .build();
+                .numReplicas(1);
+
+            if (!pull) {
+                b.flowControl(hb);
+            }
+            consumerConfig = b.build();
         }
         else {
             consumerConfig = ConsumerConfiguration.builder(builder.cc)
@@ -197,13 +202,13 @@ public abstract class SubscribeOptions {
      * create a default set of options if no methods are calls.
      */
     protected static abstract class Builder<B, SO> {
-        String stream;
-        boolean bind;
-        String durable;
-        String name;
-        ConsumerConfiguration cc;
-        long messageAlarmTime = -1;
-        boolean ordered;
+        protected String stream;
+        protected boolean bind;
+        protected String durable;
+        protected String name;
+        protected ConsumerConfiguration cc;
+        protected long messageAlarmTime = -1;
+        protected boolean ordered;
 
         protected abstract B getThis();
 

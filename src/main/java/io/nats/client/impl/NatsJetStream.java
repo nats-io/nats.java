@@ -231,6 +231,8 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     MessageManagerFactory _pushOrderedMessageManagerFactory = OrderedMessageManager::new;
     MessageManagerFactory _pullMessageManagerFactory =
         (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new PullMessageManager(mmConn, mmSo, mmSyncMode);
+    MessageManagerFactory _pullOrderedMessageManagerFactory =
+        (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new PullOrderedMessageManager(mmConn, mmJs, mmStream, mmSo, mmCc, mmSyncMode);
 
     JetStreamSubscription createSubscription(String subject,
                                              String queueName,
@@ -414,7 +416,8 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         final MessageManager mm;
         final NatsSubscriptionFactory subFactory;
         if (isPullMode) {
-            mm = _pullMessageManagerFactory.createMessageManager(conn, this, fnlStream, so, settledServerCC, false, dispatcher == null);
+            MessageManagerFactory mmFactory = so.isOrdered() ? _pullOrderedMessageManagerFactory : _pullMessageManagerFactory;
+            mm = mmFactory.createMessageManager(conn, this, fnlStream, so, settledServerCC, false, dispatcher == null);
             subFactory = (sid, lSubject, lQgroup, lConn, lDispatcher)
                 -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, lDispatcher, this, fnlStream, settledConsumerName, mm);
         }
@@ -650,6 +653,6 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     }
 
     private NatsStreamContext getNatsStreamContext(String streamName) throws IOException, JetStreamApiException {
-        return new NatsStreamContext(conn, jso, streamName);
+        return new NatsStreamContext(this, conn, jso, streamName);
     }
 }

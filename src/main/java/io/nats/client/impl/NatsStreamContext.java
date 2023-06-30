@@ -15,19 +15,32 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.util.List;
+
+import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
 
 /**
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 class NatsStreamContext implements StreamContext {
     final NatsJetStreamManagement jsm;
+    final NatsJetStream js;
     final String streamName;
 
     NatsStreamContext(NatsConnection connection, JetStreamOptions jsOptions, String streamName) throws IOException, JetStreamApiException {
         jsm = new NatsJetStreamManagement(connection, jsOptions);
+        js = new NatsJetStream(connection, jsOptions);
+        this.streamName = streamName;
+        jsm.getStreamInfo(streamName); // this is just verifying that the stream exists
+    }
+
+    // for when this is contructed from the NatsJetStream itself
+    NatsStreamContext(NatsJetStream js, NatsConnection connection, JetStreamOptions jsOptions, String streamName) throws IOException, JetStreamApiException {
+        jsm = new NatsJetStreamManagement(connection, jsOptions);
+        this.js = js;
         this.streamName = streamName;
         jsm.getStreamInfo(streamName); // this is just verifying that the stream exists
     }
@@ -166,5 +179,41 @@ class NatsStreamContext implements StreamContext {
     @Override
     public boolean deleteMessage(long seq, boolean erase) throws IOException, JetStreamApiException {
         return jsm.deleteMessage(streamName, seq, erase);
+    }
+
+    static class OrderedPullSubscribeOptionsBuilder extends PullSubscribeOptions.Builder {
+        public OrderedPullSubscribeOptionsBuilder(String stream, ConsumerConfiguration config) {
+            stream(stream).configuration(config);
+            ordered = true;
+        }
+    }
+
+    @Override
+    public IterableConsumer orderedConsume(OrderedConsumerConfig config) throws IOException, JetStreamApiException {
+        return orderedConsume(config, DEFAULT_CONSUME_OPTIONS);
+    }
+
+    @Override
+    public IterableConsumer orderedConsume(OrderedConsumerConfig config, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+        Validator.required(config, "Ordered Consumer Config");
+        Validator.required(consumeOptions, "Consume Options");
+        ConsumerConfiguration cc = config.getBackingConsumerConfiguration();
+        PullSubscribeOptions pso = new OrderedPullSubscribeOptionsBuilder(streamName, cc).build();
+        return new NatsIterableConsumer(new SimplifiedSubscriptionMaker(js, pso, cc.getFilterSubject()), consumeOptions, null);
+    }
+
+    @Override
+    public MessageConsumer orderedConsume(OrderedConsumerConfig config, MessageHandler handler) throws IOException, JetStreamApiException {
+        return orderedConsume(config, handler, DEFAULT_CONSUME_OPTIONS);
+    }
+
+    @Override
+    public MessageConsumer orderedConsume(OrderedConsumerConfig config, MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+        Validator.required(config, "Ordered Consumer Config");
+        Validator.required(handler, "Message Handler");
+        Validator.required(consumeOptions, "Consume Options");
+        ConsumerConfiguration cc = config.getBackingConsumerConfiguration();
+        PullSubscribeOptions pso = new OrderedPullSubscribeOptionsBuilder(streamName, cc).build();
+        return new NatsMessageConsumer(new SimplifiedSubscriptionMaker(js, pso, cc.getFilterSubject()), handler, consumeOptions, null);
     }
 }

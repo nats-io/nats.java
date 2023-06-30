@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamOptions;
 import io.nats.client.Message;
-import io.nats.client.NUID;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsJetStreamConstants;
 
@@ -25,6 +24,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static io.nats.client.support.MiscUtils.generateConsumerName;
 import static io.nats.client.support.NatsJetStreamClientError.JsConsumerCreate290NotAvailable;
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
 
@@ -95,10 +95,6 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         ConsumerCreateRequest ccr = new ConsumerCreateRequest(streamName, config);
         Message resp = makeRequestResponseRequired(subj, ccr.serialize(), conn.getOptions().getConnectionTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
-    }
-
-    static String generateConsumerName() {
-        return NUID.nextGlobalSequence();
     }
 
     void _createConsumerUnsubscribeOnException(String stream, ConsumerConfiguration cc, NatsJetStreamSubscription sub) throws IOException, JetStreamApiException {

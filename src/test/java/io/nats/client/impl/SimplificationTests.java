@@ -21,8 +21,10 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.BaseConsumeOptions.*;
+import static io.nats.client.impl.JetStreamConsumerTests.EXPECTED_CON_SEQ_NUMS;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SimplificationTests extends JetStreamTestBase {
@@ -242,42 +244,7 @@ public class SimplificationTests extends JetStreamTestBase {
             int stopCount = 500;
             // create the consumer then use it
             try (IterableConsumer consumer = consumerContext.consume()) {
-                AtomicInteger count = new AtomicInteger();
-                Thread consumeThread = new Thread(() -> {
-                    try {
-                        while (count.get() < stopCount) {
-                            Message msg = consumer.nextMessage(1000);
-                            if (msg != null) {
-                                msg.ack();
-                                count.incrementAndGet();
-                            }
-                        }
-
-                        Thread.sleep(50); // allows more messages to come across
-                        consumer.stop(200);
-
-                        Message msg = consumer.nextMessage(1000);
-                        while (msg != null) {
-                            msg.ack();
-                            count.incrementAndGet();
-                            msg = consumer.nextMessage(1000);
-                        }
-                    }
-                    catch (Exception e) {
-                        fail(e);
-                    }
-                });
-                consumeThread.start();
-
-                Publisher publisher = new Publisher(js, SUBJECT, 25);
-                Thread pubThread = new Thread(publisher);
-                pubThread.start();
-
-                consumeThread.join();
-                publisher.stop();
-                pubThread.join();
-
-                assertTrue(count.get() > 500);
+                _testIterable(js, stopCount, consumer);
             }
 
             // coverage
@@ -285,6 +252,62 @@ public class SimplificationTests extends JetStreamTestBase {
             consumer.close();
             assertThrows(IllegalArgumentException.class, () -> consumerContext.consume((ConsumeOptions) null));
         });
+    }
+
+    @Test
+    public void testOrderedIterableConsumerBasic() throws Exception {
+        runInJsServer(this::runTest, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            createDefaultTestStream(jsm);
+            JetStream js = nc.jetStream();
+            StreamContext sc = nc.streamContext(STREAM);
+
+            int stopCount = 500;
+            OrderedConsumerConfig occ = OrderedConsumerConfig.builder().filterSubject(SUBJECT).build();
+            try (IterableConsumer consumer = sc.orderedConsume(occ)) {
+                _testIterable(js, stopCount, consumer);
+            }
+        });
+    }
+
+    private static void _testIterable(JetStream js, int stopCount, IterableConsumer consumer) throws InterruptedException {
+        AtomicInteger count = new AtomicInteger();
+        Thread consumeThread = new Thread(() -> {
+            try {
+                while (count.get() < stopCount) {
+                    Message msg = consumer.nextMessage(1000);
+                    if (msg != null) {
+                        msg.ack();
+                        count.incrementAndGet();
+                    }
+                }
+
+                Thread.sleep(50); // allows more messages to come across
+                consumer.stop(200);
+
+                Message msg = consumer.nextMessage(1000);
+                while (msg != null) {
+                    msg.ack();
+                    count.incrementAndGet();
+                    msg = consumer.nextMessage(1000);
+                }
+            }
+            catch (Exception e) {
+                fail(e);
+            }
+        });
+        consumeThread.start();
+
+        Publisher publisher = new Publisher(js, SUBJECT, 25);
+        Thread pubThread = new Thread(publisher);
+        pubThread.start();
+
+        consumeThread.join();
+        publisher.stop();
+        pubThread.join();
+
+        assertTrue(count.get() > 500);
     }
 
     @Test
@@ -474,5 +497,111 @@ public class SimplificationTests extends JetStreamTestBase {
 
         assertThrows(IllegalArgumentException.class,
             () -> ConsumeOptions.builder().expiresIn(MIN_EXPIRES_MILLS - 1).build());
+    }
+
+    public static class PullOrderedTestDropSimulator extends PullOrderedMessageManager {
+        public PullOrderedTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
+            super(conn, js, stream, so, serverCC, syncMode);
+        }
+
+        @Override
+        protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
+            if (msg.isJetStream()) {
+                long ss = msg.metaData().streamSequence();
+                long cs = msg.metaData().consumerSequence();
+                if ((ss == 2 && cs == 2) || (ss == 5 && cs == 4)) {
+                    return false;
+                }
+            }
+
+            return super.beforeQueueProcessorImpl(msg);
+        }
+    }
+
+    @Test
+    public void testOrderedIterable() throws Exception {
+        runInJsServer(nc -> {
+            // Setup
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            String subject = subject(111);
+            createMemoryStream(jsm, stream(111), subject);
+
+            StreamContext sc = js.streamContext(stream(111));
+
+            // Get this in place before any subscriptions are made
+            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
+
+            // Published messages will be intercepted by the OrderedTestDropSimulator
+            new Thread(() -> {
+                try {
+                    Thread.sleep(1000); // give the consumer time to get setup before publishing
+                    jsPublish(js, subject, 101, 6);
+                }
+                catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }).start();
+
+            OrderedConsumerConfig occ = OrderedConsumerConfig.builder().filterSubject(subject).build();
+            try (IterableConsumer icon = sc.orderedConsume(occ)) {
+                // Loop through the messages to make sure I get stream sequence 1 to 6
+                int expectedStreamSeq = 1;
+                while (expectedStreamSeq <= 6) {
+                    Message m = icon.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
+                    if (m != null) {
+                        assertEquals(expectedStreamSeq, m.metaData().streamSequence());
+                        assertEquals(EXPECTED_CON_SEQ_NUMS[expectedStreamSeq-1], m.metaData().consumerSequence());
+                        ++expectedStreamSeq;
+                    }
+                }
+            }
+        });
+    }
+
+    @Test
+    public void testOrderedConsume() throws Exception {
+        runInJsServer(nc -> {
+            // Setup
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            String subject = subject(222);
+            createMemoryStream(jsm, stream(222), subject);
+
+            StreamContext sc = js.streamContext(stream(222));
+
+            // Get this in place before any subscriptions are made
+            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
+
+            CountDownLatch msgLatch = new CountDownLatch(6);
+            AtomicInteger received = new AtomicInteger();
+            AtomicLong[] ssFlags = new AtomicLong[6];
+            AtomicLong[] csFlags = new AtomicLong[6];
+            MessageHandler handler = hmsg -> {
+                int i = received.incrementAndGet() - 1;
+                ssFlags[i] = new AtomicLong(hmsg.metaData().streamSequence());
+                csFlags[i] = new AtomicLong(hmsg.metaData().consumerSequence());
+                msgLatch.countDown();
+            };
+
+            OrderedConsumerConfig occ = OrderedConsumerConfig.builder().filterSubject(subject).build();
+            try (MessageConsumer mcon = sc.orderedConsume(occ, handler)) {
+                jsPublish(js, subject, 201, 6);
+
+                // wait for the messages
+                awaitAndAssert(msgLatch);
+
+                // Loop through the messages to make sure I get stream sequence 1 to 6
+                int expectedStreamSeq = 1;
+                while (expectedStreamSeq <= 6) {
+                    int idx = expectedStreamSeq - 1;
+                    assertEquals(expectedStreamSeq, ssFlags[idx].get());
+                    assertEquals(EXPECTED_CON_SEQ_NUMS[idx], csFlags[idx].get());
+                    ++expectedStreamSeq;
+                }
+            }
+        });
     }
 }
