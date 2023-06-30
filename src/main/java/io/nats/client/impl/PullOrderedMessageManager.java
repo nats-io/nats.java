@@ -17,7 +17,6 @@ import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
-import io.nats.client.support.Debug;
 import io.nats.client.support.MiscUtils;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -60,11 +59,9 @@ class PullOrderedMessageManager extends PullMessageManager {
         if (msg.isJetStream()) {
             long receivedConsumerSeq = msg.metaData().consumerSequence();
             if (expectedExternalConsumerSeq != receivedConsumerSeq) {
-                Debug.msg("POMM ERR", msg);
                 handleErrorCondition();
                 return STATUS_HANDLED;
             }
-            Debug.msg("POMM OKK", msg);
             trackJsMessage(msg);
             expectedExternalConsumerSeq++;
             return MESSAGE;
