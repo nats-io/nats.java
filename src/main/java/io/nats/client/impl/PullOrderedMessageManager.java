@@ -17,7 +17,7 @@ import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
-import io.nats.client.support.MiscUtils;
+import io.nats.client.support.ConsumerUtils;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -87,7 +87,7 @@ class PullOrderedMessageManager extends PullMessageManager {
             // 3. make a new consumer using the same deliver subject but
             //    with a new starting point
             ConsumerConfiguration userCC = ConsumerConfiguration.builder(originalCc)
-                .name(MiscUtils.generateConsumerName())
+                .name(ConsumerUtils.generateConsumerName())
                 .deliverPolicy(DeliverPolicy.ByStartSequence)
                 .deliverSubject(newDeliverSubject)
                 .startSequence(Math.max(1, lastStreamSeq + 1))

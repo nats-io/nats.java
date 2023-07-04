@@ -15,7 +15,7 @@ package io.nats.client.api;
 
 import java.time.ZonedDateTime;
 
-import static io.nats.client.support.MiscUtils.generateConsumerName;
+import static io.nats.client.support.ConsumerUtils.generateConsumerName;
 import static io.nats.client.support.Validator.emptyOrNullAs;
 
 public class OrderedConsumerConfig {

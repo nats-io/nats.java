@@ -15,8 +15,8 @@ package io.nats.client.support;
 
 import io.nats.client.NUID;
 
-public abstract class MiscUtils {
-    private MiscUtils() {}  /* ensures cannot be constructed */
+public abstract class ConsumerUtils {
+    private ConsumerUtils() {}  /* ensures cannot be constructed */
 
     public static String generateConsumerName() {
         return NUID.nextGlobalSequence();

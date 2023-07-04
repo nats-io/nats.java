@@ -24,7 +24,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static io.nats.client.support.MiscUtils.generateConsumerName;
+import static io.nats.client.support.ConsumerUtils.generateConsumerName;
 import static io.nats.client.support.NatsJetStreamClientError.JsConsumerCreate290NotAvailable;
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
 
