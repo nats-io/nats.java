@@ -13,7 +13,6 @@
 
 package io.nats.client.api;
 
-import java.time.Duration;
 import java.time.ZonedDateTime;
 
 import static io.nats.client.support.MiscUtils.generateConsumerName;
@@ -99,50 +98,6 @@ public class OrderedConsumerConfig {
          */
         public Builder replayPolicy(ReplayPolicy policy) {
             builder.replayPolicy(policy);
-            return this;
-        }
-
-        /**
-         * sets the max amount of expire time for the server to allow on pull requests.
-         *
-         * @param maxExpires the max expire duration
-         * @return Builder
-         */
-        public Builder maxExpires(Duration maxExpires) {
-            builder.maxExpires(maxExpires);
-            return this;
-        }
-
-        /**
-         * sets the max amount of expire time for the server to allow on pull requests.
-         *
-         * @param maxExpires the max expire duration in milliseconds
-         * @return Builder
-         */
-        public Builder maxExpires(long maxExpires) {
-            builder.maxExpires(maxExpires);
-            return this;
-        }
-
-        /**
-         * sets the max batch size for the server to allow on pull requests.
-         *
-         * @param maxBatch the max batch size
-         * @return Builder
-         */
-        public Builder maxBatch(long maxBatch) {
-            builder.maxBatch(maxBatch);
-            return this;
-        }
-
-        /**
-         * sets the max bytes size for the server to allow on pull requests.
-         *
-         * @param maxBytes the max bytes size
-         * @return Builder
-         */
-        public Builder maxBytes(long maxBytes) {
-            builder.maxBytes(maxBytes);
             return this;
         }
 
