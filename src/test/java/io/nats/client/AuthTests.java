@@ -19,6 +19,7 @@ import io.nats.client.impl.TestHandler;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
+import javax.net.ssl.SSLContext;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -434,6 +435,35 @@ public class AuthTests extends TestBase {
             Connection nc = Nats.connect(ts.getURI(), Nats.credentials("src/test/resources/jwt_nkey/user.creds"));
             standardConnectionWait(nc);
             standardCloseConnection(nc);
+        }
+    }
+
+    @Test
+    public void testWsJWTAuthWithCredsFile() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/ws_operator.conf", false)) {
+            String uri = ts.getLocalhostUri("ws");
+            Options options = new Options.Builder().server(uri).maxReconnects(0)
+                .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).build();
+            assertCanConnect(options);
+        }
+
+        //test Nats.connect method
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/ws_operator.conf", false)) {
+            String uri = ts.getLocalhostUri("ws");
+            Connection nc = Nats.connect(uri, Nats.credentials("src/test/resources/jwt_nkey/user.creds"));
+            standardConnectionWait(nc);
+            standardCloseConnection(nc);
+        }
+    }
+
+    @Test
+    public void testWssJWTAuthWithCredsFile() throws Exception {
+        SSLContext ctx = TestSSLUtils.createTestSSLContext();
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/wss_operator.conf", false)) {
+            String uri = ts.getLocalhostUri("wss");
+            Options options = new Options.Builder().server(uri).maxReconnects(0).sslContext(ctx)
+                .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).build();
+            assertCanConnect(options);
         }
     }
 

@@ -16,10 +16,7 @@ package io.nats.client;
 import io.nats.client.impl.DataPort;
 import io.nats.client.impl.ErrorListenerLoggerImpl;
 import io.nats.client.impl.SocketDataPort;
-import io.nats.client.support.HttpRequest;
-import io.nats.client.support.NatsConstants;
-import io.nats.client.support.NatsUri;
-import io.nats.client.support.SSLUtils;
+import io.nats.client.support.*;
 
 import javax.net.ssl.SSLContext;
 import java.lang.reflect.Constructor;
@@ -2049,6 +2046,12 @@ public class Options {
      * @return the options String, basically JSON
      */
     public CharBuffer buildProtocolConnectOptionsString(String serverURI, boolean includeAuth, byte[] nonce) {
+        if (nonce == null) {
+            Debug.dbg("buildProtocolConnectOptionsString no nonce");
+        }
+        else {
+            Debug.dbg("buildProtocolConnectOptionsString " + new String(nonce));
+        }
         CharBuffer connectString = CharBuffer.allocate(this.maxControlLine);
         connectString.append("{");
 
