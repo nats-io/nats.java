@@ -26,6 +26,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -40,21 +42,46 @@ public class ReconnectTests {
 
     @Test
     public void testSimpleReconnect() throws Exception { //Includes test for subscriptions and dispatchers across reconnect
-        NatsConnection nc;
-        TestHandler handler = new TestHandler();
+        Function<Integer, NatsTestServer> ntsSupplier = port -> {
+            try {
+                return new NatsTestServer(port, false);
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        };
+        _testReconnect(ntsSupplier, (ts, builder) -> builder.server(ts.getURI()));
+    }
+
+    @Test
+    public void testWsReconnect() throws Exception { //Includes test for subscriptions and dispatchers across reconnect
+        Function<Integer, NatsTestServer> ntsSupplier = port -> {
+            try {
+                return new NatsTestServer("src/test/resources/ws_operator.conf", port, false);
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        };
+        _testReconnect(ntsSupplier, (ts, builder) ->
+            builder.server(ts.getLocalhostUri("ws")).authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")));
+    }
+
+    private void _testReconnect(Function<Integer, NatsTestServer> ntsSupplier, BiConsumer<NatsTestServer, Options.Builder> optSetter) throws Exception {
         int port = NatsTestServer.nextPort();
+        TestHandler handler = new TestHandler();
+        NatsConnection nc;
         Subscription sub;
         long start;
         long end;
+        try (NatsTestServer ts = ntsSupplier.apply(port)) {
+            Options.Builder builder = new Options.Builder()
+                .maxReconnects(-1)
+                .reconnectWait(Duration.ofMillis(1000))
+                .connectionListener(handler);
+            optSetter.accept(ts, builder);
+            Options options = builder.build();
 
-        try (NatsTestServer ts = new NatsTestServer(port, false)) {
-            Options options = new Options.Builder().
-                                server(ts.getURI()).
-                                maxReconnects(-1).
-                                reconnectWait(Duration.ofMillis(1000)).
-                                connectionListener(handler).
-                                build();
-                                port = ts.getPort();
             nc = (NatsConnection)standardConnection(options);
 
             sub = nc.subscribe("subsubject");
@@ -81,7 +108,7 @@ public class ReconnectTests {
 
         handler.prepForStatusChange(Events.RESUBSCRIBED);
 
-        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+        try (NatsTestServer ts = ntsSupplier.apply(port)) {
             standardConnectionWait(nc, handler);
 
             end = System.nanoTime();
