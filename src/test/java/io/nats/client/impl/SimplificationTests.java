@@ -264,7 +264,7 @@ public class SimplificationTests extends JetStreamTestBase {
             StreamContext sc = nc.streamContext(STREAM);
 
             int stopCount = 500;
-            OrderedConsumerConfig occ = OrderedConsumerConfig.builder().filterSubject(SUBJECT).build();
+            OrderedConsumerConfig occ = new OrderedConsumerConfig().filterSubject(SUBJECT);
             try (IterableConsumer consumer = sc.orderedConsume(occ)) {
                 _testIterable(js, stopCount, consumer);
             }
@@ -544,7 +544,7 @@ public class SimplificationTests extends JetStreamTestBase {
                 }
             }).start();
 
-            OrderedConsumerConfig occ = OrderedConsumerConfig.builder().filterSubject(subject).build();
+            OrderedConsumerConfig occ = new OrderedConsumerConfig().filterSubject(subject);
             try (IterableConsumer icon = sc.orderedConsume(occ)) {
                 // Loop through the messages to make sure I get stream sequence 1 to 6
                 int expectedStreamSeq = 1;
@@ -586,7 +586,7 @@ public class SimplificationTests extends JetStreamTestBase {
                 msgLatch.countDown();
             };
 
-            OrderedConsumerConfig occ = OrderedConsumerConfig.builder().filterSubject(subject).build();
+            OrderedConsumerConfig occ = new OrderedConsumerConfig().filterSubject(subject);
             try (MessageConsumer mcon = sc.orderedConsume(occ, handler)) {
                 jsPublish(js, subject, 201, 6);
 

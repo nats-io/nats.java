@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
+import static io.nats.client.support.ConsumerUtils.generateConsumerName;
 
 /**
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
@@ -197,7 +198,7 @@ class NatsStreamContext implements StreamContext {
     public IterableConsumer orderedConsume(OrderedConsumerConfig config, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(config, "Ordered Consumer Config");
         Validator.required(consumeOptions, "Consume Options");
-        ConsumerConfiguration cc = config.getBackingConsumerConfiguration();
+        ConsumerConfiguration cc = getBackingConsumerConfiguration(config);
         PullSubscribeOptions pso = new OrderedPullSubscribeOptionsBuilder(streamName, cc).build();
         return new NatsIterableConsumer(new SimplifiedSubscriptionMaker(js, pso, cc.getFilterSubject()), consumeOptions, null);
     }
@@ -212,8 +213,41 @@ class NatsStreamContext implements StreamContext {
         Validator.required(config, "Ordered Consumer Config");
         Validator.required(handler, "Message Handler");
         Validator.required(consumeOptions, "Consume Options");
-        ConsumerConfiguration cc = config.getBackingConsumerConfiguration();
+        ConsumerConfiguration cc = getBackingConsumerConfiguration(config);
         PullSubscribeOptions pso = new OrderedPullSubscribeOptionsBuilder(streamName, cc).build();
         return new NatsMessageConsumer(new SimplifiedSubscriptionMaker(js, pso, cc.getFilterSubject()), handler, consumeOptions, null);
+    }
+
+    private ConsumerConfiguration getBackingConsumerConfiguration(OrderedConsumerConfig config) {
+        ConsumerConfiguration.Builder b = ConsumerConfiguration.builder().name(generateConsumerName());
+
+        if (config.getDeliverPolicy() != null) {
+            b.deliverPolicy(config.getDeliverPolicy());
+        }
+
+        if (config.getStartSequence() != null) {
+            b.startSequence(config.getStartSequence());
+        }
+
+        if (config.getStartTime() != null) {
+            b.startTime(config.getStartTime());
+        }
+
+        if (config.getFilterSubject() == null) {
+            b.filterSubject(">");
+        }
+        else {
+            b.filterSubject(config.getFilterSubject());
+        }
+
+        if (config.getReplayPolicy() != null) {
+            b.replayPolicy(config.getReplayPolicy());
+        }
+
+        if (config.getHeadersOnly() != null && config.getHeadersOnly()) {
+            b.headersOnly(true);
+        }
+
+        return b.build();
     }
 }

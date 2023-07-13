@@ -15,110 +15,105 @@ package io.nats.client.api;
 
 import java.time.ZonedDateTime;
 
-import static io.nats.client.support.ConsumerUtils.generateConsumerName;
-import static io.nats.client.support.Validator.emptyOrNullAs;
+import static io.nats.client.support.Validator.emptyAsNull;
 
 public class OrderedConsumerConfig {
-    private final ConsumerConfiguration cc;
-
-    private OrderedConsumerConfig(ConsumerConfiguration cc) {
-        this.cc = cc;
-    }
-
-    /**
-     * Macro to start a OrderedConsumerConfig builder
-     * @return builder
-     */
-    public static Builder builder() {
-        return new Builder();
-    }
+    private DeliverPolicy deliverPolicy;
+    private Long startSequence;
+    private ZonedDateTime startTime;
+    private String filterSubject;
+    private ReplayPolicy replayPolicy;
+    private Boolean headersOnly;
 
     /**
-     * OrderedConsumerConfig can be created using a Builder.
+     * OrderedConsumerConfig creation works like a builder.
      * The builder supports chaining and will create a default set of options if
      * no methods are calls, including setting the filter subject to "&gt;"
      */
-    public static class Builder {
-        final ConsumerConfiguration.Builder builder;
+    public OrderedConsumerConfig() {}
 
-        public Builder() {
-            builder = new ConsumerConfiguration.Builder()
-                .name(generateConsumerName())
-                .filterSubject(">");
-        }
-
-        /**
-         * Sets the delivery policy of the OrderedConsumerConfig.
-         *
-         * @param policy the delivery policy.
-         * @return Builder
-         */
-        public Builder deliverPolicy(DeliverPolicy policy) {
-            builder.deliverPolicy(policy);
-            return this;
-        }
-
-        /**
-         * Sets the start sequence of the OrderedConsumerConfig.
-         *
-         * @param sequence the start sequence
-         * @return Builder
-         */
-        public Builder startSequence(long sequence) {
-            builder.startSequence(sequence);
-            return this;
-        }
-
-        /**
-         * Sets the start time of the OrderedConsumerConfig.
-         * @param startTime the start time
-         * @return Builder
-         */
-        public Builder startTime(ZonedDateTime startTime) {
-            builder.startTime(startTime);
-            return this;
-        }
-
-        /**
-         * Sets the filter subject of the OrderedConsumerConfig.
-         *
-         * @param filterSubject the filter subject
-         * @return Builder
-         */
-        public Builder filterSubject(String filterSubject) {
-            builder.filterSubject(emptyOrNullAs(filterSubject, ">"));
-            return this;
-        }
-
-        /**
-         * Sets the replay policy of the OrderedConsumerConfig.
-         *
-         * @param policy the replay policy.
-         * @return Builder
-         */
-        public Builder replayPolicy(ReplayPolicy policy) {
-            builder.replayPolicy(policy);
-            return this;
-        }
-
-        /**
-         * set the headers only flag saying to deliver only the headers of
-         * messages in the stream and not the bodies
-         *
-         * @param headersOnly the flag
-         * @return Builder
-         */
-        public Builder headersOnly(Boolean headersOnly) {
-            builder.headersOnly(headersOnly);
-            return this;
-        }
-
-        public OrderedConsumerConfig build() {
-            return new OrderedConsumerConfig(builder.build());
-        }
+    /**
+     * Sets the delivery policy of the OrderedConsumerConfig.
+     * @param deliverPolicy the delivery policy.
+     * @return Builder
+     */
+    public OrderedConsumerConfig deliverPolicy(DeliverPolicy deliverPolicy) {
+        this.deliverPolicy = deliverPolicy;
+        return this;
     }
 
-    public ConsumerConfiguration getBackingConsumerConfiguration() {
-        return cc;
+    /**
+     * Sets the start sequence of the OrderedConsumerConfig.
+     * @param startSequence the start sequence
+     * @return Builder
+     */
+    public OrderedConsumerConfig startSequence(long startSequence) {
+        this.startSequence = startSequence < 1 ? null : startSequence;
+        return this;
+    }
+
+    /**
+     * Sets the start time of the OrderedConsumerConfig.
+     * @param startTime the start time
+     * @return Builder
+     */
+    public OrderedConsumerConfig startTime(ZonedDateTime startTime) {
+        this.startTime = startTime;
+        return this;
+    }
+
+    /**
+     * Sets the filter subject of the OrderedConsumerConfig.
+     * @param filterSubject the filter subject
+     * @return Builder
+     */
+    public OrderedConsumerConfig filterSubject(String filterSubject) {
+        this.filterSubject = emptyAsNull(filterSubject);
+        return this;
+    }
+
+    /**
+     * Sets the replay policy of the OrderedConsumerConfig.
+     * @param replayPolicy the replay policy.
+     * @return Builder
+     */
+    public OrderedConsumerConfig replayPolicy(ReplayPolicy replayPolicy) {
+        this.replayPolicy = replayPolicy;
+        return this;
+    }
+
+    /**
+     * set the headers only flag saying to deliver only the headers of
+     * messages in the stream and not the bodies
+     * @param headersOnly the flag
+     * @return Builder
+     */
+    public OrderedConsumerConfig headersOnly(Boolean headersOnly) {
+        this.headersOnly = headersOnly;
+        return this;
+    }
+
+    public DeliverPolicy getDeliverPolicy() {
+        return deliverPolicy;
+    }
+
+    public Long getStartSequence() {
+        return startSequence;
+    }
+
+    public ZonedDateTime getStartTime() {
+        return startTime;
+    }
+
+    public String getFilterSubject() {
+        return filterSubject;
+    }
+
+    public ReplayPolicy getReplayPolicy() {
+        return replayPolicy;
+    }
+
+    public Boolean getHeadersOnly() {
+        return headersOnly;
     }
 }
