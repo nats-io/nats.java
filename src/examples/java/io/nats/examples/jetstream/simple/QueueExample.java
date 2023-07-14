@@ -31,9 +31,9 @@ import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class QueueExample {
-    private static final String STREAM = "qh-stream";
-    private static final String SUBJECT = "qh-subject";
-    private static final String CONSUMER_NAME = "qh-consumer";
+    private static final String STREAM = "q-stream";
+    private static final String SUBJECT = "q-subject";
+    private static final String CONSUMER_NAME = "q-consumer";
     private static final int MESSAGE_COUNT = 10000;
     private static final int CONSUMER_COUNT = 6;
 
