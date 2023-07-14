@@ -194,4 +194,50 @@ public interface StreamContext {
      * @return true if the delete succeeded
      */
     boolean deleteMessage(long seq, boolean erase) throws IOException, JetStreamApiException;
+
+    /**
+     * Create a long-running IterableConsumer.
+     * IterableConsumer requires the developer call nextMessage.
+     * @param config the configuration for the ordered consumer
+     * @return the IterableConsumer instance
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    IterableConsumer orderedConsume(OrderedConsumerConfig config) throws IOException, JetStreamApiException;
+
+    /**
+     * Create a long-running IterableConsumer with custom ConsumeOptions. See {@link IterableConsumer} and {@link ConsumeOptions}
+     * IterableConsumer requires the developer call nextMessage.
+     * @param config the configuration for the ordered consumer
+     * @param consumeOptions the custom consume options
+     * @return the IterableConsumer instance
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    IterableConsumer orderedConsume(OrderedConsumerConfig config, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+
+    /**
+     * Create a long-running MessageConsumer.
+     * @param config the configuration for the ordered consumer
+     * @param handler the MessageHandler used for receiving messages.
+     * @return the MessageConsumer instance
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    MessageConsumer orderedConsume(OrderedConsumerConfig config, MessageHandler handler) throws IOException, JetStreamApiException;
+
+    /**
+     * Create a long-running MessageConsumer with custom ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
+     * @param config the configuration for the ordered consumer
+     * @param handler the MessageHandler used for receiving messages.
+     * @param consumeOptions the custom consume options
+     * @return the MessageConsumer instance
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    MessageConsumer orderedConsume(OrderedConsumerConfig config, MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 }

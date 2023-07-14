@@ -25,13 +25,18 @@ class NatsMessageConsumerBase implements MessageConsumer {
     protected PullMessageManager pmm;
     protected final Object subLock;
     protected boolean stopped;
+    protected ConsumerInfo lastConsumerInfo;
 
-    NatsMessageConsumerBase() {
+    NatsMessageConsumerBase(ConsumerInfo lastConsumerInfo) {
         subLock = new Object();
+        this.lastConsumerInfo = lastConsumerInfo;
     }
 
-    protected void initSub(NatsJetStreamPullSubscription sub) {
+    protected void initSub(NatsJetStreamPullSubscription sub) throws JetStreamApiException, IOException {
         this.sub = sub;
+        if (lastConsumerInfo == null) {
+            lastConsumerInfo = sub.getConsumerInfo();
+        }
         pmm = (PullMessageManager)sub.manager;
     }
 
@@ -41,8 +46,17 @@ class NatsMessageConsumerBase implements MessageConsumer {
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
         synchronized (subLock) {
-            return sub.getConsumerInfo();
+            lastConsumerInfo = sub.getConsumerInfo();
+            return lastConsumerInfo;
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ConsumerInfo getCachedConsumerInfo() {
+        return lastConsumerInfo;
     }
 
     /**

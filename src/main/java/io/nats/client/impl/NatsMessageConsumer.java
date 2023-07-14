@@ -17,6 +17,7 @@ import io.nats.client.ConsumeOptions;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.MessageHandler;
 import io.nats.client.PullRequestOptions;
+import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 
@@ -24,9 +25,13 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements TrackPendin
     protected final PullRequestOptions rePullPro;
     protected final int thresholdMessages;
     protected final long thresholdBytes;
-    protected final NatsConsumerContext.SubscriptionMaker subscriptionMaker;
+    protected final SimplifiedSubscriptionMaker subscriptionMaker;
 
-    NatsMessageConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, final MessageHandler messageHandler, ConsumeOptions opts) throws IOException, JetStreamApiException {
+    NatsMessageConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
+                        MessageHandler messageHandler,
+                        ConsumeOptions opts,
+                        ConsumerInfo lastConsumerInfo) throws IOException, JetStreamApiException {
+        super(lastConsumerInfo);
         this.subscriptionMaker = subscriptionMaker;
         initSub(subscriptionMaker.makeSubscription(messageHandler));
 

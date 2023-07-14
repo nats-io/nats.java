@@ -33,6 +33,13 @@ public interface MessageConsumer extends AutoCloseable {
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
 
     /**
+     * Gets information about the consumer behind this subscription.
+     * This returns the last read version of Consumer Info, which could technically be out of date.
+     * @return consumer information
+     */
+    ConsumerInfo getCachedConsumerInfo();
+
+    /**
      * Stop the MessageConsumer from asking for any more messages from the server.
      * There still may be messages available and coming across the wire.
      * @param timeout The time to wait for the stop to succeed, pass 0 to wait

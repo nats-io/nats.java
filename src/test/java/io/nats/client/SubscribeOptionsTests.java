@@ -307,7 +307,7 @@ public class SubscribeOptionsTests extends TestBase {
         PushSubscribeOptions.builder().configuration(ccAckNoneOk).ordered(true).build();
 
         ConsumerConfiguration ccMax = ConsumerConfiguration.builder().maxDeliver(2).build();
-        assertClientError(JsSoOrderedRequiresMaxDeliver,
+        assertClientError(JsSoOrderedRequiresMaxDeliverOfOne,
             () -> PushSubscribeOptions.builder().configuration(ccMax).ordered(true).build());
 
         ConsumerConfiguration ccHb = ConsumerConfiguration.builder().idleHeartbeat(100).build();

@@ -99,7 +99,6 @@ class PushMessageManager extends MessageManager {
             trackJsMessage(msg);
             return MESSAGE;
         }
-
         return manageStatus(msg);
     }
 
