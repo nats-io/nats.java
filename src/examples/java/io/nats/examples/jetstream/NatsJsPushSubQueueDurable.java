@@ -16,6 +16,7 @@ package io.nats.examples.jetstream;
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.PublishAck;
+import io.nats.client.api.StorageType;
 import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
 
@@ -26,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.nats.examples.jetstream.NatsJsUtils.createStreamExitWhenExists;
+import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
 
 /**
  * This example will demonstrate JetStream push subscribing using a durable consumer and a queue
@@ -52,7 +53,7 @@ public class NatsJsPushSubQueueDurable {
                 .defaultSubject("qdur-subject")
                 .defaultQueue("qdur-queue")
                 .defaultDurable("qdur-durable")
-                .defaultMsgCount(100)
+                .defaultMsgCount(10000)
                 .defaultSubCount(5)
                 .build();
 
@@ -62,7 +63,7 @@ public class NatsJsPushSubQueueDurable {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             // Use the utility to create a stream stored in memory.
-            createStreamExitWhenExists(jsm, exArgs.stream, exArgs.subject);
+            createOrReplaceStream(jsm, exArgs.stream, StorageType.Memory, exArgs.subject);
 
             // Create our JetStream context
             JetStream js = nc.jetStream();
@@ -80,6 +81,9 @@ public class NatsJsPushSubQueueDurable {
             AtomicInteger allReceived = new AtomicInteger();
             List<JsQueueSubscriber> subscribers = new ArrayList<>();
             List<Thread> subThreads = new ArrayList<>();
+            int readCount = exArgs.msgCount / exArgs.subCount;
+            System.out.println("Each of the " + exArgs.msgCount + " queue subscriptions will read about " + readCount + " messages.");
+
             for (int id = 1; id <= exArgs.subCount; id++) {
                 // setup the subscription
                 JetStreamSubscription sub = js.subscribe(exArgs.subject, exArgs.queue, pso);
