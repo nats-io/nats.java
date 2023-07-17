@@ -520,7 +520,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedIterable() throws Exception {
-        runInJsServer(nc -> {
+        runInJsServer(this::runTest, nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -562,7 +562,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsume() throws Exception {
-        runInJsServer(nc -> {
+        runInJsServer(this::runTest, nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
