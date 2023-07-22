@@ -16,10 +16,7 @@ package io.nats.client;
 import io.nats.client.impl.DataPort;
 import io.nats.client.impl.ErrorListenerLoggerImpl;
 import io.nats.client.impl.SocketDataPort;
-import io.nats.client.support.HttpRequest;
-import io.nats.client.support.NatsConstants;
-import io.nats.client.support.NatsUri;
-import io.nats.client.support.SSLUtils;
+import io.nats.client.support.*;
 
 import javax.net.ssl.SSLContext;
 import java.lang.reflect.Constructor;
@@ -40,7 +37,7 @@ import static io.nats.client.support.NatsUri.DEFAULT_NATS_URI;
 /**
  * The Options class specifies the connection options for a new NATs connection, including the default options.
  * Options are created using a {@link Options.Builder Builder}.
- * This class, and the builder associated with it, is basically a long list of parameters. The documentation attempts
+ * This class and the builder associated with it, is basically a long list of parameters. The documentation attempts
  * to clarify the value of each parameter in place on the builder and here, but it may be easier to read the documentation
  * starting with the {@link Options.Builder Builder}, since it has a simple list of methods that configure the connection.
  */
@@ -49,7 +46,8 @@ public class Options {
     // NOTE TO DEVS!!! To add an option, you have to address:
     // ----------------------------------------------------------------------------------------------------
     // CONSTANTS * optionally add a default value constant
-    // ENVIRONMENT * most of the time add an environment property
+    // ENVIRONMENT * most of the time add an environment property, should always be in the form PFX +
+    // PROTOCOL CONNECT OPTION CONSTANTS * not related to options, but here because Options code uses them
     // CLASS VARIABLES * add a variable to the class
     // BUILDER VARIABLES * add a variable in builder
     // BUILD CONSTRUCTOR PROPS * update build props constructor to read new props
@@ -58,6 +56,7 @@ public class Options {
     // BUILDER COPY CONSTRUCTOR * update builder constructor to ensure new variables are set
     // CONSTRUCTOR * update constructor to ensure new variables are set from builder
     // GETTERS * update getter to be able to retrieve class variable value
+    // HELPER FUNCTIONS * just helpers
     // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
@@ -231,6 +230,7 @@ public class Options {
     // ENVIRONMENT
     // ----------------------------------------------------------------------------------------------------
     static final String PFX = "io.nats.client.";
+    static final int PFX_LEN = PFX.length();
 
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
@@ -408,6 +408,20 @@ public class Options {
     public static final String PROP_INBOX_PREFIX = "inbox.prefix";
 
     /**
+     * Property used to set whether to ignore discovered servers when connecting
+     */
+    public static final String PROP_IGNORE_DISCOVERED_SERVERS = "ignore_discovered_servers";
+
+    /**
+     * Property used to set class name for ServerPool implementation
+     * {@link Builder#serverPool(ServerPool) serverPool}.
+     */
+    public static final String PROP_SERVERS_POOL_IMPLEMENTATION_CLASS = "servers_pool_implementation_class";
+
+    // ----------------------------------------------------------------------------------------------------
+    // PROTOCOL CONNECT OPTION CONSTANTS
+    // ----------------------------------------------------------------------------------------------------
+    /**
      * Protocol key {@value}, see {@link Builder#verbose() verbose}.
      */
     static final String OPTION_VERBOSE = "verbose";
@@ -480,7 +494,7 @@ public class Options {
     static final String OPTION_SIG = "sig";
 
     /**
-     * JWT key {@value #OPTION_SIG}, the user JWT to send to the server.
+     * JWT key {@value}, the user JWT to send to the server.
      */
     static final String OPTION_JWT = "jwt";
 
@@ -493,18 +507,6 @@ public class Options {
      * No Responders key if noresponders are supported
      */
     static final String OPTION_NORESPONDERS = "no_responders";
-
-    /**
-     * Property used to set whether to ignore discovered servers when connecting
-     */
-    public static final String PROP_IGNORE_DISCOVERED_SERVERS = "ignore_discovered_servers";
-
-    /**
-     * Property used to set class name for ServerPool implementation
-     * {@link Builder#serverPool(ServerPool) serverPool}.
-     * IMPORTANT! ServerPool IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
-     */
-    public static final String PROP_SERVERS_POOL_IMPLEMENTATION_CLASS = "servers_pool_implementation_class";
 
     // ----------------------------------------------------------------------------------------------------
     // CLASS VARIABLES
@@ -577,6 +579,16 @@ public class Options {
             }
             return t;
         }
+    }
+
+    /**
+     * Set old request style.
+     * @param value true to use the old request style
+     * @deprecated Use Builder
+     */
+    @Deprecated
+    public void setOldRequestStyle(boolean value) {
+        useOldRequestStyle = value;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -677,200 +689,71 @@ public class Options {
                 throw new IllegalArgumentException("Properties cannot be null");
             }
 
-            if (props.containsKey(PROP_URL)) {
-                this.server(props.getProperty(PROP_URL, DEFAULT_URL));
-            }
+            stringProperty(props, PROP_URL, this::server);
+            charArrayProperty(props, PROP_USERNAME, ca -> this.username = ca);
+            charArrayProperty(props, PROP_PASSWORD, ca -> this.password = ca);
+            charArrayProperty(props, PROP_TOKEN, ca -> this.token = ca);
 
-            if (props.containsKey(PROP_USERNAME)) {
-                this.username = props.getProperty(PROP_USERNAME, null).toCharArray();
-            }
+            stringProperty(props, PROP_SERVERS, str -> {
+                String[] servers = str.trim().split(",\\s*");
+                this.servers(servers);
+            });
 
-            if (props.containsKey(PROP_PASSWORD)) {
-                this.password = props.getProperty(PROP_PASSWORD, null).toCharArray();
-            }
+            booleanIfTrueProperty(props, PROP_NORANDOMIZE, alwaysTrue -> this.noRandomize = true);
+            booleanIfTrueProperty(props, PROP_NO_RESOLVE_HOSTNAMES, alwaysTrue -> this.noResolveHostnames = true);
+            booleanIfTrueProperty(props, PROP_REPORT_NO_RESPONDERS, alwaysTrue -> this.reportNoResponders = true);
 
-            if (props.containsKey(PROP_TOKEN)) {
-                this.token = props.getProperty(PROP_TOKEN, null).toCharArray();
-            }
-
-            if (props.containsKey(PROP_SERVERS)) {
-                String str = props.getProperty(PROP_SERVERS);
-                if (str.isEmpty()) {
-                    throw new IllegalArgumentException(PROP_SERVERS + " cannot be empty");
-                } else {
-                    String[] servers = str.trim().split(",\\s*");
-                    this.servers(servers);
+            booleanIfTrueProperty(props, PROP_SECURE, alwaysTrue -> {
+                try {
+                    this.sslContext = SSLContext.getDefault();
                 }
-            }
-
-            if (props.containsKey(PROP_NORANDOMIZE)) {
-                this.noRandomize = Boolean.parseBoolean(props.getProperty(PROP_NORANDOMIZE));
-            }
-
-            if (props.containsKey(PROP_NO_RESOLVE_HOSTNAMES)) {
-                noResolveHostnames = Boolean.parseBoolean(props.getProperty(PROP_NO_RESOLVE_HOSTNAMES));
-            }
-
-            if (props.containsKey(PROP_REPORT_NO_RESPONDERS)) {
-                reportNoResponders = Boolean.parseBoolean(props.getProperty(PROP_REPORT_NO_RESPONDERS));
-            }
-
-            if (props.containsKey(PROP_SECURE)) {
-                boolean secure = Boolean.parseBoolean(props.getProperty(PROP_SECURE));
-
-                if (secure) {
-                    try {
-                        this.sslContext = SSLContext.getDefault();
-                    } catch (NoSuchAlgorithmException e) {
-                        this.sslContext = null;
-                        throw new IllegalArgumentException("Unable to retrieve default SSL context");
-                    }
+                catch (NoSuchAlgorithmException e) {
+                    this.sslContext = null;
+                    throw new IllegalArgumentException("Unable to retrieve default SSL context");
                 }
-            }
+            });
 
-            if (props.containsKey(PROP_OPENTLS)) {
-                boolean tls = Boolean.parseBoolean(props.getProperty(PROP_OPENTLS));
-
-                if (tls) {
-                    try {
-                        this.sslContext = SSLUtils.createOpenTLSContext();
-                    } catch (Exception e) {
-                        this.sslContext = null;
-                        throw new IllegalArgumentException("Unable to create open SSL context");
-                    }
+            booleanIfTrueProperty(props, PROP_OPENTLS, alwaysTrue -> {
+                try {
+                    this.sslContext = SSLUtils.createOpenTLSContext();
                 }
-            }
+                catch (Exception e) {
+                    this.sslContext = null;
+                    throw new IllegalArgumentException("Unable to create open SSL context");
+                }
+            });
 
-            if (props.containsKey(PROP_CONNECTION_NAME)) {
-                this.connectionName = props.getProperty(PROP_CONNECTION_NAME, null);
-            }
+            stringProperty(props, PROP_CONNECTION_NAME, s -> this.connectionName = s);
+            booleanIfTrueProperty(props, PROP_VERBOSE, alwaysTrue -> this.verbose = true);
+            booleanIfTrueProperty(props, PROP_NO_ECHO, alwaysTrue -> this.noEcho = true);
+            booleanIfTrueProperty(props, PROP_NO_HEADERS, alwaysTrue -> this.noHeaders = true);
+            booleanIfTrueProperty(props, PROP_NO_NORESPONDERS, alwaysTrue -> this.noNoResponders = true);
+            booleanIfTrueProperty(props, PROP_UTF8_SUBJECTS, alwaysTrue -> this.utf8Support = true);
+            booleanIfTrueProperty(props, PROP_PEDANTIC, alwaysTrue -> this.pedantic = true);
 
-            if (props.containsKey(PROP_VERBOSE)) {
-                this.verbose = Boolean.parseBoolean(props.getProperty(PROP_VERBOSE));
-            }
+            intProperty(props, PROP_MAX_RECONNECT, DEFAULT_MAX_RECONNECT, i -> this.maxReconnect = i);
+            durationProperty(props, PROP_RECONNECT_WAIT, DEFAULT_RECONNECT_WAIT, d -> this.reconnectWait = d);
+            durationProperty(props, PROP_RECONNECT_JITTER, DEFAULT_RECONNECT_JITTER, d -> this.reconnectJitter = d);
+            durationProperty(props, PROP_RECONNECT_JITTER_TLS, DEFAULT_RECONNECT_JITTER_TLS, d -> this.reconnectJitterTls = d);
+            longProperty(props, PROP_RECONNECT_BUF_SIZE, DEFAULT_RECONNECT_BUF_SIZE, l -> this.reconnectBufferSize = l);
+            durationProperty(props, PROP_CONNECTION_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT, d -> this.connectionTimeout = d);
 
-            if (props.containsKey(PROP_NO_ECHO)) {
-                this.noEcho = Boolean.parseBoolean(props.getProperty(PROP_NO_ECHO));
-            }
+            intGtEqZeroProperty(props, PROP_MAX_CONTROL_LINE, DEFAULT_MAX_CONTROL_LINE, i -> this.maxControlLine = i);
+            durationProperty(props, PROP_PING_INTERVAL, DEFAULT_PING_INTERVAL, d -> this.pingInterval = d);
+            durationProperty(props, PROP_CLEANUP_INTERVAL, DEFAULT_REQUEST_CLEANUP_INTERVAL, d -> this.requestCleanupInterval = d);
+            intProperty(props, PROP_MAX_PINGS, DEFAULT_MAX_PINGS_OUT, i -> this.maxPingsOut = i);
+            booleanIfTrueProperty(props, PROP_USE_OLD_REQUEST_STYLE, alwaysTrue -> this.useOldRequestStyle = true);
 
-            if (props.containsKey(PROP_NO_HEADERS)) {
-                this.noHeaders = Boolean.parseBoolean(props.getProperty(PROP_NO_HEADERS));
-            }
+            classnameProperty(props, PROP_ERROR_LISTENER, o -> this.errorListener = (ErrorListener) o);
+            classnameProperty(props, PROP_CONNECTION_CB, o -> this.connectionListener = (ConnectionListener) o);
 
-            if (props.containsKey(PROP_NO_NORESPONDERS)) {
-                this.noNoResponders = Boolean.parseBoolean(props.getProperty(PROP_NO_NORESPONDERS));
-            }
+            stringProperty(props, PROP_DATA_PORT_TYPE, s -> this.dataPortType = s);
+            stringProperty(props, PROP_INBOX_PREFIX, this::inboxPrefix);
+            intGtEqZeroProperty(props, PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE, i -> this.maxMessagesInOutgoingQueue = i);
+            booleanIfTrueProperty(props, PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, alwaysTrue -> this.discardMessagesWhenOutgoingQueueFull = true);
 
-            if (props.containsKey(PROP_UTF8_SUBJECTS)) {
-                this.utf8Support = Boolean.parseBoolean(props.getProperty(PROP_UTF8_SUBJECTS));
-            }
-
-            if (props.containsKey(PROP_PEDANTIC)) {
-                this.pedantic = Boolean.parseBoolean(props.getProperty(PROP_PEDANTIC));
-            }
-
-            if (props.containsKey(PROP_MAX_RECONNECT)) {
-                this.maxReconnect = Integer
-                        .parseInt(props.getProperty(PROP_MAX_RECONNECT, Integer.toString(DEFAULT_MAX_RECONNECT)));
-            }
-
-            if (props.containsKey(PROP_RECONNECT_WAIT)) {
-                int ms = Integer.parseInt(props.getProperty(PROP_RECONNECT_WAIT, "-1"));
-                this.reconnectWait = (ms < 0) ? DEFAULT_RECONNECT_WAIT : Duration.ofMillis(ms);
-            }
-
-            if (props.containsKey(PROP_RECONNECT_JITTER)) {
-                int ms = Integer.parseInt(props.getProperty(PROP_RECONNECT_JITTER, "-1"));
-                this.reconnectJitter = (ms < 0) ? DEFAULT_RECONNECT_JITTER : Duration.ofMillis(ms);
-            }
-
-            if (props.containsKey(PROP_RECONNECT_JITTER_TLS)) {
-                int ms = Integer.parseInt(props.getProperty(PROP_RECONNECT_JITTER_TLS, "-1"));
-                this.reconnectJitterTls = (ms < 0) ? DEFAULT_RECONNECT_JITTER_TLS : Duration.ofMillis(ms);
-            }
-
-            if (props.containsKey(PROP_RECONNECT_BUF_SIZE)) {
-                this.reconnectBufferSize = Long.parseLong(
-                        props.getProperty(PROP_RECONNECT_BUF_SIZE, Long.toString(DEFAULT_RECONNECT_BUF_SIZE)));
-            }
-
-            if (props.containsKey(PROP_CONNECTION_TIMEOUT)) {
-                int ms = Integer.parseInt(props.getProperty(PROP_CONNECTION_TIMEOUT, "-1"));
-                this.connectionTimeout = (ms < 0) ? DEFAULT_CONNECTION_TIMEOUT : Duration.ofMillis(ms);
-            }
-
-            if (props.containsKey(PROP_MAX_CONTROL_LINE)) {
-                int bytes = Integer.parseInt(props.getProperty(PROP_MAX_CONTROL_LINE, "-1"));
-                this.maxControlLine = (bytes < 0) ? DEFAULT_MAX_CONTROL_LINE : bytes;
-            }
-
-            if (props.containsKey(PROP_PING_INTERVAL)) {
-                int ms = Integer.parseInt(props.getProperty(PROP_PING_INTERVAL, "-1"));
-                this.pingInterval = (ms < 0) ? DEFAULT_PING_INTERVAL : Duration.ofMillis(ms);
-            }
-
-            if (props.containsKey(PROP_CLEANUP_INTERVAL)) {
-                int ms = Integer.parseInt(props.getProperty(PROP_CLEANUP_INTERVAL, "-1"));
-                this.requestCleanupInterval = (ms < 0) ? DEFAULT_REQUEST_CLEANUP_INTERVAL : Duration.ofMillis(ms);
-            }
-
-            if (props.containsKey(PROP_MAX_PINGS)) {
-                this.maxPingsOut = Integer
-                        .parseInt(props.getProperty(PROP_MAX_PINGS, Integer.toString(DEFAULT_MAX_PINGS_OUT)));
-            }
-
-            if (props.containsKey(PROP_USE_OLD_REQUEST_STYLE)) {
-                this.useOldRequestStyle = Boolean.parseBoolean(props.getProperty(PROP_USE_OLD_REQUEST_STYLE));
-            }
-
-            if (props.containsKey(PROP_ERROR_LISTENER)) {
-                Object instance = createInstanceOf(props.getProperty(PROP_ERROR_LISTENER));
-                this.errorListener = (ErrorListener) instance;
-            }
-
-            if (props.containsKey(PROP_CONNECTION_CB)) {
-                Object instance = createInstanceOf(props.getProperty(PROP_CONNECTION_CB));
-                this.connectionListener = (ConnectionListener) instance;
-            }
-
-            if (props.containsKey(PROP_DATA_PORT_TYPE)) {
-                this.dataPortType = props.getProperty(PROP_DATA_PORT_TYPE);
-            }
-
-            if (props.containsKey(PROP_INBOX_PREFIX)) {
-                this.inboxPrefix(props.getProperty(PROP_INBOX_PREFIX, DEFAULT_INBOX_PREFIX));
-            }
-
-            if (props.containsKey(PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE)) {
-                int maxMessagesInOutgoingQueue = Integer.parseInt(props.getProperty(PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "-1"));
-                this.maxMessagesInOutgoingQueue = (maxMessagesInOutgoingQueue < 0) ? DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE : maxMessagesInOutgoingQueue;
-            }
-
-            if (props.containsKey(PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL)) {
-                this.discardMessagesWhenOutgoingQueueFull = Boolean.parseBoolean(props.getProperty(
-                        PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, Boolean.toString(DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL)));
-            }
-
-            if (props.containsKey(PROP_IGNORE_DISCOVERED_SERVERS)) {
-                this.ignoreDiscoveredServers = Boolean.parseBoolean(props.getProperty(PROP_IGNORE_DISCOVERED_SERVERS));
-            }
-
-            if (props.containsKey(PROP_SERVERS_POOL_IMPLEMENTATION_CLASS)) {
-                Object instance = createInstanceOf(props.getProperty(PROP_SERVERS_POOL_IMPLEMENTATION_CLASS));
-                this.serverPool = (ServerPool) instance;
-            }
-        }
-
-        static Object createInstanceOf(String className) {
-            Object instance;
-            try {
-                Class<?> clazz = Class.forName(className);
-                Constructor<?> constructor = clazz.getConstructor();
-                instance = constructor.newInstance();
-            } catch (Exception e) {
-                throw new IllegalArgumentException(e);
-            }
-            return instance;
+            booleanIfTrueProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, alwaysTrue -> this.ignoreDiscoveredServers = true);
+            classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
         }
 
         // ----------------------------------------------------------------------------------------------------
@@ -1476,7 +1359,6 @@ public class Options {
 
         /**
          * Set the ServerPool implementation for connections to use instead of the default bahvior
-         * IMPORTANT! ServerPool IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
          * @param serverPool the implementation
          * @return the Builder for chaining
          */
@@ -1510,7 +1392,11 @@ public class Options {
             if (this.username != null && this.token != null) {
                 throw new IllegalStateException("Options can't have token and username");
             }
-            
+
+            if (inboxPrefix == null) {
+                inboxPrefix = DEFAULT_INBOX_PREFIX;
+            }
+
             if (natsServerUris.size() == 0) {
                 server(DEFAULT_URL);
             }
@@ -1724,7 +1610,7 @@ public class Options {
      * @return the data port described by these options
      */
     public DataPort buildDataPort() {
-        return (DataPort) Options.Builder.createInstanceOf(dataPortType);
+        return (DataPort) Options.createInstanceOf(dataPortType);
     }
 
     /**
@@ -2028,7 +1914,6 @@ public class Options {
 
     /**
      * Get a provided ServerPool. If null, a default implementation is used.
-     * IMPORTANT! ServerPool IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @return the ServerPool implementation
      */
     public ServerPool getServerPool() {
@@ -2138,19 +2023,22 @@ public class Options {
         return connectString;
     }
 
-    private void appendOption(CharBuffer builder, String key, String value, boolean quotes, boolean comma) {
+    // ----------------------------------------------------------------------------------------------------
+    // HELPER FUNCTIONS
+    // ----------------------------------------------------------------------------------------------------
+    private static void appendOption(CharBuffer builder, String key, String value, boolean quotes, boolean comma) {
         _appendStart(builder, key, quotes, comma);
         builder.append(value);
         _appendOptionEnd(builder, quotes);
     }
 
-    private void appendOption(CharBuffer builder, String key, char[] value, boolean quotes, boolean comma) {
+    private static void appendOption(CharBuffer builder, String key, char[] value, boolean quotes, boolean comma) {
         _appendStart(builder, key, quotes, comma);
         builder.put(value);
         _appendOptionEnd(builder, quotes);
     }
 
-    private void _appendStart(CharBuffer builder, String key, boolean quotes, boolean comma) {
+    private static void _appendStart(CharBuffer builder, String key, boolean quotes, boolean comma) {
         if (comma) {
             builder.append(',');
         }
@@ -2161,17 +2049,110 @@ public class Options {
         _appendOptionEnd(builder, quotes);
     }
 
-    private void _appendOptionEnd(CharBuffer builder, boolean quotes) {
+    private static void _appendOptionEnd(CharBuffer builder, boolean quotes) {
         if (quotes) {
             builder.append('"');
         }
     }
 
-    /**
-     * Set old request style.
-     * @param value true to use the old request style
-     */
-    public void setOldRequestStyle(boolean value) {
-        useOldRequestStyle = value;
+    private static String getPropertyValue(Properties props, String key) {
+        String value = Validator.emptyAsNull(props.getProperty(key));
+        if (value != null) {
+            return value;
+        }
+        if (key.startsWith(PFX)) { // if the key starts with the PFX, check the non PFX
+            return Validator.emptyAsNull(props.getProperty(key.substring(PFX_LEN)));
+        }
+        // otherwise check with the PFX
+        return Validator.emptyAsNull(props.getProperty(PFX + key));
+    }
+
+    private static void stringProperty(Properties props, String key, java.util.function.Consumer<String> consumer) {
+        String value = getPropertyValue(props, key);
+        if (value != null) {
+            consumer.accept(value);
+        }
+    }
+
+    private static void booleanIfTrueProperty(Properties props, String key, java.util.function.Consumer<Boolean> consumer) {
+        String value = getPropertyValue(props, key);
+        if (value != null) {
+            if (Boolean.parseBoolean(value)) {
+                consumer.accept(true);
+            }
+        }
+    }
+
+    private static void charArrayProperty(Properties props, String key, java.util.function.Consumer<char[]> consumer) {
+        String value = getPropertyValue(props, key);
+        if (value != null) {
+            consumer.accept(value.toCharArray());
+        }
+    }
+
+    private static void intProperty(Properties props, String key, int defaultValue, java.util.function.Consumer<Integer> consumer) {
+        String value = getPropertyValue(props, key);
+        if (value == null) {
+            consumer.accept(defaultValue);
+        }
+        else {
+            consumer.accept(Integer.parseInt(value));
+        }
+    }
+
+    private static void intGtEqZeroProperty(Properties props, String key, int defaultValue, java.util.function.Consumer<Integer> consumer) {
+        String value = getPropertyValue(props, key);
+        if (value == null) {
+            consumer.accept(defaultValue);
+        }
+        else {
+            int i = Integer.parseInt(value);
+            if (i < 0) {
+                consumer.accept(defaultValue);
+            }
+            else {
+                consumer.accept(i);
+            }
+        }
+    }
+
+    private static void longProperty(Properties props, String key, long defaultValue, java.util.function.Consumer<Long> consumer) {
+        String value = getPropertyValue(props, key);
+        if (value == null) {
+            consumer.accept(defaultValue);
+        }
+        else {
+            consumer.accept(Long.parseLong(value));
+        }
+    }
+
+    private static void durationProperty(Properties props, String key, Duration defaultValue, java.util.function.Consumer<Duration> consumer) {
+        String value = getPropertyValue(props, key);
+        if (value == null) {
+            consumer.accept(defaultValue);
+        }
+        else {
+            int ms = Integer.parseInt(value);
+            if (ms < 0) {
+                consumer.accept(defaultValue);
+            }
+            else {
+                consumer.accept(Duration.ofMillis(ms));
+            }
+        }
+    }
+
+    private static void classnameProperty(Properties props, String key, java.util.function.Consumer<Object> consumer) {
+        stringProperty(props, key, className -> consumer.accept(createInstanceOf(className)));
+    }
+
+    private static Object createInstanceOf(String className) {
+        try {
+            Class<?> clazz = Class.forName(className);
+            Constructor<?> constructor = clazz.getConstructor();
+            return constructor.newInstance();
+        } catch (Exception e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 }

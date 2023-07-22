@@ -692,15 +692,6 @@ public class OptionsTests {
     }
 
     @Test
-    public void testThrowOnEmptyServersProp() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            Properties props = new Properties();
-            props.setProperty(Options.PROP_SERVERS, "");
-            new Options.Builder(props).build();
-        });
-    }
-
-    @Test
     public void testThrowOnBadServersURI() {
         assertThrows(IllegalArgumentException.class, () -> {
             String url1 = URL_PROTO_HOST_PORT_8080;
