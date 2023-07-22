@@ -16,7 +16,10 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
-import io.nats.client.support.*;
+import io.nats.client.support.ByteArrayBuilder;
+import io.nats.client.support.NatsRequestCompletableFuture;
+import io.nats.client.support.NatsUri;
+import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -201,7 +204,6 @@ class NatsConnection implements Connection {
 
                 timeTrace(trace, "trying to connect to %s", cur);
                 NatsUri resolved = resolvedList.remove(0);
-                Debug.dbg("tryToConnect " + cur);
                 tryToConnect(cur, resolved, System.nanoTime());
 
                 if (isConnected()) {
@@ -265,24 +267,16 @@ class NatsConnection implements Connection {
 
         if (!isConnected() && !isClosed() && !this.isClosing()) {
             boolean keepGoing = true;
-            int totalTries = -1;
             int totalRounds = 0;
             NatsUri first = null;
             NatsUri cur;
-            Debug.dbg("Reconnect Start " + serverPool.getServerList().toString());
             while (keepGoing && (cur = serverPool.nextServer()) != null) {
-                if (++totalTries == 0) {
+                if (first == null) {
                     first = cur;
-                    Debug.dbg("Reconnect First " + totalTries + " " + totalRounds + " " + cur);
                 }
                 else if (first.equals(cur)) {
                     // went around the pool an entire time
-                    totalRounds++;
-                    invokeReconnectDelayHandler(totalTries);
-                    Debug.dbg("Reconnect Around " + totalTries + " " + totalRounds + " " + cur);
-                }
-                else {
-                    Debug.dbg("Reconnect Next " + totalTries + " " + totalRounds + " " + cur);
+                    invokeReconnectDelayHandler(++totalRounds);
                 }
 
                 // let server list provider resolve hostnames
@@ -324,7 +318,6 @@ class NatsConnection implements Connection {
                     }
                 }
             }
-            Debug.dbg("RE-END " + totalTries);
 
         } // end-main-loop
 
@@ -1918,7 +1911,7 @@ class NatsConnection implements Connection {
         }
     }
 
-    void invokeReconnectDelayHandler(long totalTries) {
+    void invokeReconnectDelayHandler(long totalRounds) {
         long currentWaitNanos = 0;
 
         ReconnectDelayHandler handler = options.getReconnectDelayHandler();
@@ -1933,7 +1926,7 @@ class NatsConnection implements Connection {
             }
         }
         else {
-            Duration waitTime = handler.getWaitTime(totalTries);
+            Duration waitTime = handler.getWaitTime(totalRounds);
             if (waitTime != null) {
                 currentWaitNanos = waitTime.toNanos();
             }
