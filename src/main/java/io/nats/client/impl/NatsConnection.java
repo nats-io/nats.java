@@ -76,7 +76,7 @@ class NatsConnection implements Connection {
     private final Map<String, NatsSubscription> subscribers;
     private final Map<String, NatsDispatcher> dispatchers; // use a concurrent map so we get more consistent iteration
                                                      // behavior
-    private final Collection<ConnectionListener> connectionListeners; 
+    private final Collection<ConnectionListener> connectionListeners;
     private final Map<String, NatsRequestCompletableFuture> responsesAwaiting;
     private final Map<String, NatsRequestCompletableFuture> responsesRespondedTo;
     private final ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
@@ -267,16 +267,16 @@ class NatsConnection implements Connection {
 
         if (!isConnected() && !isClosed() && !this.isClosing()) {
             boolean keepGoing = true;
-            int timesAllServersSeen = -1;
+            int totalRounds = 0;
             NatsUri first = null;
             NatsUri cur;
             while (keepGoing && (cur = serverPool.nextServer()) != null) {
-                if (++timesAllServersSeen == 0) {
+                if (first == null) {
                     first = cur;
                 }
                 else if (first.equals(cur)) {
                     // went around the pool an entire time
-                    invokeReconnectDelayHandler(timesAllServersSeen);
+                    invokeReconnectDelayHandler(++totalRounds);
                 }
 
                 // let server list provider resolve hostnames
@@ -1910,7 +1910,7 @@ class NatsConnection implements Connection {
         }
     }
 
-    void invokeReconnectDelayHandler(long totalTries) {
+    void invokeReconnectDelayHandler(long totalRounds) {
         long currentWaitNanos = 0;
 
         ReconnectDelayHandler handler = options.getReconnectDelayHandler();
@@ -1925,7 +1925,7 @@ class NatsConnection implements Connection {
             }
         }
         else {
-            Duration waitTime = handler.getWaitTime(totalTries);
+            Duration waitTime = handler.getWaitTime(totalRounds);
             if (waitTime != null) {
                 currentWaitNanos = waitTime.toNanos();
             }
