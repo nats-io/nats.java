@@ -281,6 +281,11 @@ public class Options {
      */
     public static final String PROP_NO_HEADERS = PFX + "noheaders";
     /**
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#connectionName(String)
+     * connectionName}.
+     */
+    public static final String PROP_CONNECTION_NAME = PFX + "name";
+    /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noNoResponders() noNoResponders}.
      */
     public static final String PROP_NO_NORESPONDERS = PFX + "nonoresponders";
@@ -326,7 +331,6 @@ public class Options {
      * default SSL context. Set the default context before creating the options.
      */
     public static final String PROP_SECURE = PFX + "secure";
-
     /**
      * Property used to configure a builder from a Properties object.
      * {@value}, see {@link Builder#sslContext(SSLContext) sslContext}.
@@ -370,17 +374,17 @@ public class Options {
      */
     public static final String PROP_SERVERS_POOL_IMPLEMENTATION_CLASS = "servers_pool_implementation_class";
     /**
-     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#clientSideLimitChecks() clientSideLimitChecks}.
-     * @deprecated Client Side Limit checks are no longer performed.
-     */
-    @Deprecated
-    public static final String PROP_CONNECTION_NAME = PFX + "name";
-    /**
      * This property is used to enable support for UTF8 subjects. See {@link Builder#supportUTF8Subjects() supportUTF8Subjcts()}
      * @deprecated only plain ascii subjects are supported
      */
     @Deprecated
     public static final String PROP_UTF8_SUBJECTS = "allow.utf8.subjects";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#clientSideLimitChecks() clientSideLimitChecks}.
+     * @deprecated Client Side Limit checks are no longer performed.
+     */
+    @Deprecated
+    public static final String PROP_CLIENT_SIDE_LIMIT_CHECKS = PFX + "clientsidelimitchecks";
 
     // ----------------------------------------------------------------------------------------------------
     // PROTOCOL CONNECT OPTION CONSTANTS
