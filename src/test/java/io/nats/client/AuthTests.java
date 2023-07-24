@@ -424,9 +424,16 @@ public class AuthTests extends TestBase {
 
     @Test
     public void testJWTAuthWithCredsFile() throws Exception {
+        // manual auth handler or credential path
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/operator.conf", false)) {
             Options options = new Options.Builder().server(ts.getURI()).maxReconnects(0)
-                    .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).build();
+                .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds"))
+                .build();
+            assertCanConnect(options);
+
+            options = new Options.Builder().server(ts.getURI()).maxReconnects(0)
+                .credentialPath("src/test/resources/jwt_nkey/user.creds")
+                .build();
             assertCanConnect(options);
         }
 
