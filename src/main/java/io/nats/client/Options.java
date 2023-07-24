@@ -1485,20 +1485,22 @@ public class Options {
                     }
                 }
 
-                if (useDefaultTls) {
-                    try {
-                        this.sslContext = SSLContext.getDefault();
-                    }
-                    catch (NoSuchAlgorithmException e) {
-                        throw new IllegalStateException("Unable to create default SSL context", e);
-                    }
-                }
-                else if (useTrustAllTls) {
+                // check trust all (open) first, in case they provided both
+                // PROP_SECURE (secure) and PROP_OPENTLS (opentls)
+                if (useTrustAllTls) {
                     try {
                         this.sslContext = SSLUtils.createTrustAllTlsContext();
                     }
                     catch (GeneralSecurityException e) {
                         throw new IllegalStateException("Unable to create SSL context", e);
+                    }
+                }
+                else if (useDefaultTls) {
+                    try {
+                        this.sslContext = SSLContext.getDefault();
+                    }
+                    catch (NoSuchAlgorithmException e) {
+                        throw new IllegalStateException("Unable to create default SSL context", e);
                     }
                 }
             }
