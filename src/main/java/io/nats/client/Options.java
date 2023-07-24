@@ -16,14 +16,19 @@ package io.nats.client;
 import io.nats.client.impl.DataPort;
 import io.nats.client.impl.ErrorListenerLoggerImpl;
 import io.nats.client.impl.SocketDataPort;
-import io.nats.client.support.*;
+import io.nats.client.support.HttpRequest;
+import io.nats.client.support.NatsConstants;
+import io.nats.client.support.NatsUri;
+import io.nats.client.support.SSLUtils;
 
 import javax.net.ssl.SSLContext;
+import java.io.File;
 import java.lang.reflect.Constructor;
 import java.net.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.CharBuffer;
+import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.*;
@@ -33,6 +38,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.nats.client.support.Encoding.uriDecode;
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.NatsUri.DEFAULT_NATS_URI;
+import static io.nats.client.support.SSLUtils.DEFAULT_TLS_ALGORITHM;
+import static io.nats.client.support.Validator.emptyAsNull;
+import static io.nats.client.support.Validator.emptyOrNullAs;
 
 /**
  * The Options class specifies the connection options for a new NATs connection, including the default options.
@@ -46,7 +54,7 @@ public class Options {
     // NOTE TO DEVS!!! To add an option, you have to address:
     // ----------------------------------------------------------------------------------------------------
     // CONSTANTS * optionally add a default value constant
-    // ENVIRONMENT * most of the time add an environment property, should always be in the form PFX +
+    // ENVIRONMENT PROPERTIES * most of the time add an environment property, should always be in the form PFX +
     // PROTOCOL CONNECT OPTION CONSTANTS * not related to options, but here because Options code uses them
     // CLASS VARIABLES * add a variable to the class
     // BUILDER VARIABLES * add a variable in builder
@@ -160,7 +168,6 @@ public class Options {
      */
     public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
 
-
     /**
      * Default thread name prefix. Used by the default executor when creating threads.
      * This property is defined as {@value}
@@ -200,7 +207,7 @@ public class Options {
     public static final boolean DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL = false;
 
     // ----------------------------------------------------------------------------------------------------
-    // ENVIRONMENT
+    // ENVIRONMENT PROPERTIES
     // ----------------------------------------------------------------------------------------------------
     static final String PFX = "io.nats.client.";
     static final int PFX_LEN = PFX.length();
@@ -369,22 +376,55 @@ public class Options {
      */
     public static final String PROP_IGNORE_DISCOVERED_SERVERS = "ignore_discovered_servers";
     /**
+     * Preferred property used to set whether to ignore discovered servers when connecting
+     */
+    public static final String PROP_IGNORE_DISCOVERED_SERVERS_PREFERRED = "ignore.discovered.servers";
+    /**
      * Property used to set class name for ServerPool implementation
      * {@link Builder#serverPool(ServerPool) serverPool}.
      */
     public static final String PROP_SERVERS_POOL_IMPLEMENTATION_CLASS = "servers_pool_implementation_class";
     /**
-     * This property is used to enable support for UTF8 subjects. See {@link Builder#supportUTF8Subjects() supportUTF8Subjcts()}
-     * @deprecated only plain ascii subjects are supported
+     * Preferred property used to set class name for ServerPool implementation
+     * {@link Builder#serverPool(ServerPool) serverPool}.
      */
-    @Deprecated
-    public static final String PROP_UTF8_SUBJECTS = "allow.utf8.subjects";
+    public static final String PROP_SERVERS_POOL_IMPLEMENTATION_CLASS_PREFERRED = "servers.pool.implementation.class";
+    /**
+     * Property used to set the path to a credentials file to be used in a FileAuthHandler
+     */
+    public static final String PROP_CREDENTIAL_PATH = PFX + "credential.path";
+    /**
+     * Property for the keystore path used to create an SSLContext
+     */
+    public static final String PROP_KEYSTORE_PATH = PFX + "keystore.path";
+    /**
+     * Property for the truststore path used to create an SSLContext
+     */
+    public static final String PROP_TRUSTSTORE_PATH = PFX + "truststore.path";
+    /**
+     * Property for the keystore password used to create an SSLContext
+     */
+    public static final String PROP_KEYSTORE_PASSWORD = PFX + "keystore.password";
+    /**
+     * Property for the truststore password used to create an SSLContext
+     */
+    public static final String PROP_TRUSTSTORE_PASSWORD = PFX + "truststore.password";
+    /**
+     * Property for the algorithm used to create an SSLContext
+     */
+    public static final String PROP_TLS_ALGORITHM = PFX + "tls.algorithm";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#clientSideLimitChecks() clientSideLimitChecks}.
      * @deprecated Client Side Limit checks are no longer performed.
      */
     @Deprecated
     public static final String PROP_CLIENT_SIDE_LIMIT_CHECKS = PFX + "clientsidelimitchecks";
+    /**
+     * This property is used to enable support for UTF8 subjects. See {@link Builder#supportUTF8Subjects() supportUTF8Subjects()}
+     * @deprecated only plain ascii subjects are supported
+     */
+    @Deprecated
+    public static final String PROP_UTF8_SUBJECTS = "allow.utf8.subjects";
 
     // ----------------------------------------------------------------------------------------------------
     // PROTOCOL CONNECT OPTION CONSTANTS
@@ -507,7 +547,6 @@ public class Options {
     private final boolean noEcho;
     private final boolean noHeaders;
     private final boolean noNoResponders;
-    private final boolean utf8Support;
     private final int maxMessagesInOutgoingQueue;
     private final boolean discardMessagesWhenOutgoingQueueFull;
     private final boolean ignoreDiscoveredServers;
@@ -611,7 +650,6 @@ public class Options {
         private boolean noEcho = false;
         private boolean noHeaders = false;
         private boolean noNoResponders = false;
-        private boolean utf8Support = false;
         private String inboxPrefix = DEFAULT_INBOX_PREFIX;
         private int maxMessagesInOutgoingQueue = DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
@@ -627,6 +665,15 @@ public class Options {
         private ExecutorService executor;
         private List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
         private Proxy proxy;
+
+        private boolean useDefaultTls;
+        private boolean useTrustAllTls;
+        private String credentialPath;
+        private String keystorePath;
+        private String truststorePath;
+        private char[] keystorePassword;
+        private char[] truststorePassword;
+        private String tlsAlgorithm = DEFAULT_TLS_ALGORITHM;
 
         /**
          * Constructs a new Builder with the default values.
@@ -655,45 +702,35 @@ public class Options {
             }
 
             stringProperty(props, PROP_URL, this::server);
-            charArrayProperty(props, PROP_USERNAME, ca -> this.username = ca);
-            charArrayProperty(props, PROP_PASSWORD, ca -> this.password = ca);
-            charArrayProperty(props, PROP_TOKEN, ca -> this.token = ca);
-
             stringProperty(props, PROP_SERVERS, str -> {
                 String[] servers = str.trim().split(",\\s*");
                 this.servers(servers);
             });
 
+            charArrayProperty(props, PROP_USERNAME, ca -> this.username = ca);
+            charArrayProperty(props, PROP_PASSWORD, ca -> this.password = ca);
+            charArrayProperty(props, PROP_TOKEN, ca -> this.token = ca);
+            booleanIfTrueProperty(props, PROP_SECURE, alwaysTrue -> this.useDefaultTls = true);
+            booleanIfTrueProperty(props, PROP_OPENTLS, alwaysTrue -> this.useTrustAllTls = true);
+
+            stringProperty(props, PROP_CREDENTIAL_PATH, s -> this.credentialPath = s);
+            stringProperty(props, PROP_KEYSTORE_PATH, s -> this.keystorePath = s);
+            stringProperty(props, PROP_TRUSTSTORE_PATH, s -> this.truststorePath = s);
+            charArrayProperty(props, PROP_KEYSTORE_PASSWORD, ca -> this.keystorePassword = ca);
+            charArrayProperty(props, PROP_TRUSTSTORE_PASSWORD, ca -> this.truststorePassword = ca);
+            stringProperty(props, PROP_TLS_ALGORITHM, s -> this.tlsAlgorithm = s);
+
+            stringProperty(props, PROP_CONNECTION_NAME, s -> this.connectionName = s);
+
             booleanIfTrueProperty(props, PROP_NORANDOMIZE, alwaysTrue -> this.noRandomize = true);
             booleanIfTrueProperty(props, PROP_NO_RESOLVE_HOSTNAMES, alwaysTrue -> this.noResolveHostnames = true);
             booleanIfTrueProperty(props, PROP_REPORT_NO_RESPONDERS, alwaysTrue -> this.reportNoResponders = true);
-
-            booleanIfTrueProperty(props, PROP_SECURE, alwaysTrue -> {
-                try {
-                    this.sslContext = SSLContext.getDefault();
-                }
-                catch (NoSuchAlgorithmException e) {
-                    this.sslContext = null;
-                    throw new IllegalArgumentException("Unable to retrieve default SSL context");
-                }
-            });
-
-            booleanIfTrueProperty(props, PROP_OPENTLS, alwaysTrue -> {
-                try {
-                    this.sslContext = SSLUtils.createOpenTLSContext();
-                }
-                catch (Exception e) {
-                    this.sslContext = null;
-                    throw new IllegalArgumentException("Unable to create open SSL context");
-                }
-            });
 
             stringProperty(props, PROP_CONNECTION_NAME, s -> this.connectionName = s);
             booleanIfTrueProperty(props, PROP_VERBOSE, alwaysTrue -> this.verbose = true);
             booleanIfTrueProperty(props, PROP_NO_ECHO, alwaysTrue -> this.noEcho = true);
             booleanIfTrueProperty(props, PROP_NO_HEADERS, alwaysTrue -> this.noHeaders = true);
             booleanIfTrueProperty(props, PROP_NO_NORESPONDERS, alwaysTrue -> this.noNoResponders = true);
-            booleanIfTrueProperty(props, PROP_UTF8_SUBJECTS, alwaysTrue -> this.utf8Support = true);
             booleanIfTrueProperty(props, PROP_PEDANTIC, alwaysTrue -> this.pedantic = true);
 
             intProperty(props, PROP_MAX_RECONNECT, DEFAULT_MAX_RECONNECT, i -> this.maxReconnect = i);
@@ -848,7 +885,6 @@ public class Options {
          */
         @Deprecated
         public Builder supportUTF8Subjects() {
-            this.utf8Support = true;
             return this;
         }
 
@@ -918,40 +954,92 @@ public class Options {
 
         /**
          * Sets the options to use the default SSL Context, if it exists.
-         *
-         * @throws NoSuchAlgorithmException If the default protocol is unavailable.
-         * @throws IllegalArgumentException If there is no default SSL context.
+         * @throws NoSuchAlgorithmException <em>Not thrown, deferred to build() method, left in for backward compatibility</em>
          * @return the Builder for chaining
          */
-        public Builder secure() throws NoSuchAlgorithmException, IllegalArgumentException {
-            this.sslContext = SSLContext.getDefault();
-
-            if(this.sslContext == null) {
-                throw new IllegalArgumentException("No Default SSL Context");
-            }
+        public Builder secure() throws NoSuchAlgorithmException {
+            useDefaultTls = true;
             return this;
         }
 
         /**
-         * Set the SSL context to one that accepts any server certificate and has no client certificates.
-         *
-         * @throws NoSuchAlgorithmException If the tls protocol is unavailable.
+         * Set the options to use an SSL context that accepts any server certificate and has no client certificates.
+         * @throws NoSuchAlgorithmException <em>Not thrown, deferred to build() method, left in for backward compatibility</em>
          * @return the Builder for chaining
          */
         public Builder opentls() throws NoSuchAlgorithmException {
-            this.sslContext = SSLUtils.createOpenTLSContext();
+            useTrustAllTls = true;
             return this;
         }
 
         /**
          * Set the SSL context, requires that the server supports TLS connections and
          * the URI specifies TLS.
-         *
          * @param ctx the SSL Context to use for TLS connections
          * @return the Builder for chaining
          */
         public Builder sslContext(SSLContext ctx) {
             this.sslContext = ctx;
+            return this;
+        }
+
+        /**
+         *
+         * @param credentialPath the path to the credentials file for creating an {@link AuthHandler AuthHandler}
+         * @return the Builder for chaining
+         */
+        public Builder credentialPath(String credentialPath) {
+            this.credentialPath = emptyAsNull(credentialPath);
+            return this;
+        }
+
+        /**
+         *
+         * @param keystorePath the path to the keystore file
+         * @return the Builder for chaining
+         */
+        public Builder keystorePath(String keystorePath) {
+            this.keystorePath = emptyAsNull(keystorePath);
+            return this;
+        }
+
+        /**
+         *
+         * @param truststorePath the path to the trust store file
+         * @return the Builder for chaining
+         */
+        public Builder truststorePath(String truststorePath) {
+            this.truststorePath = emptyAsNull(truststorePath);
+            return this;
+        }
+
+        /**
+         *
+         * @param keystorePassword the password for the keystore
+         * @return the Builder for chaining
+         */
+        public Builder keystorePassword(char[] keystorePassword) {
+            this.keystorePassword = keystorePassword == null || keystorePassword.length == 0 ? null : keystorePassword;
+            return this;
+        }
+
+        /**
+         *
+         * @param truststorePassword the password for the trust store
+         * @return the Builder for chaining
+         */
+        public Builder truststorePassword(char[] truststorePassword) {
+            this.truststorePassword = truststorePassword == null || truststorePassword.length == 0 ? null : truststorePassword;
+            return this;
+        }
+
+        /**
+         *
+         * @param tlsAlgorithm the tls algorithm. Default is {@value SSLUtils#DEFAULT_TLS_ALGORITHM}
+         * @return the Builder for chaining
+         */
+        public Builder tlsAlgorithm(String tlsAlgorithm) {
+            this.tlsAlgorithm = emptyOrNullAs(tlsAlgorithm, DEFAULT_TLS_ALGORITHM);
             return this;
         }
 
@@ -1362,26 +1450,70 @@ public class Options {
                 inboxPrefix = DEFAULT_INBOX_PREFIX;
             }
 
+// sslContext
+//        private boolean useDefaultTls;
+//        private boolean useTrustAllTls;
+//        private String keystorePath;
+//        private String truststorePath;
+//        private String keystorePassword;
+//        private String truststorePassword;
+
+            boolean checkUrisForSecure = true;
             if (natsServerUris.size() == 0) {
                 server(DEFAULT_URL);
+                checkUrisForSecure = false;
             }
-            else if (sslContext == null) { // see if we need to provide one
-                for (int i = 0; sslContext == null && i < natsServerUris.size(); i++) {
-                    NatsUri natsUri = natsServerUris.get(i);
-                    switch (natsUri.getScheme()) {
-                        case TLS_PROTOCOL:
-                        case SECURE_WEBSOCKET_PROTOCOL:
-                            try {
-                                this.sslContext = SSLContext.getDefault();
-                            } catch (NoSuchAlgorithmException e) {
-                                throw new IllegalStateException("Unable to create default SSL context", e);
-                            }
-                            break;
-                        case OPENTLS_PROTOCOL:
-                            this.sslContext = SSLUtils.createOpenTLSContext();
-                            break;
+
+            if (keystorePath != null) {
+                try {
+                    sslContext = SSLUtils.createSSLContext(keystorePath, keystorePassword, truststorePath, truststorePassword, tlsAlgorithm);
+                }
+                catch (Exception e) {
+                    throw new IllegalStateException("Unable to create SSL context", e);
+                }
+            }
+
+            // if an sslContext has not been requested via keystore properties
+            if (sslContext == null) {
+                // if we haven't been told to use the default or the trust all context
+                // and the server isn't the default url, check to see if the server uris
+                // suggest we need an ssl context.
+                if (!useDefaultTls && !useTrustAllTls && checkUrisForSecure) {
+                    for (int i = 0; sslContext == null && i < natsServerUris.size(); i++) {
+                        NatsUri natsUri = natsServerUris.get(i);
+                        switch (natsUri.getScheme()) {
+                            case TLS_PROTOCOL:
+                            case SECURE_WEBSOCKET_PROTOCOL:
+                                useDefaultTls = true;
+                                break;
+                            case OPENTLS_PROTOCOL:
+                                useTrustAllTls = true;
+                                break;
+                        }
                     }
                 }
+
+                if (useDefaultTls) {
+                    try {
+                        this.sslContext = SSLContext.getDefault();
+                    }
+                    catch (NoSuchAlgorithmException e) {
+                        throw new IllegalStateException("Unable to create default SSL context", e);
+                    }
+                }
+                else if (useTrustAllTls) {
+                    try {
+                        this.sslContext = SSLUtils.createTrustAllTlsContext();
+                    }
+                    catch (GeneralSecurityException e) {
+                        throw new IllegalStateException("Unable to create SSL context", e);
+                    }
+                }
+            }
+
+            if (credentialPath != null) {
+                File file = new File(credentialPath).getAbsoluteFile();
+                authHandler = Nats.credentials(file.toString());
             }
 
             if (this.executor == null) {
@@ -1429,7 +1561,6 @@ public class Options {
             this.noEcho = o.noEcho;
             this.noHeaders = o.noHeaders;
             this.noNoResponders = o.noNoResponders;
-            this.utf8Support = o.utf8Support;
             this.inboxPrefix = o.inboxPrefix;
             this.traceConnection = o.traceConnection;
             this.maxMessagesInOutgoingQueue = o.maxMessagesInOutgoingQueue;
@@ -1488,7 +1619,6 @@ public class Options {
         this.noEcho = b.noEcho;
         this.noHeaders = b.noHeaders;
         this.noNoResponders = b.noNoResponders;
-        this.utf8Support = b.utf8Support;
         this.inboxPrefix = b.inboxPrefix;
         this.traceConnection = b.traceConnection;
         this.maxMessagesInOutgoingQueue = b.maxMessagesInOutgoingQueue;
@@ -1625,15 +1755,6 @@ public class Options {
     }
 
     /**
-     * @deprecated Plans are to remove allowing utf8mode
-     * @return whether utf8 subjects are supported, see {@link Builder#supportUTF8Subjects() supportUTF8Subjects()} in the builder doc.
-     */
-    @Deprecated
-    public boolean supportUTF8Subjects() {
-        return utf8Support;
-    }
-
-    /**
      * @return the connectionName, see {@link Builder#connectionName(String) connectionName()} in the builder doc
      */
     public String getConnectionName() {
@@ -1674,6 +1795,15 @@ public class Options {
      */
     @Deprecated
     public boolean clientSideLimitChecks() {
+        return false;
+    }
+
+    /**
+     * @deprecated Plans are to remove allowing utf8mode
+     * @return whether utf8 subjects are supported, see {@link Builder#supportUTF8Subjects() supportUTF8Subjects()} in the builder doc.
+     */
+    @Deprecated
+    public boolean supportUTF8Subjects() {
         return false;
     }
 
@@ -2021,15 +2151,20 @@ public class Options {
     }
 
     private static String getPropertyValue(Properties props, String key) {
-        String value = Validator.emptyAsNull(props.getProperty(key));
+        String value = emptyAsNull(props.getProperty(key));
         if (value != null) {
             return value;
         }
         if (key.startsWith(PFX)) { // if the key starts with the PFX, check the non PFX
-            return Validator.emptyAsNull(props.getProperty(key.substring(PFX_LEN)));
+            return emptyAsNull(props.getProperty(key.substring(PFX_LEN)));
         }
         // otherwise check with the PFX
-        return Validator.emptyAsNull(props.getProperty(PFX + key));
+        value = emptyAsNull(props.getProperty(PFX + key));
+        if (value == null && key.contains("_")) {
+            // addressing where underscore was used in a key value instead of dot
+            return getPropertyValue(props, key.replace("_", "."));
+        }
+        return value;
     }
 
     private static void stringProperty(Properties props, String key, java.util.function.Consumer<String> consumer) {

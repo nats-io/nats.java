@@ -16,11 +16,11 @@ package io.nats.client;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.DataPort;
 import io.nats.client.impl.ErrorListenerLoggerImpl;
-import io.nats.client.impl.NatsServerPool;
 import io.nats.client.impl.TestHandler;
 import io.nats.client.support.HttpRequest;
 import io.nats.client.support.NatsUri;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
+import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -68,7 +68,6 @@ public class OptionsTests {
         assertFalse(o.isNoRandomize(), "default norandomize");
         assertFalse(o.isOldRequestStyle(), "default oldstyle");
         assertFalse(o.isNoEcho(), "default noEcho");
-        assertFalse(o.supportUTF8Subjects(), "default UTF8 Support");
         assertFalse(o.isNoHeaders(), "default header support");
         assertFalse(o.isNoNoResponders(), "default no responders support");
         assertEquals(Options.DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, o.isDiscardMessagesWhenOutgoingQueueFull(),
@@ -102,13 +101,17 @@ public class OptionsTests {
     public void testOldStyle() {
         Options o = new Options.Builder().build();
         assertFalse(o.isOldRequestStyle(), "default oldstyle");
+        //noinspection deprecation
         o.setOldRequestStyle(true);
-        assertTrue(o.isOldRequestStyle(), "default oldstyle");
+        assertTrue(o.isOldRequestStyle(), "true oldstyle");
+        //noinspection deprecation
+        o.setOldRequestStyle(false);
+        assertFalse(o.isOldRequestStyle(), "false oldstyle");
     }
 
     @Test
     public void testChainedBooleanOptions() {
-        Options o = new Options.Builder().verbose().pedantic().noRandomize().supportUTF8Subjects()
+        Options o = new Options.Builder().verbose().pedantic().noRandomize()
             .noEcho().oldRequestStyle().noHeaders().noNoResponders()
             .discardMessagesWhenOutgoingQueueFull()
             .build();
@@ -123,7 +126,6 @@ public class OptionsTests {
         assertTrue(o.isNoRandomize(), "chained norandomize");
         assertTrue(o.isOldRequestStyle(), "chained oldstyle");
         assertTrue(o.isNoEcho(), "chained noecho");
-        assertTrue(o.supportUTF8Subjects(), "chained utf8");
         assertTrue(o.isNoHeaders(), "chained no headers");
         assertTrue(o.isNoNoResponders(), "chained no noResponders");
         assertTrue(o.isDiscardMessagesWhenOutgoingQueueFull(), "chained discard messages when outgoing queue full");
@@ -266,7 +268,6 @@ public class OptionsTests {
         props.setProperty(Options.PROP_USE_OLD_REQUEST_STYLE, "true");
         props.setProperty(Options.PROP_OPENTLS, "true");
         props.setProperty(Options.PROP_NO_ECHO, "true");
-        props.setProperty(Options.PROP_UTF8_SUBJECTS, "true");
         props.setProperty(Options.PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, "true");
 
         Options o = new Options.Builder(props).build();
@@ -281,7 +282,6 @@ public class OptionsTests {
         assertTrue(o.isNoRandomize(), "property norandomize");
         assertTrue(o.isOldRequestStyle(), "property oldstyle");
         assertTrue(o.isNoEcho(), "property noecho");
-        assertTrue(o.supportUTF8Subjects(), "property utf8");
         assertTrue(o.isDiscardMessagesWhenOutgoingQueueFull(), "property discard messages when outgoing queue full");
         assertNotNull(o.getSslContext(), "property opentls");
     }
@@ -329,28 +329,28 @@ public class OptionsTests {
         assertNotNull(o.getSslContext(), "property context");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
-    public void testBuilderCoverageOptions() {
+    public void testDeprecated() {
+        // clientSideLimitChecks, supportUTF8Subjects are deprecated and always returns false
         Options o = new Options.Builder().build();
-        assertFalse(o.clientSideLimitChecks()); // clientSideLimitChecks is deprecated and always returns false
-        assertNull(o.getServerPool()); // there is a default provider
-
-        o = new Options.Builder()
-            .clientSideLimitChecks(true).build();
-        assertFalse(o.clientSideLimitChecks()); // clientSideLimitChecks is deprecated and always returns false
-
-        o = new Options.Builder()
-            .clientSideLimitChecks(false)
-            .serverPool(new NatsServerPool())
-            .build();
         assertFalse(o.clientSideLimitChecks());
-        assertNotNull(o.getServerPool());
+        assertFalse(o.supportUTF8Subjects());
+
+        o = new Options.Builder().clientSideLimitChecks(true).supportUTF8Subjects().build();
+        assertFalse(o.clientSideLimitChecks());
+        assertFalse(o.supportUTF8Subjects());
+
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_CLIENT_SIDE_LIMIT_CHECKS, "true");
+        props.setProperty(Options.PROP_UTF8_SUBJECTS, "true");
+        o = new Options.Builder(props).build();
+        assertFalse(o.clientSideLimitChecks());
+        assertFalse(o.supportUTF8Subjects());
     }
 
     @Test
     public void testPropertiesCoverageOptions() throws Exception {
-        // don't use default for tests, issues with forcing algorithm exception in other tests break it
-        SSLContext.setDefault(TestSSLUtils.createTestSSLContext());
         Properties props = new Properties();
         props.setProperty(Options.PROP_SECURE, "false");
         props.setProperty(Options.PROP_OPENTLS, "false");
@@ -358,7 +358,6 @@ public class OptionsTests {
         props.setProperty(Options.PROP_NO_NORESPONDERS, "true");
         props.setProperty(Options.PROP_RECONNECT_JITTER, "1000");
         props.setProperty(Options.PROP_RECONNECT_JITTER_TLS, "2000");
-        props.setProperty(Options.PROP_CLIENT_SIDE_LIMIT_CHECKS, "true"); // deprecated
         props.setProperty(Options.PROP_IGNORE_DISCOVERED_SERVERS, "true");
         props.setProperty(Options.PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, "io.nats.client.utils.CoverageServerPool");
         props.setProperty(Options.PROP_NO_RESOLVE_HOSTNAMES, "true");
@@ -366,13 +365,32 @@ public class OptionsTests {
         Options o = new Options.Builder(props).build();
         _testPropertiesCoverageOptions(o);
         _testPropertiesCoverageOptions(new Options.Builder(o).build());
+
+        props = new Properties();
+        props.load(ResourceUtils.resourceAsInputStream("options_coverage_with_prefix.properties"));
+        o = new Options.Builder(props).build();
+        _testPropertiesCoverageOptions(o);
+
+        props = new Properties();
+        props.load(ResourceUtils.resourceAsInputStream("options_coverage_with_prefix_underscore.properties"));
+        o = new Options.Builder(props).build();
+        _testPropertiesCoverageOptions(o);
+
+        props = new Properties();
+        props.load(ResourceUtils.resourceAsInputStream("options_coverage_without_prefix.properties"));
+        o = new Options.Builder(props).build();
+        _testPropertiesCoverageOptions(o);
+
+        props = new Properties();
+        props.load(ResourceUtils.resourceAsInputStream("options_coverage_without_prefix_underscore.properties"));
+        o = new Options.Builder(props).build();
+        _testPropertiesCoverageOptions(o);
     }
 
     private static void _testPropertiesCoverageOptions(Options o) {
         assertNull(o.getSslContext(), "property context");
         assertTrue(o.isNoHeaders());
         assertTrue(o.isNoNoResponders());
-        assertFalse(o.clientSideLimitChecks()); // clientSideLimitChecks is deprecated and always returns false
         assertTrue(o.isIgnoreDiscoveredServers());
         assertNotNull(o.getServerPool());
         assertTrue(o.isNoResolveHostnames());
@@ -694,9 +712,7 @@ public class OptionsTests {
     @Test
     public void testThrowOnBadServersURI() {
         assertThrows(IllegalArgumentException.class, () -> {
-            String url1 = URL_PROTO_HOST_PORT_8080;
-            String url2 = "foo:/bar\\:blammer";
-            String[] serverUrls = {url1, url2};
+            String[] serverUrls = {URL_PROTO_HOST_PORT_8080, "foo:/bar\\:blammer"};
             new Options.Builder().servers(serverUrls).build();
         });
     }
