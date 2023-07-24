@@ -367,6 +367,21 @@ public class OptionsTests {
         _testPropertiesCoverageOptions(new Options.Builder(o).build());
 
         props = new Properties();
+        props.setProperty(Options.PROP_SECURE, "false");
+        props.setProperty(Options.PROP_OPENTLS, "false");
+        props.setProperty(Options.PROP_NO_HEADERS, "true");
+        props.setProperty(Options.PROP_NO_NORESPONDERS, "true");
+        props.setProperty(Options.PROP_RECONNECT_JITTER, "1000");
+        props.setProperty(Options.PROP_RECONNECT_JITTER_TLS, "2000");
+        props.setProperty(Options.PROP_IGNORE_DISCOVERED_SERVERS_PREFERRED, "true");
+        props.setProperty(Options.PROP_SERVERS_POOL_IMPLEMENTATION_CLASS_PREFERRED, "io.nats.client.utils.CoverageServerPool");
+        props.setProperty(Options.PROP_NO_RESOLVE_HOSTNAMES, "true");
+
+        o = new Options.Builder(props).build();
+        _testPropertiesCoverageOptions(o);
+        _testPropertiesCoverageOptions(new Options.Builder(o).build());
+
+        props = new Properties();
         props.load(ResourceUtils.resourceAsInputStream("options_coverage_with_prefix.properties"));
         o = new Options.Builder(props).build();
         _testPropertiesCoverageOptions(o);

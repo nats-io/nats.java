@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -36,22 +37,35 @@ public class TLSConnectTests {
             if (x > 0) {
                 sb.append(",");
             }
-            sb.append(proto).append("://localhost:").append(servers[0].getPort());
+            sb.append(proto).append("://localhost:").append(servers[x].getPort());
         }
         return sb.toString();
+    }
+
+    private static Options createTestOptionsManually(String servers) throws Exception {
+        return new Options.Builder()
+            .server(servers)
+            .maxReconnects(0)
+            .sslContext(TestSSLUtils.createTestSSLContext())
+            .build();
+    }
+
+    private static Options createTestOptionsViaProperties(String servers) {
+        Options options;
+        Properties props = TestSSLUtils.createTestSSLProperties();
+        props.setProperty(Options.PROP_SERVERS, servers);
+        props.setProperty(Options.PROP_MAX_RECONNECT, "0");
+        options = new Options.Builder(props).build();
+        return options;
     }
 
     @Test
     public void testSimpleTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
-            SSLContext ctx = TestSSLUtils.createTestSSLContext();
-            Options options = new Options.Builder()
-                    .server(ts.getURI())
-                    .maxReconnects(0)
-                    .sslContext(ctx)
-                    .build();
-            assertCanConnectAndPubSub(options);
+            String servers = ts.getURI();
+            assertCanConnectAndPubSub(createTestOptionsManually(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
         }
     }
 
@@ -59,13 +73,9 @@ public class TLSConnectTests {
     public void testSimpleUrlTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
-            SSLContext ctx = TestSSLUtils.createTestSSLContext();
-            Options options = new Options.Builder()
-                    .server(convertToProtocol("tls", ts))
-                    .maxReconnects(0)
-                    .sslContext(ctx)
-                    .build();
-            assertCanConnectAndPubSub(options);
+            String servers = convertToProtocol("tls", ts);
+            assertCanConnectAndPubSub(createTestOptionsManually(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
         }
     }
 
@@ -76,13 +86,8 @@ public class TLSConnectTests {
              NatsTestServer server2 = new NatsTestServer("src/test/resources/tls.conf", false);
         ) {
             String servers = convertToProtocol("tls", server1, server2);
-            SSLContext ctx = TestSSLUtils.createTestSSLContext();
-            Options options = new Options.Builder()
-                    .server(servers)
-                    .maxReconnects(0)
-                    .sslContext(ctx)
-                    .build();
-            assertCanConnectAndPubSub(options);
+            assertCanConnectAndPubSub(createTestOptionsManually(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
         }
     }
 
@@ -90,73 +95,74 @@ public class TLSConnectTests {
     public void testSimpleIPTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
-            SSLContext ctx = TestSSLUtils.createTestSSLContext();
-            Options options = new Options.Builder().
-                                server("127.0.0.1:" + ts.getPort()).
-                                maxReconnects(0).
-                                sslContext(ctx).
-                                build();
-            assertCanConnectAndPubSub(options);
+            String servers = "127.0.0.1:" + ts.getPort();
+            assertCanConnectAndPubSub(createTestOptionsManually(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
         }
     }
 
     @Test
     public void testVerifiedTLSConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
-            SSLContext ctx = TestSSLUtils.createTestSSLContext();
-            Options options = new Options.Builder().
-                                server(ts.getURI()).
-                                maxReconnects(0).
-                                sslContext(ctx).
-                                build();
-            assertCanConnectAndPubSub(options);
+            String servers = ts.getURI();
+            assertCanConnectAndPubSub(createTestOptionsManually(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
         }
     }
 
     @Test
     public void testOpenTLSConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
-            Options options = new Options.Builder().
-                                server(ts.getURI()).
-                                maxReconnects(0).
-                                opentls().
-                                build();
+            String servers = ts.getURI();
+            Options options = new Options.Builder()
+                .server(servers)
+                .maxReconnects(0)
+                .opentls()
+                .build();
             assertCanConnectAndPubSub(options);
+
+            Properties props = new Properties();
+            props.setProperty(Options.PROP_SERVERS, servers);
+            props.setProperty(Options.PROP_MAX_RECONNECT, "0");
+            props.setProperty(Options.PROP_OPENTLS, "true");
+            assertCanConnectAndPubSub(new Options.Builder(props).build());
         }
     }
 
     @Test
     public void testURISchemeTLSConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
-            Options options = new Options.Builder().
-                                server("tls://localhost:"+ts.getPort()).
-                                sslContext(TestSSLUtils.createTestSSLContext()). // override the custom one
-                                maxReconnects(0).
-                                build();
-            assertCanConnectAndPubSub(options);
+            String servers = "tls://localhost:"+ts.getPort();
+            assertCanConnectAndPubSub(createTestOptionsManually(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
         }
     }
 
     @Test
     public void testURISchemeIPTLSConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
-            Options options = new Options.Builder().
-                                server("tls://127.0.0.1:"+ts.getPort()).
-                                sslContext(TestSSLUtils.createTestSSLContext()). // override the custom one
-                                maxReconnects(0).
-                                build();
-            assertCanConnectAndPubSub(options);
+            String servers = "tls://127.0.0.1:"+ts.getPort();
+            assertCanConnectAndPubSub(createTestOptionsManually(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
         }
     }
 
     @Test
     public void testURISchemeOpenTLSConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            String servers = convertToProtocol("opentls", ts);
             Options options = new Options.Builder()
-                                .server(convertToProtocol("opentls", ts))
-                                .maxReconnects(0)
-                                .build();
+                .server(servers)
+                .maxReconnects(0)
+                .opentls()
+                .build();
             assertCanConnectAndPubSub(options);
+
+            Properties props = new Properties();
+            props.setProperty(Options.PROP_SERVERS, servers);
+            props.setProperty(Options.PROP_MAX_RECONNECT, "0");
+            props.setProperty(Options.PROP_OPENTLS, "true");
+            assertCanConnectAndPubSub(new Options.Builder(props).build());
         }
     }
 
@@ -168,10 +174,17 @@ public class TLSConnectTests {
         ) {
             String servers = convertToProtocol("opentls", server1, server2);
             Options options = new Options.Builder()
-                    .server(servers)
-                    .maxReconnects(0)
-                    .build();
+                .server(servers)
+                .maxReconnects(0)
+                .opentls()
+                .build();
             assertCanConnectAndPubSub(options);
+
+            Properties props = new Properties();
+            props.setProperty(Options.PROP_SERVERS, servers);
+            props.setProperty(Options.PROP_MAX_RECONNECT, "0");
+            props.setProperty(Options.PROP_OPENTLS, "true");
+            assertCanConnectAndPubSub(new Options.Builder(props).build());
         }
     }
 
@@ -180,11 +193,11 @@ public class TLSConnectTests {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
             SSLContext ctx = TestSSLUtils.createTestSSLContext();
             int msgCount = 100;
-            Options options = new Options.Builder().
-                                server(ts.getURI()).
-                                maxReconnects(0).
-                                sslContext(ctx).
-                                build();
+            Options options = new Options.Builder()
+                .server(ts.getURI())
+                .maxReconnects(0)
+                .sslContext(ctx)
+                .build();
             Connection nc = standardConnection(options);
             Dispatcher d = nc.createDispatcher((msg) -> {
                 nc.publish(msg.getReplyTo(), new byte[16]);

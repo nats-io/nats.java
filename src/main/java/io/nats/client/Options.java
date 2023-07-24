@@ -396,19 +396,19 @@ public class Options {
     /**
      * Property for the keystore path used to create an SSLContext
      */
-    public static final String PROP_KEYSTORE_PATH = PFX + "keystore.path";
+    public static final String PROP_KEYSTORE_PATH = PFX + "keyStore";
     /**
      * Property for the truststore path used to create an SSLContext
      */
-    public static final String PROP_TRUSTSTORE_PATH = PFX + "truststore.path";
+    public static final String PROP_TRUSTSTORE_PATH = PFX + "trustStore";
     /**
      * Property for the keystore password used to create an SSLContext
      */
-    public static final String PROP_KEYSTORE_PASSWORD = PFX + "keystore.password";
+    public static final String PROP_KEYSTORE_PASSWORD = PFX + "keyStorePassword";
     /**
      * Property for the truststore password used to create an SSLContext
      */
-    public static final String PROP_TRUSTSTORE_PASSWORD = PFX + "truststore.password";
+    public static final String PROP_TRUSTSTORE_PASSWORD = PFX + "trustStorePassword";
     /**
      * Property for the algorithm used to create an SSLContext
      */
@@ -715,8 +715,8 @@ public class Options {
 
             stringProperty(props, PROP_CREDENTIAL_PATH, s -> this.credentialPath = s);
             stringProperty(props, PROP_KEYSTORE_PATH, s -> this.keystorePath = s);
-            stringProperty(props, PROP_TRUSTSTORE_PATH, s -> this.truststorePath = s);
             charArrayProperty(props, PROP_KEYSTORE_PASSWORD, ca -> this.keystorePassword = ca);
+            stringProperty(props, PROP_TRUSTSTORE_PATH, s -> this.truststorePath = s);
             charArrayProperty(props, PROP_TRUSTSTORE_PASSWORD, ca -> this.truststorePassword = ca);
             stringProperty(props, PROP_TLS_ALGORITHM, s -> this.tlsAlgorithm = s);
 
@@ -1450,14 +1450,6 @@ public class Options {
                 inboxPrefix = DEFAULT_INBOX_PREFIX;
             }
 
-// sslContext
-//        private boolean useDefaultTls;
-//        private boolean useTrustAllTls;
-//        private String keystorePath;
-//        private String truststorePath;
-//        private String keystorePassword;
-//        private String truststorePassword;
-
             boolean checkUrisForSecure = true;
             if (natsServerUris.size() == 0) {
                 server(DEFAULT_URL);
@@ -1477,7 +1469,7 @@ public class Options {
             if (sslContext == null) {
                 // if we haven't been told to use the default or the trust all context
                 // and the server isn't the default url, check to see if the server uris
-                // suggest we need an ssl context.
+                // suggest we need the ssl context.
                 if (!useDefaultTls && !useTrustAllTls && checkUrisForSecure) {
                     for (int i = 0; sslContext == null && i < natsServerUris.size(); i++) {
                         NatsUri natsUri = natsServerUris.get(i);

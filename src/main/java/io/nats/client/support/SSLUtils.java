@@ -29,7 +29,7 @@ import static io.nats.client.support.RandomUtils.SRAND;
 public class SSLUtils {
 
     public static final String DEFAULT_TLS_ALGORITHM = "SunX509";
-    public static final String KEYSTORE_TYPE = "JKS";
+    public static final String DEFAULT_KEYSTORE_TYPE = "JKS";
 
     private static final TrustManager[] TRUST_ALL_CERTS = new TrustManager[] { new X509TrustManager() {
         public java.security.cert.X509Certificate[] getAcceptedIssuers() {
@@ -57,11 +57,15 @@ public class SSLUtils {
     }
 
     public static KeyStore loadKeystore(String keystorePath, char[] keystorePwd) throws GeneralSecurityException, IOException {
-        final KeyStore store = KeyStore.getInstance(KEYSTORE_TYPE);
+        final KeyStore store = KeyStore.getInstance(DEFAULT_KEYSTORE_TYPE);
         try (BufferedInputStream in = new BufferedInputStream(Files.newInputStream(Paths.get(keystorePath)))) {
             store.load(in, keystorePwd);
         }
         return store;
+    }
+
+    public static KeyManager[] createKeyManagers(String keystorePath, char[] keystorePwd) throws GeneralSecurityException, IOException {
+        return createKeyManagers(keystorePath, keystorePwd, DEFAULT_TLS_ALGORITHM);
     }
 
     public static KeyManager[] createKeyManagers(String keystorePath, char[] keystorePwd, String tlsAlgo) throws GeneralSecurityException, IOException {
@@ -71,6 +75,10 @@ public class SSLUtils {
         return factory.getKeyManagers();
     }
 
+    public static TrustManager[] createTrustManagers(String truststorePath, char[] truststorePwd) throws GeneralSecurityException, IOException {
+        return createTrustManagers(truststorePath, truststorePwd, DEFAULT_TLS_ALGORITHM);
+    }
+
     public static TrustManager[] createTrustManagers(String truststorePath, char[] truststorePwd, String tlsAlgo) throws GeneralSecurityException, IOException {
         KeyStore store = loadKeystore(truststorePath, truststorePwd);
         TrustManagerFactory factory = TrustManagerFactory.getInstance(tlsAlgo);
@@ -78,6 +86,9 @@ public class SSLUtils {
         return factory.getTrustManagers();
     }
 
+    public static SSLContext createSSLContext(String keystorePath, char[] keystorePwd, String truststorePath, char[] truststorePwd) throws GeneralSecurityException, IOException {
+        return createSSLContext(keystorePath, keystorePwd, truststorePath, truststorePwd, DEFAULT_TLS_ALGORITHM);
+    }
     public static SSLContext createSSLContext(String keystorePath, char[] keystorePwd, String truststorePath, char[] truststorePwd, String tlsAlgo) throws GeneralSecurityException, IOException {
         SSLContext ctx = SSLContext.getInstance(Options.DEFAULT_SSL_PROTOCOL);
         ctx.init(createKeyManagers(keystorePath, keystorePwd, tlsAlgo), createTrustManagers(truststorePath, truststorePwd, tlsAlgo), SRAND);
