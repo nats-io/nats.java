@@ -101,6 +101,32 @@ io.nats.client.servers=nats://localhost:4222
 servers=nats://localhost:4222
 ```
 
+#### Last one wins
+The Options builder allows you to use both properties and code. When it comes to the builder, the last one called wins. 
+This applies to each individual property.
+
+```java
+props.setProperty(Options.PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "7000");
+
+o = new Options.Builder()
+   .properties(props)
+   .maxMessagesInOutgoingQueue(6000)
+   .build();
+assertEquals(6000, o.getMaxMessagesInOutgoingQueue());
+
+o = new Options.Builder()
+   .maxMessagesInOutgoingQueue(6000)
+   .properties(props)
+   .build();
+assertEquals(7000, o.getMaxMessagesInOutgoingQueue());
+
+o = new Options.Builder()
+    .maxMessagesInOutgoingQueue(6000)
+    .maxMessagesInOutgoingQueue(8000)
+    .build();
+    assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
+```
+
 #### AuthHandler / JWT
 In previous versions the user would have to manually create the AuthHandler and set it in the options
 ```java
