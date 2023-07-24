@@ -34,9 +34,9 @@ public class TestSSLUtils {
 
     public static Properties createTestSSLProperties() {
         Properties props = new Properties();
-        props.setProperty(Options.PROP_KEYSTORE_PATH, TestSSLUtils.KEYSTORE_PATH);
+        props.setProperty(Options.PROP_KEYSTORE, TestSSLUtils.KEYSTORE_PATH);
         props.setProperty(Options.PROP_KEYSTORE_PASSWORD, TestSSLUtils.PASSWORD);
-        props.setProperty(Options.PROP_TRUSTSTORE_PATH, TestSSLUtils.KEYSTORE_PATH);
+        props.setProperty(Options.PROP_TRUSTSTORE, TestSSLUtils.TRUSTSTORE_PATH);
         props.setProperty(Options.PROP_TRUSTSTORE_PASSWORD, TestSSLUtils.PASSWORD);
         return props;
     }

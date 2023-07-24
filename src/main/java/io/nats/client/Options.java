@@ -390,21 +390,17 @@ public class Options {
      */
     public static final String PROP_SERVERS_POOL_IMPLEMENTATION_CLASS_PREFERRED = "servers.pool.implementation.class";
     /**
-     * Property used to set the path to a credentials file to be used in a FileAuthHandler
-     */
-    public static final String PROP_CREDENTIAL_PATH = PFX + "credential.path";
-    /**
      * Property for the keystore path used to create an SSLContext
      */
-    public static final String PROP_KEYSTORE_PATH = PFX + "keyStore";
-    /**
-     * Property for the truststore path used to create an SSLContext
-     */
-    public static final String PROP_TRUSTSTORE_PATH = PFX + "trustStore";
+    public static final String PROP_KEYSTORE = PFX + "keyStore";
     /**
      * Property for the keystore password used to create an SSLContext
      */
     public static final String PROP_KEYSTORE_PASSWORD = PFX + "keyStorePassword";
+    /**
+     * Property for the truststore path used to create an SSLContext
+     */
+    public static final String PROP_TRUSTSTORE = PFX + "trustStore";
     /**
      * Property for the truststore password used to create an SSLContext
      */
@@ -413,6 +409,10 @@ public class Options {
      * Property for the algorithm used to create an SSLContext
      */
     public static final String PROP_TLS_ALGORITHM = PFX + "tls.algorithm";
+    /**
+     * Property used to set the path to a credentials file to be used in a FileAuthHandler
+     */
+    public static final String PROP_CREDENTIAL_PATH = PFX + "credential.path";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#clientSideLimitChecks() clientSideLimitChecks}.
      * @deprecated Client Side Limit checks are no longer performed.
@@ -668,12 +668,12 @@ public class Options {
 
         private boolean useDefaultTls;
         private boolean useTrustAllTls;
-        private String credentialPath;
-        private String keystorePath;
-        private String truststorePath;
+        private String keystore;
         private char[] keystorePassword;
+        private String truststore;
         private char[] truststorePassword;
         private String tlsAlgorithm = DEFAULT_TLS_ALGORITHM;
+        private String credentialPath;
 
         /**
          * Constructs a new Builder with the default values.
@@ -726,12 +726,13 @@ public class Options {
             booleanProperty(props, PROP_SECURE, b -> this.useDefaultTls = b);
             booleanProperty(props, PROP_OPENTLS, b -> this.useTrustAllTls = b);
 
-            stringProperty(props, PROP_CREDENTIAL_PATH, s -> this.credentialPath = s);
-            stringProperty(props, PROP_KEYSTORE_PATH, s -> this.keystorePath = s);
+            stringProperty(props, PROP_KEYSTORE, s -> this.keystore = s);
             charArrayProperty(props, PROP_KEYSTORE_PASSWORD, ca -> this.keystorePassword = ca);
-            stringProperty(props, PROP_TRUSTSTORE_PATH, s -> this.truststorePath = s);
+            stringProperty(props, PROP_TRUSTSTORE, s -> this.truststore = s);
             charArrayProperty(props, PROP_TRUSTSTORE_PASSWORD, ca -> this.truststorePassword = ca);
             stringProperty(props, PROP_TLS_ALGORITHM, s -> this.tlsAlgorithm = s);
+
+            stringProperty(props, PROP_CREDENTIAL_PATH, s -> this.credentialPath = s);
 
             stringProperty(props, PROP_CONNECTION_NAME, s -> this.connectionName = s);
 
@@ -996,31 +997,11 @@ public class Options {
 
         /**
          *
-         * @param credentialPath the path to the credentials file for creating an {@link AuthHandler AuthHandler}
+         * @param keystore the path to the keystore file
          * @return the Builder for chaining
          */
-        public Builder credentialPath(String credentialPath) {
-            this.credentialPath = emptyAsNull(credentialPath);
-            return this;
-        }
-
-        /**
-         *
-         * @param keystorePath the path to the keystore file
-         * @return the Builder for chaining
-         */
-        public Builder keystorePath(String keystorePath) {
-            this.keystorePath = emptyAsNull(keystorePath);
-            return this;
-        }
-
-        /**
-         *
-         * @param truststorePath the path to the trust store file
-         * @return the Builder for chaining
-         */
-        public Builder truststorePath(String truststorePath) {
-            this.truststorePath = emptyAsNull(truststorePath);
+        public Builder keystorePath(String keystore) {
+            this.keystore = emptyAsNull(keystore);
             return this;
         }
 
@@ -1031,6 +1012,16 @@ public class Options {
          */
         public Builder keystorePassword(char[] keystorePassword) {
             this.keystorePassword = keystorePassword == null || keystorePassword.length == 0 ? null : keystorePassword;
+            return this;
+        }
+
+        /**
+         *
+         * @param truststore the path to the trust store file
+         * @return the Builder for chaining
+         */
+        public Builder truststorePath(String truststore) {
+            this.truststore = emptyAsNull(truststore);
             return this;
         }
 
@@ -1051,6 +1042,16 @@ public class Options {
          */
         public Builder tlsAlgorithm(String tlsAlgorithm) {
             this.tlsAlgorithm = emptyOrNullAs(tlsAlgorithm, DEFAULT_TLS_ALGORITHM);
+            return this;
+        }
+
+        /**
+         *
+         * @param credentialPath the path to the credentials file for creating an {@link AuthHandler AuthHandler}
+         * @return the Builder for chaining
+         */
+        public Builder credentialPath(String credentialPath) {
+            this.credentialPath = emptyAsNull(credentialPath);
             return this;
         }
 
@@ -1469,51 +1470,52 @@ public class Options {
                 checkUrisForSecure = false;
             }
 
-            if (keystorePath != null) {
-                try {
-                    sslContext = SSLUtils.createSSLContext(keystorePath, keystorePassword, truststorePath, truststorePassword, tlsAlgorithm);
-                }
-                catch (Exception e) {
-                    throw new IllegalStateException("Unable to create SSL context", e);
-                }
-            }
-
-            // if an sslContext has not been requested via keystore properties
             if (sslContext == null) {
-                // if we haven't been told to use the default or the trust all context
-                // and the server isn't the default url, check to see if the server uris
-                // suggest we need the ssl context.
-                if (!useDefaultTls && !useTrustAllTls && checkUrisForSecure) {
-                    for (int i = 0; sslContext == null && i < natsServerUris.size(); i++) {
-                        NatsUri natsUri = natsServerUris.get(i);
-                        switch (natsUri.getScheme()) {
-                            case TLS_PROTOCOL:
-                            case SECURE_WEBSOCKET_PROTOCOL:
-                                useDefaultTls = true;
-                                break;
-                            case OPENTLS_PROTOCOL:
-                                useTrustAllTls = true;
-                                break;
-                        }
-                    }
-                }
-
-                // check trust all (open) first, in case they provided both
-                // PROP_SECURE (secure) and PROP_OPENTLS (opentls)
-                if (useTrustAllTls) {
+                // ssl context can be directly provided, but if it's not
+                if (keystore != null) {
                     try {
-                        this.sslContext = SSLUtils.createTrustAllTlsContext();
+                        sslContext = SSLUtils.createSSLContext(keystore, keystorePassword, truststore, truststorePassword, tlsAlgorithm);
                     }
-                    catch (GeneralSecurityException e) {
+                    catch (Exception e) {
                         throw new IllegalStateException("Unable to create SSL context", e);
                     }
                 }
-                else if (useDefaultTls) {
-                    try {
-                        this.sslContext = SSLContext.getDefault();
+                else { // the sslContext has not been requested via keystore properties
+                    // if we haven't been told to use the default or the trust all context
+                    // and the server isn't the default url, check to see if the server uris
+                    // suggest we need the ssl context.
+                    if (!useDefaultTls && !useTrustAllTls && checkUrisForSecure) {
+                        for (int i = 0; sslContext == null && i < natsServerUris.size(); i++) {
+                            NatsUri natsUri = natsServerUris.get(i);
+                            switch (natsUri.getScheme()) {
+                                case TLS_PROTOCOL:
+                                case SECURE_WEBSOCKET_PROTOCOL:
+                                    useDefaultTls = true;
+                                    break;
+                                case OPENTLS_PROTOCOL:
+                                    useTrustAllTls = true;
+                                    break;
+                            }
+                        }
                     }
-                    catch (NoSuchAlgorithmException e) {
-                        throw new IllegalStateException("Unable to create default SSL context", e);
+
+                    // check trust all (open) first, in case they provided both
+                    // PROP_SECURE (secure) and PROP_OPENTLS (opentls)
+                    if (useTrustAllTls) {
+                        try {
+                            this.sslContext = SSLUtils.createTrustAllTlsContext();
+                        }
+                        catch (GeneralSecurityException e) {
+                            throw new IllegalStateException("Unable to create SSL context", e);
+                        }
+                    }
+                    else if (useDefaultTls) {
+                        try {
+                            this.sslContext = SSLContext.getDefault();
+                        }
+                        catch (NoSuchAlgorithmException e) {
+                            throw new IllegalStateException("Unable to create default SSL context", e);
+                        }
                     }
                 }
             }

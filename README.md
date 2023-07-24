@@ -36,7 +36,7 @@ The Services Framework further streamlines their development by providing observ
 
 Check out the [ServiceExample](src/examples/java/io/nats/examples/service/ServiceExample.java)
 
-## Versions Specific Notes
+### Versions Specific Notes
 
 This is version 2.x of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address the excessive use of threads, we created a Dispatcher construct to allow applications to control thread creation more intentionally. This version also removes all non-JDK runtime dependencies.
 
@@ -50,7 +50,16 @@ Version 2.5.0 adds some back pressure to publish calls to alleviate issues when 
 
 Previous versions are still available in the repo.
 
-### Version 2.16.12 Max Payload Check
+#### Version 2.16.14 Options properties improvements 
+
+In this release, support was added to
+* support properties keys with or without the prefix 'io.nats.client.'
+* allow creation of connections requiring an AuthHandler for JWT to specify the credentials file in a properties files, instead of needing to provide an instance of AuthHandler in code.
+* allow creation of connections requiring an SSL context to specify key and trust store information in a properties files so an SSLContext can be created automatically instead of needing to provide an instance of an SSLContext in code.
+
+For details on the other features, see the "Options" sections
+
+#### Version 2.16.12 Max Payload Check
 
 As of version 2.16.12, there is no longer client side checking
 1. that a message payload is less than the server configuration (Core and JetStream publishes)
@@ -61,7 +70,7 @@ Please see unit test for examples of this behavior.
 and
 `testMaxPayloadJs` in [JetStreamPubTests.cs](src/test/java/io/nats/client/impl/JetStreamPubTests.java)
 
-### Version 2.16.0 Consumer Create
+#### Version 2.16.0 Consumer Create
 
 This release by default will use a new JetStream consumer create API when interacting with nats-server version 2.9.0 or higher. 
 This changes the subjects used by the client to create consumers, which might in some cases require changes in access and import/export configuration.
@@ -78,6 +87,77 @@ KeyValueManagement kvm = connection.keyValueManagement(KeyValueOptions.builder(j
 ObjectStore os = connection.objectStore("bucket", ObjectStoreOptions.builder(jso).build());
 ObjectStoreManagement osm = connection.objectStoreManagement(ObjectStoreOptions.builder(jso).build());
 ```
+
+
+### Options
+
+#### Properties with or without prefix...
+
+The `io.nats.client.` prefix is not required in the properties file anymore. These are now equivalent:
+```properties
+io.nats.client.servers=nats://localhost:4222
+```
+```properties
+servers=nats://localhost:4222
+```
+
+#### AuthHandler / JWT
+In previous versions the user would have to manually create the AuthHandler and set it in the options
+```java
+AuthHandler ah = Nats.credentials("path/to/my.creds");
+Options options = new Options.Builder()
+        .authHandler(ah)
+        .build();
+```
+
+The developer can now set the file path directly and an AuthHandler will be created:
+```java
+Options options = new Options.Builder()
+        .credentialPath("path/to/my.creds")
+        .build();
+```
+The developer can also set the credential path in a properties file:
+```properties
+io.nats.client.credential.path=path/to/my.creds
+```
+
+#### Options - SSLContext
+
+The Options builder has several options which affect creation or use of an `SSLContext`
+```java
+public Builder sslContext(SSLContext ctx)
+
+// Generic SSL Creation
+public Builder secure()
+public Builder opentls()
+
+// Specific SSL Creation Properties
+public Builder keystore(String keystore)
+public Builder keystorePassword(char[] keystorePassword)
+public Builder truststore(String truststore)
+public Builder truststorePassword(char[] truststorePassword)
+public Builder tlsAlgorithm(String tlsAlgorithm)
+```
+
+There are equivalent properties for these builder methods (except sslContext):
+```properties
+# Generic SSL Creation
+io.nats.client.secure=true
+io.nats.client.opentls=true
+
+# Specific SSL Creation Properties
+io.nats.client.keyStore=path/to/keystore.jks
+io.nats.client.keyStorePassword=kspassword
+io.nats.client.trustStore=path/to/truststore.jks
+io.nats.client.trustStorePassword=tspassword
+io.nats.client.tls.algorithm=SunX509
+```
+
+When options are built, the ssl context will be accepted or created in the following order.
+1. If it's directly provided via the builder `sslContext(SSLContext ctx)` method.
+2. If `keyStore` is provided, one will be created using all "Specific SSL Creation Properties". The default tls algorithm, if not supplied, is `SunX509`
+3. If `opentls` is true or any of the bootstrap servers has `opentls` as their scheme, a generic SSLContext will be created that **trusts all certs**.
+4. If `secure` is true or any of the bootstrap servers has `tls` or `wss`, the `javax.net.ssl.SSLContext.getDefault()` will be used.
 
 ### SSL/TLS Performance
 
@@ -105,9 +185,9 @@ For more information, see the Oracle Java documentation page on [Client-Driven O
 
 Also, there is a detailed [OCSP Example](https://github.com/nats-io/java-nats-examples/tree/main/ocsp) that shows how to create SSL contexts enabling OCSP stapling.
 
-### UTF-8 Subjects
+### Subject Validation
 
-The client protocol spec doesn't explicitly state the encoding on subjects. Some clients use ASCII and some use UTF-8 which matches ASCII for a-Z and 0-9. Until 2.1.2 the 2.0+ version of the Java client used ASCII for performance reasons. As of 2.1.2 you can choose to support UTF-8 subjects via the Options. Keep in mind that there is a small performance penalty for UTF-8 encoding and decoding in benchmarks, but depending on your application this cost may be negligible. Also, keep in mind that not all clients support UTF-8 and test accordingly.
+The current version of this client supports subjects with ASCII printable characters and wildcards where appropriate.
 
 ### NKey-based Challenge Response Authentication
 
