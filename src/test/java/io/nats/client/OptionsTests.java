@@ -20,6 +20,7 @@ import io.nats.client.impl.TestHandler;
 import io.nats.client.support.HttpRequest;
 import io.nats.client.support.NatsUri;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
+import io.nats.client.utils.CoverageServerPool;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
@@ -34,6 +35,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static io.nats.client.Options.DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
 import static io.nats.client.support.NatsConstants.DEFAULT_PORT;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -83,7 +85,7 @@ public class OptionsTests {
         assertEquals(Options.DEFAULT_MAX_RECONNECT, o.getMaxReconnect(), "default max reconnect");
         assertEquals(Options.DEFAULT_MAX_PINGS_OUT, o.getMaxPingsOut(), "default ping max");
         assertEquals(Options.DEFAULT_RECONNECT_BUF_SIZE, o.getReconnectBufferSize(), "default reconnect buffer size");
-        assertEquals(Options.DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE, o.getMaxMessagesInOutgoingQueue(),
+        assertEquals(DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE, o.getMaxMessagesInOutgoingQueue(),
             "default max messages in outgoing queue");
 
         assertEquals(Options.DEFAULT_RECONNECT_WAIT, o.getReconnectWait(), "default reconnect wait");
@@ -350,6 +352,89 @@ public class OptionsTests {
     }
 
     @Test
+    public void testProperties() throws Exception {
+        Properties props = new Properties();
+
+        // stringProperty
+        props.setProperty(Options.PROP_CONNECTION_NAME, "name");
+
+        // stringProperty builds an auth handler
+        props.setProperty(Options.PROP_CREDENTIAL_PATH, "src/test/resources/jwt_nkey/test.creds");
+
+        // charArrayProperty
+        props.setProperty(Options.PROP_USERNAME, "user");
+
+        // intProperty
+        props.setProperty(Options.PROP_MAX_RECONNECT, "10");
+
+        // intGtEqZeroProperty
+        props.setProperty(Options.PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "11");
+
+        // longProperty
+        props.setProperty(Options.PROP_RECONNECT_BUF_SIZE, "2999999999");
+
+        // durationProperty
+        props.setProperty(Options.PROP_PING_INTERVAL, "1000");
+
+        // classnameProperty
+        props.setProperty(Options.PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, "io.nats.client.utils.CoverageServerPool");
+
+        Options o = new Options.Builder(props).build();
+        _testProperties(o);
+
+        props = new Properties();
+        props.load(ResourceUtils.resourceAsInputStream("options_coverage_with_prefix.properties"));
+        o = new Options.Builder(props).build();
+        _testProperties(o);
+
+        props = new Properties();
+        props.load(ResourceUtils.resourceAsInputStream("options_coverage_with_prefix_underscore.properties"));
+        o = new Options.Builder(props).build();
+        _testProperties(o);
+
+        props = new Properties();
+        props.load(ResourceUtils.resourceAsInputStream("options_coverage_without_prefix.properties"));
+        o = new Options.Builder(props).build();
+        _testProperties(o);
+
+        props = new Properties();
+        props.load(ResourceUtils.resourceAsInputStream("options_coverage_without_prefix_underscore.properties"));
+        o = new Options.Builder(props).build();
+        _testProperties(o);
+
+        // intGtEqZeroProperty not gt zero gives default
+        props.setProperty(Options.PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "-1");
+        o = new Options.Builder(props).build();
+        assertEquals(DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE, o.getMaxMessagesInOutgoingQueue());
+
+        // last one wins
+        props.setProperty(Options.PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "500");
+        o = new Options.Builder(props)
+            .maxMessagesInOutgoingQueue(1000)
+            .build();
+        assertEquals(1000, o.getMaxMessagesInOutgoingQueue());
+
+        o = new Options.Builder()
+            .maxMessagesInOutgoingQueue(1000)
+            .properties(props)
+            .build();
+        assertEquals(500, o.getMaxMessagesInOutgoingQueue());
+    }
+
+    private static void _testProperties(Options o) {
+        assertEquals("name", o.getConnectionName());
+        assertNotNull(o.getUsernameChars());
+        assertEquals("user", new String(o.getUsernameChars()));
+        assertEquals(10, o.getMaxReconnect());
+        assertEquals(11, o.getMaxMessagesInOutgoingQueue());
+        assertEquals(2999999999L, o.getReconnectBufferSize());
+        assertEquals(1000, o.getPingInterval().toMillis());
+        assertNotNull(o.getAuthHandler());
+        assertNotNull(o.getServerPool());
+        assertTrue(o.getServerPool() instanceof CoverageServerPool);
+    }
+
+    @Test
     public void testPropertiesCoverageOptions() throws Exception {
         Properties props = new Properties();
         props.setProperty(Options.PROP_SECURE, "false");
@@ -358,56 +443,21 @@ public class OptionsTests {
         props.setProperty(Options.PROP_NO_NORESPONDERS, "true");
         props.setProperty(Options.PROP_RECONNECT_JITTER, "1000");
         props.setProperty(Options.PROP_RECONNECT_JITTER_TLS, "2000");
+        props.setProperty(Options.PROP_CLIENT_SIDE_LIMIT_CHECKS, "true"); // deprecated
         props.setProperty(Options.PROP_IGNORE_DISCOVERED_SERVERS, "true");
-        props.setProperty(Options.PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, "io.nats.client.utils.CoverageServerPool");
         props.setProperty(Options.PROP_NO_RESOLVE_HOSTNAMES, "true");
 
         Options o = new Options.Builder(props).build();
         _testPropertiesCoverageOptions(o);
         _testPropertiesCoverageOptions(new Options.Builder(o).build());
-
-        props = new Properties();
-        props.setProperty(Options.PROP_SECURE, "false");
-        props.setProperty(Options.PROP_OPENTLS, "false");
-        props.setProperty(Options.PROP_NO_HEADERS, "true");
-        props.setProperty(Options.PROP_NO_NORESPONDERS, "true");
-        props.setProperty(Options.PROP_RECONNECT_JITTER, "1000");
-        props.setProperty(Options.PROP_RECONNECT_JITTER_TLS, "2000");
-        props.setProperty(Options.PROP_IGNORE_DISCOVERED_SERVERS_PREFERRED, "true");
-        props.setProperty(Options.PROP_SERVERS_POOL_IMPLEMENTATION_CLASS_PREFERRED, "io.nats.client.utils.CoverageServerPool");
-        props.setProperty(Options.PROP_NO_RESOLVE_HOSTNAMES, "true");
-
-        o = new Options.Builder(props).build();
-        _testPropertiesCoverageOptions(o);
-        _testPropertiesCoverageOptions(new Options.Builder(o).build());
-
-        props = new Properties();
-        props.load(ResourceUtils.resourceAsInputStream("options_coverage_with_prefix.properties"));
-        o = new Options.Builder(props).build();
-        _testPropertiesCoverageOptions(o);
-
-        props = new Properties();
-        props.load(ResourceUtils.resourceAsInputStream("options_coverage_with_prefix_underscore.properties"));
-        o = new Options.Builder(props).build();
-        _testPropertiesCoverageOptions(o);
-
-        props = new Properties();
-        props.load(ResourceUtils.resourceAsInputStream("options_coverage_without_prefix.properties"));
-        o = new Options.Builder(props).build();
-        _testPropertiesCoverageOptions(o);
-
-        props = new Properties();
-        props.load(ResourceUtils.resourceAsInputStream("options_coverage_without_prefix_underscore.properties"));
-        o = new Options.Builder(props).build();
-        _testPropertiesCoverageOptions(o);
     }
 
     private static void _testPropertiesCoverageOptions(Options o) {
-        assertNull(o.getSslContext(), "property context");
+        assertNull(o.getSslContext());
         assertTrue(o.isNoHeaders());
         assertTrue(o.isNoNoResponders());
+        assertFalse(o.clientSideLimitChecks()); // clientSideLimitChecks is deprecated and always returns false
         assertTrue(o.isIgnoreDiscoveredServers());
-        assertNotNull(o.getServerPool());
         assertTrue(o.isNoResolveHostnames());
     }
 
@@ -458,7 +508,7 @@ public class OptionsTests {
         assertEquals(Options.DEFAULT_PING_INTERVAL, o.getPingInterval(), "default ping interval");
         assertEquals(Options.DEFAULT_REQUEST_CLEANUP_INTERVAL, o.getRequestCleanupInterval(),
             "default cleanup interval");
-        assertEquals(Options.DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE, o.getMaxMessagesInOutgoingQueue(),
+        assertEquals(DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE, o.getMaxMessagesInOutgoingQueue(),
             "default max messages in outgoing queue");
     }
 

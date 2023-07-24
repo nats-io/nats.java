@@ -697,10 +697,23 @@ public class Options {
          * @param props the {@link Properties} object
          */
         public Builder(Properties props) throws IllegalArgumentException {
+            properties(props);
+        }
+
+        // ----------------------------------------------------------------------------------------------------
+        // BUILDER METHODS
+        // ----------------------------------------------------------------------------------------------------
+
+        /**
+         * Add settings defined in the properties object
+         * @param props the properties object
+         * @throws IllegalArgumentException if the properties object is null
+         * @return the Builder for chaining
+         */
+        public Builder properties(Properties props) {
             if (props == null) {
                 throw new IllegalArgumentException("Properties cannot be null");
             }
-
             stringProperty(props, PROP_URL, this::server);
             stringProperty(props, PROP_SERVERS, str -> {
                 String[] servers = str.trim().split(",\\s*");
@@ -710,8 +723,8 @@ public class Options {
             charArrayProperty(props, PROP_USERNAME, ca -> this.username = ca);
             charArrayProperty(props, PROP_PASSWORD, ca -> this.password = ca);
             charArrayProperty(props, PROP_TOKEN, ca -> this.token = ca);
-            booleanIfTrueProperty(props, PROP_SECURE, alwaysTrue -> this.useDefaultTls = true);
-            booleanIfTrueProperty(props, PROP_OPENTLS, alwaysTrue -> this.useTrustAllTls = true);
+            booleanProperty(props, PROP_SECURE, b -> this.useDefaultTls = b);
+            booleanProperty(props, PROP_OPENTLS, b -> this.useTrustAllTls = b);
 
             stringProperty(props, PROP_CREDENTIAL_PATH, s -> this.credentialPath = s);
             stringProperty(props, PROP_KEYSTORE_PATH, s -> this.keystorePath = s);
@@ -722,16 +735,16 @@ public class Options {
 
             stringProperty(props, PROP_CONNECTION_NAME, s -> this.connectionName = s);
 
-            booleanIfTrueProperty(props, PROP_NORANDOMIZE, alwaysTrue -> this.noRandomize = true);
-            booleanIfTrueProperty(props, PROP_NO_RESOLVE_HOSTNAMES, alwaysTrue -> this.noResolveHostnames = true);
-            booleanIfTrueProperty(props, PROP_REPORT_NO_RESPONDERS, alwaysTrue -> this.reportNoResponders = true);
+            booleanProperty(props, PROP_NORANDOMIZE, b -> this.noRandomize = b);
+            booleanProperty(props, PROP_NO_RESOLVE_HOSTNAMES, b -> this.noResolveHostnames = b);
+            booleanProperty(props, PROP_REPORT_NO_RESPONDERS, b -> this.reportNoResponders = b);
 
             stringProperty(props, PROP_CONNECTION_NAME, s -> this.connectionName = s);
-            booleanIfTrueProperty(props, PROP_VERBOSE, alwaysTrue -> this.verbose = true);
-            booleanIfTrueProperty(props, PROP_NO_ECHO, alwaysTrue -> this.noEcho = true);
-            booleanIfTrueProperty(props, PROP_NO_HEADERS, alwaysTrue -> this.noHeaders = true);
-            booleanIfTrueProperty(props, PROP_NO_NORESPONDERS, alwaysTrue -> this.noNoResponders = true);
-            booleanIfTrueProperty(props, PROP_PEDANTIC, alwaysTrue -> this.pedantic = true);
+            booleanProperty(props, PROP_VERBOSE, b -> this.verbose = b);
+            booleanProperty(props, PROP_NO_ECHO, b -> this.noEcho = b);
+            booleanProperty(props, PROP_NO_HEADERS, b -> this.noHeaders = b);
+            booleanProperty(props, PROP_NO_NORESPONDERS, b -> this.noNoResponders = b);
+            booleanProperty(props, PROP_PEDANTIC, b -> this.pedantic = b);
 
             intProperty(props, PROP_MAX_RECONNECT, DEFAULT_MAX_RECONNECT, i -> this.maxReconnect = i);
             durationProperty(props, PROP_RECONNECT_WAIT, DEFAULT_RECONNECT_WAIT, d -> this.reconnectWait = d);
@@ -744,7 +757,7 @@ public class Options {
             durationProperty(props, PROP_PING_INTERVAL, DEFAULT_PING_INTERVAL, d -> this.pingInterval = d);
             durationProperty(props, PROP_CLEANUP_INTERVAL, DEFAULT_REQUEST_CLEANUP_INTERVAL, d -> this.requestCleanupInterval = d);
             intProperty(props, PROP_MAX_PINGS, DEFAULT_MAX_PINGS_OUT, i -> this.maxPingsOut = i);
-            booleanIfTrueProperty(props, PROP_USE_OLD_REQUEST_STYLE, alwaysTrue -> this.useOldRequestStyle = true);
+            booleanProperty(props, PROP_USE_OLD_REQUEST_STYLE, b -> this.useOldRequestStyle = b);
 
             classnameProperty(props, PROP_ERROR_LISTENER, o -> this.errorListener = (ErrorListener) o);
             classnameProperty(props, PROP_CONNECTION_CB, o -> this.connectionListener = (ConnectionListener) o);
@@ -752,15 +765,13 @@ public class Options {
             stringProperty(props, PROP_DATA_PORT_TYPE, s -> this.dataPortType = s);
             stringProperty(props, PROP_INBOX_PREFIX, this::inboxPrefix);
             intGtEqZeroProperty(props, PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE, i -> this.maxMessagesInOutgoingQueue = i);
-            booleanIfTrueProperty(props, PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, alwaysTrue -> this.discardMessagesWhenOutgoingQueueFull = true);
+            booleanProperty(props, PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, b -> this.discardMessagesWhenOutgoingQueueFull = b);
 
-            booleanIfTrueProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, alwaysTrue -> this.ignoreDiscoveredServers = true);
+            booleanProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, b -> this.ignoreDiscoveredServers = b);
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
+            return this;
         }
 
-        // ----------------------------------------------------------------------------------------------------
-        // BUILDER METHODS
-        // ----------------------------------------------------------------------------------------------------
         /**
          * Add a server to the list of known servers.
          *
@@ -1124,7 +1135,7 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder maxControlLine(int bytes) {
-            this.maxControlLine = bytes;
+            this.maxControlLine = bytes < 0 ? DEFAULT_MAX_CONTROL_LINE : bytes;
             return this;
         }
 
@@ -1387,7 +1398,9 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder maxMessagesInOutgoingQueue(int maxMessagesInOutgoingQueue) {
-            this.maxMessagesInOutgoingQueue = maxMessagesInOutgoingQueue;
+            this.maxMessagesInOutgoingQueue = maxMessagesInOutgoingQueue < 0
+                ? DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE
+                : maxMessagesInOutgoingQueue;
             return this;
         }
 
@@ -2168,19 +2181,17 @@ public class Options {
         }
     }
 
-    private static void booleanIfTrueProperty(Properties props, String key, java.util.function.Consumer<Boolean> consumer) {
-        String value = getPropertyValue(props, key);
-        if (value != null) {
-            if (Boolean.parseBoolean(value)) {
-                consumer.accept(true);
-            }
-        }
-    }
-
     private static void charArrayProperty(Properties props, String key, java.util.function.Consumer<char[]> consumer) {
         String value = getPropertyValue(props, key);
         if (value != null) {
             consumer.accept(value.toCharArray());
+        }
+    }
+
+    private static void booleanProperty(Properties props, String key, java.util.function.Consumer<Boolean> consumer) {
+        String value = getPropertyValue(props, key);
+        if (value != null) {
+            consumer.accept(Boolean.parseBoolean(value));
         }
     }
 
