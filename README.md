@@ -88,7 +88,6 @@ ObjectStore os = connection.objectStore("bucket", ObjectStoreOptions.builder(jso
 ObjectStoreManagement osm = connection.objectStoreManagement(ObjectStoreOptions.builder(jso).build());
 ```
 
-
 ### Options
 
 #### Properties with or without prefix...
@@ -124,7 +123,7 @@ o = new Options.Builder()
     .maxMessagesInOutgoingQueue(6000)
     .maxMessagesInOutgoingQueue(8000)
     .build();
-    assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
+assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
 ```
 
 #### AuthHandler / JWT
@@ -132,15 +131,15 @@ In previous versions the user would have to manually create the AuthHandler and 
 ```java
 AuthHandler ah = Nats.credentials("path/to/my.creds");
 Options options = new Options.Builder()
-        .authHandler(ah)
-        .build();
+    .authHandler(ah)
+    .build();
 ```
 
 The developer can now set the file path directly and an AuthHandler will be created:
 ```java
 Options options = new Options.Builder()
-        .credentialPath("path/to/my.creds")
-        .build();
+    .credentialPath("path/to/my.creds")
+    .build();
 ```
 The developer can also set the credential path in a properties file:
 ```properties
@@ -149,15 +148,17 @@ io.nats.client.credential.path=path/to/my.creds
 
 #### Options - SSLContext
 
-The Options builder has several options which affect creation or use of an `SSLContext`
+The Options builder has several options set use or affect creation of an `SSLContext`
+
 ```java
+// Provide the SSLContext
 public Builder sslContext(SSLContext ctx)
 
-// Generic SSL Creation
+// Generic SSLContext Creation
 public Builder secure()
 public Builder opentls()
 
-// Specific SSL Creation Properties
+// Custom SSLContext Creation Properties
 public Builder keystore(String keystore)
 public Builder keystorePassword(char[] keystorePassword)
 public Builder truststore(String truststore)
@@ -167,11 +168,11 @@ public Builder tlsAlgorithm(String tlsAlgorithm)
 
 There are equivalent properties for these builder methods (except sslContext):
 ```properties
-# Generic SSL Creation
+# Generic SSLContext Creation
 io.nats.client.secure=true
 io.nats.client.opentls=true
 
-# Specific SSL Creation Properties
+# Custom SSLContext Creation Properties
 io.nats.client.keyStore=path/to/keystore.jks
 io.nats.client.keyStorePassword=kspassword
 io.nats.client.trustStore=path/to/truststore.jks
@@ -179,11 +180,11 @@ io.nats.client.trustStorePassword=tspassword
 io.nats.client.tls.algorithm=SunX509
 ```
 
-When options are built, the ssl context will be accepted or created in the following order.
+When options are built, the SSLContext will be accepted or created in the following order.
 1. If it's directly provided via the builder `sslContext(SSLContext ctx)` method.
-2. If `keyStore` is provided, one will be created using all "Specific SSL Creation Properties". The default tls algorithm, if not supplied, is `SunX509`
-3. If `opentls` is true or any of the bootstrap servers has `opentls` as their scheme, a generic SSLContext will be created that **trusts all certs**.
-4. If `secure` is true or any of the bootstrap servers has `tls` or `wss`, the `javax.net.ssl.SSLContext.getDefault()` will be used.
+2. If `keyStore` is provided, an SSLContext will be created using all custom properties. If not supplied, the tls algorithm is `SunX509`
+3. If `opentls` is true or any of the bootstrap servers has `opentls` as their scheme, a generic SSLContext will be created that **"trusts all certs"**.
+4. If `secure` is true or any of the bootstrap servers has `tls` or `wss` as their scheme, the `javax.net.ssl.SSLContext.getDefault()` will be used.
 
 ### SSL/TLS Performance
 
@@ -198,9 +199,11 @@ After recent tests we realized that TLS performance is lower than we would like.
 To use conscrypt or wildfly, you will need to add the appropriate jars to your class path and create an SSL context manually. This context can be passed to the Options used when creating a connection. The NATSAutoBench example provides a conscrypt flag which can be used to try out the library,  manually including the jar is required.
 
 ### OCSP Stapling
-Our server now supports OCSP stapling. To enable Java to automatically check the stapling 
-when making TLS connections, you must set system properties. This can be done from your
-command line or from your Java code:
+The server supports OCSP stapling. To enable Java to automatically check the stapling 
+when making TLS connections, you must set system properties. Please be aware that this affect the entire JVM,
+so all connections.
+
+These properties can be set from your command line or from your Java code:
 
 ```
 System.setProperty("jdk.tls.client.enableStatusRequestExtension", "true");
@@ -213,7 +216,7 @@ Also, there is a detailed [OCSP Example](https://github.com/nats-io/java-nats-ex
 
 ### Subject Validation
 
-The current version of this client supports subjects with ASCII printable characters and wildcards where appropriate.
+The current version of this client supports subjects with ASCII printable characters and wildcards when subscribing.
 
 ### NKey-based Challenge Response Authentication
 
