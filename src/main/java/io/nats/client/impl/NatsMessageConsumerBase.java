@@ -23,12 +23,10 @@ import java.time.Duration;
 class NatsMessageConsumerBase implements MessageConsumer {
     protected NatsJetStreamPullSubscription sub;
     protected PullMessageManager pmm;
-    protected final Object subLock;
     protected boolean stopped;
     protected ConsumerInfo lastConsumerInfo;
 
     NatsMessageConsumerBase(ConsumerInfo lastConsumerInfo) {
-        subLock = new Object();
         this.lastConsumerInfo = lastConsumerInfo;
     }
 
@@ -45,10 +43,8 @@ class NatsMessageConsumerBase implements MessageConsumer {
      */
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
-        synchronized (subLock) {
-            lastConsumerInfo = sub.getConsumerInfo();
-            return lastConsumerInfo;
-        }
+        lastConsumerInfo = sub.getConsumerInfo();
+        return lastConsumerInfo;
     }
 
     /**
@@ -64,19 +60,17 @@ class NatsMessageConsumerBase implements MessageConsumer {
      */
     @Override
     public void stop(long timeout) throws InterruptedException {
-        synchronized (subLock) {
-            if (!stopped) {
-                try {
-                    if (sub.getNatsDispatcher() != null) {
-                        sub.getDispatcher().drain(Duration.ofMillis(timeout));
-                    }
-                    else {
-                        sub.drain(Duration.ofMillis(timeout));
-                    }
+        if (!stopped) {
+            try {
+                if (sub.getNatsDispatcher() != null) {
+                    sub.getDispatcher().drain(Duration.ofMillis(timeout));
                 }
-                finally {
-                    stopped = true;
+                else {
+                    sub.drain(Duration.ofMillis(timeout));
                 }
+            }
+            finally {
+                stopped = true;
             }
         }
     }

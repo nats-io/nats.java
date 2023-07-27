@@ -653,6 +653,6 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     }
 
     private NatsStreamContext getNatsStreamContext(String streamName) throws IOException, JetStreamApiException {
-        return new NatsStreamContext(this, conn, jso, streamName);
+        return new NatsStreamContext(streamName, this, conn, jso);
     }
 }

@@ -94,10 +94,9 @@ class OrderedMessageManager extends PushMessageManager {
             startup(sub);
         }
         catch (Exception e) {
-            IllegalStateException ise = new IllegalStateException("Ordered subscription fatal error.", e);
-            js.conn.processException(ise);
+            js.conn.processException(e);
             if (syncMode) {
-                throw ise;
+                throw new RuntimeException("Ordered subscription fatal error.", e);
             }
         }
     }

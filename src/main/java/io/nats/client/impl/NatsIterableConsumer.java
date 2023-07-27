@@ -19,10 +19,10 @@ import io.nats.client.api.ConsumerInfo;
 import java.io.IOException;
 import java.time.Duration;
 
-public class NatsIterableConsumer extends NatsMessageConsumer implements IterableConsumer {
+class NatsIterableConsumer extends NatsMessageConsumer implements IterableConsumer {
 
-    public NatsIterableConsumer(SimplifiedSubscriptionMaker subscriptionMaker, ConsumeOptions opts, ConsumerInfo lastConsumerInfo) throws IOException, JetStreamApiException {
-        super(subscriptionMaker, null, opts, lastConsumerInfo);
+    NatsIterableConsumer(SimplifiedSubscriptionMaker subscriptionMaker, ConsumerInfo lastConsumerInfo, ConsumeOptions opts) throws IOException, JetStreamApiException {
+        super(subscriptionMaker, lastConsumerInfo, null, opts);
     }
 
     /**

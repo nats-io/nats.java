@@ -23,9 +23,9 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
     private final String pullSubject;
     private long startNanos;
 
-    public NatsFetchConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
-                             FetchConsumeOptions fetchConsumeOptions,
-                             ConsumerInfo lastConsumerInfo) throws IOException, JetStreamApiException {
+    NatsFetchConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
+                             ConsumerInfo lastConsumerInfo,
+                             FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException {
         super(lastConsumerInfo);
         initSub(subscriptionMaker.makeSubscription(null));
         maxWaitNanos = fetchConsumeOptions.getExpiresIn() * 1_000_000;

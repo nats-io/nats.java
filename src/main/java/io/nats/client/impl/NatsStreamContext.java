@@ -27,22 +27,15 @@ import static io.nats.client.support.ConsumerUtils.generateConsumerName;
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 class NatsStreamContext implements StreamContext {
-    final NatsJetStreamManagement jsm;
-    final NatsJetStream js;
     final String streamName;
-
-    NatsStreamContext(NatsConnection connection, JetStreamOptions jsOptions, String streamName) throws IOException, JetStreamApiException {
-        jsm = new NatsJetStreamManagement(connection, jsOptions);
-        js = new NatsJetStream(connection, jsOptions);
-        this.streamName = streamName;
-        jsm.getStreamInfo(streamName); // this is just verifying that the stream exists
-    }
+    final NatsJetStream js;
+    final NatsJetStreamManagement jsm;
 
     // for when this is contructed from the NatsJetStream itself
-    NatsStreamContext(NatsJetStream js, NatsConnection connection, JetStreamOptions jsOptions, String streamName) throws IOException, JetStreamApiException {
-        jsm = new NatsJetStreamManagement(connection, jsOptions);
-        this.js = js;
+    NatsStreamContext(String streamName, NatsJetStream js, NatsConnection connection, JetStreamOptions jsOptions) throws IOException, JetStreamApiException {
         this.streamName = streamName;
+        this.js = js == null ? new NatsJetStream(connection, jsOptions) : js;
+        jsm = new NatsJetStreamManagement(connection, jsOptions);
         jsm.getStreamInfo(streamName); // this is just verifying that the stream exists
     }
 
@@ -183,71 +176,51 @@ class NatsStreamContext implements StreamContext {
     }
 
     static class OrderedPullSubscribeOptionsBuilder extends PullSubscribeOptions.Builder {
-        public OrderedPullSubscribeOptionsBuilder(String stream, ConsumerConfiguration config) {
-            stream(stream).configuration(config);
+        public OrderedPullSubscribeOptionsBuilder(String streamName, ConsumerConfiguration cc) {
+            stream(streamName);
+            configuration(cc);
             ordered = true;
         }
     }
 
     @Override
-    public IterableConsumer orderedConsume(OrderedConsumerConfig config) throws IOException, JetStreamApiException {
+    public IterableConsumer orderedConsume(OrderedConsumerConfiguration config) throws IOException, JetStreamApiException {
         return orderedConsume(config, DEFAULT_CONSUME_OPTIONS);
     }
 
     @Override
-    public IterableConsumer orderedConsume(OrderedConsumerConfig config, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public IterableConsumer orderedConsume(OrderedConsumerConfiguration config, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(config, "Ordered Consumer Config");
         Validator.required(consumeOptions, "Consume Options");
         ConsumerConfiguration cc = getBackingConsumerConfiguration(config);
         PullSubscribeOptions pso = new OrderedPullSubscribeOptionsBuilder(streamName, cc).build();
-        return new NatsIterableConsumer(new SimplifiedSubscriptionMaker(js, pso, cc.getFilterSubject()), consumeOptions, null);
+        return new NatsIterableConsumer(new SimplifiedSubscriptionMaker(js, pso, cc.getFilterSubject()), null, consumeOptions);
     }
 
     @Override
-    public MessageConsumer orderedConsume(OrderedConsumerConfig config, MessageHandler handler) throws IOException, JetStreamApiException {
+    public MessageConsumer orderedConsume(OrderedConsumerConfiguration config, MessageHandler handler) throws IOException, JetStreamApiException {
         return orderedConsume(config, handler, DEFAULT_CONSUME_OPTIONS);
     }
 
     @Override
-    public MessageConsumer orderedConsume(OrderedConsumerConfig config, MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public MessageConsumer orderedConsume(OrderedConsumerConfiguration config, MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(config, "Ordered Consumer Config");
         Validator.required(handler, "Message Handler");
         Validator.required(consumeOptions, "Consume Options");
         ConsumerConfiguration cc = getBackingConsumerConfiguration(config);
         PullSubscribeOptions pso = new OrderedPullSubscribeOptionsBuilder(streamName, cc).build();
-        return new NatsMessageConsumer(new SimplifiedSubscriptionMaker(js, pso, cc.getFilterSubject()), handler, consumeOptions, null);
+        return new NatsMessageConsumer(new SimplifiedSubscriptionMaker(js, pso, cc.getFilterSubject()), null, handler, consumeOptions);
     }
 
-    private ConsumerConfiguration getBackingConsumerConfiguration(OrderedConsumerConfig config) {
-        ConsumerConfiguration.Builder b = ConsumerConfiguration.builder().name(generateConsumerName());
-
-        if (config.getDeliverPolicy() != null) {
-            b.deliverPolicy(config.getDeliverPolicy());
-        }
-
-        if (config.getStartSequence() != null) {
-            b.startSequence(config.getStartSequence());
-        }
-
-        if (config.getStartTime() != null) {
-            b.startTime(config.getStartTime());
-        }
-
-        if (config.getFilterSubject() == null) {
-            b.filterSubject(">");
-        }
-        else {
-            b.filterSubject(config.getFilterSubject());
-        }
-
-        if (config.getReplayPolicy() != null) {
-            b.replayPolicy(config.getReplayPolicy());
-        }
-
-        if (config.getHeadersOnly() != null && config.getHeadersOnly()) {
-            b.headersOnly(true);
-        }
-
-        return b.build();
+    private ConsumerConfiguration getBackingConsumerConfiguration(OrderedConsumerConfiguration config) {
+        return ConsumerConfiguration.builder()
+            .name(generateConsumerName())
+            .filterSubject(config.getFilterSubject())
+            .deliverPolicy(config.getDeliverPolicy())
+            .startSequence(config.getStartSequence())
+            .startTime(config.getStartTime())
+            .replayPolicy(config.getReplayPolicy())
+            .headersOnly(config.getHeadersOnly())
+            .build();
     }
 }

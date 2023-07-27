@@ -142,7 +142,7 @@ public class NatsConsumerContext implements ConsumerContext {
     @Override
     public FetchConsumer fetch(FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException {
         Validator.required(fetchConsumeOptions, "Fetch Consume Options");
-        return new NatsFetchConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), fetchConsumeOptions, lastConsumerInfo);
+        return new NatsFetchConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), lastConsumerInfo, fetchConsumeOptions);
     }
 
     /**
@@ -150,7 +150,7 @@ public class NatsConsumerContext implements ConsumerContext {
      */
     @Override
     public IterableConsumer consume() throws IOException, JetStreamApiException {
-        return new NatsIterableConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), DEFAULT_CONSUME_OPTIONS, lastConsumerInfo);
+        return new NatsIterableConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), lastConsumerInfo, DEFAULT_CONSUME_OPTIONS);
     }
 
     /**
@@ -159,7 +159,7 @@ public class NatsConsumerContext implements ConsumerContext {
     @Override
     public IterableConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(consumeOptions, "Consume Options");
-        return new NatsIterableConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), consumeOptions, lastConsumerInfo);
+        return new NatsIterableConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), lastConsumerInfo, consumeOptions);
     }
 
     /**
@@ -168,7 +168,7 @@ public class NatsConsumerContext implements ConsumerContext {
     @Override
     public MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException {
         Validator.required(handler, "Message Handler");
-        return new NatsMessageConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), handler, DEFAULT_CONSUME_OPTIONS, lastConsumerInfo);
+        return new NatsMessageConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), lastConsumerInfo, handler, DEFAULT_CONSUME_OPTIONS);
     }
 
     /**
@@ -178,7 +178,7 @@ public class NatsConsumerContext implements ConsumerContext {
     public MessageConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(handler, "Message Handler");
         Validator.required(consumeOptions, "Consume Options");
-        return new NatsMessageConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), handler, consumeOptions, lastConsumerInfo);
+        return new NatsMessageConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), lastConsumerInfo, handler, consumeOptions);
     }
 
 }

@@ -114,8 +114,8 @@ public interface ConsumerContext {
     FetchConsumer fetch(FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException;
 
     /**
-     * Create a long-running IterableConsumer with default ConsumeOptions. See {@link ConsumeOptions}
-     * IterableConsumer require the developer call nextMessage. See {@link IterableConsumer}
+     * Create a long-running IterableConsumer with default ConsumeOptions. See {@link IterableConsumer} and {@link ConsumeOptions}
+     * IterableConsumer require the developer call nextMessage.
      * @return the IterableConsumer instance
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption

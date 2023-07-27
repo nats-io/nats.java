@@ -28,9 +28,9 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements TrackPendin
     protected final SimplifiedSubscriptionMaker subscriptionMaker;
 
     NatsMessageConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
+                        ConsumerInfo lastConsumerInfo,
                         MessageHandler messageHandler,
-                        ConsumeOptions opts,
-                        ConsumerInfo lastConsumerInfo) throws IOException, JetStreamApiException {
+                        ConsumeOptions opts) throws IOException, JetStreamApiException {
         super(lastConsumerInfo);
         this.subscriptionMaker = subscriptionMaker;
         initSub(subscriptionMaker.makeSubscription(messageHandler));

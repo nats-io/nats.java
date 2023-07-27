@@ -155,7 +155,7 @@ class PullMessageManager extends MessageManager {
                 break;
         }
 
-        // fall through, all others are errors
+        // all others are errors
         conn.executeCallback((c, el) -> el.pullStatusError(c, sub, status));
         return STATUS_ERROR;
     }

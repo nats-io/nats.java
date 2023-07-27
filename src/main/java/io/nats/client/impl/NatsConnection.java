@@ -2130,7 +2130,7 @@ class NatsConnection implements Connection {
     public StreamContext streamContext(String streamName) throws IOException, JetStreamApiException {
         Validator.validateStreamName(streamName, true);
         ensureNotClosing();
-        return new NatsStreamContext(this, null, streamName);
+        return new NatsStreamContext(streamName, null, this, null);
     }
 
     /**
@@ -2140,7 +2140,7 @@ class NatsConnection implements Connection {
     public StreamContext streamContext(String streamName, JetStreamOptions options) throws IOException, JetStreamApiException {
         Validator.validateStreamName(streamName, true);
         ensureNotClosing();
-        return new NatsStreamContext(this, options, streamName);
+        return new NatsStreamContext(streamName, null, this, options);
     }
 
     /**

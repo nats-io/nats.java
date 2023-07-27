@@ -29,13 +29,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class SimplificationTests extends JetStreamTestBase {
 
-    private boolean runTest(ServerInfo si) {
+    private boolean mustBeAtLeast291(ServerInfo si) {
         return si.isSameOrNewerThanVersion("2.9.1");
     }
 
     @Test
     public void testStreamContext() throws Exception {
-        runInJsServer(this::runTest, nc -> {
+        runInJsServer(this::mustBeAtLeast291, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
@@ -119,7 +119,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testFetch() throws Exception {
-        runInJsServer(this::runTest, nc -> {
+        runInJsServer(this::mustBeAtLeast291, nc -> {
             createDefaultTestStream(nc);
             JetStream js = nc.jetStream();
             for (int x = 1; x <= 20; x++) {
@@ -139,11 +139,6 @@ public class SimplificationTests extends JetStreamTestBase {
 
             // 1D. simple-consumer-40msgs was created in 1C and has no messages available
             _testFetch("1D", nc, 40, 0, 40);
-
-            // don't test bytes before 2.9.1
-            if (nc.getServerInfo().isOlderThanVersion("2.9.1")) {
-                return;
-            }
 
             // 2. Different max bytes sizes demonstrate expiration behavior
             //    - each test message is approximately 100 bytes
@@ -228,7 +223,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testIterableConsumer() throws Exception {
-        runInJsServer(this::runTest, nc -> {
+        runInJsServer(this::mustBeAtLeast291, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createDefaultTestStream(jsm);
@@ -256,7 +251,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedIterableConsumerBasic() throws Exception {
-        runInJsServer(this::runTest, nc -> {
+        runInJsServer(this::mustBeAtLeast291, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createDefaultTestStream(jsm);
@@ -264,7 +259,7 @@ public class SimplificationTests extends JetStreamTestBase {
             StreamContext sc = nc.streamContext(STREAM);
 
             int stopCount = 500;
-            OrderedConsumerConfig occ = new OrderedConsumerConfig().filterSubject(SUBJECT);
+            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(SUBJECT);
             try (IterableConsumer consumer = sc.orderedConsume(occ)) {
                 _testIterable(js, stopCount, consumer);
             }
@@ -312,7 +307,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testConsumeWithHandler() throws Exception {
-        runInJsServer(this::runTest, nc -> {
+        runInJsServer(this::mustBeAtLeast291, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createDefaultTestStream(jsm);
@@ -347,7 +342,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testNext() throws Exception {
-        runInJsServer(this::runTest, nc -> {
+        runInJsServer(this::mustBeAtLeast291, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createDefaultTestStream(jsm);
@@ -372,7 +367,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testCoverage() throws Exception {
-        runInJsServer(this::runTest, nc -> {
+        runInJsServer(this::mustBeAtLeast291, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createDefaultTestStream(jsm);
@@ -520,7 +515,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedIterable() throws Exception {
-        runInJsServer(this::runTest, nc -> {
+        runInJsServer(this::mustBeAtLeast291, nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -544,7 +539,7 @@ public class SimplificationTests extends JetStreamTestBase {
                 }
             }).start();
 
-            OrderedConsumerConfig occ = new OrderedConsumerConfig().filterSubject(subject);
+            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(subject);
             try (IterableConsumer icon = sc.orderedConsume(occ)) {
                 // Loop through the messages to make sure I get stream sequence 1 to 6
                 int expectedStreamSeq = 1;
@@ -562,7 +557,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsume() throws Exception {
-        runInJsServer(this::runTest, nc -> {
+        runInJsServer(this::mustBeAtLeast291, nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -586,7 +581,7 @@ public class SimplificationTests extends JetStreamTestBase {
                 msgLatch.countDown();
             };
 
-            OrderedConsumerConfig occ = new OrderedConsumerConfig().filterSubject(subject);
+            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(subject);
             try (MessageConsumer mcon = sc.orderedConsume(occ, handler)) {
                 jsPublish(js, subject, 201, 6);
 
