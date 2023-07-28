@@ -58,7 +58,7 @@ public interface ConsumerContext {
     Message next() throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException;
 
     /**
-     * Read the next message with provide max wait
+     * Read the next message with provided max wait
      * @param maxWait duration of max wait
      * @return the next message or null if the max wait expires
      * @throws IOException covers various communication issues with the NATS
@@ -71,7 +71,7 @@ public interface ConsumerContext {
     Message next(Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException;
 
     /**
-     * Read the next message with provide max wait
+     * Read the next message with provided max wait
      * @param maxWaitMillis the max wait value in milliseconds
      * @return the next message or null if the max wait expires
      * @throws IOException covers various communication issues with the NATS
@@ -84,7 +84,7 @@ public interface ConsumerContext {
     Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException;
 
     /**
-     * Create a one use Fetch Consumer using all defaults other than the number of messages. See {@link FetchConsumer}
+     * Create and start a one use Fetch Consumer using all defaults other than the number of messages. See {@link FetchConsumer}
      * @param maxMessages the maximum number of message to consume
      * @return the FetchConsumer instance
      * @throws IOException covers various communication issues with the NATS
@@ -94,7 +94,7 @@ public interface ConsumerContext {
     FetchConsumer fetchMessages(int maxMessages) throws IOException, JetStreamApiException;
 
     /**
-     * Create a one use Fetch Consumer using all defaults other than the number of bytes. See {@link FetchConsumer}
+     * Create and start a one use Fetch Consumer using all defaults other than the number of bytes. See {@link FetchConsumer}
      * @param maxBytes the maximum number of bytes to consume
      * @return the FetchConsumer instance
      * @throws IOException covers various communication issues with the NATS
@@ -104,7 +104,7 @@ public interface ConsumerContext {
     FetchConsumer fetchBytes(int maxBytes) throws IOException, JetStreamApiException;
 
     /**
-     * Create a one use Fetch Consumer with complete custom consume options. See {@link FetchConsumer}
+     * Start a one use Fetch Consumer with complete custom consume options. See {@link FetchConsumer}
      * @param fetchConsumeOptions the custom fetch consume options. See {@link FetchConsumeOptions}
      * @return the FetchConsumer instance
      * @throws IOException covers various communication issues with the NATS
@@ -114,17 +114,17 @@ public interface ConsumerContext {
     FetchConsumer fetch(FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException;
 
     /**
-     * Create a long-running IterableConsumer with default ConsumeOptions. See {@link IterableConsumer} and {@link ConsumeOptions}
+     * Start a long-running IterableConsumer with default ConsumeOptions. See {@link IterableConsumer} and {@link ConsumeOptions}
      * IterableConsumer require the developer call nextMessage.
      * @return the IterableConsumer instance
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    IterableConsumer iterate() throws IOException, JetStreamApiException;
+    IterableConsumer startIterate() throws IOException, JetStreamApiException;
 
     /**
-     * Create a long-running IterableConsumer with custom ConsumeOptions. See {@link IterableConsumer} and {@link ConsumeOptions}
+     * Start a long-running IterableConsumer with custom ConsumeOptions. See {@link IterableConsumer} and {@link ConsumeOptions}
      * IterableConsumer requires the developer call nextMessage.
      * @param consumeOptions the custom consume options
      * @return the IterableConsumer instance
@@ -132,20 +132,20 @@ public interface ConsumerContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    IterableConsumer iterate(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    IterableConsumer startIterate(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 
     /**
-     * Create a long-running MessageConsumer with default ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
+     * Start a long-running MessageConsumer with default ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
      * @param handler the MessageHandler used for receiving messages.
      * @return the MessageConsumer instance
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException;
+    MessageConsumer startConsume(MessageHandler handler) throws IOException, JetStreamApiException;
 
     /**
-     * Create a long-running MessageConsumer with custom ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
+     * Start a long-running MessageConsumer with custom ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
      * @param handler the MessageHandler used for receiving messages.
      * @param consumeOptions the custom consume options
      * @return the MessageConsumer instance
@@ -153,5 +153,5 @@ public interface ConsumerContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    MessageConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    MessageConsumer startConsume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 }

@@ -238,14 +238,14 @@ public class SimplificationTests extends JetStreamTestBase {
 
             int stopCount = 500;
             // create the consumer then use it
-            try (IterableConsumer consumer = consumerContext.iterate()) {
+            try (IterableConsumer consumer = consumerContext.startIterate()) {
                 _testIterable(js, stopCount, consumer);
             }
 
             // coverage
-            IterableConsumer consumer = consumerContext.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
+            IterableConsumer consumer = consumerContext.startIterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
             consumer.close();
-            assertThrows(IllegalArgumentException.class, () -> consumerContext.iterate((ConsumeOptions) null));
+            assertThrows(IllegalArgumentException.class, () -> consumerContext.startIterate((ConsumeOptions) null));
         });
     }
 
@@ -260,7 +260,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
             int stopCount = 500;
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(SUBJECT);
-            try (IterableConsumer consumer = sc.orderedIterate(occ)) {
+            try (IterableConsumer consumer = sc.startOrderedIterate(occ)) {
                 _testIterable(js, stopCount, consumer);
             }
         });
@@ -332,7 +332,7 @@ public class SimplificationTests extends JetStreamTestBase {
                 }
             };
 
-            try (MessageConsumer consumer = consumerContext.consume(handler)) {
+            try (MessageConsumer consumer = consumerContext.startConsume(handler)) {
                 latch.await();
                 consumer.stop(200);
                 assertTrue(atomicCount.get() > 500);
@@ -392,10 +392,10 @@ public class SimplificationTests extends JetStreamTestBase {
             ConsumerContext cctx5 = sctx1.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(name(5)).build());
             ConsumerContext cctx6 = sctx1.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(name(6)).build());
 
-            closeConsumer(cctx1.iterate(), name(1), true);
-            closeConsumer(cctx2.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS), name(2), true);
-            closeConsumer(cctx3.consume(m -> {}), name(3), true);
-            closeConsumer(cctx4.consume(m -> {}, ConsumeOptions.DEFAULT_CONSUME_OPTIONS), name(4), true);
+            closeConsumer(cctx1.startIterate(), name(1), true);
+            closeConsumer(cctx2.startIterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS), name(2), true);
+            closeConsumer(cctx3.startConsume(m -> {}), name(3), true);
+            closeConsumer(cctx4.startConsume(m -> {}, ConsumeOptions.DEFAULT_CONSUME_OPTIONS), name(4), true);
             closeConsumer(cctx5.fetchMessages(1), name(5), false);
             closeConsumer(cctx6.fetchBytes(1000), name(6), false);
         });
@@ -540,7 +540,7 @@ public class SimplificationTests extends JetStreamTestBase {
             }).start();
 
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(subject);
-            try (IterableConsumer icon = sc.orderedIterate(occ)) {
+            try (IterableConsumer icon = sc.startOrderedIterate(occ)) {
                 // Loop through the messages to make sure I get stream sequence 1 to 6
                 int expectedStreamSeq = 1;
                 while (expectedStreamSeq <= 6) {
@@ -582,7 +582,7 @@ public class SimplificationTests extends JetStreamTestBase {
             };
 
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(subject);
-            try (MessageConsumer mcon = sc.orderedConsume(occ, handler)) {
+            try (MessageConsumer mcon = sc.startOrderedConsume(occ, handler)) {
                 jsPublish(js, subject, 201, 6);
 
                 // wait for the messages

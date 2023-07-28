@@ -149,7 +149,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public IterableConsumer iterate() throws IOException, JetStreamApiException {
+    public IterableConsumer startIterate() throws IOException, JetStreamApiException {
         return new NatsIterableConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), lastConsumerInfo, DEFAULT_CONSUME_OPTIONS);
     }
 
@@ -157,7 +157,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public IterableConsumer iterate(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public IterableConsumer startIterate(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(consumeOptions, "Consume Options");
         return new NatsIterableConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), lastConsumerInfo, consumeOptions);
     }
@@ -166,7 +166,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException {
+    public MessageConsumer startConsume(MessageHandler handler) throws IOException, JetStreamApiException {
         Validator.required(handler, "Message Handler");
         return new NatsMessageConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), lastConsumerInfo, handler, DEFAULT_CONSUME_OPTIONS);
     }
@@ -175,7 +175,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public MessageConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public MessageConsumer startConsume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(handler, "Message Handler");
         Validator.required(consumeOptions, "Consume Options");
         return new NatsMessageConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), lastConsumerInfo, handler, consumeOptions);

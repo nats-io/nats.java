@@ -196,7 +196,7 @@ public interface StreamContext {
     boolean deleteMessage(long seq, boolean erase) throws IOException, JetStreamApiException;
 
     /**
-     * Create a long-running IterableConsumer. See {@link IterableConsumer} and {@link ConsumeOptions}
+     * Start a long-running IterableConsumer. See {@link IterableConsumer} and {@link ConsumeOptions}
      * IterableConsumer requires the developer call nextMessage.
      * @param config the configuration for the ordered consumer
      * @return the IterableConsumer instance
@@ -204,10 +204,10 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    IterableConsumer orderedIterate(OrderedConsumerConfiguration config) throws IOException, JetStreamApiException;
+    IterableConsumer startOrderedIterate(OrderedConsumerConfiguration config) throws IOException, JetStreamApiException;
 
     /**
-     * Create a long-running IterableConsumer with custom ConsumeOptions. See {@link IterableConsumer} and {@link ConsumeOptions}
+     * Start a long-running IterableConsumer with custom ConsumeOptions. See {@link IterableConsumer} and {@link ConsumeOptions}
      * IterableConsumer requires the developer call nextMessage.
      * @param config the configuration for the ordered consumer
      * @param consumeOptions the custom consume options
@@ -216,10 +216,10 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    IterableConsumer orderedIterate(OrderedConsumerConfiguration config, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    IterableConsumer startOrderedIterate(OrderedConsumerConfiguration config, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 
     /**
-     * Create a long-running MessageConsumer. See {@link MessageConsumer} and  {@link ConsumeOptions}
+     * Start a long-running MessageConsumer. See {@link MessageConsumer} and  {@link ConsumeOptions}
      * @param config the configuration for the ordered consumer
      * @param handler the MessageHandler used for receiving messages.
      * @return the MessageConsumer instance
@@ -227,10 +227,10 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    MessageConsumer orderedConsume(OrderedConsumerConfiguration config, MessageHandler handler) throws IOException, JetStreamApiException;
+    MessageConsumer startOrderedConsume(OrderedConsumerConfiguration config, MessageHandler handler) throws IOException, JetStreamApiException;
 
     /**
-     * Create a long-running MessageConsumer with custom ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
+     * Start a long-running MessageConsumer with custom ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
      * @param config the configuration for the ordered consumer
      * @param handler the MessageHandler used for receiving messages.
      * @param consumeOptions the custom consume options
@@ -239,5 +239,5 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    MessageConsumer orderedConsume(OrderedConsumerConfiguration config, MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    MessageConsumer startOrderedConsume(OrderedConsumerConfiguration config, MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 }

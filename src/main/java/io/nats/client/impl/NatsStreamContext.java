@@ -184,12 +184,12 @@ class NatsStreamContext implements StreamContext {
     }
 
     @Override
-    public IterableConsumer orderedIterate(OrderedConsumerConfiguration config) throws IOException, JetStreamApiException {
-        return orderedIterate(config, DEFAULT_CONSUME_OPTIONS);
+    public IterableConsumer startOrderedIterate(OrderedConsumerConfiguration config) throws IOException, JetStreamApiException {
+        return startOrderedIterate(config, DEFAULT_CONSUME_OPTIONS);
     }
 
     @Override
-    public IterableConsumer orderedIterate(OrderedConsumerConfiguration config, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public IterableConsumer startOrderedIterate(OrderedConsumerConfiguration config, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(config, "Ordered Consumer Config");
         Validator.required(consumeOptions, "Consume Options");
         ConsumerConfiguration cc = getBackingConsumerConfiguration(config);
@@ -198,12 +198,12 @@ class NatsStreamContext implements StreamContext {
     }
 
     @Override
-    public MessageConsumer orderedConsume(OrderedConsumerConfiguration config, MessageHandler handler) throws IOException, JetStreamApiException {
-        return orderedConsume(config, handler, DEFAULT_CONSUME_OPTIONS);
+    public MessageConsumer startOrderedConsume(OrderedConsumerConfiguration config, MessageHandler handler) throws IOException, JetStreamApiException {
+        return startOrderedConsume(config, handler, DEFAULT_CONSUME_OPTIONS);
     }
 
     @Override
-    public MessageConsumer orderedConsume(OrderedConsumerConfiguration config, MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public MessageConsumer startOrderedConsume(OrderedConsumerConfiguration config, MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(config, "Ordered Consumer Config");
         Validator.required(handler, "Message Handler");
         Validator.required(consumeOptions, "Consume Options");

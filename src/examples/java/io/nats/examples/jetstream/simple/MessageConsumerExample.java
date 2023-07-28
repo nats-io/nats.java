@@ -79,7 +79,7 @@ public class MessageConsumerExample {
 
             // create the consumer then use it
             try {
-                MessageConsumer consumer = consumerContext.consume(handler);
+                MessageConsumer consumer = consumerContext.startConsume(handler);
                 latch.await();
                 // once the consumer is stopped, the client will drain messages
                 System.out.println("Stop the consumer...");
