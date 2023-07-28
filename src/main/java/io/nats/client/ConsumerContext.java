@@ -121,7 +121,7 @@ public interface ConsumerContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    IterableConsumer consume() throws IOException, JetStreamApiException;
+    IterableConsumer iterate() throws IOException, JetStreamApiException;
 
     /**
      * Create a long-running IterableConsumer with custom ConsumeOptions. See {@link IterableConsumer} and {@link ConsumeOptions}
@@ -132,7 +132,7 @@ public interface ConsumerContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    IterableConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    IterableConsumer iterate(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 
     /**
      * Create a long-running MessageConsumer with default ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}

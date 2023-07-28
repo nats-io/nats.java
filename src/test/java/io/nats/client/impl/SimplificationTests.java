@@ -238,14 +238,14 @@ public class SimplificationTests extends JetStreamTestBase {
 
             int stopCount = 500;
             // create the consumer then use it
-            try (IterableConsumer consumer = consumerContext.consume()) {
+            try (IterableConsumer consumer = consumerContext.iterate()) {
                 _testIterable(js, stopCount, consumer);
             }
 
             // coverage
-            IterableConsumer consumer = consumerContext.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
+            IterableConsumer consumer = consumerContext.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
             consumer.close();
-            assertThrows(IllegalArgumentException.class, () -> consumerContext.consume((ConsumeOptions) null));
+            assertThrows(IllegalArgumentException.class, () -> consumerContext.iterate((ConsumeOptions) null));
         });
     }
 
@@ -260,7 +260,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
             int stopCount = 500;
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(SUBJECT);
-            try (IterableConsumer consumer = sc.orderedConsume(occ)) {
+            try (IterableConsumer consumer = sc.orderedIterate(occ)) {
                 _testIterable(js, stopCount, consumer);
             }
         });
@@ -392,8 +392,8 @@ public class SimplificationTests extends JetStreamTestBase {
             ConsumerContext cctx5 = sctx1.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(name(5)).build());
             ConsumerContext cctx6 = sctx1.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(name(6)).build());
 
-            closeConsumer(cctx1.consume(), name(1), true);
-            closeConsumer(cctx2.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS), name(2), true);
+            closeConsumer(cctx1.iterate(), name(1), true);
+            closeConsumer(cctx2.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS), name(2), true);
             closeConsumer(cctx3.consume(m -> {}), name(3), true);
             closeConsumer(cctx4.consume(m -> {}, ConsumeOptions.DEFAULT_CONSUME_OPTIONS), name(4), true);
             closeConsumer(cctx5.fetchMessages(1), name(5), false);
@@ -540,7 +540,7 @@ public class SimplificationTests extends JetStreamTestBase {
             }).start();
 
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(subject);
-            try (IterableConsumer icon = sc.orderedConsume(occ)) {
+            try (IterableConsumer icon = sc.orderedIterate(occ)) {
                 // Loop through the messages to make sure I get stream sequence 1 to 6
                 int expectedStreamSeq = 1;
                 while (expectedStreamSeq <= 6) {

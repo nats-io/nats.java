@@ -149,7 +149,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public IterableConsumer consume() throws IOException, JetStreamApiException {
+    public IterableConsumer iterate() throws IOException, JetStreamApiException {
         return new NatsIterableConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), lastConsumerInfo, DEFAULT_CONSUME_OPTIONS);
     }
 
@@ -157,7 +157,7 @@ public class NatsConsumerContext implements ConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public IterableConsumer consume(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public IterableConsumer iterate(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         Validator.required(consumeOptions, "Consume Options");
         return new NatsIterableConsumer(new SimplifiedSubscriptionMaker(streamContext.js, bindPso), lastConsumerInfo, consumeOptions);
     }

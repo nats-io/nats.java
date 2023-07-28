@@ -204,7 +204,7 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    IterableConsumer orderedConsume(OrderedConsumerConfiguration config) throws IOException, JetStreamApiException;
+    IterableConsumer orderedIterate(OrderedConsumerConfiguration config) throws IOException, JetStreamApiException;
 
     /**
      * Create a long-running IterableConsumer with custom ConsumeOptions. See {@link IterableConsumer} and {@link ConsumeOptions}
@@ -216,7 +216,7 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    IterableConsumer orderedConsume(OrderedConsumerConfiguration config, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    IterableConsumer orderedIterate(OrderedConsumerConfiguration config, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 
     /**
      * Create a long-running MessageConsumer. See {@link MessageConsumer} and  {@link ConsumeOptions}
