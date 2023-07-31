@@ -34,7 +34,6 @@ public class JwtUtilsTests {
         String jwt = issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()), null, null, null, 1633043378, "audience");
         String claimBody = getClaimBody(jwt);
         String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
-
         /*
             Formatted Claim Body:
             {
@@ -233,35 +232,38 @@ public class JwtUtilsTests {
     }
 
     @Test
-    public void issueUserJWTBadSigningKey() throws Exception {
+    public void issueUserJWTBadSigningKey() {
         NKey userKey = NKey.fromSeed("SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY".toCharArray());
         // should be account, but this is a user key:
         NKey signingKey = NKey.fromSeed("SUAIW7IZ2YDQYLTE4FJ64ZBX7UMLCN57V6GHALKMUSMJCU5PJDNUO6BVUI".toCharArray());
         String accountId = "ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6";
-        assertThrows(IllegalArgumentException.class, () -> issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()), null, null, null, 1633043378));
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()), null, null, null, 1633043378));
+        assertEquals("issueUserJWT requires an account key for the signingKey parameter, but got USER", e.getMessage());
     }
 
     @Test
-    public void issueUserJWTBadAccountId() throws Exception {
+    public void issueUserJWTBadAccountId() {
         NKey userKey = NKey.fromSeed("SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY".toCharArray());
         NKey signingKey = NKey.fromSeed("SAANJIBNEKGCRUWJCPIWUXFBFJLR36FJTFKGBGKAT7AQXH2LVFNQWZJMQU".toCharArray());
         // should be account, but this is a user key:
         String accountId = "UDN6WZFPYTS4YSUHUD4YFFU5NVKT6BVCY5QXQFYF3I23AER622SBOVUZ";
-        assertThrows(IllegalArgumentException.class, () -> issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()), null, null, null, 1633043378));
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()), null, null, null, 1633043378));
+        assertEquals("issueUserJWT requires an account key for the accountId parameter, but got USER", e.getMessage());
     }
 
     @Test
-    public void issueUserJWTBadPublicUserKey() throws Exception {
+    public void issueUserJWTBadPublicUserKey() {
         NKey userKey = NKey.fromSeed("SAADFHQTEKYBOCG4CPEPNAJ5FLRX4G4WTCNTAIOKN3LARLHGVKB4BRUHYY".toCharArray());
         NKey signingKey = NKey.fromSeed("SAANJIBNEKGCRUWJCPIWUXFBFJLR36FJTFKGBGKAT7AQXH2LVFNQWZJMQU".toCharArray());
         String accountId = "ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6";
-        assertThrows(IllegalArgumentException.class, () -> issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()), null, null, null, 1633043378));
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()), null, null, null, 1633043378));
+        assertEquals("issueUserJWT requires a user key for the publicUserKey, but got ACCOUNT", e.getMessage());
     }
 
     @Test
-    public void userJwt() throws Exception {
+    public void testUserClaimJson() {
         UserClaim uc = new UserClaim("test-issuer-account");
-        assertEquals(DEFAULT_JSON, uc.toJson());
+        assertEquals(BASIC_JSON, uc.toJson());
 
         List<TimeRange> times = new ArrayList<>();
         times.add(new TimeRange("01:15:00", "03:15:00"));
@@ -281,11 +283,11 @@ public class JwtUtilsTests {
         assertEquals(FULL_JSON, uc.toJson());
     }
 
-    private static final String DEFAULT_JSON = "{\"issuer_account\":\"test-issuer-account\",\"type\":\"user\",\"version\":2,\"subs\":-1,\"data\":-1,\"payload\":-1}";
+    private static final String BASIC_JSON = "{\"issuer_account\":\"test-issuer-account\",\"type\":\"user\",\"version\":2,\"subs\":-1,\"data\":-1,\"payload\":-1}";
     private static final String FULL_JSON = "{\"issuer_account\":\"test-issuer-account\",\"tags\":[\"tag1\",\"tag2\"],\"type\":\"user\",\"version\":2,\"pub\":{\"allow\":[\"pa1\",\"pa2\"],\"deny\":[\"pd1\",\"pd2\"]},\"sub\":{\"allow\":[\"sa1\",\"sa2\"],\"deny\":[\"sd1\",\"sd2\"]},\"resp\":{\"max\":99,\"ttl\":999000000},\"src\":[\"src1\",\"src2\"],\"times\":[{\"start\":\"01:15:00\",\"end\":\"03:15:00\"}],\"times_location\":\"US\\/Eastern\",\"subs\":42,\"data\":43,\"payload\":44,\"bearer_token\":true,\"allowed_connection_types\":[\"nats\",\"tls\"]}";
 
     /*
-        DEFAULT_JSON
+        BASIC_JSON
         {
             "issuer_account": "test-issuer-account",
             "type": "user",

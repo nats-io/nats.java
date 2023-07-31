@@ -168,7 +168,7 @@ public abstract class JwtUtils {
      * @param name optional human-readable name. When absent, default to publicUserKey.
      * @param expiration optional but recommended duration, when the generated jwt needs to expire. If not set, JWT will not expire.
      * @param issuedAt the current epoch seconds.
-     * @param audience         the optional audience
+     * @param audience the optional audience
      * @param nats the user claim
      * @throws IllegalArgumentException if the accountId or publicUserKey is not a valid public key of the proper type
      * @throws NullPointerException if signingKey, accountId, or publicUserKey are null.
@@ -189,13 +189,13 @@ public abstract class JwtUtils {
         // Validate the publicUserKey:
         NKey userKey = NKey.fromPublicKey(publicUserKey.toCharArray());
         if (userKey.getType() != NKey.Type.USER) {
-            throw new IllegalArgumentException("issueUserJWT requires a user key for the publicUserKey, but got " + userKey.getType());
+            throw new IllegalArgumentException("issueUserJWT requires a user key for the publicUserKey parameter, but got " + userKey.getType());
         }
         String accSigningKeyPub = new String(signingKey.getPublicKey());
 
         String claimName = Validator.nullOrEmpty(name) ? publicUserKey : name;
 
-        return issueJWT(signingKey, publicUserKey, claimName, expiration, issuedAt, audience, accSigningKeyPub, nats);
+        return issueJWT(signingKey, publicUserKey, claimName, expiration, issuedAt, accSigningKeyPub, audience, nats);
     }
 
     /**
@@ -212,31 +212,32 @@ public abstract class JwtUtils {
      * @return a JWT
      */
     public static String issueJWT(NKey signingKey, String publicUserKey, String name, Duration expiration, long issuedAt, String accSigningKeyPub, JsonSerializable nats) throws GeneralSecurityException, IOException {
-        return issueJWT(signingKey, publicUserKey, name, expiration, issuedAt, null, accSigningKeyPub, nats);
+        return issueJWT(signingKey, publicUserKey, name, expiration, issuedAt, accSigningKeyPub, null, nats);
     }
 
     /**
      * Issue a JWT
+     *
      * @param signingKey       account nkey pair to sign the generated jwt.
      * @param publicUserKey    a mandatory public user nkey.
      * @param name             optional human-readable name.
      * @param expiration       optional but recommended duration, when the generated jwt needs to expire. If not set, JWT will not expire.
      * @param issuedAt         the current epoch seconds.
-     * @param audience         the optional audience
      * @param accSigningKeyPub the account signing key
+     * @param audience         the optional audience
      * @param nats             the generic nats claim
      * @return a JWT
      * @throws GeneralSecurityException if SHA-256 MessageDigest is missing, or if the signingKey can not be used for signing.
      * @throws IOException              if signingKey sign method throws this exception.
      */
-    public static String issueJWT(NKey signingKey, String publicUserKey, String name, Duration expiration, long issuedAt, String audience, String accSigningKeyPub, JsonSerializable nats) throws GeneralSecurityException, IOException {
+    public static String issueJWT(NKey signingKey, String publicUserKey, String name, Duration expiration, long issuedAt, String accSigningKeyPub, String audience, JsonSerializable nats) throws GeneralSecurityException, IOException {
         Claim claim = new Claim();
-        claim.exp = expiration;
+        claim.aud = audience;
         claim.iat = issuedAt;
         claim.iss = accSigningKeyPub;
         claim.name = name;
         claim.sub = publicUserKey;
-        claim.aud = audience;
+        claim.exp = expiration;
         claim.nats = nats;
 
         // Issue At time is stored in unix seconds
@@ -260,9 +261,13 @@ public abstract class JwtUtils {
         return ENCODED_CLAIM_HEADER + "." + encBody + "." + encSig;
     }
 
+    /**
+     * Get the claim body from a JWT
+     * @param jwt the encoded jwt
+     * @return the claim body json
+     */
     public static String getClaimBody(String jwt) {
-        String[] split = jwt.split("\\.");
-        return fromBase64Url(split[1]);
+        return fromBase64Url(jwt.split("\\.")[1]);
     }
 
     public static class UserClaim implements JsonSerializable {
@@ -456,10 +461,12 @@ public abstract class JwtUtils {
             JsonUtils.addField(sb, "iss", iss);
             JsonUtils.addField(sb, "name", name);
             JsonUtils.addField(sb, "sub", sub);
+
             if (exp != null && !exp.isZero() && !exp.isNegative()) {
                 long seconds = exp.toMillis() / 1000;
-                JsonUtils.addField(sb, "exp", iat + seconds);
+                JsonUtils.addField(sb, "exp", iat + seconds); // relative to the iat
             }
+
             JsonUtils.addField(sb, "nats", nats);
             return endJson(sb).toString();
         }
