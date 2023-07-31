@@ -22,8 +22,7 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.List;
 
-import static io.nats.client.support.Encoding.base32Encode;
-import static io.nats.client.support.Encoding.toBase64Url;
+import static io.nats.client.support.Encoding.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 
@@ -65,8 +64,15 @@ public abstract class JwtUtils {
             "*************************************************************\n";
 
     /**
+     * Get the current time in seconds since epoch. Used for issue time.
+     * @return the time
+     */
+    public static long currentTimeSeconds() {
+        return System.currentTimeMillis() / 1000;
+    }
+
+    /**
      * Issue a user JWT from a scoped signing key. See <a href="https://docs.nats.io/nats-tools/nsc/signing_keys">Signing Keys</a>
-     *
      * @param signingKey a mandatory account nkey pair to sign the generated jwt.
      * @param accountId a mandatory public account nkey. Will throw error when not set or not account nkey.
      * @param publicUserKey a mandatory public user nkey. Will throw error when not set or not user nkey.
@@ -77,12 +83,11 @@ public abstract class JwtUtils {
      * @return a JWT
      */
     public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey) throws GeneralSecurityException, IOException {
-        return issueUserJWT(signingKey, accountId, publicUserKey, null, null);
+        return issueUserJWT(signingKey, publicUserKey, null, null, currentTimeSeconds(), null, new UserClaim(accountId));
     }
 
     /**
      * Issue a user JWT from a scoped signing key. See <a href="https://docs.nats.io/nats-tools/nsc/signing_keys">Signing Keys</a>
-     *
      * @param signingKey a mandatory account nkey pair to sign the generated jwt.
      * @param accountId a mandatory public account nkey. Will throw error when not set or not account nkey.
      * @param publicUserKey a mandatory public user nkey. Will throw error when not set or not user nkey.
@@ -94,12 +99,11 @@ public abstract class JwtUtils {
      * @return a JWT
      */
     public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name) throws GeneralSecurityException, IOException {
-        return issueUserJWT(signingKey, accountId, publicUserKey, name, null);
+        return issueUserJWT(signingKey, publicUserKey, name, null, currentTimeSeconds(), null, new UserClaim(accountId));
     }
 
     /**
      * Issue a user JWT from a scoped signing key. See <a href="https://docs.nats.io/nats-tools/nsc/signing_keys">Signing Keys</a>
-     *
      * @param signingKey a mandatory account nkey pair to sign the generated jwt.
      * @param accountId a mandatory public account nkey. Will throw error when not set or not account nkey.
      * @param publicUserKey a mandatory public user nkey. Will throw error when not set or not user nkey.
@@ -113,12 +117,11 @@ public abstract class JwtUtils {
      * @return a JWT
      */
     public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name, Duration expiration, String... tags) throws GeneralSecurityException, IOException {
-        return issueUserJWT(signingKey, accountId, publicUserKey, name, expiration, tags, System.currentTimeMillis() / 1000);
+        return issueUserJWT(signingKey, publicUserKey, name, expiration, currentTimeSeconds(), null, new UserClaim(accountId).tags(tags));
     }
 
     /**
      * Issue a user JWT from a scoped signing key. See <a href="https://docs.nats.io/nats-tools/nsc/signing_keys">Signing Keys</a>
-     *
      * @param signingKey a mandatory account nkey pair to sign the generated jwt.
      * @param accountId a mandatory public account nkey. Will throw error when not set or not account nkey.
      * @param publicUserKey a mandatory public user nkey. Will throw error when not set or not user nkey.
@@ -133,12 +136,15 @@ public abstract class JwtUtils {
      * @return a JWT
      */
     public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name, Duration expiration, String[] tags, long issuedAt) throws GeneralSecurityException, IOException {
-        return issueUserJWT(signingKey, publicUserKey, name, expiration, issuedAt, new UserClaim(accountId).tags(tags));
+        return issueUserJWT(signingKey, publicUserKey, name, expiration, issuedAt, null, new UserClaim(accountId).tags(tags));
+    }
+
+    public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name, Duration expiration, String[] tags, long issuedAt, String audience) throws GeneralSecurityException, IOException {
+        return issueUserJWT(signingKey, publicUserKey, name, expiration, issuedAt, audience, new UserClaim(accountId).tags(tags));
     }
 
     /**
      * Issue a user JWT from a scoped signing key. See <a href="https://docs.nats.io/nats-tools/nsc/signing_keys">Signing Keys</a>
-     *
      * @param signingKey a mandatory account nkey pair to sign the generated jwt.
      * @param publicUserKey a mandatory public user nkey. Will throw error when not set or not user nkey.
      * @param name optional human-readable name. When absent, default to publicUserKey.
@@ -152,6 +158,25 @@ public abstract class JwtUtils {
      * @return a JWT
      */
     public static String issueUserJWT(NKey signingKey, String publicUserKey, String name, Duration expiration, long issuedAt, UserClaim nats) throws GeneralSecurityException, IOException {
+        return issueUserJWT(signingKey, publicUserKey, name, expiration, issuedAt, null, nats);
+    }
+
+    /**
+     * Issue a user JWT from a scoped signing key. See <a href="https://docs.nats.io/nats-tools/nsc/signing_keys">Signing Keys</a>
+     * @param signingKey a mandatory account nkey pair to sign the generated jwt.
+     * @param publicUserKey a mandatory public user nkey. Will throw error when not set or not user nkey.
+     * @param name optional human-readable name. When absent, default to publicUserKey.
+     * @param expiration optional but recommended duration, when the generated jwt needs to expire. If not set, JWT will not expire.
+     * @param issuedAt the current epoch seconds.
+     * @param audience         the optional audience
+     * @param nats the user claim
+     * @throws IllegalArgumentException if the accountId or publicUserKey is not a valid public key of the proper type
+     * @throws NullPointerException if signingKey, accountId, or publicUserKey are null.
+     * @throws GeneralSecurityException if SHA-256 MessageDigest is missing, or if the signingKey can not be used for signing.
+     * @throws IOException if signingKey sign method throws this exception.
+     * @return a JWT
+     */
+    public static String issueUserJWT(NKey signingKey, String publicUserKey, String name, Duration expiration, long issuedAt, String audience, UserClaim nats) throws GeneralSecurityException, IOException {
         // Validate the signingKey:
         if (signingKey.getType() != NKey.Type.ACCOUNT) {
             throw new IllegalArgumentException("issueUserJWT requires an account key for the signingKey parameter, but got " + signingKey.getType());
@@ -170,12 +195,11 @@ public abstract class JwtUtils {
 
         String claimName = Validator.nullOrEmpty(name) ? publicUserKey : name;
 
-        return issueJWT(signingKey, publicUserKey, claimName, expiration, issuedAt, accSigningKeyPub, nats);
+        return issueJWT(signingKey, publicUserKey, claimName, expiration, issuedAt, audience, accSigningKeyPub, nats);
     }
 
     /**
      * Issue a JWT
-     *
      * @param signingKey account nkey pair to sign the generated jwt.
      * @param publicUserKey a mandatory public user nkey.
      * @param name optional human-readable name.
@@ -188,12 +212,31 @@ public abstract class JwtUtils {
      * @return a JWT
      */
     public static String issueJWT(NKey signingKey, String publicUserKey, String name, Duration expiration, long issuedAt, String accSigningKeyPub, JsonSerializable nats) throws GeneralSecurityException, IOException {
+        return issueJWT(signingKey, publicUserKey, name, expiration, issuedAt, null, accSigningKeyPub, nats);
+    }
+
+    /**
+     * Issue a JWT
+     * @param signingKey       account nkey pair to sign the generated jwt.
+     * @param publicUserKey    a mandatory public user nkey.
+     * @param name             optional human-readable name.
+     * @param expiration       optional but recommended duration, when the generated jwt needs to expire. If not set, JWT will not expire.
+     * @param issuedAt         the current epoch seconds.
+     * @param audience         the optional audience
+     * @param accSigningKeyPub the account signing key
+     * @param nats             the generic nats claim
+     * @return a JWT
+     * @throws GeneralSecurityException if SHA-256 MessageDigest is missing, or if the signingKey can not be used for signing.
+     * @throws IOException              if signingKey sign method throws this exception.
+     */
+    public static String issueJWT(NKey signingKey, String publicUserKey, String name, Duration expiration, long issuedAt, String audience, String accSigningKeyPub, JsonSerializable nats) throws GeneralSecurityException, IOException {
         Claim claim = new Claim();
         claim.exp = expiration;
         claim.iat = issuedAt;
         claim.iss = accSigningKeyPub;
         claim.name = name;
         claim.sub = publicUserKey;
+        claim.aud = audience;
         claim.nats = nats;
 
         // Issue At time is stored in unix seconds
@@ -201,7 +244,7 @@ public abstract class JwtUtils {
 
         // Compute jti, a base32 encoded sha256 hash
         MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-        byte[] encoded = sha256.digest(claimJson.getBytes(StandardCharsets.UTF_8));
+        byte[] encoded = sha256.digest(claimJson.getBytes(StandardCharsets.US_ASCII));
 
         claim.jti = new String(base32Encode(encoded));
         claimJson = claim.toJson();
@@ -215,6 +258,11 @@ public abstract class JwtUtils {
 
         // append signature to header and body and return it
         return ENCODED_CLAIM_HEADER + "." + encBody + "." + encSig;
+    }
+
+    public static String getClaimBody(String jwt) {
+        String[] split = jwt.split("\\.");
+        return fromBase64Url(split[1]);
     }
 
     public static class UserClaim implements JsonSerializable {
@@ -390,27 +438,29 @@ public abstract class JwtUtils {
     }
 
     static class Claim implements JsonSerializable {
-        Duration exp;
+        String aud;
+        String jti;
         long iat;
         String iss;
-        String jti;
         String name;
-        JsonSerializable nats;
         String sub;
+        Duration exp;
+        JsonSerializable nats;
 
         @Override
         public String toJson() {
             StringBuilder sb = beginJson();
+            JsonUtils.addField(sb, "aud", aud);
+            JsonUtils.addFieldEvenEmpty(sb, "jti", jti);
+            JsonUtils.addField(sb, "iat", iat);
+            JsonUtils.addField(sb, "iss", iss);
+            JsonUtils.addField(sb, "name", name);
+            JsonUtils.addField(sb, "sub", sub);
             if (exp != null && !exp.isZero() && !exp.isNegative()) {
                 long seconds = exp.toMillis() / 1000;
                 JsonUtils.addField(sb, "exp", iat + seconds);
             }
-            JsonUtils.addField(sb, "iat", iat);
-            JsonUtils.addFieldEvenEmpty(sb, "jti", jti);
-            JsonUtils.addField(sb, "iss", iss);
-            JsonUtils.addField(sb, "name", name);
             JsonUtils.addField(sb, "nats", nats);
-            JsonUtils.addField(sb, "sub", sub);
             return endJson(sb).toString();
         }
     }
