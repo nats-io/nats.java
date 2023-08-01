@@ -22,16 +22,32 @@ import java.util.Base64;
 public abstract class Encoding {
     private Encoding() {}  /* ensures cannot be constructed */
 
+    /**
+     * @deprecated prefere base64UrlEncode
+     */
+    @Deprecated
     public static byte[] base64Encode(byte[] input) {
         return Base64.getUrlEncoder().withoutPadding().encode(input);
     }
 
+    public static byte[] base64UrlEncode(byte[] input) {
+        return Base64.getUrlEncoder().withoutPadding().encode(input);
+    }
+
     public static String toBase64Url(byte[] input) {
-        return new String(base64Encode(input));
+        return new String(base64UrlEncode(input));
     }
 
     public static String toBase64Url(String input) {
-        return new String(base64Encode(input.getBytes(StandardCharsets.UTF_8)));
+        return new String(base64UrlEncode(input.getBytes(StandardCharsets.US_ASCII)));
+    }
+
+    public static byte[] base64UrlDecode(byte[] input) {
+        return Base64.getUrlDecoder().decode(input);
+    }
+
+    public static String fromBase64Url(String input) {
+        return new String(base64UrlDecode(input.getBytes(StandardCharsets.US_ASCII)));
     }
 
     // http://en.wikipedia.org/wiki/Base_32
