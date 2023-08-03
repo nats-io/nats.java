@@ -2148,7 +2148,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public ConsumerContext consumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException {
-        return streamContext(streamName).consumerContext(consumerName);
+        return streamContext(streamName).createConsumerContext(consumerName);
     }
 
     /**
@@ -2156,7 +2156,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public ConsumerContext consumerContext(String streamName, String consumerName, JetStreamOptions options) throws IOException, JetStreamApiException {
-        return streamContext(streamName, options).consumerContext(consumerName);
+        return streamContext(streamName, options).createConsumerContext(consumerName);
     }
 
     /**

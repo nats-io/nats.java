@@ -14,11 +14,26 @@
 package io.nats.client.support;
 
 import io.nats.client.NUID;
+import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.DeliverPolicy;
 
 public abstract class ConsumerUtils {
     private ConsumerUtils() {}  /* ensures cannot be constructed */
 
     public static String generateConsumerName() {
         return NUID.nextGlobalSequence();
+    }
+
+    public static ConsumerConfiguration nextOrderedConsumerConfiguration(
+        ConsumerConfiguration originalCc,
+        long lastStreamSeq,
+        String newDeliverSubject)
+    {
+        return ConsumerConfiguration.builder(originalCc)
+            .deliverPolicy(DeliverPolicy.ByStartSequence)
+            .deliverSubject(newDeliverSubject)
+            .startSequence(Math.max(1, lastStreamSeq + 1))
+            .startTime(null) // clear start time in case it was originally set
+            .build();
     }
 }

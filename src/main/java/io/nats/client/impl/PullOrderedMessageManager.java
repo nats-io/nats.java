@@ -16,13 +16,12 @@ package io.nats.client.impl;
 import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.DeliverPolicy;
-import io.nats.client.support.ConsumerUtils;
 
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.impl.MessageManager.ManageResult.MESSAGE;
 import static io.nats.client.impl.MessageManager.ManageResult.STATUS_HANDLED;
+import static io.nats.client.support.ConsumerUtils.nextOrderedConsumerConfiguration;
 
 class PullOrderedMessageManager extends PullMessageManager {
 
@@ -86,13 +85,7 @@ class PullOrderedMessageManager extends PullMessageManager {
 
             // 3. make a new consumer using the same deliver subject but
             //    with a new starting point
-            ConsumerConfiguration userCC = ConsumerConfiguration.builder(originalCc)
-                .name(ConsumerUtils.generateConsumerName())
-                .deliverPolicy(DeliverPolicy.ByStartSequence)
-                .deliverSubject(newDeliverSubject)
-                .startSequence(Math.max(1, lastStreamSeq + 1))
-                .startTime(null) // clear start time in case it was originally set
-                .build();
+            ConsumerConfiguration userCC = nextOrderedConsumerConfiguration(originalCc, lastStreamSeq, newDeliverSubject);
             js._createConsumerUnsubscribeOnException(stream, userCC, sub);
 
             // 4. restart the manager.

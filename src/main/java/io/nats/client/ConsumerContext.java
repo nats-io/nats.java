@@ -121,7 +121,7 @@ public interface ConsumerContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    IterableConsumer startIterate() throws IOException, JetStreamApiException;
+    IterableConsumer iterate() throws IOException, JetStreamApiException;
 
     /**
      * Start a long-running IterableConsumer with custom ConsumeOptions. See {@link IterableConsumer} and {@link ConsumeOptions}
@@ -132,7 +132,7 @@ public interface ConsumerContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    IterableConsumer startIterate(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    IterableConsumer iterate(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 
     /**
      * Start a long-running MessageConsumer with default ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
@@ -142,7 +142,7 @@ public interface ConsumerContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    MessageConsumer startConsume(MessageHandler handler) throws IOException, JetStreamApiException;
+    MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException;
 
     /**
      * Start a long-running MessageConsumer with custom ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
@@ -153,5 +153,5 @@ public interface ConsumerContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    MessageConsumer startConsume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    MessageConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 }

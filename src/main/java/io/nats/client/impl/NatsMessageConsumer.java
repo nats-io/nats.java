@@ -25,15 +25,12 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements TrackPendin
     protected final PullRequestOptions rePullPro;
     protected final int thresholdMessages;
     protected final long thresholdBytes;
-    protected final SimplifiedSubscriptionMaker subscriptionMaker;
 
     NatsMessageConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
-                        ConsumerInfo lastConsumerInfo,
+                        ConsumerInfo cachedConsumerInfo,
                         MessageHandler messageHandler,
                         ConsumeOptions opts) throws IOException, JetStreamApiException {
-        super(lastConsumerInfo);
-        this.subscriptionMaker = subscriptionMaker;
-        initSub(subscriptionMaker.makeSubscription(messageHandler));
+        super(cachedConsumerInfo, subscriptionMaker.subscribe(messageHandler));
 
         int bm = opts.getBatchSize();
         long bb = opts.getBatchBytes();
@@ -42,7 +39,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements TrackPendin
         long rePullBytes = bb == 0 ? 0 : Math.max(1, bb * opts.getThresholdPercent() / 100);
         rePullPro = PullRequestOptions.builder(rePullMessages)
             .maxBytes(rePullBytes)
-            .expiresIn(opts.getExpiresIn())
+            .expiresIn(opts.getExpiresInMillis())
             .idleHeartbeat(opts.getIdleHeartbeat())
             .build();
 
@@ -51,7 +48,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements TrackPendin
 
         sub._pull(PullRequestOptions.builder(bm)
                 .maxBytes(bb)
-                .expiresIn(opts.getExpiresIn())
+                .expiresIn(opts.getExpiresInMillis())
                 .idleHeartbeat(opts.getIdleHeartbeat())
                 .build(),
             false, this);
@@ -59,9 +56,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements TrackPendin
 
     @Override
     public void track(int pendingMessages, long pendingBytes, boolean trackingBytes) {
-        if (!stopped &&
-            (pmm.pendingMessages <= thresholdMessages
-                || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
+        if (!stopped && (pendingMessages <= thresholdMessages || (trackingBytes && pendingBytes <= thresholdBytes)))
         {
             sub._pull(rePullPro, false, this);
         }

@@ -61,7 +61,7 @@ public class IterableConsumerExample {
             Thread consumeThread = new Thread(() -> {
                 int count = 0;
                 long start = System.currentTimeMillis();
-                try (IterableConsumer consumer = consumerContext.startIterate()) {
+                try (IterableConsumer consumer = consumerContext.iterate()) {
                     System.out.println("Starting main loop.");
                     while (count < STOP_COUNT) {
                         Message msg = consumer.nextMessage(1000);

@@ -48,4 +48,8 @@ public interface MessageConsumer extends AutoCloseable {
      * @throws InterruptedException if one is thrown, in order to propagate it up
      */
     void stop(long timeout) throws InterruptedException;
+
+    boolean isStopped();
+
+    boolean isFinished();
 }

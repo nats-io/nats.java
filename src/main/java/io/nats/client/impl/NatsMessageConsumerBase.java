@@ -24,18 +24,25 @@ class NatsMessageConsumerBase implements MessageConsumer {
     protected NatsJetStreamPullSubscription sub;
     protected PullMessageManager pmm;
     protected boolean stopped;
-    protected ConsumerInfo lastConsumerInfo;
+    protected boolean finished;
+    protected ConsumerInfo cachedConsumerInfo;
 
-    NatsMessageConsumerBase(ConsumerInfo lastConsumerInfo) {
-        this.lastConsumerInfo = lastConsumerInfo;
+    NatsMessageConsumerBase(ConsumerInfo cachedConsumerInfo, NatsJetStreamPullSubscription sub) {
+        this.cachedConsumerInfo = cachedConsumerInfo;
+        this.sub = sub;
+        pmm = (PullMessageManager)sub.manager;
     }
 
-    protected void initSub(NatsJetStreamPullSubscription sub) throws JetStreamApiException, IOException {
-        this.sub = sub;
-        if (lastConsumerInfo == null) {
-            lastConsumerInfo = sub.getConsumerInfo();
-        }
-        pmm = (PullMessageManager)sub.manager;
+    boolean noMorePending() {
+        return pmm.pendingMessages < 1 || (pmm.trackingBytes && pmm.pendingBytes < 1);
+    }
+
+    public boolean isStopped() {
+        return stopped;
+    }
+
+    public boolean isFinished() {
+        return finished;
     }
 
     /**
@@ -43,8 +50,11 @@ class NatsMessageConsumerBase implements MessageConsumer {
      */
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
-        lastConsumerInfo = sub.getConsumerInfo();
-        return lastConsumerInfo;
+        // don't loo+k up consumer info if it was never set - this check is for ordered consumer
+        if (cachedConsumerInfo != null) {
+            cachedConsumerInfo = sub.getConsumerInfo();
+        }
+        return cachedConsumerInfo;
     }
 
     /**
@@ -52,7 +62,7 @@ class NatsMessageConsumerBase implements MessageConsumer {
      */
     @Override
     public ConsumerInfo getCachedConsumerInfo() {
-        return lastConsumerInfo;
+        return cachedConsumerInfo;
     }
 
     /**
@@ -71,12 +81,17 @@ class NatsMessageConsumerBase implements MessageConsumer {
             }
             finally {
                 stopped = true;
+                finished = true;
             }
         }
     }
 
     @Override
     public void close() throws Exception {
+        lenientClose();
+    }
+
+    protected void lenientClose() {
         try {
             if (!stopped && sub.isActive()) {
                 if (sub.getNatsDispatcher() != null) {
@@ -89,6 +104,10 @@ class NatsMessageConsumerBase implements MessageConsumer {
         }
         catch (Throwable ignore) {
             // nothing to do
+        }
+        finally {
+            stopped = true;
+            finished = true;
         }
     }
 }

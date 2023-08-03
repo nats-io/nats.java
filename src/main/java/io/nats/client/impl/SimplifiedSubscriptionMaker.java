@@ -13,38 +13,11 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.Dispatcher;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.MessageHandler;
-import io.nats.client.PullSubscribeOptions;
 
 import java.io.IOException;
 
-public class SimplifiedSubscriptionMaker {
-    private final NatsJetStream js;
-    private final PullSubscribeOptions pso;
-    private final String subscribeSubject;
-    @SuppressWarnings("FieldCanBeLocal") // can't be local because I want to keep its reference as part of the state
-    private Dispatcher dispatcher;
-
-    public SimplifiedSubscriptionMaker(NatsJetStream js, PullSubscribeOptions pso) {
-        this.js = js;
-        this.pso = pso;
-        this.subscribeSubject = null;
-    }
-
-    public SimplifiedSubscriptionMaker(NatsJetStream js, PullSubscribeOptions pso, String subscribeSubject) {
-        this.js = js;
-        this.pso = pso;
-        this.subscribeSubject = subscribeSubject;
-    }
-
-    public NatsJetStreamPullSubscription makeSubscription(MessageHandler messageHandler) throws IOException, JetStreamApiException {
-        if (messageHandler == null) {
-            return (NatsJetStreamPullSubscription)js.subscribe(subscribeSubject, pso);
-        }
-
-        dispatcher = js.conn.createDispatcher();
-        return (NatsJetStreamPullSubscription)js.subscribe(subscribeSubject, dispatcher, messageHandler, pso);
-    }
+public interface SimplifiedSubscriptionMaker {
+    NatsJetStreamPullSubscription subscribe(MessageHandler messageHandler) throws IOException, JetStreamApiException;
 }

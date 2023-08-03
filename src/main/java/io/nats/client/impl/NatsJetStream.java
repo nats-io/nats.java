@@ -649,7 +649,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     public ConsumerContext consumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException {
         Validator.validateStreamName(streamName, true);
         Validator.required(consumerName, "Consumer Name");
-        return getNatsStreamContext(streamName).consumerContext(consumerName);
+        return getNatsStreamContext(streamName).createConsumerContext(consumerName);
     }
 
     private NatsStreamContext getNatsStreamContext(String streamName) throws IOException, JetStreamApiException {

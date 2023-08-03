@@ -20,9 +20,6 @@ import io.nats.client.support.Validator;
 import java.io.IOException;
 import java.util.List;
 
-import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
-import static io.nats.client.support.ConsumerUtils.generateConsumerName;
-
 /**
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
@@ -83,8 +80,14 @@ class NatsStreamContext implements StreamContext {
      * {@inheritDoc}
      */
     @Override
-    public ConsumerContext consumerContext(String consumerName) throws IOException, JetStreamApiException {
+    public ConsumerContext createConsumerContext(String consumerName) throws IOException, JetStreamApiException {
         return new NatsConsumerContext(this, jsm.getConsumerInfo(streamName, consumerName));
+    }
+
+    @Override
+    public ConsumerContext createOrderedConsumer(OrderedConsumerConfiguration config) throws IOException, JetStreamApiException {
+        Validator.required(config, "Ordered Consumer Config");
+        return new NatsConsumerContext(this, config);
     }
 
     /**
@@ -173,54 +176,5 @@ class NatsStreamContext implements StreamContext {
     @Override
     public boolean deleteMessage(long seq, boolean erase) throws IOException, JetStreamApiException {
         return jsm.deleteMessage(streamName, seq, erase);
-    }
-
-    static class OrderedPullSubscribeOptionsBuilder extends PullSubscribeOptions.Builder {
-        public OrderedPullSubscribeOptionsBuilder(String streamName, ConsumerConfiguration cc) {
-            stream(streamName);
-            configuration(cc);
-            ordered = true;
-        }
-    }
-
-    @Override
-    public IterableConsumer startOrderedIterate(OrderedConsumerConfiguration config) throws IOException, JetStreamApiException {
-        return startOrderedIterate(config, DEFAULT_CONSUME_OPTIONS);
-    }
-
-    @Override
-    public IterableConsumer startOrderedIterate(OrderedConsumerConfiguration config, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
-        Validator.required(config, "Ordered Consumer Config");
-        Validator.required(consumeOptions, "Consume Options");
-        ConsumerConfiguration cc = getBackingConsumerConfiguration(config);
-        PullSubscribeOptions pso = new OrderedPullSubscribeOptionsBuilder(streamName, cc).build();
-        return new NatsIterableConsumer(new SimplifiedSubscriptionMaker(js, pso, cc.getFilterSubject()), null, consumeOptions);
-    }
-
-    @Override
-    public MessageConsumer startOrderedConsume(OrderedConsumerConfiguration config, MessageHandler handler) throws IOException, JetStreamApiException {
-        return startOrderedConsume(config, handler, DEFAULT_CONSUME_OPTIONS);
-    }
-
-    @Override
-    public MessageConsumer startOrderedConsume(OrderedConsumerConfiguration config, MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
-        Validator.required(config, "Ordered Consumer Config");
-        Validator.required(handler, "Message Handler");
-        Validator.required(consumeOptions, "Consume Options");
-        ConsumerConfiguration cc = getBackingConsumerConfiguration(config);
-        PullSubscribeOptions pso = new OrderedPullSubscribeOptionsBuilder(streamName, cc).build();
-        return new NatsMessageConsumer(new SimplifiedSubscriptionMaker(js, pso, cc.getFilterSubject()), null, handler, consumeOptions);
-    }
-
-    private ConsumerConfiguration getBackingConsumerConfiguration(OrderedConsumerConfiguration config) {
-        return ConsumerConfiguration.builder()
-            .name(generateConsumerName())
-            .filterSubject(config.getFilterSubject())
-            .deliverPolicy(config.getDeliverPolicy())
-            .startSequence(config.getStartSequence())
-            .startTime(config.getStartTime())
-            .replayPolicy(config.getReplayPolicy())
-            .headersOnly(config.getHeadersOnly())
-            .build();
     }
 }

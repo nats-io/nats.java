@@ -62,7 +62,7 @@ public class ContextExample {
             System.out.println("C3. " + consumerContext.getCachedConsumerInfo());
 
             // get a ConsumerContext from the stream context for a pre-existing consumer
-            consumerContext = streamContext.consumerContext(CONSUMER_NAME);
+            consumerContext = streamContext.createConsumerContext(CONSUMER_NAME);
             System.out.println("C4. " + consumerContext.getCachedConsumerInfo());
         }
         catch (JetStreamApiException | IOException | InterruptedException ioe) {

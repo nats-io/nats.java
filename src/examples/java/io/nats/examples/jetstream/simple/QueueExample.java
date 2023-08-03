@@ -128,7 +128,7 @@ public class QueueExample {
 
         public HandlerConsumerHolder(int id, StreamContext sc, CountDownLatch latch) throws JetStreamApiException, IOException {
             super(id, sc, latch);
-            messageConsumer = consumerContext.startConsume(msg -> {
+            messageConsumer = consumerContext.consume(msg -> {
                 thisReceived.incrementAndGet();
                 latch.countDown();
                 String data = new String(msg.getData(), StandardCharsets.US_ASCII);
@@ -150,7 +150,7 @@ public class QueueExample {
 
         public IterableConsumerHolder(int id, StreamContext sc, CountDownLatch latch) throws JetStreamApiException, IOException {
             super(id, sc, latch);
-            iterableConsumer = consumerContext.startIterate();
+            iterableConsumer = consumerContext.iterate();
             t = new Thread(() -> {
                 while (latch.getCount() > 0) {
                     try {
@@ -187,7 +187,7 @@ public class QueueExample {
             this.id = id;
             thisReceived = new AtomicInteger();
             this.latch = latch;
-            consumerContext = sc.consumerContext(CONSUMER_NAME);
+            consumerContext = sc.createConsumerContext(CONSUMER_NAME);
         }
 
         public abstract void stop() throws InterruptedException;
