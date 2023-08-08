@@ -80,14 +80,8 @@ class NatsStreamContext implements StreamContext {
      * {@inheritDoc}
      */
     @Override
-    public ConsumerContext createConsumerContext(String consumerName) throws IOException, JetStreamApiException {
+    public ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException {
         return new NatsConsumerContext(this, jsm.getConsumerInfo(streamName, consumerName));
-    }
-
-    @Override
-    public ConsumerContext createOrderedConsumer(OrderedConsumerConfiguration config) throws IOException, JetStreamApiException {
-        Validator.required(config, "Ordered Consumer Config");
-        return new NatsConsumerContext(this, config);
     }
 
     /**
@@ -96,6 +90,15 @@ class NatsStreamContext implements StreamContext {
     @Override
     public ConsumerContext createOrUpdateConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException {
         return new NatsConsumerContext(this, jsm.addOrUpdateConsumer(streamName, config));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public OrderedConsumerContext createOrderedConsumer(OrderedConsumerConfiguration config) throws IOException, JetStreamApiException {
+        Validator.required(config, "Ordered Consumer Config");
+        return new NatsOrderedConsumerContext(this, config);
     }
 
     /**

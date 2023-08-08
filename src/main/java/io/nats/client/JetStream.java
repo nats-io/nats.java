@@ -456,7 +456,6 @@ public interface JetStream {
 
     /**
      * Create a subscription to the specified subject in the mode of pull, with additional options
-     *
      * @param subject The subject to subscribe to
      * @param options pull subscription options
      * @return The subscription
@@ -468,7 +467,6 @@ public interface JetStream {
 
     /**
      * Create an asynchronous subscription to the specified subject in the mode of pull, with additional options
-     *
      * @param subject The subject to subscribe to
      * @param dispatcher The dispatcher to handle this subscription
      * @param handler The target for the messages
@@ -481,7 +479,7 @@ public interface JetStream {
     JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, PullSubscribeOptions options) throws IOException, JetStreamApiException;
 
     /**
-     * Create a stream context for a specific named stream. Verifies that the stream exists.
+     * Get a stream context for a specific named stream. Verifies that the stream exists.
      * EXPERIMENTAL API SUBJECT TO CHANGE
      * @param streamName the name of the stream
      * @return a StreamContext object
@@ -489,10 +487,10 @@ public interface JetStream {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    StreamContext streamContext(String streamName) throws IOException, JetStreamApiException;
+    StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException;
 
     /**
-     * Create a consumer context for a specific named stream and specific named consumer.
+     * Get a consumer context for a specific named stream and specific named consumer.
      * Verifies that the stream and consumer exist.
      * EXPERIMENTAL API SUBJECT TO CHANGE
      * @param streamName the name of the stream
@@ -502,5 +500,5 @@ public interface JetStream {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    ConsumerContext consumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException;
+    ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException;
 }

@@ -26,13 +26,14 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
     NatsFetchConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
                       ConsumerInfo cachedConsumerInfo,
                       FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException {
-        super(cachedConsumerInfo, subscriptionMaker.subscribe(null));
+        super(cachedConsumerInfo);
         maxWaitNanos = fetchConsumeOptions.getExpiresInMillis() * 1_000_000;
         PullRequestOptions pro = PullRequestOptions.builder(fetchConsumeOptions.getMaxMessages())
             .maxBytes(fetchConsumeOptions.getMaxBytes())
             .expiresIn(fetchConsumeOptions.getExpiresInMillis())
             .idleHeartbeat(fetchConsumeOptions.getIdleHeartbeat())
             .build();
+        initSub(subscriptionMaker.subscribe(null));
         pullSubject = sub._pull(pro, false, null);
         startNanos = -1;
     }
@@ -47,7 +48,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             // if the manager thinks it has received everything in the pull, it means
             // that all the messages are already in the internal queue and there is
             // no waiting necessary
-            if (noMorePending()) {
+            if (pmm.noMorePending()) {
                 Message m = sub._nextUnmanagedNoWait(pullSubject);
                 if (m == null) {
                     // if there are no messages in the internal cache AND there are no more pending,

@@ -115,10 +115,10 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         if (lastConsumer != null) {
             if (ordered) {
                 if (!lastConsumer.finished) {
-                    throw new IOException(lastConsumerType + "is already running. Ordered Consumer does not allow multiple instances at time.");
+                    throw new IOException("'" + lastConsumerType + "' is already running. Ordered Consumer does not allow multiple instances at time.");
                 }
             }
-            if (lastConsumer.finished) {
+            if (lastConsumer.finished && !lastConsumer.stopped) {
                 lastConsumer.lenientClose(); // finished, might as well make sure the sub is closed.
             }
         }
@@ -178,25 +178,29 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      */
     @Override
     public Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
+        NatsMessageConsumerBase con;
         synchronized (stateLock) {
             checkState();
             if (maxWaitMillis < MIN_EXPIRES_MILLS) {
                 throw new IllegalArgumentException("Max wait must be at least " + MIN_EXPIRES_MILLS + " milliseconds.");
             }
 
-            NatsMessageConsumerBase c = new NatsMessageConsumerBase(cachedConsumerInfo, subscribe(null));
-            trackConsume(ConsumeType.next, c);
-            c.sub._pull(PullRequestOptions.builder(1).expiresIn(maxWaitMillis - EXPIRE_ADJUSTMENT).build(), false, null);
+            con = new NatsMessageConsumerBase(cachedConsumerInfo);
+            con.initSub(subscribe(null));
+            con.sub._pull(PullRequestOptions.builder(1).expiresIn(maxWaitMillis - EXPIRE_ADJUSTMENT).build(), false, null);
+            trackConsume(ConsumeType.next, con);
+        }
 
-            try {
-                return c.sub.nextMessage(maxWaitMillis);
-            }
-            catch (JetStreamStatusException e) {
-                throw new JetStreamStatusCheckedException(e);
-            }
-            finally {
-                c.lenientClose();
-            }
+        // intentionally outside the lock
+        try {
+            return con.sub.nextMessage(maxWaitMillis);
+        }
+        catch (JetStreamStatusException e) {
+            throw new JetStreamStatusCheckedException(e);
+        }
+        finally {
+            con.finished = true;
+            con.lenientClose();
         }
     }
 

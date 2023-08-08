@@ -13,15 +13,12 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.ConsumeOptions;
-import io.nats.client.JetStreamApiException;
-import io.nats.client.MessageHandler;
-import io.nats.client.PullRequestOptions;
+import io.nats.client.*;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 
-class NatsMessageConsumer extends NatsMessageConsumerBase implements TrackPendingListener {
+class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManagerObserver {
     protected final PullRequestOptions rePullPro;
     protected final int thresholdMessages;
     protected final long thresholdBytes;
@@ -30,7 +27,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements TrackPendin
                         ConsumerInfo cachedConsumerInfo,
                         MessageHandler messageHandler,
                         ConsumeOptions opts) throws IOException, JetStreamApiException {
-        super(cachedConsumerInfo, subscriptionMaker.subscribe(messageHandler));
+        super(cachedConsumerInfo);
 
         int bm = opts.getBatchSize();
         long bb = opts.getBatchBytes();
@@ -46,6 +43,8 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements TrackPendin
         thresholdMessages = bm - rePullMessages;
         thresholdBytes = bb == 0 ? Integer.MIN_VALUE : bb - rePullBytes;
 
+        MessageHandler mh = messageHandler == null ? null : new SequenceTracker(messageHandler);
+        initSub(subscriptionMaker.subscribe(mh));
         sub._pull(PullRequestOptions.builder(bm)
                 .maxBytes(bb)
                 .expiresIn(opts.getExpiresInMillis())
@@ -55,10 +54,26 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements TrackPendin
     }
 
     @Override
-    public void track(int pendingMessages, long pendingBytes, boolean trackingBytes) {
-        if (!stopped && (pendingMessages <= thresholdMessages || (trackingBytes && pendingBytes <= thresholdBytes)))
+    public void pendingUpdated() {
+        if (!stopped && (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
         {
             sub._pull(rePullPro, false, this);
+        }
+    }
+
+    class SequenceTracker implements MessageHandler {
+        MessageHandler userHandler;
+
+        public SequenceTracker(MessageHandler userHandler) {
+            this.userHandler = userHandler;
+        }
+
+        @Override
+        public void onMessage(Message msg) throws InterruptedException {
+            if (stopped && pmm.noMorePending()) {
+                finished = true;
+            }
+            userHandler.onMessage(msg);
         }
     }
 }

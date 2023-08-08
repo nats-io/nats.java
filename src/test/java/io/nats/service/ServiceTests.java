@@ -553,7 +553,7 @@ public class ServiceTests extends JetStreamTestBase {
 
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> Service.builder().name(NAME).version("1.0.0").addServiceEndpoint(se).build());
-        assertTrue(iae.getMessage().contains("Connection cannot be null or empty"));
+        assertTrue(iae.getMessage().contains("Connection cannot be null"));
 
         iae = assertThrows(IllegalArgumentException.class,
             () -> Service.builder().connection(conn).version("1.0.0").addServiceEndpoint(se).build());

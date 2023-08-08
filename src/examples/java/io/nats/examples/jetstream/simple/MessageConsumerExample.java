@@ -51,9 +51,9 @@ public class MessageConsumerExample {
             StreamContext streamContext;
             ConsumerContext consumerContext;
             try {
-                streamContext = nc.streamContext(STREAM);
+                streamContext = nc.getStreamContext(STREAM);
                 streamContext.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
-                consumerContext = streamContext.createConsumerContext(CONSUMER_NAME);
+                consumerContext = streamContext.getConsumerContext(CONSUMER_NAME);
             }
             catch (JetStreamApiException | IOException e) {
                 // JetStreamApiException:
@@ -83,7 +83,7 @@ public class MessageConsumerExample {
                 latch.await();
                 // once the consumer is stopped, the client will drain messages
                 System.out.println("Stop the consumer...");
-                consumer.stop(1000);
+                consumer.stop();
                 Thread.sleep(1000); // enough for messages to drain after stop
             }
             catch (JetStreamApiException | IOException e) {

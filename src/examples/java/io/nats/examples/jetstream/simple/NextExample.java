@@ -41,7 +41,7 @@ public class NextExample {
             StreamContext streamContext;
             ConsumerContext consumerContext;
             try {
-                streamContext = nc.streamContext(STREAM);
+                streamContext = nc.getStreamContext(STREAM);
                 consumerContext = streamContext.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
             }
             catch (JetStreamApiException | IOException e) {

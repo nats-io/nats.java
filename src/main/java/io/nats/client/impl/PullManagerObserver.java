@@ -13,6 +13,6 @@
 
 package io.nats.client.impl;
 
-interface TrackPendingListener {
-    void track(int pendingMessages, long pendingBytes, boolean trackingBytes);
+interface PullManagerObserver {
+    void pendingUpdated();
 }

@@ -38,15 +38,15 @@ public class ContextExample {
             createOrReplaceStream(nc.jetStreamManagement(), STREAM, SUBJECT);
 
             // get a stream context from the connection
-            StreamContext streamContext = nc.streamContext(STREAM);
+            StreamContext streamContext = nc.getStreamContext(STREAM);
             System.out.println("S1. " + streamContext.getStreamInfo());
 
             // get a stream context from the connection, supplying custom JetStreamOptions
-            streamContext = nc.streamContext(STREAM, JetStreamOptions.builder().build());
+            streamContext = nc.getStreamContext(STREAM, JetStreamOptions.builder().build());
             System.out.println("S2. " + streamContext.getStreamInfo());
 
             // get a stream context from the JetStream context
-            streamContext = js.streamContext(STREAM);
+            streamContext = js.getStreamContext(STREAM);
             System.out.println("S3. " + streamContext.getStreamInfo());
 
             // when you create a consumer from the stream context you get a ConsumerContext in return
@@ -54,15 +54,15 @@ public class ContextExample {
             System.out.println("C1. " + consumerContext.getCachedConsumerInfo());
 
             // get a ConsumerContext from the connection for a pre-existing consumer
-            consumerContext = nc.consumerContext(STREAM, CONSUMER_NAME);
+            consumerContext = nc.getConsumerContext(STREAM, CONSUMER_NAME);
             System.out.println("C2. " + consumerContext.getCachedConsumerInfo());
 
             // get a ConsumerContext from the connection for a pre-existing consumer, supplying custom JetStreamOptions
-            consumerContext = nc.consumerContext(STREAM, CONSUMER_NAME, JetStreamOptions.builder().build());
+            consumerContext = nc.getConsumerContext(STREAM, CONSUMER_NAME, JetStreamOptions.builder().build());
             System.out.println("C3. " + consumerContext.getCachedConsumerInfo());
 
             // get a ConsumerContext from the stream context for a pre-existing consumer
-            consumerContext = streamContext.createConsumerContext(CONSUMER_NAME);
+            consumerContext = streamContext.getConsumerContext(CONSUMER_NAME);
             System.out.println("C4. " + consumerContext.getCachedConsumerInfo());
         }
         catch (JetStreamApiException | IOException | InterruptedException ioe) {

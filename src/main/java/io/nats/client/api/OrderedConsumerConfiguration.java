@@ -95,7 +95,7 @@ public class OrderedConsumerConfiguration {
      * @return Builder
      */
     public OrderedConsumerConfiguration headersOnly(Boolean headersOnly) {
-        this.headersOnly = headersOnly;
+        this.headersOnly = headersOnly != null && headersOnly ? true : null;
         return this;
     }
 

@@ -20,7 +20,7 @@ import java.util.List;
 
 /**
  * The Stream Context provide a set of operations for managing the stream
- * and its contents and managing consumers.
+ * and its contents and for managing consumers.
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public interface StreamContext {
@@ -73,7 +73,7 @@ public interface StreamContext {
     PurgeResponse purge(PurgeOptions options) throws IOException, JetStreamApiException;
 
     /**
-     * Create a consumer context for the context's stream and specific named consumer.
+     * Get a consumer context for the context's stream and specific named consumer.
      * Verifies that the consumer exists.
      * @param consumerName the name of the consumer
      * @return a ConsumerContext object
@@ -81,17 +81,7 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    ConsumerContext createConsumerContext(String consumerName) throws IOException, JetStreamApiException;
-
-    /**
-     * Create an ordered consumer context for the context's stream.
-     * @param config the configuration for the ordered consumer
-     * @return a ConsumerContext object
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     */
-    ConsumerContext createOrderedConsumer(OrderedConsumerConfiguration config) throws IOException, JetStreamApiException;
+    ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException;
 
     /**
      * Management function to create or update a consumer on this stream.
@@ -102,6 +92,16 @@ public interface StreamContext {
      * @throws JetStreamApiException the request had an error related to the data
      */
     ConsumerContext createOrUpdateConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException;
+
+    /**
+     * Create an ordered consumer context for the context's stream.
+     * @param config the configuration for the ordered consumer
+     * @return a ConsumerContext object
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    OrderedConsumerContext createOrderedConsumer(OrderedConsumerConfiguration config) throws IOException, JetStreamApiException;
 
     /**
      * Management function to deletes a consumer.

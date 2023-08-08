@@ -133,7 +133,7 @@ public abstract class Validator {
 
     public static <T> T required(T o, String label) {
         if (o == null) {
-            throw new IllegalArgumentException(label + " cannot be null or empty.");
+            throw new IllegalArgumentException(label + " cannot be null.");
         }
         return o;
     }

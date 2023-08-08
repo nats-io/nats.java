@@ -13,8 +13,6 @@
 
 package io.nats.client;
 
-import io.nats.client.api.ConsumerInfo;
-
 import java.io.IOException;
 import java.time.Duration;
 
@@ -22,29 +20,7 @@ import java.time.Duration;
  * The Consumer Context provides a convenient interface around a defined JetStream Consumer
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
-public interface ConsumerContext {
-    /**
-     * Gets the consumer name that was used to create the context.
-     * @return the consumer name
-     */
-    String getConsumerName();
-
-    /**
-     * Gets information about the consumer behind this subscription.
-     * @return consumer information
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     */
-    ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
-
-    /**
-     * Gets information about the consumer behind this subscription.
-     * This returns the last read version of Consumer Info, which could technically be out of date.
-     * @return consumer information
-     */
-    ConsumerInfo getCachedConsumerInfo();
-
+public interface OrderedConsumerContext {
     /**
      * Read the next message with max wait set to {@value BaseConsumeOptions#DEFAULT_EXPIRES_IN_MILLIS} ms
      * @return the next message or null if the max wait expires

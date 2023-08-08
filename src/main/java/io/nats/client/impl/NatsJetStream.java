@@ -232,7 +232,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     MessageManagerFactory _pullMessageManagerFactory =
         (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new PullMessageManager(mmConn, mmSo, mmSyncMode);
     MessageManagerFactory _pullOrderedMessageManagerFactory =
-        (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new PullOrderedMessageManager(mmConn, mmJs, mmStream, mmSo, mmCc, mmSyncMode);
+        (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new OrderedPullMessageManager(mmConn, mmJs, mmStream, mmSo, mmCc, mmSyncMode);
 
     JetStreamSubscription createSubscription(String subject,
                                              String queueName,
@@ -325,7 +325,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
                 // because modifications are not allowed during create subscription
                 ConsumerConfigurationComparer userCCC = new ConsumerConfigurationComparer(userCC);
                 List<String> changes = userCCC.getChanges(serverCC);
-                if (changes.size() > 0) {
+                if (!changes.isEmpty()) {
                     throw JsSubExistingConsumerCannotBeModified.instance("Changed fields: " + changes);
                 }
 
@@ -637,7 +637,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      * {@inheritDoc}
      */
     @Override
-    public StreamContext streamContext(String streamName) throws IOException, JetStreamApiException {
+    public StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException {
         Validator.validateStreamName(streamName, true);
         return getNatsStreamContext(streamName);
     }
@@ -646,10 +646,10 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      * {@inheritDoc}
      */
     @Override
-    public ConsumerContext consumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException {
+    public ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException {
         Validator.validateStreamName(streamName, true);
         Validator.required(consumerName, "Consumer Name");
-        return getNatsStreamContext(streamName).createConsumerContext(consumerName);
+        return getNatsStreamContext(streamName).getConsumerContext(consumerName);
     }
 
     private NatsStreamContext getNatsStreamContext(String streamName) throws IOException, JetStreamApiException {

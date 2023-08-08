@@ -18,7 +18,6 @@ import io.nats.client.MessageConsumer;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
-import java.time.Duration;
 
 class NatsMessageConsumerBase implements MessageConsumer {
     protected NatsJetStreamPullSubscription sub;
@@ -27,20 +26,25 @@ class NatsMessageConsumerBase implements MessageConsumer {
     protected boolean finished;
     protected ConsumerInfo cachedConsumerInfo;
 
-    NatsMessageConsumerBase(ConsumerInfo cachedConsumerInfo, NatsJetStreamPullSubscription sub) {
+    NatsMessageConsumerBase(ConsumerInfo cachedConsumerInfo) {
         this.cachedConsumerInfo = cachedConsumerInfo;
+    }
+
+    void initSub(NatsJetStreamPullSubscription sub) {
         this.sub = sub;
         pmm = (PullMessageManager)sub.manager;
     }
 
-    boolean noMorePending() {
-        return pmm.pendingMessages < 1 || (pmm.trackingBytes && pmm.pendingBytes < 1);
-    }
-
+    /**
+     * {@inheritDoc}
+     */
     public boolean isStopped() {
         return stopped;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public boolean isFinished() {
         return finished;
     }
@@ -50,7 +54,7 @@ class NatsMessageConsumerBase implements MessageConsumer {
      */
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
-        // don't loo+k up consumer info if it was never set - this check is for ordered consumer
+        // don't look up consumer info if it was never set - this check is for ordered consumer
         if (cachedConsumerInfo != null) {
             cachedConsumerInfo = sub.getConsumerInfo();
         }
@@ -69,21 +73,8 @@ class NatsMessageConsumerBase implements MessageConsumer {
      * {@inheritDoc}
      */
     @Override
-    public void stop(long timeout) throws InterruptedException {
-        if (!stopped) {
-            try {
-                if (sub.getNatsDispatcher() != null) {
-                    sub.getDispatcher().drain(Duration.ofMillis(timeout));
-                }
-                else {
-                    sub.drain(Duration.ofMillis(timeout));
-                }
-            }
-            finally {
-                stopped = true;
-                finished = true;
-            }
-        }
+    public void stop() {
+        stopped = true;
     }
 
     @Override
@@ -93,7 +84,7 @@ class NatsMessageConsumerBase implements MessageConsumer {
 
     protected void lenientClose() {
         try {
-            if (!stopped && sub.isActive()) {
+            if (!stopped || sub.isActive()) {
                 if (sub.getNatsDispatcher() != null) {
                     sub.getDispatcher().unsubscribe(sub);
                 }
@@ -107,7 +98,6 @@ class NatsMessageConsumerBase implements MessageConsumer {
         }
         finally {
             stopped = true;
-            finished = true;
         }
     }
 }

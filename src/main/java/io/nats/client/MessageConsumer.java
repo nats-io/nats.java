@@ -41,15 +41,19 @@ public interface MessageConsumer extends AutoCloseable {
 
     /**
      * Stop the MessageConsumer from asking for any more messages from the server.
-     * There still may be messages available and coming across the wire.
-     * @param timeout The time to wait for the stop to succeed, pass 0 to wait
-     *                forever. Stop involves moving messages to and from the server
-     *                so a very short timeout is not recommended.
-     * @throws InterruptedException if one is thrown, in order to propagate it up
+     * The consumer will finish all pull request already in progress, but will not start any new ones.
      */
-    void stop(long timeout) throws InterruptedException;
+    void stop();
 
+    /**
+     * Stopped indicates whether consuming has been stopped. Can be stopped without being finished.
+     * @return the stopped flag
+     */
     boolean isStopped();
 
+    /**
+     * Finish indicates all messages have been received from the server. Can be finished without being stopped.
+     * @return the finished flag
+     */
     boolean isFinished();
 }

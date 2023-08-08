@@ -46,7 +46,7 @@ public class IterableConsumerExample {
             StreamContext streamContext;
             ConsumerContext consumerContext;
             try {
-                streamContext = nc.streamContext(STREAM);
+                streamContext = nc.getStreamContext(STREAM);
                 consumerContext = streamContext.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
             }
             catch (JetStreamApiException | IOException e) {
@@ -76,7 +76,7 @@ public class IterableConsumerExample {
 
                     System.out.println("Pausing for effect...allow more messages come across.");
                     Thread.sleep(JITTER * 2); // allows more messages to come across
-                    consumer.stop(1000);
+                    consumer.stop();
 
                     System.out.println("Starting post-stop loop.");
                     Message msg = consumer.nextMessage(1000);

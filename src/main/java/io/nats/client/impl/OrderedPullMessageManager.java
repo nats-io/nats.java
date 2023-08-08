@@ -23,7 +23,7 @@ import static io.nats.client.impl.MessageManager.ManageResult.MESSAGE;
 import static io.nats.client.impl.MessageManager.ManageResult.STATUS_HANDLED;
 import static io.nats.client.support.ConsumerUtils.nextOrderedConsumerConfiguration;
 
-class PullOrderedMessageManager extends PullMessageManager {
+class OrderedPullMessageManager extends PullMessageManager {
 
     protected final ConsumerConfiguration originalCc;
     protected final NatsJetStream js;
@@ -31,7 +31,7 @@ class PullOrderedMessageManager extends PullMessageManager {
     protected long expectedExternalConsumerSeq;
     protected final AtomicReference<String> targetSid;
 
-    protected PullOrderedMessageManager(NatsConnection conn,
+    protected OrderedPullMessageManager(NatsConnection conn,
                                         NatsJetStream js,
                                         String stream,
                                         SubscribeOptions so, ConsumerConfiguration originalCc, boolean syncMode) {
