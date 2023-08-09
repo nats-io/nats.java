@@ -72,10 +72,10 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
 
         @Override
         public void onMessage(Message msg) throws InterruptedException {
+            userHandler.onMessage(msg);
             if (stopped && pmm.noMorePending()) {
                 finished = true;
             }
-            userHandler.onMessage(msg);
         }
     }
 }
