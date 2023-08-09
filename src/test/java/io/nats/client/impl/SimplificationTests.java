@@ -398,7 +398,7 @@ public class SimplificationTests extends JetStreamTestBase {
             closeConsumer(cctx1.iterate(), name(1), true);
             closeConsumer(cctx2.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS), name(2), true);
             closeConsumer(cctx3.consume(m -> {}), name(3), true);
-            closeConsumer(cctx4.consume(m -> {}, ConsumeOptions.DEFAULT_CONSUME_OPTIONS), name(4), true);
+            closeConsumer(cctx4.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS, m -> {}), name(4), true);
             closeConsumer(cctx5.fetchMessages(1), name(5), false);
             closeConsumer(cctx6.fetchBytes(1000), name(6), false);
         });

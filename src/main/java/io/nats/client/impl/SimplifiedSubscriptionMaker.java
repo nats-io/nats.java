@@ -13,11 +13,12 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Dispatcher;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.MessageHandler;
 
 import java.io.IOException;
 
-public interface SimplifiedSubscriptionMaker {
-    NatsJetStreamPullSubscription subscribe(MessageHandler messageHandler) throws IOException, JetStreamApiException;
+interface SimplifiedSubscriptionMaker {
+    NatsJetStreamPullSubscription subscribe(MessageHandler optionalMessageHandler, Dispatcher optionalDispatcher) throws IOException, JetStreamApiException;
 }

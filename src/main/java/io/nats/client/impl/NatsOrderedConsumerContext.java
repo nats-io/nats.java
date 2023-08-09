@@ -13,14 +13,78 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.OrderedConsumerContext;
+import io.nats.client.*;
 import io.nats.client.api.OrderedConsumerConfiguration;
+
+import java.io.IOException;
+import java.time.Duration;
 
 /**
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
-public class NatsOrderedConsumerContext extends NatsConsumerContext implements OrderedConsumerContext {
+public class NatsOrderedConsumerContext implements OrderedConsumerContext {
+    NatsConsumerContext impl;
     NatsOrderedConsumerContext(NatsStreamContext streamContext, OrderedConsumerConfiguration config) {
-        super(streamContext, config);
+        impl = new NatsConsumerContext(streamContext, config);
+    }
+
+    @Override
+    public Message next() throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
+        return impl.next();
+    }
+
+    @Override
+    public Message next(Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
+        return impl.next(maxWait);
+    }
+
+    @Override
+    public Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
+        return impl.next(maxWaitMillis);
+    }
+
+    @Override
+    public FetchConsumer fetchMessages(int maxMessages) throws IOException, JetStreamApiException {
+        return impl.fetchMessages(maxMessages);
+    }
+
+    @Override
+    public FetchConsumer fetchBytes(int maxBytes) throws IOException, JetStreamApiException {
+        return impl.fetchBytes(maxBytes);
+    }
+
+    @Override
+    public FetchConsumer fetch(FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException {
+        return impl.fetch(fetchConsumeOptions);
+    }
+
+    @Override
+    public IterableConsumer iterate() throws IOException, JetStreamApiException {
+        return impl.iterate();
+    }
+
+    @Override
+    public IterableConsumer iterate(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+        return impl.iterate(consumeOptions);
+    }
+
+    @Override
+    public MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException {
+        return impl.consume(handler);
+    }
+
+    @Override
+    public MessageConsumer consume(Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException {
+        return impl.consume(dispatcher, handler);
+    }
+
+    @Override
+    public MessageConsumer consume(ConsumeOptions consumeOptions, MessageHandler handler) throws IOException, JetStreamApiException {
+        return impl.consume(consumeOptions, handler);
+    }
+
+    @Override
+    public MessageConsumer consume(ConsumeOptions consumeOptions, Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException {
+        return impl.consume(consumeOptions, dispatcher, handler);
     }
 }

@@ -48,7 +48,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     private NatsMessageConsumerBase lastConsumer;
     private long highestSeq;
     private ConsumeType lastConsumerType;
-    private Dispatcher dispatcher;
+    private Dispatcher defaultDispatcher;
 
     NatsConsumerContext(NatsStreamContext streamContext, ConsumerInfo ci) {
         stateLock = new Object();
@@ -79,14 +79,14 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     }
 
     static class OrderedPullSubscribeOptionsBuilder extends PullSubscribeOptions.Builder {
-        public OrderedPullSubscribeOptionsBuilder(String streamName, ConsumerConfiguration cc) {
+        OrderedPullSubscribeOptionsBuilder(String streamName, ConsumerConfiguration cc) {
             stream(streamName);
             configuration(cc);
             ordered = true;
         }
     }
 
-    public NatsJetStreamPullSubscription subscribe(MessageHandler messageHandler) throws IOException, JetStreamApiException {
+    public NatsJetStreamPullSubscription subscribe(MessageHandler messageHandler, Dispatcher userDispatcher) throws IOException, JetStreamApiException {
         PullSubscribeOptions pso;
         if (ordered) {
             if (lastConsumer != null) {
@@ -105,10 +105,14 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             return (NatsJetStreamPullSubscription)streamContext.js.subscribe(subscribeSubject, pso);
         }
 
-        if (dispatcher == null) {
-            dispatcher = streamContext.js.conn.createDispatcher();
+        Dispatcher d = userDispatcher;
+        if (d == null) {
+            if (defaultDispatcher == null) {
+                defaultDispatcher = streamContext.js.conn.createDispatcher();
+            }
+            d = defaultDispatcher;
         }
-        return (NatsJetStreamPullSubscription)streamContext.js.subscribe(subscribeSubject, dispatcher, messageHandler, pso);
+        return (NatsJetStreamPullSubscription)streamContext.js.subscribe(subscribeSubject, d, messageHandler, pso);
     }
 
     private void checkState() throws IOException {
@@ -186,7 +190,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             }
 
             con = new NatsMessageConsumerBase(cachedConsumerInfo);
-            con.initSub(subscribe(null));
+            con.initSub(subscribe(null, null));
             con.sub._pull(PullRequestOptions.builder(1).expiresIn(maxWaitMillis - EXPIRE_ADJUSTMENT).build(), false, null);
             trackConsume(ConsumeType.next, con);
         }
@@ -257,19 +261,36 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      */
     @Override
     public MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException {
-        return consume(handler, DEFAULT_CONSUME_OPTIONS);
+        return consume(DEFAULT_CONSUME_OPTIONS, null, handler);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public MessageConsumer consume(MessageHandler handler, ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    public MessageConsumer consume(Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException {
+        return consume(DEFAULT_CONSUME_OPTIONS, dispatcher, handler);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageConsumer consume(ConsumeOptions consumeOptions, MessageHandler handler) throws IOException, JetStreamApiException {
+        return consume(consumeOptions, null, handler);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageConsumer consume(ConsumeOptions consumeOptions, Dispatcher userDispatcher, MessageHandler handler) throws IOException, JetStreamApiException {
         synchronized (stateLock) {
             checkState();
             Validator.required(handler, "Message Handler");
             Validator.required(consumeOptions, "Consume Options");
-            return trackConsume(ConsumeType.consume, new NatsMessageConsumer(this, cachedConsumerInfo, handler, consumeOptions));
+            return trackConsume(ConsumeType.consume,
+                new NatsMessageConsumer(this, cachedConsumerInfo, consumeOptions, userDispatcher, handler));
         }
     }
 }

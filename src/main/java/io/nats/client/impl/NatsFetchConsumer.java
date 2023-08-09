@@ -25,15 +25,17 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
 
     NatsFetchConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
                       ConsumerInfo cachedConsumerInfo,
-                      FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException {
+                      FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException
+    {
         super(cachedConsumerInfo);
+
         maxWaitNanos = fetchConsumeOptions.getExpiresInMillis() * 1_000_000;
         PullRequestOptions pro = PullRequestOptions.builder(fetchConsumeOptions.getMaxMessages())
             .maxBytes(fetchConsumeOptions.getMaxBytes())
             .expiresIn(fetchConsumeOptions.getExpiresInMillis())
             .idleHeartbeat(fetchConsumeOptions.getIdleHeartbeat())
             .build();
-        initSub(subscriptionMaker.subscribe(null));
+        initSub(subscriptionMaker.subscribe(null, null));
         pullSubject = sub._pull(pro, false, null);
         startNanos = -1;
     }

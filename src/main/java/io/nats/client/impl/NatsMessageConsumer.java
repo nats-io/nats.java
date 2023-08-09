@@ -25,8 +25,10 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
 
     NatsMessageConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
                         ConsumerInfo cachedConsumerInfo,
-                        MessageHandler messageHandler,
-                        ConsumeOptions opts) throws IOException, JetStreamApiException {
+                        ConsumeOptions opts,
+                        Dispatcher userDispatcher,
+                        MessageHandler messageHandler) throws IOException, JetStreamApiException
+    {
         super(cachedConsumerInfo);
 
         int bm = opts.getBatchSize();
@@ -44,7 +46,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         thresholdBytes = bb == 0 ? Integer.MIN_VALUE : bb - rePullBytes;
 
         MessageHandler mh = messageHandler == null ? null : new SequenceTracker(messageHandler);
-        initSub(subscriptionMaker.subscribe(mh));
+        initSub(subscriptionMaker.subscribe(mh, userDispatcher));
         sub._pull(PullRequestOptions.builder(bm)
                 .maxBytes(bb)
                 .expiresIn(opts.getExpiresInMillis())
