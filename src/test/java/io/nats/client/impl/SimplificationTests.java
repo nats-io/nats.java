@@ -255,9 +255,9 @@ public class SimplificationTests extends JetStreamTestBase {
     public void testOrderedIterableConsumerBasic() throws Exception {
         runInJsServer(this::mustBeAtLeast291, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
-
-            createDefaultTestStream(jsm);
             JetStream js = nc.jetStream();
+            createDefaultTestStream(jsm);
+
             StreamContext sc = nc.getStreamContext(STREAM);
 
             int stopCount = 500;
@@ -347,9 +347,9 @@ public class SimplificationTests extends JetStreamTestBase {
     public void testNext() throws Exception {
         runInJsServer(this::mustBeAtLeast291, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = nc.jetStream();
 
             createDefaultTestStream(jsm);
-            JetStream js = nc.jetStream();
             jsPublish(js, SUBJECT, 4);
 
             // Pre define a consumer
@@ -750,8 +750,7 @@ public class SimplificationTests extends JetStreamTestBase {
             assertEquals(seq++, m.metaData().streamSequence());
 
             int last = Math.min(seq + 10, 9999);
-            int f = last - seq;
-            try (FetchConsumer fc = ctx.fetchMessages(f)) {
+            try (FetchConsumer fc = ctx.fetchMessages(last - seq)) {
                 while (seq < last) {
                     fc.stop();
                     m = fc.nextMessage();

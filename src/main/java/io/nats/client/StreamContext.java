@@ -96,7 +96,7 @@ public interface StreamContext {
     /**
      * Create an ordered consumer context for the context's stream.
      * @param config the configuration for the ordered consumer
-     * @return a ConsumerContext object
+     * @return an OrderedConsumerContext object
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data

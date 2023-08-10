@@ -26,18 +26,13 @@ import static io.nats.client.BaseConsumeOptions.DEFAULT_EXPIRES_IN_MILLIS;
 import static io.nats.client.BaseConsumeOptions.MIN_EXPIRES_MILLS;
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
 import static io.nats.client.impl.NatsJetStreamSubscription.EXPIRE_ADJUSTMENT;
-import static io.nats.client.support.ConsumerUtils.nextOrderedConsumerConfiguration;
 
 /**
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscriptionMaker {
-    private enum ConsumeType {
-        next, fetch, iterate, consume
-    }
-
     private final Object stateLock;
-    private final NatsStreamContext streamContext;
+    private final NatsStreamContext streamCtx;
     private final boolean ordered;
     private final String consumerName;
     private final ConsumerConfiguration originalOrderedCc;
@@ -47,23 +42,22 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     private ConsumerInfo cachedConsumerInfo;
     private NatsMessageConsumerBase lastConsumer;
     private long highestSeq;
-    private ConsumeType lastConsumerType;
     private Dispatcher defaultDispatcher;
 
-    NatsConsumerContext(NatsStreamContext streamContext, ConsumerInfo ci) {
+    NatsConsumerContext(NatsStreamContext sc, ConsumerInfo ci) {
         stateLock = new Object();
-        this.streamContext = streamContext;
+        streamCtx = sc;
         ordered = false;
         consumerName = ci.getName();
         originalOrderedCc = null;
         subscribeSubject = null;
-        unorderedBindPso = PullSubscribeOptions.bind(streamContext.streamName, consumerName);
+        unorderedBindPso = PullSubscribeOptions.bind(sc.streamName, consumerName);
         cachedConsumerInfo = ci;
     }
 
-    NatsConsumerContext(NatsStreamContext streamContext, OrderedConsumerConfiguration config) {
+    NatsConsumerContext(NatsStreamContext sc, OrderedConsumerConfiguration config) {
         stateLock = new Object();
-        this.streamContext = streamContext;
+        streamCtx = sc;
         ordered = true;
         consumerName = null;
         originalOrderedCc = ConsumerConfiguration.builder()
@@ -94,32 +88,32 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             }
             ConsumerConfiguration cc = lastConsumer == null
                 ? originalOrderedCc
-                : nextOrderedConsumerConfiguration(originalOrderedCc, highestSeq, null);
-            pso = new OrderedPullSubscribeOptionsBuilder(streamContext.streamName, cc).build();
+                : streamCtx.js.nextOrderedConsumerConfiguration(originalOrderedCc, highestSeq, null);
+            pso = new OrderedPullSubscribeOptionsBuilder(streamCtx.streamName, cc).build();
         }
         else {
             pso = unorderedBindPso;
         }
 
         if (messageHandler == null) {
-            return (NatsJetStreamPullSubscription)streamContext.js.subscribe(subscribeSubject, pso);
+            return (NatsJetStreamPullSubscription) streamCtx.js.subscribe(subscribeSubject, pso);
         }
 
         Dispatcher d = userDispatcher;
         if (d == null) {
             if (defaultDispatcher == null) {
-                defaultDispatcher = streamContext.js.conn.createDispatcher();
+                defaultDispatcher = streamCtx.js.conn.createDispatcher();
             }
             d = defaultDispatcher;
         }
-        return (NatsJetStreamPullSubscription)streamContext.js.subscribe(subscribeSubject, d, messageHandler, pso);
+        return (NatsJetStreamPullSubscription) streamCtx.js.subscribe(subscribeSubject, d, messageHandler, pso);
     }
 
     private void checkState() throws IOException {
         if (lastConsumer != null) {
             if (ordered) {
                 if (!lastConsumer.finished) {
-                    throw new IOException("'" + lastConsumerType + "' is already running. Ordered Consumer does not allow multiple instances at time.");
+                    throw new IOException("The ordered consumer is already receiving messages. Ordered Consumer does not allow multiple instances at time.");
                 }
             }
             if (lastConsumer.finished && !lastConsumer.stopped) {
@@ -128,8 +122,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         }
     }
 
-    private NatsMessageConsumerBase trackConsume(ConsumeType ct, NatsMessageConsumerBase con) {
-        lastConsumerType = ct;
+    private NatsMessageConsumerBase trackConsume(NatsMessageConsumerBase con) {
         lastConsumer = con;
         return con;
     }
@@ -148,7 +141,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
         if (consumerName != null) {
-            cachedConsumerInfo = streamContext.jsm.getConsumerInfo(streamContext.streamName, cachedConsumerInfo.getName());
+            cachedConsumerInfo = streamCtx.jsm.getConsumerInfo(streamCtx.streamName, cachedConsumerInfo.getName());
         }
         return cachedConsumerInfo;
     }
@@ -182,29 +175,29 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      */
     @Override
     public Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
-        NatsMessageConsumerBase con;
         synchronized (stateLock) {
             checkState();
             if (maxWaitMillis < MIN_EXPIRES_MILLS) {
                 throw new IllegalArgumentException("Max wait must be at least " + MIN_EXPIRES_MILLS + " milliseconds.");
             }
 
-            con = new NatsMessageConsumerBase(cachedConsumerInfo);
-            con.initSub(subscribe(null, null));
-            con.sub._pull(PullRequestOptions.builder(1).expiresIn(maxWaitMillis - EXPIRE_ADJUSTMENT).build(), false, null);
-            trackConsume(ConsumeType.next, con);
-        }
-
-        // intentionally outside the lock
-        try {
-            return con.sub.nextMessage(maxWaitMillis);
-        }
-        catch (JetStreamStatusException e) {
-            throw new JetStreamStatusCheckedException(e);
-        }
-        finally {
-            con.finished = true;
-            con.lenientClose();
+            try (NatsMessageConsumerBase con = new NatsMessageConsumerBase(cachedConsumerInfo)) {
+                con.initSub(subscribe(null, null));
+                con.sub._pull(PullRequestOptions.builder(1)
+                    .expiresIn(maxWaitMillis - EXPIRE_ADJUSTMENT)
+                    .build(), false, null);
+                trackConsume(con);
+                Message m = con.sub.nextMessage(maxWaitMillis);
+                con.finished = true;
+                return m;
+            }
+            catch (JetStreamStatusException e) {
+                throw new JetStreamStatusCheckedException(e);
+            }
+            catch (Exception e) {
+                // from autocloseable, but we know it doesn't actually throw
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -232,7 +225,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         synchronized (stateLock) {
             checkState();
             Validator.required(fetchConsumeOptions, "Fetch Consume Options");
-            return (FetchConsumer)trackConsume(ConsumeType.fetch, new NatsFetchConsumer(this, cachedConsumerInfo, fetchConsumeOptions));
+            return (FetchConsumer)trackConsume(new NatsFetchConsumer(this, cachedConsumerInfo, fetchConsumeOptions));
         }
     }
 
@@ -252,7 +245,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         synchronized (stateLock) {
             checkState();
             Validator.required(consumeOptions, "Consume Options");
-            return (IterableConsumer) trackConsume(ConsumeType.iterate, new NatsIterableConsumer(this, cachedConsumerInfo, consumeOptions));
+            return (IterableConsumer) trackConsume(new NatsIterableConsumer(this, cachedConsumerInfo, consumeOptions));
         }
     }
 
@@ -289,8 +282,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             checkState();
             Validator.required(handler, "Message Handler");
             Validator.required(consumeOptions, "Consume Options");
-            return trackConsume(ConsumeType.consume,
-                new NatsMessageConsumer(this, cachedConsumerInfo, consumeOptions, userDispatcher, handler));
+            return trackConsume(new NatsMessageConsumer(this, cachedConsumerInfo, consumeOptions, userDispatcher, handler));
         }
     }
 }

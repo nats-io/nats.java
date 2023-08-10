@@ -163,5 +163,4 @@ class PullMessageManager extends MessageManager {
     protected boolean noMorePending() {
         return pendingMessages < 1 || (trackingBytes && pendingBytes < 1);
     }
-
 }

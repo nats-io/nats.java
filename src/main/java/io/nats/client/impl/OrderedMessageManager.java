@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.impl.MessageManager.ManageResult.MESSAGE;
 import static io.nats.client.impl.MessageManager.ManageResult.STATUS_HANDLED;
-import static io.nats.client.support.ConsumerUtils.nextOrderedConsumerConfiguration;
 
 class OrderedMessageManager extends PushMessageManager {
 
@@ -84,7 +83,7 @@ class OrderedMessageManager extends PushMessageManager {
 
             // 3. make a new consumer using the same deliver subject but
             //    with a new starting point
-            ConsumerConfiguration userCC = nextOrderedConsumerConfiguration(originalCc, lastStreamSeq, newDeliverSubject);
+            ConsumerConfiguration userCC = js.nextOrderedConsumerConfiguration(originalCc, lastStreamSeq, newDeliverSubject);
             js._createConsumerUnsubscribeOnException(stream, userCC, sub);
 
             // 4. restart the manager.

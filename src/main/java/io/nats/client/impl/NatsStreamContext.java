@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
-import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.util.List;
@@ -97,7 +96,6 @@ class NatsStreamContext implements StreamContext {
      */
     @Override
     public OrderedConsumerContext createOrderedConsumer(OrderedConsumerConfiguration config) throws IOException, JetStreamApiException {
-        Validator.required(config, "Ordered Consumer Config");
         return new NatsOrderedConsumerContext(this, config);
     }
 

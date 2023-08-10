@@ -85,6 +85,7 @@ class NatsMessageConsumerBase implements MessageConsumer {
     protected void lenientClose() {
         try {
             if (!stopped || sub.isActive()) {
+                stopped = true;
                 if (sub.getNatsDispatcher() != null) {
                     sub.getDispatcher().unsubscribe(sub);
                 }
@@ -95,9 +96,6 @@ class NatsMessageConsumerBase implements MessageConsumer {
         }
         catch (Throwable ignore) {
             // nothing to do
-        }
-        finally {
-            stopped = true;
         }
     }
 }

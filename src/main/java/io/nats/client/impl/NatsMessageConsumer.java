@@ -27,7 +27,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
                         ConsumerInfo cachedConsumerInfo,
                         ConsumeOptions opts,
                         Dispatcher userDispatcher,
-                        MessageHandler messageHandler) throws IOException, JetStreamApiException
+                        final MessageHandler userMessageHandler) throws IOException, JetStreamApiException
     {
         super(cachedConsumerInfo);
 
@@ -45,7 +45,12 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         thresholdMessages = bm - rePullMessages;
         thresholdBytes = bb == 0 ? Integer.MIN_VALUE : bb - rePullBytes;
 
-        MessageHandler mh = messageHandler == null ? null : new SequenceTracker(messageHandler);
+        MessageHandler mh = userMessageHandler == null ? null : msg -> {
+            userMessageHandler.onMessage(msg);
+            if (stopped && pmm.noMorePending()) {
+                finished = true;
+            }
+        };
         initSub(subscriptionMaker.subscribe(mh, userDispatcher));
         sub._pull(PullRequestOptions.builder(bm)
                 .maxBytes(bb)
@@ -60,22 +65,6 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         if (!stopped && (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
         {
             sub._pull(rePullPro, false, this);
-        }
-    }
-
-    class SequenceTracker implements MessageHandler {
-        MessageHandler userHandler;
-
-        public SequenceTracker(MessageHandler userHandler) {
-            this.userHandler = userHandler;
-        }
-
-        @Override
-        public void onMessage(Message msg) throws InterruptedException {
-            userHandler.onMessage(msg);
-            if (stopped && pmm.noMorePending()) {
-                finished = true;
-            }
         }
     }
 }

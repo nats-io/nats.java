@@ -44,7 +44,6 @@ public class MessageConsumerExample {
             createOrReplaceStream(nc.jetStreamManagement(), STREAM, SUBJECT);
 
             System.out.println("Starting publish...");
-//            publish(js, SUBJECT, MESSAGE_TEXT, 2500);
             Publisher publisher = new Publisher(js, SUBJECT, MESSAGE_TEXT, 10);
             Thread pubThread = new Thread(publisher);
             pubThread.start();
@@ -80,8 +79,7 @@ public class MessageConsumerExample {
             };
 
             // create the consumer then use it
-            try {
-                MessageConsumer consumer = consumerContext.consume(handler);
+            try (MessageConsumer consumer = consumerContext.consume(handler)) {
                 latch.await();
 
                 // The consumer has at least 1 pull request active. When stop is called,
