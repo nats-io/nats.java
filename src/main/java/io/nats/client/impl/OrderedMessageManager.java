@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.DeliverPolicy;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -28,13 +27,15 @@ class OrderedMessageManager extends PushMessageManager {
     protected long expectedExternalConsumerSeq;
     protected final AtomicReference<String> targetSid;
 
-    protected OrderedMessageManager(NatsConnection conn,
-                          NatsJetStream js,
-                          String stream,
-                          SubscribeOptions so,
-                          ConsumerConfiguration originalCc,
-                          boolean queueMode,
-                          boolean syncMode) {
+    protected OrderedMessageManager(
+        NatsConnection conn,
+        NatsJetStream js,
+        String stream,
+        SubscribeOptions so,
+        ConsumerConfiguration originalCc,
+        boolean queueMode,
+        boolean syncMode)
+    {
         super(conn, js, stream, so, originalCc, queueMode, syncMode);
         expectedExternalConsumerSeq = 1; // always starts at 1
         targetSid = new AtomicReference<>();
@@ -82,22 +83,16 @@ class OrderedMessageManager extends PushMessageManager {
 
             // 3. make a new consumer using the same deliver subject but
             //    with a new starting point
-            ConsumerConfiguration userCC = ConsumerConfiguration.builder(originalCc)
-                .deliverPolicy(DeliverPolicy.ByStartSequence)
-                .deliverSubject(newDeliverSubject)
-                .startSequence(Math.max(1, lastStreamSeq + 1))
-                .startTime(null) // clear start time in case it was originally set
-                .build();
+            ConsumerConfiguration userCC = js.nextOrderedConsumerConfiguration(originalCc, lastStreamSeq, newDeliverSubject);
             js._createConsumerUnsubscribeOnException(stream, userCC, sub);
 
             // 4. restart the manager.
             startup(sub);
         }
         catch (Exception e) {
-            IllegalStateException ise = new IllegalStateException("Ordered subscription fatal error.", e);
-            js.conn.processException(ise);
+            js.conn.processException(e);
             if (syncMode) {
-                throw ise;
+                throw new RuntimeException("Ordered subscription fatal error.", e);
             }
         }
     }

@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamOptions;
 import io.nats.client.Message;
+import io.nats.client.NUID;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsJetStreamConstants;
 
@@ -24,7 +25,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static io.nats.client.support.ConsumerUtils.generateConsumerName;
 import static io.nats.client.support.NatsJetStreamClientError.JsConsumerCreate290NotAvailable;
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
 
@@ -150,6 +150,23 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     // ----------------------------------------------------------------------------------------------------
     // General Utils
     // ----------------------------------------------------------------------------------------------------
+    String generateConsumerName() {
+        return NUID.nextGlobalSequence();
+    }
+
+    ConsumerConfiguration nextOrderedConsumerConfiguration(
+        ConsumerConfiguration originalCc,
+        long lastStreamSeq,
+        String newDeliverSubject)
+    {
+        return ConsumerConfiguration.builder(originalCc)
+            .deliverPolicy(DeliverPolicy.ByStartSequence)
+            .deliverSubject(newDeliverSubject)
+            .startSequence(Math.max(1, lastStreamSeq + 1))
+            .startTime(null) // clear start time in case it was originally set
+            .build();
+    }
+
     ConsumerInfo lookupConsumerInfo(String streamName, String consumerName) throws IOException, JetStreamApiException {
         try {
             return _getConsumerInfo(streamName, consumerName);

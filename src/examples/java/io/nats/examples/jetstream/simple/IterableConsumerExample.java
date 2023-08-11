@@ -26,13 +26,12 @@ import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class IterableConsumerExample {
-    private static final String STREAM = "manually-stream";
-    private static final String SUBJECT = "manually-subject";
-    private static final String CONSUMER_NAME = "manually-consumer";
-    private static final String MESSAGE_TEXT = "manually";
+    private static final String STREAM = "iterable-stream";
+    private static final String SUBJECT = "iterable-subject";
+    private static final String CONSUMER_NAME = "iterable-consumer";
+    private static final String MESSAGE_TEXT = "iterable";
     private static final int STOP_COUNT = 500;
     private static final int REPORT_EVERY = 50;
-    private static final int JITTER = 20;
 
     private static final String SERVER = "nats://localhost:4222";
 
@@ -46,7 +45,7 @@ public class IterableConsumerExample {
             StreamContext streamContext;
             ConsumerContext consumerContext;
             try {
-                streamContext = nc.streamContext(STREAM);
+                streamContext = nc.getStreamContext(STREAM);
                 consumerContext = streamContext.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
             }
             catch (JetStreamApiException | IOException e) {
@@ -58,33 +57,44 @@ public class IterableConsumerExample {
                 return;
             }
 
+            System.out.println("Starting publish...");
+            Publisher publisher = new Publisher(js, SUBJECT, MESSAGE_TEXT, 10);
+            Thread pubThread = new Thread(publisher);
+            pubThread.start();
+
+            // set up the iterable consumer
             Thread consumeThread = new Thread(() -> {
                 int count = 0;
                 long start = System.currentTimeMillis();
-                try (IterableConsumer consumer = consumerContext.consume()) {
+                try (IterableConsumer consumer = consumerContext.iterate()) {
                     System.out.println("Starting main loop.");
                     while (count < STOP_COUNT) {
                         Message msg = consumer.nextMessage(1000);
                         if (msg != null) {
                             msg.ack();
                             if (++count % REPORT_EVERY == 0) {
-                                report("Main Loop Running", System.currentTimeMillis() - start, count);
+                                report("Main loop running", System.currentTimeMillis() - start, count);
                             }
                         }
                     }
-                    report("Main Loop Stopped", System.currentTimeMillis() - start, count);
+                    report("Main loop stopped", System.currentTimeMillis() - start, count);
 
-                    System.out.println("Pausing for effect...allow more messages come across.");
-                    Thread.sleep(JITTER * 2); // allows more messages to come across
-                    consumer.stop(1000);
+                    // The consumer has at least 1 pull request active. When stop is called,
+                    // no more pull requests will be made, but messages already requested
+                    // will still come across the wire to the client.
+                    consumer.stop();
 
                     System.out.println("Starting post-stop loop.");
-                    Message msg = consumer.nextMessage(1000);
-                    while (msg != null) {
-                        msg.ack();
-                        report("Post-stop loop running", System.currentTimeMillis() - start, ++count);
-                        msg = consumer.nextMessage(1000);
+                    while (!consumer.isFinished()) {
+                        Message msg = consumer.nextMessage(1000);
+                        if (msg != null) {
+                            msg.ack();
+                            if (++count % REPORT_EVERY == 0) {
+                                report("Post-stop loop running", System.currentTimeMillis() - start, ++count);
+                            }
+                        }
                     }
+                    report("Post-stop loop stopped", System.currentTimeMillis() - start, count);
                 }
                 catch (JetStreamStatusCheckedException | InterruptedException | IOException | JetStreamApiException e) {
                     // JetStreamStatusCheckedException:
@@ -105,13 +115,9 @@ public class IterableConsumerExample {
                 report("Done", System.currentTimeMillis() - start, count);
             });
             consumeThread.start();
-
-            Publisher publisher = new Publisher(js, SUBJECT, MESSAGE_TEXT, JITTER);
-            Thread pubThread = new Thread(publisher);
-            pubThread.start();
-
             consumeThread.join();
-            publisher.stopPublishing();
+
+            publisher.stopPublishing(); // otherwise it will complain when the connection goes away
             pubThread.join();
         }
         catch (IOException | InterruptedException ioe) {

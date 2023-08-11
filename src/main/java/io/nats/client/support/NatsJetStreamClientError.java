@@ -73,6 +73,8 @@ public class NatsJetStreamClientError {
 
     @Deprecated // More comprehensive name
     public static final NatsJetStreamClientError JsConsumerCantUseNameBefore290 = new NatsJetStreamClientError(CON, 90301, "Name field not valid against pre v2.9.0 servers.");
+
+    @Deprecated // More comprehensive name
     public static final NatsJetStreamClientError JsSoOrderedRequiresMaxDeliver = new NatsJetStreamClientError(SO, 90109, "Max Deliver is limited to 1 with an ordered consumer.");
 
     private final String id;

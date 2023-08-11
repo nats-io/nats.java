@@ -51,7 +51,7 @@ public class QueueExample {
             // to allow ConsumerContexts to be created from the name.
             StreamContext streamContext;
             try {
-                streamContext = nc.streamContext(STREAM);
+                streamContext = nc.getStreamContext(STREAM);
                 streamContext.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
             }
             catch (JetStreamApiException | IOException e) {
@@ -139,7 +139,7 @@ public class QueueExample {
 
         @Override
         public void stop() throws InterruptedException {
-            messageConsumer.stop(1000);
+            messageConsumer.stop();
         }
     }
 
@@ -150,7 +150,7 @@ public class QueueExample {
 
         public IterableConsumerHolder(int id, StreamContext sc, CountDownLatch latch) throws JetStreamApiException, IOException {
             super(id, sc, latch);
-            iterableConsumer = consumerContext.consume();
+            iterableConsumer = consumerContext.iterate();
             t = new Thread(() -> {
                 while (latch.getCount() > 0) {
                     try {
@@ -187,7 +187,7 @@ public class QueueExample {
             this.id = id;
             thisReceived = new AtomicInteger();
             this.latch = latch;
-            consumerContext = sc.consumerContext(CONSUMER_NAME);
+            consumerContext = sc.getConsumerContext(CONSUMER_NAME);
         }
 
         public abstract void stop() throws InterruptedException;

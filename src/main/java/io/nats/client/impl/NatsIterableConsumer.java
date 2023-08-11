@@ -19,10 +19,10 @@ import io.nats.client.api.ConsumerInfo;
 import java.io.IOException;
 import java.time.Duration;
 
-public class NatsIterableConsumer extends NatsMessageConsumer implements IterableConsumer {
+class NatsIterableConsumer extends NatsMessageConsumer implements IterableConsumer {
 
-    public NatsIterableConsumer(SimplifiedSubscriptionMaker subscriptionMaker, ConsumeOptions opts, ConsumerInfo lastConsumerInfo) throws IOException, JetStreamApiException {
-        super(subscriptionMaker, null, opts, lastConsumerInfo);
+    NatsIterableConsumer(SimplifiedSubscriptionMaker subscriptionMaker, ConsumerInfo cachedConsumerInfo, ConsumeOptions opts) throws IOException, JetStreamApiException {
+        super(subscriptionMaker, cachedConsumerInfo, opts, null, null);
     }
 
     /**
@@ -31,7 +31,11 @@ public class NatsIterableConsumer extends NatsMessageConsumer implements Iterabl
     @Override
     public Message nextMessage(Duration timeout) throws InterruptedException, JetStreamStatusCheckedException {
         try {
-            return sub.nextMessage(timeout);
+            Message msg = sub.nextMessage(timeout);
+            if (msg != null && stopped && pmm.noMorePending()) {
+                finished = true;
+            }
+            return msg;
         }
         catch (JetStreamStatusException e) {
             throw new JetStreamStatusCheckedException(e);

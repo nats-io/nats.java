@@ -20,18 +20,18 @@ import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.examples.jetstream.simple.Utils.Publisher;
 import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
-import static io.nats.examples.jetstream.simple.Utils.publish;
 
 /**
  * This example will demonstrate simplified consume with a handler
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class MessageConsumerExample {
-    private static final String STREAM = "consume-handler-stream";
-    private static final String SUBJECT = "consume-handler-subject";
-    private static final String CONSUMER_NAME = "consume-handler-consumer";
-    private static final String MESSAGE_TEXT = "consume-handler";
+    private static final String STREAM = "consume-stream";
+    private static final String SUBJECT = "consume-subject";
+    private static final String CONSUMER_NAME = "consume-consumer";
+    private static final String MESSAGE_TEXT = "consume";
     private static final int STOP_COUNT = 500;
     private static final int REPORT_EVERY = 100;
 
@@ -43,17 +43,18 @@ public class MessageConsumerExample {
             JetStream js = nc.jetStream();
             createOrReplaceStream(nc.jetStreamManagement(), STREAM, SUBJECT);
 
-            // publishing so there are lots of messages
-            System.out.println("Publishing...");
-            publish(js, SUBJECT, MESSAGE_TEXT, 2500);
+            System.out.println("Starting publish...");
+            Publisher publisher = new Publisher(js, SUBJECT, MESSAGE_TEXT, 10);
+            Thread pubThread = new Thread(publisher);
+            pubThread.start();
 
             // get stream context, create consumer and get the consumer context
             StreamContext streamContext;
             ConsumerContext consumerContext;
             try {
-                streamContext = nc.streamContext(STREAM);
+                streamContext = nc.getStreamContext(STREAM);
                 streamContext.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
-                consumerContext = streamContext.consumerContext(CONSUMER_NAME);
+                consumerContext = streamContext.getConsumerContext(CONSUMER_NAME);
             }
             catch (JetStreamApiException | IOException e) {
                 // JetStreamApiException:
@@ -78,13 +79,19 @@ public class MessageConsumerExample {
             };
 
             // create the consumer then use it
-            try {
-                MessageConsumer consumer = consumerContext.consume(handler);
+            try (MessageConsumer consumer = consumerContext.consume(handler)) {
                 latch.await();
-                // once the consumer is stopped, the client will drain messages
+
+                // The consumer has at least 1 pull request active. When stop is called,
+                // no more pull requests will be made, but messages already requested
+                // will still come across the wire to the client.
                 System.out.println("Stop the consumer...");
-                consumer.stop(1000);
-                Thread.sleep(1000); // enough for messages to drain after stop
+                consumer.stop();
+
+                // wait until the consumer is finished
+                while (!consumer.isFinished()) {
+                    Thread.sleep(10);
+                }
             }
             catch (JetStreamApiException | IOException e) {
                 // JetStreamApiException:
@@ -103,6 +110,9 @@ public class MessageConsumerExample {
             }
 
             report("Final", start, atomicCount.get());
+
+            publisher.stopPublishing(); // otherwise it will complain when the connection goes away
+            pubThread.join();
         }
         catch (IOException | InterruptedException ioe) {
             // IOException:

@@ -20,6 +20,7 @@ import io.nats.client.api.StreamConfiguration;
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Utils {
 
@@ -58,17 +59,22 @@ public class Utils {
         private final String messageText;
         private final int jitter;
         private final AtomicBoolean keepGoing = new AtomicBoolean(true);
-        private int pubNo;
+        private final AtomicInteger pubCount;
 
         public Publisher(JetStream js, String subject, String messageText, int jitter) {
             this.js = js;
             this.subject = subject;
             this.messageText = messageText;
             this.jitter = jitter;
+            pubCount = new AtomicInteger();
         }
 
         public void stopPublishing() {
             keepGoing.set(false);
+        }
+
+        public int getPubCount() {
+            return pubCount.get();
         }
 
         @Override
@@ -77,9 +83,10 @@ public class Utils {
                 while (keepGoing.get()) {
                     //noinspection BusyWait
                     Thread.sleep(ThreadLocalRandom.current().nextLong(jitter));
-                    js.publish(subject, (messageText + "-" + (++pubNo)).getBytes());
+                    js.publish(subject, (messageText + "-" + (pubCount.incrementAndGet())).getBytes());
                 }
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }

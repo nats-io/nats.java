@@ -74,7 +74,7 @@ public class FetchMessagesExample {
         StreamContext streamContext;
         ConsumerContext consumerContext;
         try {
-            streamContext = nc.streamContext(STREAM);
+            streamContext = nc.getStreamContext(STREAM);
             consumerContext = streamContext.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(consumerName).build());
         }
         catch (JetStreamApiException | IOException e) {

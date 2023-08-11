@@ -18,26 +18,35 @@ import io.nats.client.MessageConsumer;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
-import java.time.Duration;
 
 class NatsMessageConsumerBase implements MessageConsumer {
     protected NatsJetStreamPullSubscription sub;
     protected PullMessageManager pmm;
-    protected final Object subLock;
     protected boolean stopped;
-    protected ConsumerInfo lastConsumerInfo;
+    protected boolean finished;
+    protected ConsumerInfo cachedConsumerInfo;
 
-    NatsMessageConsumerBase(ConsumerInfo lastConsumerInfo) {
-        subLock = new Object();
-        this.lastConsumerInfo = lastConsumerInfo;
+    NatsMessageConsumerBase(ConsumerInfo cachedConsumerInfo) {
+        this.cachedConsumerInfo = cachedConsumerInfo;
     }
 
-    protected void initSub(NatsJetStreamPullSubscription sub) throws JetStreamApiException, IOException {
+    void initSub(NatsJetStreamPullSubscription sub) {
         this.sub = sub;
-        if (lastConsumerInfo == null) {
-            lastConsumerInfo = sub.getConsumerInfo();
-        }
         pmm = (PullMessageManager)sub.manager;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isStopped() {
+        return stopped;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isFinished() {
+        return finished;
     }
 
     /**
@@ -45,10 +54,11 @@ class NatsMessageConsumerBase implements MessageConsumer {
      */
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
-        synchronized (subLock) {
-            lastConsumerInfo = sub.getConsumerInfo();
-            return lastConsumerInfo;
+        // don't look up consumer info if it was never set - this check is for ordered consumer
+        if (cachedConsumerInfo != null) {
+            cachedConsumerInfo = sub.getConsumerInfo();
         }
+        return cachedConsumerInfo;
     }
 
     /**
@@ -56,35 +66,26 @@ class NatsMessageConsumerBase implements MessageConsumer {
      */
     @Override
     public ConsumerInfo getCachedConsumerInfo() {
-        return lastConsumerInfo;
+        return cachedConsumerInfo;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void stop(long timeout) throws InterruptedException {
-        synchronized (subLock) {
-            if (!stopped) {
-                try {
-                    if (sub.getNatsDispatcher() != null) {
-                        sub.getDispatcher().drain(Duration.ofMillis(timeout));
-                    }
-                    else {
-                        sub.drain(Duration.ofMillis(timeout));
-                    }
-                }
-                finally {
-                    stopped = true;
-                }
-            }
-        }
+    public void stop() {
+        stopped = true;
     }
 
     @Override
     public void close() throws Exception {
+        lenientClose();
+    }
+
+    protected void lenientClose() {
         try {
-            if (!stopped && sub.isActive()) {
+            if (!stopped || sub.isActive()) {
+                stopped = true;
                 if (sub.getNatsDispatcher() != null) {
                     sub.getDispatcher().unsubscribe(sub);
                 }

@@ -13,27 +13,23 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.ConsumeOptions;
-import io.nats.client.JetStreamApiException;
-import io.nats.client.MessageHandler;
-import io.nats.client.PullRequestOptions;
+import io.nats.client.*;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 
-class NatsMessageConsumer extends NatsMessageConsumerBase implements TrackPendingListener {
+class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManagerObserver {
     protected final PullRequestOptions rePullPro;
     protected final int thresholdMessages;
     protected final long thresholdBytes;
-    protected final SimplifiedSubscriptionMaker subscriptionMaker;
 
     NatsMessageConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
-                        MessageHandler messageHandler,
+                        ConsumerInfo cachedConsumerInfo,
                         ConsumeOptions opts,
-                        ConsumerInfo lastConsumerInfo) throws IOException, JetStreamApiException {
-        super(lastConsumerInfo);
-        this.subscriptionMaker = subscriptionMaker;
-        initSub(subscriptionMaker.makeSubscription(messageHandler));
+                        Dispatcher userDispatcher,
+                        final MessageHandler userMessageHandler) throws IOException, JetStreamApiException
+    {
+        super(cachedConsumerInfo);
 
         int bm = opts.getBatchSize();
         long bb = opts.getBatchBytes();
@@ -42,26 +38,31 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements TrackPendin
         long rePullBytes = bb == 0 ? 0 : Math.max(1, bb * opts.getThresholdPercent() / 100);
         rePullPro = PullRequestOptions.builder(rePullMessages)
             .maxBytes(rePullBytes)
-            .expiresIn(opts.getExpiresIn())
+            .expiresIn(opts.getExpiresInMillis())
             .idleHeartbeat(opts.getIdleHeartbeat())
             .build();
 
         thresholdMessages = bm - rePullMessages;
         thresholdBytes = bb == 0 ? Integer.MIN_VALUE : bb - rePullBytes;
 
+        MessageHandler mh = userMessageHandler == null ? null : msg -> {
+            userMessageHandler.onMessage(msg);
+            if (stopped && pmm.noMorePending()) {
+                finished = true;
+            }
+        };
+        initSub(subscriptionMaker.subscribe(mh, userDispatcher));
         sub._pull(PullRequestOptions.builder(bm)
                 .maxBytes(bb)
-                .expiresIn(opts.getExpiresIn())
+                .expiresIn(opts.getExpiresInMillis())
                 .idleHeartbeat(opts.getIdleHeartbeat())
                 .build(),
             false, this);
     }
 
     @Override
-    public void track(int pendingMessages, long pendingBytes, boolean trackingBytes) {
-        if (!stopped &&
-            (pmm.pendingMessages <= thresholdMessages
-                || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
+    public void pendingUpdated() {
+        if (!stopped && (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
         {
             sub._pull(rePullPro, false, this);
         }

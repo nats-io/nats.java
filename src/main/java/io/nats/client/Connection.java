@@ -553,17 +553,17 @@ public interface Connection extends AutoCloseable {
     Duration RTT() throws IOException;
 
     /**
-     * Gets a stream context.
+     * Get a stream context for a specific stream.
      * @param streamName the stream for the context
      * @return a StreamContext instance.
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    StreamContext streamContext(String streamName) throws IOException, JetStreamApiException;
+    StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException;
 
     /**
-     * Gets a stream context.
+     * Get a stream context for a specific stream.
      * @param streamName the stream for the context
      * @param options JetStream options.
      * @return a StreamContext instance.
@@ -571,10 +571,10 @@ public interface Connection extends AutoCloseable {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    StreamContext streamContext(String streamName, JetStreamOptions options) throws IOException, JetStreamApiException;
+    StreamContext getStreamContext(String streamName, JetStreamOptions options) throws IOException, JetStreamApiException;
 
     /**
-     * Create a consumer context for a specific named stream and specific named consumer.
+     * Get a consumer context for a specific named stream and specific named consumer.
      * Verifies that the stream and consumer exist.
      * EXPERIMENTAL API SUBJECT TO CHANGE
      * @param streamName the name of the stream
@@ -584,10 +584,10 @@ public interface Connection extends AutoCloseable {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    ConsumerContext consumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException;
+    ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException;
 
     /**
-     * Create a consumer context for a specific named stream and specific named consumer.
+     * Get a consumer context for a specific named stream and specific named consumer.
      * Verifies that the stream and consumer exist.
      * EXPERIMENTAL API SUBJECT TO CHANGE
      * @param streamName the name of the stream
@@ -598,7 +598,7 @@ public interface Connection extends AutoCloseable {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    ConsumerContext consumerContext(String streamName, String consumerName, JetStreamOptions options) throws IOException, JetStreamApiException;
+    ConsumerContext getConsumerContext(String streamName, String consumerName, JetStreamOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Gets a context for publishing and subscribing to subjects backed by Jetstream streams

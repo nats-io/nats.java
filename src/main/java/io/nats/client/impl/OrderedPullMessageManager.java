@@ -16,15 +16,13 @@ package io.nats.client.impl;
 import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.DeliverPolicy;
-import io.nats.client.support.ConsumerUtils;
 
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.impl.MessageManager.ManageResult.MESSAGE;
 import static io.nats.client.impl.MessageManager.ManageResult.STATUS_HANDLED;
 
-class PullOrderedMessageManager extends PullMessageManager {
+class OrderedPullMessageManager extends PullMessageManager {
 
     protected final ConsumerConfiguration originalCc;
     protected final NatsJetStream js;
@@ -32,7 +30,7 @@ class PullOrderedMessageManager extends PullMessageManager {
     protected long expectedExternalConsumerSeq;
     protected final AtomicReference<String> targetSid;
 
-    protected PullOrderedMessageManager(NatsConnection conn,
+    protected OrderedPullMessageManager(NatsConnection conn,
                                         NatsJetStream js,
                                         String stream,
                                         SubscribeOptions so, ConsumerConfiguration originalCc, boolean syncMode) {
@@ -86,13 +84,7 @@ class PullOrderedMessageManager extends PullMessageManager {
 
             // 3. make a new consumer using the same deliver subject but
             //    with a new starting point
-            ConsumerConfiguration userCC = ConsumerConfiguration.builder(originalCc)
-                .name(ConsumerUtils.generateConsumerName())
-                .deliverPolicy(DeliverPolicy.ByStartSequence)
-                .deliverSubject(newDeliverSubject)
-                .startSequence(Math.max(1, lastStreamSeq + 1))
-                .startTime(null) // clear start time in case it was originally set
-                .build();
+            ConsumerConfiguration userCC = js.nextOrderedConsumerConfiguration(originalCc, lastStreamSeq, newDeliverSubject);
             js._createConsumerUnsubscribeOnException(stream, userCC, sub);
 
             // 4. restart the manager.

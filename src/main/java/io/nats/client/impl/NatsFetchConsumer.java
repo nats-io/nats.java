@@ -23,17 +23,19 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
     private final String pullSubject;
     private long startNanos;
 
-    public NatsFetchConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
-                             FetchConsumeOptions fetchConsumeOptions,
-                             ConsumerInfo lastConsumerInfo) throws IOException, JetStreamApiException {
-        super(lastConsumerInfo);
-        initSub(subscriptionMaker.makeSubscription(null));
-        maxWaitNanos = fetchConsumeOptions.getExpiresIn() * 1_000_000;
+    NatsFetchConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
+                      ConsumerInfo cachedConsumerInfo,
+                      FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException
+    {
+        super(cachedConsumerInfo);
+
+        maxWaitNanos = fetchConsumeOptions.getExpiresInMillis() * 1_000_000;
         PullRequestOptions pro = PullRequestOptions.builder(fetchConsumeOptions.getMaxMessages())
             .maxBytes(fetchConsumeOptions.getMaxBytes())
-            .expiresIn(fetchConsumeOptions.getExpiresIn())
+            .expiresIn(fetchConsumeOptions.getExpiresInMillis())
             .idleHeartbeat(fetchConsumeOptions.getIdleHeartbeat())
             .build();
+        initSub(subscriptionMaker.subscribe(null, null));
         pullSubject = sub._pull(pro, false, null);
         startNanos = -1;
     }
@@ -41,16 +43,34 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
     @Override
     public Message nextMessage() throws InterruptedException, JetStreamStatusCheckedException {
         try {
-            if (startNanos == -1) {
-                startNanos = System.nanoTime();
+            if (finished) {
+                return null;
             }
-
-            long timeLeftMillis = (maxWaitNanos - (System.nanoTime() - startNanos)) / 1_000_000;
 
             // if the manager thinks it has received everything in the pull, it means
             // that all the messages are already in the internal queue and there is
             // no waiting necessary
-            if (timeLeftMillis < 1 | pmm.pendingMessages < 1 || (pmm.trackingBytes && pmm.pendingBytes < 1)) {
+            if (pmm.noMorePending()) {
+                Message m = sub._nextUnmanagedNoWait(pullSubject);
+                if (m == null) {
+                    // if there are no messages in the internal cache AND there are no more pending,
+                    // they all have been read and we can go ahead and close the subscription.
+                    finished = true;
+                    lenientClose();
+                }
+                return m;
+            }
+
+            // by not starting the timer until the first call, it gives a little buffer around
+            // the next message to account for latency of incoming messages
+            if (startNanos == -1) {
+                startNanos = System.nanoTime();
+            }
+            long timeLeftMillis = (maxWaitNanos - (System.nanoTime() - startNanos)) / 1_000_000;
+
+            // if the timer has run out, don't allow waiting
+            // this might happen once, but it should already be noMorePending
+            if (timeLeftMillis < 1) {
                 return sub._nextUnmanagedNoWait(pullSubject); // null means don't wait
             }
 

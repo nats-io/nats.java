@@ -764,7 +764,7 @@ You can however set the deliver policy which will be used to start the subscript
 | JsSoOrderedNotAllowedWithDurable             | SO    | 90106 | Durable is not allowed with an ordered consumer.                                                    |
 | JsSoOrderedNotAllowedWithDeliverSubject      | SO    | 90107 | Deliver subject is not allowed with an ordered consumer.                                            |
 | JsSoOrderedRequiresAckPolicyNone             | SO    | 90108 | Ordered consumer requires Ack Policy None.                                                          |
-| JsSoOrderedRequiresMaxDeliver                | SO    | 90109 | Max deliver is limited to 1 with an ordered consumer.                                               |
+| JsSoOrderedRequiresMaxDeliverOfOne           | SO    | 90109 | Max deliver is limited to 1 with an ordered consumer.                                               |
 | JsSoNameMismatch                             | SO    | 90110 | Builder name must match the consumer configuration name if both are provided.                       |
 | JsSoOrderedMemStorageNotSuppliedOrTrue       | SO    | 90111 | Mem Storage must be true if supplied.                                                               |
 | JsSoOrderedReplicasNotSuppliedOrOne          | SO    | 90112 | Replicas must be 1 if supplied.                                                                     |

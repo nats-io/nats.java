@@ -753,4 +753,24 @@ public class HeadersTests {
     public void testToString() {
         assertNotNull(new Status(1, "msg").toString()); // COVERAGE
     }
+
+    @Test
+    public void put_map_works() {
+        Map<String, List<String>> map = new HashMap<>();
+        map.put(KEY1, Collections.singletonList(VAL1));
+        map.put(KEY2, Arrays.asList(VAL2, VAL3));
+        Headers h = new Headers();
+        h.put(map);
+
+        assertEquals(2, h.size());
+        assertTrue(h.containsKey(KEY1));
+        assertTrue(h.containsKey(KEY2));
+        assertEquals(1, h.get(KEY1).size());
+        assertEquals(2, h.get(KEY2).size());
+        assertTrue(h.get(KEY1).contains(VAL1));
+        assertEquals(VAL1, h.getFirst(KEY1));
+        assertTrue(h.get(KEY2).contains(VAL2));
+        assertTrue(h.get(KEY2).contains(VAL3));
+        assertEquals(VAL2, h.getFirst(KEY2));
+    }
 }

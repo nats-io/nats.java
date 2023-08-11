@@ -15,69 +15,75 @@ package io.nats.client.api;
 
 import java.time.ZonedDateTime;
 
-import static io.nats.client.support.Validator.emptyAsNull;
+import static io.nats.client.support.Validator.emptyOrNullAs;
 
-public class OrderedConsumerConfig {
+public class OrderedConsumerConfiguration {
+
+    public static String DEFAULT_FILTER_SUBJECT = ">";
+
+    private String filterSubject;
     private DeliverPolicy deliverPolicy;
     private Long startSequence;
     private ZonedDateTime startTime;
-    private String filterSubject;
     private ReplayPolicy replayPolicy;
     private Boolean headersOnly;
 
     /**
-     * OrderedConsumerConfig creation works like a builder.
+     * OrderedConsumerConfiguration creation works like a builder.
      * The builder supports chaining and will create a default set of options if
      * no methods are calls, including setting the filter subject to "&gt;"
      */
-    public OrderedConsumerConfig() {}
+    public OrderedConsumerConfiguration() {
+        startSequence = ConsumerConfiguration.LONG_UNSET;
+        filterSubject = DEFAULT_FILTER_SUBJECT;
+    }
 
     /**
-     * Sets the delivery policy of the OrderedConsumerConfig.
+     * Sets the filter subject of the OrderedConsumerConfiguration.
+     * @param filterSubject the filter subject
+     * @return Builder
+     */
+    public OrderedConsumerConfiguration filterSubject(String filterSubject) {
+        this.filterSubject = emptyOrNullAs(filterSubject, DEFAULT_FILTER_SUBJECT);
+        return this;
+    }
+
+    /**
+     * Sets the delivery policy of the OrderedConsumerConfiguration.
      * @param deliverPolicy the delivery policy.
      * @return Builder
      */
-    public OrderedConsumerConfig deliverPolicy(DeliverPolicy deliverPolicy) {
+    public OrderedConsumerConfiguration deliverPolicy(DeliverPolicy deliverPolicy) {
         this.deliverPolicy = deliverPolicy;
         return this;
     }
 
     /**
-     * Sets the start sequence of the OrderedConsumerConfig.
+     * Sets the start sequence of the OrderedConsumerConfiguration.
      * @param startSequence the start sequence
      * @return Builder
      */
-    public OrderedConsumerConfig startSequence(long startSequence) {
-        this.startSequence = startSequence < 1 ? null : startSequence;
+    public OrderedConsumerConfiguration startSequence(long startSequence) {
+        this.startSequence = startSequence < 1 ? ConsumerConfiguration.LONG_UNSET : startSequence;
         return this;
     }
 
     /**
-     * Sets the start time of the OrderedConsumerConfig.
+     * Sets the start time of the OrderedConsumerConfiguration.
      * @param startTime the start time
      * @return Builder
      */
-    public OrderedConsumerConfig startTime(ZonedDateTime startTime) {
+    public OrderedConsumerConfiguration startTime(ZonedDateTime startTime) {
         this.startTime = startTime;
         return this;
     }
 
     /**
-     * Sets the filter subject of the OrderedConsumerConfig.
-     * @param filterSubject the filter subject
-     * @return Builder
-     */
-    public OrderedConsumerConfig filterSubject(String filterSubject) {
-        this.filterSubject = emptyAsNull(filterSubject);
-        return this;
-    }
-
-    /**
-     * Sets the replay policy of the OrderedConsumerConfig.
+     * Sets the replay policy of the OrderedConsumerConfiguration.
      * @param replayPolicy the replay policy.
      * @return Builder
      */
-    public OrderedConsumerConfig replayPolicy(ReplayPolicy replayPolicy) {
+    public OrderedConsumerConfiguration replayPolicy(ReplayPolicy replayPolicy) {
         this.replayPolicy = replayPolicy;
         return this;
     }
@@ -88,9 +94,13 @@ public class OrderedConsumerConfig {
      * @param headersOnly the flag
      * @return Builder
      */
-    public OrderedConsumerConfig headersOnly(Boolean headersOnly) {
-        this.headersOnly = headersOnly;
+    public OrderedConsumerConfiguration headersOnly(Boolean headersOnly) {
+        this.headersOnly = headersOnly != null && headersOnly ? true : null;
         return this;
+    }
+
+    public String getFilterSubject() {
+        return filterSubject;
     }
 
     public DeliverPolicy getDeliverPolicy() {
@@ -103,10 +113,6 @@ public class OrderedConsumerConfig {
 
     public ZonedDateTime getStartTime() {
         return startTime;
-    }
-
-    public String getFilterSubject() {
-        return filterSubject;
     }
 
     public ReplayPolicy getReplayPolicy() {

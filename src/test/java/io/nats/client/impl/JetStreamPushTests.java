@@ -316,6 +316,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         assertThrows(IllegalStateException.class, () -> sub.fetch(1, Duration.ofSeconds(1)));
         assertThrows(IllegalStateException.class, () -> sub.iterate(1, 1000));
         assertThrows(IllegalStateException.class, () -> sub.iterate(1, Duration.ofSeconds(1)));
+        assertThrows(IllegalStateException.class, () -> sub.reader(1, 2));
     }
 
     @Test

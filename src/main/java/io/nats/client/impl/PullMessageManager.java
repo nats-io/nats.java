@@ -29,7 +29,7 @@ class PullMessageManager extends MessageManager {
     protected long pendingBytes;
     protected boolean trackingBytes;
     protected boolean raiseStatusWarnings;
-    protected TrackPendingListener trackPendingListener;
+    protected PullManagerObserver pullManagerObserver;
 
     protected PullMessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
         super(conn, so, syncMode);
@@ -45,10 +45,10 @@ class PullMessageManager extends MessageManager {
     }
 
     @Override
-    protected void startPullRequest(String pullSubject, PullRequestOptions pro, boolean raiseStatusWarnings, TrackPendingListener trackPendingListener) {
+    protected void startPullRequest(String pullSubject, PullRequestOptions pro, boolean raiseStatusWarnings, PullManagerObserver pullManagerObserver) {
         synchronized (stateChangeLock) {
             this.raiseStatusWarnings = raiseStatusWarnings;
-            this.trackPendingListener = trackPendingListener;
+            this.pullManagerObserver = pullManagerObserver;
             pendingMessages += pro.getBatchSize();
             pendingBytes += pro.getMaxBytes();
             trackingBytes = (pendingBytes > 0);
@@ -78,8 +78,8 @@ class PullMessageManager extends MessageManager {
                     shutdownHeartbeatTimer();
                 }
             }
-            if (trackPendingListener != null) {
-                trackPendingListener.track(pendingMessages, pendingBytes, trackingBytes);
+            if (pullManagerObserver != null) {
+                pullManagerObserver.pendingUpdated();
             }
         }
     }
@@ -155,8 +155,12 @@ class PullMessageManager extends MessageManager {
                 break;
         }
 
-        // fall through, all others are errors
+        // all others are errors
         conn.executeCallback((c, el) -> el.pullStatusError(c, sub, status));
         return STATUS_ERROR;
+    }
+
+    protected boolean noMorePending() {
+        return pendingMessages < 1 || (trackingBytes && pendingBytes < 1);
     }
 }

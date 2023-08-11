@@ -237,64 +237,64 @@ public class TestBase {
     public static final String KEY = "key";
     public static final String DATA = "data";
 
-    public static String stream(int seq) {
-        return STREAM + "-" + seq;
+    public static String stream(Object variant) {
+        return STREAM + "-" + variant;
     }
 
-    public static String mirror(int seq) {
-        return MIRROR + "-" + seq;
+    public static String mirror(Object variant) {
+        return MIRROR + "-" + variant;
     }
 
-    public static String source(int seq) {
-        return SOURCE + "-" + seq;
+    public static String source(Object variant) {
+        return SOURCE + "-" + variant;
     }
 
-    public static String subject(int seq) {
-        return SUBJECT + "-" + seq;
+    public static String subject(Object variant) {
+        return SUBJECT + "-" + variant;
     }
 
     public static String subjectDot(String field) {
         return SUBJECT + DOT + field;
     }
 
-    public static String queue(int seq) {
-        return QUEUE + "-" + seq;
+    public static String queue(Object variant) {
+        return QUEUE + "-" + variant;
     }
 
-    public static String durable(int seq) {
-        return DURABLE + "-" + seq;
+    public static String durable(Object variant) {
+        return DURABLE + "-" + variant;
     }
 
-    public static String durable(String vary, int seq) {
-        return DURABLE + "-" + vary + "-" + seq;
+    public static String durable(String vary, Object variant) {
+        return DURABLE + "-" + vary + "-" + variant;
     }
 
-    public static String name(int seq) {
-        return NAME + "-" + seq;
+    public static String name(Object variant) {
+        return NAME + "-" + variant;
     }
 
-    public static String deliver(int seq) {
-        return DELIVER + "-" + seq;
+    public static String deliver(Object variant) {
+        return DELIVER + "-" + variant;
     }
 
-    public static String bucket(int seq) {
-        return BUCKET + "-" + seq;
+    public static String bucket(Object variant) {
+        return BUCKET + "-" + variant;
     }
 
-    public static String key(int seq) {
-        return KEY + "-" + seq;
+    public static String key(Object variant) {
+        return KEY + "-" + variant;
     }
 
-    public static String messageId(int seq) {
-        return MESSAGE_ID + "-" + seq;
+    public static String messageId(Object variant) {
+        return MESSAGE_ID + "-" + variant;
     }
 
-    public static String data(int seq) {
-        return DATA + "-" + seq;
+    public static String data(Object variant) {
+        return DATA + "-" + variant;
     }
 
-    public static byte[] dataBytes(int seq) {
-        return data(seq).getBytes(StandardCharsets.US_ASCII);
+    public static byte[] dataBytes(Object variant) {
+        return data(variant).getBytes(StandardCharsets.US_ASCII);
     }
 
     public static NatsMessage getDataMessage(String data) {

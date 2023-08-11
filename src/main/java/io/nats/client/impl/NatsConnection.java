@@ -2127,36 +2127,36 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public StreamContext streamContext(String streamName) throws IOException, JetStreamApiException {
+    public StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException {
         Validator.validateStreamName(streamName, true);
         ensureNotClosing();
-        return new NatsStreamContext(this, null, streamName);
+        return new NatsStreamContext(streamName, null, this, null);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public StreamContext streamContext(String streamName, JetStreamOptions options) throws IOException, JetStreamApiException {
+    public StreamContext getStreamContext(String streamName, JetStreamOptions options) throws IOException, JetStreamApiException {
         Validator.validateStreamName(streamName, true);
         ensureNotClosing();
-        return new NatsStreamContext(this, options, streamName);
+        return new NatsStreamContext(streamName, null, this, options);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public ConsumerContext consumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException {
-        return streamContext(streamName).consumerContext(consumerName);
+    public ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException {
+        return getStreamContext(streamName).getConsumerContext(consumerName);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public ConsumerContext consumerContext(String streamName, String consumerName, JetStreamOptions options) throws IOException, JetStreamApiException {
-        return streamContext(streamName, options).consumerContext(consumerName);
+    public ConsumerContext getConsumerContext(String streamName, String consumerName, JetStreamOptions options) throws IOException, JetStreamApiException {
+        return getStreamContext(streamName, options).getConsumerContext(consumerName);
     }
 
     /**

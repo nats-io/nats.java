@@ -51,7 +51,7 @@ public class BaseConsumeOptions {
         idleHeartbeat = Math.min(MAX_HEARTBEAT_MILLIS, expiresIn * MAX_IDLE_HEARTBEAT_PERCENT / 100);
     }
 
-    public long getExpiresIn() {
+    public long getExpiresInMillis() {
         return expiresIn;
     }
 
