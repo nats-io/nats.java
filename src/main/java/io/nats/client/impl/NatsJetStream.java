@@ -468,7 +468,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             if (memStorage != null && memStorage != serverCcc.isMemStorage()) { changes.add("memStorage"); };
 
             if (startSeq != null && !startSeq.equals(serverCcc.getStartSequence())) { changes.add("startSequence"); };
-            if (rateLimit != null && !rateLimit.equals(serverCcc.getStartSequence())) { changes.add("rateLimit"); };
+            if (rateLimit != null && !rateLimit.equals(serverCcc.getRateLimit())) { changes.add("rateLimit"); };
 
             if (maxDeliver != null && maxDeliver != serverCcc.getMaxDeliver()) { changes.add("maxDeliver"); };
             if (maxAckPending != null && maxAckPending != serverCcc.getMaxAckPending()) { changes.add("maxAckPending"); };
