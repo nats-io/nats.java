@@ -261,11 +261,16 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .build();
             assertThrows(JetStreamApiException.class, () -> jsm.updateStream(scMaxCon));
 
-            // cannot change RetentionPolicy
             StreamConfiguration scReten = getTestStreamConfigurationBuilder()
-                    .retentionPolicy(RetentionPolicy.Interest)
-                    .build();
-            assertThrows(JetStreamApiException.class, () -> jsm.updateStream(scReten));
+                .retentionPolicy(RetentionPolicy.Interest)
+                .build();
+            if (nc.getServerInfo().isOlderThanVersion("2.10")) {
+                // cannot change RetentionPolicy
+                assertThrows(JetStreamApiException.class, () -> jsm.updateStream(scReten));
+            }
+            else {
+                jsm.updateStream(scReten);
+            }
 
             jsm.deleteStream(STREAM);
 
