@@ -682,7 +682,7 @@ public class SimplificationTests extends JetStreamTestBase {
             new Thread(() -> {
                 try {
                     // make sure there is enough time to call other methods.
-                    assertNull(ctx.next(1500));
+                    assertNull(ctx.next(2000));
                 }
                 catch (Exception e) {
                     throw new RuntimeException(e);
@@ -692,7 +692,7 @@ public class SimplificationTests extends JetStreamTestBase {
                 }
             }).start();
 
-            Thread.sleep(10);
+            Thread.sleep(100); // make sure there is enough time for the thread to start and get into the next method
             validateCantCallOtherMethods(ctx);
 
             //noinspection ResultOfMethodCallIgnored

@@ -175,28 +175,33 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      */
     @Override
     public Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
+        NatsMessageConsumerBase con;
         synchronized (stateLock) {
             checkState();
             if (maxWaitMillis < MIN_EXPIRES_MILLS) {
                 throw new IllegalArgumentException("Max wait must be at least " + MIN_EXPIRES_MILLS + " milliseconds.");
             }
 
-            try (NatsMessageConsumerBase con = new NatsMessageConsumerBase(cachedConsumerInfo)) {
-                con.initSub(subscribe(null, null));
-                con.sub._pull(PullRequestOptions.builder(1)
-                    .expiresIn(maxWaitMillis - EXPIRE_ADJUSTMENT)
-                    .build(), false, null);
-                trackConsume(con);
-                Message m = con.sub.nextMessage(maxWaitMillis);
+            //noinspection resource I close it manually down below
+            con = new NatsMessageConsumerBase(cachedConsumerInfo);
+            con.initSub(subscribe(null, null));
+            con.sub._pull(PullRequestOptions.builder(1)
+                .expiresIn(maxWaitMillis - EXPIRE_ADJUSTMENT)
+                .build(), false, null);
+            trackConsume(con);
+        }
+
+        // intentionally outside of lock
+        try {
+            return con.sub.nextMessage(maxWaitMillis);
+        }
+        finally {
+            try {
                 con.finished = true;
-                return m;
-            }
-            catch (JetStreamStatusException e) {
-                throw new JetStreamStatusCheckedException(e);
+                con.close();
             }
             catch (Exception e) {
-                // from autocloseable, but we know it doesn't actually throw
-                throw new RuntimeException(e);
+                // from close/autocloseable, but we know it doesn't actually throw
             }
         }
     }
