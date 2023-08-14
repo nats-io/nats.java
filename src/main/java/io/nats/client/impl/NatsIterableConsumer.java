@@ -32,8 +32,8 @@ class NatsIterableConsumer extends NatsMessageConsumer implements IterableConsum
     public Message nextMessage(Duration timeout) throws InterruptedException, JetStreamStatusCheckedException {
         try {
             Message msg = sub.nextMessage(timeout);
-            if (msg != null && stopped && pmm.noMorePending()) {
-                finished = true;
+            if (msg != null && stopped.get() && pmm.noMorePending()) {
+                finished.set(true);
             }
             return msg;
         }

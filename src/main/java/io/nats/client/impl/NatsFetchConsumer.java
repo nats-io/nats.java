@@ -43,7 +43,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
     @Override
     public Message nextMessage() throws InterruptedException, JetStreamStatusCheckedException {
         try {
-            if (finished) {
+            if (finished.get()) {
                 return null;
             }
 
@@ -55,7 +55,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
                 if (m == null) {
                     // if there are no messages in the internal cache AND there are no more pending,
                     // they all have been read and we can go ahead and close the subscription.
-                    finished = true;
+                    finished.set(true);
                     lenientClose();
                 }
                 return m;

@@ -112,11 +112,11 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     private void checkState() throws IOException {
         if (lastConsumer != null) {
             if (ordered) {
-                if (!lastConsumer.finished) {
+                if (!lastConsumer.finished.get()) {
                     throw new IOException("The ordered consumer is already receiving messages. Ordered Consumer does not allow multiple instances at time.");
                 }
             }
-            if (lastConsumer.finished && !lastConsumer.stopped) {
+            if (lastConsumer.finished.get() && !lastConsumer.stopped.get()) {
                 lastConsumer.lenientClose(); // finished, might as well make sure the sub is closed.
             }
         }
@@ -182,7 +182,6 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
                 throw new IllegalArgumentException("Max wait must be at least " + MIN_EXPIRES_MILLS + " milliseconds.");
             }
 
-            //noinspection resource I close it manually down below
             con = new NatsMessageConsumerBase(cachedConsumerInfo);
             con.initSub(subscribe(null, null));
             con.sub._pull(PullRequestOptions.builder(1)
@@ -197,7 +196,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         }
         finally {
             try {
-                con.finished = true;
+                con.finished.set(true);
                 con.close();
             }
             catch (Exception e) {

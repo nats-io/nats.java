@@ -47,8 +47,8 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
 
         MessageHandler mh = userMessageHandler == null ? null : msg -> {
             userMessageHandler.onMessage(msg);
-            if (stopped && pmm.noMorePending()) {
-                finished = true;
+            if (stopped.get() && pmm.noMorePending()) {
+                finished.set(true);
             }
         };
         initSub(subscriptionMaker.subscribe(mh, userDispatcher));
@@ -62,7 +62,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
 
     @Override
     public void pendingUpdated() {
-        if (!stopped && (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
+        if (!stopped.get() && (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
         {
             sub._pull(rePullPro, false, this);
         }
