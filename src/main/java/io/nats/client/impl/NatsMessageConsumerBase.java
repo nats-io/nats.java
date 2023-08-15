@@ -18,16 +18,19 @@ import io.nats.client.MessageConsumer;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 class NatsMessageConsumerBase implements MessageConsumer {
     protected NatsJetStreamPullSubscription sub;
     protected PullMessageManager pmm;
-    protected boolean stopped;
-    protected boolean finished;
+    protected final AtomicBoolean stopped;
+    protected final AtomicBoolean finished;
     protected ConsumerInfo cachedConsumerInfo;
 
     NatsMessageConsumerBase(ConsumerInfo cachedConsumerInfo) {
         this.cachedConsumerInfo = cachedConsumerInfo;
+        this.stopped = new AtomicBoolean(false);
+        this.finished = new AtomicBoolean(false);
     }
 
     void initSub(NatsJetStreamPullSubscription sub) {
@@ -39,14 +42,14 @@ class NatsMessageConsumerBase implements MessageConsumer {
      * {@inheritDoc}
      */
     public boolean isStopped() {
-        return stopped;
+        return stopped.get();
     }
 
     /**
      * {@inheritDoc}
      */
     public boolean isFinished() {
-        return finished;
+        return finished.get();
     }
 
     /**
@@ -74,7 +77,7 @@ class NatsMessageConsumerBase implements MessageConsumer {
      */
     @Override
     public void stop() {
-        stopped = true;
+        stopped.set(true);
     }
 
     @Override
@@ -84,8 +87,8 @@ class NatsMessageConsumerBase implements MessageConsumer {
 
     protected void lenientClose() {
         try {
-            if (!stopped || sub.isActive()) {
-                stopped = true;
+            if (!stopped.get() || sub.isActive()) {
+                stopped.set(true);
                 if (sub.getNatsDispatcher() != null) {
                     sub.getDispatcher().unsubscribe(sub);
                 }
