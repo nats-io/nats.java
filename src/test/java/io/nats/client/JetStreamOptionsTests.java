@@ -28,7 +28,7 @@ public class JetStreamOptionsTests extends TestBase {
     public void testBuilder() {
         // default
         JetStreamOptions jso = JetStreamOptions.defaultOptions();
-        assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
+        assertNull(jso.getRequestTimeout());
         assertEquals(DEFAULT_API_PREFIX, jso.getPrefix());
         assertTrue(jso.isDefaultPrefix());
         assertFalse(jso.isPublishNoAck());
@@ -36,7 +36,7 @@ public class JetStreamOptionsTests extends TestBase {
 
         // default copy
         jso = JetStreamOptions.builder(jso).build();
-        assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
+        assertNull(jso.getRequestTimeout());
         assertEquals(DEFAULT_API_PREFIX, jso.getPrefix());
         assertTrue(jso.isDefaultPrefix());
         assertFalse(jso.isPublishNoAck());
@@ -69,7 +69,7 @@ public class JetStreamOptionsTests extends TestBase {
             .publishNoAck(false)
             .optOut290ConsumerCreate(false)
             .build();
-        assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
+        assertNull(jso.getRequestTimeout());
         assertEquals("pre.", jso.getPrefix());
         assertFalse(jso.isDefaultPrefix());
         assertFalse(jso.isPublishNoAck());
@@ -77,7 +77,7 @@ public class JetStreamOptionsTests extends TestBase {
 
         // variations / coverage copy
         jso = JetStreamOptions.builder(jso).build();
-        assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
+        assertNull(jso.getRequestTimeout());
         assertEquals("pre.", jso.getPrefix());
         assertFalse(jso.isDefaultPrefix());
         assertFalse(jso.isPublishNoAck());

@@ -26,7 +26,9 @@ import static io.nats.client.support.Validator.validatePrefixOrDomain;
  */
 public class JetStreamOptions {
 
+    @Deprecated
     public static final Duration DEFAULT_TIMEOUT = Options.DEFAULT_CONNECTION_TIMEOUT;
+
     public static final JetStreamOptions DEFAULT_JS_OPTIONS = new Builder().build();
 
     private final String jsPrefix;
@@ -75,7 +77,7 @@ public class JetStreamOptions {
     }
 
     /**
-     * Gets the whether the publish no ack flag was set
+     * Gets whether the publish no ack flag was set
      * @return the flag
      */
     public boolean isPublishNoAck() {
@@ -203,7 +205,6 @@ public class JetStreamOptions {
          * @return JetStream options
          */
         public JetStreamOptions build() {
-            this.requestTimeout = requestTimeout == null ? DEFAULT_TIMEOUT : requestTimeout;
             return new JetStreamOptions(this);
         }
     }
