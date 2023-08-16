@@ -50,7 +50,14 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     // ----------------------------------------------------------------------------------------------------
     NatsJetStreamImpl(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
         conn = connection;
-        jso = JetStreamOptions.builder(jsOptions).build(); // builder handles null
+
+        // Get a working version of JetStream Options...
+        // Clone the input jsOptions (JetStreamOptions.builder(...) handles null.
+        // If jsOptions is not supplied or the jsOptions request timeout
+        // was not set, use the connection options connect timeout.
+        Duration rt = jsOptions == null || jsOptions.getRequestTimeout() == null ? conn.getOptions().getConnectionTimeout() : jsOptions.getRequestTimeout();
+        jso = JetStreamOptions.builder(jsOptions).requestTimeout(rt).build();
+
         consumerCreate290Available = conn.getInfo().isSameOrNewerThanVersion("2.9.0") && !jso.isOptOut290ConsumerCreate();
     }
 
@@ -93,7 +100,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         }
 
         ConsumerCreateRequest ccr = new ConsumerCreateRequest(streamName, config);
-        Message resp = makeRequestResponseRequired(subj, ccr.serialize(), conn.getOptions().getConnectionTimeout());
+        Message resp = makeRequestResponseRequired(subj, ccr.serialize(), jso.getRequestTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
     }
 
