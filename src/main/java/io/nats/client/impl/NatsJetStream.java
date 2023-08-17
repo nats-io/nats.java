@@ -459,39 +459,39 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             ConsumerConfigurationComparer serverCcc = new ConsumerConfigurationComparer(serverCc);
             List<String> changes = new ArrayList<>();
 
-            if (deliverPolicy != null && deliverPolicy != serverCcc.getDeliverPolicy()) { changes.add("deliverPolicy"); };
-            if (ackPolicy != null && ackPolicy != serverCcc.getAckPolicy()) { changes.add("ackPolicy"); };
-            if (replayPolicy != null && replayPolicy != serverCcc.getReplayPolicy()) { changes.add("replayPolicy"); };
+            if (deliverPolicy != null && deliverPolicy != serverCcc.getDeliverPolicy()) { changes.add("deliverPolicy"); }
+            if (ackPolicy != null && ackPolicy != serverCcc.getAckPolicy()) { changes.add("ackPolicy"); }
+            if (replayPolicy != null && replayPolicy != serverCcc.getReplayPolicy()) { changes.add("replayPolicy"); }
 
-            if (flowControl != null && flowControl != serverCcc.isFlowControl()) { changes.add("flowControl"); };
-            if (headersOnly != null && headersOnly != serverCcc.isHeadersOnly()) { changes.add("headersOnly"); };
-            if (memStorage != null && memStorage != serverCcc.isMemStorage()) { changes.add("memStorage"); };
+            if (flowControl != null && flowControl != serverCcc.isFlowControl()) { changes.add("flowControl"); }
+            if (headersOnly != null && headersOnly != serverCcc.isHeadersOnly()) { changes.add("headersOnly"); }
+            if (memStorage != null && memStorage != serverCcc.isMemStorage()) { changes.add("memStorage"); }
 
-            if (startSeq != null && !startSeq.equals(serverCcc.getStartSequence())) { changes.add("startSequence"); };
-            if (rateLimit != null && !rateLimit.equals(serverCcc.getRateLimit())) { changes.add("rateLimit"); };
+            if (startSeq != null && !startSeq.equals(serverCcc.getStartSequence())) { changes.add("startSequence"); }
+            if (rateLimit != null && !rateLimit.equals(serverCcc.getRateLimit())) { changes.add("rateLimit"); }
 
-            if (maxDeliver != null && maxDeliver != serverCcc.getMaxDeliver()) { changes.add("maxDeliver"); };
-            if (maxAckPending != null && maxAckPending != serverCcc.getMaxAckPending()) { changes.add("maxAckPending"); };
-            if (maxPullWaiting != null && maxPullWaiting != serverCcc.getMaxPullWaiting()) { changes.add("maxPullWaiting"); };
-            if (maxBatch != null && maxBatch != serverCcc.getMaxBatch()) { changes.add("maxBatch"); };
-            if (maxBytes != null && maxBytes != serverCcc.getMaxBytes()) { changes.add("maxBytes"); };
-            if (numReplicas != null && !numReplicas.equals(serverCcc.numReplicas)) { changes.add("numReplicas"); };
+            if (maxDeliver != null && maxDeliver != serverCcc.getMaxDeliver()) { changes.add("maxDeliver"); }
+            if (maxAckPending != null && maxAckPending != serverCcc.getMaxAckPending()) { changes.add("maxAckPending"); }
+            if (maxPullWaiting != null && maxPullWaiting != serverCcc.getMaxPullWaiting()) { changes.add("maxPullWaiting"); }
+            if (maxBatch != null && maxBatch != serverCcc.getMaxBatch()) { changes.add("maxBatch"); }
+            if (maxBytes != null && maxBytes != serverCcc.getMaxBytes()) { changes.add("maxBytes"); }
+            if (numReplicas != null && !numReplicas.equals(serverCcc.numReplicas)) { changes.add("numReplicas"); }
 
-            if (ackWait != null && !ackWait.equals(getOrUnset(serverCcc.ackWait))) { changes.add("ackWait"); };
-            if (idleHeartbeat != null && !idleHeartbeat.equals(getOrUnset(serverCcc.idleHeartbeat))) { changes.add("idleHeartbeat"); };
-            if (maxExpires != null && !maxExpires.equals(getOrUnset(serverCcc.maxExpires))) { changes.add("maxExpires"); };
-            if (inactiveThreshold != null && !inactiveThreshold.equals(getOrUnset(serverCcc.inactiveThreshold))) { changes.add("inactiveThreshold"); };
+            if (ackWait != null && !ackWait.equals(getOrUnset(serverCcc.ackWait))) { changes.add("ackWait"); }
+            if (idleHeartbeat != null && !idleHeartbeat.equals(getOrUnset(serverCcc.idleHeartbeat))) { changes.add("idleHeartbeat"); }
+            if (maxExpires != null && !maxExpires.equals(getOrUnset(serverCcc.maxExpires))) { changes.add("maxExpires"); }
+            if (inactiveThreshold != null && !inactiveThreshold.equals(getOrUnset(serverCcc.inactiveThreshold))) { changes.add("inactiveThreshold"); }
 
-            if (startTime != null && !startTime.equals(serverCcc.startTime)) { changes.add("startTime"); };
+            if (startTime != null && !startTime.equals(serverCcc.startTime)) { changes.add("startTime"); }
 
-            if (filterSubject != null && !filterSubject.equals(serverCcc.filterSubject)) { changes.add("filterSubject"); };
-            if (description != null && !description.equals(serverCcc.description)) { changes.add("description"); };
-            if (sampleFrequency != null && !sampleFrequency.equals(serverCcc.sampleFrequency)) { changes.add("sampleFrequency"); };
-            if (deliverSubject != null && !deliverSubject.equals(serverCcc.deliverSubject)) { changes.add("deliverSubject"); };
-            if (deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup)) { changes.add("deliverGroup"); };
+            if (filterSubject != null && !filterSubject.equals(serverCcc.filterSubject)) { changes.add("filterSubject"); }
+            if (description != null && !description.equals(serverCcc.description)) { changes.add("description"); }
+            if (sampleFrequency != null && !sampleFrequency.equals(serverCcc.sampleFrequency)) { changes.add("sampleFrequency"); }
+            if (deliverSubject != null && !deliverSubject.equals(serverCcc.deliverSubject)) { changes.add("deliverSubject"); }
+            if (deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup)) { changes.add("deliverGroup"); }
 
-            if (backoff != null && !listsAreEqual(backoff, serverCcc.backoff, true)) { changes.add("backoff"); };
-            if (metadata != null && !mapsAreEqual(metadata, serverCcc.metadata, true)) { changes.add("metadata"); };
+            if (backoff != null && !listsAreEqual(backoff, serverCcc.backoff, true)) { changes.add("backoff"); }
+            if (metadata != null && !mapsAreEqual(metadata, serverCcc.metadata, true)) { changes.add("metadata"); }
 
             // do not need to check Durable because the original is retrieved by the durable name
 

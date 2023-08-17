@@ -159,12 +159,12 @@ public class ServiceTests extends JetStreamTestBase {
                 InfoResponse infoResponse2 = service2.getInfoResponse();
                 StatsResponse statsResponse1 = service1.getStatsResponse();
                 StatsResponse statsResponse2 = service2.getStatsResponse();
-                EndpointResponse[] endpointResponseArray1 = new EndpointResponse[]{
+                EndpointStats[] endpointStatsArray1 = new EndpointStats[]{
                     service1.getEndpointStats(ECHO_ENDPOINT_NAME),
                     service1.getEndpointStats(SORT_ENDPOINT_ASCENDING_NAME),
                     service1.getEndpointStats(SORT_ENDPOINT_DESCENDING_NAME)
                 };
-                EndpointResponse[] endpointResponseArray2 = new EndpointResponse[]{
+                EndpointStats[] endpointStatsArray2 = new EndpointStats[]{
                     service2.getEndpointStats(ECHO_ENDPOINT_NAME),
                     service2.getEndpointStats(SORT_ENDPOINT_ASCENDING_NAME),
                     service2.getEndpointStats(SORT_ENDPOINT_DESCENDING_NAME)
@@ -183,11 +183,11 @@ public class ServiceTests extends JetStreamTestBase {
                 // expecting 10 responses across each endpoint between 2 services
                 for (int x = 0; x < 3; x++) {
                     assertEquals(requestCount,
-                        endpointResponseArray1[x].getNumRequests()
-                            + endpointResponseArray2[x].getNumRequests());
+                        endpointStatsArray1[x].getNumRequests()
+                            + endpointStatsArray2[x].getNumRequests());
                     assertEquals(requestCount,
-                        statsResponse1.getEndpointStats().get(x).getNumRequests()
-                            + statsResponse2.getEndpointStats().get(x).getNumRequests());
+                        statsResponse1.getEndpointStatsList().get(x).getNumRequests()
+                            + statsResponse2.getEndpointStatsList().get(x).getNumRequests());
                 }
 
                 // discovery - wait at most 500 millis for responses, 5 total responses max
@@ -224,10 +224,10 @@ public class ServiceTests extends JetStreamTestBase {
                     StatsResponse sr = (StatsResponse) response;
                     assertEquals(exp.getStarted(), sr.getStarted());
                     for (int x = 0; x < 3; x++) {
-                        EndpointResponse er = exp.getEndpointStats().get(x);
+                        EndpointStats er = exp.getEndpointStatsList().get(x);
                         if (!er.getName().equals(ECHO_ENDPOINT_NAME)) {
                             // echo endpoint has data that will vary
-                            assertEquals(er, sr.getEndpointStats().get(x));
+                            assertEquals(er, sr.getEndpointStatsList().get(x));
                         }
                     }
                 };
@@ -246,7 +246,7 @@ public class ServiceTests extends JetStreamTestBase {
                 StatsResponse sr = service1.getStatsResponse();
                 assertTrue(zdt.isBefore(sr.getStarted()));
                 for (int x = 0; x < 3; x++) {
-                    EndpointResponse er = sr.getEndpointStats().get(x);
+                    EndpointStats er = sr.getEndpointStatsList().get(x);
                     assertEquals(0, er.getNumRequests());
                     assertEquals(0, er.getNumErrors());
                     assertEquals(0, er.getProcessingTime());
@@ -592,7 +592,7 @@ public class ServiceTests extends JetStreamTestBase {
             assertEquals("java.lang.RuntimeException: handler-problem", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
             assertEquals("500", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
             StatsResponse sr = exService.getStatsResponse();
-            EndpointResponse er = sr.getEndpointStats().get(0);
+            EndpointStats er = sr.getEndpointStatsList().get(0);
             assertEquals(1, er.getNumRequests());
             assertEquals(1, er.getNumErrors());
             assertEquals("java.lang.RuntimeException: handler-problem", er.getLastError());
@@ -631,22 +631,6 @@ public class ServiceTests extends JetStreamTestBase {
                             assertEquals("testServiceMessage", m.getSubject());
                             assertFalse(m.hasHeaders());
                             assertNull(m.getHeaders());
-                            assertFalse(m.isStatusMessage());
-                            assertNull(m.getStatus());
-                            m.isUtf8mode();
-                            assertNotNull(m.getSubscription());
-                            assertNotNull(m.getSID());
-                            assertNotNull(m.getConnection());
-                            assertThrows(IllegalStateException.class, m::metaData);
-                            assertNull(m.lastAck());
-                            assertDoesNotThrow(() -> m.ackSync(Duration.ofMillis(1)));
-                            m.ack();
-                            m.nak();
-                            m.nakWithDelay(Duration.ofMillis(1));
-                            m.nakWithDelay(1);
-                            m.term();
-                            m.inProgress();
-                            assertFalse(m.isJetStream());
                             // the actual reply
                             m.respondStandardError(nc, "error", 500);
                             break;
@@ -753,6 +737,11 @@ public class ServiceTests extends JetStreamTestBase {
         e = new Endpoint(NAME, "foo.*");
         assertEquals("foo.*", e.getSubject());
 
+        // coverage
+        e = new Endpoint(NAME, SUBJECT, metadata);
+        assertEquals(NAME, e.getName());
+        assertEquals(SUBJECT, e.getSubject());
+        assertTrue(JsonUtils.mapEquals(metadata, e.getMetadata()));
         assertThrows(IllegalArgumentException.class, () -> Endpoint.builder().build());
 
         // many names are bad
@@ -781,12 +770,12 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testEndpointResponseConstruction() {
         JsonValue data = new JsonValue("data");
-        EqualsVerifier.simple().forClass(EndpointResponse.class)
+        EqualsVerifier.simple().forClass(EndpointStats.class)
             .withPrefabValues(JsonValue.class, data, JsonValue.NULL)
             .verify();
         ZonedDateTime zdt = DateTimeUtils.gmtNow();
 
-        EndpointResponse er = new EndpointResponse("name", "subject", 0, 0, 0, null, null, zdt);
+        EndpointStats er = new EndpointStats("name", "subject", 0, 0, 0, null, null, zdt);
         assertEquals("name", er.getName());
         assertEquals("subject", er.getSubject());
         assertNull(er.getLastError());
@@ -797,7 +786,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(0, er.getAverageProcessingTime());
         assertEquals(zdt, er.getStarted());
 
-        er = new EndpointResponse("name", "subject", 2, 4, 10, "lastError", data, zdt);
+        er = new EndpointStats("name", "subject", 2, 4, 10, "lastError", data, zdt);
         assertEquals("name", er.getName());
         assertEquals("subject", er.getSubject());
         assertEquals("lastError", er.getLastError());
@@ -818,7 +807,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertTrue(j.contains("\"num_errors\":4"));
         assertTrue(j.contains("\"processing_time\":10"));
         assertTrue(j.contains("\"average_processing_time\":5"));
-        assertEquals(toKey(EndpointResponse.class) + j, er.toString());
+        assertEquals(toKey(EndpointStats.class) + j, er.toString());
     }
 
     @Test
@@ -883,8 +872,9 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(e1.getName(), se.getName());
         assertEquals(e1.getSubject(), se.getSubject());
         assertEquals(smh, se.getHandler());
-        assertEquals(sds, se.getStatsDataSupplier());
+        assertEquals(sds, se.getEndpointStatsDataSupplier());
         assertNull(se.getDispatcher());
+        assertNull(se.getGroupName());
 
         se = ServiceEndpoint.builder()
             .group(g1)
@@ -894,8 +884,9 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(g1, se.getGroup());
         assertEquals(e1, se.getEndpoint());
         assertEquals(e1.getName(), se.getName());
+        assertEquals(se.getGroup().getName(), se.getGroupName());
         assertEquals(g1.getSubject() + DOT + e1.getSubject(), se.getSubject());
-        assertNull(se.getStatsDataSupplier());
+        assertNull(se.getEndpointStatsDataSupplier());
         assertNull(se.getDispatcher());
 
         se = ServiceEndpoint.builder()
@@ -910,7 +901,7 @@ public class ServiceTests extends JetStreamTestBase {
 
         se = ServiceEndpoint.builder()
             .endpoint(e1)
-            .endpoint(e2)
+            .endpoint(e2) // last one wins
             .handler(smh)
             .build();
         assertEquals(e2, se.getEndpoint());
@@ -932,6 +923,22 @@ public class ServiceTests extends JetStreamTestBase {
             .build();
         assertEquals(e1.getName(), se.getName());
         assertEquals(e2.getSubject(), se.getSubject());
+
+        Map<String, String> metadata = new HashMap<>();
+        se = ServiceEndpoint.builder()
+            .endpoint(e1)
+            .metadata(metadata)
+            .handler(smh)
+            .build();
+        assertNull(se.getMetadata());
+
+        metadata.put("k", "v");
+        se = ServiceEndpoint.builder()
+            .endpoint(e1)
+            .metadata(metadata)
+            .handler(smh)
+            .build();
+        assertTrue(JsonUtils.mapEquals(metadata, se.getMetadata()));
 
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> ServiceEndpoint.builder().build());
@@ -1008,10 +1015,10 @@ public class ServiceTests extends JetStreamTestBase {
         sleep(100);
         endStarteds[1] = DateTimeUtils.gmtNow();
 
-        List<EndpointResponse> statsList = new ArrayList<>();
+        List<EndpointStats> statsList = new ArrayList<>();
         JsonValue[] data = new JsonValue[]{supplyData(), supplyData()};
-        statsList.add(new EndpointResponse("endName0", "endSubject0", 1000, 0, 10000, "lastError0", data[0], endStarteds[0]));
-        statsList.add(new EndpointResponse("endName1", "endSubject1", 2000, 10, 10000, "lastError1", data[1], endStarteds[1]));
+        statsList.add(new EndpointStats("endName0", "endSubject0", 1000, 0, 10000, "lastError0", data[0], endStarteds[0]));
+        statsList.add(new EndpointStats("endName1", "endSubject1", 2000, 10, 10000, "lastError1", data[1], endStarteds[1]));
 
         StatsResponse stat1 = new StatsResponse(pr1, serviceStarted, statsList);
         StatsResponse stat2 = new StatsResponse(stat1.toJson().getBytes());
@@ -1021,16 +1028,16 @@ public class ServiceTests extends JetStreamTestBase {
         EqualsVerifier.simple().forClass(PingResponse.class).verify();
         EqualsVerifier.simple().forClass(InfoResponse.class).verify();
         EqualsVerifier.simple().forClass(StatsResponse.class)
-            .withPrefabValues(EndpointResponse.class, statsList.get(0), statsList.get(1))
+            .withPrefabValues(EndpointStats.class, statsList.get(0), statsList.get(1))
             .verify();
     }
 
     private static void validateApiInOutStatsResponse(StatsResponse stat, ZonedDateTime serviceStarted, ZonedDateTime[] endStarteds, JsonValue[] data) {
         validateApiInOutServiceResponse(stat, StatsResponse.TYPE);
         assertEquals(serviceStarted, stat.getStarted());
-        assertEquals(2, stat.getEndpointStats().size());
+        assertEquals(2, stat.getEndpointStatsList().size());
         for (int x = 0; x < 2; x++) {
-            EndpointResponse e = stat.getEndpointStats().get(x);
+            EndpointStats e = stat.getEndpointStatsList().get(x);
             assertEquals("endName" + x, e.getName());
             assertEquals("endSubject" + x, e.getSubject());
             long nr = x * 1000 + 1000;

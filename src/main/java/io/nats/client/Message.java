@@ -47,7 +47,7 @@ public interface Message {
 	boolean hasHeaders();
 
 	/**
-	 * @return the headers object the message
+	 * @return the headers object for the message
 	 */
 	Headers getHeaders();
 

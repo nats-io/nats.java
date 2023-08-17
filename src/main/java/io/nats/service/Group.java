@@ -19,16 +19,28 @@ import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.Validator.validateSubject;
 
 /**
- * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ * Group is way to organize endpoints by serving as a common prefix to all endpoints registered in it.
  */
 public class Group {
     private final String name;
     private Group next;
 
+    /**
+     * Construct a group.
+     * <p>Group names and subjects are considered 'Restricted Terms' and must only contain A-Z, a-z, 0-9, '-' or '_'</p>
+     * @param name the group name
+     */
     public Group(String name) {
         this.name = validateSubject(name, "Group Name", true, true);
     }
 
+    /**
+     * Append a group at the end of the list of groups this group starts or is a part of.
+     * Appended groups can be traversed by doing {@link #getNext}
+     * Subsequent appends add the group to the end of the list.
+     * @param group the group to append
+     * @return like a fluent builder, return the Group instance
+     */
     public Group appendGroup(Group group) {
         Group last = this;
         while (last.next != null) {
@@ -38,14 +50,35 @@ public class Group {
         return this;
     }
 
+    /**
+     * Get the resolved subject of a group by concatenating the group name and any groups.
+     * For example, this:
+     * <code>
+     * Group g = new Group("A")
+     *     .appendGroup(new Group("B"))
+     *     .appendGroup(new Group("C"))
+     *     .appendGroup(new Group("D"));
+     * System.out.println(g.getSubject());
+     * </code>
+     * prints "A.B.C.D"
+     * @return the subject
+     */
     public String getSubject() {
         return next == null ? name : name + DOT + next.getSubject();
     }
 
+    /**
+     * Get the name of the group.
+     * @return the name
+     */
     public String getName() {
         return name;
     }
 
+    /**
+     * Get the next group after this group. May be null
+     * @return the next group
+     */
     public Group getNext() {
         return next;
     }

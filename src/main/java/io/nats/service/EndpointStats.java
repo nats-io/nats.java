@@ -28,9 +28,47 @@ import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.*;
 
 /**
- * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ * Endpoints stats contains various stats and custom data for an endpoint.
+ * <code>
+ * {
+ * "id": "ZP1oVevzLGu4CBORMXKKke",
+ * "name": "Service1",
+ * "version": "0.0.1",
+ * "endpoints": [{
+ *     "name": "SortEndpointAscending",
+ *     "subject": "sort.ascending",
+ *     "num_requests": 1,
+ *     "processing_time": 538900,
+ *     "average_processing_time": 538900,
+ *     "started": "2023-08-15T13:51:41.318000000Z"
+ * }
+ * </code>
+ * <code>
+ * {
+ *     "name": "SortEndpointDescending",
+ *     "subject": "sort.descending",
+ *     "num_requests": 1,
+ *     "processing_time": 88400,
+ *     "average_processing_time": 88400,
+ *     "started": "2023-08-15T13:51:41.318000000Z"
+ * }
+ * </code>
+ * <code>
+ * {
+ *     "name": "EchoEndpoint",
+ *     "subject": "echo",
+ *     "num_requests": 5,
+ *     "processing_time": 1931600,
+ *     "average_processing_time": 386320,
+ *     "data": {
+ *          "idata": 2,
+ *          "sdata": "s-996409223"
+ *     },
+ *     "started": "2023-08-15T13:51:41.318000000Z"
+ * }
+ * </code>
  */
-public class EndpointResponse implements JsonSerializable {
+public class EndpointStats implements JsonSerializable {
     private final String name;
     private final String subject;
     private final long numRequests;
@@ -41,12 +79,11 @@ public class EndpointResponse implements JsonSerializable {
     private final JsonValue data;
     private final ZonedDateTime started;
 
-    static List<EndpointResponse> listOf(JsonValue vEndpointStats) {
-        return JsonValueUtils.listOf(vEndpointStats, EndpointResponse::new);
+    static List<EndpointStats> listOf(JsonValue vEndpointStats) {
+        return JsonValueUtils.listOf(vEndpointStats, EndpointStats::new);
     }
 
-    // This is for stats
-    EndpointResponse(String name, String subject, long numRequests, long numErrors, long processingTime, String lastError, JsonValue data, ZonedDateTime started) {
+    EndpointStats(String name, String subject, long numRequests, long numErrors, long processingTime, String lastError, JsonValue data, ZonedDateTime started) {
         this.name = name;
         this.subject = subject;
         this.numRequests = numRequests;
@@ -58,29 +95,16 @@ public class EndpointResponse implements JsonSerializable {
         this.started = started;
     }
 
-    // This is for schema
-    EndpointResponse(String name, String subject) {
-        this.name = name;
-        this.subject = subject;
-        this.numRequests = 0;
-        this.numErrors = 0;
-        this.processingTime = 0;
-        this.averageProcessingTime = 0;
-        this.lastError = null;
-        this.data = null;
-        this.started = null;
-    }
-
-    EndpointResponse(JsonValue vEndpointResponse) {
-        name = readString(vEndpointResponse, NAME);
-        subject = readString(vEndpointResponse, SUBJECT);
-        numRequests = readLong(vEndpointResponse, NUM_REQUESTS, 0);
-        numErrors = readLong(vEndpointResponse, NUM_ERRORS, 0);
-        processingTime = readLong(vEndpointResponse, PROCESSING_TIME, 0);
-        averageProcessingTime = readLong(vEndpointResponse, AVERAGE_PROCESSING_TIME, 0);
-        lastError = readString(vEndpointResponse, LAST_ERROR);
-        data = readValue(vEndpointResponse, DATA);
-        started = readDate(vEndpointResponse, STARTED);
+    EndpointStats(JsonValue vEndpointStats) {
+        name = readString(vEndpointStats, NAME);
+        subject = readString(vEndpointStats, SUBJECT);
+        numRequests = readLong(vEndpointStats, NUM_REQUESTS, 0);
+        numErrors = readLong(vEndpointStats, NUM_ERRORS, 0);
+        processingTime = readLong(vEndpointStats, PROCESSING_TIME, 0);
+        averageProcessingTime = readLong(vEndpointStats, AVERAGE_PROCESSING_TIME, 0);
+        lastError = readString(vEndpointStats, LAST_ERROR);
+        data = readValue(vEndpointStats, DATA);
+        started = readDate(vEndpointStats, STARTED);
     }
 
     @Override
@@ -98,38 +122,82 @@ public class EndpointResponse implements JsonSerializable {
         return endJson(sb).toString();
     }
 
+    /**
+     * Get the name of the Endpoint
+     * @return the name
+     */
     public String getName() {
         return name;
     }
 
+    /**
+     * Get the subject of the Endpoint
+     * @return the subject
+     */
     public String getSubject() {
         return subject;
     }
 
+    /**
+     * The number of requests received by the endpoint
+     * @return the number of requests
+     */
     public long getNumRequests() {
         return numRequests;
     }
 
+    /**
+     * Number of errors that the endpoint has raised
+     * @return the number of errors
+     */
     public long getNumErrors() {
         return numErrors;
     }
 
+    /**
+     * Total processing time for the endpoint
+     * @return the total processing time
+     */
     public long getProcessingTime() {
         return processingTime;
     }
 
+    /**
+     * Average processing time is the total processing time divided by the num requests
+     * @return the average processing time
+     */
     public long getAverageProcessingTime() {
         return averageProcessingTime;
     }
 
+    /**
+     * If set, the last error triggered by the endpoint
+     * @return the last error or null
+     */
     public String getLastError() {
         return lastError;
     }
 
+    /**
+     * A field that can be customized with any data as returned by stats handler
+     * @return the JsonValue object representing the data
+     */
     public JsonValue getData() {
         return data;
     }
 
+    /**
+     * The json representation of the custom data. May be null
+     * @return the json
+     */
+    public String getDataAsJson() {
+        return data == null ? null : data.toJson();
+    }
+
+    /**
+     * Get the time the endpoint was started (or restarted)
+     * @return the start time
+     */
     public ZonedDateTime getStarted() {
         return started;
     }
@@ -144,7 +212,7 @@ public class EndpointResponse implements JsonSerializable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        EndpointResponse that = (EndpointResponse) o;
+        EndpointStats that = (EndpointStats) o;
 
         if (numRequests != that.numRequests) return false;
         if (numErrors != that.numErrors) return false;

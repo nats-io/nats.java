@@ -10,7 +10,7 @@ import java.time.ZonedDateTime;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ * Internal class to support service implementation
  */
 class EndpointContext {
     private static final String QGROUP = "q";
@@ -86,15 +86,15 @@ class EndpointContext {
         }
     }
 
-    EndpointResponse getEndpointStats() {
-        return new EndpointResponse(
+    EndpointStats getEndpointStats() {
+        return new EndpointStats(
             se.getEndpoint().getName(),
             se.getSubject(),
             numRequests.get(),
             numErrors.get(),
             processingTime.get(),
             lastError,
-            se.getStatsDataSupplier() == null ? null : se.getStatsDataSupplier().get(),
+            se.getEndpointStatsDataSupplier() == null ? null : se.getEndpointStatsDataSupplier().get(),
             started);
     }
 

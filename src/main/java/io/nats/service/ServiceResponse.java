@@ -15,6 +15,7 @@ package io.nats.service;
 
 import io.nats.client.support.*;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -24,7 +25,7 @@ import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.JsonValueUtils.readStringStringMap;
 
 /**
- * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ * Base class for service responses Info, Ping and Stats
  */
 public abstract class ServiceResponse implements JsonSerializable {
     protected final String type;
@@ -42,11 +43,7 @@ public abstract class ServiceResponse implements JsonSerializable {
     }
 
     protected ServiceResponse(String type, ServiceResponse template) {
-        this.type = type;
-        this.id = template.id;
-        this.name = template.name;
-        this.version = template.version;
-        this.metadata = template.metadata;
+        this(type, template.id, template.name, template.version, template.metadata);
     }
 
     protected ServiceResponse(String type, JsonValue jv) {
@@ -82,19 +79,19 @@ public abstract class ServiceResponse implements JsonSerializable {
     }
 
     /**
-     * The kind of the service reporting the status
-     * @return the service name
-     */
-    public String getName() {
-        return name;
-    }
-
-    /**
-     * The unique ID of the service reporting the status
+     * The unique ID of the service
      * @return the service id
      */
     public String getId() {
         return id;
+    }
+
+    /**
+     * The name of the service
+     * @return the service name
+     */
+    public String getName() {
+        return name;
     }
 
     /**
@@ -106,11 +103,11 @@ public abstract class ServiceResponse implements JsonSerializable {
     }
 
     /**
-     * Metadata for the service
-     * @return the metadata or null if there is no metadata
+     * A copy of the metadata for the service, or null if there is no metadata
+     * @return the metadata
      */
     public Map<String, String> getMetadata() {
-        return metadata;
+        return metadata == null ? null : new HashMap<>(metadata);
     }
 
     protected void subToJson(StringBuilder sb) {}

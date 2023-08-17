@@ -26,7 +26,8 @@ import static io.nats.client.support.JsonUtils.listEquals;
 import static io.nats.client.support.JsonValueUtils.*;
 
 /**
- * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ * Info response class forms the info json payload, for example:
+ * <code>{"id":"JlkwZvmHAXCQGwwxiPwaBJ","name":"MyService","version":"0.0.1","endpoints":[{"name":"MyEndpoint","subject":"myend"}],"type":"io.nats.micro.v1.info_response"}</code>
  */
 public class InfoResponse extends ServiceResponse {
     public static final String TYPE = "io.nats.micro.v1.info_response";
@@ -34,13 +35,13 @@ public class InfoResponse extends ServiceResponse {
     private final String description;
     private final List<Endpoint> endpoints;
 
-    public InfoResponse(String id, String name, String version, Map<String, String> metadata, String description, List<Endpoint> endpoints) {
+    InfoResponse(String id, String name, String version, Map<String, String> metadata, String description, List<Endpoint> endpoints) {
         super(TYPE, id, name, version, metadata);
         this.description = description;
         this.endpoints = endpoints;
     }
 
-    public InfoResponse(byte[] jsonBytes) {
+    InfoResponse(byte[] jsonBytes) {
         this(parseMessage(jsonBytes));
     }
 
