@@ -94,7 +94,7 @@ class EndpointContext {
             numErrors.get(),
             processingTime.get(),
             lastError,
-            se.getEndpointStatsDataSupplier() == null ? null : se.getEndpointStatsDataSupplier().get(),
+            se.getStatsDataSupplier() == null ? null : se.getStatsDataSupplier().get(),
             started);
     }
 

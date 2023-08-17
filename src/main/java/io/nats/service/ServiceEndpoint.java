@@ -39,14 +39,14 @@ public class ServiceEndpoint {
     private final Endpoint endpoint;
     private final ServiceMessageHandler handler;
     private final Dispatcher dispatcher;
-    private final Supplier<JsonValue> endpointStatsDataSupplier;
+    private final Supplier<JsonValue> statsDataSupplier;
 
     private ServiceEndpoint(Builder b, Endpoint e) {
         this.group = b.group;
         this.endpoint = e;
         this.handler = b.handler;
         this.dispatcher = b.dispatcher;
-        this.endpointStatsDataSupplier = b.endpointStatsDataSupplier;
+        this.statsDataSupplier = b.statsDataSupplier;
     }
 
     // internal use constructor
@@ -55,7 +55,7 @@ public class ServiceEndpoint {
         this.endpoint = endpoint;
         this.handler = handler;
         this.dispatcher = dispatcher;
-        this.endpointStatsDataSupplier = null;
+        this.statsDataSupplier = null;
     }
 
     /**
@@ -106,8 +106,8 @@ public class ServiceEndpoint {
         return dispatcher;
     }
 
-    protected Supplier<JsonValue> getEndpointStatsDataSupplier() {
-        return endpointStatsDataSupplier;
+    protected Supplier<JsonValue> getStatsDataSupplier() {
+        return statsDataSupplier;
     }
 
     /**
@@ -125,7 +125,7 @@ public class ServiceEndpoint {
         private Group group;
         private ServiceMessageHandler handler;
         private Dispatcher dispatcher;
-        private Supplier<JsonValue> endpointStatsDataSupplier;
+        private Supplier<JsonValue> statsDataSupplier;
         private Endpoint.Builder endpointBuilder = Endpoint.builder();
 
         /**
@@ -204,11 +204,11 @@ public class ServiceEndpoint {
 
         /**
          * Set the {@link EndpointStats} data supplier for this ServiceEndpoint
-         * @param endpointStatsDataSupplier the data supplier
+         * @param statsDataSupplier the data supplier
          * @return the ServiceEndpoint.Builder
          */
-        public Builder statsDataSupplier(Supplier<JsonValue> endpointStatsDataSupplier) {
-            this.endpointStatsDataSupplier = endpointStatsDataSupplier;
+        public Builder statsDataSupplier(Supplier<JsonValue> statsDataSupplier) {
+            this.statsDataSupplier = statsDataSupplier;
             return this;
         }
 

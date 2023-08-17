@@ -872,7 +872,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(e1.getName(), se.getName());
         assertEquals(e1.getSubject(), se.getSubject());
         assertEquals(smh, se.getHandler());
-        assertEquals(sds, se.getEndpointStatsDataSupplier());
+        assertEquals(sds, se.getStatsDataSupplier());
         assertNull(se.getDispatcher());
         assertNull(se.getGroupName());
 
@@ -886,7 +886,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(e1.getName(), se.getName());
         assertEquals(se.getGroup().getName(), se.getGroupName());
         assertEquals(g1.getSubject() + DOT + e1.getSubject(), se.getSubject());
-        assertNull(se.getEndpointStatsDataSupplier());
+        assertNull(se.getStatsDataSupplier());
         assertNull(se.getDispatcher());
 
         se = ServiceEndpoint.builder()
