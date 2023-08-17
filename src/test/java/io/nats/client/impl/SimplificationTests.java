@@ -338,6 +338,9 @@ public class SimplificationTests extends JetStreamTestBase {
             try (MessageConsumer consumer = consumerContext.consume(handler)) {
                 latch.await();
                 consumer.stop();
+                while (!consumer.isFinished()) {
+                    Thread.sleep(10);
+                }
                 assertTrue(atomicCount.get() > 500);
             }
         });

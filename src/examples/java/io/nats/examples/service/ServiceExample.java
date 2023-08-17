@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
- * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ * This example demonstrates basic setup and use of the Service Framework
  */
 public class ServiceExample {
     public static void main(String[] args) throws IOException {

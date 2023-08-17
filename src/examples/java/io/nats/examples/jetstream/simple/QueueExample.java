@@ -28,7 +28,6 @@ import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
 
 /**
  * This example will demonstrate simplified next
- * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class QueueExample {
     private static final String STREAM = "q-stream";

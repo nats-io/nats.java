@@ -23,7 +23,6 @@ import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
 
 /**
  * This example will demonstrate simplified IterableConsumer where the developer calls nextMessage.
- * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class IterableConsumerExample {
     private static final String STREAM = "iterable-stream";

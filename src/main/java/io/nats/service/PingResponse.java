@@ -16,16 +16,17 @@ package io.nats.service;
 import java.util.Map;
 
 /**
- * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ * Ping response class forms the ping json payload, for example:
+ * <code>{"id":"JlkwZvmHAXCQGwwxiPwaBJ","name":"MyService","version":"0.0.1","type":"io.nats.micro.v1.ping_response"}</code>
  */
 public class PingResponse extends ServiceResponse {
     public static final String TYPE = "io.nats.micro.v1.ping_response";
 
-    public PingResponse(String id, String name, String version, Map<String, String> metadata) {
+    PingResponse(String id, String name, String version, Map<String, String> metadata) {
         super(TYPE, id, name, version, metadata);
     }
 
-    public PingResponse(byte[] jsonBytes) {
+    PingResponse(byte[] jsonBytes) {
         super(TYPE, parseMessage(jsonBytes));
     }
 }

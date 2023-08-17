@@ -46,7 +46,7 @@ public abstract class Validator {
                 }
             }
             else if (!segment.equals("*") && notPrintable(segment)) {
-                    throw new IllegalArgumentException(label + " must be printable characters only.");
+                throw new IllegalArgumentException(label + " must be printable characters only.");
             }
         }
         return subject;
@@ -75,10 +75,10 @@ public abstract class Validator {
     public static String validatePrefixOrDomain(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
             if (s.startsWith(DOT)) {
-                throw new IllegalArgumentException(label + " cannot start with `.` [" + s + "]");
+                throw new IllegalArgumentException(label + " cannot start with '.' [" + s + "]");
             }
             if (notPrintableOrHasWildGt(s)) {
-                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `>` [" + s + "]");
+                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include '*', '>' [" + s + "]");
             }
             return s;
         });
@@ -182,7 +182,7 @@ public abstract class Validator {
     public static String validatePrintableExceptWildDotGt(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
             if (notPrintableOrHasWildGtDot(s)) {
-                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `.` or `>` [" + s + "]");
+                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include '*', '.' or '>' [" + s + "]");
             }
             return s;
         });
@@ -191,7 +191,7 @@ public abstract class Validator {
     public static String validatePrintableExceptWildDotGtSlashes(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
             if (notPrintableOrHasWildGtDotSlashes(s)) {
-                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*`, `.`, `>`, `\\` or  `/` [" + s + "]");
+                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include '*', '.', '>', '\\' or  '/' [" + s + "]");
             }
             return s;
         });
@@ -200,7 +200,7 @@ public abstract class Validator {
     public static String validatePrintableExceptWildGt(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
             if (notPrintableOrHasWildGt(s)) {
-                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include `*` or `>` [" + s + "]");
+                throw new IllegalArgumentException(label + " must be in the printable ASCII range and cannot include '*' or '>' [" + s + "]");
             }
             return s;
         });
@@ -209,7 +209,7 @@ public abstract class Validator {
     public static String validateIsRestrictedTerm(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
             if (notRestrictedTerm(s)) {
-                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `-` or `_` [" + s + "]");
+                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, '-' or '_' [" + s + "]");
             }
             return s;
         });
@@ -222,7 +222,7 @@ public abstract class Validator {
     public static String validateWildcardKvKey(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
             if (notWildcardKvKey(s)) {
-                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `*`, `-`, `_`, `/`, `=`, `>` or `.` and cannot start with `.` [" + s + "]");
+                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, '*', '-', '_', '/', '=', '>' or '.' and cannot start with '.' [" + s + "]");
             }
             return s;
         });
@@ -231,7 +231,7 @@ public abstract class Validator {
     public static String validateNonWildcardKvKey(String s, String label, boolean required) {
         return _validate(s, required, label, () -> {
             if (notNonWildcardKvKey(s)) {
-                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, `-`, `_`, `/`, `=` or `.` and cannot start with `.` [" + s + "]");
+                throw new IllegalArgumentException(label + " must only contain A-Z, a-z, 0-9, '-', '_', '/', '=' or '.' and cannot start with '.' [" + s + "]");
             }
             return s;
         });

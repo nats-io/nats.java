@@ -16,7 +16,6 @@ package io.nats.client;
 /**
  * The BaseMessageConsumer interface is the core interface replacing
  * a subscription for a simplified consumer.
- * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public interface BaseMessageConsumer extends AutoCloseable {
     /**

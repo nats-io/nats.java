@@ -32,7 +32,10 @@ import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
- * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ * The Services Framework introduces a higher-level API for implementing services with NATS.
+ * Services automatically contain Ping, Info and Stats responders.
+ * Services have one or more service endpoints. {@link ServiceEndpoint}
+ * When multiple instances of a service endpoints are active they work in a queue, meaning only one listener responds to any given request.
  */
 public class Service {
     public static final String SRV_PING = "PING";
@@ -139,6 +142,10 @@ public class Service {
         return DEFAULT_SERVICE_PREFIX + discoveryName + "." + optionalServiceNameSegment + "." + optionalServiceIdSegment;
     }
 
+    /**
+     * Start the service
+     * @return a future that can be held to see if another thread called stop
+     */
     public CompletableFuture<Boolean> startService() {
         synchronized (startStopLock) {
             if (runningIndicator == null) {
@@ -155,22 +162,42 @@ public class Service {
         }
     }
 
+    /**
+     * Get an instance of a ServiceBuilder.
+     * @return the instance
+     */
     public static ServiceBuilder builder() {
         return new ServiceBuilder();
     }
 
+    /**
+     * Stop the service by draining.
+     */
     public void stop() {
         stop(true, null);
     }
 
+    /**
+     * Stop the service by draining. Mark the future that was received from the start method that the service completed exceptionally.
+     * @param t the error cause
+     */
     public void stop(Throwable t) {
         stop(true, t);
     }
 
+    /**
+     * Stop the service, optionally draining.
+     * @param drain the flag indicating to drain or not
+     */
     public void stop(boolean drain) {
         stop(drain, null);
     }
 
+    /**
+     * Stop the service, optionally draining and optionally with an error cause
+     * @param drain the flag indicating to drain or not
+     * @param t the optional error cause. If supplied, mark the future that was received from the start method that the service completed exceptionally
+     */
     public void stop(boolean drain, Throwable t) {
         synchronized (startStopLock) {
             if (runningIndicator != null) {
@@ -231,6 +258,9 @@ public class Service {
         }
     }
 
+    /**
+     * Reset the statistics for the endpoints
+     */
     public void reset() {
         started = DateTimeUtils.gmtNow();
         for (EndpointContext c : discoveryContexts) {
@@ -241,43 +271,80 @@ public class Service {
         }
     }
 
+    /**
+     * Get the id of the service
+     * @return the id
+     */
     public String getId() {
         return infoResponse.getId();
     }
 
+    /**
+     * Get the name of the service
+     * @return the name
+     */
     public String getName() {
         return infoResponse.getName();
     }
 
+    /**
+     * Get the version of the service
+     * @return the version
+     */
     public String getVersion() {
         return infoResponse.getVersion();
     }
 
+    /**
+     * Get the description of the service
+     * @return the description
+     */
     public String getDescription() {
         return infoResponse.getDescription();
     }
 
+    /**
+     * Get the drain timeout setting
+     * @return the drain timeout setting
+     */
     public Duration getDrainTimeout() {
         return drainTimeout;
     }
 
+    /**
+     * Get the pre-constructed ping response.
+     * @return the ping response
+     */
     public PingResponse getPingResponse() {
         return pingResponse;
     }
 
+    /**
+     * Get the pre-constructed info response.
+     * @return the info response
+     */
     public InfoResponse getInfoResponse() {
         return infoResponse;
     }
 
+    /**
+     * Get the up-to-date stats response which contains a list of all {@link EndpointStats}
+     * @return the stats response
+     */
     public StatsResponse getStatsResponse() {
-        List<EndpointResponse> endpointStats = new ArrayList<>();
+        List<EndpointStats> endpointStats = new ArrayList<>();
         for (EndpointContext c : serviceContexts.values()) {
             endpointStats.add(c.getEndpointStats());
         }
         return new StatsResponse(pingResponse, started, endpointStats);
     }
 
-    public EndpointResponse getEndpointStats(String endpointName) {
+    /**
+     * Get the up-to-date {@link EndpointStats} for a specific endpoint
+     * @param endpointName the endpoint name
+     * @return the EndpointStats or null if the name is not found.
+     */
+    public EndpointStats getEndpointStats(String endpointName) {
         EndpointContext c = serviceContexts.get(endpointName);
         return c == null ? null : c.getEndpointStats();
     }

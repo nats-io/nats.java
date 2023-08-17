@@ -20,7 +20,7 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
+ * Implementation of Stream Context
  */
 class NatsStreamContext implements StreamContext {
     final String streamName;

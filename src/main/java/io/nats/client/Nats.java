@@ -221,8 +221,6 @@ public abstract class Nats {
      * <p>If there is an exception before a connection is created, and the error
      * listener is set, it will be notified with a null connection.
      * 
-     * <p><strong>This method is experimental, please provide feedback on its value.</strong>
-     * 
      * @param options            the connection options
      * @param reconnectOnConnect if true, the connection will treat the initial
      *                           connection as any other and attempt reconnects on

@@ -15,24 +15,25 @@ package io.nats.service;
 
 import io.nats.client.Connection;
 import io.nats.client.Message;
-import io.nats.client.Subscription;
-import io.nats.client.impl.AckType;
 import io.nats.client.impl.Headers;
-import io.nats.client.impl.NatsJetStreamMetaData;
 import io.nats.client.impl.NatsMessage;
 import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.Status;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.concurrent.TimeoutException;
 
 /**
- * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ * Service Message is service specific object that exposes the service relevant parts of a NATS Message.
  */
-public class ServiceMessage implements Message {
+public class ServiceMessage {
 
+    /**
+     * Standard header name used to report the text of an error
+     */
     public static final String NATS_SERVICE_ERROR = "Nats-Service-Error";
+
+    /**
+     * Standard header name used to report the code of an error
+     */
     public static final String NATS_SERVICE_ERROR_CODE = "Nats-Service-Error-Code";
 
     private final Message message;
@@ -41,146 +42,110 @@ public class ServiceMessage implements Message {
         this.message = message;
     }
 
+    /**
+     * Respond to a service request message.
+     * @param conn the NATS connection
+     * @param response the response payload in the form of a byte array 
+     */
     public void respond(Connection conn, byte[] response) {
         conn.publish(message.getReplyTo(), response);
     }
 
+    /**
+     * Respond to a service request message.
+     * @param conn the NATS connection
+     * @param response the response payload in the form of a string
+     */
     public void respond(Connection conn, String response) {
         conn.publish(message.getReplyTo(), response.getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * Respond to a service request message.
+     * @param conn the NATS connection
+     * @param response the response payload in the form of a {@link JsonSerializable} object
+     */
     public void respond(Connection conn, JsonSerializable response) {
         conn.publish(message.getReplyTo(), response.serialize());
     }
 
+    /**
+     * Respond to a service request message with a response and custom headers.
+     * @param conn the NATS connection
+     * @param response the response payload in the form of a byte array
+     * @param headers the custom headers                 
+     */
     public void respond(Connection conn, byte[] response, Headers headers) {
         conn.publish(NatsMessage.builder().subject(message.getReplyTo()).data(response).headers(headers).build());
     }
 
+    /**
+     * Respond to a service request message with a response and custom headers.
+     * @param conn the NATS connection
+     * @param response the response payload in the form of a string
+     * @param headers the custom headers                 
+     */
     public void respond(Connection conn, String response, Headers headers) {
         conn.publish(NatsMessage.builder().subject(message.getReplyTo()).data(response).headers(headers).build());
     }
 
+    /**
+     * Respond to a service request message.
+     * @param conn the NATS connection
+     * @param response the response payload in the form of a {@link JsonSerializable} object
+     * @param headers the custom headers                 
+     */
     public void respond(Connection conn, JsonSerializable response, Headers headers) {
         conn.publish(NatsMessage.builder().subject(message.getReplyTo()).data(response.serialize()).headers(headers).build());
     }
 
-    public void respondStandardError(Connection conn, String errorMessage, int errorCode) {
+    /**
+     * Respond to a service request message with a standard error.
+     * @param conn the NATS connection
+     * @param errorText the error message text
+     * @param errorCode the error message code
+     */
+    public void respondStandardError(Connection conn, String errorText, int errorCode) {
         conn.publish(NatsMessage.builder()
             .subject(message.getReplyTo())
             .headers(new Headers()
-                .put(NATS_SERVICE_ERROR, errorMessage)
+                .put(NATS_SERVICE_ERROR, errorText)
                 .put(NATS_SERVICE_ERROR_CODE, "" + errorCode))
             .build());
     }
 
-    @Override
+    /**
+     * @return the subject that this message was sent to
+     */
     public String getSubject() {
         return message.getSubject();
     }
 
-    @Override
+    /**
+     * @return the subject the application is expected to send a reply message on
+     */
     public String getReplyTo() {
         return message.getReplyTo();
     }
 
-    @Override
+    /**
+     * @return true if there are headers
+     */
     public boolean hasHeaders() {
         return message.hasHeaders();
     }
 
-    @Override
+    /**
+     * @return the headers object for the message
+     */
     public Headers getHeaders() {
         return message.getHeaders();
     }
 
-    @Override
-    public boolean isStatusMessage() {
-        return message.isStatusMessage();
-    }
-
-    @Override
-    public Status getStatus() {
-        return message.getStatus();
-    }
-
-    @Override
+    /**
+     * @return the data from the message
+     */
     public byte[] getData() {
         return message.getData();
-    }
-
-    @Override
-    public boolean isUtf8mode() {
-        return message.isUtf8mode();
-    }
-
-    @Override
-    public Subscription getSubscription() {
-        return message.getSubscription();
-    }
-
-    @Override
-    public String getSID() {
-        return message.getSID();
-    }
-
-    @Override
-    public Connection getConnection() {
-        return message.getConnection();
-    }
-
-    @Override
-    public NatsJetStreamMetaData metaData() {
-        return message.metaData();
-    }
-
-    @Override
-    public AckType lastAck() {
-        return message.lastAck();
-    }
-
-    @Override
-    public void ack() {
-        message.ack();
-    }
-
-    @Override
-    public void ackSync(Duration timeout) throws TimeoutException, InterruptedException {
-        message.ackSync(timeout);
-    }
-
-    @Override
-    public void nak() {
-        message.nak();
-    }
-
-    @Override
-    public void nakWithDelay(Duration nakDelay) {
-        message.nakWithDelay(nakDelay);
-    }
-
-    @Override
-    public void nakWithDelay(long nakDelayMillis) {
-        message.nakWithDelay(nakDelayMillis);
-    }
-
-    @Override
-    public void term() {
-        message.term();
-    }
-
-    @Override
-    public void inProgress() {
-        message.inProgress();
-    }
-
-    @Override
-    public boolean isJetStream() {
-        return message.isJetStream();
-    }
-
-    @Override
-    public long consumeByteCount() {
-        return message.consumeByteCount();
     }
 }

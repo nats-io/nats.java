@@ -109,7 +109,7 @@ public class ReconnectTests {
         handler.prepForStatusChange(Events.RESUBSCRIBED);
 
         try (NatsTestServer ts = ntsSupplier.apply(port)) {
-            standardConnectionWait(nc, handler);
+            standardConnectionWait(nc, handler, LONG_CONNECTION_WAIT_MS);
 
             end = System.nanoTime();
 

@@ -28,7 +28,7 @@ import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
 import static io.nats.client.impl.NatsJetStreamSubscription.EXPIRE_ADJUSTMENT;
 
 /**
- * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
+ * Implementation of Consumer Context
  */
 public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscriptionMaker {
     private final Object stateLock;

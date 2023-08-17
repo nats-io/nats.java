@@ -25,7 +25,6 @@ import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
 
 /**
  * This example will demonstrate simplified consume with a handler
- * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class MessageConsumerExample {
     private static final String STREAM = "consume-stream";

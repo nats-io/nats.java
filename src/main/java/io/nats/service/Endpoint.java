@@ -17,6 +17,7 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -28,25 +29,50 @@ import static io.nats.client.support.Validator.validateIsRestrictedTerm;
 import static io.nats.client.support.Validator.validateSubject;
 
 /**
- * SERVICE IS AN EXPERIMENTAL API SUBJECT TO CHANGE
+ * Endpoint encapsulates the name, subject and metadata for a {@link ServiceEndpoint}.
+ * <p>Endpoints can be used directly or as part of a group. {@link ServiceEndpoint} and {@link Group}</p>
+ * <p>Endpoint names and subjects are considered 'Restricted Terms' and must only contain A-Z, a-z, 0-9, '-' or '_'</p>
+ * <p>To create an Endpoint, either use a direct constructor or use the Endpoint builder
+ * via the static method <code>builder()</code> or <code>new Endpoint.Builder() to get an instance.</code>
+ * </p>
  */
 public class Endpoint implements JsonSerializable {
     private final String name;
     private final String subject;
     private final Map<String, String> metadata;
 
+    /**
+     * Directly construct an Endpoint with a name, which becomes the subject
+     * @param name the name
+     */
     public Endpoint(String name) {
         this(name, null, null, true);
     }
 
+    /**
+     * Directly construct an Endpoint with a name, which becomes the subject, and metadata
+     * @param name the name
+     * @param metadata the metadata
+     */
     public Endpoint(String name, Map<String, String> metadata) {
         this(name, null, metadata, true);
     }
 
+    /**
+     * Directly construct an Endpoint with a name and a subject
+     * @param name the name
+     * @param subject the subject
+     */
     public Endpoint(String name, String subject) {
         this(name, subject, null, true);
     }
 
+    /**
+     * Directly construct an Endpoint with a name, the subject, and metadata
+     * @param name the name
+     * @param subject the subject
+     * @param metadata the metadata
+     */
     public Endpoint(String name, String subject, Map<String, String> metadata) {
         this(name, subject, metadata, true);
     }
@@ -66,7 +92,7 @@ public class Endpoint implements JsonSerializable {
             this.name = name;
             this.subject = subject;
         }
-        this.metadata = metadata == null || metadata.size() == 0 ? null : metadata;
+        this.metadata = metadata == null || metadata.isEmpty() ? null : metadata;
     }
 
     Endpoint(JsonValue vEndpoint) {
@@ -93,48 +119,99 @@ public class Endpoint implements JsonSerializable {
         return JsonUtils.toKey(getClass()) + toJson();
     }
 
+    /**
+     * Get the name of the Endpoint
+     * @return the name
+     */
     public String getName() {
         return name;
     }
 
+    /**
+     * Get the subject of the Endpoint
+     * @return the subject
+     */
     public String getSubject() {
         return subject;
     }
 
+    /**
+     * Get a copy of the metadata of the Endpoint
+     * @return the copy of metadata
+     */
     public Map<String, String> getMetadata() {
-        return metadata;
+        return metadata == null ? null : new HashMap<>(metadata);
     }
 
+    /**
+     * Get an instance of an Endpoint builder.
+     * @return the instance
+     */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Build an Endpoint using a fluent builder.
+     */
     public static class Builder {
         private String name;
         private String subject;
         private Map<String, String> metadata;
 
+        /**
+         * Construct the builder
+         */
+        public Builder() {}
+
+        /**
+         * Copy the Endpoint, replacing all existing endpoint information.
+         * @param endpoint the endpoint to copy
+         * @return the Endpoint.Builder
+         */
         public Builder endpoint(Endpoint endpoint) {
-            name = endpoint.getName();
-            subject = endpoint.getSubject();
-            return this;
+            return name(endpoint.getName()).subject(endpoint.getSubject()).metadata(endpoint.getMetadata());
         }
 
+        /**
+         * Set the name for the Endpoint, replacing any name already set.
+         * @param name the endpoint name
+         * @return the Endpoint.Builder
+         */
         public Builder name(String name) {
             this.name = name;
             return this;
         }
 
+        /**
+         * Set the subject for the Endpoint, replacing any subject already set.
+         * @param subject the subject
+         * @return the Endpoint.Builder
+         */
         public Builder subject(String subject) {
             this.subject = subject;
             return this;
         }
 
+        /**
+         * Set the metadata for the Endpoint, replacing any metadata already set.
+         * @param metadata the metadata
+         * @return the Endpoint.Builder
+         */
         public Builder metadata(Map<String, String> metadata) {
-            this.metadata = metadata;
+            if (metadata == null || metadata.isEmpty()) {
+                this.metadata = null;
+            }
+            else {
+                this.metadata = new HashMap<>(metadata);
+            }
             return this;
         }
 
+        /**
+         * Build the Endpoint instance.
+         * @return the Endpoint instance
+         */
         public Endpoint build() {
             return new Endpoint(this);
         }
