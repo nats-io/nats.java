@@ -20,7 +20,6 @@ import java.io.IOException;
 /**
  * The MessageConsumer interface is the core interface replacing
  * a subscription for a simplified consumer.
- * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public interface MessageConsumer extends AutoCloseable {
     /**

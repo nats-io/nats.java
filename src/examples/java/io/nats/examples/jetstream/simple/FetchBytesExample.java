@@ -23,7 +23,6 @@ import static io.nats.examples.jetstream.simple.Utils.publish;
 
 /**
  * This example will demonstrate simplified fetch
- * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class FetchBytesExample {
     private static final String STREAM = "fetch-bytes-stream";

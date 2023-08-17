@@ -16,7 +16,6 @@ package io.nats.client;
 /**
  * Base Consume Options are provided to customize the way the consume and
  * fetch operate. It is the base class for ConsumeOptions and FetchConsumeOptions.
- * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class BaseConsumeOptions {
     public static final int DEFAULT_MESSAGE_COUNT = 500;

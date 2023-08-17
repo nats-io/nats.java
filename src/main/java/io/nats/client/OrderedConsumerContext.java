@@ -14,8 +14,7 @@
 package io.nats.client;
 
 /**
- * The Consumer Context provides a convenient interface around a defined JetStream Consumer
- * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
+ * The Ordered Consumer and it's context provide a simplification interface to the ordered consumer behavior.
  */
 public interface OrderedConsumerContext extends BaseConsumerContext {
 }

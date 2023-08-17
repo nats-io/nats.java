@@ -20,7 +20,7 @@ import java.io.IOException;
 import java.time.Duration;
 
 /**
- * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
+ * Implementation of Ordered Consumer Context
  */
 public class NatsOrderedConsumerContext implements OrderedConsumerContext {
     NatsConsumerContext impl;

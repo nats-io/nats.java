@@ -19,7 +19,6 @@ import java.io.IOException;
 
 /**
  * The Consumer Context provides a convenient interface around a defined JetStream Consumer
- * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public interface ConsumerContext extends BaseConsumerContext {
     /**

@@ -22,7 +22,6 @@ import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
 
 /**
  * This example will demonstrate simplified contexts
- * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class ContextExample {
     private static final String STREAM = "context-stream";

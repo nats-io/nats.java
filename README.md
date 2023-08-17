@@ -11,11 +11,9 @@ A [Java](http://java.com) client for the [NATS messaging system](https://nats.io
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
 [![Release Badge](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml/badge.svg?event=release)](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml)
 
-## BETA / Experimental News
-
 ### Simplification
 
-There is a new simplified api that makes working with streams and consumers well, simpler!
+There is a new simplified api that makes working with streams and consumers well, simpler! Simplification is released as of 2.16.14.
 
 Check out the examples:
 
@@ -28,7 +26,7 @@ Check out the examples:
 
 ### Service Framework
 
-The service API allows you to easily build NATS services The services API is currently in beta functionality.
+The service API allows you to easily build NATS services. The Service Framework is released as of 2.16.14
 
 The Services Framework introduces a higher-level API for implementing services with NATS. NATS has always been a strong technology on which to build services, as they are easy to write, are location and DNS independent and can be scaled up or down by simply adding or removing instances of the service.
 
@@ -50,7 +48,7 @@ Version 2.5.0 adds some back pressure to publish calls to alleviate issues when 
 
 Previous versions are still available in the repo.
 
-#### Version 2.16.14 Options properties improvements 
+#### Version 2.16.14 Options properties improvements
 
 In this release, support was added to
 * support properties keys with or without the prefix 'io.nats.client.'

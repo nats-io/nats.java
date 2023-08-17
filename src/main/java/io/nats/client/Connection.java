@@ -576,7 +576,6 @@ public interface Connection extends AutoCloseable {
     /**
      * Get a consumer context for a specific named stream and specific named consumer.
      * Verifies that the stream and consumer exist.
-     * EXPERIMENTAL API SUBJECT TO CHANGE
      * @param streamName the name of the stream
      * @param consumerName the name of the consumer
      * @return a ConsumerContext object
@@ -589,7 +588,6 @@ public interface Connection extends AutoCloseable {
     /**
      * Get a consumer context for a specific named stream and specific named consumer.
      * Verifies that the stream and consumer exist.
-     * EXPERIMENTAL API SUBJECT TO CHANGE
      * @param streamName the name of the stream
      * @param consumerName the name of the consumer
      * @param options JetStream options.

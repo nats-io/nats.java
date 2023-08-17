@@ -192,7 +192,7 @@ public class PingTests {
                 NatsStatistics stats = nc.getNatsStatistics();
 
                 try {
-                    assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                    assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                     try {
                         Thread.sleep(200); // should get 10+ pings
                     } catch (Exception exp)
@@ -205,17 +205,12 @@ public class PingTests {
                     ts.close();
                     handler.waitForStatusChange(5, TimeUnit.SECONDS);
                     pings = stats.getPings();
-                    try {
-                        Thread.sleep(200); // should get more pings
-                    } catch (Exception exp)
-                    {
-                        //Ignore
-                    }
+                    Thread.sleep(250); // should get more pings
                     assertTrue(stats.getPings() > pings, "more pings");
                     Thread.sleep(1000);
                 } finally {
                     nc.close();
-                    assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
                 }
             }
         }
