@@ -927,7 +927,7 @@ public class ServiceTests extends JetStreamTestBase {
         Map<String, String> metadata = new HashMap<>();
         se = ServiceEndpoint.builder()
             .endpoint(e1)
-            .metadata(metadata)
+            .endpointMetadata(metadata)
             .handler(smh)
             .build();
         assertNull(se.getMetadata());
@@ -935,7 +935,7 @@ public class ServiceTests extends JetStreamTestBase {
         metadata.put("k", "v");
         se = ServiceEndpoint.builder()
             .endpoint(e1)
-            .metadata(metadata)
+            .endpointMetadata(metadata)
             .handler(smh)
             .build();
         assertTrue(JsonUtils.mapEquals(metadata, se.getMetadata()));

@@ -150,8 +150,7 @@ public class ServiceEndpoint {
         }
 
         /**
-         * Set the name for the {@link Endpoint} for this ServiceEndpoint
-         * replacing any name already set.
+         * Set the name for the {@link Endpoint} for this ServiceEndpoint replacing any name already set.
          * @param name the endpoint name
          * @return the ServiceEndpoint.Builder
          */
@@ -161,8 +160,7 @@ public class ServiceEndpoint {
         }
 
         /**
-         * Set the subject for the {@link Endpoint} for this ServiceEndpoint
-         * replacing any subject already set.
+         * Set the subject for the {@link Endpoint} for this ServiceEndpoint replacing any subject already set.
          * @param subject the subject
          * @return the ServiceEndpoint.Builder
          */
@@ -172,12 +170,11 @@ public class ServiceEndpoint {
         }
 
         /**
-         * Set the metadata for the {@link Endpoint} for this ServiceEndpoint
-         * replacing any metadata already set.
+         * Set the metadata for the {@link Endpoint} for this ServiceEndpoint replacing any metadata already set.
          * @param metadata the metadata
          * @return the ServiceEndpoint.Builder
          */
-        public Builder metadata(Map<String, String> metadata) {
+        public Builder endpointMetadata(Map<String, String> metadata) {
             endpointBuilder.metadata(metadata);
             return this;
         }
