@@ -1,5 +1,37 @@
 # Change Log
 
+## 2.16.14
+
+This release takes the experimental tag off both the Simplification API and the Service Framework.
+* The simplification api has very minor naming changes and the addition of the Ordered Consumer
+* The Service Framework was documented and also had some very minor naming changes.
+* Added the ability to create complete secure Options for connection via configuration file instead of using builder methods. Please see the readme.
+
+#### Core
+
+* Minor correction and improved variable naming in NatsConnection #945 @scottf
+* Improving Options with better construction via properties #946 @scottf
+* Minor improvements to README.md #947 @scottf
+* Added unit tests for WebSocket + JWT #939 @scottf
+* Jwt Utils update to support "audience" #949 @scottf
+
+#### Simplification
+
+* Simplified Ordered Consumer #936 @scottf
+* Simplified Queue Example #940 @scottf
+* Ensure run simplification tests only if 2.9.1 or later #942 @scottf
+* Simplification More Review #948 @scottf
+* Simplification state, better thread safety #952 @scottf
+
+#### Service
+
+* Service / Simplification Documentation and Release Prep #954 @scottf
+
+#### JetStream
+
+* fixed rate limit comparison bug #951 @scottf
+* Fix use of JsOptions timeout #953 @scottf
+
 ## 2.16.13
 
 #### Core
