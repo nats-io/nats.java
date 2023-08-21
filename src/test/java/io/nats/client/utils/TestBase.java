@@ -237,20 +237,31 @@ public class TestBase {
     public static final String KEY = "key";
     public static final String DATA = "data";
 
+    public static String variant(Object variant) {
+        return variant == null ? NUID.nextGlobalSequence() : "" + variant;
+    }
+
+    public static String stream() {
+        return STREAM + "-" + variant(null);
+    }
+
     public static String stream(Object variant) {
-        return STREAM + "-" + variant;
+        return STREAM + "-" + variant(variant);
     }
 
     public static String mirror(Object variant) {
-        return MIRROR + "-" + variant;
+        return MIRROR + "-" + variant(variant);
     }
 
     public static String source(Object variant) {
-        return SOURCE + "-" + variant;
+        return SOURCE + "-" + variant(variant);
     }
 
+    public static String subject() {
+        return SUBJECT + "-" + variant(null);
+    }
     public static String subject(Object variant) {
-        return SUBJECT + "-" + variant;
+        return SUBJECT + "-" + variant(variant);
     }
 
     public static String subjectDot(String field) {
@@ -258,39 +269,47 @@ public class TestBase {
     }
 
     public static String queue(Object variant) {
-        return QUEUE + "-" + variant;
+        return QUEUE + "-" + variant(variant);
+    }
+
+    public static String durable() {
+        return DURABLE + "-" + variant(null);
     }
 
     public static String durable(Object variant) {
-        return DURABLE + "-" + variant;
+        return DURABLE + "-" + variant(variant);
     }
 
     public static String durable(String vary, Object variant) {
-        return DURABLE + "-" + vary + "-" + variant;
+        return DURABLE + "-" + vary + "-" + variant(variant);
+    }
+
+    public static String name() {
+        return NAME + "-" + variant(null);
     }
 
     public static String name(Object variant) {
-        return NAME + "-" + variant;
+        return NAME + "-" + variant(variant);
     }
 
     public static String deliver(Object variant) {
-        return DELIVER + "-" + variant;
+        return DELIVER + "-" + variant(variant);
     }
 
     public static String bucket(Object variant) {
-        return BUCKET + "-" + variant;
+        return BUCKET + "-" + variant(variant);
     }
 
     public static String key(Object variant) {
-        return KEY + "-" + variant;
+        return KEY + "-" + variant(variant);
     }
 
     public static String messageId(Object variant) {
-        return MESSAGE_ID + "-" + variant;
+        return MESSAGE_ID + "-" + variant(variant);
     }
 
     public static String data(Object variant) {
-        return DATA + "-" + variant;
+        return DATA + "-" + variant(variant);
     }
 
     public static byte[] dataBytes(Object variant) {

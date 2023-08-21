@@ -21,19 +21,34 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static io.nats.client.support.JwtUtils.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static io.nats.client.utils.TestBase.sleep;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class JwtUtilsTests {
+    static NKey USER_KEY = NKey.fromSeed("SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY".toCharArray());
+    static NKey SIGNING_KEY = NKey.fromSeed("SAANJIBNEKGCRUWJCPIWUXFBFJLR36FJTFKGBGKAT7AQXH2LVFNQWZJMQU".toCharArray());
+    static String ACCOUNT_ID = "ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6";
 
     @Test
     public void issueUserJWTSuccessMinimal() throws Exception {
-        NKey userKey = NKey.fromSeed("SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY".toCharArray());
-        NKey signingKey = NKey.fromSeed("SAANJIBNEKGCRUWJCPIWUXFBFJLR36FJTFKGBGKAT7AQXH2LVFNQWZJMQU".toCharArray());
-        String accountId = "ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6";
-        String jwt = issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()), null, null, null, 1633043378, "audience");
+        String expectedClaimBody = "{\"aud\":\"audience\",\"jti\":\"PASRIRDVH2NWAPOKCO7TFIJVWI2OESTOH4CJ2PSGYH77YPQRXPVA\",\"iat\":1633043378,\"iss\":\"ADQ4BYM5KICR5OXDSP3S3WVJ5CYEORGQKT72SVRF2ZDVA7LTFKMCIPGY\",\"name\":\"UA6KOMQ67XOE3FHE37W4OXADVXVYISBNLTBUT2LSY5VFKAIJ7CRDR2RZ\",\"sub\":\"UA6KOMQ67XOE3FHE37W4OXADVXVYISBNLTBUT2LSY5VFKAIJ7CRDR2RZ\",\"nats\":{\"issuer_account\":\"ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6\",\"type\":\"user\",\"version\":2,\"subs\":-1,\"data\":-1,\"payload\":-1}}";
+        String expectedCred = "-----BEGIN NATS USER JWT-----\n" +
+            "eyJ0eXAiOiJKV1QiLCAiYWxnIjoiZWQyNTUxOS1ua2V5In0.eyJhdWQiOiJhdWRpZW5jZSIsImp0aSI6IlBBU1JJUkRWSDJOV0FQT0tDTzdURklKVldJMk9FU1RPSDRDSjJQU0dZSDc3WVBRUlhQVkEiLCJpYXQiOjE2MzMwNDMzNzgsImlzcyI6IkFEUTRCWU01S0lDUjVPWERTUDNTM1dWSjVDWUVPUkdRS1Q3MlNWUkYyWkRWQTdMVEZLTUNJUEdZIiwibmFtZSI6IlVBNktPTVE2N1hPRTNGSEUzN1c0T1hBRFZYVllJU0JOTFRCVVQyTFNZNVZGS0FJSjdDUkRSMlJaIiwic3ViIjoiVUE2S09NUTY3WE9FM0ZIRTM3VzRPWEFEVlhWWUlTQk5MVEJVVDJMU1k1VkZLQUlKN0NSRFIyUloiLCJuYXRzIjp7Imlzc3Vlcl9hY2NvdW50IjoiQUNYWlJBTElMMjJXUkVURFJYWUtPWURCN1hDM0U3TUJTVlVTVU1GQUNPNk9NNVZQUk5GTU9PTzYiLCJ0eXBlIjoidXNlciIsInZlcnNpb24iOjIsInN1YnMiOi0xLCJkYXRhIjotMSwicGF5bG9hZCI6LTF9fQ.nt_bErX7UuqDSxC8NUORaB0r4IS_33Wds1vV_o0HRI-BwE9UxM-zAFtq43o3-d98s6u1jASgVXp0h81om8mVDw\n" +
+            "------END NATS USER JWT------\n" +
+            "\n" +
+            "************************* IMPORTANT *************************\n" +
+            "    NKEY Seed printed below can be used to sign and prove identity.\n" +
+            "    NKEYs are sensitive and should be treated as secrets.\n" +
+            "\n" +
+            "-----BEGIN USER NKEY SEED-----\n" +
+            "SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY\n" +
+            "------END USER NKEY SEED------\n" +
+            "\n" +
+            "*************************************************************\n";
+
+        String jwt = issueUserJWT(SIGNING_KEY, ACCOUNT_ID, new String(USER_KEY.getPublicKey()), null, null, null, 1633043378, "audience");
         String claimBody = getClaimBody(jwt);
-        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
+        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(USER_KEY.getSeed()));
         /*
             Formatted Claim Body:
             {
@@ -53,9 +68,15 @@ public class JwtUtilsTests {
                 }
             }
          */
-        String expectedClaimBody = "{\"aud\":\"audience\",\"jti\":\"PASRIRDVH2NWAPOKCO7TFIJVWI2OESTOH4CJ2PSGYH77YPQRXPVA\",\"iat\":1633043378,\"iss\":\"ADQ4BYM5KICR5OXDSP3S3WVJ5CYEORGQKT72SVRF2ZDVA7LTFKMCIPGY\",\"name\":\"UA6KOMQ67XOE3FHE37W4OXADVXVYISBNLTBUT2LSY5VFKAIJ7CRDR2RZ\",\"sub\":\"UA6KOMQ67XOE3FHE37W4OXADVXVYISBNLTBUT2LSY5VFKAIJ7CRDR2RZ\",\"nats\":{\"issuer_account\":\"ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6\",\"type\":\"user\",\"version\":2,\"subs\":-1,\"data\":-1,\"payload\":-1}}";
+        assertEquals(expectedClaimBody, claimBody);
+        assertEquals(expectedCred, cred);
+    }
+
+    @Test
+    public void issueUserJWTSuccessMinimalCoverageNonAudienceApi() throws Exception {
+        String expectedClaimBody = "{\"jti\":\"WQYMEEISPFLDXLNAOEF3TC2FWLZCKVCPQZWMDBDCGT3ZTSSHSBYA\",\"iat\":1633043378,\"iss\":\"ADQ4BYM5KICR5OXDSP3S3WVJ5CYEORGQKT72SVRF2ZDVA7LTFKMCIPGY\",\"name\":\"UA6KOMQ67XOE3FHE37W4OXADVXVYISBNLTBUT2LSY5VFKAIJ7CRDR2RZ\",\"sub\":\"UA6KOMQ67XOE3FHE37W4OXADVXVYISBNLTBUT2LSY5VFKAIJ7CRDR2RZ\",\"nats\":{\"issuer_account\":\"ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6\",\"type\":\"user\",\"version\":2,\"subs\":-1,\"data\":-1,\"payload\":-1}}";
         String expectedCred = "-----BEGIN NATS USER JWT-----\n" +
-            "eyJ0eXAiOiJKV1QiLCAiYWxnIjoiZWQyNTUxOS1ua2V5In0.eyJhdWQiOiJhdWRpZW5jZSIsImp0aSI6IlBBU1JJUkRWSDJOV0FQT0tDTzdURklKVldJMk9FU1RPSDRDSjJQU0dZSDc3WVBRUlhQVkEiLCJpYXQiOjE2MzMwNDMzNzgsImlzcyI6IkFEUTRCWU01S0lDUjVPWERTUDNTM1dWSjVDWUVPUkdRS1Q3MlNWUkYyWkRWQTdMVEZLTUNJUEdZIiwibmFtZSI6IlVBNktPTVE2N1hPRTNGSEUzN1c0T1hBRFZYVllJU0JOTFRCVVQyTFNZNVZGS0FJSjdDUkRSMlJaIiwic3ViIjoiVUE2S09NUTY3WE9FM0ZIRTM3VzRPWEFEVlhWWUlTQk5MVEJVVDJMU1k1VkZLQUlKN0NSRFIyUloiLCJuYXRzIjp7Imlzc3Vlcl9hY2NvdW50IjoiQUNYWlJBTElMMjJXUkVURFJYWUtPWURCN1hDM0U3TUJTVlVTVU1GQUNPNk9NNVZQUk5GTU9PTzYiLCJ0eXBlIjoidXNlciIsInZlcnNpb24iOjIsInN1YnMiOi0xLCJkYXRhIjotMSwicGF5bG9hZCI6LTF9fQ.nt_bErX7UuqDSxC8NUORaB0r4IS_33Wds1vV_o0HRI-BwE9UxM-zAFtq43o3-d98s6u1jASgVXp0h81om8mVDw\n" +
+            "eyJ0eXAiOiJKV1QiLCAiYWxnIjoiZWQyNTUxOS1ua2V5In0.eyJqdGkiOiJXUVlNRUVJU1BGTERYTE5BT0VGM1RDMkZXTFpDS1ZDUFFaV01EQkRDR1QzWlRTU0hTQllBIiwiaWF0IjoxNjMzMDQzMzc4LCJpc3MiOiJBRFE0QllNNUtJQ1I1T1hEU1AzUzNXVko1Q1lFT1JHUUtUNzJTVlJGMlpEVkE3TFRGS01DSVBHWSIsIm5hbWUiOiJVQTZLT01RNjdYT0UzRkhFMzdXNE9YQURWWFZZSVNCTkxUQlVUMkxTWTVWRktBSUo3Q1JEUjJSWiIsInN1YiI6IlVBNktPTVE2N1hPRTNGSEUzN1c0T1hBRFZYVllJU0JOTFRCVVQyTFNZNVZGS0FJSjdDUkRSMlJaIiwibmF0cyI6eyJpc3N1ZXJfYWNjb3VudCI6IkFDWFpSQUxJTDIyV1JFVERSWFlLT1lEQjdYQzNFN01CU1ZVU1VNRkFDTzZPTTVWUFJORk1PT082IiwidHlwZSI6InVzZXIiLCJ2ZXJzaW9uIjoyLCJzdWJzIjotMSwiZGF0YSI6LTEsInBheWxvYWQiOi0xfX0.5Zq3wTy_5WeBYmFmYjI1OArCJ8IiJpFCflm5tnoWB7bYOOWoINR2t8a0i2fuGVYtFmDBAV8im_G2sibtlu53AQ\n" +
             "------END NATS USER JWT------\n" +
             "\n" +
             "************************* IMPORTANT *************************\n" +
@@ -67,18 +88,44 @@ public class JwtUtilsTests {
             "------END USER NKEY SEED------\n" +
             "\n" +
             "*************************************************************\n";
+
+        String jwt = issueUserJWT(SIGNING_KEY, ACCOUNT_ID, new String(USER_KEY.getPublicKey()), null, null, null, 1633043378, null);
+        _testMinimalNoAudience(expectedClaimBody, expectedCred, USER_KEY, jwt);
+
+        jwt = issueUserJWT(SIGNING_KEY, ACCOUNT_ID, new String(USER_KEY.getPublicKey()), null, null, null, 1633043378);
+        _testMinimalNoAudience(expectedClaimBody, expectedCred, USER_KEY, jwt);
+    }
+
+    private static void _testMinimalNoAudience(String expectedClaimBody, String expectedCred, NKey userKey, String jwt) {
+        String claimBody = getClaimBody(jwt);
+        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
+        /*
+            Formatted Claim Body:
+            {
+            	"jti": "WQYMEEISPFLDXLNAOEF3TC2FWLZCKVCPQZWMDBDCGT3ZTSSHSBYA",
+            	"iat": 1633043378,
+            	"iss": "ADQ4BYM5KICR5OXDSP3S3WVJ5CYEORGQKT72SVRF2ZDVA7LTFKMCIPGY",
+            	"name": "UA6KOMQ67XOE3FHE37W4OXADVXVYISBNLTBUT2LSY5VFKAIJ7CRDR2RZ",
+            	"sub": "UA6KOMQ67XOE3FHE37W4OXADVXVYISBNLTBUT2LSY5VFKAIJ7CRDR2RZ",
+            	"nats": {
+            		"issuer_account": "ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6",
+            		"type": "user",
+            		"version": 2,
+            		"subs": -1,
+            		"data": -1,
+            		"payload": -1
+            	}
+            }
+        */
         assertEquals(expectedClaimBody, claimBody);
         assertEquals(expectedCred, cred);
     }
 
     @Test
     public void issueUserJWTSuccessAllArgs() throws Exception {
-        NKey userKey = NKey.fromSeed("SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY".toCharArray());
-        NKey signingKey = NKey.fromSeed("SAANJIBNEKGCRUWJCPIWUXFBFJLR36FJTFKGBGKAT7AQXH2LVFNQWZJMQU".toCharArray());
-        String accountId = "ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6";
-        String jwt = issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()), "name", Duration.ofSeconds(100), new String[]{"tag1", "tag\\two"}, 1633043378, "audience");
+        String jwt = issueUserJWT(SIGNING_KEY, ACCOUNT_ID, new String(USER_KEY.getPublicKey()), "name", Duration.ofSeconds(100), new String[]{"tag1", "tag\\two"}, 1633043378, "audience");
         String claimBody = getClaimBody(jwt);
-        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
+        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(USER_KEY.getSeed()));
         /*
             Formatted Claim Body:
             {
@@ -120,9 +167,6 @@ public class JwtUtilsTests {
 
     @Test
     public void issueUserJWTSuccessCustom() throws Exception {
-        NKey userKey = NKey.fromSeed("SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY".toCharArray());
-        NKey signingKey = NKey.fromSeed("SAANJIBNEKGCRUWJCPIWUXFBFJLR36FJTFKGBGKAT7AQXH2LVFNQWZJMQU".toCharArray());
-
         UserClaim userClaim = new UserClaim("ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6")
             .pub(new Permission()
                 .allow(new String[] {"pub-allow-subject"})
@@ -132,9 +176,9 @@ public class JwtUtilsTests {
                 .deny(new String[] {"sub-deny-subject"}))
             .tags(new String[]{"tag1", "tag\\two"});
 
-        String jwt = issueUserJWT(signingKey, new String(userKey.getPublicKey()), "custom", null, 1633043378, userClaim);
+        String jwt = issueUserJWT(SIGNING_KEY, new String(USER_KEY.getPublicKey()), "custom", null, 1633043378, userClaim);
         String claimBody = getClaimBody(jwt);
-        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
+        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(USER_KEY.getSeed()));
         /*
             Formatted Claim Body:
             {
@@ -183,17 +227,14 @@ public class JwtUtilsTests {
 
     @Test
     public void issueUserJWTSuccessCustomLimits() throws Exception {
-        NKey userKey = NKey.fromSeed("SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY".toCharArray());
-        NKey signingKey = NKey.fromSeed("SAANJIBNEKGCRUWJCPIWUXFBFJLR36FJTFKGBGKAT7AQXH2LVFNQWZJMQU".toCharArray());
-
         UserClaim userClaim = new UserClaim("ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6")
                 .subs(1)
                 .data(2)
                 .payload(3);
 
-        String jwt = issueUserJWT(signingKey, new String(userKey.getPublicKey()), null, null, 1633043378, userClaim);
+        String jwt = issueUserJWT(SIGNING_KEY, new String(USER_KEY.getPublicKey()), null, null, 1633043378, userClaim);
         String claimBody = getClaimBody(jwt);
-        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
+        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(USER_KEY.getSeed()));
 
         /*
             Formatted Claim Body:
@@ -236,8 +277,7 @@ public class JwtUtilsTests {
         NKey userKey = NKey.fromSeed("SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY".toCharArray());
         // should be account, but this is a user key:
         NKey signingKey = NKey.fromSeed("SUAIW7IZ2YDQYLTE4FJ64ZBX7UMLCN57V6GHALKMUSMJCU5PJDNUO6BVUI".toCharArray());
-        String accountId = "ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6";
-        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()), null, null, null, 1633043378));
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> issueUserJWT(signingKey, ACCOUNT_ID, new String(userKey.getPublicKey()), null, null, null, 1633043378));
         assertEquals("issueUserJWT requires an account key for the signingKey parameter, but got USER", e.getMessage());
     }
 
@@ -255,8 +295,7 @@ public class JwtUtilsTests {
     public void issueUserJWTBadPublicUserKey() {
         NKey userKey = NKey.fromSeed("SAADFHQTEKYBOCG4CPEPNAJ5FLRX4G4WTCNTAIOKN3LARLHGVKB4BRUHYY".toCharArray());
         NKey signingKey = NKey.fromSeed("SAANJIBNEKGCRUWJCPIWUXFBFJLR36FJTFKGBGKAT7AQXH2LVFNQWZJMQU".toCharArray());
-        String accountId = "ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6";
-        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()), null, null, null, 1633043378));
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> issueUserJWT(signingKey, ACCOUNT_ID, new String(userKey.getPublicKey()), null, null, null, 1633043378));
         assertEquals("issueUserJWT requires a user key for the publicUserKey parameter, but got ACCOUNT", e.getMessage());
     }
 
@@ -281,6 +320,13 @@ public class JwtUtilsTests {
             .bearerToken(true)
             .allowedConnectionTypes("nats", "tls");
         assertEquals(FULL_JSON, uc.toJson());
+    }
+
+    @Test
+    public void testMiscCoverage() {
+        long seconds = JwtUtils.currentTimeSeconds();
+        sleep(1000);
+        assertTrue(JwtUtils.currentTimeSeconds() > seconds);
     }
 
     private static final String BASIC_JSON = "{\"issuer_account\":\"test-issuer-account\",\"type\":\"user\",\"version\":2,\"subs\":-1,\"data\":-1,\"payload\":-1}";

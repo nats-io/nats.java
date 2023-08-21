@@ -68,6 +68,17 @@ Please see unit test for examples of this behavior.
 and
 `testMaxPayloadJs` in [JetStreamPubTests.cs](src/test/java/io/nats/client/impl/JetStreamPubTests.java)
 
+#### Version 2.16.8 Websocket Support
+
+As of version 2.16.8 Websocket (`ws` and `wss`) protocols are supported for connecting to the server.
+For instance, your server bootstrap url might be `ws://my-nats-host:80` or `wss://my-nats-host:443`. 
+
+Your server must be properly configured for websocket, see the NATS.IO docs 
+[WebSocket Configuration Example](https://docs.nats.io/running-a-nats-service/configuration/websocket/websocket_conf)
+for more information.
+
+If you use secure websockets (wss), your connection must be securely configured in the same way you would configure a `tls` connection.  
+
 #### Version 2.16.0 Consumer Create
 
 This release by default will use a new JetStream consumer create API when interacting with nats-server version 2.9.0 or higher. 

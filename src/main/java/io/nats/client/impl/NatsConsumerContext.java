@@ -140,9 +140,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      */
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
-        if (consumerName != null) {
-            cachedConsumerInfo = streamCtx.jsm.getConsumerInfo(streamCtx.streamName, cachedConsumerInfo.getName());
-        }
+        cachedConsumerInfo = streamCtx.jsm.getConsumerInfo(streamCtx.streamName, consumerName);
         return cachedConsumerInfo;
     }
 

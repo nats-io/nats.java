@@ -35,7 +35,7 @@ public interface BaseConsumerContext {
 
     /**
      * Read the next message with provided max wait
-     * @param maxWait duration of max wait
+     * @param maxWait duration of max wait. Cannot be less than {@value BaseConsumeOptions#MIN_EXPIRES_MILLS} milliseconds.
      * @return the next message or null if the max wait expires
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -48,7 +48,7 @@ public interface BaseConsumerContext {
 
     /**
      * Read the next message with provided max wait
-     * @param maxWaitMillis the max wait value in milliseconds
+     * @param maxWaitMillis the max wait value in milliseconds. Cannot be less than {@value BaseConsumeOptions#MIN_EXPIRES_MILLS} milliseconds.
      * @return the next message or null if the max wait expires
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption

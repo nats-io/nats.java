@@ -824,6 +824,9 @@ public class ServiceTests extends JetStreamTestBase {
         assertNull(g1.getNext());
         assertNull(g2.getNext());
         assertNull(g3.getNext());
+        assertTrue(g1.toString().contains(subject(1))); // coverage
+        assertTrue(g2.toString().contains(subject(2))); // coverage
+        assertTrue(g3.toString().contains(subject(3))); // coverage
 
         assertEquals(g1, g1.appendGroup(g2));
         assertEquals(subject(2), g1.getNext().getName());
@@ -832,12 +835,14 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(subject(1) + DOT + subject(2), g1.getSubject());
         assertEquals(subject(2), g2.getName());
         assertEquals(subject(2), g2.getSubject());
+        assertTrue(g1.toString().contains(subject(2))); // coverage
 
         assertEquals(g1, g1.appendGroup(g3));
         assertEquals(subject(2), g1.getNext().getName());
         assertEquals(subject(3), g1.getNext().getNext().getName());
         assertEquals(subject(1), g1.getName());
         assertEquals(subject(1) + DOT + subject(2) + DOT + subject(3), g1.getSubject());
+        assertTrue(g1.toString().contains(subject(3))); // coverage
 
         g1 = new Group("foo.*");
         assertEquals("foo.*", g1.getName());
