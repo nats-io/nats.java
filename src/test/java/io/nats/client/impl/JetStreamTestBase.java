@@ -79,8 +79,30 @@ public class JetStreamTestBase extends TestBase {
     // ----------------------------------------------------------------------------------------------------
     // Management
     // ----------------------------------------------------------------------------------------------------
-    public static StreamInfo createMemoryStream(JetStreamManagement jsm, String streamName, String... subjects)
-            throws IOException, JetStreamApiException {
+    public static class CreateStreamResult {
+        public final String stream = stream();
+        public final String subject = subject();
+        public StreamInfo si;
+
+        public CreateStreamResult info(StreamInfo si) {
+            this.si = si;
+            return this;
+        }
+    }
+
+    public static CreateStreamResult createMemoryStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
+        CreateStreamResult csr = new CreateStreamResult();
+        return csr.info(createMemoryStream(jsm, csr.stream, csr.subject));
+    }
+
+    public static StreamInfo createMemoryStream(JetStreamManagement jsm, String streamName, String... subjects) throws IOException, JetStreamApiException {
+        if (streamName == null) {
+            streamName = stream();
+        }
+
+        if (subjects == null || subjects.length == 0) {
+            subjects = new String[]{subject()};
+        }
 
         StreamConfiguration sc = StreamConfiguration.builder()
                 .name(streamName)
@@ -90,8 +112,13 @@ public class JetStreamTestBase extends TestBase {
         return jsm.addStream(sc);
     }
 
+    public static CreateStreamResult createMemoryStream(Connection nc)
+        throws IOException, JetStreamApiException {
+        return createMemoryStream(nc.jetStreamManagement());
+    }
+
     public static StreamInfo createMemoryStream(Connection nc, String streamName, String... subjects)
-            throws IOException, JetStreamApiException {
+        throws IOException, JetStreamApiException {
         return createMemoryStream(nc.jetStreamManagement(), streamName, subjects);
     }
 

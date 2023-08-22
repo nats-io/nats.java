@@ -23,7 +23,8 @@ import java.time.Duration;
  * Implementation of Ordered Consumer Context
  */
 public class NatsOrderedConsumerContext implements OrderedConsumerContext {
-    NatsConsumerContext impl;
+    private NatsConsumerContext impl;
+
     NatsOrderedConsumerContext(NatsStreamContext streamContext, OrderedConsumerConfiguration config) {
         impl = new NatsConsumerContext(streamContext, config);
     }
