@@ -592,11 +592,6 @@ public class SimplificationTests extends JetStreamTestBase {
         }
     }
 
-    private static void debug(String text) {
-        String t = "" + System.currentTimeMillis();
-        System.out.println("[TOB " + t.substring(t.length() - 9) + "] ---> " + text);
-    }
-
     @Test
     public void testOrderedBehaviors() throws Exception {
         runInJsServer(this::mustBeAtLeast291, nc -> {
@@ -607,44 +602,26 @@ public class SimplificationTests extends JetStreamTestBase {
             // Get this in place before subscriptions are made
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = OrderedPullNextTestDropSimulator::new;
 
-            debug("[1.0]");
             CreateStreamResult csr = createMemoryStream(jsm);
-            debug("[1.1]");
             StreamContext sc = js.getStreamContext(csr.stream);
-            debug("[1.2]");
             jsPublish(js, csr.subject, 101, 6);
-            debug("[1.3]");
             testOrderedBehaviorNext(sc, new OrderedConsumerConfiguration().filterSubject(csr.subject));
-            debug("[1.4]");
             try { jsm.deleteStream(csr.stream); } catch (Exception ignore) {};
-            debug("[1.x]");
 
             // Get this in place before subscriptions are made
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = OrderedPullTestDropSimulator::new;
 
-            debug("[2.0]");
             csr = createMemoryStream(jsm);
-            debug("[2.1]");
             sc = js.getStreamContext(csr.stream);
-            debug("[2.2]");
             jsPublish(js, csr.subject, 101, 6);
-            debug("[2.3]");
             testOrderedBehaviorFetch(sc, new OrderedConsumerConfiguration().filterSubject(csr.subject));
-            debug("[2.4]");
             try { jsm.deleteStream(csr.stream); } catch (Exception ignore) {};
-            debug("[2.x]");
 
-            debug("[3.0]");
             csr = createMemoryStream(jsm);
-            debug("[3.1]");
             sc = js.getStreamContext(csr.stream);
-            debug("[3.2]");
             jsPublish(js, csr.subject, 101, 6);
-            debug("[3.3]");
             testOrderedBehaviorIterable(sc, new OrderedConsumerConfiguration().filterSubject(csr.subject));
-            debug("[3.4]");
             try { jsm.deleteStream(csr.stream); } catch (Exception ignore) {};
-            debug("[3.x]");
         });
     }
 
