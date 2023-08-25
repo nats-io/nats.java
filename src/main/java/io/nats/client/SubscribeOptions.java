@@ -254,23 +254,6 @@ public abstract class SubscribeOptions {
             this.bind = bind;
             return getThis();
         }
-
-        /**
-         * Specify binding to an existing consumer via name.
-         * The client does not validate that the provided consumer configuration
-         * is consistent with the server version or that
-         * consumer type (push versus pull) matches the subscription type.
-         * An inconsistent consumer configuration for instance can result in
-         * receiving messages from unexpected subjects.
-         * A consumer type mismatch will result in an error from the server.
-         * @return the builder
-         * @param fastBind whether to fast bind or not
-         */
-        public B fastBind(boolean fastBind) {
-            this.fastBind = fastBind;
-            return getThis();
-        }
-
         /**
          * Sets the durable name for the consumer.
          * Null or empty clears the field.

@@ -86,23 +86,6 @@ public class PushSubscribeOptions extends SubscribeOptions {
     }
 
     /**
-     * Create PushSubscribeOptions where you are fast-binding to
-     * a specific stream and consumer by name.
-     * The client does not validate that the provided consumer configuration
-     * is consistent with the server version or that
-     * consumer type (push versus pull) matches the subscription type.
-     * An inconsistent consumer configuration for instance can result in
-     * receiving messages from unexpected subjects.
-     * A consumer type mismatch will result in an error from the server.
-     * @param stream the stream name
-     * @param name the consumer name
-     * @return push subscribe options
-     */
-    public static PushSubscribeOptions fastBind(String stream, String name) {
-        return new Builder().stream(stream).name(name).fastBind(true).build();
-    }
-
-    /**
      * Macro to start a PushSubscribeOptions builder
      * @return push subscribe options builder
      */

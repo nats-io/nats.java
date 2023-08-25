@@ -291,20 +291,6 @@ public class SubscribeOptionsTests extends TestBase {
         assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).name(EMPTY).bind(true).build());
 
         // fast bind
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.fastBind(null, durOrName));
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.fastBind(EMPTY, durOrName));
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.fastBind(STREAM, null));
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.fastBind(STREAM, EMPTY));
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(STREAM).fastBind(true).build());
-
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(EMPTY).durable(durOrName).fastBind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().durable(durOrName).fastBind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(STREAM).durable(EMPTY).fastBind(true).build());
-
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(EMPTY).name(durOrName).fastBind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().name(durOrName).fastBind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(STREAM).name(EMPTY).fastBind(true).build());
-
         assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.fastBind(null, durOrName));
         assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.fastBind(EMPTY, durOrName));
         assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.fastBind(STREAM, null));
