@@ -30,6 +30,7 @@ public abstract class SubscribeOptions {
     protected final String stream;
     protected final boolean pull;
     protected final boolean bind;
+    protected final boolean fastBind;
     protected final boolean ordered;
     protected final long messageAlarmTime;
     protected final ConsumerConfiguration consumerConfig;
@@ -42,7 +43,8 @@ public abstract class SubscribeOptions {
                                long pendingMessageLimit, long pendingByteLimit) {
 
         pull = isPull;
-        bind = builder.bind;
+        fastBind = builder.fastBind;
+        bind = fastBind || builder.bind;
         ordered = builder.ordered;
         messageAlarmTime = builder.messageAlarmTime;
 
@@ -52,12 +54,18 @@ public abstract class SubscribeOptions {
 
         stream = validateStreamName(builder.stream, bind); // required when bind mode
 
-        String durable = validateMustMatchIfBothSupplied(builder.durable, builder.cc == null ? null : builder.cc.getDurable(), JsSoDurableMismatch);
-        durable = validateDurable(durable, bind); // required when bind
-
-        String name = validateMustMatchIfBothSupplied(builder.name, builder.cc == null ? null : builder.cc.getName(), JsSoNameMismatch);
-
+        // read the names and do basic validation
+        String name = validateConsumerName(
+            validateMustMatchIfBothSupplied(builder.name, builder.cc == null ? null : builder.cc.getName(), JsSoNameMismatch),
+            false);
+        String durable = validateDurable(
+            validateMustMatchIfBothSupplied(builder.durable, builder.cc == null ? null : builder.cc.getDurable(), JsSoDurableMismatch),
+            false);
         validateMustMatchIfBothSupplied(name, durable, JsConsumerNameDurableMismatch);
+
+        if (bind && name == null && durable == null) {
+            throw JsSoNameOrDurableRequiredForBind.instance();
+        }
 
         deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, builder.cc == null ? null : builder.cc.getDeliverGroup(), JsSoDeliverGroupMismatch);
 
@@ -140,11 +148,20 @@ public abstract class SubscribeOptions {
     }
 
     /**
-     * Gets whether this subscription is expected to bind to an existing stream and durable consumer
+     * Gets whether this subscription is expected to bind to an existing stream and consumer
      * @return the bind flag
      */
     public boolean isBind() {
         return bind;
+    }
+
+    /**
+     * Gets whether this subscription is expected to fast bind to an existing stream and consumer.
+     * Overrides bind
+     * @return the fast bind flag
+     */
+    public boolean isFastBind() {
+        return fastBind;
     }
 
     /**
@@ -204,6 +221,7 @@ public abstract class SubscribeOptions {
     protected static abstract class Builder<B, SO> {
         protected String stream;
         protected boolean bind;
+        protected boolean fastBind;
         protected String durable;
         protected String name;
         protected ConsumerConfiguration cc;
@@ -224,12 +242,32 @@ public abstract class SubscribeOptions {
         }
 
         /**
-         * Specify the to attach in direct mode
+         * Specify binding to an existing consumer via name.
+         * The client validates regular (non-fast)
+         * binds to ensure that provided consumer configuration
+         * is consistent with the server version and that
+         * consumer type (push versus pull) matches the subscription type.
          * @return the builder
          * @param bind whether to bind or not
          */
         public B bind(boolean bind) {
             this.bind = bind;
+            return getThis();
+        }
+
+        /**
+         * Specify binding to an existing consumer via name.
+         * The client does not validate that the provided consumer configuration
+         * is consistent with the server version or that
+         * consumer type (push versus pull) matches the subscription type.
+         * An inconsistent consumer configuration for instance can result in
+         * receiving messages from unexpected subjects.
+         * A consumer type mismatch will result in an error from the server.
+         * @return the builder
+         * @param fastBind whether to fast bind or not
+         */
+        public B fastBind(boolean fastBind) {
+            this.fastBind = fastBind;
             return getThis();
         }
 

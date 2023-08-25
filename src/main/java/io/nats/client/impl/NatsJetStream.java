@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.Debug;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
@@ -298,6 +299,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         // 2B. Did they tell me what stream? No? look it up.
         final String fnlStream;
         if (stream == null) {
+            Debug.dbg("LOOKUP STREAM");
             fnlStream = lookupStreamBySubject(subject);
             if (fnlStream == null) {
                 throw JsSubNoMatchingStreamForSubject.instance();
@@ -315,7 +317,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         String inboxDeliver = userCC.getDeliverSubject();
 
         // 3. Does this consumer already exist?
-        if (consumerName != null) {
+        if (consumerName != null && !so.isFastBind()) {
             ConsumerInfo serverInfo = lookupConsumerInfo(fnlStream, consumerName);
 
             if (serverInfo != null) { // the consumer for that durable already exists
