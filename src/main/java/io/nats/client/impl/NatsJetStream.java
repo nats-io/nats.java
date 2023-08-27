@@ -390,11 +390,11 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         //    If the consumer exists, I know what the settled info is
         final String settledConsumerName;
         final ConsumerConfiguration settledServerCC;
-        if (so.isFastBind()) {
-            settledServerCC = null; // not needed for fast bind which is only allowed on normal pulls
+        if (so.isFastBind() || serverCC != null) {
+            settledServerCC = serverCC;
             settledConsumerName = so.getName();
         }
-        else if (serverCC == null) {
+        else {
             ConsumerConfiguration.Builder ccBuilder = ConsumerConfiguration.builder(userCC);
 
             // Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
@@ -410,10 +410,6 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
             settledServerCC = ccBuilder.build();
             settledConsumerName = null;
-        }
-        else {
-            settledServerCC = serverCC;
-            settledConsumerName = consumerName;
         }
 
         // 6. create the subscription. lambda needs final or effectively final vars
