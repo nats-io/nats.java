@@ -376,9 +376,9 @@ public class NatsMessage implements Message {
     @Override
     public String toString() {
         if (subject == null) {
-            return "NatsMessage | " + protocolBytesToString();
+            return getClass().getSimpleName() + " | " + protocolBytesToString();
         }
-        return "NatsMessage |" + subject + "|" + replyToString() + "|" + dataToString() + "|";
+        return getClass().getSimpleName() + " |" + subject + "|" + replyToString() + "|" + dataToString() + "|";
     }
 
     String toDetailString() {

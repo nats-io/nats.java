@@ -36,6 +36,7 @@ public abstract class SubscribeOptions {
     protected final ConsumerConfiguration consumerConfig;
     protected final long pendingMessageLimit; // Only applicable for non dispatched (sync) push consumers.
     protected final long pendingByteLimit; // Only applicable for non dispatched (sync) push consumers.
+    protected final String name;
 
     @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
     protected SubscribeOptions(Builder builder, boolean isPull,
@@ -55,15 +56,15 @@ public abstract class SubscribeOptions {
         stream = validateStreamName(builder.stream, bind); // required when bind mode
 
         // read the names and do basic validation
-        String name = validateConsumerName(
+        String temp = validateConsumerName(
             validateMustMatchIfBothSupplied(builder.name, builder.cc == null ? null : builder.cc.getName(), JsSoNameMismatch),
             false);
         String durable = validateDurable(
             validateMustMatchIfBothSupplied(builder.durable, builder.cc == null ? null : builder.cc.getDurable(), JsSoDurableMismatch),
             false);
-        validateMustMatchIfBothSupplied(name, durable, JsConsumerNameDurableMismatch);
+        name = validateMustMatchIfBothSupplied(temp, durable, JsConsumerNameDurableMismatch);
 
-        if (bind && name == null && durable == null) {
+        if (bind && name == null) {
             throw JsSoNameOrDurableRequiredForBind.instance();
         }
 
@@ -104,7 +105,7 @@ public abstract class SubscribeOptions {
                 .ackPolicy(AckPolicy.None)
                 .maxDeliver(1)
                 .ackWait(Duration.ofHours(22))
-                .name(name)
+                .name(temp)
                 .memStorage(true)
                 .numReplicas(1);
 
@@ -118,7 +119,7 @@ public abstract class SubscribeOptions {
                 .durable(durable)
                 .deliverSubject(deliverSubject)
                 .deliverGroup(deliverGroup)
-                .name(name)
+                .name(temp)
                 .build();
         }
     }
@@ -137,6 +138,14 @@ public abstract class SubscribeOptions {
      */
     public String getDurable() {
         return consumerConfig.getDurable();
+    }
+
+    /**
+     * Gets the name of the consumer. Same as durable when the consumer is durable.
+     * @return the name
+     */
+    public String getName() {
+        return name;
     }
 
     /**

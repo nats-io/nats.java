@@ -315,7 +315,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         String inboxDeliver = userCC.getDeliverSubject();
 
         // 3. Does this consumer already exist?
-        if (consumerName != null && !so.isFastBind()) {
+        if (!so.isFastBind() && consumerName != null) {
             ConsumerInfo serverInfo = lookupConsumerInfo(fnlStream, consumerName);
 
             if (serverInfo != null) { // the consumer for that durable already exists
@@ -390,7 +390,11 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         //    If the consumer exists, I know what the settled info is
         final String settledConsumerName;
         final ConsumerConfiguration settledServerCC;
-        if (serverCC == null) {
+        if (so.isFastBind()) {
+            settledServerCC = null; // not needed for fast bind which is only allowed on normal pulls
+            settledConsumerName = so.getName();
+        }
+        else if (serverCC == null) {
             ConsumerConfiguration.Builder ccBuilder = ConsumerConfiguration.builder(userCC);
 
             // Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
