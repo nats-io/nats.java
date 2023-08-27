@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
-import io.nats.client.support.Debug;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
@@ -299,7 +298,6 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         // 2B. Did they tell me what stream? No? look it up.
         final String fnlStream;
         if (stream == null) {
-            Debug.dbg("LOOKUP STREAM");
             fnlStream = lookupStreamBySubject(subject);
             if (fnlStream == null) {
                 throw JsSubNoMatchingStreamForSubject.instance();
