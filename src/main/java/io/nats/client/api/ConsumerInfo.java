@@ -63,7 +63,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
         clusterInfo = ClusterInfo.optionalInstance(readValue(jv, CLUSTER));
         pushBound = readBoolean(jv, PUSH_BOUND);
 
-        timestamp = readDate(jv, TS);
+        timestamp = readDate(jv, TIMESTAMP);
     }
 
     public ConsumerConfiguration getConsumerConfiguration() {

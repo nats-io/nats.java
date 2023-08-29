@@ -49,7 +49,7 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
         clusterInfo = ClusterInfo.optionalInstance(readValue(jv, CLUSTER));
         mirrorInfo = MirrorInfo.optionalInstance(readValue(jv, MIRROR));
         sourceInfos = SourceInfo.optionalListOf(readValue(jv, SOURCES));
-        timestamp = readDate(jv, TS);
+        timestamp = readDate(jv, TIMESTAMP);
     }
 
     /**
