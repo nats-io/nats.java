@@ -30,11 +30,13 @@ public abstract class SubscribeOptions {
     protected final String stream;
     protected final boolean pull;
     protected final boolean bind;
+    protected final boolean fastBind;
     protected final boolean ordered;
     protected final long messageAlarmTime;
     protected final ConsumerConfiguration consumerConfig;
     protected final long pendingMessageLimit; // Only applicable for non dispatched (sync) push consumers.
     protected final long pendingByteLimit; // Only applicable for non dispatched (sync) push consumers.
+    protected final String name;
 
     @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
     protected SubscribeOptions(Builder builder, boolean isPull,
@@ -42,7 +44,8 @@ public abstract class SubscribeOptions {
                                long pendingMessageLimit, long pendingByteLimit) {
 
         pull = isPull;
-        bind = builder.bind;
+        fastBind = builder.fastBind;
+        bind = fastBind || builder.bind;
         ordered = builder.ordered;
         messageAlarmTime = builder.messageAlarmTime;
 
@@ -52,12 +55,18 @@ public abstract class SubscribeOptions {
 
         stream = validateStreamName(builder.stream, bind); // required when bind mode
 
-        String durable = validateMustMatchIfBothSupplied(builder.durable, builder.cc == null ? null : builder.cc.getDurable(), JsSoDurableMismatch);
-        durable = validateDurable(durable, bind); // required when bind
+        // read the names and do basic validation
+        String temp = validateConsumerName(
+            validateMustMatchIfBothSupplied(builder.name, builder.cc == null ? null : builder.cc.getName(), JsSoNameMismatch),
+            false);
+        String durable = validateDurable(
+            validateMustMatchIfBothSupplied(builder.durable, builder.cc == null ? null : builder.cc.getDurable(), JsSoDurableMismatch),
+            false);
+        name = validateMustMatchIfBothSupplied(temp, durable, JsConsumerNameDurableMismatch);
 
-        String name = validateMustMatchIfBothSupplied(builder.name, builder.cc == null ? null : builder.cc.getName(), JsSoNameMismatch);
-
-        validateMustMatchIfBothSupplied(name, durable, JsConsumerNameDurableMismatch);
+        if (bind && name == null) {
+            throw JsSoNameOrDurableRequiredForBind.instance();
+        }
 
         deliverGroup = validateMustMatchIfBothSupplied(deliverGroup, builder.cc == null ? null : builder.cc.getDeliverGroup(), JsSoDeliverGroupMismatch);
 
@@ -96,7 +105,7 @@ public abstract class SubscribeOptions {
                 .ackPolicy(AckPolicy.None)
                 .maxDeliver(1)
                 .ackWait(Duration.ofHours(22))
-                .name(name)
+                .name(temp)
                 .memStorage(true)
                 .numReplicas(1);
 
@@ -110,7 +119,7 @@ public abstract class SubscribeOptions {
                 .durable(durable)
                 .deliverSubject(deliverSubject)
                 .deliverGroup(deliverGroup)
-                .name(name)
+                .name(temp)
                 .build();
         }
     }
@@ -132,6 +141,14 @@ public abstract class SubscribeOptions {
     }
 
     /**
+     * Gets the name of the consumer. Same as durable when the consumer is durable.
+     * @return the name
+     */
+    public String getName() {
+        return name;
+    }
+
+    /**
      * Gets whether this is a pull subscription
      * @return the pull flag
      */
@@ -140,11 +157,20 @@ public abstract class SubscribeOptions {
     }
 
     /**
-     * Gets whether this subscription is expected to bind to an existing stream and durable consumer
+     * Gets whether this subscription is expected to bind to an existing stream and consumer
      * @return the bind flag
      */
     public boolean isBind() {
         return bind;
+    }
+
+    /**
+     * Gets whether this subscription is expected to fast bind to an existing stream and consumer.
+     * Overrides bind
+     * @return the fast bind flag
+     */
+    public boolean isFastBind() {
+        return fastBind;
     }
 
     /**
@@ -204,6 +230,7 @@ public abstract class SubscribeOptions {
     protected static abstract class Builder<B, SO> {
         protected String stream;
         protected boolean bind;
+        protected boolean fastBind;
         protected String durable;
         protected String name;
         protected ConsumerConfiguration cc;
@@ -224,7 +251,11 @@ public abstract class SubscribeOptions {
         }
 
         /**
-         * Specify the to attach in direct mode
+         * Specify binding to an existing consumer via name.
+         * The client validates regular (non-fast)
+         * binds to ensure that provided consumer configuration
+         * is consistent with the server version and that
+         * consumer type (push versus pull) matches the subscription type.
          * @return the builder
          * @param bind whether to bind or not
          */
@@ -232,7 +263,6 @@ public abstract class SubscribeOptions {
             this.bind = bind;
             return getThis();
         }
-
         /**
          * Sets the durable name for the consumer.
          * Null or empty clears the field.

@@ -33,14 +33,36 @@ public class PullSubscribeOptions extends SubscribeOptions {
     }
 
     /**
-     * Create PullSubscribeOptions where you are binding to
-     * a specific stream, specific durable and are using bind mode
+     * Create PullSubscribeOptions for binding to
+     * a specific stream and consumer by name.
+     * The client validates regular (non-fast)
+     * binds to ensure that provided consumer configuration
+     * is consistent with the server version and that
+     * consumer type (push versus pull) matches the subscription type.
+     * and that it matches the subscription type.
+     * @param stream the stream name to bind to
+     * @param name the consumer name
+     * @return push subscribe options
+     */
+    public static PullSubscribeOptions bind(String stream, String name) {
+        return new Builder().stream(stream).name(name).bind(true).build();
+    }
+
+    /**
+     * Create PullSubscribeOptions where you are fast-binding to
+     * a specific stream and consumer by name.
+     * The client does not validate that the provided consumer configuration
+     * is consistent with the server version or that
+     * consumer type (push versus pull) matches the subscription type.
+     * An inconsistent consumer configuration for instance can result in
+     * receiving messages from unexpected subjects.
+     * A consumer type mismatch will result in an error from the server.
      * @param stream the stream name to bind to
      * @param name the consumer name, commonly the durable name
      * @return push subscribe options
      */
-    public static PullSubscribeOptions bind(String stream, String name) {
-        return new PullSubscribeOptions.Builder().stream(stream).durable(name).bind(true).build();
+    public static PullSubscribeOptions fastBind(String stream, String name) {
+        return new Builder().stream(stream).name(name).fastBind(true).build();
     }
 
     /**
@@ -62,6 +84,22 @@ public class PullSubscribeOptions extends SubscribeOptions {
         @Override
         public PullSubscribeOptions build() {
             return new PullSubscribeOptions(this);
+        }
+
+        /**
+         * Specify binding to an existing consumer via name.
+         * The client does not validate that the provided consumer configuration
+         * is consistent with the server version or that
+         * consumer type (push versus pull) matches the subscription type.
+         * An inconsistent consumer configuration for instance can result in
+         * receiving messages from unexpected subjects.
+         * A consumer type mismatch will result in an error from the server.
+         * @return the builder
+         * @param fastBind whether to fast bind or not
+         */
+        public Builder fastBind(boolean fastBind) {
+            this.fastBind = fastBind;
+            return this;
         }
     }
 }

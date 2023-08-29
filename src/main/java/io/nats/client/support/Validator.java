@@ -131,6 +131,13 @@ public abstract class Validator {
         return s;
     }
 
+    public static String required(String s1, String s2, String label) {
+        if (emptyAsNull(s1) == null && emptyAsNull(s2) == null) {
+            throw new IllegalArgumentException(label + " cannot be null or empty.");
+        }
+        return s1;
+    }
+
     public static <T> T required(T o, String label) {
         if (o == null) {
             throw new IllegalArgumentException(label + " cannot be null.");

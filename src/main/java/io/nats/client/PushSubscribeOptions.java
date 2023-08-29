@@ -48,8 +48,8 @@ public class PushSubscribeOptions extends SubscribeOptions {
      * where you must specify the stream because
      * the subject could apply to both a stream and a mirror.
      * @deprecated
-     * This method is no longer used as bind has a different meaning.
-     * See {@link #stream(String)} instead.
+     * This method resolves to {@link #stream(String)} as bind has a different meaning
+     * and requires both stream and consumer name
      * @param stream the stream name
      * @return push subscribe options
      */
@@ -70,14 +70,19 @@ public class PushSubscribeOptions extends SubscribeOptions {
     }
 
     /**
-     * Macro to create a PushSubscribeOptions where you are
-     * binding to an existing stream and durable consumer.
+     * Create PushSubscribeOptions for binding to
+     * a specific stream and consumer by name.
+     * The client validates regular (non-fast)
+     * binds to ensure that provided consumer configuration
+     * is consistent with the server version and that
+     * consumer type (push versus pull) matches the subscription type.
+     * and that it matches the subscription type.
      * @param stream the stream name
-     * @param durable the durable name
+     * @param name the consumer name
      * @return push subscribe options
      */
-    public static PushSubscribeOptions bind(String stream, String durable) {
-        return new PushSubscribeOptions.Builder().stream(stream).durable(durable).bind(true).build();
+    public static PushSubscribeOptions bind(String stream, String name) {
+        return new Builder().stream(stream).name(name).bind(true).build();
     }
 
     /**

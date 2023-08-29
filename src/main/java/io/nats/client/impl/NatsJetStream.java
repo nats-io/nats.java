@@ -315,7 +315,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         String inboxDeliver = userCC.getDeliverSubject();
 
         // 3. Does this consumer already exist?
-        if (consumerName != null) {
+        if (!so.isFastBind() && consumerName != null) {
             ConsumerInfo serverInfo = lookupConsumerInfo(fnlStream, consumerName);
 
             if (serverInfo != null) { // the consumer for that durable already exists
@@ -390,7 +390,11 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         //    If the consumer exists, I know what the settled info is
         final String settledConsumerName;
         final ConsumerConfiguration settledServerCC;
-        if (serverCC == null) {
+        if (so.isFastBind() || serverCC != null) {
+            settledServerCC = serverCC;
+            settledConsumerName = so.getName();
+        }
+        else {
             ConsumerConfiguration.Builder ccBuilder = ConsumerConfiguration.builder(userCC);
 
             // Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
@@ -406,10 +410,6 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
             settledServerCC = ccBuilder.build();
             settledConsumerName = null;
-        }
-        else {
-            settledServerCC = serverCC;
-            settledConsumerName = consumerName;
         }
 
         // 6. create the subscription. lambda needs final or effectively final vars

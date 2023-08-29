@@ -88,7 +88,7 @@ public class NatsJsPullSubMultipleWorkers {
             // - the PullSubscribeOptions can be re-used since all the subscribers are the same
             // - use a concurrent integer to track all the messages received
             // - have a list of subscribers and threads so I can track them
-            PullSubscribeOptions pso = PullSubscribeOptions.bind(exArgs.stream, exArgs.durable);
+            PullSubscribeOptions pso = PullSubscribeOptions.fastBind(exArgs.stream, exArgs.durable);
             AtomicInteger allReceived = new AtomicInteger();
             List<JsPullSubWorker> subscribers = new ArrayList<>();
             List<Thread> subThreads = new ArrayList<>();

@@ -600,31 +600,84 @@ public class JetStreamPullTests extends JetStreamTestBase {
     public void testDurable() throws Exception {
         runInJsServer(nc -> {
             // create the stream.
-            createDefaultTestStream(nc);
+            CreateStreamResult csr = createMemoryStream(nc);
+            String durable = durable();
 
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // Build our subscription options normally
-            PullSubscribeOptions options1 = PullSubscribeOptions.builder().durable(DURABLE).build();
-            _testDurable(js, () -> js.subscribe(SUBJECT, options1));
+            PullSubscribeOptions options1 = PullSubscribeOptions.builder().durable(durable).build();
+            _testDurableOrNamed(js, csr.subject, () -> js.subscribe(csr.subject, options1));
 
             // bind long form
             PullSubscribeOptions options2 = PullSubscribeOptions.builder()
-                .stream(STREAM)
-                .durable(DURABLE)
+                .stream(csr.stream)
+                .durable(durable)
                 .bind(true)
                 .build();
-            _testDurable(js, () -> js.subscribe(null, options2));
+            _testDurableOrNamed(js, csr.subject, () -> js.subscribe(null, options2));
+
+            // fast bind long form
+            PullSubscribeOptions options3 = PullSubscribeOptions.builder()
+                .stream(csr.stream)
+                .durable(durable)
+                .fastBind(true)
+                .build();
+            _testDurableOrNamed(js, csr.subject, () -> js.subscribe(null, options3));
 
             // bind short form
-            PullSubscribeOptions options3 = PullSubscribeOptions.bind(STREAM, DURABLE);
-            _testDurable(js, () -> js.subscribe(null, options3));
+            PullSubscribeOptions options4 = PullSubscribeOptions.bind(csr.stream, durable);
+            _testDurableOrNamed(js, csr.subject, () -> js.subscribe(null, options4));
+
+            // fast bind short form
+            PullSubscribeOptions options5 = PullSubscribeOptions.fastBind(csr.stream, durable);
+            _testDurableOrNamed(js, csr.subject, () -> js.subscribe(null, options5));
         });
     }
 
-    private void _testDurable(JetStream js, SubscriptionSupplier supplier) throws IOException, JetStreamApiException, InterruptedException {
-        jsPublish(js, SUBJECT, 2);
+    @Test
+    public void testNamed() throws Exception {
+        runInJsServer(nc -> {
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            CreateStreamResult csr = createMemoryStream(jsm);
+            String name = name();
+
+            jsm.addOrUpdateConsumer(csr.stream, ConsumerConfiguration.builder()
+                .name(name)
+                .inactiveThreshold(10_000)
+                .build());
+
+            // bind long form
+            PullSubscribeOptions options2 = PullSubscribeOptions.builder()
+                .stream(csr.stream)
+                .name(name)
+                .bind(true)
+                .build();
+            _testDurableOrNamed(js, csr.subject, () -> js.subscribe(null, options2));
+
+            // fast bind long form
+            PullSubscribeOptions options3 = PullSubscribeOptions.builder()
+                .stream(csr.stream)
+                .name(name)
+                .fastBind(true)
+                .build();
+            _testDurableOrNamed(js, csr.subject, () -> js.subscribe(null, options3));
+
+            // bind short form
+            PullSubscribeOptions options4 = PullSubscribeOptions.bind(csr.stream, name);
+            _testDurableOrNamed(js, csr.subject, () -> js.subscribe(null, options4));
+
+            // fast bind short form
+            PullSubscribeOptions options5 = PullSubscribeOptions.fastBind(csr.stream, name);
+            _testDurableOrNamed(js, csr.subject, () -> js.subscribe(null, options5));
+        });
+    }
+
+    private void _testDurableOrNamed(JetStream js, String subject, SubscriptionSupplier supplier) throws IOException, JetStreamApiException, InterruptedException {
+        jsPublish(js, subject, 2);
 
         JetStreamSubscription sub = supplier.get();
 

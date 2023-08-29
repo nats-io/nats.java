@@ -51,7 +51,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         consumerName = ci.getName();
         originalOrderedCc = null;
         subscribeSubject = null;
-        unorderedBindPso = PullSubscribeOptions.bind(sc.streamName, consumerName);
+        unorderedBindPso = PullSubscribeOptions.fastBind(sc.streamName, consumerName);
         cachedConsumerInfo = ci;
     }
 
