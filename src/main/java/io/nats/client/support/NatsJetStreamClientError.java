@@ -33,7 +33,7 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError JsSubSubjectDoesNotMatchFilter = new NatsJetStreamClientError(SUB, 90011, "Subject does not match consumer configuration filter.");
     public static final NatsJetStreamClientError JsSubConsumerAlreadyBound = new NatsJetStreamClientError(SUB, 90012, "Consumer is already bound to a subscription.");
     public static final NatsJetStreamClientError JsSubExistingConsumerNotQueue = new NatsJetStreamClientError(SUB, 90013, "Existing consumer is not configured as a queue / deliver group.");
-    public static final NatsJetStreamClientError JsSubExistingConsumerIsQueue = new NatsJetStreamClientError(SUB, 90014, "Existing consumer  is configured as a queue / deliver group.");
+    public static final NatsJetStreamClientError JsSubExistingConsumerIsQueue = new NatsJetStreamClientError(SUB, 90014, "Existing consumer is configured as a queue / deliver group.");
     public static final NatsJetStreamClientError JsSubExistingQueueDoesNotMatchRequestedQueue = new NatsJetStreamClientError(SUB, 90015, "Existing consumer deliver group does not match requested queue / deliver group.");
     public static final NatsJetStreamClientError JsSubExistingConsumerCannotBeModified = new NatsJetStreamClientError(SUB, 90016, "Existing consumer cannot be modified.");
     public static final NatsJetStreamClientError JsSubConsumerNotFoundRequiredInBind = new NatsJetStreamClientError(SUB, 90017, "Consumer not found, required in bind mode.");
