@@ -38,6 +38,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
     private final long numRedelivered;
     private final ClusterInfo clusterInfo;
     private final boolean pushBound;
+    private final ZonedDateTime timestamp;
 
     public ConsumerInfo(Message msg) {
         this(parseMessage(msg));
@@ -61,6 +62,8 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
 
         clusterInfo = ClusterInfo.optionalInstance(readValue(jv, CLUSTER));
         pushBound = readBoolean(jv, PUSH_BOUND);
+
+        timestamp = readDate(jv, TS);
     }
 
     public ConsumerConfiguration getConsumerConfiguration() {
@@ -75,6 +78,10 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
         return stream;
     }
 
+    /**
+     * Gets the creation time of the consumer.
+     * @return the creation date and time.
+     */
     public ZonedDateTime getCreationTime() {
         return created;
     }
@@ -109,6 +116,14 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
 
     public boolean isPushBound() {
         return pushBound;
+    }
+
+    /**
+     * Gets the server time the info was gathered
+     * @return the server gathered timed
+     */
+    public ZonedDateTime getTimestamp() {
+        return timestamp;
     }
 
     public long getCalculatedPending() {

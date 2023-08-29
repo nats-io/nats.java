@@ -315,6 +315,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(0, si.getStreamState().getSubjects().size());
             assertEquals(0, si.getStreamState().getDeletedCount());
             assertEquals(0, si.getStreamState().getDeleted().size());
+            if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
+                assertNotNull(si.getTimestamp());
+            }
+            else {
+                assertNull(si.getTimestamp());
+            }
 
             List<PublishAck> packs = new ArrayList<>();
             JetStream js = nc.jetStream();
@@ -910,6 +916,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(STREAM, ci.getStreamName());
             assertEquals(DURABLE, ci.getName());
             assertThrows(JetStreamApiException.class, () -> jsm.getConsumerInfo(STREAM, durable(999)));
+            if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
+                assertNotNull(ci.getTimestamp());
+            }
+            else {
+                assertNull(ci.getTimestamp());
+            }
         });
     }
 

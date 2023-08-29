@@ -19,7 +19,6 @@ import io.nats.client.support.JsonValue;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -42,8 +41,8 @@ public class StreamInfoTests {
     }
 
     private void validateStreamInfo(StreamInfo si) {
-        ZonedDateTime zdt = DateTimeUtils.parseDateTime("2021-01-25T20:09:10.6225191Z");
-        assertEquals(zdt, si.getCreateTime());
+        assertEquals(DateTimeUtils.parseDateTime("2021-01-25T20:09:10.6225191Z"), si.getCreateTime());
+        assertEquals(DateTimeUtils.parseDateTime("2023-08-29T19:33:21.163377Z"), si.getTimestamp());
 
         StreamConfiguration sc = si.getConfiguration();
         assertEquals("streamName", sc.getName());
