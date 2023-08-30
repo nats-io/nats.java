@@ -338,6 +338,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             if (nc.getServerInfo().isOlderThanVersion("2.10")) {
                 assertNull(si.getTimestamp());
             }
+            else {
+                assertNotNull(si.getTimestamp());
+            }
             assertEquals(1, si.getConfiguration().getFirstSequence());
 
             List<PublishAck> packs = new ArrayList<>();
