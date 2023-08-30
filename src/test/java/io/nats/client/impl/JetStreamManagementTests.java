@@ -302,45 +302,60 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
             assertThrows(JetStreamApiException.class, () -> jsm.getStreamInfo(STREAM));
 
+            JetStream js = nc.jetStream();
+            if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
+                String stream = stream();
+                StreamConfiguration sc = StreamConfiguration.builder()
+                    .name(stream)
+                    .storageType(StorageType.Memory)
+                    .firstSeq(42)
+                    .subjects("test-first-seq").build();
+                StreamInfo si = jsm.addStream(sc);
+                assertNotNull(si.getTimestamp());
+                assertEquals(42, si.getConfiguration().getFirstSequence());
+                PublishAck pa = js.publish("test-first-seq", null);
+                assertEquals(42, pa.getSeqno());
+            }
+
             String[] subjects = new String[6];
             for (int x = 0; x < 5; x++) {
                 subjects[x] = subject(x + 1);
             }
             subjects[5] = "foo.>";
-            createMemoryStream(jsm, STREAM, subjects);
 
-            StreamInfo si = jsm.getStreamInfo(STREAM);
-            assertEquals(STREAM, si.getConfiguration().getName());
+            String stream = stream();
+            createMemoryStream(jsm, stream, subjects);
+
+            StreamInfo si = jsm.getStreamInfo(stream);
+            assertEquals(stream, si.getConfiguration().getName());
             assertEquals(0, si.getStreamState().getSubjectCount());
             assertEquals(0, si.getStreamState().getSubjects().size());
             assertEquals(0, si.getStreamState().getDeletedCount());
             assertEquals(0, si.getStreamState().getDeleted().size());
-            if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
-                assertNotNull(si.getTimestamp());
-            }
-            else {
+
+            if (nc.getServerInfo().isOlderThanVersion("2.10")) {
                 assertNull(si.getTimestamp());
             }
+            assertEquals(1, si.getConfiguration().getFirstSequence());
 
             List<PublishAck> packs = new ArrayList<>();
-            JetStream js = nc.jetStream();
             for (int x = 0; x < 5; x++) {
                 jsPublish(js, subject(x + 1), x + 1);
                 PublishAck pa = jsPublish(js, subject(x + 1), data(x + 2));
                 packs.add(pa);
-                jsm.deleteMessage(STREAM, pa.getSeqno());
+                jsm.deleteMessage(stream, pa.getSeqno());
             }
             jsPublish(js, "foo.bar", 6);
 
-            si = jsm.getStreamInfo(STREAM);
-            assertEquals(STREAM, si.getConfiguration().getName());
+            si = jsm.getStreamInfo(stream);
+            assertEquals(stream, si.getConfiguration().getName());
             assertEquals(6, si.getStreamState().getSubjectCount());
             assertEquals(0, si.getStreamState().getSubjects().size());
             assertEquals(5, si.getStreamState().getDeletedCount());
             assertEquals(0, si.getStreamState().getDeleted().size());
 
-            si = jsm.getStreamInfo(STREAM, StreamInfoOptions.builder().allSubjects().deletedDetails().build());
-            assertEquals(STREAM, si.getConfiguration().getName());
+            si = jsm.getStreamInfo(stream, StreamInfoOptions.builder().allSubjects().deletedDetails().build());
+            assertEquals(stream, si.getConfiguration().getName());
             assertEquals(6, si.getStreamState().getSubjectCount());
             List<Subject> list = si.getStreamState().getSubjects();
             assertNotNull(list);
@@ -367,7 +382,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             jsPublish(js, "foo.baz", 2);
             sleep(100);
 
-            si = jsm.getStreamInfo(STREAM, StreamInfoOptions.builder().filterSubjects("foo.>").deletedDetails().build());
+            si = jsm.getStreamInfo(stream, StreamInfoOptions.builder().filterSubjects("foo.>").deletedDetails().build());
             assertEquals(7, si.getStreamState().getSubjectCount());
             list = si.getStreamState().getSubjects();
             assertNotNull(list);
@@ -383,7 +398,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertNotNull(s);
             assertEquals(2, s.getCount());
 
-            si = jsm.getStreamInfo(STREAM, StreamInfoOptions.builder().filterSubjects(subject(5)).build());
+            si = jsm.getStreamInfo(stream, StreamInfoOptions.builder().filterSubjects(subject(5)).build());
             list = si.getStreamState().getSubjects();
             assertNotNull(list);
             assertEquals(1, list.size());
