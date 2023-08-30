@@ -23,6 +23,7 @@
   "allow_direct": true,
   "mirror_direct": true,
   "metadata":{"meta-foo":"meta-bar"},
+  "first_seq": 82942,
   "placement": {
     "cluster": "clstr",
     "tags": ["tag1", "tag2"]

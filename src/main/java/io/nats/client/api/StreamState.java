@@ -24,8 +24,8 @@ import static io.nats.client.support.JsonValueUtils.*;
 public class StreamState {
     private final long msgs;
     private final long bytes;
-    private final long firstSeq;
-    private final long lastSeq;
+    private final long firstSequence;
+    private final long lastSequence;
     private final long consumerCount;
     private final long subjectCount;
     private final long deletedCount;
@@ -38,8 +38,8 @@ public class StreamState {
     StreamState(JsonValue vStreamState) {
         msgs = readLong(vStreamState, MESSAGES, 0);
         bytes = readLong(vStreamState, BYTES, 0);
-        firstSeq = readLong(vStreamState, FIRST_SEQ, 0);
-        lastSeq = readLong(vStreamState, LAST_SEQ, 0);
+        firstSequence = readLong(vStreamState, FIRST_SEQ, 0);
+        lastSequence = readLong(vStreamState, LAST_SEQ, 0);
         consumerCount = readLong(vStreamState, CONSUMER_COUNT, 0);
         firstTime = readDate(vStreamState, FIRST_TS);
         lastTime = readDate(vStreamState, LAST_TS);
@@ -74,7 +74,7 @@ public class StreamState {
      * @return a sequence number
      */
     public long getFirstSequence() {
-        return firstSeq;
+        return firstSequence;
     }
 
     /**
@@ -92,7 +92,7 @@ public class StreamState {
      * @return a sequence number
      */
     public long getLastSequence() {
-        return lastSeq;
+        return lastSequence;
     }
 
     /**
@@ -162,8 +162,8 @@ public class StreamState {
         return "StreamState{" +
             "msgs=" + msgs +
             ", bytes=" + bytes +
-            ", firstSeq=" + firstSeq +
-            ", lastSeq=" + lastSeq +
+            ", firstSeq=" + firstSequence +
+            ", lastSeq=" + lastSequence +
             ", consumerCount=" + consumerCount +
             ", firstTime=" + firstTime +
             ", lastTime=" + lastTime +

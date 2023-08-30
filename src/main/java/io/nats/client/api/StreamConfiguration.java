@@ -97,7 +97,7 @@ public class StreamConfiguration implements JsonSerializable {
         builder.denyPurge(readBoolean(v, DENY_PURGE));
         builder.discardNewPerSubject(readBoolean(v, DISCARD_NEW_PER_SUBJECT));
         builder.metadata(readStringStringMap(v, METADATA));
-        builder.firstSeq(readLong(v, FIRST_SEQ, 1));
+        builder.firstSequence(readLong(v, FIRST_SEQ, 1));
         return builder.build();
     }
 
@@ -131,7 +131,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.denyPurge = b.denyPurge;
         this.discardNewPerSubject = b.discardNewPerSubject;
         this.metadata = b.metadata;
-        this.firstSequence = b.firstSeq;
+        this.firstSequence = b.firstSequence;
     }
 
     /**
@@ -178,7 +178,6 @@ public class StreamConfiguration implements JsonSerializable {
         addFldWhenTrue(sb, DENY_PURGE, denyPurge);
         addFldWhenTrue(sb, DISCARD_NEW_PER_SUBJECT, discardNewPerSubject);
         addField(sb, METADATA, metadata);
-
         addFieldWhenGreaterThan(sb, FIRST_SEQ, firstSequence, 1);
 
         return endJson(sb).toString();
@@ -443,8 +442,8 @@ public class StreamConfiguration implements JsonSerializable {
             ", mirrorDirect=" + mirrorDirect +
             ", denyDelete=" + denyDelete +
             ", denyPurge=" + denyPurge +
-            ", firstSequence=" + firstSequence +
             ", discardNewPerSubject=" + discardNewPerSubject +
+            ", firstSequence=" + firstSequence +
             ", " + mirror +
             ", " + placement +
             ", sources=" + sources +
@@ -506,7 +505,7 @@ public class StreamConfiguration implements JsonSerializable {
         private boolean denyPurge = false;
         private boolean discardNewPerSubject = false;
         private Map<String, String> metadata;
-        private long firstSeq = -1;
+        private long firstSequence = 1;
 
         /**
          * Default Builder
@@ -549,7 +548,7 @@ public class StreamConfiguration implements JsonSerializable {
                 if (sc.metadata != null) {
                     this.metadata = new HashMap<>(sc.metadata);
                 }
-                this.firstSeq = sc.firstSequence;
+                this.firstSequence = sc.firstSequence;
             }
         }
 
@@ -953,12 +952,12 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Sets the first sequence to be used. Must be greater than 0. 1 is the default.
-         * @param firstSeq specify the first_seq in the stream config when creating.
+         * Sets the first sequence to be used. 1 is the default. All values less than 2 are treated as 1.
+         * @param firstSeq specify the first_seq in the stream config when creating the stream.
          * @return Builder
          */
-        public Builder firstSeq(long firstSeq) {
-            this.firstSeq = validateGtZeroOrMinus1(firstSeq, "First Sequence");
+        public Builder firstSequence(long firstSeq) {
+            this.firstSequence = firstSeq > 1 ? firstSeq : 1;
             return this;
         }
 

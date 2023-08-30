@@ -81,6 +81,21 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(0, ss.getFirstSequence());
             assertEquals(0, ss.getLastSequence());
             assertEquals(0, ss.getConsumerCount());
+
+            if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
+                JetStream js = nc.jetStream();
+                String stream = stream();
+                sc = StreamConfiguration.builder()
+                    .name(stream)
+                    .storageType(StorageType.Memory)
+                    .firstSequence(42)
+                    .subjects("test-first-seq").build();
+                si = jsm.addStream(sc);
+                assertNotNull(si.getTimestamp());
+                assertEquals(42, si.getConfiguration().getFirstSequence());
+                PublishAck pa = js.publish("test-first-seq", null);
+                assertEquals(42, pa.getSeqno());
+            }
         });
     }
 
@@ -303,19 +318,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertThrows(JetStreamApiException.class, () -> jsm.getStreamInfo(STREAM));
 
             JetStream js = nc.jetStream();
-            if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
-                String stream = stream();
-                StreamConfiguration sc = StreamConfiguration.builder()
-                    .name(stream)
-                    .storageType(StorageType.Memory)
-                    .firstSeq(42)
-                    .subjects("test-first-seq").build();
-                StreamInfo si = jsm.addStream(sc);
-                assertNotNull(si.getTimestamp());
-                assertEquals(42, si.getConfiguration().getFirstSequence());
-                PublishAck pa = js.publish("test-first-seq", null);
-                assertEquals(42, pa.getSeqno());
-            }
 
             String[] subjects = new String[6];
             for (int x = 0; x < 5; x++) {

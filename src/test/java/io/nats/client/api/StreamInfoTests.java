@@ -50,7 +50,7 @@ public class StreamInfoTests {
         assertEquals("sub0", sc.getSubjects().get(0));
         assertEquals("sub1", sc.getSubjects().get(1));
         assertEquals("x.>", sc.getSubjects().get(2));
-        assertEquals(82966, sc.getFirstSequence());
+        assertEquals(82942, sc.getFirstSequence());
 
         assertEquals(RetentionPolicy.Limits, sc.getRetentionPolicy());
         assertEquals(DiscardPolicy.Old, sc.getDiscardPolicy());
