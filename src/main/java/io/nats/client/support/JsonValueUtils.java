@@ -145,7 +145,7 @@ public abstract class JsonValueUtils {
 
     public static <T> List<T> optionalListOf(JsonValue v, Function<JsonValue, T> provider) {
         List<T> list = listOf(v, provider);
-        return list.size() == 0 ? null : list;
+        return list.isEmpty() ? null : list;
     }
 
     public static List<String> readStringList(JsonValue jsonValue, String key) {
@@ -156,7 +156,7 @@ public abstract class JsonValueUtils {
         return read(jsonValue, key, v -> listOf(v, jv -> {
             if (jv.string != null) {
                 String s = jv.string.trim();
-                if (s.length() > 0) {
+                if (!s.isEmpty()) {
                     return s;
                 }
             }
@@ -182,7 +182,7 @@ public abstract class JsonValueUtils {
                 return l == null ? null : Duration.ofNanos(l);
             })
         );
-        return list.size() == 0 && nullIfEmpty ? null : list;
+        return list.isEmpty() && nullIfEmpty ? null : list;
     }
 
     public static byte[] readBytes(JsonValue jsonValue, String key) {

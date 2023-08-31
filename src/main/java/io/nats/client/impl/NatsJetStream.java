@@ -296,15 +296,15 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         }
 
         // 2B. Did they tell me what stream? No? look it up.
-        final String fnlStream;
+        final String settledStream;
         if (stream == null) {
-            fnlStream = lookupStreamBySubject(subject);
-            if (fnlStream == null) {
+            settledStream = lookupStreamBySubject(subject);
+            if (settledStream == null) {
                 throw JsSubNoMatchingStreamForSubject.instance();
             }
         }
         else {
-            fnlStream = stream;
+            settledStream = stream;
         }
 
         ConsumerConfiguration serverCC = null;
@@ -316,7 +316,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
         // 3. Does this consumer already exist?
         if (!so.isFastBind() && consumerName != null) {
-            ConsumerInfo serverInfo = lookupConsumerInfo(fnlStream, consumerName);
+            ConsumerInfo serverInfo = lookupConsumerInfo(settledStream, consumerName);
 
             if (serverInfo != null) { // the consumer for that durable already exists
                 serverCC = serverInfo.getConsumerConfiguration();
@@ -363,7 +363,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
                 if (nullOrEmpty(subject)) { // allowed if they had given both stream and durable
                     subject = userCC.getFilterSubject();
                 }
-                else if (!isFilterMatch(subject, serverCC.getFilterSubject(), fnlStream)) {
+                else if (!isFilterMatch(subject, serverCC.getFilterSubject(), settledStream)) {
                     throw JsSubSubjectDoesNotMatchFilter.instance();
                 }
 
@@ -375,15 +375,15 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         }
 
         // 4. If pull or no deliver subject (inbox) provided or found, make an inbox.
-        final String fnlInboxDeliver;
+        final String settledInboxDeliver;
         if (isPullMode) {
-            fnlInboxDeliver = conn.createInbox() + ".*";
+            settledInboxDeliver = conn.createInbox() + ".*";
         }
         else if (inboxDeliver == null) {
-            fnlInboxDeliver = conn.createInbox();
+            settledInboxDeliver = conn.createInbox();
         }
         else {
-            fnlInboxDeliver = inboxDeliver;
+            settledInboxDeliver = inboxDeliver;
         }
 
         // 5. If consumer does not exist, create and settle on the config. Name will have to wait
@@ -399,7 +399,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
             // Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
             if (!isPullMode) {
-                ccBuilder.deliverSubject(fnlInboxDeliver);
+                ccBuilder.deliverSubject(settledInboxDeliver);
             }
 
             if (userCC.getFilterSubject() == null) {
@@ -417,16 +417,16 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         final NatsSubscriptionFactory subFactory;
         if (isPullMode) {
             MessageManagerFactory mmFactory = so.isOrdered() ? _pullOrderedMessageManagerFactory : _pullMessageManagerFactory;
-            mm = mmFactory.createMessageManager(conn, this, fnlStream, so, settledServerCC, false, dispatcher == null);
+            mm = mmFactory.createMessageManager(conn, this, settledStream, so, settledServerCC, false, dispatcher == null);
             subFactory = (sid, lSubject, lQgroup, lConn, lDispatcher)
-                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, lDispatcher, this, fnlStream, settledConsumerName, mm);
+                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, lDispatcher, this, settledStream, settledConsumerName, mm);
         }
         else {
             MessageManagerFactory mmFactory = so.isOrdered() ? _pushOrderedMessageManagerFactory : _pushMessageManagerFactory;
-            mm = mmFactory.createMessageManager(conn, this, fnlStream, so, settledServerCC, false, dispatcher == null);
+            mm = mmFactory.createMessageManager(conn, this, settledStream, so, settledServerCC, false, dispatcher == null);
             subFactory = (sid, lSubject, lQgroup, lConn, lDispatcher) -> {
                 NatsJetStreamSubscription nsub = new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,
-                    this, fnlStream, settledConsumerName, mm);
+                    this, settledStream, settledConsumerName, mm);
                 if (lDispatcher == null) {
                     nsub.setPendingLimits(so.getPendingMessageLimit(), so.getPendingByteLimit());
                 }
@@ -435,16 +435,16 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         }
         NatsJetStreamSubscription sub;
         if (dispatcher == null) {
-            sub = (NatsJetStreamSubscription) conn.createSubscription(fnlInboxDeliver, qgroup, null, subFactory);
+            sub = (NatsJetStreamSubscription) conn.createSubscription(settledInboxDeliver, qgroup, null, subFactory);
         }
         else {
             AsyncMessageHandler handler = new AsyncMessageHandler(mm, userHandler, isAutoAck, settledServerCC);
-            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(fnlInboxDeliver, qgroup, handler, subFactory);
+            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(settledInboxDeliver, qgroup, handler, subFactory);
         }
 
         // 7. The consumer might need to be created, do it here
         if (settledConsumerName == null) {
-            _createConsumerUnsubscribeOnException(fnlStream, settledServerCC, sub);
+            _createConsumerUnsubscribeOnException(settledStream, settledServerCC, sub);
         }
 
         return sub;
@@ -484,7 +484,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
             if (startTime != null && !startTime.equals(serverCcc.startTime)) { changes.add("startTime"); }
 
-            if (filterSubject != null && !filterSubject.equals(serverCcc.filterSubject)) { changes.add("filterSubject"); }
+            if (filterSubjects != null && !listsAreEqual(filterSubjects, serverCcc.filterSubjects, true)) { changes.add("filterSubjects"); }
             if (description != null && !description.equals(serverCcc.description)) { changes.add("description"); }
             if (sampleFrequency != null && !sampleFrequency.equals(serverCcc.sampleFrequency)) { changes.add("sampleFrequency"); }
             if (deliverSubject != null && !deliverSubject.equals(serverCcc.deliverSubject)) { changes.add("deliverSubject"); }

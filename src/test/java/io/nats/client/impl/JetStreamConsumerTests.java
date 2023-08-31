@@ -285,4 +285,28 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
                 new PullHeartbeatErrorSimulator(conn, false, latch);
         return latch;
     }
+
+    @Test
+    public void testMultipleSubjectFilters() throws Exception {
+        runInJsServer(nc -> {
+            // Setup
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            String stream = stream();
+            String subjectA = subject();
+            String subjectB = subject();
+            String name = name();
+            createMemoryStream(jsm, stream, subjectA, subjectB);
+
+            js.publish(subjectA, "A".getBytes());
+            js.publish(subjectB, "B".getBytes());
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().name(name).filterSubject(subjectA + "," + subjectB).build();
+            JetStreamSubscription sub = js.subscribe(subjectA, PushSubscribeOptions.builder().stream(stream).configuration(cc).build());
+            System.out.println(sub.nextMessage(1000));
+            System.out.println(sub.nextMessage(1000));
+            System.out.println(sub.nextMessage(1000));
+        });
+    }
 }

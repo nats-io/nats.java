@@ -367,7 +367,7 @@ public abstract class Validator {
     // Helpers
     // ----------------------------------------------------------------------------------------------------
     public static boolean nullOrEmpty(String s) {
-        return s == null || s.trim().length() == 0;
+        return s == null || s.trim().isEmpty();
     }
 
     public static boolean notPrintable(String s) {
@@ -570,7 +570,7 @@ public abstract class Validator {
 
         if (l2 == null)
         {
-            return nullSecondEqualsEmptyFirst && l1.size() == 0;
+            return nullSecondEqualsEmptyFirst && l1.isEmpty();
         }
 
         return l1.equals(l2);
@@ -586,7 +586,7 @@ public abstract class Validator {
 
         if (m2 == null)
         {
-            return nullSecondEqualsEmptyFirst && m1.size() == 0;
+            return nullSecondEqualsEmptyFirst && m1.isEmpty();
         }
 
         if (m1.size() != m2.size()) {

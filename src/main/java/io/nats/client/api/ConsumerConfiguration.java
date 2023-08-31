@@ -66,7 +66,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final String name;
     protected final String deliverSubject;
     protected final String deliverGroup;
-    protected final String filterSubject;
+    protected final List<String> filterSubjects;
     protected final String sampleFrequency;
     protected final ZonedDateTime startTime;
     protected final Duration ackWait;
@@ -96,7 +96,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.name = cc.name;
         this.deliverSubject = cc.deliverSubject;
         this.deliverGroup = cc.deliverGroup;
-        this.filterSubject = cc.filterSubject;
+        this.filterSubjects = cc.filterSubjects;
         this.sampleFrequency = cc.sampleFrequency;
         this.startTime = cc.startTime;
         this.ackWait = cc.ackWait;
@@ -128,7 +128,13 @@ public class ConsumerConfiguration implements JsonSerializable {
         name = readString(v, NAME);
         deliverSubject = readString(v, DELIVER_SUBJECT);
         deliverGroup = readString(v, DELIVER_GROUP);
-        filterSubject = readString(v, FILTER_SUBJECT);
+        String tempFs = readString(v, FILTER_SUBJECT);
+        if (tempFs != null) {
+            filterSubjects = Collections.singletonList(tempFs);
+        }
+        else {
+            filterSubjects = readStringList(v, FILTER_SUBJECTS);
+        }
         sampleFrequency = readString(v, SAMPLE_FREQ);
 
         startTime = readDate(v, OPT_START_TIME);
@@ -166,7 +172,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.name = b.name;
         this.startTime = b.startTime;
         this.ackWait = b.ackWait;
-        this.filterSubject = b.filterSubject;
+        this.filterSubjects = b.filterSubjects;
         this.sampleFrequency = b.sampleFrequency;
         this.deliverSubject = b.deliverSubject;
         this.deliverGroup = b.deliverGroup;
@@ -210,7 +216,12 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addFieldAsNanos(sb, ACK_WAIT, ackWait);
         JsonUtils.addFieldWhenGtZero(sb, MAX_DELIVER, maxDeliver);
         JsonUtils.addField(sb, MAX_ACK_PENDING, maxAckPending);
-        JsonUtils.addField(sb, FILTER_SUBJECT, filterSubject);
+        if (filterSubjects.size() > 1) {
+            JsonUtils.addStrings(sb, FILTER_SUBJECTS, filterSubjects);
+        }
+        else if (filterSubjects.size() == 1) {
+            JsonUtils.addField(sb, FILTER_SUBJECT, filterSubjects.get(0));
+        }
         JsonUtils.addField(sb, REPLAY_POLICY, GetOrDefault(replayPolicy).toString());
         JsonUtils.addField(sb, SAMPLE_FREQ, sampleFrequency);
         JsonUtils.addFieldWhenGtZero(sb, RATE_LIMIT_BPS, rateLimit);
@@ -318,11 +329,19 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
-     * Gets the max filter subject of this consumer configuration.
+     * Gets the filter subject of this consumer configuration. May be comma delimited if there are multiple filter subjects. May be null.
      * @return the filter subject.
      */
     public String getFilterSubject() {
-        return filterSubject;
+        return filterSubjects.isEmpty() ? null : String.join(",", filterSubjects);
+    }
+
+    /**
+     * Gets the filter subjects as a list. May be empty, but won't be null
+     * @return the list
+     */
+    public List<String> getFilterSubjects() {
+        return filterSubjects;
     }
 
     /**
@@ -616,7 +635,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         private String name;
         private String deliverSubject;
         private String deliverGroup;
-        private String filterSubject;
+        private List<String> filterSubjects = new ArrayList<>();
         private String sampleFrequency;
 
         private ZonedDateTime startTime;
@@ -654,7 +673,7 @@ public class ConsumerConfiguration implements JsonSerializable {
                 this.name = cc.name;
                 this.deliverSubject = cc.deliverSubject;
                 this.deliverGroup = cc.deliverGroup;
-                this.filterSubject = cc.filterSubject;
+                this.filterSubjects = cc.filterSubjects;
                 this.sampleFrequency = cc.sampleFrequency;
 
                 this.startTime = cc.startTime;
@@ -828,12 +847,38 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
-         * Sets the filter subject of the ConsumerConfiguration.
-         * @param filterSubject the filter subject
+         * Sets the filter subject or subjects of the ConsumerConfiguration.
+         * @param filterSubject the filter subject; a comma delimited list is supported
+         *                      when connecting to a server version 2.9.10 or later.
          * @return Builder
          */
         public Builder filterSubject(String filterSubject) {
-            this.filterSubject = emptyAsNull(filterSubject);
+            String temp = emptyAsNull(filterSubject);
+            if (temp == null) {
+                filterSubjects.clear();
+            }
+            else {
+                String[] split = filterSubject.split(",");
+                for (String s : split) {
+                    temp = emptyAsNull(s.trim());
+                    if (temp != null) {
+                        filterSubjects.add(temp);
+                    }
+                }
+            }
+            return this;
+        }
+
+        /**
+         * Sets the filter subjects of the ConsumerConfiguration.
+         * @param filterSubjects the list of filter subjects
+         * @return Builder
+         */
+        public Builder filterSubjects(List<String> filterSubjects) {
+            this.filterSubjects.clear();
+            if (filterSubjects != null && filterSubjects.isEmpty()) {
+                this.filterSubjects.addAll(filterSubjects);
+            }
             return this;
         }
 
@@ -1218,7 +1263,7 @@ public class ConsumerConfiguration implements JsonSerializable {
             ", ackPolicy=" + ackPolicy +
             ", ackWait=" + ackWait +
             ", maxDeliver=" + maxDeliver +
-            ", filterSubject='" + filterSubject + '\'' +
+            ", filterSubjects='" + String.join(",", filterSubjects) + '\'' +
             ", replayPolicy=" + replayPolicy +
             ", sampleFrequency='" + sampleFrequency + '\'' +
             ", rateLimit=" + rateLimit +
