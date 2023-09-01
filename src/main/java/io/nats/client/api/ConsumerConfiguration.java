@@ -329,11 +329,11 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
-     * Gets the filter subject of this consumer configuration. May be comma delimited if there are multiple filter subjects. May be null.
-     * @return the filter subject.
+     * Gets the first filter subject of this consumer configuration. Will be null if there are none.
+     * @return the first filter subject.
      */
     public String getFilterSubject() {
-        return filterSubjects.isEmpty() ? null : String.join(",", filterSubjects);
+        return filterSubjects.isEmpty() ? null : filterSubjects.get(0);
     }
 
     /**
@@ -673,7 +673,7 @@ public class ConsumerConfiguration implements JsonSerializable {
                 this.name = cc.name;
                 this.deliverSubject = cc.deliverSubject;
                 this.deliverGroup = cc.deliverGroup;
-                this.filterSubjects = cc.filterSubjects;
+                this.filterSubjects = new ArrayList<>(cc.filterSubjects);
                 this.sampleFrequency = cc.sampleFrequency;
 
                 this.startTime = cc.startTime;
@@ -847,26 +847,22 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
-         * Sets the filter subject or subjects of the ConsumerConfiguration.
-         * @param filterSubject the filter subject; a comma delimited list is supported
-         *                      when connecting to a server version 2.9.10 or later.
+         * Sets the filter subject of the ConsumerConfiguration.
+         * @param filterSubject the filter subject
          * @return Builder
          */
         public Builder filterSubject(String filterSubject) {
-            String temp = emptyAsNull(filterSubject);
-            if (temp == null) {
-                filterSubjects.clear();
-            }
-            else {
-                String[] split = filterSubject.split(",");
-                for (String s : split) {
-                    temp = emptyAsNull(s.trim());
-                    if (temp != null) {
-                        filterSubjects.add(temp);
-                    }
-                }
-            }
-            return this;
+            return filterSubjects(Collections.singletonList(filterSubject));
+        }
+
+
+        /**
+         * Sets the filter subjects of the ConsumerConfiguration.
+         * @param filterSubjects the array of filter subjects
+         * @return Builder
+         */
+        public Builder filterSubjects(String... filterSubjects) {
+            return filterSubjects(Arrays.asList(filterSubjects));
         }
 
         /**
@@ -876,8 +872,12 @@ public class ConsumerConfiguration implements JsonSerializable {
          */
         public Builder filterSubjects(List<String> filterSubjects) {
             this.filterSubjects.clear();
-            if (filterSubjects != null && filterSubjects.isEmpty()) {
-                this.filterSubjects.addAll(filterSubjects);
+            if (filterSubjects != null) {
+                for (String fs : filterSubjects) {
+                    if (!nullOrEmpty(fs)) {
+                        this.filterSubjects.add(fs);
+                    }
+                }
             }
             return this;
         }

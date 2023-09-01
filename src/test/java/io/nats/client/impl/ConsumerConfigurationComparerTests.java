@@ -134,7 +134,7 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertNotChange(builder(orig).filterSubject(EMPTY).build(), orig);
         ccTest = builder(orig).filterSubject(PLAIN).build();
         assertNotChange(ccTest, ccTest);
-        assertChange(ccTest, orig, "filterSubject");
+        assertChange(ccTest, orig, "filterSubjects");
 
         assertNotChange(builder(orig).description(EMPTY).build(), orig);
         ccTest = builder(orig).description(PLAIN).build();

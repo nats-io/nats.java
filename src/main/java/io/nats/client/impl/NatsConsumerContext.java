@@ -61,7 +61,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         ordered = true;
         consumerName = null;
         originalOrderedCc = ConsumerConfiguration.builder()
-            .filterSubject(config.getFilterSubject())
+            .filterSubjects(config.getFilterSubjects())
             .deliverPolicy(config.getDeliverPolicy())
             .startSequence(config.getStartSequence())
             .startTime(config.getStartTime())

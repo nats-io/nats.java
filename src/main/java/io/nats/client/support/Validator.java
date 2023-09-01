@@ -576,6 +576,21 @@ public abstract class Validator {
         return l1.equals(l2);
     }
 
+    public static <T> boolean notNullListsAreEquivalent(List<T> l1, List<T> l2)
+    {
+        if (l1.size() != l2.size()) {
+            return false;
+        }
+
+        for (T t : l1) {
+            if (!l2.contains(t)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
 
     public static boolean mapsAreEqual(Map<String, String> m1, Map<String, String> m2, boolean nullSecondEqualsEmptyFirst)
     {

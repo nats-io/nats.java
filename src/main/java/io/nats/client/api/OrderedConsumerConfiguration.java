@@ -14,14 +14,18 @@
 package io.nats.client.api;
 
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
-import static io.nats.client.support.Validator.emptyOrNullAs;
+import static io.nats.client.support.Validator.emptyAsNull;
 
 public class OrderedConsumerConfiguration {
 
     public static String DEFAULT_FILTER_SUBJECT = ">";
 
-    private String filterSubject;
+    private final List<String> filterSubjects;
     private DeliverPolicy deliverPolicy;
     private Long startSequence;
     private ZonedDateTime startTime;
@@ -35,7 +39,8 @@ public class OrderedConsumerConfiguration {
      */
     public OrderedConsumerConfiguration() {
         startSequence = ConsumerConfiguration.LONG_UNSET;
-        filterSubject = DEFAULT_FILTER_SUBJECT;
+        filterSubjects = new ArrayList<>();
+        filterSubjects.add(DEFAULT_FILTER_SUBJECT);
     }
 
     /**
@@ -44,7 +49,34 @@ public class OrderedConsumerConfiguration {
      * @return Builder
      */
     public OrderedConsumerConfiguration filterSubject(String filterSubject) {
-        this.filterSubject = emptyOrNullAs(filterSubject, DEFAULT_FILTER_SUBJECT);
+        return filterSubjects(Collections.singletonList(filterSubject));
+    }
+
+    /**
+     * Sets the filter subjects of the OrderedConsumerConfiguration.
+     * @param filterSubject the filter subject
+     * @return Builder
+     */
+    public OrderedConsumerConfiguration filterSubjects(String... filterSubject) {
+        return filterSubjects(Arrays.asList(filterSubject));
+    }
+
+    /**
+     * Sets the filter subject of the OrderedConsumerConfiguration.
+     * @param filterSubjects one or more filter subjects
+     * @return Builder
+     */
+    public OrderedConsumerConfiguration filterSubjects(List<String> filterSubjects) {
+        this.filterSubjects.clear();
+        for (String fs : filterSubjects) {
+            String fsean = emptyAsNull(fs);
+            if (fsean != null) {
+                this.filterSubjects.add(fsean);
+            }
+        }
+        if (this.filterSubjects.isEmpty()) {
+            this.filterSubjects.add(DEFAULT_FILTER_SUBJECT);
+        }
         return this;
     }
 
@@ -100,7 +132,11 @@ public class OrderedConsumerConfiguration {
     }
 
     public String getFilterSubject() {
-        return filterSubject;
+        return filterSubjects.get(0);
+    }
+
+    public List<String> getFilterSubjects() {
+        return filterSubjects;
     }
 
     public DeliverPolicy getDeliverPolicy() {

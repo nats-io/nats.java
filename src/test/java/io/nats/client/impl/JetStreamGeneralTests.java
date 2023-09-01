@@ -107,7 +107,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testJetStreamSubscribe() throws Exception {
         runInJsServer(nc -> {
-            boolean atLeast2dot9 = ((NatsConnection)nc).getInfo().isSameOrNewerThanVersion("2.9");
 
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -177,7 +176,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             unsubscribeEnsureNotBound(dispatcher, sub);
             js.subscribe("", queue(102), dispatcher, mh -> {}, false, psoBind);
 
-            if (atLeast2dot9) {
+            if (atLeast290(nc)) {
                 ConsumerConfiguration cc = builder().name(name(1)).build();
                 pso = PushSubscribeOptions.builder().configuration(cc).build();
                 sub = js.subscribe(SUBJECT, pso);
@@ -218,6 +217,51 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 PushSubscribeOptions psoOptOut = PushSubscribeOptions.builder().configuration(ccOptOut).build();
                 assertClientError(JsConsumerCreate290NotAvailable, () -> jsOptOut.subscribe(SUBJECT, psoOptOut));
             }
+        });
+    }
+
+    @Test
+    public void testJetStreamSubscribeLenientSubject() throws Exception {
+        runInJsServer(nc -> {
+            createDefaultTestStream(nc);
+            JetStream js = nc.jetStream();
+            Dispatcher d = nc.createDispatcher();
+
+            js.subscribe(SUBJECT, (PushSubscribeOptions)null);
+            js.subscribe(SUBJECT, null, (PushSubscribeOptions)null);
+            js.subscribe(SUBJECT, d, m -> {}, false, (PushSubscribeOptions)null);
+            js.subscribe(SUBJECT, null, d, m -> {}, false, (PushSubscribeOptions)null);
+
+            PushSubscribeOptions pso = ConsumerConfiguration.builder().filterSubject(SUBJECT).buildPushSubscribeOptions();
+            js.subscribe(null, pso);
+            js.subscribe(null, null, pso);
+            js.subscribe(null, d, m -> {}, false, pso);
+            js.subscribe(null, null, d, m -> {}, false, pso);
+
+            PushSubscribeOptions psoF = ConsumerConfiguration.builder().buildPushSubscribeOptions();
+
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, psoF));
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, psoF));
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, null, psoF));
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, d, m -> {}, false, psoF));
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, null, d, m -> {}, false, psoF));
+
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, (PushSubscribeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, (PushSubscribeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, null, (PushSubscribeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, d, m -> {}, false, (PushSubscribeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, null, d, m -> {}, false, (PushSubscribeOptions)null));
+
+            PullSubscribeOptions lso = ConsumerConfiguration.builder().filterSubject(SUBJECT).buildPullSubscribeOptions();
+            js.subscribe(null, lso);
+            js.subscribe(null, d, m -> {}, lso);
+
+            PullSubscribeOptions lsoF = ConsumerConfiguration.builder().buildPullSubscribeOptions();
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, lsoF));
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, d, m -> {}, lsoF));
+
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, (PullSubscribeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, d, m -> {}, (PullSubscribeOptions)null));
         });
     }
 

@@ -292,6 +292,10 @@ public class TestBase {
         return NAME + "-" + variant(variant);
     }
 
+    public static String deliver() {
+        return DELIVER + "-" + variant(null);
+    }
+
     public static String deliver(Object variant) {
         return DELIVER + "-" + variant(variant);
     }
