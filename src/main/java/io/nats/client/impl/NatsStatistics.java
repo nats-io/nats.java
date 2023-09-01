@@ -287,19 +287,19 @@ class NatsStatistics implements Statistics, StatisticsCollector {
         try {
             builder.append("### Connection ###\n");
             appendNumberStat(builder, "Reconnects:                      ", this.reconnects.get());
+            appendNumberStat(builder, "Requests Sent:                   ", this.requestsSent.get());
+            appendNumberStat(builder, "Replies Received:                ", this.repliesReceived.get());
             if (this.trackAdvanced) {
-                appendNumberStat(builder, "Requests Sent:                   ", this.requestsSent.get());
-                appendNumberStat(builder, "Replies Received:                ", this.repliesReceived.get());
                 appendNumberStat(builder, "Duplicate Replies Received:      ", this.duplicateRepliesReceived.get());
                 appendNumberStat(builder, "Orphan Replies Received:         ", this.orphanRepliesReceived.get());
-                appendNumberStat(builder, "Pings Sent:                      ", this.pingCount.get());
-                appendNumberStat(builder, "+OKs Received:                   ", this.okCount.get());
-                appendNumberStat(builder, "-Errs Received:                  ", this.errCount.get());
-                appendNumberStat(builder, "Handled Exceptions:              ", this.exceptionCount.get());
-                appendNumberStat(builder, "Successful Flush Calls:          ", this.flushCounter.get());
-                appendNumberStat(builder, "Outstanding Request Futures:     ", this.outstandingRequests.get());
-                appendNumberStat(builder, "Dropped Messages:                ", this.droppedCount.get());
             }
+            appendNumberStat(builder, "Pings Sent:                      ", this.pingCount.get());
+            appendNumberStat(builder, "+OKs Received:                   ", this.okCount.get());
+            appendNumberStat(builder, "-Errs Received:                  ", this.errCount.get());
+            appendNumberStat(builder, "Handled Exceptions:              ", this.exceptionCount.get());
+            appendNumberStat(builder, "Successful Flush Calls:          ", this.flushCounter.get());
+            appendNumberStat(builder, "Outstanding Request Futures:     ", this.outstandingRequests.get());
+            appendNumberStat(builder, "Dropped Messages:                ", this.droppedCount.get());
             builder.append("\n");
             builder.append("### Reader ###\n");
             appendNumberStat(builder, "Messages in:                     ", this.inMsgs.get());

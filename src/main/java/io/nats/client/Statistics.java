@@ -45,8 +45,18 @@ public interface Statistics {
 
     long getRepliesReceived();
 
+    /**
+     * @return the total number of duplicate replies received by this connection.
+     *
+     * NOTE: This is only counted if advanced stats are enabled.
+     */
     long getDuplicateRepliesReceived();
 
+    /**
+     * @return the total number of orphan replies received by this connection.
+     *
+     * NOTE: This is only counted if advanced stats are enabled.
+     */
     long getOrphanRepliesReceived();
 
     /**

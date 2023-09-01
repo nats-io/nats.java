@@ -1232,11 +1232,12 @@ class NatsConnection implements Connection {
             statistics.incrementRepliesReceived();
         }
         else if (!oldStyle && !subject.startsWith(mainInbox)) {
-            if (responsesRespondedTo.get(key) != null) {
-                statistics.incrementDuplicateRepliesReceived();
-            }
-            else {
-                statistics.incrementOrphanRepliesReceived();
+            if (advancedTracking) {
+                if (responsesRespondedTo.get(key) != null) {
+                    statistics.incrementDuplicateRepliesReceived();
+                } else {
+                    statistics.incrementOrphanRepliesReceived();
+                }
             }
         }
     }

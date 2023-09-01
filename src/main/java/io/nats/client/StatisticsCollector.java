@@ -15,6 +15,9 @@ package io.nats.client;
 
 // TODO: Javadoc -- class and methods and indicate which stats are advanced stats
 public interface StatisticsCollector extends Statistics {
+    /**
+     * Sets whether advanced stats are/should be tracked.
+     */
     void setAdvancedTracking(boolean trackAdvanced);
 
     void incrementPingCount();
@@ -39,8 +42,18 @@ public interface StatisticsCollector extends Statistics {
 
     void incrementRepliesReceived();
 
+    /**
+     * Increments the total number of duplicate replies received by this connection.
+     * <p>
+     * NOTE: This is only counted if advanced stats are enabled.
+     */
     void incrementDuplicateRepliesReceived();
 
+    /**
+     * Increments the total number of orphan replies received by this connection.
+     * <p>
+     * NOTE: This is only counted if advanced stats are enabled.
+     */
     void incrementOrphanRepliesReceived();
 
     /**
@@ -63,7 +76,17 @@ public interface StatisticsCollector extends Statistics {
 
     void decrementOutstandingRequests();
 
+    /**
+     * Registers a Socket read by this connection.
+     * <p>
+     * NOTE: Implementations should only count this if advanced stats are enabled.
+     */
     void registerRead(long bytes);
 
+    /**
+     * Registers a Socket write by this connection.
+     * <p>
+     * NOTE: Implementations should only count this if advanced stats are enabled.
+     */
     void registerWrite(long bytes);
 }
