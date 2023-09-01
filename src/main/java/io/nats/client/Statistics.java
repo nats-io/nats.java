@@ -21,8 +21,9 @@ package io.nats.client;
  */
 public interface Statistics {
 
-    // TODO: Javadoc -- methods and indicate which stats are advanced stats
-
+    /**
+     * @return the total number of pings that have been sent from this connection.
+     */
     long getPings();
 
     /**
@@ -35,14 +36,29 @@ public interface Statistics {
      */
     long getDroppedCount();
 
+    /**
+     * @return the total number of op +OKs received by this connection.
+     */
     long getOKs();
 
+    /**
+     * @return the total number of op -ERRs received by this connection.
+     */
     long getErrs();
 
+    /**
+     * @return the total number of exceptions seen by this connection.
+     */
     long getExceptions();
 
+    /**
+     * @return the total number of requests sent by this connection.
+     */
     long getRequestsSent();
 
+    /**
+     * @return the total number of replies received by this connection.
+     */
     long getRepliesReceived();
 
     /**
@@ -75,11 +91,17 @@ public interface Statistics {
     long getInBytes();
 
     /**
-     * @return the total number of message bytes that have gone out of to this connection.
+     * @return the total number of message bytes that have gone out of this connection.
      */
     long getOutBytes();
 
+    /**
+     * @return the total number of outgoing message flushes by this connection.
+     */
     long getFlushCounter();
 
+    /**
+     * @return the count of outstanding of requests from this connection.
+     */
     long getOutstandingRequests();
 }

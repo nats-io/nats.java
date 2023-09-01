@@ -1335,7 +1335,14 @@ public class Options {
             return this;
         }
 
-        // TODO: Javadoc
+        /**
+         * Set the {@link StatisticsCollector StatisticsCollector} to collect connection metrics.
+         * <p>
+         * If not set, then a default implementation will be used.
+         *
+         * @param collector the new StatisticsCollector for this connection.
+         * @return the Builder for chaining
+         */
         public Builder statisticsCollector(StatisticsCollector collector) {
             this.statisticsCollector = collector;
             return this;
@@ -1706,6 +1713,9 @@ public class Options {
         return this.connectionListener;
     }
 
+    /**
+     * @return the statistics collector, or null, see {@link Builder#statisticsCollector(StatisticsCollector) statisticsCollector()} in the builder doc
+     */
     public StatisticsCollector getStatisticsCollector() {
         return this.statisticsCollector;
     }

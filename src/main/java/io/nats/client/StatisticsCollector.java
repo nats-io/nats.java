@@ -13,13 +13,22 @@
 
 package io.nats.client;
 
-// TODO: Javadoc -- class and methods and indicate which stats are advanced stats
+/**
+ * A collector for connection metrics.
+ * <p>
+ * Information about key metrics is incremented on this collector by the connection.
+ * <p>
+ * See {@link Statistics} for accessing the collected metrics.
+ */
 public interface StatisticsCollector extends Statistics {
     /**
      * Sets whether advanced stats are/should be tracked.
      */
     void setAdvancedTracking(boolean trackAdvanced);
 
+    /**
+     * Increments the total number of pings that have been sent from this connection.
+     */
     void incrementPingCount();
 
     /**
@@ -32,14 +41,29 @@ public interface StatisticsCollector extends Statistics {
      */
     void incrementDroppedCount();
 
+    /**
+     * Increments the total number of op +OKs received by this connection.
+     */
     void incrementOkCount();
 
+    /**
+     * Increments the total number of op -ERRs received by this connection.
+     */
     void incrementErrCount();
 
+    /**
+     * Increments the total number of exceptions seen by this connection.
+     */
     void incrementExceptionCount();
 
+    /**
+     * Increments the total number of requests sent by this connection.
+     */
     void incrementRequestsSent();
 
+    /**
+     * Increments the total number of replies received by this connection.
+     */
     void incrementRepliesReceived();
 
     /**
@@ -66,14 +90,29 @@ public interface StatisticsCollector extends Statistics {
      */
     void incrementOutMsgs();
 
+    /**
+     * Increment the total number of message bytes that have come in to this connection.
+     */
     void incrementInBytes(long bytes);
 
+    /**
+     * Increment the total number of message bytes that have gone out of this connection.
+     */
     void incrementOutBytes(long bytes);
 
+    /**
+     * Increment the total number of outgoing message flushes by this connection.
+     */
     void incrementFlushCounter();
 
+    /**
+     * Increments the count of outstanding of requests from this connection.
+     */
     void incrementOutstandingRequests();
 
+    /**
+     * Decrements the count of outstanding of requests from this connection.
+     */
     void decrementOutstandingRequests();
 
     /**
