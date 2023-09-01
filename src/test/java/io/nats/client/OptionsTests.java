@@ -17,6 +17,7 @@ import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.DataPort;
 import io.nats.client.impl.ErrorListenerLoggerImpl;
 import io.nats.client.impl.TestHandler;
+import io.nats.client.impl.TestStatisticsCollector;
 import io.nats.client.support.HttpRequest;
 import io.nats.client.support.NatsUri;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
@@ -96,6 +97,7 @@ public class OptionsTests {
 
         assertTrue(o.getErrorListener() instanceof ErrorListenerLoggerImpl, "error handler");
         assertNull(o.getConnectionListener(), "disconnect handler");
+        assertNull(o.getStatisticsCollector(), "statistics collector");
         assertFalse(o.isOldRequestStyle(), "default oldstyle");
     }
 
@@ -259,6 +261,20 @@ public class OptionsTests {
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertTrue(o.getErrorListener() instanceof ErrorListenerLoggerImpl, "error handler");
         assertSame(cHandler, o.getConnectionListener(), "chained connection handler");
+    }
+
+    @Test
+    public void testChainedStatisticsCollector() {
+        StatisticsCollector cHandler = new TestStatisticsCollector();
+        Options o = new Options.Builder().statisticsCollector(cHandler).build();
+        _testChainedStatisticsCollector(cHandler, o);
+        _testChainedStatisticsCollector(cHandler, new Options.Builder(o).build());
+    }
+
+    private static void _testChainedStatisticsCollector(StatisticsCollector cHandler, Options o) {
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
+        assertTrue(o.getStatisticsCollector() instanceof TestStatisticsCollector, "statistics collector");
+        assertSame(cHandler, o.getStatisticsCollector(), "chained statistics collector");
     }
 
     @Test
@@ -567,6 +583,19 @@ public class OptionsTests {
     }
 
     @Test
+    public void testPropertyStatisticsCollector() {
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_STATISTICS_COLLECTOR, TestStatisticsCollector.class.getCanonicalName());
+
+        Options o = new Options.Builder(props).build();
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
+        assertNotNull(o.getStatisticsCollector(), "property statistics collector");
+
+        o.getStatisticsCollector().incrementOutMsgs();
+        assertEquals(o.getStatisticsCollector().getOutMsgs(), 1, "property statistics collector class");
+    }
+
+    @Test
     public void testChainOverridesProperties() {
         Properties props = new Properties();
         props.setProperty(Options.PROP_TOKEN, "token");
@@ -758,6 +787,15 @@ public class OptionsTests {
         assertThrows(IllegalArgumentException.class, () -> {
             Properties props = new Properties();
             props.setProperty(Options.PROP_CONNECTION_CB, "foo");
+            new Options.Builder(props);
+        });
+    }
+
+    @Test
+    public void testBadClassInPropertyStatisticsCollector() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            Properties props = new Properties();
+            props.setProperty(Options.PROP_STATISTICS_COLLECTOR, "foo");
             new Options.Builder(props);
         });
     }

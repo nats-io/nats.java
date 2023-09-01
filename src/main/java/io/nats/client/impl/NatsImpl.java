@@ -31,7 +31,7 @@ public class NatsImpl {
     }
 
     public static Statistics createEmptyStats() {
-        return new NatsStatistics(false);
+        return new NatsStatistics();
     }
 
     /**

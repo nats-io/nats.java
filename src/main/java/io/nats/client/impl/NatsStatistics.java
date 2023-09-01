@@ -14,13 +14,16 @@
 package io.nats.client.impl;
 
 import io.nats.client.Statistics;
+import io.nats.client.StatisticsCollector;
 
 import java.text.NumberFormat;
 import java.util.LongSummaryStatistics;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
-class NatsStatistics implements Statistics {
+// TODO: Consider making public, and if so add javadoc
+
+class NatsStatistics implements Statistics, StatisticsCollector {
     private ReentrantLock lock;
     private LongSummaryStatistics readStats;
     private LongSummaryStatistics writeStats;
@@ -42,10 +45,9 @@ class NatsStatistics implements Statistics {
     private AtomicLong exceptionCount;
     private AtomicLong droppedCount;
 
-    final private boolean trackAdvanced;
+    private boolean trackAdvanced;
 
-    public NatsStatistics(boolean trackAdvanced) {
-        this.trackAdvanced = trackAdvanced;
+    public NatsStatistics() {
         this.readStats = new LongSummaryStatistics();
         this.writeStats = new LongSummaryStatistics();
 
@@ -68,76 +70,93 @@ class NatsStatistics implements Statistics {
         this.droppedCount = new AtomicLong();
     }
 
-    void incrementPingCount() {
+    @Override
+    public void setAdvancedTracking(boolean trackAdvanced) {
+        this.trackAdvanced = trackAdvanced;
+    }
+
+    @Override
+    public void incrementPingCount() {
         this.pingCount.incrementAndGet();
     }
 
-    void incrementDroppedCount() {
+    @Override
+    public void incrementDroppedCount() {
         this.droppedCount.incrementAndGet();
     }
 
-    void incrementOkCount() {
+    @Override
+    public void incrementOkCount() {
         this.okCount.incrementAndGet();
     }
 
-    void incrementErrCount() {
+    @Override
+    public void incrementErrCount() {
         this.errCount.incrementAndGet();
     }
 
-    void incrementExceptionCount() {
+    @Override
+    public void incrementExceptionCount() {
         this.exceptionCount.incrementAndGet();
     }
 
-    void incrementRequestsSent() {
+    @Override
+    public void incrementRequestsSent() {
         this.requestsSent.incrementAndGet();
     }
 
-    void incrementRepliesReceived() {
+    @Override
+    public void incrementRepliesReceived() {
         this.repliesReceived.incrementAndGet();
     }
 
-    void incrementDuplicateRepliesReceived() {
+    @Override
+    public void incrementDuplicateRepliesReceived() {
         this.duplicateRepliesReceived.incrementAndGet();
     }
 
-    void incrementOrphanRepliesReceived() {
+    @Override
+    public void incrementOrphanRepliesReceived() {
         this.orphanRepliesReceived.incrementAndGet();
     }
 
-    void incrementReconnects() {
+    @Override
+    public void incrementReconnects() {
         this.reconnects.incrementAndGet();
     }
 
-    void incrementInMsgs() {
+    @Override
+    public void incrementInMsgs() {
         this.inMsgs.incrementAndGet();
     }
 
-    void incrementOutMsgs() {
+    @Override
+    public void incrementOutMsgs() {
         this.outMsgs.incrementAndGet();
     }
 
-    void incrementInBytes(long bytes) {
+    @Override
+    public void incrementInBytes(long bytes) {
         this.inBytes.addAndGet(bytes);
     }
 
-    void incrementOutMsgsAndBytes(long bytes) {
-        incrementOutMsgs();
-        incrementOutBytes(bytes);
-    }
-
-    void incrementOutBytes(long bytes) {
+    @Override
+    public void incrementOutBytes(long bytes) {
         this.outBytes.addAndGet(bytes);
     }
 
-    void incrementFlushCounter() {
+    @Override
+    public void incrementFlushCounter() {
         this.flushCounter.incrementAndGet();
     }
 
-    void incrementOutstandingRequests() {
+    @Override
+    public void incrementOutstandingRequests() {
         this.outstandingRequests.incrementAndGet();
     }
 
-    void decrementOutstandingRequests() {
+    @Override
+    public void decrementOutstandingRequests() {
         this.outstandingRequests.decrementAndGet();
     }
 
@@ -153,68 +172,90 @@ class NatsStatistics implements Statistics {
         }
     }
 
-    void registerRead(long bytes) {
+    @Override
+    public void registerRead(long bytes) {
         registerSummaryStat(readStats, bytes);
     }
 
-    void registerWrite(long bytes) {
+    @Override
+    public void registerWrite(long bytes) {
         registerSummaryStat(writeStats, bytes);
     }
 
+    @Override
     public long getPings() {
         return this.pingCount.get();
     }
 
+    @Override
     public long getDroppedCount() {
         return this.droppedCount.get();
     }
 
+    @Override
     public long getOKs() {
         return this.okCount.get();
     }
 
+    @Override
     public long getErrs() {
         return this.errCount.get();
     }
 
+    @Override
     public long getExceptions() {
         return this.exceptionCount.get();
     }
 
+    @Override
+    public long getRequestsSent() {
+        return this.requestsSent.get();
+    }
+
+    @Override
     public long getReconnects() {
         return this.reconnects.get();
     }
 
+    @Override
     public long getInMsgs() {
         return this.inMsgs.get();
     }
 
+    @Override
     public long getOutMsgs() {
         return this.outMsgs.get();
     }
 
+    @Override
     public long getInBytes() {
         return this.inBytes.get();
     }
 
+    @Override
     public long getOutBytes() {
         return this.outBytes.get();
     }
 
-    long getFlushCounter() {
+    @Override
+    public long getFlushCounter() {
         return flushCounter.get();
     }
 
-    long getOutstandingRequests() {
+    @Override
+    public long getOutstandingRequests() {
         return outstandingRequests.get();
     }
 
+    @Override
     public long getRepliesReceived() { return repliesReceived.get(); }
 
+    @Override
     public long getDuplicateRepliesReceived() {
         return duplicateRepliesReceived.get();
     }
 
+    @Override
     public long getOrphanRepliesReceived() { return orphanRepliesReceived.get(); }
 
     void appendNumberStat(StringBuilder builder, String name, long value) {

@@ -20,33 +20,56 @@ package io.nats.client;
  * <p>The Statistics toString() provides a summary of the statistics.
  */
 public interface Statistics {
-    /**
-     * @return the total number of messages that have come in to this connection.
-     */
-    public long getInMsgs();
 
-    /**
-     * @return the total number of messages that have gone out of this connection.
-     */
-    public long getOutMsgs();
+    // TODO: Javadoc -- methods and indicate which stats are advanced stats
 
-    /**
-     * @return the total number of message bytes that have come in to this connection.
-     */
-    public long getInBytes();
-
-    /**
-     * @return the total number of message bytes that have gone out of to this connection.
-     */
-    public long getOutBytes();
+    long getPings();
 
     /**
      * @return the total number of times this connection has tried to reconnect.
      */
-    public long getReconnects();
+    long getReconnects();
 
     /**
      * @return the total number of messages dropped by this connection across all slow consumers.
      */
-    public long getDroppedCount();
+    long getDroppedCount();
+
+    long getOKs();
+
+    long getErrs();
+
+    long getExceptions();
+
+    long getRequestsSent();
+
+    long getRepliesReceived();
+
+    long getDuplicateRepliesReceived();
+
+    long getOrphanRepliesReceived();
+
+    /**
+     * @return the total number of messages that have come in to this connection.
+     */
+    long getInMsgs();
+
+    /**
+     * @return the total number of messages that have gone out of this connection.
+     */
+    long getOutMsgs();
+
+    /**
+     * @return the total number of message bytes that have come in to this connection.
+     */
+    long getInBytes();
+
+    /**
+     * @return the total number of message bytes that have gone out of to this connection.
+     */
+    long getOutBytes();
+
+    long getFlushCounter();
+
+    long getOutstandingRequests();
 }

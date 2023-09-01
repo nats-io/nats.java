@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.Options;
+import io.nats.client.StatisticsCollector;
 
 import java.io.IOException;
 import java.nio.BufferOverflowException;
@@ -108,7 +109,7 @@ class NatsConnectionWriter implements Runnable {
         return this.stopped;
     }
 
-    synchronized void sendMessageBatch(NatsMessage msg, DataPort dataPort, NatsStatistics stats)
+    synchronized void sendMessageBatch(NatsMessage msg, DataPort dataPort, StatisticsCollector stats)
         throws IOException {
 
         int sendPosition = 0;
@@ -167,7 +168,7 @@ class NatsConnectionWriter implements Runnable {
 
         try {
             dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
-            NatsStatistics stats = this.connection.getNatsStatistics();
+            StatisticsCollector stats = this.connection.getNatsStatistics();
             int maxAccumulate = Options.MAX_MESSAGES_IN_NETWORK_BUFFER;
 
             while (this.running.get()) {
