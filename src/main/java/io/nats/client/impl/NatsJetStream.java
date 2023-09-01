@@ -366,7 +366,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
                 // durable already exists, make sure the filter subject matches
                 if (nullOrEmpty(subscribeSubject)) { // allowed if they had given both stream and consumer name
-                    subscribeSubject = userCC.getFilterSubject();
+                    subscribeSubject = serverCC.getFilterSubject();
                 }
                 else if (!isFilterMatch(subscribeSubject, serverCC.getFilterSubject(), settledStream)) {
                     throw JsSubSubjectDoesNotMatchFilter.instance();
@@ -394,9 +394,9 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         // 5. If consumer does not exist, create and settle on the config. Name will have to wait
         //    If the consumer exists, I know what the settled info is
         final String settledConsumerName;
-        final ConsumerConfiguration settledServerCC;
+        final ConsumerConfiguration settledCC;
         if (so.isFastBind() || serverCC != null) {
-            settledServerCC = serverCC;
+            settledCC = serverCC;
             settledConsumerName = so.getName();
         }
         else {
@@ -408,12 +408,14 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             }
 
             if (userCC.getFilterSubject() == null) {
+                // this would happen if they use the api subscribe subject but didn't supply a
+                // consumer config at all or their consumer config did not specify any filter subject
                 ccBuilder.filterSubject(subscribeSubject);
             }
 
             ccBuilder.deliverGroup(deliverGroup);
 
-            settledServerCC = ccBuilder.build();
+            settledCC = ccBuilder.build();
             settledConsumerName = null;
         }
 
@@ -422,13 +424,13 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         final NatsSubscriptionFactory subFactory;
         if (isPullMode) {
             MessageManagerFactory mmFactory = so.isOrdered() ? _pullOrderedMessageManagerFactory : _pullMessageManagerFactory;
-            mm = mmFactory.createMessageManager(conn, this, settledStream, so, settledServerCC, false, dispatcher == null);
+            mm = mmFactory.createMessageManager(conn, this, settledStream, so, settledCC, false, dispatcher == null);
             subFactory = (sid, lSubject, lQgroup, lConn, lDispatcher)
                 -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, lDispatcher, this, settledStream, settledConsumerName, mm);
         }
         else {
             MessageManagerFactory mmFactory = so.isOrdered() ? _pushOrderedMessageManagerFactory : _pushMessageManagerFactory;
-            mm = mmFactory.createMessageManager(conn, this, settledStream, so, settledServerCC, false, dispatcher == null);
+            mm = mmFactory.createMessageManager(conn, this, settledStream, so, settledCC, false, dispatcher == null);
             subFactory = (sid, lSubject, lQgroup, lConn, lDispatcher) -> {
                 NatsJetStreamSubscription nsub = new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,
                     this, settledStream, settledConsumerName, mm);
@@ -443,13 +445,13 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             sub = (NatsJetStreamSubscription) conn.createSubscription(settledInboxDeliver, deliverGroup, null, subFactory);
         }
         else {
-            AsyncMessageHandler handler = new AsyncMessageHandler(mm, userHandler, isAutoAck, settledServerCC);
+            AsyncMessageHandler handler = new AsyncMessageHandler(mm, userHandler, isAutoAck, settledCC);
             sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(settledInboxDeliver, deliverGroup, handler, subFactory);
         }
 
         // 7. The consumer might need to be created, do it here
         if (settledConsumerName == null) {
-            _createConsumerUnsubscribeOnException(settledStream, settledServerCC, sub);
+            _createConsumerUnsubscribeOnException(settledStream, settledCC, sub);
         }
 
         return sub;

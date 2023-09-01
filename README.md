@@ -227,6 +227,39 @@ Also, there is a detailed [OCSP Example](https://github.com/nats-io/java-nats-ex
 
 The current version of this client supports subjects with ASCII printable characters and wildcards when subscribing.
 
+### JetStream Subscribe Subject
+
+With the introduction of simplification, the various original subscribe methods available will eventually be deprecated.
+But since they are available, we need to address the concept of the subscribe subject.
+
+All the subscribe methods take a "subject" as the first parameter. We call this the subscribe subject. 
+The subject could be something like `my.subject` or `my.star.*` or `my.gt.>` or even `>`.
+This parameter is used and validated in different ways depending on the context of the call, 
+including looking up the stream, if stream is not provided via subscribe options.  
+
+The subscribe subject could be used to make a simple subscription. In this case it is required. 
+An ephemeral consumer will be created for that subject, assuming that subject can be looked up in a stream.
+```java
+JetStream js = nc.jetStream();
+JetStreamSubscription sub = subscribe(subject)
+```
+
+If subscribe call has either a PushSubscribeOptions or PullSubscribeOptions that have a ConsumerConfiguration 
+with one or more filter subjects, the subscribe subject is optional since we can use the first filter subject as 
+the subscribe subject.
+
+```java
+PushSubscribeOptions pso = ConsumerConfiguration.builder().filterSubject("my.subject").buildPushSubscribeOptions();
+js.subscribe(null, pso);
+```
+
+The other time you can skip the subject parameter is when you "bind". Since the stream name and consumer name are 
+part of the bind, the subject will be retrieved from the consumer looked-up via the bind stream and consumer name information.
+
+#### On-the-fly Subscribes
+
+On the fly subscribes rely on
+
 ### NKey-based Challenge Response Authentication
 
 The NATS server is adding support for a challenge response authentication scheme based on [NKeys](https://github.com/nats-io/nkeys). Version 2.2.0 of
