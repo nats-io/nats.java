@@ -92,4 +92,98 @@ public class NatsStatisticsTests {
             }
         }
     }
+
+    @Test
+    public void testReadWriteAdvancedStatsEnabled() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = new Options.Builder().server(ts.getURI()).verbose().turnOnAdvancedStats().build();
+            Connection nc = Nats.connect(options);
+            StatisticsCollector stats = ((NatsConnection) nc).getNatsStatistics();
+
+            try {
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+
+                Dispatcher d = nc.createDispatcher((msg) -> {
+                    Message m = NatsMessage.builder()
+                            .subject(msg.getReplyTo())
+                            .data(new byte[16])
+                            .headers(new Headers().put("header", "reply"))
+                            .build();
+                    nc.publish(m);
+                });
+                d.subscribe("subject");
+
+                Message m = NatsMessage.builder()
+                        .subject("subject")
+                        .data(new byte[8])
+                        .headers(new Headers().put("header", "request"))
+                        .build();
+                Future<Message> incoming = nc.request(m);
+                Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
+
+                assertNotNull(msg);
+
+                // The read/write advanced stats are only exposed via toString, so assert on that
+                String stringStats = stats.toString();
+                assertTrue(stringStats.contains("Socket Reads"), "readStats count");
+                assertTrue(stringStats.contains("Average Bytes Per Read"), "readStats average bytes");
+                assertTrue(stringStats.contains("Min Bytes Per Read"), "readStats min bytes");
+                assertTrue(stringStats.contains("Max Bytes Per Read"), "readStats max bytes");
+
+                assertTrue(stringStats.contains("Socket Writes"), "writeStats count");
+                assertTrue(stringStats.contains("Average Bytes Per Write"), "writeStats average bytes");
+                assertTrue(stringStats.contains("Min Bytes Per Write"), "writeStats min bytes");
+                assertTrue(stringStats.contains("Max Bytes Per Write"), "writeStats max bytes");
+            } finally {
+                nc.close();
+            }
+        }
+    }
+
+    @Test
+    public void testReadWriteAdvancedStatsDisabled() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = new Options.Builder().server(ts.getURI()).verbose().build();
+            Connection nc = Nats.connect(options);
+            StatisticsCollector stats = ((NatsConnection) nc).getNatsStatistics();
+
+            try {
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+
+                Dispatcher d = nc.createDispatcher((msg) -> {
+                    Message m = NatsMessage.builder()
+                            .subject(msg.getReplyTo())
+                            .data(new byte[16])
+                            .headers(new Headers().put("header", "reply"))
+                            .build();
+                    nc.publish(m);
+                });
+                d.subscribe("subject");
+
+                Message m = NatsMessage.builder()
+                        .subject("subject")
+                        .data(new byte[8])
+                        .headers(new Headers().put("header", "request"))
+                        .build();
+                Future<Message> incoming = nc.request(m);
+                Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
+
+                assertNotNull(msg);
+
+                // The read/write advanced stats are only exposed via toString, so assert on that
+                String stringStats = stats.toString();
+                assertFalse(stringStats.contains("Socket Reads"), "readStats count");
+                assertFalse(stringStats.contains("Average Bytes Per Read"), "readStats average bytes");
+                assertFalse(stringStats.contains("Min Bytes Per Read"), "readStats min bytes");
+                assertFalse(stringStats.contains("Max Bytes Per Read"), "readStats max bytes");
+
+                assertFalse(stringStats.contains("Socket Writes"), "writeStats count");
+                assertFalse(stringStats.contains("Average Bytes Per Write"), "writeStats average bytes");
+                assertFalse(stringStats.contains("Min Bytes Per Write"), "writeStats min bytes");
+                assertFalse(stringStats.contains("Max Bytes Per Write"), "writeStats max bytes");
+            } finally {
+                nc.close();
+            }
+        }
+    }
 }

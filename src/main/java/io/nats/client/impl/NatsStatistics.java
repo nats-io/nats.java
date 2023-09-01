@@ -24,7 +24,9 @@ import java.util.concurrent.locks.ReentrantLock;
 // TODO: Consider making public, and if so add javadoc
 
 class NatsStatistics implements Statistics, StatisticsCollector {
-    private ReentrantLock lock;
+    private final ReentrantLock readStatsLock;
+    private final ReentrantLock writeStatsLock;
+
     private LongSummaryStatistics readStats;
     private LongSummaryStatistics writeStats;
 
@@ -48,10 +50,12 @@ class NatsStatistics implements Statistics, StatisticsCollector {
     private boolean trackAdvanced;
 
     public NatsStatistics() {
+        this.readStatsLock = new ReentrantLock();
+        this.writeStatsLock = new ReentrantLock();
+
         this.readStats = new LongSummaryStatistics();
         this.writeStats = new LongSummaryStatistics();
 
-        this.lock = new ReentrantLock();
         this.flushCounter = new AtomicLong();
         this.outstandingRequests = new AtomicLong();
         this.requestsSent = new AtomicLong();
@@ -160,26 +164,32 @@ class NatsStatistics implements Statistics, StatisticsCollector {
         this.outstandingRequests.decrementAndGet();
     }
 
-    void registerSummaryStat(LongSummaryStatistics stats, long value) {
-        if(!trackAdvanced) {
-            return;
-        }
-        lock.lock();
-        try {
-            stats.accept(value);
-        } finally {
-            lock.unlock();
-        }
-    }
-
     @Override
     public void registerRead(long bytes) {
-        registerSummaryStat(readStats, bytes);
+        if (!trackAdvanced) {
+            return;
+        }
+
+        readStatsLock.lock();
+        try {
+            readStats.accept(bytes);
+        } finally {
+            readStatsLock.unlock();
+        }
     }
 
     @Override
     public void registerWrite(long bytes) {
-        registerSummaryStat(writeStats, bytes);
+        if (!trackAdvanced) {
+            return;
+        }
+
+        writeStatsLock.lock();
+        try {
+            writeStats.accept(bytes);
+        } finally {
+            writeStatsLock.unlock();
+        }
     }
 
     @Override
@@ -273,7 +283,7 @@ class NatsStatistics implements Statistics, StatisticsCollector {
     public String toString() {
         StringBuilder builder = new StringBuilder();
 
-        lock.lock();
+        readStatsLock.lock();
         try {
             builder.append("### Connection ###\n");
             appendNumberStat(builder, "Reconnects:                      ", this.reconnects.get());
@@ -313,7 +323,7 @@ class NatsStatistics implements Statistics, StatisticsCollector {
                 appendNumberStat(builder, "Max Bytes Per Write:             ", writeStats.getMax());
             }
         } finally {
-            lock.unlock();
+            readStatsLock.unlock();
         }
 
         return builder.toString();
