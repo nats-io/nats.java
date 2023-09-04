@@ -183,6 +183,7 @@ public interface ApiConstants {
     String TEMPLATE_OWNER    = "template_owner";
     String TIERS             = "tiers";
     String TIME              = "time";
+    String TIMESTAMP         = "ts";
     String TLS               = "tls_required";
     String TOTAL             = "total";
     String TYPE              = "type";

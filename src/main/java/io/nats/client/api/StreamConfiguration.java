@@ -65,6 +65,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final boolean denyPurge;
     private final boolean discardNewPerSubject;
     private final Map<String, String> metadata;
+    private final long firstSequence;
 
     static StreamConfiguration instance(JsonValue v) {
         Builder builder = new Builder();
@@ -96,7 +97,7 @@ public class StreamConfiguration implements JsonSerializable {
         builder.denyPurge(readBoolean(v, DENY_PURGE));
         builder.discardNewPerSubject(readBoolean(v, DISCARD_NEW_PER_SUBJECT));
         builder.metadata(readStringStringMap(v, METADATA));
-
+        builder.firstSequence(readLong(v, FIRST_SEQ, 1));
         return builder.build();
     }
 
@@ -130,6 +131,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.denyPurge = b.denyPurge;
         this.discardNewPerSubject = b.discardNewPerSubject;
         this.metadata = b.metadata;
+        this.firstSequence = b.firstSequence;
     }
 
     /**
@@ -176,6 +178,7 @@ public class StreamConfiguration implements JsonSerializable {
         addFldWhenTrue(sb, DENY_PURGE, denyPurge);
         addFldWhenTrue(sb, DISCARD_NEW_PER_SUBJECT, discardNewPerSubject);
         addField(sb, METADATA, metadata);
+        addFieldWhenGreaterThan(sb, FIRST_SEQ, firstSequence, 1);
 
         return endJson(sb).toString();
     }
@@ -407,6 +410,14 @@ public class StreamConfiguration implements JsonSerializable {
         return metadata;
     }
 
+    /**
+     * The first sequence used in the stream.
+     * @return the first sequence
+     */
+    public long getFirstSequence() {
+        return firstSequence;
+    }
+
     @Override
     public String toString() {
         return "StreamConfiguration{" +
@@ -432,6 +443,7 @@ public class StreamConfiguration implements JsonSerializable {
             ", denyDelete=" + denyDelete +
             ", denyPurge=" + denyPurge +
             ", discardNewPerSubject=" + discardNewPerSubject +
+            ", firstSequence=" + firstSequence +
             ", " + mirror +
             ", " + placement +
             ", sources=" + sources +
@@ -493,6 +505,7 @@ public class StreamConfiguration implements JsonSerializable {
         private boolean denyPurge = false;
         private boolean discardNewPerSubject = false;
         private Map<String, String> metadata;
+        private long firstSequence = 1;
 
         /**
          * Default Builder
@@ -535,6 +548,7 @@ public class StreamConfiguration implements JsonSerializable {
                 if (sc.metadata != null) {
                     this.metadata = new HashMap<>(sc.metadata);
                 }
+                this.firstSequence = sc.firstSequence;
             }
         }
 
@@ -934,6 +948,16 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder metadata(Map<String, String> metadata) {
             this.metadata = metadata;
+            return this;
+        }
+
+        /**
+         * Sets the first sequence to be used. 1 is the default. All values less than 2 are treated as 1.
+         * @param firstSeq specify the first_seq in the stream config when creating the stream.
+         * @return Builder
+         */
+        public Builder firstSequence(long firstSeq) {
+            this.firstSequence = firstSeq > 1 ? firstSeq : 1;
             return this;
         }
 
