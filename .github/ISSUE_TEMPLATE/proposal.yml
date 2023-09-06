@@ -18,3 +18,11 @@ body:
       description: What is the use case or general motivation for this proposal?
     validations:
       required: true
+  - type: textarea
+    id: contribute
+    attributes:
+      label: Contribution
+      description: |-
+        Are you intending or interested in contributing code for this proposal if accepted?
+    validations:
+      required: false
