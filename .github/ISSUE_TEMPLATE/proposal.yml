@@ -18,12 +18,3 @@ body:
       description: What is the use case or general motivation for this proposal?
     validations:
       required: true
-  - type: textarea
-    id: alternates
-    attributes:
-      label: Alternative approaches
-      description: |-
-        Can this use case be satisfied with existing functionality in a hacky/non-ideal way?
-        Or relying on external dependencies?
-    validations:
-      required: true

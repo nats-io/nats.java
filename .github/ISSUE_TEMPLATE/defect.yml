@@ -25,7 +25,7 @@ body:
       description: |-
         Provide the versions you were using when the detect was observed.
         For the server, use `nats-server --version`, check the startup log output, or the image tag pulled from Docker.
-        For the CLI, use `nats --version`.
+        For the CLI client, use `nats --version`.
         For language-specific clients, check the version downloaded by the language dependency manager.
     validations:
       required: true
@@ -37,7 +37,7 @@ body:
         Specify any relevant details about the host environment the server and/or client was running in,
         such as operating system, CPU architecture, container runtime, etc.
     validations:
-      required: true
+      required: false
   - type: textarea
     id: steps
     attributes:
