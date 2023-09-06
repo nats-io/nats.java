@@ -241,6 +241,15 @@ public final class JsonUtilsTests {
 
         addField(sb, "zdt", DateTimeUtils.gmtNow());
         assertEquals(180, sb.length());
+
+        addFieldWhenGreaterThan(sb, "xgt", 0L, 1);
+        assertEquals(180, sb.length());
+
+        addFieldWhenGreaterThan(sb, "xgt", 1L, 1);
+        assertEquals(180, sb.length());
+
+        addFieldWhenGreaterThan(sb, "xgt", 2L, 1);
+        assertEquals(188, sb.length());
     }
 
     static final String EXPECTED_LIST_JSON = "{\"a1\":[\"one\"],\"a2\":[\"two\",\"too\"],\"l1\":[\"one\"],\"l2\":[\"two\",\"too\"],\"j1\":[{\"filter\":\"sub1\",\"keep\":421}],\"j2\":[{\"filter\":\"sub2\",\"seq\":732},{\"filter\":\"sub3\"}],\"d1\":[1000000],\"d2\":[2000000,3000000]}";

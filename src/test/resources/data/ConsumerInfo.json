@@ -3,6 +3,7 @@
   "stream_name": "foo-stream",
   "name": "foo-consumer",
   "created": "2020-11-05T19:33:21.163377Z",
+  "ts": "2023-08-29T19:33:21.163377Z",
   "config": {
     "durable_name": "foo-consumer",
     "deliver_subject": "bar",

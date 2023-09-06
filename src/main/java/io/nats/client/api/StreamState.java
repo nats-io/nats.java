@@ -69,8 +69,7 @@ public class StreamState {
     }
 
     /**
-     * Gets the first sequence number of the stream.
-     *
+     * Gets the first sequence number of the stream. May be 0 if there are no messages.
      * @return a sequence number
      */
     public long getFirstSequence() {

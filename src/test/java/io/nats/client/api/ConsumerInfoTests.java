@@ -29,19 +29,12 @@ public class ConsumerInfoTests {
     static JsonValue vConsumerInfo = JsonParser.parseUnchecked(dataAsString("ConsumerInfo.json"));
 
     @Test
-    public void testTime() {
-        long start = System.currentTimeMillis();
-        for (int x = 0; x < 1_000_000; x++) {
-            new ConsumerInfo(vConsumerInfo);
-        }
-        System.out.println(System.currentTimeMillis() - start);
-    }
-
-    @Test
     public void testConsumerInfo() {
         ConsumerInfo ci = new ConsumerInfo(vConsumerInfo);
         assertEquals("foo-stream", ci.getStreamName());
         assertEquals("foo-consumer", ci.getName());
+        assertEquals(DateTimeUtils.parseDateTime("2020-11-05T19:33:21.163377Z"), ci.getCreationTime());
+        assertEquals(DateTimeUtils.parseDateTime("2023-08-29T19:33:21.163377Z"), ci.getTimestamp());
 
         SequencePair sp = ci.getDelivered();
         assertEquals(1, sp.getConsumerSequence());

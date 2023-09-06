@@ -98,7 +98,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .denyDelete(testSc.getDenyDelete())
             .denyPurge(testSc.getDenyPurge())
             .discardNewPerSubject(testSc.isDiscardNewPerSubject())
-            .metadata(metaData);
+            .metadata(metaData)
+            .firstSequence(82942);
         validate(builder.build(), false);
         validate(builder.addSources((Source)null).build(), false);
 
@@ -426,6 +427,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
             assertEquals(1, sc.getMetadata().size());
             assertEquals("meta-bar", sc.getMetadata().get("meta-foo"));
+            assertEquals(82942, sc.getFirstSequence());
         }
     }
 
