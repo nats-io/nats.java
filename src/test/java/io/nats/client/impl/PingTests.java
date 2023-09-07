@@ -72,7 +72,7 @@ public class PingTests {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).pingInterval(Duration.ofMillis(5)).build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
-            NatsStatistics stats = nc.getNatsStatistics();
+            StatisticsCollector stats = nc.getNatsStatistics();
 
             try {
                 assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
@@ -189,7 +189,7 @@ public class PingTests {
                                         server(ts2.getURI()).
                                         pingInterval(Duration.ofMillis(5)).build();
                 NatsConnection nc = (NatsConnection) Nats.connect(options);
-                NatsStatistics stats = nc.getNatsStatistics();
+                StatisticsCollector stats = nc.getNatsStatistics();
 
                 try {
                     assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
@@ -223,7 +223,7 @@ public class PingTests {
             Options options = new Options.Builder().server(ts.getURI()).
                                     pingInterval(Duration.ofMillis(200)).build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
-            NatsStatistics stats = nc.getNatsStatistics();
+            StatisticsCollector stats = nc.getNatsStatistics();
 
             try {
                 final CompletableFuture<Boolean> done = new CompletableFuture<>();

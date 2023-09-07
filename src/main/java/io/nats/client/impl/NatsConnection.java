@@ -50,7 +50,7 @@ class NatsConnection implements Connection {
 
     private final Options options;
 
-    private final NatsStatistics statistics;
+    private final StatisticsCollector statistics;
 
     private boolean connecting; // you can only connect in one thread
     private boolean disconnecting; // you can only disconnect in one thread
@@ -111,7 +111,8 @@ class NatsConnection implements Connection {
         this.options = options;
 
         advancedTracking = options.isTrackAdvancedStats();
-        this.statistics = new NatsStatistics(advancedTracking);
+        this.statistics = options.getStatisticsCollector() == null ? new NatsStatistics() : options.getStatisticsCollector();
+        this.statistics.setAdvancedTracking(advancedTracking);
 
         this.statusLock = new ReentrantLock();
         this.statusChanged = this.statusLock.newCondition();
@@ -1231,11 +1232,12 @@ class NatsConnection implements Connection {
             statistics.incrementRepliesReceived();
         }
         else if (!oldStyle && !subject.startsWith(mainInbox)) {
-            if (advancedTracking && responsesRespondedTo.get(key) != null) {
-                statistics.incrementDuplicateRepliesReceived();
-            }
-            else {
-                statistics.incrementOrphanRepliesReceived();
+            if (advancedTracking) {
+                if (responsesRespondedTo.get(key) != null) {
+                    statistics.incrementDuplicateRepliesReceived();
+                } else {
+                    statistics.incrementOrphanRepliesReceived();
+                }
             }
         }
     }
@@ -1719,7 +1721,7 @@ class NatsConnection implements Connection {
         return this.statistics;
     }
 
-    NatsStatistics getNatsStatistics() {
+    StatisticsCollector getNatsStatistics() {
         return this.statistics;
     }
 
