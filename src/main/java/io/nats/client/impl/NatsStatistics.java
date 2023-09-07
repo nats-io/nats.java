@@ -14,14 +14,17 @@
 package io.nats.client.impl;
 
 import io.nats.client.Statistics;
+import io.nats.client.StatisticsCollector;
 
 import java.text.NumberFormat;
 import java.util.LongSummaryStatistics;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
-class NatsStatistics implements Statistics {
-    private ReentrantLock lock;
+class NatsStatistics implements Statistics, StatisticsCollector {
+    private final ReentrantLock readStatsLock;
+    private final ReentrantLock writeStatsLock;
+
     private LongSummaryStatistics readStats;
     private LongSummaryStatistics writeStats;
 
@@ -42,14 +45,15 @@ class NatsStatistics implements Statistics {
     private AtomicLong exceptionCount;
     private AtomicLong droppedCount;
 
-    final private boolean trackAdvanced;
+    private boolean trackAdvanced;
 
-    public NatsStatistics(boolean trackAdvanced) {
-        this.trackAdvanced = trackAdvanced;
+    public NatsStatistics() {
+        this.readStatsLock = new ReentrantLock();
+        this.writeStatsLock = new ReentrantLock();
+
         this.readStats = new LongSummaryStatistics();
         this.writeStats = new LongSummaryStatistics();
 
-        this.lock = new ReentrantLock();
         this.flushCounter = new AtomicLong();
         this.outstandingRequests = new AtomicLong();
         this.requestsSent = new AtomicLong();
@@ -68,153 +72,198 @@ class NatsStatistics implements Statistics {
         this.droppedCount = new AtomicLong();
     }
 
-    void incrementPingCount() {
+    @Override
+    public void setAdvancedTracking(boolean trackAdvanced) {
+        this.trackAdvanced = trackAdvanced;
+    }
+
+    @Override
+    public void incrementPingCount() {
         this.pingCount.incrementAndGet();
     }
 
-    void incrementDroppedCount() {
+    @Override
+    public void incrementDroppedCount() {
         this.droppedCount.incrementAndGet();
     }
 
-    void incrementOkCount() {
+    @Override
+    public void incrementOkCount() {
         this.okCount.incrementAndGet();
     }
 
-    void incrementErrCount() {
+    @Override
+    public void incrementErrCount() {
         this.errCount.incrementAndGet();
     }
 
-    void incrementExceptionCount() {
+    @Override
+    public void incrementExceptionCount() {
         this.exceptionCount.incrementAndGet();
     }
 
-    void incrementRequestsSent() {
+    @Override
+    public void incrementRequestsSent() {
         this.requestsSent.incrementAndGet();
     }
 
-    void incrementRepliesReceived() {
+    @Override
+    public void incrementRepliesReceived() {
         this.repliesReceived.incrementAndGet();
     }
 
-    void incrementDuplicateRepliesReceived() {
+    @Override
+    public void incrementDuplicateRepliesReceived() {
         this.duplicateRepliesReceived.incrementAndGet();
     }
 
-    void incrementOrphanRepliesReceived() {
+    @Override
+    public void incrementOrphanRepliesReceived() {
         this.orphanRepliesReceived.incrementAndGet();
     }
 
-    void incrementReconnects() {
+    @Override
+    public void incrementReconnects() {
         this.reconnects.incrementAndGet();
     }
 
-    void incrementInMsgs() {
+    @Override
+    public void incrementInMsgs() {
         this.inMsgs.incrementAndGet();
     }
 
-    void incrementOutMsgs() {
+    @Override
+    public void incrementOutMsgs() {
         this.outMsgs.incrementAndGet();
     }
 
-    void incrementInBytes(long bytes) {
+    @Override
+    public void incrementInBytes(long bytes) {
         this.inBytes.addAndGet(bytes);
     }
 
-    void incrementOutMsgsAndBytes(long bytes) {
-        incrementOutMsgs();
-        incrementOutBytes(bytes);
-    }
-
-    void incrementOutBytes(long bytes) {
+    @Override
+    public void incrementOutBytes(long bytes) {
         this.outBytes.addAndGet(bytes);
     }
 
-    void incrementFlushCounter() {
+    @Override
+    public void incrementFlushCounter() {
         this.flushCounter.incrementAndGet();
     }
 
-    void incrementOutstandingRequests() {
+    @Override
+    public void incrementOutstandingRequests() {
         this.outstandingRequests.incrementAndGet();
     }
 
-    void decrementOutstandingRequests() {
+    @Override
+    public void decrementOutstandingRequests() {
         this.outstandingRequests.decrementAndGet();
     }
 
-    void registerSummaryStat(LongSummaryStatistics stats, long value) {
-        if(!trackAdvanced) {
+    @Override
+    public void registerRead(long bytes) {
+        if (!trackAdvanced) {
             return;
         }
-        lock.lock();
+
+        readStatsLock.lock();
         try {
-            stats.accept(value);
+            readStats.accept(bytes);
         } finally {
-            lock.unlock();
+            readStatsLock.unlock();
         }
     }
 
-    void registerRead(long bytes) {
-        registerSummaryStat(readStats, bytes);
+    @Override
+    public void registerWrite(long bytes) {
+        if (!trackAdvanced) {
+            return;
+        }
+
+        writeStatsLock.lock();
+        try {
+            writeStats.accept(bytes);
+        } finally {
+            writeStatsLock.unlock();
+        }
     }
 
-    void registerWrite(long bytes) {
-        registerSummaryStat(writeStats, bytes);
-    }
-
+    @Override
     public long getPings() {
         return this.pingCount.get();
     }
 
+    @Override
     public long getDroppedCount() {
         return this.droppedCount.get();
     }
 
+    @Override
     public long getOKs() {
         return this.okCount.get();
     }
 
+    @Override
     public long getErrs() {
         return this.errCount.get();
     }
 
+    @Override
     public long getExceptions() {
         return this.exceptionCount.get();
     }
 
+    @Override
+    public long getRequestsSent() {
+        return this.requestsSent.get();
+    }
+
+    @Override
     public long getReconnects() {
         return this.reconnects.get();
     }
 
+    @Override
     public long getInMsgs() {
         return this.inMsgs.get();
     }
 
+    @Override
     public long getOutMsgs() {
         return this.outMsgs.get();
     }
 
+    @Override
     public long getInBytes() {
         return this.inBytes.get();
     }
 
+    @Override
     public long getOutBytes() {
         return this.outBytes.get();
     }
 
-    long getFlushCounter() {
+    @Override
+    public long getFlushCounter() {
         return flushCounter.get();
     }
 
-    long getOutstandingRequests() {
+    @Override
+    public long getOutstandingRequests() {
         return outstandingRequests.get();
     }
 
+    @Override
     public long getRepliesReceived() { return repliesReceived.get(); }
 
+    @Override
     public long getDuplicateRepliesReceived() {
         return duplicateRepliesReceived.get();
     }
 
+    @Override
     public long getOrphanRepliesReceived() { return orphanRepliesReceived.get(); }
 
     void appendNumberStat(StringBuilder builder, String name, long value) {
@@ -232,47 +281,52 @@ class NatsStatistics implements Statistics {
     public String toString() {
         StringBuilder builder = new StringBuilder();
 
-        lock.lock();
-        try {
-            builder.append("### Connection ###\n");
-            appendNumberStat(builder, "Reconnects:                      ", this.reconnects.get());
-            if (this.trackAdvanced) {
-                appendNumberStat(builder, "Requests Sent:                   ", this.requestsSent.get());
-                appendNumberStat(builder, "Replies Received:                ", this.repliesReceived.get());
-                appendNumberStat(builder, "Duplicate Replies Received:      ", this.duplicateRepliesReceived.get());
-                appendNumberStat(builder, "Orphan Replies Received:         ", this.orphanRepliesReceived.get());
-                appendNumberStat(builder, "Pings Sent:                      ", this.pingCount.get());
-                appendNumberStat(builder, "+OKs Received:                   ", this.okCount.get());
-                appendNumberStat(builder, "-Errs Received:                  ", this.errCount.get());
-                appendNumberStat(builder, "Handled Exceptions:              ", this.exceptionCount.get());
-                appendNumberStat(builder, "Successful Flush Calls:          ", this.flushCounter.get());
-                appendNumberStat(builder, "Outstanding Request Futures:     ", this.outstandingRequests.get());
-                appendNumberStat(builder, "Dropped Messages:                ", this.droppedCount.get());
-            }
-            builder.append("\n");
-            builder.append("### Reader ###\n");
-            appendNumberStat(builder, "Messages in:                     ", this.inMsgs.get());
-            appendNumberStat(builder, "Bytes in:                        ", this.inBytes.get());
-            builder.append("\n");
-            if (this.trackAdvanced) {
+        builder.append("### Connection ###\n");
+        appendNumberStat(builder, "Reconnects:                      ", this.reconnects.get());
+        appendNumberStat(builder, "Requests Sent:                   ", this.requestsSent.get());
+        appendNumberStat(builder, "Replies Received:                ", this.repliesReceived.get());
+        if (this.trackAdvanced) {
+            appendNumberStat(builder, "Duplicate Replies Received:      ", this.duplicateRepliesReceived.get());
+            appendNumberStat(builder, "Orphan Replies Received:         ", this.orphanRepliesReceived.get());
+        }
+        appendNumberStat(builder, "Pings Sent:                      ", this.pingCount.get());
+        appendNumberStat(builder, "+OKs Received:                   ", this.okCount.get());
+        appendNumberStat(builder, "-Errs Received:                  ", this.errCount.get());
+        appendNumberStat(builder, "Handled Exceptions:              ", this.exceptionCount.get());
+        appendNumberStat(builder, "Successful Flush Calls:          ", this.flushCounter.get());
+        appendNumberStat(builder, "Outstanding Request Futures:     ", this.outstandingRequests.get());
+        appendNumberStat(builder, "Dropped Messages:                ", this.droppedCount.get());
+        builder.append("\n");
+        builder.append("### Reader ###\n");
+        appendNumberStat(builder, "Messages in:                     ", this.inMsgs.get());
+        appendNumberStat(builder, "Bytes in:                        ", this.inBytes.get());
+        builder.append("\n");
+        if (this.trackAdvanced) {
+            readStatsLock.lock();
+            try {
                 appendNumberStat(builder, "Socket Reads:                    ", readStats.getCount());
                 appendNumberStat(builder, "Average Bytes Per Read:          ", readStats.getAverage());
                 appendNumberStat(builder, "Min Bytes Per Read:              ", readStats.getMin());
                 appendNumberStat(builder, "Max Bytes Per Read:              ", readStats.getMax());
+            } finally {
+                readStatsLock.unlock();
             }
-            builder.append("\n");
-            builder.append("### Writer ###\n");
-            appendNumberStat(builder, "Messages out:                    ", this.outMsgs.get());
-            appendNumberStat(builder, "Bytes out:                       ", this.outBytes.get());
-            builder.append("\n");
-            if (this.trackAdvanced) {
+        }
+        builder.append("\n");
+        builder.append("### Writer ###\n");
+        appendNumberStat(builder, "Messages out:                    ", this.outMsgs.get());
+        appendNumberStat(builder, "Bytes out:                       ", this.outBytes.get());
+        builder.append("\n");
+        if (this.trackAdvanced) {
+            writeStatsLock.lock();
+            try {
                 appendNumberStat(builder, "Socket Writes:                   ", writeStats.getCount());
                 appendNumberStat(builder, "Average Bytes Per Write:         ", writeStats.getAverage());
                 appendNumberStat(builder, "Min Bytes Per Write:             ", writeStats.getMin());
                 appendNumberStat(builder, "Max Bytes Per Write:             ", writeStats.getMax());
+            } finally {
+                writeStatsLock.unlock();
             }
-        } finally {
-            lock.unlock();
         }
 
         return builder.toString();

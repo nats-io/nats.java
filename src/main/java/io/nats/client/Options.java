@@ -228,6 +228,11 @@ public class Options {
      */
     public static final String PROP_ERROR_LISTENER = PFX + "callback.error";
     /**
+     * Property used to configure a builder from a Properties object. {@value}, see
+     * {@link Builder#statisticsCollector(StatisticsCollector) statisticsCollector}.
+     */
+    public static final String PROP_STATISTICS_COLLECTOR = PFX + "statisticscollector";
+    /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#maxPingsOut(int) maxPingsOut}.
      */
     public static final String PROP_MAX_PINGS = PFX + "maxpings";
@@ -556,6 +561,7 @@ public class Options {
 
     private final ErrorListener errorListener;
     private final ConnectionListener connectionListener;
+    private final StatisticsCollector statisticsCollector;
     private final String dataPortType;
 
     private final boolean trackAdvancedStats;
@@ -661,6 +667,7 @@ public class Options {
 
         private ErrorListener errorListener = null;
         private ConnectionListener connectionListener = null;
+        private StatisticsCollector statisticsCollector = null;
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
         private ExecutorService executor;
         private List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
@@ -762,6 +769,7 @@ public class Options {
 
             classnameProperty(props, PROP_ERROR_LISTENER, o -> this.errorListener = (ErrorListener) o);
             classnameProperty(props, PROP_CONNECTION_CB, o -> this.connectionListener = (ConnectionListener) o);
+            classnameProperty(props, PROP_STATISTICS_COLLECTOR, o -> this.statisticsCollector = (StatisticsCollector) o);
 
             stringProperty(props, PROP_DATA_PORT_TYPE, s -> this.dataPortType = s);
             stringProperty(props, PROP_INBOX_PREFIX, this::inboxPrefix);
@@ -1328,6 +1336,19 @@ public class Options {
         }
 
         /**
+         * Set the {@link StatisticsCollector StatisticsCollector} to collect connection metrics.
+         * <p>
+         * If not set, then a default implementation will be used.
+         *
+         * @param collector the new StatisticsCollector for this connection.
+         * @return the Builder for chaining
+         */
+        public Builder statisticsCollector(StatisticsCollector collector) {
+            this.statisticsCollector = collector;
+            return this;
+        }
+
+        /**
          * Set the {@link ExecutorService ExecutorService} used to run threaded tasks. The default is a
          * cached thread pool that names threads after the connection name (or a default). This executor
          * is used for reading and writing the underlying sockets as well as for each Dispatcher.
@@ -1532,6 +1553,7 @@ public class Options {
                     new SynchronousQueue<>(),
                     new DefaultThreadFactory(threadPrefix));
             }
+
             return new Options(this);
         }
 
@@ -1580,6 +1602,7 @@ public class Options {
 
             this.errorListener = o.errorListener;
             this.connectionListener = o.connectionListener;
+            this.statisticsCollector = o.statisticsCollector;
             this.dataPortType = o.dataPortType;
             this.trackAdvancedStats = o.trackAdvancedStats;
             this.executor = o.executor;
@@ -1638,6 +1661,7 @@ public class Options {
 
         this.errorListener = b.errorListener == null ? new ErrorListenerLoggerImpl() : b.errorListener;
         this.connectionListener = b.connectionListener;
+        this.statisticsCollector = b.statisticsCollector;
         this.dataPortType = b.dataPortType;
         this.trackAdvancedStats = b.trackAdvancedStats;
         this.executor = b.executor;
@@ -1687,6 +1711,13 @@ public class Options {
      */
     public ConnectionListener getConnectionListener() {
         return this.connectionListener;
+    }
+
+    /**
+     * @return the statistics collector, or null, see {@link Builder#statisticsCollector(StatisticsCollector) statisticsCollector()} in the builder doc
+     */
+    public StatisticsCollector getStatisticsCollector() {
+        return this.statisticsCollector;
     }
 
     /**
