@@ -48,7 +48,11 @@ public class JetStreamTestBase extends TestBase {
     public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(1000);
 
     public boolean atLeast290(Connection nc) {
-        return nc.getServerInfo().isSameOrNewerThanVersion("2.9.0");
+        return atLeast290(nc.getServerInfo());
+    }
+
+    public boolean atLeast290(ServerInfo si) {
+        return si.isSameOrNewerThanVersion("2.9.0");
     }
 
     public boolean atLeast291(ServerInfo si) {

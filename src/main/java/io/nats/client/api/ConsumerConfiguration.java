@@ -852,7 +852,11 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder filterSubject(String filterSubject) {
-            return filterSubjects(Collections.singletonList(filterSubject));
+            this.filterSubjects.clear();
+            if (!nullOrEmpty(filterSubject)) {
+                this.filterSubjects.add(filterSubject);
+            }
+            return this;
         }
 
 

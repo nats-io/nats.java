@@ -24,7 +24,7 @@ import static io.nats.client.support.NatsJetStreamClientError.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SubscribeOptionsTests extends TestBase {
-    private static final String[] badNames = {HAS_DOT, HAS_GT, HAS_STAR, HAS_FWD_SLASH, HAS_BACK_SLASH};
+    private static final String[] badNames = {HAS_DOT, GT_NOT_SEGMENT, STAR_NOT_SEGMENT, HAS_FWD_SLASH, HAS_BACK_SLASH};
 
     @Test
     public void testPushAffirmative() {

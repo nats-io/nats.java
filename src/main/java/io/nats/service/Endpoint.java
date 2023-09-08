@@ -85,7 +85,7 @@ public class Endpoint implements JsonSerializable {
                 this.subject = this.name;
             }
             else {
-                this.subject = validateSubject(subject, "Endpoint Subject", false, false);
+                this.subject = validateSubject(subject, "Endpoint Subject", false);
             }
         }
         else {

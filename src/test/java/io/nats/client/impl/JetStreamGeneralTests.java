@@ -277,8 +277,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // subject
             IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(null));
             assertTrue(iae.getMessage().startsWith("Subject"));
-            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(HAS_SPACE));
-            assertTrue(iae.getMessage().startsWith("Subject"));
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, (PushSubscribeOptions)null));
             assertTrue(iae.getMessage().startsWith("Subject"));
 
@@ -347,7 +345,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // subscribe to A
             cc = builder().filterSubject(subjectA).ackPolicy(AckPolicy.None).build();
             pso = PushSubscribeOptions.builder().configuration(cc).build();
-            sub = js.subscribe(subjectWild, pso);
+            sub = js.subscribe(subjectA, pso);
             nc.flush(Duration.ofSeconds(1));
 
             m = sub.nextMessage(Duration.ofSeconds(1));
@@ -362,7 +360,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // subscribe to B
             cc = builder().filterSubject(subjectB).ackPolicy(AckPolicy.None).build();
             pso = PushSubscribeOptions.builder().configuration(cc).build();
-            sub = js.subscribe(subjectWild, pso);
+            sub = js.subscribe(subjectB, pso);
             nc.flush(Duration.ofSeconds(1));
 
             m = sub.nextMessage(Duration.ofSeconds(1));
@@ -567,80 +565,74 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             createMemoryStream(jsm, STREAM, SUBJECT);
 
             // will work as SubscribeSubject equals Filter Subject
-            subscribeOk(js, jsm, SUBJECT, SUBJECT);
-            subscribeOk(js, jsm, ">", ">");
-            subscribeOk(js, jsm, "*", "*");
-
-            // will work as SubscribeSubject != empty Filter Subject,
-            // b/c Stream has exactly 1 subject and is a match.
-            subscribeOk(js, jsm, "", SUBJECT);
-
-            // will work as SubscribeSubject != Filter Subject of '>'
-            // b/c Stream has exactly 1 subject and is a match.
-            subscribeOk(js, jsm, ">", SUBJECT);
+            filterMatchSubscribeOk(js, jsm, SUBJECT, SUBJECT);
+            filterMatchSubscribeOk(js, jsm, ">", ">");
+            filterMatchSubscribeOk(js, jsm, "*", "*");
 
             // will not work
-            subscribeEx(js, jsm, "*", SUBJECT);
+            filterMatchSubscribeEx(js, jsm, SUBJECT, "");
+            filterMatchSubscribeEx(js, jsm, SUBJECT, ">");
+            filterMatchSubscribeEx(js, jsm, SUBJECT, "*");
 
             // multiple subjects no wildcards
             jsm.deleteStream(STREAM);
             createMemoryStream(jsm, STREAM, SUBJECT, subject(2));
 
             // will work as SubscribeSubject equals Filter Subject
-            subscribeOk(js, jsm, SUBJECT, SUBJECT);
-            subscribeOk(js, jsm, ">", ">");
-            subscribeOk(js, jsm, "*", "*");
+            filterMatchSubscribeOk(js, jsm, SUBJECT, SUBJECT);
+            filterMatchSubscribeOk(js, jsm, ">", ">");
+            filterMatchSubscribeOk(js, jsm, "*", "*");
 
             // will not work because stream has more than 1 subject
-            subscribeEx(js, jsm, "", SUBJECT);
-            subscribeEx(js, jsm, ">", SUBJECT);
-            subscribeEx(js, jsm, "*", SUBJECT);
+            filterMatchSubscribeEx(js, jsm, SUBJECT, "");
+            filterMatchSubscribeEx(js, jsm, SUBJECT, ">");
+            filterMatchSubscribeEx(js, jsm, SUBJECT, "*");
 
             // multiple subjects via '>'
             jsm.deleteStream(STREAM);
             createMemoryStream(jsm, STREAM, SUBJECT_GT);
 
             // will work, exact matches
-            subscribeOk(js, jsm, subjectDot("1"), subjectDot("1"));
-            subscribeOk(js, jsm, ">", ">");
+            filterMatchSubscribeOk(js, jsm, subjectDot("1"), subjectDot("1"));
+            filterMatchSubscribeOk(js, jsm, ">", ">");
 
             // will not work because mismatch / stream has more than 1 subject
-            subscribeEx(js, jsm, "", subjectDot("1"));
-            subscribeEx(js, jsm, ">", subjectDot("1"));
-            subscribeEx(js, jsm, SUBJECT_GT, subjectDot("1"));
+            filterMatchSubscribeEx(js, jsm, subjectDot("1"), "");
+            filterMatchSubscribeEx(js, jsm, subjectDot("1"), ">");
+            filterMatchSubscribeEx(js, jsm, subjectDot("1"), SUBJECT_GT);
 
             // multiple subjects via '*'
             jsm.deleteStream(STREAM);
             createMemoryStream(jsm, STREAM, SUBJECT_STAR);
 
             // will work, exact matches
-            subscribeOk(js, jsm, subjectDot("1"), subjectDot("1"));
-            subscribeOk(js, jsm, ">", ">");
+            filterMatchSubscribeOk(js, jsm, subjectDot("1"), subjectDot("1"));
+            filterMatchSubscribeOk(js, jsm, ">", ">");
 
             // will not work because mismatch / stream has more than 1 subject
-            subscribeEx(js, jsm, "", subjectDot("1"));
-            subscribeEx(js, jsm, ">", subjectDot("1"));
-            subscribeEx(js, jsm, SUBJECT_STAR, subjectDot("1"));
+            filterMatchSubscribeEx(js, jsm, subjectDot("1"), "");
+            filterMatchSubscribeEx(js, jsm, subjectDot("1"), ">");
+            filterMatchSubscribeEx(js, jsm, subjectDot("1"), SUBJECT_STAR);
         });
     }
 
-    private void subscribeOk(JetStream js, JetStreamManagement jsm, String fs, String ss) throws IOException, JetStreamApiException {
+    private void filterMatchSubscribeOk(JetStream js, JetStreamManagement jsm, String subscribeSubject, String... filterSubjects) throws IOException, JetStreamApiException {
         int i = RandomUtils.PRAND.nextInt(); // just want a unique number
-        setupConsumer(jsm, i, fs);
-        unsubscribeEnsureNotBound(js.subscribe(ss, builder().durable(durable(i)).buildPushSubscribeOptions()));
+        filterMatchSetupConsumer(jsm, i, filterSubjects);
+        unsubscribeEnsureNotBound(js.subscribe(subscribeSubject, builder().durable(durable(i)).buildPushSubscribeOptions()));
     }
 
-    private void subscribeEx(JetStream js, JetStreamManagement jsm, String fs, String ss) throws IOException, JetStreamApiException {
+    private void filterMatchSubscribeEx(JetStream js, JetStreamManagement jsm, String subscribeSubject, String... filterSubjects) throws IOException, JetStreamApiException {
         int i = RandomUtils.PRAND.nextInt(); // just want a unique number
-        setupConsumer(jsm, i, fs);
+        filterMatchSetupConsumer(jsm, i, filterSubjects);
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
-            () -> js.subscribe(ss, builder().durable(durable(i)).buildPushSubscribeOptions()));
+            () -> js.subscribe(subscribeSubject, builder().durable(durable(i)).buildPushSubscribeOptions()));
         assertTrue(iae.getMessage().contains(JsSubSubjectDoesNotMatchFilter.id()));
     }
 
-    private void setupConsumer(JetStreamManagement jsm, int i, String fs) throws IOException, JetStreamApiException {
+    private void filterMatchSetupConsumer(JetStreamManagement jsm, int i, String... fs) throws IOException, JetStreamApiException {
         jsm.addOrUpdateConsumer(STREAM,
-            builder().deliverSubject(deliver(i)).durable(durable(i)).filterSubject(fs).build());
+            builder().deliverSubject(deliver(i)).durable(durable(i)).filterSubjects(fs).build());
     }
 
     @Test
@@ -652,17 +644,19 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // create the stream.
             createDefaultTestStream(jsm);
 
-            // create a durable push subscriber - has deliver subject
+            // create a durable push subscriber - has a deliver subject
             ConsumerConfiguration ccDurPush = builder()
-                    .durable(durable(1))
-                    .deliverSubject(deliver(1))
-                    .build();
+                .durable(durable(1))
+                .deliverSubject(deliver(1))
+                .filterSubject(SUBJECT)
+                .build();
             jsm.addOrUpdateConsumer(STREAM, ccDurPush);
 
             // create a durable pull subscriber - notice no deliver subject
             ConsumerConfiguration ccDurPull = builder()
-                    .durable(durable(2))
-                    .build();
+                .durable(durable(2))
+                .filterSubject(SUBJECT)
+                .build();
             jsm.addOrUpdateConsumer(STREAM, ccDurPull);
 
             // try to pull subscribe against a push durable
@@ -676,10 +670,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                     () -> js.subscribe(SUBJECT, PullSubscribeOptions.bind(STREAM, durable(1)))
             );
             assertTrue(iae.getMessage().contains(JsSubConsumerAlreadyConfiguredAsPush.id()));
-
-            // this one is okay
-            JetStreamSubscription sub = js.subscribe(SUBJECT, PullSubscribeOptions.builder().durable(durable(2)).build());
-            unsubscribeEnsureNotBound(sub); // so I can re-use the durable
 
             // try to push subscribe against a pull durable
             iae = assertThrows(IllegalArgumentException.class,
@@ -719,6 +709,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .maxBatch(10)
                 .maxBytes(11)
                 .replayPolicy(ReplayPolicy.Instant)
+                .filterSubject(SUBJECT)
                 .build();
             jsm.addOrUpdateConsumer(STREAM, cc);
 
@@ -736,6 +727,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .maxBytes(48)
                 .rateLimit(44)
                 .maxAckPending(45)
+                .filterSubject(SUBJECT)
                 .build();
             jsm.addOrUpdateConsumer(STREAM, cc);
 
@@ -745,6 +737,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             cc = builder()
                 .durable(durable(22))
                 .maxPullWaiting(46)
+                .filterSubject(SUBJECT)
                 .build();
             jsm.addOrUpdateConsumer(STREAM, cc);
 
@@ -757,6 +750,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .deliverSubject(deliver(3))
                 .durable(durable(3))
                 .startTime(ZonedDateTime.now().plusHours(1))
+                .filterSubject(SUBJECT)
                 .build();
             jsm.addOrUpdateConsumer(STREAM, cc);
 
@@ -771,6 +765,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .headersOnly(true)
                 .maxExpires(30000)
                 .ackWait(2000)
+                .filterSubject(SUBJECT)
                 .build();
             jsm.addOrUpdateConsumer(STREAM, cc);
 
@@ -784,6 +779,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .deliverPolicy(DeliverPolicy.Last)
                 .ackPolicy(AckPolicy.None)
                 .replayPolicy(ReplayPolicy.Original)
+                .filterSubject(SUBJECT)
                 .build();
             jsm.addOrUpdateConsumer(STREAM, cc);
 
@@ -909,11 +905,11 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     }
 
     private Builder pushDurableBuilder() {
-        return builder().durable(PUSH_DURABLE).deliverSubject(DELIVER);
+        return builder().durable(PUSH_DURABLE).deliverSubject(DELIVER).filterSubject(SUBJECT);
     }
 
     private Builder pullDurableBuilder() {
-        return builder().durable(PULL_DURABLE);
+        return builder().durable(PULL_DURABLE).filterSubject(SUBJECT);
     }
 
     @Test

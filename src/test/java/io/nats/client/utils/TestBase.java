@@ -38,16 +38,22 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class TestBase {
 
+    public static final String STAR_SEGMENT        = "*.star.*.segment.*";
+    public static final String GT_LAST_SEGMENT     = "gt.last.>";
+    public static final String STARTS_WITH_DOT     = ".starts-with-dot";
+    public static final String STAR_NOT_SEGMENT    = "star*not*segment";
+    public static final String GT_NOT_SEGMENT      = "gt>not>segment";
+
     public static final String PLAIN          = "plain";
     public static final String HAS_SPACE      = "has space";
     public static final String HAS_PRINTABLE  = "has-print!able";
     public static final String HAS_DOT        = "has.dot";
-    public static final String HAS_STAR       = "has*star";
-    public static final String HAS_GT         = "has>gt";
     public static final String HAS_DASH       = "has-dash";
     public static final String HAS_UNDER      = "has_under";
     public static final String HAS_DOLLAR     = "has$dollar";
-    public static final String HAS_LOW        = "has\tlower\rthan\nspace";
+    public static final String HAS_CR         = "has\rcr";
+    public static final String HAS_LF         = "has\nlf";
+    public static final String HAS_LOW        = "has" + (char)0 + "low";
     public static final String HAS_127        = "has" + (char)127 + "127";
     public static final String HAS_FWD_SLASH  = "has/fwd/slash";
     public static final String HAS_BACK_SLASH = "has\\back\\slash";

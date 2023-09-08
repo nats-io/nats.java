@@ -103,8 +103,8 @@ public class JetStreamOptionsTests extends TestBase {
         assertValidPrefix(HAS_TIC);
 
         assertInvalidPrefix(HAS_SPACE);
-        assertInvalidPrefix(HAS_STAR);
-        assertInvalidPrefix(HAS_GT);
+        assertInvalidPrefix(STAR_NOT_SEGMENT);
+        assertInvalidPrefix(GT_NOT_SEGMENT);
         assertInvalidPrefix(HAS_LOW);
         assertInvalidPrefix(HAS_127);
 
@@ -145,8 +145,8 @@ public class JetStreamOptionsTests extends TestBase {
         assertValidDomain(HAS_TIC);
 
         assertInvalidDomain(HAS_SPACE);
-        assertInvalidDomain(HAS_STAR);
-        assertInvalidDomain(HAS_GT);
+        assertInvalidDomain(STAR_NOT_SEGMENT);
+        assertInvalidDomain(GT_NOT_SEGMENT);
         assertInvalidDomain(HAS_LOW);
         assertInvalidDomain(HAS_127);
 

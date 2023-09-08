@@ -537,8 +537,8 @@ public class ServiceTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_SPACE));
         assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_PRINTABLE));
         assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_DOT));
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_STAR)); // invalid in the middle
-        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_GT)); // invalid in the middle
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(STAR_NOT_SEGMENT)); // invalid in the middle
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(GT_NOT_SEGMENT)); // invalid in the middle
         assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_DOLLAR));
         assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_LOW));
         assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_127));
@@ -744,14 +744,14 @@ public class ServiceTests extends JetStreamTestBase {
         assertTrue(JsonUtils.mapEquals(metadata, e.getMetadata()));
         assertThrows(IllegalArgumentException.class, () -> Endpoint.builder().build());
 
-        // many names are bad
+        // many names are bad and is required
         assertThrows(IllegalArgumentException.class, () -> new Endpoint((String) null));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(EMPTY));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_SPACE));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_PRINTABLE));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_DOT));
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_STAR)); // invalid in the middle
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_GT)); // invalid in the middle
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(STAR_NOT_SEGMENT)); // invalid in the middle
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(GT_NOT_SEGMENT)); // invalid in the middle
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_DOLLAR));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_LOW));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_127));
@@ -760,11 +760,13 @@ public class ServiceTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_EQUALS));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_TIC));
 
-        // fewer subjects are bad
+        // typical subjects are bad
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, HAS_SPACE));
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, HAS_LOW));
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, HAS_127));
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, "foo.>.bar")); // gt is not last segment
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, HAS_CR));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, HAS_LF));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, STAR_NOT_SEGMENT));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, GT_NOT_SEGMENT));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, STARTS_WITH_DOT));
     }
 
     @Test
@@ -847,11 +849,12 @@ public class ServiceTests extends JetStreamTestBase {
         g1 = new Group("foo.*");
         assertEquals("foo.*", g1.getName());
 
+        assertThrows(IllegalArgumentException.class, () -> new Group(null));
+        assertThrows(IllegalArgumentException.class, () -> new Group(EMPTY));
         assertThrows(IllegalArgumentException.class, () -> new Group(HAS_SPACE));
-        assertThrows(IllegalArgumentException.class, () -> new Group(HAS_LOW));
-        assertThrows(IllegalArgumentException.class, () -> new Group(HAS_127));
-        assertThrows(IllegalArgumentException.class, () -> new Group("foo.>")); // gt is last segment
-        assertThrows(IllegalArgumentException.class, () -> new Group("foo.>.bar")); // gt is not last segment
+        assertThrows(IllegalArgumentException.class, () -> new Group(STAR_NOT_SEGMENT)); // invalid in the middle
+        assertThrows(IllegalArgumentException.class, () -> new Group("foo.>")); // GT invalid everywhere
+        assertThrows(IllegalArgumentException.class, () -> new Group(GT_NOT_SEGMENT)); // GT invalid everywhere
 
         EqualsVerifier.simple().forClass(Group.class).withPrefabValues(Group.class, g1, g2).verify();
     }

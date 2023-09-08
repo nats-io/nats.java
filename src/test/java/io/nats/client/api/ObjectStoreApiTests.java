@@ -329,8 +329,8 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(HAS_SPACE));
         assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(HAS_PRINTABLE));
         assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(HAS_DOT));
-        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(HAS_STAR));
-        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(HAS_GT));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(STAR_NOT_SEGMENT));
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(GT_NOT_SEGMENT));
         assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(HAS_DOLLAR));
         assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder().name(HAS_LOW));
         assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.builder(HAS_127));

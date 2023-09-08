@@ -84,8 +84,8 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(HAS_SPACE));
         assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(HAS_PRINTABLE));
         assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(HAS_DOT));
-        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(HAS_STAR));
-        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(HAS_GT));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(STAR_NOT_SEGMENT));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(GT_NOT_SEGMENT));
         assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(HAS_DOLLAR));
         assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().name(HAS_LOW));
         assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder(HAS_127));
