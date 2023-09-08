@@ -156,5 +156,5 @@ public interface Message {
 	 * Only applies to JetStream messages received from the server.
 	 * @return the consumption byte count or -1 if the message implementation does not support this method
 	 */
-	long consumeByteCount();
+	default long consumeByteCount() { return -1; }
 }
