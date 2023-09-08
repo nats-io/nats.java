@@ -146,25 +146,24 @@ public class ConnectTests {
     public void testConnectRandomize() throws Exception {
         try (NatsTestServer ts1 = new NatsTestServer(false)) {
             try (NatsTestServer ts2 = new NatsTestServer(false)) {
-                int one = 0;
-                int two = 0;
-
-                // should get at least 1 for each
-                for (int i = 0; i < 10; i++) {
+                boolean needOne = true;
+                boolean needTwo = true;
+                int count = 0;
+                int maxTries = 100;
+                while (count++ < maxTries && (needOne || needTwo)) {
                     Connection nc = standardConnection(ts1.getURI() + "," + ts2.getURI());
                     if (nc.getConnectedUrl().equals(ts1.getURI())) {
-                        one++;
+                        needOne = false;
                     } else {
-                        two++;
+                        needTwo = false;
                     }
                     Collection<String> servers = nc.getServers();
                     assertTrue(servers.contains(ts1.getURI()));
                     assertTrue(servers.contains(ts2.getURI()));
                     standardCloseConnection(nc);
                 }
-
-                assertTrue(one > 0, "randomly got one");
-                assertTrue(two > 0, "randomly got two");
+                assertFalse(needOne);
+                assertFalse(needTwo);
             }
         }
     }
