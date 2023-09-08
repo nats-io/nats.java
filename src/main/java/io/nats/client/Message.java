@@ -28,6 +28,12 @@ import java.util.concurrent.TimeoutException;
  *
  * <p>The byte[] returned by {@link #getData() getData()} is not shared with any library code
  * and is safe to manipulate.
+ *
+ * NOTICE: This interface is intended only to be implemented internally,
+ * although since it is public it is technically available to anyone and
+ * breaking changes should be avoided. For instance:
+ * - Signatures should not be changed.
+ * - If methods are added, a default implementation should be provided.
  */
 public interface Message {
 
