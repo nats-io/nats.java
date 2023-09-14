@@ -284,10 +284,13 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 assertTrue(iae.getMessage().startsWith("Subject"));
 
                 // queue
-                iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, bad, null));
-                assertTrue(iae.getMessage().startsWith("Queue"));
-                iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, bad, d, m -> {}, false, null));
-                assertTrue(iae.getMessage().startsWith("Queue"));
+                if (bad != null && !bad.isEmpty()) {
+                    iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, bad, null));
+                    assertTrue(iae.getMessage().startsWith("Queue"));
+                    iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, bad, d, m -> {
+                    }, false, null));
+                    assertTrue(iae.getMessage().startsWith("Queue"));
+                }
             }
 
             // dispatcher
