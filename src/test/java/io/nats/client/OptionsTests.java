@@ -26,6 +26,10 @@ import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
@@ -418,6 +422,11 @@ public class OptionsTests {
         o = new Options.Builder(props).build();
         _testProperties(o);
 
+        String propertiesFilePath = createTempPropertiesFile(props);
+        System.out.println(propertiesFilePath);
+        o = new Options.Builder(propertiesFilePath).build();
+        _testProperties(o);
+
         // intGtEqZeroProperty not gt zero gives default
         props.setProperty(Options.PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "-1");
         o = new Options.Builder(props).build();
@@ -435,6 +444,17 @@ public class OptionsTests {
             .properties(props)
             .build();
         assertEquals(500, o.getMaxMessagesInOutgoingQueue());
+    }
+
+    public static String createTempPropertiesFile(Properties props) throws IOException {
+        File f = File.createTempFile("jnats", ".properties");
+        BufferedWriter writer = new BufferedWriter(new FileWriter(f));
+        for (String key : props.stringPropertyNames()) {
+            writer.write(key + "=" + props.getProperty(key) + System.lineSeparator());
+        }
+        writer.flush();
+        writer.close();
+        return f.getAbsolutePath();
     }
 
     private static void _testProperties(Options o) {

@@ -23,11 +23,14 @@ import io.nats.client.support.SSLUtils;
 
 import javax.net.ssl.SSLContext;
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.CharBuffer;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -694,16 +697,21 @@ public class Options {
         // ----------------------------------------------------------------------------------------------------
         /**
          * Constructs a new {@code Builder} from a {@link Properties} object.
-         *
-         * <p>If {@link Options#PROP_SECURE PROP_SECURE} is set, the builder will
-         * try to get the default context{@link SSLContext#getDefault() getDefault()}.
-         * If a context can't be found, no context is set and an IllegalArgumentException is thrown.</p>
-         *
          * <p>Methods called on the builder after construction can override the properties.</p>
-         *
          * @param props the {@link Properties} object
          */
         public Builder(Properties props) throws IllegalArgumentException {
+            properties(props);
+        }
+
+        /**
+         * Constructs a new {@code Builder} from a file that contains properties.
+         * @param propertiesFilePath a resolvable path to a file from the location the application is running, either relative or absolute
+         * @throws IOException if the properties file cannot be found, opened or read
+         */
+        public Builder(String propertiesFilePath) throws IOException {
+            Properties props = new Properties();
+            props.load(Files.newInputStream(Paths.get(propertiesFilePath)));
             properties(props);
         }
 
