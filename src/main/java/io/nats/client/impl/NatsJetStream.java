@@ -562,6 +562,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject) throws IOException, JetStreamApiException {
+        subscribeSubject = validateSubject(subscribeSubject, true);
         return createSubscription(subscribeSubject, null, null, null, null, null, false);
     }
 
@@ -570,6 +571,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject, PushSubscribeOptions options) throws IOException, JetStreamApiException {
+        subscribeSubject = validateSubject(subscribeSubject, false);
         return createSubscription(subscribeSubject, options, null, null, null, null, false);
     }
 
@@ -578,7 +580,8 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject, String queue, PushSubscribeOptions options) throws IOException, JetStreamApiException {
-        queue = validateQueueName(emptyAsNull(queue), false);
+        subscribeSubject = validateSubject(subscribeSubject, false);
+        validateQueueName(queue, false);
         return createSubscription(subscribeSubject, options, null, queue, null, null, false);
     }
 
@@ -587,6 +590,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck) throws IOException, JetStreamApiException {
+        subscribeSubject = validateSubject(subscribeSubject, false);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
         return createSubscription(subscribeSubject, null, null, null, (NatsDispatcher) dispatcher, handler, autoAck);
@@ -597,6 +601,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException {
+        subscribeSubject = validateSubject(subscribeSubject, false);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
         return createSubscription(subscribeSubject, options, null, null, (NatsDispatcher) dispatcher, handler, autoAck);
@@ -607,7 +612,8 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject, String queue, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException {
-        queue = validateQueueName(emptyAsNull(queue), false);
+        subscribeSubject = validateSubject(subscribeSubject, false);
+        validateQueueName(queue, false);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
         return createSubscription(subscribeSubject, options, null, queue, (NatsDispatcher) dispatcher, handler, autoAck);
@@ -618,6 +624,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject, PullSubscribeOptions options) throws IOException, JetStreamApiException {
+        subscribeSubject = validateSubject(subscribeSubject, false);
         validateNotNull(options, "Pull Subscribe Options");
         return createSubscription(subscribeSubject, null, options, null, null, null, false);
     }
@@ -627,6 +634,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject, Dispatcher dispatcher, MessageHandler handler, PullSubscribeOptions options) throws IOException, JetStreamApiException {
+        subscribeSubject = validateSubject(subscribeSubject, false);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
         validateNotNull(options, "Pull Subscribe Options");

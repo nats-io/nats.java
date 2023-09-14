@@ -62,9 +62,9 @@ public class ValidatorTests {
     @Test
     public void testValidateQueueName() {
         // validateQueueName(String s, boolean required)
-        allowedRequired(Validator::validateQueueName, Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOLLAR));
-        notAllowedRequired(Validator::validateQueueName, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_DOT, STAR_NOT_SEGMENT, GT_NOT_SEGMENT, HAS_LOW, HAS_127));
-        notAllowedRequired(Validator::validateQueueName, UTF_ONLY_STRINGS);
+        allowedRequired(Validator::validateQueueName, Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOLLAR, HAS_DOT, HAS_LOW, HAS_127));
+        notAllowedRequired(Validator::validateQueueName, Arrays.asList(null, EMPTY, HAS_SPACE, STAR_NOT_SEGMENT, GT_NOT_SEGMENT));
+        allowedRequired(Validator::validateQueueName, UTF_ONLY_STRINGS);
         allowedNotRequiredEmptyAsNull(Validator::validateQueueName, Arrays.asList(null, EMPTY));
     }
 

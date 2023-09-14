@@ -31,6 +31,7 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
 
 import static io.nats.client.support.NatsConstants.DOT;
+import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_ARGUMENT;
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_STATE;
 import static io.nats.examples.ExampleUtils.uniqueEnough;
@@ -46,6 +47,8 @@ public class TestBase {
 
     public static final String PLAIN          = "plain";
     public static final String HAS_SPACE      = "has space";
+    public static final String STARTS_SPACE   = " startsspace";
+    public static final String ENDS_SPACE   = " endssspace ";
     public static final String HAS_PRINTABLE  = "has-print!able";
     public static final String HAS_DOT        = "has.dot";
     public static final String HAS_DASH       = "has-dash";
@@ -53,6 +56,7 @@ public class TestBase {
     public static final String HAS_DOLLAR     = "has$dollar";
     public static final String HAS_CR         = "has\rcr";
     public static final String HAS_LF         = "has\nlf";
+    public static final String HAS_TAB        = "has\ttab";
     public static final String HAS_LOW        = "has" + (char)0 + "low";
     public static final String HAS_127        = "has" + (char)127 + "127";
     public static final String HAS_FWD_SLASH  = "has/fwd/slash";
@@ -66,6 +70,10 @@ public class TestBase {
     public static final long MEDIUM_FLUSH_TIMEOUT_MS = 5000;
     public static final long LONG_TIMEOUT_MS = 15000;
     public static final long VERY_LONG_TIMEOUT_MS = 20000;
+
+    public static String[] BAD_SUBJECTS_OR_QUEUES = new String[] {
+        HAS_SPACE, HAS_CR, HAS_LF, HAS_TAB, STARTS_SPACE, ENDS_SPACE, null, EMPTY
+    };
 
     static {
         NatsTestServer.quiet();

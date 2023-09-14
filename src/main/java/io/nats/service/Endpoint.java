@@ -16,6 +16,7 @@ package io.nats.service;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
+import io.nats.client.support.Validator;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,7 +27,6 @@ import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.JsonValueUtils.readStringStringMap;
 import static io.nats.client.support.Validator.validateIsRestrictedTerm;
-import static io.nats.client.support.Validator.validateSubject;
 
 /**
  * Endpoint encapsulates the name, subject and metadata for a {@link ServiceEndpoint}.
@@ -85,7 +85,7 @@ public class Endpoint implements JsonSerializable {
                 this.subject = this.name;
             }
             else {
-                this.subject = validateSubject(subject, "Endpoint Subject", false);
+                this.subject = Validator.validateSubjectTerm(subject, "Endpoint Subject", false);
             }
         }
         else {

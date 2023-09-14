@@ -228,9 +228,9 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             Dispatcher d = nc.createDispatcher();
 
             js.subscribe(SUBJECT, (PushSubscribeOptions)null);
-            js.subscribe(SUBJECT, null, (PushSubscribeOptions)null);
+            js.subscribe(SUBJECT, null, (PushSubscribeOptions)null); // queue name is not required, just a weird way to call this api
             js.subscribe(SUBJECT, d, m -> {}, false, (PushSubscribeOptions)null);
-            js.subscribe(SUBJECT, null, d, m -> {}, false, (PushSubscribeOptions)null);
+            js.subscribe(SUBJECT, null, d, m -> {}, false, (PushSubscribeOptions)null); // queue name is not required, just a weird way to call this api
 
             PushSubscribeOptions pso = ConsumerConfiguration.builder().filterSubject(SUBJECT).buildPushSubscribeOptions();
             js.subscribe(null, pso);
@@ -274,20 +274,24 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             PushSubscribeOptions psoInvalidStream = PushSubscribeOptions.builder().stream(STREAM).build();
             assertThrows(JetStreamApiException.class, () -> js.subscribe(SUBJECT, psoInvalidStream));
 
-            // subject
-            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(null));
-            assertTrue(iae.getMessage().startsWith("Subject"));
-            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, (PushSubscribeOptions)null));
-            assertTrue(iae.getMessage().startsWith("Subject"));
+            Dispatcher d = nc.createDispatcher();
 
-            // queue
-            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, HAS_SPACE, null));
-            assertTrue(iae.getMessage().startsWith("Queue"));
-            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, HAS_SPACE, null, null, false, null));
-            assertTrue(iae.getMessage().startsWith("Queue"));
+            for (String bad : BAD_SUBJECTS_OR_QUEUES) {
+                // subject
+                IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(bad));
+                assertTrue(iae.getMessage().startsWith("Subject"));
+                iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(bad, (PushSubscribeOptions)null));
+                assertTrue(iae.getMessage().startsWith("Subject"));
+
+                // queue
+                iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, bad, null));
+                assertTrue(iae.getMessage().startsWith("Queue"));
+                iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, bad, d, m -> {}, false, null));
+                assertTrue(iae.getMessage().startsWith("Queue"));
+            }
 
             // dispatcher
-            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, null, null, false));
+            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, null, null, false));
             assertTrue(iae.getMessage().startsWith("Dispatcher"));
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, null, null, false, null));
             assertTrue(iae.getMessage().startsWith("Dispatcher"));

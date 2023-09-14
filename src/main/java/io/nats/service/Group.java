@@ -13,11 +13,12 @@
 
 package io.nats.service;
 
+import io.nats.client.support.Validator;
+
 import java.util.Objects;
 
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.Validator.emptyAsNull;
-import static io.nats.client.support.Validator.validateSubject;
 
 /**
  * Group is way to organize endpoints by serving as a common prefix to all endpoints registered in it.
@@ -41,7 +42,7 @@ public class Group {
             throw new IllegalArgumentException("Group name cannot contain '>'.");
         }
 
-        this.name = validateSubject(name, "Group name", false);
+        this.name = Validator.validateSubjectTerm(name, "Group name", false);
     }
 
     /**
