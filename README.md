@@ -2,7 +2,9 @@
 
 # NATS - Java Client
 
-A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
+### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
+
+**Current Release**: 2.16.14 &nbsp; **Current Snapshot**: 2.16.15-SNAPSHOT 
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
@@ -11,6 +13,7 @@ A [Java](http://java.com) client for the [NATS messaging system](https://nats.io
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
 [![Release Badge](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml/badge.svg?event=release)](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml)
 
+#
 ### Simplification
 
 There is a new simplified api that makes working with streams and consumers well, simpler! Simplification is released as of 2.16.14.
