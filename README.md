@@ -198,6 +198,53 @@ When options are built, the SSLContext will be accepted or created in the follow
 3. If `opentls` is true or any of the bootstrap servers has `opentls` as their scheme, a generic SSLContext will be created that **"trusts all certs"**.
 4. If `secure` is true or any of the bootstrap servers has `tls` or `wss` as their scheme, the `javax.net.ssl.SSLContext.getDefault()` will be used.
 
+#### Options - Properties
+
+| Name                                         | Description                                                                                 |
+|----------------------------------------------|---------------------------------------------------------------------------------------------|
+| io.nats.client.callback.connection           | Property used to configure a connectionListener.                                            |
+| io.nats.client.dataport.type                 | Property used to configure a dataPortType.                                                  |
+| io.nats.client.callback.error                | Property used to configure an errorListener.                                                |
+| io.nats.client.statisticscollector           | Property used to configure the statisticsCollector.                                         |
+| io.nats.client.maxpings                      | Property used to configure maxPingsOut.                                                     |
+| io.nats.client.pinginterval                  | Property used to configure pingInterval.                                                    |
+| io.nats.client.cleanupinterval               | Property used to configure requestCleanupInterval.                                          |
+| io.nats.client.timeout                       | Property used to configure connectionTimeout.                                               |
+| io.nats.client.reconnect.buffer.size         | Property used to configure reconnectBufferSize.                                             |
+| io.nats.client.reconnect.wait                | Property used to configure reconnectWait.                                                   |
+| io.nats.client.reconnect.max                 | Property used to configure maxReconnects.                                                   |
+| io.nats.client.reconnect.jitter              | Property used to configure reconnectJitter.                                                 |
+| io.nats.client.reconnect.jitter.tls          | Property used to configure reconnectJitterTls.                                              |
+| io.nats.client.pedantic                      | Property used to configure pedantic.                                                        |
+| io.nats.client.verbose                       | Property used to configure verbose.                                                         |
+| io.nats.client.noecho                        | Property used to configure noEcho.                                                          |
+| io.nats.client.noheaders                     | Property used to configure noHeaders.                                                       |
+| io.nats.client.name                          | Property used to configure connectionName.                                                  |
+| io.nats.client.nonoresponders                | Property used to configure noNoResponders.                                                  |
+| io.nats.client.norandomize                   | Property used to configure noRandomize.                                                     |
+| io.nats.client.noResolveHostnames            | Property used to configure noResolveHostnames.                                              |
+| io.nats.client.reportNoResponders            | Property used to configure reportNoResponders.                                              |
+| io.nats.client.url                           | Property used to configure server.  The value can be a comma-separated list of server URLs. |
+| io.nats.client.servers                       | Property used to configure servers. The value can be a comma-separated list of server URLs. |
+| io.nats.client.password                      | Property used to configure userinfo password.                                               |
+| io.nats.client.username                      | Property used to configure userinfo username.                                               |
+| io.nats.client.token                         | Property used to configure token.                                                           |
+| io.nats.client.secure                        | See notes above on ssl configruration.                                                      |
+| io.nats.client.opentls                       | See notes above on ssl configruration.                                                      |
+| io.nats.client.outgoingqueue.maxmessages     | Property used to configure maxMessagesInOutgoingQueue.                                      |
+| io.nats.client.outgoingqueue.discardwhenfull | Property used to configure discardMessagesWhenOutgoingQueueFull.                            |
+| use.old.request.style                        | Property used to configure oldRequestStyle.                                                 |
+| max.control.line                             | Property used to configure maxControlLine.                                                  |
+| inbox.prefix                                 | Property used to set the inbox prefix                                                       |
+| ignore.discovered.servers                    | Preferred property used to set whether to ignore discovered servers when connecting.        |
+| servers.pool.implementation.class            | Preferred property used to set class name for ServerPool implementation.                    |
+| io.nats.client.keyStore                      | Property for the keystore path used to create an SSLContext                                 |
+| io.nats.client.keyStorePassword              | Property for the keystore password used to create an SSLContext                             |
+| io.nats.client.trustStore                    | Property for the truststore path used to create an SSLContext                               |
+| io.nats.client.trustStorePassword            | Property for the truststore password used to create an SSLContext                           |
+| io.nats.client.tls.algorithm                 | Property for the algorithm used to create an SSLContext                                     |
+| io.nats.client.credential.path               | Property used to set the path to a credentials file to be used in a FileAuthHandler         |
+
 ### SSL/TLS Performance
 
 After recent tests we realized that TLS performance is lower than we would like. After researching the problem and possible solutions we came to a few conclusions:
