@@ -69,6 +69,8 @@ public class Options {
     // GETTERS * update getter to be able to retrieve class variable value
     // HELPER FUNCTIONS * just helpers
     // ----------------------------------------------------------------------------------------------------
+    // README - if you add a property or change it's comment, add it to or update the readme
+    // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
     // CONSTANTS

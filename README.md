@@ -198,6 +198,53 @@ When options are built, the SSLContext will be accepted or created in the follow
 3. If `opentls` is true or any of the bootstrap servers has `opentls` as their scheme, a generic SSLContext will be created that **"trusts all certs"**.
 4. If `secure` is true or any of the bootstrap servers has `tls` or `wss` as their scheme, the `javax.net.ssl.SSLContext.getDefault()` will be used.
 
+#### Options - Properties
+
+| Name                                         | Description                                                                                 |
+|----------------------------------------------|---------------------------------------------------------------------------------------------|
+| io.nats.client.callback.connection           | Property used to configure a connectionListener.                                            |
+| io.nats.client.dataport.type                 | Property used to configure a dataPortType.                                                  |
+| io.nats.client.callback.error                | Property used to configure an errorListener.                                                |
+| io.nats.client.statisticscollector           | Property used to configure the statisticsCollector.                                         |
+| io.nats.client.maxpings                      | Property used to configure maxPingsOut.                                                     |
+| io.nats.client.pinginterval                  | Property used to configure pingInterval.                                                    |
+| io.nats.client.cleanupinterval               | Property used to configure requestCleanupInterval.                                          |
+| io.nats.client.timeout                       | Property used to configure connectionTimeout.                                               |
+| io.nats.client.reconnect.buffer.size         | Property used to configure reconnectBufferSize.                                             |
+| io.nats.client.reconnect.wait                | Property used to configure reconnectWait.                                                   |
+| io.nats.client.reconnect.max                 | Property used to configure maxReconnects.                                                   |
+| io.nats.client.reconnect.jitter              | Property used to configure reconnectJitter.                                                 |
+| io.nats.client.reconnect.jitter.tls          | Property used to configure reconnectJitterTls.                                              |
+| io.nats.client.pedantic                      | Property used to configure pedantic.                                                        |
+| io.nats.client.verbose                       | Property used to configure verbose.                                                         |
+| io.nats.client.noecho                        | Property used to configure noEcho.                                                          |
+| io.nats.client.noheaders                     | Property used to configure noHeaders.                                                       |
+| io.nats.client.name                          | Property used to configure connectionName.                                                  |
+| io.nats.client.nonoresponders                | Property used to configure noNoResponders.                                                  |
+| io.nats.client.norandomize                   | Property used to configure noRandomize.                                                     |
+| io.nats.client.noResolveHostnames            | Property used to configure noResolveHostnames.                                              |
+| io.nats.client.reportNoResponders            | Property used to configure reportNoResponders.                                              |
+| io.nats.client.url                           | Property used to configure server.  The value can be a comma-separated list of server URLs. |
+| io.nats.client.servers                       | Property used to configure servers. The value can be a comma-separated list of server URLs. |
+| io.nats.client.password                      | Property used to configure userinfo password.                                               |
+| io.nats.client.username                      | Property used to configure userinfo username.                                               |
+| io.nats.client.token                         | Property used to configure token.                                                           |
+| io.nats.client.secure                        | See notes above on ssl configruration.                                                      |
+| io.nats.client.opentls                       | See notes above on ssl configruration.                                                      |
+| io.nats.client.outgoingqueue.maxmessages     | Property used to configure maxMessagesInOutgoingQueue.                                      |
+| io.nats.client.outgoingqueue.discardwhenfull | Property used to configure discardMessagesWhenOutgoingQueueFull.                            |
+| use.old.request.style                        | Property used to configure oldRequestStyle.                                                 |
+| max.control.line                             | Property used to configure maxControlLine.                                                  |
+| inbox.prefix                                 | Property used to set the inbox prefix                                                       |
+| ignore.discovered.servers                    | Preferred property used to set whether to ignore discovered servers when connecting.        |
+| servers.pool.implementation.class            | Preferred property used to set class name for ServerPool implementation.                    |
+| io.nats.client.keyStore                      | Property for the keystore path used to create an SSLContext                                 |
+| io.nats.client.keyStorePassword              | Property for the keystore password used to create an SSLContext                             |
+| io.nats.client.trustStore                    | Property for the truststore path used to create an SSLContext                               |
+| io.nats.client.trustStorePassword            | Property for the truststore password used to create an SSLContext                           |
+| io.nats.client.tls.algorithm                 | Property for the algorithm used to create an SSLContext                                     |
+| io.nats.client.credential.path               | Property used to set the path to a credentials file to be used in a FileAuthHandler         |
+
 ### SSL/TLS Performance
 
 After recent tests we realized that TLS performance is lower than we would like. After researching the problem and possible solutions we came to a few conclusions:
@@ -766,53 +813,53 @@ You can however set the deliver policy which will be used to start the subscript
 * Consumer creation
 * Object Store operations
 
-| Name                                         | Group | Code  | Description                                                                                        |
-|----------------------------------------------|-------|-------|----------------------------------------------------------------------------------------------------|
-| JsSoDurableMismatch                          | SO    | 90101 | Builder durable must match the consumer configuration durable if both are provided.                |
-| JsSoDeliverGroupMismatch                     | SO    | 90102 | Builder deliver group must match the consumer configuration deliver group if both are provided.    |
+| Name                                         | Group | Code  | Description                                                                                         |
+|----------------------------------------------|-------|-------|-----------------------------------------------------------------------------------------------------|
+| JsSoDurableMismatch                          | SO    | 90101 | Builder durable must match the consumer configuration durable if both are provided.                 |
+| JsSoDeliverGroupMismatch                     | SO    | 90102 | Builder deliver group must match the consumer configuration deliver group if both are provided.     |
 | JsSoDeliverSubjectMismatch                   | SO    | 90103 | Builder deliver subject must match the consumer configuration deliver subject if both are provided. |
-| JsSoOrderedNotAllowedWithBind                | SO    | 90104 | Bind is not allowed with an ordered consumer.                                                      |
-| JsSoOrderedNotAllowedWithDeliverGroup        | SO    | 90105 | Deliver group is not allowed with an ordered consumer.                                             |
-| JsSoOrderedNotAllowedWithDurable             | SO    | 90106 | Durable is not allowed with an ordered consumer.                                                   |
-| JsSoOrderedNotAllowedWithDeliverSubject      | SO    | 90107 | Deliver subject is not allowed with an ordered consumer.                                           |
-| JsSoOrderedRequiresAckPolicyNone             | SO    | 90108 | Ordered consumer requires Ack Policy None.                                                         |
-| JsSoOrderedRequiresMaxDeliverOfOne           | SO    | 90109 | Max deliver is limited to 1 with an ordered consumer.                                              |
-| JsSoNameMismatch                             | SO    | 90110 | Builder name must match the consumer configuration name if both are provided.                      |
-| JsSoOrderedMemStorageNotSuppliedOrTrue       | SO    | 90111 | Mem Storage must be true if supplied.                                                              |
-| JsSoOrderedReplicasNotSuppliedOrOne          | SO    | 90112 | Replicas must be 1 if supplied.                                                                    |
-| JsSoNameOrDurableRequiredForBind             | SO    | 90113 | Name or Durable required for Bind.                                                                 |
-| JsSubPullCantHaveDeliverGroup                | SUB   | 90001 | Pull subscriptions can't have a deliver group.                                                     |
-| JsSubPullCantHaveDeliverSubject              | SUB   | 90002 | Pull subscriptions can't have a deliver subject.                                                   |
-| JsSubPushCantHaveMaxPullWaiting              | SUB   | 90003 | Push subscriptions cannot supply max pull waiting.                                                 |
-| JsSubQueueDeliverGroupMismatch               | SUB   | 90004 | Queue / deliver group mismatch.                                                                    |
-| JsSubFcHbNotValidPull                        | SUB   | 90005 | Flow Control and/or heartbeat is not valid with a pull subscription.                               |
-| JsSubFcHbNotValidQueue                       | SUB   | 90006 | Flow Control and/or heartbeat is not valid in queue mode.                                          |
-| JsSubNoMatchingStreamForSubject              | SUB   | 90007 | No matching streams for subject.                                                                   |
-| JsSubConsumerAlreadyConfiguredAsPush         | SUB   | 90008 | Consumer is already configured as a push consumer.                                                 |
-| JsSubConsumerAlreadyConfiguredAsPull         | SUB   | 90009 | Consumer is already configured as a pull consumer.                                                 |
-| _removed_                                    | SUB   | 90010 |                                                                                                    |
-| JsSubSubjectDoesNotMatchFilter               | SUB   | 90011 | Subject does not match consumer configuration filter.                                              |
-| JsSubConsumerAlreadyBound                    | SUB   | 90012 | Consumer is already bound to a subscription.                                                       |
-| JsSubExistingConsumerNotQueue                | SUB   | 90013 | Existing consumer is not configured as a queue / deliver group.                                    |
-| JsSubExistingConsumerIsQueue                 | SUB   | 90014 | Existing consumer is configured as a queue / deliver group.                                        |
-| JsSubExistingQueueDoesNotMatchRequestedQueue | SUB   | 90015 | Existing consumer deliver group does not match requested queue / deliver group.                    |
-| JsSubExistingConsumerCannotBeModified        | SUB   | 90016 | Existing consumer cannot be modified.                                                              |
-| JsSubConsumerNotFoundRequiredInBind          | SUB   | 90017 | Consumer not found, required in bind mode.                                                         |
-| JsSubOrderedNotAllowOnQueues                 | SUB   | 90018 | Ordered consumer not allowed on queues.                                                            |
-| JsSubPushCantHaveMaxBatch                    | SUB   | 90019 | Push subscriptions cannot supply max batch.                                                        |
-| JsSubPushCantHaveMaxBytes                    | SUB   | 90020 | Push subscriptions cannot supply max bytes.                                                        |
-| JsSubPushAsyncCantSetPending                 | SUB   | 90021 | Pending limits must be set directly on the dispatcher.                                             |
-| JsConsumerCreate290NotAvailable              | CON   | 90301 | Name field not valid when v2.9.0 consumer create api is not available.                             |
-| JsConsumerNameDurableMismatch                | CON   | 90302 | Name must match durable if both are supplied.                                                      |
-| OsObjectNotFound                             | OS    | 90201 | The object was not found.                                                                          |
-| OsObjectIsDeleted                            | OS    | 90202 | The object is deleted.                                                                             |
-| OsObjectAlreadyExists                        | OS    | 90203 | An object with that name already exists.                                                           |
-| OsCantLinkToLink                             | OS    | 90204 | A link cannot link to another link.                                                                |
-| OsGetDigestMismatch                          | OS    | 90205 | Digest does not match meta data.                                                                   |
-| OsGetChunksMismatch                          | OS    | 90206 | Number of chunks does not match meta data.                                                         |
-| OsGetSizeMismatch                            | OS    | 90207 | Total size does not match meta data.                                                               |
-| OsGetLinkToBucket                            | OS    | 90208 | Cannot get object, it is a link to a bucket.                                                       |
-| OsLinkNotAllowOnPut                          | OS    | 90209 | Link not allowed in metadata when putting an object.                                               |
+| JsSoOrderedNotAllowedWithBind                | SO    | 90104 | Bind is not allowed with an ordered consumer.                                                       |
+| JsSoOrderedNotAllowedWithDeliverGroup        | SO    | 90105 | Deliver group is not allowed with an ordered consumer.                                              |
+| JsSoOrderedNotAllowedWithDurable             | SO    | 90106 | Durable is not allowed with an ordered consumer.                                                    |
+| JsSoOrderedNotAllowedWithDeliverSubject      | SO    | 90107 | Deliver subject is not allowed with an ordered consumer.                                            |
+| JsSoOrderedRequiresAckPolicyNone             | SO    | 90108 | Ordered consumer requires Ack Policy None.                                                          |
+| JsSoOrderedRequiresMaxDeliverOfOne           | SO    | 90109 | Max deliver is limited to 1 with an ordered consumer.                                               |
+| JsSoNameMismatch                             | SO    | 90110 | Builder name must match the consumer configuration name if both are provided.                       |
+| JsSoOrderedMemStorageNotSuppliedOrTrue       | SO    | 90111 | Mem Storage must be true if supplied.                                                               |
+| JsSoOrderedReplicasNotSuppliedOrOne          | SO    | 90112 | Replicas must be 1 if supplied.                                                                     |
+| JsSoNameOrDurableRequiredForBind             | SO    | 90113 | Name or Durable required for Bind.                                                                  |
+| JsSubPullCantHaveDeliverGroup                | SUB   | 90001 | Pull subscriptions can't have a deliver group.                                                      |
+| JsSubPullCantHaveDeliverSubject              | SUB   | 90002 | Pull subscriptions can't have a deliver subject.                                                    |
+| JsSubPushCantHaveMaxPullWaiting              | SUB   | 90003 | Push subscriptions cannot supply max pull waiting.                                                  |
+| JsSubQueueDeliverGroupMismatch               | SUB   | 90004 | Queue / deliver group mismatch.                                                                     |
+| JsSubFcHbNotValidPull                        | SUB   | 90005 | Flow Control and/or heartbeat is not valid with a pull subscription.                                |
+| JsSubFcHbNotValidQueue                       | SUB   | 90006 | Flow Control and/or heartbeat is not valid in queue mode.                                           |
+| JsSubNoMatchingStreamForSubject              | SUB   | 90007 | No matching streams for subject.                                                                    |
+| JsSubConsumerAlreadyConfiguredAsPush         | SUB   | 90008 | Consumer is already configured as a push consumer.                                                  |
+| JsSubConsumerAlreadyConfiguredAsPull         | SUB   | 90009 | Consumer is already configured as a pull consumer.                                                  |
+| _removed_                                    | SUB   | 90010 |                                                                                                     |
+| JsSubSubjectDoesNotMatchFilter               | SUB   | 90011 | Subject does not match consumer configuration filter.                                               |
+| JsSubConsumerAlreadyBound                    | SUB   | 90012 | Consumer is already bound to a subscription.                                                        |
+| JsSubExistingConsumerNotQueue                | SUB   | 90013 | Existing consumer is not configured as a queue / deliver group.                                     |
+| JsSubExistingConsumerIsQueue                 | SUB   | 90014 | Existing consumer is configured as a queue / deliver group.                                         |
+| JsSubExistingQueueDoesNotMatchRequestedQueue | SUB   | 90015 | Existing consumer deliver group does not match requested queue / deliver group.                     |
+| JsSubExistingConsumerCannotBeModified        | SUB   | 90016 | Existing consumer cannot be modified.                                                               |
+| JsSubConsumerNotFoundRequiredInBind          | SUB   | 90017 | Consumer not found, required in bind mode.                                                          |
+| JsSubOrderedNotAllowOnQueues                 | SUB   | 90018 | Ordered consumer not allowed on queues.                                                             |
+| JsSubPushCantHaveMaxBatch                    | SUB   | 90019 | Push subscriptions cannot supply max batch.                                                         |
+| JsSubPushCantHaveMaxBytes                    | SUB   | 90020 | Push subscriptions cannot supply max bytes.                                                         |
+| JsSubPushAsyncCantSetPending                 | SUB   | 90021 | Pending limits must be set directly on the dispatcher.                                              |
+| JsConsumerCreate290NotAvailable              | CON   | 90301 | Name field not valid when v2.9.0 consumer create api is not available.                              |
+| JsConsumerNameDurableMismatch                | CON   | 90302 | Name must match durable if both are supplied.                                                       |
+| OsObjectNotFound                             | OS    | 90201 | The object was not found.                                                                           |
+| OsObjectIsDeleted                            | OS    | 90202 | The object is deleted.                                                                              |
+| OsObjectAlreadyExists                        | OS    | 90203 | An object with that name already exists.                                                            |
+| OsCantLinkToLink                             | OS    | 90204 | A link cannot link to another link.                                                                 |
+| OsGetDigestMismatch                          | OS    | 90205 | Digest does not match meta data.                                                                    |
+| OsGetChunksMismatch                          | OS    | 90206 | Number of chunks does not match meta data.                                                          |
+| OsGetSizeMismatch                            | OS    | 90207 | Total size does not match meta data.                                                                |
+| OsGetLinkToBucket                            | OS    | 90208 | Cannot get object, it is a link to a bucket.                                                        |
+| OsLinkNotAllowOnPut                          | OS    | 90209 | Link not allowed in metadata when putting an object.                                                |
 
 ### Message Acknowledgements
 
