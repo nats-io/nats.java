@@ -302,7 +302,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         // 2. figure out user provided subjects and prepare the userCcFilterSubjects
         userSubscribeSubject = emptyAsNull(userSubscribeSubject);
         List<String> userCcFilterSubjects = new ArrayList<>();
-        if (userCC.getFilterSubject() == null) { // empty filterSubjects gives gives null
+        if (userCC.getFilterSubject() == null) { // empty filterSubjects gives null
             // userCC.filterSubjects empty, populate userCcFilterSubjects w/userSubscribeSubject if possible
             if (userSubscribeSubject != null) {
                 userCcFilterSubjects.add(userSubscribeSubject);

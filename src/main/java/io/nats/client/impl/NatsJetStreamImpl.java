@@ -87,6 +87,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
 
         String durable = config.getDurable();
         String subj;
+        // new consumer create not available before 290 and can't be used with multiple filter subjects
         if (consumerCreate290Available && !multipleFilterSubject) {
             if (consumerName == null) {
                 // if both consumerName and durable are null, generate a name

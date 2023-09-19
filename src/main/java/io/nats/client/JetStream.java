@@ -375,7 +375,8 @@ public interface JetStream {
      * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
      * information about creating an asynchronous subscription with callbacks.
      *
-     * @param subscribeSubject the subject to subscribe to
+     * @param subscribeSubject the subject to subscribe to.
+     *                         Can be null or empty when the options have a ConsumerConfiguration that supplies a filter subject.
      * @param options optional subscription options
      * @return The subscription
      * @throws IOException covers various communication issues with the NATS
@@ -394,6 +395,7 @@ public interface JetStream {
      * information about creating an asynchronous subscription with callbacks.
      *
      * @param subscribeSubject the subject to subscribe to
+     *                         Can be null or empty when the options have a ConsumerConfiguration that supplies a filter subject.
      * @param queue the optional queue group to join
      * @param options optional subscription options
      * @return The subscription
@@ -424,6 +426,7 @@ public interface JetStream {
      * specified dispatcher. Since a MessageHandler is also required, the Dispatcher will
      * not prevent duplicate subscriptions from being made.
      * @param subscribeSubject The subject to subscribe to.
+     *                         Can be null or empty when the options have a ConsumerConfiguration that supplies a filter subject.
      * @param dispatcher The dispatcher to handle this subscription
      * @param handler The target for the messages
      * @param autoAck Whether to auto ack
@@ -441,6 +444,7 @@ public interface JetStream {
      * not prevent duplicate subscriptions from being made.
      *
      * @param subscribeSubject The subject to subscribe to.
+     *                         Can be null or empty when the options have a ConsumerConfiguration that supplies a filter subject.
      * @param queue the optional queue group to join
      * @param dispatcher The dispatcher to handle this subscription
      * @param handler The target for the messages
@@ -456,6 +460,7 @@ public interface JetStream {
     /**
      * Create a subscription to the specified subject in the mode of pull, with additional options
      * @param subscribeSubject The subject to subscribe to
+     *                         Can be null or empty when the options have a ConsumerConfiguration that supplies a filter subject.
      * @param options pull subscription options
      * @return The subscription
      * @throws IOException covers various communication issues with the NATS
@@ -467,6 +472,7 @@ public interface JetStream {
     /**
      * Create an asynchronous subscription to the specified subject in the mode of pull, with additional options
      * @param subscribeSubject The subject to subscribe to
+     *                         Can be null or empty when the options have a ConsumerConfiguration that supplies a filter subject.
      * @param dispatcher The dispatcher to handle this subscription
      * @param handler The target for the messages
      * @param options pull subscription options
