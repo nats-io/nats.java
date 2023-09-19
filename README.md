@@ -67,7 +67,9 @@ It only allowed printable ascii characters except for `*`, `>`, `.`, `\\` and `/
 * cannot contain spaces \r \n \t
 * cannot start or end with subject token delimiter .
 * cannot have empty segments
-This means that UTF characters are now allowed back in.
+
+**This means that UTF characters are now allowed back in.**
+
 
 For queue names, there has been inconsistent validation, if any. Queue names now require the same validation as subjects.
 **Important** We realize this may affect existing applications, but need to require consistency across clients 
