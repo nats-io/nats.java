@@ -41,6 +41,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final String description;
     private final List<String> subjects;
     private final RetentionPolicy retentionPolicy;
+    private final CompressionPolicy compressionPolicy;
     private final long maxConsumers;
     private final long maxMsgs;
     private final long maxMsgsPerSubject;
@@ -70,6 +71,7 @@ public class StreamConfiguration implements JsonSerializable {
     static StreamConfiguration instance(JsonValue v) {
         Builder builder = new Builder();
         builder.retentionPolicy(RetentionPolicy.get(readString(v, RETENTION)));
+        builder.compressionPolicy(CompressionPolicy.get(readString(v, COMPRESSION)));
         builder.storageType(StorageType.get(readString(v, STORAGE)));
         builder.discardPolicy(DiscardPolicy.get(readString(v, DISCARD)));
         builder.name(readString(v, NAME));
@@ -107,6 +109,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.description = b.description;
         this.subjects = b.subjects;
         this.retentionPolicy = b.retentionPolicy;
+        this.compressionPolicy = b.compressionPolicy;
         this.maxConsumers = b.maxConsumers;
         this.maxMsgs = b.maxMsgs;
         this.maxMsgsPerSubject = b.maxMsgsPerSubject;
@@ -147,6 +150,9 @@ public class StreamConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, DESCRIPTION, description);
         addStrings(sb, SUBJECTS, subjects);
         addField(sb, RETENTION, retentionPolicy.toString());
+        if (compressionPolicy != CompressionPolicy.None) {
+            addField(sb, COMPRESSION, compressionPolicy.toString());
+        }
         addField(sb, MAX_CONSUMERS, maxConsumers);
         addField(sb, MAX_MSGS, maxMsgs);
         addField(sb, MAX_MSGS_PER_SUB, maxMsgsPerSubject);
@@ -221,6 +227,14 @@ public class StreamConfiguration implements JsonSerializable {
      */
     public RetentionPolicy getRetentionPolicy() {
         return retentionPolicy;
+    }
+
+    /**
+     * Gets the compression policy for this stream configuration.
+     * @return the compression policy for this stream.
+     */
+    public CompressionPolicy getCompressionPolicy() {
+        return compressionPolicy;
     }
 
     /**
@@ -425,6 +439,7 @@ public class StreamConfiguration implements JsonSerializable {
             ", description='" + description + '\'' +
             ", subjects=" + subjects +
             ", retentionPolicy=" + retentionPolicy +
+            ", compressionPolicy=" + compressionPolicy +
             ", maxConsumers=" + maxConsumers +
             ", maxMsgs=" + maxMsgs +
             ", maxMsgsPerSubject=" + maxMsgsPerSubject +
@@ -481,6 +496,7 @@ public class StreamConfiguration implements JsonSerializable {
         private String description = null;
         private final List<String> subjects = new ArrayList<>();
         private RetentionPolicy retentionPolicy = RetentionPolicy.Limits;
+        private CompressionPolicy compressionPolicy = CompressionPolicy.None;
         private long maxConsumers = -1;
         private long maxMsgs = -1;
         private long maxMsgsPerSubject = -1;
@@ -522,6 +538,7 @@ public class StreamConfiguration implements JsonSerializable {
                 this.description = sc.description;
                 subjects(sc.subjects);
                 this.retentionPolicy = sc.retentionPolicy;
+                this.compressionPolicy = sc.compressionPolicy;
                 this.maxConsumers = sc.maxConsumers;
                 this.maxMsgs = sc.maxMsgs;
                 this.maxMsgsPerSubject = sc.maxMsgsPerSubject;
@@ -627,6 +644,16 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder retentionPolicy(RetentionPolicy policy) {
             this.retentionPolicy = policy == null ? RetentionPolicy.Limits : policy;
+            return this;
+        }
+
+        /**
+         * Sets the compression policy in the StreamConfiguration.
+         * @param policy the compression policy of the StreamConfiguration
+         * @return Builder
+         */
+        public Builder compressionPolicy(CompressionPolicy policy) {
+            this.compressionPolicy = policy == null ? CompressionPolicy.None : policy;
             return this;
         }
 

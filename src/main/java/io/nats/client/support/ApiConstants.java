@@ -35,6 +35,7 @@ public interface ApiConstants {
     String CLIENT_IP         = "client_ip";
     String CLUSTER           = "cluster";
     String CODE              = "code";
+    String COMPRESSION       = "compression";
     String CONFIG            = "config";
     String CONNECT_URLS      = "connect_urls";
     String CONSUMER_COUNT    = "consumer_count";
