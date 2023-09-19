@@ -42,8 +42,14 @@ public class TestBase {
     public static final String STAR_SEGMENT        = "*.star.*.segment.*";
     public static final String GT_LAST_SEGMENT     = "gt.last.>";
     public static final String STARTS_WITH_DOT     = ".starts-with-dot";
+    public static final String ENDS_WITH_DOT       = "ends-with-dot.";
+    public static final String ENDS_WITH_SPACE     = "ends-with-space. ";
+    public static final String ENDS_WITH_CR       = "ends-with-space.\r";
+    public static final String ENDS_WITH_LF       = "ends-with-space.\n";
+    public static final String ENDS_WITH_TAB      = "ends-with-space.\t";
     public static final String STAR_NOT_SEGMENT    = "star*not*segment";
     public static final String GT_NOT_SEGMENT      = "gt>not>segment";
+    public static final String EMPTY_SEGMENT       = "blah..blah";
 
     public static final String PLAIN          = "plain";
     public static final String HAS_SPACE      = "has space";

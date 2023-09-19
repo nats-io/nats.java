@@ -29,7 +29,7 @@ public abstract class Validator {
 
     /*
         cannot contain spaces \r \n \t
-        cannot start or with subject token delimiter .
+        cannot start or end with subject token delimiter .
         some things don't allow it to end greater
     */
     public static String validateSubjectTerm(String subject, String label, boolean required) {
@@ -39,6 +39,9 @@ public abstract class Validator {
                 throw new IllegalArgumentException(label + " cannot be null or empty.");
             }
             return null;
+        }
+        if (subject.endsWith(".")) {
+            throw new IllegalArgumentException(label + " cannot end with '.'");
         }
 
         String[] segments = subject.split("\\.");

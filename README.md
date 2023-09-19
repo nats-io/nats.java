@@ -4,7 +4,7 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-**Current Release**: 2.16.14 &nbsp; **Current Snapshot**: 2.16.15-SNAPSHOT 
+**Current Release**: 2.16.14 &nbsp; **Current Snapshot**: 2.17.0-SNAPSHOT 
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
@@ -51,7 +51,28 @@ Version 2.5.0 adds some back pressure to publish calls to alleviate issues when 
 
 Previous versions are still available in the repo.
 
-#### Version 2.16.14 Options properties improvements
+#### Version 2.17.0: Server 2.10 support. Subject and Queue Name Validation
+
+With the release of the 2.10 server, the client has been updated to support new features. 
+The most important new feature is the ability to have multipler filter subjects for any single JetStream consumer.
+```java
+ConsumerConfiguration cc = ConsumerConfiguration.builder()
+    ...
+    .filterSubjects("subject1", "subject2")
+    .build();
+```
+
+For subjects, up until now, the client has been very strict when validating subject names for consumer subject filters and subscriptions.
+It only allowed printable ascii characters except for `*`, `>`, `.`, `\\` and `/`. This restriction has been changed to the following:
+* cannot contain spaces \r \n \t
+* cannot start or end with subject token delimiter .
+* cannot have empty segments
+This means that UTF characters are now allowed back in.
+
+For queue names, there has been inconsistent validation, if any. Queue names now require the same validation as subjects.
+**Important** We realize this may affect existing applications, but need to require consistency across clients 
+
+#### Version 2.16.14: Options properties improvements
 
 In this release, support was added to
 * support properties keys with or without the prefix 'io.nats.client.'
@@ -60,7 +81,7 @@ In this release, support was added to
 
 For details on the other features, see the "Options" sections
 
-#### Version 2.16.12 Max Payload Check
+#### Version 2.16.12: Max Payload Check
 
 As of version 2.16.12, there is no longer client side checking
 1. that a message payload is less than the server configuration (Core and JetStream publishes)
@@ -71,7 +92,7 @@ Please see unit test for examples of this behavior.
 and
 `testMaxPayloadJs` in [JetStreamPubTests.cs](src/test/java/io/nats/client/impl/JetStreamPubTests.java)
 
-#### Version 2.16.8 Websocket Support
+#### Version 2.16.8: Websocket Support
 
 As of version 2.16.8 Websocket (`ws` and `wss`) protocols are supported for connecting to the server.
 For instance, your server bootstrap url might be `ws://my-nats-host:80` or `wss://my-nats-host:443`. 
@@ -82,7 +103,7 @@ for more information.
 
 If you use secure websockets (wss), your connection must be securely configured in the same way you would configure a `tls` connection.  
 
-#### Version 2.16.0 Consumer Create
+#### Version 2.16.0: Consumer Create
 
 This release by default will use a new JetStream consumer create API when interacting with nats-server version 2.9.0 or higher. 
 This changes the subjects used by the client to create consumers, which might in some cases require changes in access and import/export configuration.
