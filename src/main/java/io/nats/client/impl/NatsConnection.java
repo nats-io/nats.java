@@ -38,12 +38,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
-import static io.nats.client.support.Validator.validateNotNull;
+import static io.nats.client.support.Validator.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 class NatsConnection implements Connection {
@@ -854,18 +852,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public Subscription subscribe(String subject) {
-
-        if (subject == null || subject.length() == 0) {
-            throw new IllegalArgumentException("Subject is required in subscribe");
-        }
-
-        Pattern pattern = Pattern.compile("\\s");
-        Matcher matcher = pattern.matcher(subject);
-
-        if (matcher.find()) {
-            throw new IllegalArgumentException("Subject cannot contain whitespace");
-        }
-
+        validateSubject(subject, true);
         return createSubscription(subject, null, null, null);
     }
 
@@ -874,28 +861,8 @@ class NatsConnection implements Connection {
      */
     @Override
     public Subscription subscribe(String subject, String queueName) {
-
-        if (subject == null || subject.length() == 0) {
-            throw new IllegalArgumentException("Subject is required in subscribe");
-        }
-
-        Pattern pattern = Pattern.compile("\\s");
-        Matcher smatcher = pattern.matcher(subject);
-
-        if (smatcher.find()) {
-            throw new IllegalArgumentException("Subject cannot contain whitespace");
-        }
-
-        if (queueName == null || queueName.length() == 0) {
-            throw new IllegalArgumentException("QueueName is required in subscribe");
-        }
-
-        Matcher qmatcher = pattern.matcher(queueName);
-
-        if (qmatcher.find()) {
-            throw new IllegalArgumentException("Queue names cannot contain whitespace");
-        }
-
+        validateSubject(subject, true);
+        validateQueueName(queueName, true);
         return createSubscription(subject, queueName, null, null);
     }
 

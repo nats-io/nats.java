@@ -31,13 +31,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class SimplificationTests extends JetStreamTestBase {
 
-    private boolean mustBeAtLeast291(ServerInfo si) {
-        return si.isSameOrNewerThanVersion("2.9.1");
-    }
-
     @Test
     public void testStreamContext() throws Exception {
-        runInJsServer(this::mustBeAtLeast291, nc -> {
+        runInJsServer(this::atLeast291, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
@@ -136,7 +132,7 @@ public class SimplificationTests extends JetStreamTestBase {
     static int FETCH_ORDERED = 3;
     @Test
     public void testFetch() throws Exception {
-        runInJsServer(this::mustBeAtLeast291, nc -> {
+        runInJsServer(this::atLeast291, nc -> {
             CreateStreamResult csr = createMemoryStream(nc);
             JetStream js = nc.jetStream();
             for (int x = 1; x <= 20; x++) {
@@ -261,7 +257,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testIterableConsumer() throws Exception {
-        runInJsServer(this::mustBeAtLeast291, nc -> {
+        runInJsServer(this::atLeast291, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createDefaultTestStream(jsm);
@@ -289,7 +285,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedIterableConsumerBasic() throws Exception {
-        runInJsServer(this::mustBeAtLeast291, nc -> {
+        runInJsServer(this::atLeast291, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
             createDefaultTestStream(jsm);
@@ -346,7 +342,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testConsumeWithHandler() throws Exception {
-        runInJsServer(this::mustBeAtLeast291, nc -> {
+        runInJsServer(this::atLeast291, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createDefaultTestStream(jsm);
@@ -384,7 +380,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testNext() throws Exception {
-        runInJsServer(this::mustBeAtLeast291, nc -> {
+        runInJsServer(this::atLeast291, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
@@ -419,7 +415,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testCoverage() throws Exception {
-        runInJsServer(this::mustBeAtLeast291, nc -> {
+        runInJsServer(this::atLeast291, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             CreateStreamResult csr = createMemoryStream(jsm);
@@ -594,7 +590,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedBehaviors() throws Exception {
-        runInJsServer(this::mustBeAtLeast291, nc -> {
+        runInJsServer(this::atLeast291, nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -605,83 +601,94 @@ public class SimplificationTests extends JetStreamTestBase {
             CreateStreamResult csr = createMemoryStream(jsm);
             StreamContext sc = js.getStreamContext(csr.stream);
             jsPublish(js, csr.subject, 101, 6);
-            testOrderedBehaviorNext(sc, new OrderedConsumerConfiguration().filterSubject(csr.subject));
-            try { jsm.deleteStream(csr.stream); } catch (Exception ignore) {};
 
-            // Get this in place before subscriptions are made
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = OrderedPullTestDropSimulator::new;
-
-            csr = createMemoryStream(jsm);
-            sc = js.getStreamContext(csr.stream);
-            jsPublish(js, csr.subject, 101, 6);
-            testOrderedBehaviorFetch(sc, new OrderedConsumerConfiguration().filterSubject(csr.subject));
-            try { jsm.deleteStream(csr.stream); } catch (Exception ignore) {};
-
-            csr = createMemoryStream(jsm);
-            sc = js.getStreamContext(csr.stream);
-            jsPublish(js, csr.subject, 101, 6);
-            testOrderedBehaviorIterable(sc, new OrderedConsumerConfiguration().filterSubject(csr.subject));
-            try { jsm.deleteStream(csr.stream); } catch (Exception ignore) {};
+            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(csr.subject);
+            OrderedConsumerContext ctx = sc.createOrderedConsumer(occ);
+            // Loop through the messages to make sure I get stream sequence 1 to 6
+            int expectedStreamSeq = 1;
+            while (expectedStreamSeq <= 6) {
+                Message m = ctx.next(1000);
+                if (m != null) {
+                    assertEquals(expectedStreamSeq, m.metaData().streamSequence());
+                    assertEquals(1, m.metaData().consumerSequence());
+                    ++expectedStreamSeq;
+                }
+            }
         });
     }
 
-    private static void testOrderedBehaviorNext(StreamContext sc, OrderedConsumerConfiguration occ) throws Exception {
-        OrderedConsumerContext ctx = sc.createOrderedConsumer(occ);
-        // Loop through the messages to make sure I get stream sequence 1 to 6
-        int expectedStreamSeq = 1;
-        while (expectedStreamSeq <= 6) {
-            Message m = ctx.next(1000);
-            if (m != null) {
-                assertEquals(expectedStreamSeq, m.metaData().streamSequence());
-                assertEquals(1, m.metaData().consumerSequence());
-                ++expectedStreamSeq;
-            }
-        }
-    }
-
-    private static void testOrderedBehaviorFetch(StreamContext sc, OrderedConsumerConfiguration occ) throws Exception {
-        OrderedConsumerContext ctx = sc.createOrderedConsumer(occ);
-        try (FetchConsumer fcon = ctx.fetchMessages(6)) {
-            // Loop through the messages to make sure I get stream sequence 1 to 6
-            int expectedStreamSeq = 1;
-            while (expectedStreamSeq <= 6) {
-                Message m = fcon.nextMessage();
-                if (m != null) {
-                    assertEquals(expectedStreamSeq, m.metaData().streamSequence());
-                    assertEquals(EXPECTED_CON_SEQ_NUMS[expectedStreamSeq-1], m.metaData().consumerSequence());
-                    ++expectedStreamSeq;
-                }
-            }
-        }
-    }
-
-    private static void testOrderedBehaviorIterable(StreamContext sc, OrderedConsumerConfiguration occ) throws Exception {
-        OrderedConsumerContext ctx = sc.createOrderedConsumer(occ);
-        try (IterableConsumer icon = ctx.iterate()) {
-            // Loop through the messages to make sure I get stream sequence 1 to 6
-            int expectedStreamSeq = 1;
-            while (expectedStreamSeq <= 6) {
-                Message m = icon.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
-                if (m != null) {
-                    assertEquals(expectedStreamSeq, m.metaData().streamSequence());
-                    assertEquals(EXPECTED_CON_SEQ_NUMS[expectedStreamSeq-1], m.metaData().consumerSequence());
-                    ++expectedStreamSeq;
-                }
-            }
-        }
-    }
-
     @Test
-    public void testOrderedConsume() throws Exception {
-        runInJsServer(this::mustBeAtLeast291, nc -> {
+    public void testOrderedBehaviorFetch() throws Exception {
+        runInJsServer(this::atLeast291, nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            String subject = subject(222);
-            createMemoryStream(jsm, stream(222), subject);
+            // Get this in place before subscriptions are made
+            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = OrderedPullTestDropSimulator::new;
 
-            StreamContext sc = js.getStreamContext(stream(222));
+            CreateStreamResult csr = createMemoryStream(jsm);
+            StreamContext sc = js.getStreamContext(csr.stream);
+            jsPublish(js, csr.subject, 101, 6);
+            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(csr.subject);
+            OrderedConsumerContext ctx = sc.createOrderedConsumer(occ);
+            try (FetchConsumer fcon = ctx.fetchMessages(6)) {
+                // Loop through the messages to make sure I get stream sequence 1 to 6
+                int expectedStreamSeq = 1;
+                while (expectedStreamSeq <= 6) {
+                    Message m = fcon.nextMessage();
+                    if (m != null) {
+                        assertEquals(expectedStreamSeq, m.metaData().streamSequence());
+                        assertEquals(EXPECTED_CON_SEQ_NUMS[expectedStreamSeq-1], m.metaData().consumerSequence());
+                        ++expectedStreamSeq;
+                    }
+                }
+            }
+        });
+    }
+
+    @Test
+    public void testOrderedBehaviorIterable() throws Exception {
+        runInJsServer(this::atLeast291, nc -> {
+            // Setup
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            // Get this in place before subscriptions are made
+            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = OrderedPullTestDropSimulator::new;
+
+            CreateStreamResult csr = createMemoryStream(jsm);
+            StreamContext sc = js.getStreamContext(csr.stream);
+            jsPublish(js, csr.subject, 101, 6);
+            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(csr.subject);
+            OrderedConsumerContext ctx = sc.createOrderedConsumer(occ);
+            try (IterableConsumer icon = ctx.iterate()) {
+                // Loop through the messages to make sure I get stream sequence 1 to 6
+                int expectedStreamSeq = 1;
+                while (expectedStreamSeq <= 6) {
+                    Message m = icon.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
+                    if (m != null) {
+                        assertEquals(expectedStreamSeq, m.metaData().streamSequence());
+                        assertEquals(EXPECTED_CON_SEQ_NUMS[expectedStreamSeq-1], m.metaData().consumerSequence());
+                        ++expectedStreamSeq;
+                    }
+                }
+            }
+        });
+    }
+
+    @Test
+    public void testOrderedConsume() throws Exception {
+        runInJsServer(this::atLeast291, nc -> {
+            // Setup
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            String subject = subject();
+            String stream = stream();
+            createMemoryStream(jsm, stream, subject);
+
+            StreamContext sc = js.getStreamContext(stream);
 
             // Get this in place before subscriptions are made
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = OrderedPullTestDropSimulator::new;
@@ -718,8 +725,47 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testOrderedConsumeMultipleSubjects() throws Exception {
+        runInJsServer(this::atLeast210, nc -> {
+            // Setup
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            String subject1 = subject();
+            String subject2 = subject();
+            String stream = stream();
+            createMemoryStream(jsm, stream, subject1, subject2);
+            jsPublish(js, subject1, 10);
+            jsPublish(js, subject2, 5);
+
+            StreamContext sc = js.getStreamContext(stream);
+
+            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubjects(subject1, subject2);
+            OrderedConsumerContext ctx = sc.createOrderedConsumer(occ);
+
+            int count1 = 0;
+            int count2 = 0;
+            try (FetchConsumer fc = ctx.fetch(FetchConsumeOptions.builder().maxMessages(20).expiresIn(2000).build())) {
+                Message m = fc.nextMessage();
+                while (m != null) {
+                    if (m.getSubject().equals(subject1)) {
+                        count1++;
+                    }
+                    else {
+                        count2++;
+                    }
+                    m = fc.nextMessage();
+                }
+            }
+
+            assertEquals(10, count1);
+            assertEquals(5, count2);
+        });
+    }
+
+    @Test
     public void testOrderedMultipleWays() throws Exception {
-        runInJsServer(this::mustBeAtLeast291, nc -> {
+        runInJsServer(this::atLeast291, nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();

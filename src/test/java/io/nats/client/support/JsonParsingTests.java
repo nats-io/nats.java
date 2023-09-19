@@ -64,8 +64,8 @@ public final class JsonParsingTests {
         addField(key(x++), HAS_SPACE, oMap, list, encodeds, decodeds);
         addField(key(x++), HAS_PRINTABLE, oMap, list, encodeds, decodeds);
         addField(key(x++), HAS_DOT, oMap, list, encodeds, decodeds);
-        addField(key(x++), HAS_STAR, oMap, list, encodeds, decodeds);
-        addField(key(x++), HAS_GT, oMap, list, encodeds, decodeds);
+        addField(key(x++), STAR_NOT_SEGMENT, oMap, list, encodeds, decodeds);
+        addField(key(x++), GT_NOT_SEGMENT, oMap, list, encodeds, decodeds);
         addField(key(x++), HAS_DASH, oMap, list, encodeds, decodeds);
         addField(key(x++), HAS_UNDER, oMap, list, encodeds, decodeds);
         addField(key(x++), HAS_DOLLAR, oMap, list, encodeds, decodeds);

@@ -285,4 +285,77 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
                 new PullHeartbeatErrorSimulator(conn, false, latch);
         return latch;
     }
+
+    @Test
+    public void testMultipleSubjectFilters() throws Exception {
+        runInJsServer(this::atLeast210, nc -> {
+            // Setup
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            String subject1 = subject();
+            String subject2 = subject();
+            String stream = stream();
+            createMemoryStream(jsm, stream, subject1, subject2);
+            jsPublish(js, subject1, 10);
+            jsPublish(js, subject2, 5);
+
+            // push ephemeral
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().filterSubjects(subject1, subject2).build();
+            JetStreamSubscription sub = js.subscribe(null, PushSubscribeOptions.builder().configuration(cc).build());
+            validateMultipleSubjectFilterSub(sub, subject1);
+
+            // pull ephemeral
+            sub = js.subscribe(null, PullSubscribeOptions.builder().configuration(cc).build());
+            sub.pullExpiresIn(15, 1000);
+            validateMultipleSubjectFilterSub(sub, subject1);
+
+            // push named
+            String name = name();
+            cc = ConsumerConfiguration.builder().filterSubjects(subject1, subject2).name(name).deliverSubject(deliver()).build();
+            jsm.addOrUpdateConsumer(stream, cc);
+            sub = js.subscribe(null, PushSubscribeOptions.builder().configuration(cc).build());
+            validateMultipleSubjectFilterSub(sub, subject1);
+
+            name = name();
+            cc = ConsumerConfiguration.builder().filterSubjects(subject1, subject2).name(name).deliverSubject(deliver()).build();
+            jsm.addOrUpdateConsumer(stream, cc);
+            sub = js.subscribe(null, PushSubscribeOptions.bind(stream, name));
+            validateMultipleSubjectFilterSub(sub, subject1);
+
+            // pull named
+            name = name();
+            cc = ConsumerConfiguration.builder().filterSubjects(subject1, subject2).name(name).build();
+            jsm.addOrUpdateConsumer(stream, cc);
+            sub = js.subscribe(null, PullSubscribeOptions.builder().configuration(cc).build());
+            sub.pullExpiresIn(15, 1000);
+            validateMultipleSubjectFilterSub(sub, subject1);
+
+            name = name();
+            cc = ConsumerConfiguration.builder().filterSubjects(subject1, subject2).name(name).build();
+            jsm.addOrUpdateConsumer(stream, cc);
+            sub = js.subscribe(null, PullSubscribeOptions.bind(stream, name));
+            sub.pullExpiresIn(15, 1000);
+            validateMultipleSubjectFilterSub(sub, subject1);
+        });
+    }
+
+    private static void validateMultipleSubjectFilterSub(JetStreamSubscription sub, String subject1) throws InterruptedException {
+        int count1 = 0;
+        int count2 = 0;
+        Message m = sub.nextMessage(1000);
+        while (m != null) {
+            if (m.getSubject().equals(subject1)) {
+                count1++;
+            }
+            else {
+                count2++;
+            }
+            m = sub.nextMessage(1000);
+        }
+
+        assertEquals(10, count1);
+        assertEquals(5, count2);
+    }
+
 }

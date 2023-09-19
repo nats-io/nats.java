@@ -20,8 +20,7 @@ import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
-import static io.nats.client.utils.TestBase.standardCloseConnection;
-import static io.nats.client.utils.TestBase.standardConnectionWait;
+import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SubscriberTests {
@@ -471,27 +470,21 @@ public class SubscriberTests {
     }
 
     @Test
-    public void testWhiteSpaceInSubject() throws Exception {
+    public void testInvalidSubjectsAndQueueNames() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
             Connection nc = Nats.connect(ts.getURI())) {
             standardConnectionWait(nc);
-            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("foo bar"));
-            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("foo\tbar"));
-            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("foo "));
-            assertThrows(IllegalArgumentException.class, () -> nc.subscribe(" foo"));
-            assertThrows(IllegalArgumentException.class, () -> nc.subscribe(" foo"));
-        }
-    }
-
-    @Test
-    public void testWhiteSpaceInQueue() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-            Connection nc = Nats.connect(ts.getURI())) {
-            standardConnectionWait(nc);
-            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("test", "foo bar"));
-            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("test", "foo\tbar"));
-            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("test", "foo "));
-            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("test", " foo"));
+            Dispatcher d = nc.createDispatcher();
+            for (String bad : BAD_SUBJECTS_OR_QUEUES) {
+                assertThrows(IllegalArgumentException.class, () -> nc.subscribe(bad));
+                assertThrows(IllegalArgumentException.class, () -> d.subscribe(bad));
+                assertThrows(IllegalArgumentException.class, () -> d.subscribe(bad, m -> {}));
+                assertThrows(IllegalArgumentException.class, () -> d.subscribe(bad, "q"));
+                assertThrows(IllegalArgumentException.class, () -> d.subscribe(bad, "q", m -> {}));
+                assertThrows(IllegalArgumentException.class, () -> nc.subscribe("s", bad));
+                assertThrows(IllegalArgumentException.class, () -> d.subscribe("s", bad));
+                assertThrows(IllegalArgumentException.class, () -> d.subscribe("s", bad, m -> {}));
+            }
         }
     }
 }

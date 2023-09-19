@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static io.nats.client.support.NatsJetStreamClientError.JsConsumerCreate290NotAvailable;
+import static io.nats.client.support.NatsJetStreamClientError.JsMultipleFilterSubjects210NotAvailable;
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
 
 class NatsJetStreamImpl implements NatsJetStreamConstants {
@@ -44,6 +45,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     final NatsConnection conn;
     final JetStreamOptions jso;
     final boolean consumerCreate290Available;
+    final boolean multipleSubjectFilter210Available;
 
     // ----------------------------------------------------------------------------------------------------
     // Create / Init
@@ -59,6 +61,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         jso = JetStreamOptions.builder(jsOptions).requestTimeout(rt).build();
 
         consumerCreate290Available = conn.getInfo().isSameOrNewerThanVersion("2.9.0") && !jso.isOptOut290ConsumerCreate();
+        multipleSubjectFilter210Available = conn.getInfo().isNewerVersionThan("2.9.99");
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -76,10 +79,16 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         if (consumerName != null && !consumerCreate290Available) {
             throw JsConsumerCreate290NotAvailable.instance();
         }
-        String durable = config.getDurable();
 
+        boolean multipleFilterSubject = config.getFilterSubjects().size() > 1;
+        if (multipleFilterSubject && !multipleSubjectFilter210Available) {
+            throw JsMultipleFilterSubjects210NotAvailable.instance();
+        }
+
+        String durable = config.getDurable();
         String subj;
-        if (consumerCreate290Available) {
+        // new consumer create not available before 290 and can't be used with multiple filter subjects
+        if (consumerCreate290Available && !multipleFilterSubject) {
             if (consumerName == null) {
                 // if both consumerName and durable are null, generate a name
                 consumerName = durable == null ? generateConsumerName() : durable;

@@ -13,10 +13,12 @@
 
 package io.nats.service;
 
+import io.nats.client.support.Validator;
+
 import java.util.Objects;
 
 import static io.nats.client.support.NatsConstants.DOT;
-import static io.nats.client.support.Validator.validateSubject;
+import static io.nats.client.support.Validator.emptyAsNull;
 
 /**
  * Group is way to organize endpoints by serving as a common prefix to all endpoints registered in it.
@@ -27,11 +29,20 @@ public class Group {
 
     /**
      * Construct a group.
-     * <p>Group names and subjects are considered 'Restricted Terms' and must only contain A-Z, a-z, 0-9, '-' or '_'</p>
+     * <p>Group names are considered 'Restricted Terms' and must only contain A-Z, a-z, 0-9, '-' or '_'</p>
      * @param name the group name
      */
     public Group(String name) {
-        this.name = validateSubject(name, "Group Name", true, true);
+        name = emptyAsNull(name);
+        if (name == null) {
+            throw new IllegalArgumentException("Group name cannot be null or empty.");
+        }
+
+        if (name.contains(">")) {
+            throw new IllegalArgumentException("Group name cannot contain '>'.");
+        }
+
+        this.name = Validator.validateSubjectTerm(name, "Group name", false);
     }
 
     /**

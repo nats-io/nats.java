@@ -31,6 +31,7 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
 
 import static io.nats.client.support.NatsConstants.DOT;
+import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_ARGUMENT;
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_STATE;
 import static io.nats.examples.ExampleUtils.uniqueEnough;
@@ -38,16 +39,31 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class TestBase {
 
+    public static final String STAR_SEGMENT        = "*.star.*.segment.*";
+    public static final String GT_LAST_SEGMENT     = "gt.last.>";
+    public static final String STARTS_WITH_DOT     = ".starts-with-dot";
+    public static final String ENDS_WITH_DOT       = "ends-with-dot.";
+    public static final String ENDS_WITH_SPACE     = "ends-with-space. ";
+    public static final String ENDS_WITH_CR       = "ends-with-space.\r";
+    public static final String ENDS_WITH_LF       = "ends-with-space.\n";
+    public static final String ENDS_WITH_TAB      = "ends-with-space.\t";
+    public static final String STAR_NOT_SEGMENT    = "star*not*segment";
+    public static final String GT_NOT_SEGMENT      = "gt>not>segment";
+    public static final String EMPTY_SEGMENT       = "blah..blah";
+
     public static final String PLAIN          = "plain";
     public static final String HAS_SPACE      = "has space";
+    public static final String STARTS_SPACE   = " startsspace";
+    public static final String ENDS_SPACE   = " endssspace ";
     public static final String HAS_PRINTABLE  = "has-print!able";
     public static final String HAS_DOT        = "has.dot";
-    public static final String HAS_STAR       = "has*star";
-    public static final String HAS_GT         = "has>gt";
     public static final String HAS_DASH       = "has-dash";
     public static final String HAS_UNDER      = "has_under";
     public static final String HAS_DOLLAR     = "has$dollar";
-    public static final String HAS_LOW        = "has\tlower\rthan\nspace";
+    public static final String HAS_CR         = "has\rcr";
+    public static final String HAS_LF         = "has\nlf";
+    public static final String HAS_TAB        = "has\ttab";
+    public static final String HAS_LOW        = "has" + (char)0 + "low";
     public static final String HAS_127        = "has" + (char)127 + "127";
     public static final String HAS_FWD_SLASH  = "has/fwd/slash";
     public static final String HAS_BACK_SLASH = "has\\back\\slash";
@@ -60,6 +76,10 @@ public class TestBase {
     public static final long MEDIUM_FLUSH_TIMEOUT_MS = 5000;
     public static final long LONG_TIMEOUT_MS = 15000;
     public static final long VERY_LONG_TIMEOUT_MS = 20000;
+
+    public static String[] BAD_SUBJECTS_OR_QUEUES = new String[] {
+        HAS_SPACE, HAS_CR, HAS_LF, HAS_TAB, STARTS_SPACE, ENDS_SPACE, null, EMPTY
+    };
 
     static {
         NatsTestServer.quiet();
@@ -290,6 +310,10 @@ public class TestBase {
 
     public static String name(Object variant) {
         return NAME + "-" + variant(variant);
+    }
+
+    public static String deliver() {
+        return DELIVER + "-" + variant(null);
     }
 
     public static String deliver(Object variant) {

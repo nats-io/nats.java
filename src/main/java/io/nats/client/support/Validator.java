@@ -17,37 +17,73 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamConstants.MAX_HISTORY_PER_KEY;
 
+@SuppressWarnings("UnusedReturnValue")
 public abstract class Validator {
-    private Validator() {
-    } /* ensures cannot be constructed */
+    private Validator() {} /* ensures cannot be constructed */
 
-    public static String validateSubject(String s, boolean required) {
-        return validateSubject(s, "Subject", required, false);
-    }
-
-    public static String validateSubject(String subject, String label, boolean required, boolean cantEndWithGt) {
-        if (emptyAsNull(subject) == null) {
+    /*
+        cannot contain spaces \r \n \t
+        cannot start or end with subject token delimiter .
+        some things don't allow it to end greater
+    */
+    public static String validateSubjectTerm(String subject, String label, boolean required) {
+        subject = emptyAsNull(subject);
+        if (subject == null) {
             if (required) {
                 throw new IllegalArgumentException(label + " cannot be null or empty.");
             }
             return null;
         }
+        if (subject.endsWith(".")) {
+            throw new IllegalArgumentException(label + " cannot end with '.'");
+        }
+
         String[] segments = subject.split("\\.");
-        for (int x = 0; x < segments.length; x++) {
-            String segment = segments[x];
-            if (segment.equals(">")) {
-                if (cantEndWithGt || x != segments.length - 1) { // if it can end with gt, gt must be last segment
-                    throw new IllegalArgumentException(label + " cannot contain '>'");
+        for (int seg = 0; seg < segments.length; seg++) {
+            String segment = segments[seg];
+            int sl = segment.length();
+            if (sl == 0) {
+                if (seg == 0) {
+                    throw new IllegalArgumentException(label + " cannot start with '.'");
+                }
+                throw new IllegalArgumentException(label + " segment cannot be empty");
+            }
+            else {
+                for (int m = 0; m < sl; m++) {
+                    char c = segment.charAt(m);
+                    switch (c) {
+                        case 32:
+                        case '\r':
+                        case '\n':
+                        case '\t':
+                            throw new IllegalArgumentException(label + " cannot contain space, tab, carriage return or linefeed character");
+                        case '*':
+                        case '>':
+                            if (sl != 1) {
+                                throw new IllegalArgumentException(label + " wildcard improperly placed.");
+                            }
+                            break;
+                    }
                 }
             }
-            else if (!segment.equals("*") && notPrintable(segment)) {
-                throw new IllegalArgumentException(label + " must be printable characters only.");
-            }
+        }
+        return subject;
+    }
+
+    public static String validateSubject(String s, boolean required) {
+        return validateSubjectTerm(s, "Subject", required);
+    }
+
+    public static String validateSubject(String subject, String label, boolean required, boolean cantEndWithGt) {
+        subject = validateSubjectTerm(subject, label, required);
+        if (subject != null && cantEndWithGt && subject.endsWith(".>")) {
+            throw new IllegalArgumentException(label + " last segment cannot be '>'");
         }
         return subject;
     }
@@ -57,7 +93,7 @@ public abstract class Validator {
     }
 
     public static String validateQueueName(String s, boolean required) {
-        return validatePrintableExceptWildDotGt(s, "Queue", required);
+        return validateSubjectTerm(s, "QueueName", required);
     }
 
     public static String validateStreamName(String s, boolean required) {
@@ -120,10 +156,6 @@ public abstract class Validator {
         throw err.instance();
     }
 
-    interface Check {
-        String check();
-    }
-
     public static String required(String s, String label) {
         if (emptyAsNull(s) == null) {
             throw new IllegalArgumentException(label + " cannot be null or empty.");
@@ -157,14 +189,14 @@ public abstract class Validator {
         }
     }
 
-    public static String _validate(String s, boolean required, String label, Check check) {
+    public static String _validate(String s, boolean required, String label, Supplier<String> customValidate) {
         if (emptyAsNull(s) == null) {
             if (required) {
                 throw new IllegalArgumentException(label + " cannot be null or empty.");
             }
             return null;
         }
-        return check.check();
+        return customValidate.get();
     }
 
     public static String validateMaxLength(String s, int maxLength, boolean required, String label) {
@@ -367,7 +399,7 @@ public abstract class Validator {
     // Helpers
     // ----------------------------------------------------------------------------------------------------
     public static boolean nullOrEmpty(String s) {
-        return s == null || s.trim().length() == 0;
+        return s == null || s.trim().isEmpty();
     }
 
     public static boolean notPrintable(String s) {
@@ -561,42 +593,40 @@ public abstract class Validator {
         return SEMVER_PATTERN.matcher(s).find();
     }
 
-    public static <T> boolean listsAreEqual(List<T> l1, List<T> l2, boolean nullSecondEqualsEmptyFirst)
+    public static <T> boolean listsAreEquivalent(List<T> l1, List<T> l2)
     {
-        if (l1 == null)
-        {
-            return l2 == null;
-        }
+        int s1 = l1 == null ? 0 : l1.size();
+        int s2 = l2 == null ? 0 : l2.size();
 
-        if (l2 == null)
-        {
-            return nullSecondEqualsEmptyFirst && l1.size() == 0;
-        }
-
-        return l1.equals(l2);
-    }
-
-
-    public static boolean mapsAreEqual(Map<String, String> m1, Map<String, String> m2, boolean nullSecondEqualsEmptyFirst)
-    {
-        if (m1 == null)
-        {
-            return m2 == null;
-        }
-
-        if (m2 == null)
-        {
-            return nullSecondEqualsEmptyFirst && m1.size() == 0;
-        }
-
-        if (m1.size() != m2.size()) {
+        if (s1 != s2) {
             return false;
         }
 
-        for (Map.Entry<String, String> entry : m1.entrySet())
-        {
-            if (!entry.getValue().equals(m2.get(entry.getKey()))) {
-                return false;
+        if (s1 > 0) {
+            for (T t : l1) {
+                if (!l2.contains(t)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    public static boolean mapsAreEquivalent(Map<String, String> m1, Map<String, String> m2)
+    {
+        int s1 = m1 == null ? 0 : m1.size();
+        int s2 = m2 == null ? 0 : m2.size();
+
+        if (s1 != s2) {
+            return false;
+        }
+
+        if (s1 > 0) {
+            for (Map.Entry<String, String> entry : m1.entrySet())
+            {
+                if (!entry.getValue().equals(m2.get(entry.getKey()))) {
+                    return false;
+                }
             }
         }
 

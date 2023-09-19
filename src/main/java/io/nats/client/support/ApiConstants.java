@@ -69,6 +69,7 @@ public interface ApiConstants {
     String EXTERNAL          = "external";
     String FILTER            = "filter";
     String FILTER_SUBJECT    = "filter_subject";
+    String FILTER_SUBJECTS   = "filter_subjects";
     String FIRST_SEQ         = "first_seq";
     String FIRST_TS          = "first_ts";
     String FLOW_CONTROL      = "flow_control";

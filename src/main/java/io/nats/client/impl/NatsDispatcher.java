@@ -23,6 +23,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static io.nats.client.support.Validator.*;
+
 class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
     private MessageQueue incoming;
@@ -187,53 +189,32 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     }
 
     public Dispatcher subscribe(String subject) {
-        if (subject == null || subject.length() == 0) {
-            throw new IllegalArgumentException("Subject is required in subscribe");
-        }
-
+        validateSubject(subject, true);
         this.subscribeImplCore(subject, null, null);
         return this;
     }
-    NatsSubscription subscribeReturningSubscription(String subject) {
-        if (subject == null || subject.length() == 0) {
-            throw new IllegalArgumentException("Subject is required in subscribe");
-        }
 
+    NatsSubscription subscribeReturningSubscription(String subject) {
+        validateSubject(subject, true);
         return this.subscribeImplCore(subject, null, null);
     }
 
     public Subscription subscribe(String subject, MessageHandler handler) {
-        if (subject == null || subject.length() == 0) {
-            throw new IllegalArgumentException("Subject is required in subscribe");
-        }
-
-        if (handler == null) {
-            throw new IllegalArgumentException("MessageHandler is required in subscribe");
-        }
+        validateSubject(subject, true);
+        required(handler, "Handler");
         return this.subscribeImplCore(subject, null, handler);
     }
 
     public Dispatcher subscribe(String subject, String queueName) {
-        if (subject == null || subject.length() == 0) {
-            throw new IllegalArgumentException("Subject is required in subscribe");
-        }
-
-        if (queueName == null || queueName.length() == 0) {
-            throw new IllegalArgumentException("QueueName is required in subscribe");
-        }
+        validateSubject(subject, true);
+        validateQueueName(queueName, true);
         this.subscribeImplCore(subject, queueName, null);
         return this;
     }
 
     public Subscription subscribe(String subject, String queueName,  MessageHandler handler) {
-        if (subject == null || subject.length() == 0) {
-            throw new IllegalArgumentException("Subject is required in subscribe");
-        }
-
-        if (queueName == null || queueName.length() == 0) {
-            throw new IllegalArgumentException("QueueName is required in subscribe");
-        }
-
+        validateSubject(subject, true);
+        validateQueueName(queueName, true);
         if (handler == null) {
             throw new IllegalArgumentException("MessageHandler is required in subscribe");
         }

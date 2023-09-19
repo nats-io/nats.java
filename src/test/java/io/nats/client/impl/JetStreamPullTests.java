@@ -121,13 +121,13 @@ public class JetStreamPullTests extends JetStreamTestBase {
             Duration ackWaitDur = Duration.ofMillis(fetchMs * 2);
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .ackWait(ackWaitDur)
-                    .build();
+                .ackWait(ackWaitDur)
+                .build();
 
             PullSubscribeOptions options = PullSubscribeOptions.builder()
-                    .durable(DURABLE)
-                    .configuration(cc)
-                    .build();
+                .durable(DURABLE)
+                .configuration(cc)
+                .build();
 
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
             assertSubscription(sub, STREAM, DURABLE, null, true);
@@ -638,7 +638,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testNamed() throws Exception {
-        runInJsServer(nc -> {
+        runInJsServer(this::atLeast290, nc -> {
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
@@ -1017,7 +1017,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
-            jsm.addOrUpdateConsumer(STREAM, builder().durable(durable(1)).ackPolicy(AckPolicy.None).build());
+            jsm.addOrUpdateConsumer(STREAM, builder().durable(durable(1)).ackPolicy(AckPolicy.None).filterSubjects(SUBJECT).build());
             PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
 
@@ -1049,7 +1049,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             createDefaultTestStream(nc);
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
-            jsm.addOrUpdateConsumer(STREAM, builder().durable(durable(1)).ackPolicy(AckPolicy.None).build());
+            jsm.addOrUpdateConsumer(STREAM, builder().durable(durable(1)).ackPolicy(AckPolicy.None).filterSubjects(SUBJECT).build());
             PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, durable(1));
             JetStreamSubscription sub = js.subscribe(SUBJECT, so);
 
@@ -1079,7 +1079,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // Pre define a consumer
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).filterSubjects(SUBJECT).build();
             jsm.addOrUpdateConsumer(STREAM, cc);
 
             PullSubscribeOptions so = PullSubscribeOptions.bind(STREAM, DURABLE);
