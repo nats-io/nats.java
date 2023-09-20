@@ -562,8 +562,8 @@ The Java NATS library provides two mechanisms to listen for messages, three if y
 
 ## JetStream
 
-Publishing and subscribing to JetStream enabled servers is straightforward.  A 
-JetStream enabled application will connect to a server, establish a JetStream 
+Publishing and subscribing to JetStream-enabled servers is straightforward. A 
+JetStream-enabled application will connect to a server, establish a JetStream 
 context, and then publish or subscribe.  This can be mixed and matched with standard
 NATS subject, and JetStream subscribers, depending on configuration, receive messages
 from both streams and directly from other NATS producers.
@@ -769,12 +769,12 @@ in the JetStream examples for a detailed and runnable example.
 **Iterate:**
 
 ```java
-        Iterator<Message> iter = sub.iterate(100, Duration.ofSeconds(1));
-        while (iter.hasNext()) {
-            Message m = iter.next();
-            // process message
-            m.ack();
-        }
+Iterator<Message> iter = sub.iterate(100, Duration.ofSeconds(1));
+while (iter.hasNext()) {
+    Message m = iter.next();
+    // process message
+    m.ack();
+}
 ```
 
 The iterate method is a *macro* pull that uses advanced pulls under the covers to return an iterator.
