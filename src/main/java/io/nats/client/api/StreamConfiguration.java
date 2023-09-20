@@ -56,6 +56,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final Duration duplicateWindow;
     private final Placement placement;
     private final Republish republish;
+    private final SubjectTransform subjectTransform;
     private final Mirror mirror;
     private final List<Source> sources;
     private final boolean sealed;
@@ -89,6 +90,7 @@ public class StreamConfiguration implements JsonSerializable {
         builder.subjects(readStringList(v, SUBJECTS));
         builder.placement(Placement.optionalInstance(readValue(v, PLACEMENT)));
         builder.republish(Republish.optionalInstance(readValue(v, REPUBLISH)));
+        builder.subjectTransform(SubjectTransform.optionalInstance(readValue(v, SUBJECT_TRANSFORM)));
         builder.mirror(Mirror.optionalInstance(readValue(v, MIRROR)));
         builder.sources(Source.optionalListOf(readValue(v, SOURCES)));
         builder.sealed(readBoolean(v, SEALED));
@@ -124,6 +126,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.duplicateWindow = b.duplicateWindow;
         this.placement = b.placement;
         this.republish = b.republish;
+        this.subjectTransform = b.subjectTransform;
         this.mirror = b.mirror;
         this.sources = b.sources;
         this.sealed = b.sealed;
@@ -170,6 +173,9 @@ public class StreamConfiguration implements JsonSerializable {
         }
         if (republish != null) {
             addField(sb, REPUBLISH, republish);
+        }
+        if (subjectTransform != null) {
+            addField(sb, SUBJECT_TRANSFORM, subjectTransform);
         }
         if (mirror != null) {
             addField(sb, MIRROR, mirror);
@@ -344,6 +350,14 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
+     * Get the subjectTransform configuration. May be null.
+     * @return the subjectTransform object
+     */
+    public SubjectTransform getSubjectTransform() {
+        return subjectTransform;
+    }
+
+    /**
      * The mirror definition for this stream
      * @return the mirror
      */
@@ -511,6 +525,7 @@ public class StreamConfiguration implements JsonSerializable {
         private Duration duplicateWindow = Duration.ZERO;
         private Placement placement = null;
         private Republish republish = null;
+        private SubjectTransform subjectTransform = null;
         private Mirror mirror = null;
         private final List<Source> sources = new ArrayList<>();
         private boolean sealed = false;
@@ -553,6 +568,7 @@ public class StreamConfiguration implements JsonSerializable {
                 this.duplicateWindow = sc.duplicateWindow;
                 this.placement = sc.placement;
                 this.republish = sc.republish;
+                this.subjectTransform = sc.subjectTransform;
                 this.mirror = sc.mirror;
                 sources(sc.sources);
                 this.sealed = sc.sealed;
@@ -812,12 +828,22 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Sets the republish directive object
-         * @param republish the republish directive object
+         * Sets the republish config object
+         * @param republish the republish config object
          * @return Builder
          */
         public Builder republish(Republish republish) {
             this.republish = republish;
+            return this;
+        }
+
+        /**
+         * Sets the subjectTransform config object
+         * @param subjectTransform the subjectTransform config object
+         * @return Builder
+         */
+        public Builder subjectTransform(SubjectTransform subjectTransform) {
+            this.subjectTransform = subjectTransform;
             return this;
         }
 

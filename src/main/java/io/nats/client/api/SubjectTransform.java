@@ -17,41 +17,43 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.Validator;
 
-import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.ApiConstants.DEST;
+import static io.nats.client.support.ApiConstants.SRC;
 import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.JsonValueUtils.readBoolean;
 import static io.nats.client.support.JsonValueUtils.readString;
 
 /**
- * Republish Configuration
+ * SubjectTransform
  */
-public class Republish implements JsonSerializable {
+public class SubjectTransform implements JsonSerializable {
     private final String source;
     private final String destination;
-    private final boolean headersOnly;
 
-    static Republish optionalInstance(JsonValue vRepublish) {
-        return vRepublish == null ? null : new Republish(vRepublish);
+    static SubjectTransform optionalInstance(JsonValue vSubjectTransform) {
+        return vSubjectTransform == null ? null : new SubjectTransform(vSubjectTransform);
     }
 
-    Republish(JsonValue vRepublish) {
-        source = readString(vRepublish, SRC);
-        destination = readString(vRepublish, DEST);
-        headersOnly = readBoolean(vRepublish, HEADERS_ONLY);
+    SubjectTransform(JsonValue vSubjectTransform) {
+        source = readString(vSubjectTransform, SRC);
+        destination = readString(vSubjectTransform, DEST);
     }
 
     /**
-     * Construct a 'republish' object
+     * Construct a 'SubjectTransform' object
      * @param source the Published Subject-matching filter
-     * @param destination the RePublish Subject template
-     * @param headersOnly Whether to RePublish only headers (no body)
+     * @param destination the SubjectTransform Subject template
      */
-    public Republish(String source, String destination, boolean headersOnly) {
-        Validator.required(source, "Source");
-        Validator.required(destination, "Destination");
+    public SubjectTransform(String source, String destination) {
+        source = Validator.emptyAsNull(source);
+        destination = Validator.emptyAsNull(destination);
+        if (source == null) {
+            if (destination == null) {
+                throw new IllegalArgumentException("Source and/or destination is required.");
+            }
+            source = ">";
+        }
         this.source = source;
         this.destination = destination;
-        this.headersOnly = headersOnly;
     }
 
     /**
@@ -63,26 +65,17 @@ public class Republish implements JsonSerializable {
     }
 
     /**
-     * Get destination, the RePublish Subject template
+     * Get destination, the SubjectTransform Subject template
      * @return the destination
      */
     public String getDestination() {
         return destination;
     }
 
-    /**
-     * Get headersOnly, Whether to RePublish only headers (no body)
-     * @return headersOnly
-     */
-    public boolean isHeadersOnly() {
-        return headersOnly;
-    }
-
     public String toJson() {
         StringBuilder sb = beginJson();
         addField(sb, SRC, source);
         addField(sb, DEST, destination);
-        addFldWhenTrue(sb, HEADERS_ONLY, headersOnly);
         return endJson(sb).toString();
     }
 
@@ -100,7 +93,6 @@ public class Republish implements JsonSerializable {
     public static class Builder {
         private String source;
         private String destination;
-        private boolean headersOnly;
 
         /**
          * Set the Published Subject-matching filter
@@ -112,7 +104,7 @@ public class Republish implements JsonSerializable {
             return this;
         }
         /**
-         * Set the RePublish Subject template
+         * Set the SubjectTransform Subject template
          * @param destination the destination
          * @return the builder
          */
@@ -122,21 +114,11 @@ public class Republish implements JsonSerializable {
         }
 
         /**
-         * set Whether to RePublish only headers (no body)
-         * @param headersOnly the flag
-         * @return Builder
-         */
-        public Builder headersOnly(Boolean headersOnly) {
-            this.headersOnly = headersOnly;
-            return this;
-        }
-
-        /**
          * Build a Placement object
          * @return the Placement
          */
-        public Republish build() {
-            return new Republish(source, destination, headersOnly);
+        public SubjectTransform build() {
+            return new SubjectTransform(source, destination);
         }
     }
 }

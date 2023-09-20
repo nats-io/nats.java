@@ -1,7 +1,7 @@
 {
   "name": "sname",
   "description": "blah blah",
-  "subjects": ["foo", "bar", "repub.>"],
+  "subjects": ["foo", "bar", "repub.>", "st.>"],
   "retention": "interest",
   "compression": "s2",
   "max_consumers": 730,
@@ -33,6 +33,10 @@
     "src": "repub.>",
     "dest": "dest.>",
     "headers_only": true
+  },
+  "subject_transform": {
+    "src": "st.>",
+    "dest": "stdest.>"
   },
   "mirror": {
     "name": "eman",
