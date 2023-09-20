@@ -3,6 +3,7 @@
   "description": "blah blah",
   "subjects": ["foo", "bar", "repub.>"],
   "retention": "interest",
+  "compression": "s2",
   "max_consumers": 730,
   "max_msgs": 731,
   "max_msgs_per_subject": 741,
