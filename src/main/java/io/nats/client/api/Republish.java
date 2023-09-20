@@ -42,7 +42,7 @@ public class Republish implements JsonSerializable {
 
     /**
      * Construct a 'republish' object
-     * @param source the Published Subject-matching filter
+     * @param source the Published subject matching filter
      * @param destination the RePublish Subject template
      * @param headersOnly Whether to RePublish only headers (no body)
      */
@@ -55,7 +55,7 @@ public class Republish implements JsonSerializable {
     }
 
     /**
-     * Get source, the Published Subject-matching filter
+     * Get source, the Published subject matching filter
      * @return the source
      */
     public String getSource() {

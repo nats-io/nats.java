@@ -1,4 +1,4 @@
-// Copyright 2022 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -15,7 +15,6 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
-import io.nats.client.support.Validator;
 
 import static io.nats.client.support.ApiConstants.DEST;
 import static io.nats.client.support.ApiConstants.SRC;
@@ -40,24 +39,16 @@ public class SubjectTransform implements JsonSerializable {
 
     /**
      * Construct a 'SubjectTransform' object
-     * @param source the Published Subject-matching filter
+     * @param source the subject matching filter
      * @param destination the SubjectTransform Subject template
      */
     public SubjectTransform(String source, String destination) {
-        source = Validator.emptyAsNull(source);
-        destination = Validator.emptyAsNull(destination);
-        if (source == null) {
-            if (destination == null) {
-                throw new IllegalArgumentException("Source and/or destination is required.");
-            }
-            source = ">";
-        }
         this.source = source;
         this.destination = destination;
     }
 
     /**
-     * Get source, the Published Subject-matching filter
+     * Get source, the subject matching filter
      * @return the source
      */
     public String getSource() {

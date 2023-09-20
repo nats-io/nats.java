@@ -461,7 +461,6 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             assertNotNull(sc.getSubjectTransform());
             assertEquals("st.>", sc.getSubjectTransform().getSource());
             assertEquals("stdest.>", sc.getSubjectTransform().getDestination());
-            assertTrue(sc.getRepublish().isHeadersOnly());
         }
     }
 
@@ -499,15 +498,26 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> Republish.builder().source("src.>").build());
         assertThrows(IllegalArgumentException.class, () -> Republish.builder().destination("dest.>").build());
 
-        Republish p = Republish.builder().source("src.>").destination("dest.>").build();
-        assertEquals("src.>", p.getSource());
-        assertEquals("dest.>", p.getDestination());
-        assertFalse(p.isHeadersOnly());
+        Republish r = Republish.builder().source("src.>").destination("dest.>").build();
+        assertEquals("src.>", r.getSource());
+        assertEquals("dest.>", r.getDestination());
+        assertFalse(r.isHeadersOnly());
 
-        p = Republish.builder().source("src.>").destination("dest.>").headersOnly(true).build();
-        assertEquals("src.>", p.getSource());
-        assertEquals("dest.>", p.getDestination());
-        assertTrue(p.isHeadersOnly());
+        r = Republish.builder().source("src.>").destination("dest.>").headersOnly(true).build();
+        assertEquals("src.>", r.getSource());
+        assertEquals("dest.>", r.getDestination());
+        assertTrue(r.isHeadersOnly());
+    }
+
+    @Test
+    public void testSubjectTransform() {
+        SubjectTransform st = SubjectTransform.builder().source("src.>").destination("dest.>").build();
+        assertEquals("src.>", st.getSource());
+        assertEquals("dest.>", st.getDestination());
+
+        st = SubjectTransform.builder().build();
+        assertNull(st.getSource());
+        assertNull(st.getDestination());
     }
 
     @Test
