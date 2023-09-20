@@ -57,6 +57,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final Placement placement;
     private final Republish republish;
     private final SubjectTransform subjectTransform;
+    private final ConsumerLimits consumerLimits;
     private final Mirror mirror;
     private final List<Source> sources;
     private final boolean sealed;
@@ -91,6 +92,7 @@ public class StreamConfiguration implements JsonSerializable {
         builder.placement(Placement.optionalInstance(readValue(v, PLACEMENT)));
         builder.republish(Republish.optionalInstance(readValue(v, REPUBLISH)));
         builder.subjectTransform(SubjectTransform.optionalInstance(readValue(v, SUBJECT_TRANSFORM)));
+        builder.consumerLimits(ConsumerLimits.optionalInstance(readValue(v, CONSUMER_LIMITS)));
         builder.mirror(Mirror.optionalInstance(readValue(v, MIRROR)));
         builder.sources(Source.optionalListOf(readValue(v, SOURCES)));
         builder.sealed(readBoolean(v, SEALED));
@@ -127,6 +129,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.placement = b.placement;
         this.republish = b.republish;
         this.subjectTransform = b.subjectTransform;
+        this.consumerLimits = b.consumerLimits;
         this.mirror = b.mirror;
         this.sources = b.sources;
         this.sealed = b.sealed;
@@ -168,20 +171,12 @@ public class StreamConfiguration implements JsonSerializable {
         addField(sb, TEMPLATE_OWNER, templateOwner);
         addField(sb, DISCARD, discardPolicy.toString());
         addFieldAsNanos(sb, DUPLICATE_WINDOW, duplicateWindow);
-        if (placement != null) {
-            addField(sb, PLACEMENT, placement);
-        }
-        if (republish != null) {
-            addField(sb, REPUBLISH, republish);
-        }
-        if (subjectTransform != null) {
-            addField(sb, SUBJECT_TRANSFORM, subjectTransform);
-        }
-        if (mirror != null) {
-            addField(sb, MIRROR, mirror);
-        }
+        addField(sb, PLACEMENT, placement);
+        addField(sb, REPUBLISH, republish);
+        addField(sb, SUBJECT_TRANSFORM, subjectTransform);
+        addField(sb, CONSUMER_LIMITS, consumerLimits);
+        addField(sb, MIRROR, mirror);
         addJsons(sb, SOURCES, sources);
-
         addFldWhenTrue(sb, SEALED, sealed);
         addFldWhenTrue(sb, ALLOW_ROLLUP_HDRS, allowRollup);
         addFldWhenTrue(sb, ALLOW_DIRECT, allowDirect);
@@ -358,6 +353,14 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
+     * Get the consumerLimits configuration. May be null.
+     * @return the consumerLimits object
+     */
+    public ConsumerLimits getConsumerLimits() {
+        return consumerLimits;
+    }
+
+    /**
      * The mirror definition for this stream
      * @return the mirror
      */
@@ -526,6 +529,7 @@ public class StreamConfiguration implements JsonSerializable {
         private Placement placement = null;
         private Republish republish = null;
         private SubjectTransform subjectTransform = null;
+        private ConsumerLimits consumerLimits = null;
         private Mirror mirror = null;
         private final List<Source> sources = new ArrayList<>();
         private boolean sealed = false;
@@ -569,6 +573,7 @@ public class StreamConfiguration implements JsonSerializable {
                 this.placement = sc.placement;
                 this.republish = sc.republish;
                 this.subjectTransform = sc.subjectTransform;
+                this.consumerLimits = sc.consumerLimits;
                 this.mirror = sc.mirror;
                 sources(sc.sources);
                 this.sealed = sc.sealed;
@@ -844,6 +849,16 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder subjectTransform(SubjectTransform subjectTransform) {
             this.subjectTransform = subjectTransform;
+            return this;
+        }
+
+        /**
+         * Sets the consumerLimits config object
+         * @param consumerLimits the consumerLimits config object
+         * @return Builder
+         */
+        public Builder consumerLimits(ConsumerLimits consumerLimits) {
+            this.consumerLimits = consumerLimits;
             return this;
         }
 

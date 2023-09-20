@@ -38,6 +38,10 @@
     "src": "st.>",
     "dest": "stdest.>"
   },
+  "consumer_limits": {
+    "inactive_threshold": 50000000000,
+    "max_ack_pending": 42
+  },
   "mirror": {
     "name": "eman",
     "opt_start_seq": 736,
