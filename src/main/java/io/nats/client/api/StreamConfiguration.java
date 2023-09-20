@@ -41,7 +41,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final String description;
     private final List<String> subjects;
     private final RetentionPolicy retentionPolicy;
-    private final CompressionPolicy compressionPolicy;
+    private final CompressionOption compressionOption;
     private final long maxConsumers;
     private final long maxMsgs;
     private final long maxMsgsPerSubject;
@@ -71,7 +71,7 @@ public class StreamConfiguration implements JsonSerializable {
     static StreamConfiguration instance(JsonValue v) {
         Builder builder = new Builder();
         builder.retentionPolicy(RetentionPolicy.get(readString(v, RETENTION)));
-        builder.compressionPolicy(CompressionPolicy.get(readString(v, COMPRESSION)));
+        builder.compressionOption(CompressionOption.get(readString(v, COMPRESSION)));
         builder.storageType(StorageType.get(readString(v, STORAGE)));
         builder.discardPolicy(DiscardPolicy.get(readString(v, DISCARD)));
         builder.name(readString(v, NAME));
@@ -109,7 +109,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.description = b.description;
         this.subjects = b.subjects;
         this.retentionPolicy = b.retentionPolicy;
-        this.compressionPolicy = b.compressionPolicy;
+        this.compressionOption = b.compressionOption;
         this.maxConsumers = b.maxConsumers;
         this.maxMsgs = b.maxMsgs;
         this.maxMsgsPerSubject = b.maxMsgsPerSubject;
@@ -150,8 +150,8 @@ public class StreamConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, DESCRIPTION, description);
         addStrings(sb, SUBJECTS, subjects);
         addField(sb, RETENTION, retentionPolicy.toString());
-        if (compressionPolicy != CompressionPolicy.None) {
-            addField(sb, COMPRESSION, compressionPolicy.toString());
+        if (compressionOption != CompressionOption.None) {
+            addField(sb, COMPRESSION, compressionOption.toString());
         }
         addField(sb, MAX_CONSUMERS, maxConsumers);
         addField(sb, MAX_MSGS, maxMsgs);
@@ -230,11 +230,11 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Gets the compression policy for this stream configuration.
-     * @return the compression policy for this stream.
+     * Gets the compression option for this stream configuration.
+     * @return the compression option for this stream.
      */
-    public CompressionPolicy getCompressionPolicy() {
-        return compressionPolicy;
+    public CompressionOption getCompressionOption() {
+        return compressionOption;
     }
 
     /**
@@ -439,7 +439,7 @@ public class StreamConfiguration implements JsonSerializable {
             ", description='" + description + '\'' +
             ", subjects=" + subjects +
             ", retentionPolicy=" + retentionPolicy +
-            ", compressionPolicy=" + compressionPolicy +
+            ", compressionOption=" + compressionOption +
             ", maxConsumers=" + maxConsumers +
             ", maxMsgs=" + maxMsgs +
             ", maxMsgsPerSubject=" + maxMsgsPerSubject +
@@ -496,7 +496,7 @@ public class StreamConfiguration implements JsonSerializable {
         private String description = null;
         private final List<String> subjects = new ArrayList<>();
         private RetentionPolicy retentionPolicy = RetentionPolicy.Limits;
-        private CompressionPolicy compressionPolicy = CompressionPolicy.None;
+        private CompressionOption compressionOption = CompressionOption.None;
         private long maxConsumers = -1;
         private long maxMsgs = -1;
         private long maxMsgsPerSubject = -1;
@@ -538,7 +538,7 @@ public class StreamConfiguration implements JsonSerializable {
                 this.description = sc.description;
                 subjects(sc.subjects);
                 this.retentionPolicy = sc.retentionPolicy;
-                this.compressionPolicy = sc.compressionPolicy;
+                this.compressionOption = sc.compressionOption;
                 this.maxConsumers = sc.maxConsumers;
                 this.maxMsgs = sc.maxMsgs;
                 this.maxMsgsPerSubject = sc.maxMsgsPerSubject;
@@ -648,12 +648,12 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Sets the compression policy in the StreamConfiguration.
-         * @param policy the compression policy of the StreamConfiguration
+         * Sets the compression option in the StreamConfiguration.
+         * @param compressionOption the compression option of the StreamConfiguration
          * @return Builder
          */
-        public Builder compressionPolicy(CompressionPolicy policy) {
-            this.compressionPolicy = policy == null ? CompressionPolicy.None : policy;
+        public Builder compressionOption(CompressionOption compressionOption) {
+            this.compressionOption = compressionOption == null ? CompressionOption.None : compressionOption;
             return this;
         }
 

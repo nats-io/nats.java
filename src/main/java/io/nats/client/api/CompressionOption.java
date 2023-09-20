@@ -19,13 +19,13 @@ import java.util.Map;
 /**
  * Stream compression policies.
  */
-public enum CompressionPolicy {
+public enum CompressionOption {
     None("none"),
     S2("s2");
 
     private final String policy;
 
-    CompressionPolicy(String p) {
+    CompressionOption(String p) {
         policy = p;
     }
 
@@ -34,15 +34,15 @@ public enum CompressionPolicy {
         return policy;
     }
 
-    private static final Map<String, CompressionPolicy> strEnumHash = new HashMap<>();
+    private static final Map<String, CompressionOption> strEnumHash = new HashMap<>();
 
     static {
-        for (CompressionPolicy env : CompressionPolicy.values()) {
+        for (CompressionOption env : CompressionOption.values()) {
             strEnumHash.put(env.toString(), env);
         }
     }
 
-    public static CompressionPolicy get(String value) {
+    public static CompressionOption get(String value) {
         return strEnumHash.get(value);
     }
 }

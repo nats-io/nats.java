@@ -26,8 +26,8 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.*;
 
-import static io.nats.client.api.CompressionPolicy.None;
-import static io.nats.client.api.CompressionPolicy.S2;
+import static io.nats.client.api.CompressionOption.None;
+import static io.nats.client.api.CompressionOption.S2;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamConfigurationTests extends JetStreamTestBase {
@@ -42,7 +42,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     @Test
     public void testRoundTrip() throws Exception {
         runInJsServer(si -> si.isNewerVersionThan("2.8.4"), nc -> {
-            CompressionPolicy compressionPolicy = nc.getServerInfo().isOlderThanVersion("2.10.0") ? None : S2;
+            CompressionOption compressionOption = nc.getServerInfo().isOlderThanVersion("2.10.0") ? None : S2;
             StreamConfiguration sc = StreamConfiguration.builder(getTestConfiguration())
                 .mirror(null)
                 .sources()
@@ -52,10 +52,10 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .allowDirect(false)
                 .mirrorDirect(false)
                 .sealed(false)
-                .compressionPolicy(compressionPolicy)
+                .compressionOption(compressionOption)
                 .build();
             JetStreamManagement jsm = nc.jetStreamManagement();
-            validate(jsm.addStream(sc).getConfiguration(), true, compressionPolicy);
+            validate(jsm.addStream(sc).getConfiguration(), true, compressionOption);
         });
     }
 
@@ -79,7 +79,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .description(testSc.getDescription())
             .subjects(testSc.getSubjects())
             .retentionPolicy(testSc.getRetentionPolicy())
-            .compressionPolicy(testSc.getCompressionPolicy())
+            .compressionOption(testSc.getCompressionOption())
             .maxConsumers(testSc.getMaxConsumers())
             .maxMessages(testSc.getMaxMsgs())
             .maxMessagesPerSubject(testSc.getMaxMsgsPerSubject())
@@ -346,19 +346,19 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testCompressionPolicy() {
+    public void testCompressionOption() {
         StreamConfiguration.Builder builder = StreamConfiguration.builder();
-        assertEquals(None, builder.build().getCompressionPolicy());
+        assertEquals(None, builder.build().getCompressionOption());
 
-        builder.compressionPolicy(None);
-        assertEquals(None, builder.build().getCompressionPolicy());
+        builder.compressionOption(None);
+        assertEquals(None, builder.build().getCompressionOption());
 
-        builder.compressionPolicy(null);
-        assertEquals(None, builder.build().getCompressionPolicy());
+        builder.compressionOption(null);
+        assertEquals(None, builder.build().getCompressionOption());
         assertFalse(builder.build().toJson().contains("\"compression\""));
 
-        builder.compressionPolicy(S2);
-        assertEquals(S2, builder.build().getCompressionPolicy());
+        builder.compressionOption(S2);
+        assertEquals(S2, builder.build().getCompressionOption());
         assertTrue(builder.build().toJson().contains("\"compression\":\"s2\""));
     }
 
@@ -386,7 +386,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(DiscardPolicy.Old, builder.build().getDiscardPolicy());
     }
 
-    private void validate(StreamConfiguration sc, boolean serverTest, CompressionPolicy compressionPolicy) {
+    private void validate(StreamConfiguration sc, boolean serverTest, CompressionOption compressionOption) {
         assertEquals("sname", sc.getName());
         assertEquals("blah blah", sc.getDescription());
         assertEquals(3, sc.getSubjects().size());
@@ -419,7 +419,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertTrue(sc.getRepublish().isHeadersOnly());
 
         ZonedDateTime zdt = DateTimeUtils.parseDateTime("2020-11-05T19:33:21.163377Z");
-        assertSame(compressionPolicy, sc.getCompressionPolicy());
+        assertSame(compressionOption, sc.getCompressionOption());
 
         if (serverTest) {
             assertEquals(1, sc.getReplicas());
