@@ -394,6 +394,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals("bar", sc.getSubjects().get(1));
         assertEquals("repub.>", sc.getSubjects().get(2));
 
+        assertSame(compressionOption, sc.getCompressionOption());
+
         assertSame(RetentionPolicy.Interest, sc.getRetentionPolicy());
         assertEquals(730, sc.getMaxConsumers());
         assertEquals(731, sc.getMaxMsgs());
@@ -419,7 +421,6 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertTrue(sc.getRepublish().isHeadersOnly());
 
         ZonedDateTime zdt = DateTimeUtils.parseDateTime("2020-11-05T19:33:21.163377Z");
-        assertSame(compressionOption, sc.getCompressionOption());
 
         if (serverTest) {
             assertEquals(1, sc.getReplicas());
