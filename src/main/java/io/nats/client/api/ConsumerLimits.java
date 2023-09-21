@@ -72,7 +72,7 @@ public class ConsumerLimits implements JsonSerializable {
     }
 
     /**
-     * Creates a builder for a placements object.
+     * Creates a builder for a consumer limits object.
      * @return the builder.
      */
     public static Builder builder() {
@@ -80,7 +80,7 @@ public class ConsumerLimits implements JsonSerializable {
     }
 
     /**
-     * Placement can be created using a Builder.
+     * ConsumerLimits can be created using a Builder.
      */
     public static class Builder {
         private Duration inactiveThreshold;
@@ -127,8 +127,8 @@ public class ConsumerLimits implements JsonSerializable {
         }
 
         /**
-         * Build a Placement object
-         * @return the Placement
+         * Build a ConsumerLimits object
+         * @return the ConsumerLimits
          */
         public ConsumerLimits build() {
             return new ConsumerLimits(this);
