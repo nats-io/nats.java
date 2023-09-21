@@ -18,10 +18,12 @@ import io.nats.client.impl.NatsMessage;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.NatsConstants.*;
@@ -62,6 +64,45 @@ public class PublishTests {
                 fail();
             }
         });
+    }
+
+    @Test
+    public void testThrowsIfTooBig() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/max_payload.conf", false, false))
+        {
+            Connection nc = Nats.connect(ts.getURI());
+            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+
+            byte[] body = new byte[1001];
+            assertThrows(IllegalArgumentException.class, () -> nc.publish("subject", null, null, body));
+            nc.close();
+
+            AtomicBoolean mpv = new AtomicBoolean(false);
+            AtomicBoolean se = new AtomicBoolean(false);
+            ErrorListener el = new ErrorListener() {
+                @Override
+                public void errorOccurred(Connection conn, String error) {
+                    mpv.set(error.contains("Maximum Payload Violation"));
+                }
+
+                @Override
+                public void exceptionOccurred(Connection conn, Exception exp) {
+                    se.set(exp instanceof SocketException);
+                }
+            };
+            Options options = Options.builder()
+                .server(ts.getURI())
+                .clientSideLimitChecks(false)
+                .errorListener(el)
+                .build();
+            Connection nc2 = Nats.connect(options);
+            assertSame(Connection.Status.CONNECTED, nc2.getStatus(), "Connected Status");
+            nc2.publish("subject", null, null, body);
+
+            sleep(100);
+            assertTrue(mpv.get());
+            assertTrue(se.get());
+        }
     }
 
     @Test

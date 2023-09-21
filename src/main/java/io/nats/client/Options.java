@@ -319,6 +319,10 @@ public class Options {
      */
     public static final String PROP_REPORT_NO_RESPONDERS = PFX + "reportNoResponders";
     /**
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#clientSideLimitChecks() clientSideLimitChecks}.
+     */
+    public static final String PROP_CLIENT_SIDE_LIMIT_CHECKS = PFX + "clientsidelimitchecks";
+    /**
      * Property used to configure a builder from a Properties object. {@value},
      * see {@link Builder#servers(String[]) servers}. The value can be a comma-separated list of server URLs.
      */
@@ -423,12 +427,6 @@ public class Options {
      * Property used to set the path to a credentials file to be used in a FileAuthHandler
      */
     public static final String PROP_CREDENTIAL_PATH = PFX + "credential.path";
-    /**
-     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#clientSideLimitChecks() clientSideLimitChecks}.
-     * @deprecated Client Side Limit checks are no longer performed.
-     */
-    @Deprecated
-    public static final String PROP_CLIENT_SIDE_LIMIT_CHECKS = PFX + "clientsidelimitchecks";
     /**
      * This property is used to enable support for UTF8 subjects. See {@link Builder#supportUTF8Subjects() supportUTF8Subjects()}
      * @deprecated only plain ascii subjects are supported
@@ -557,6 +555,7 @@ public class Options {
     private final boolean noEcho;
     private final boolean noHeaders;
     private final boolean noNoResponders;
+    private final boolean clientSideLimitChecks;
     private final int maxMessagesInOutgoingQueue;
     private final boolean discardMessagesWhenOutgoingQueueFull;
     private final boolean ignoreDiscoveredServers;
@@ -661,6 +660,7 @@ public class Options {
         private boolean noEcho = false;
         private boolean noHeaders = false;
         private boolean noNoResponders = false;
+        private boolean clientSideLimitChecks = true;
         private String inboxPrefix = DEFAULT_INBOX_PREFIX;
         private int maxMessagesInOutgoingQueue = DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
@@ -762,6 +762,7 @@ public class Options {
             booleanProperty(props, PROP_NO_ECHO, b -> this.noEcho = b);
             booleanProperty(props, PROP_NO_HEADERS, b -> this.noHeaders = b);
             booleanProperty(props, PROP_NO_NORESPONDERS, b -> this.noNoResponders = b);
+            booleanProperty(props, PROP_CLIENT_SIDE_LIMIT_CHECKS, b -> this.clientSideLimitChecks = b);
             booleanProperty(props, PROP_PEDANTIC, b -> this.pedantic = b);
 
             intProperty(props, PROP_MAX_RECONNECT, DEFAULT_MAX_RECONNECT, i -> this.maxReconnect = i);
@@ -896,12 +897,12 @@ public class Options {
         }
 
         /**
-         * @deprecated Client Side Limit checks are no longer performed.
+         * Set client side limit checks. Default is true
          * @param checks the checks flag
          * @return the Builder for chaining
          */
-        @Deprecated
         public Builder clientSideLimitChecks(boolean checks) {
+            this.clientSideLimitChecks = checks;
             return this;
         }
 
@@ -1602,6 +1603,7 @@ public class Options {
             this.noEcho = o.noEcho;
             this.noHeaders = o.noHeaders;
             this.noNoResponders = o.noNoResponders;
+            this.clientSideLimitChecks = o.clientSideLimitChecks;
             this.inboxPrefix = o.inboxPrefix;
             this.traceConnection = o.traceConnection;
             this.maxMessagesInOutgoingQueue = o.maxMessagesInOutgoingQueue;
@@ -1661,6 +1663,7 @@ public class Options {
         this.noEcho = b.noEcho;
         this.noHeaders = b.noHeaders;
         this.noNoResponders = b.noNoResponders;
+        this.clientSideLimitChecks = b.clientSideLimitChecks;
         this.inboxPrefix = b.inboxPrefix;
         this.traceConnection = b.traceConnection;
         this.maxMessagesInOutgoingQueue = b.maxMessagesInOutgoingQueue;
@@ -1840,12 +1843,10 @@ public class Options {
     }
 
     /**
-     * @deprecated Client Side Limit checks are no longer performed.
      * @return clientSideLimitChecks flag
      */
-    @Deprecated
     public boolean clientSideLimitChecks() {
-        return false;
+        return clientSideLimitChecks;
     }
 
     /**
