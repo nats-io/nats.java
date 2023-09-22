@@ -288,7 +288,7 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
     @Test
     public void testSourceAndTransformsRoundTrips() throws Exception {
-        runInJsServer(si -> si.isNewerVersionThan("2.9.9"), nc -> {
+        runInJsServer(si -> si.isNewerVersionThan("2.9.99"), nc -> {
             StreamConfiguration scMirror = StreamConfigurationTests.getStreamConfigurationFromJson("StreamConfigurationMirrorSubjectTransform.json");
             StreamConfiguration scSource = StreamConfigurationTests.getStreamConfigurationFromJson("StreamConfigurationSourcedSubjectTransform.json");
 
