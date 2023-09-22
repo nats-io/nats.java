@@ -238,6 +238,18 @@ public class PublishTests {
             nc.publish("mptest", new byte[maxPayload-1]);
             nc.publish("mptest", new byte[maxPayload]);
         });
+
+        try {
+            runInServer(standardOptionsBuilder().noReconnect().clientSideLimitChecks(false), nc -> {
+                int maxPayload = (int)nc.getServerInfo().getMaxPayload();
+                for (int x = 1; x < 1000; x++) {
+                    nc.publish("mptest", new byte[maxPayload + x]);
+                }
+            });
+            fail("Expecting IllegalStateException");
+        }
+        catch (IllegalStateException ignore) {}
+
         try {
             runInServer(standardOptionsBuilder().noReconnect(), nc -> {
                 int maxPayload = (int)nc.getServerInfo().getMaxPayload();
@@ -245,10 +257,8 @@ public class PublishTests {
                     nc.publish("mptest", new byte[maxPayload + x]);
                 }
             });
+            fail("Expecting IllegalArgumentException");
         }
-        catch (IllegalStateException e) {
-            return;
-        }
-        fail("Expecting connection to be closed");
+        catch (IllegalArgumentException ignore) {}
     }
 }
