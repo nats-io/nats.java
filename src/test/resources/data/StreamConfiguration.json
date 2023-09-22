@@ -35,8 +35,8 @@
     "headers_only": true
   },
   "subject_transform": {
-    "src": "st.>",
-    "dest": "stdest.>"
+    "src": "sc_st_src0",
+    "dest": "sc_st_dest0"
   },
   "consumer_limits": {
     "inactive_threshold": 50000000000,
@@ -50,7 +50,11 @@
     "external": {
       "api": "apithing",
       "deliver": "dlvrsub"
-    }
+    },
+    "subject_transforms": [
+      {"src":"m_st_src0","dest":"m_st_dest0"},
+      {"src":"m_st_src1","dest":"m_st_dest1"}
+    ]
   },
   "sources": [
     {
@@ -61,7 +65,11 @@
       "external": {
         "api": "s0api",
         "deliver": "s0dlvrsub"
-      }
+      },
+      "subject_transforms": [
+        {"src":"s0_st_src0","dest":"s0_st_dest0"},
+        {"src":"s0_st_src1","dest":"s0_st_dest1"}
+      ]
     },
     {
       "name": "s1",
@@ -71,7 +79,11 @@
       "external": {
         "api": "s1api",
         "deliver": "s1dlvrsub"
-      }
+      },
+      "subject_transforms": [
+        {"src":"s1_st_src0","dest":"s1_st_dest0"},
+        {"src":"s1_st_src1","dest":"s1_st_dest1"}
+      ]
     }
   ]
 }

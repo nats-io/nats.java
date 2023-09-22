@@ -285,4 +285,47 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
             assertStreamSource(info, S99, 11);
         });
     }
+
+    @Test
+    public void testSourceAndTransformsRoundTrips() throws Exception {
+        runInJsServer(si -> si.isNewerVersionThan("2.9.9"), nc -> {
+            StreamConfiguration scMirror = StreamConfigurationTests.getStreamConfigurationFromJson("StreamConfigurationMirrorSubjectTransform.json");
+            StreamConfiguration scSource = StreamConfigurationTests.getStreamConfigurationFromJson("StreamConfigurationSourcedSubjectTransform.json");
+
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            StreamInfo si = jsm.addStream(scMirror);
+            Mirror m = scMirror.getMirror();
+            MirrorInfo mi = si.getMirrorInfo();
+            assertEquals(m.getName(), mi.getName());
+            assertEquals(m.getSubjectTransforms(), mi.getSubjectTransforms());
+            assertTrue(scMirror.getSources().isEmpty());
+            assertNull(si.getSourceInfos());
+            jsm.deleteStream(scMirror.getName());
+
+            si = jsm.addStream(scSource);
+            assertNull(scSource.getMirror());
+            assertNull(si.getMirrorInfo());
+
+            Source source = scSource.getSources().get(0);
+            SourceInfo info = si.getSourceInfos().get(0);
+            assertEquals(source.getName(), info.getName());
+            assertEquals(1, info.getSubjectTransforms().size());
+            SubjectTransform st = source.getSubjectTransforms().get(0);
+            SubjectTransform infoSt = info.getSubjectTransforms().get(0);
+            assertEquals(st.getSource(), infoSt.getSource());
+            assertEquals(st.getDestination(), infoSt.getDestination());
+
+            source = scSource.getSources().get(1);
+            info = si.getSourceInfos().get(1);
+            assertEquals(source.getName(), info.getName());
+            assertEquals(1, info.getSubjectTransforms().size());
+            st = source.getSubjectTransforms().get(0);
+            infoSt = info.getSubjectTransforms().get(0);
+            assertEquals(st.getSource(), infoSt.getSource());
+            assertEquals(st.getDestination(), infoSt.getDestination());
+
+            jsm.deleteStream(scSource.getName());
+
+        });
+    }
 }

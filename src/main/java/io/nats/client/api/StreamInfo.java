@@ -99,4 +99,9 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
     public ZonedDateTime getTimestamp() {
         return timestamp;
     }
+
+    @Override
+    public String toString() {
+        return "StreamInfo " + jv;
+    }
 }

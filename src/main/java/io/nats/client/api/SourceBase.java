@@ -19,19 +19,22 @@ import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 
 import java.time.ZonedDateTime;
+import java.util.*;
 
 import static io.nats.client.JetStreamOptions.convertDomainToPrefix;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readValue;
+import static io.nats.client.support.Validator.listsAreEquivalent;
 
-abstract class SourceBase implements JsonSerializable {
+public abstract class SourceBase implements JsonSerializable {
     private final String name;
     private final long startSeq;
     private final ZonedDateTime startTime;
     private final String filterSubject;
     private final External external;
+    private final List<SubjectTransform> subjectTransforms;
 
     SourceBase(JsonValue jv) {
         name = JsonValueUtils.readString(jv, NAME);
@@ -39,6 +42,7 @@ abstract class SourceBase implements JsonSerializable {
         startTime = JsonValueUtils.readDate(jv, OPT_START_TIME);
         filterSubject = JsonValueUtils.readString(jv, FILTER_SUBJECT);
         external = External.optionalInstance(readValue(jv, EXTERNAL));
+        subjectTransforms = SubjectTransform.optionalListOf(readValue(jv, SUBJECT_TRANSFORMS));
     }
 
     @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
@@ -48,6 +52,7 @@ abstract class SourceBase implements JsonSerializable {
         this.startTime = b.startTime;
         this.filterSubject = b.filterSubject;
         this.external = b.external;
+        this.subjectTransforms = b.subjectTransforms;
     }
 
     /**
@@ -57,12 +62,11 @@ abstract class SourceBase implements JsonSerializable {
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
-        if (startSeq > 0) {
-            JsonUtils.addField(sb, OPT_START_SEQ, startSeq);
-        }
+        JsonUtils.addFieldWhenGreaterThan(sb, OPT_START_SEQ, startSeq, 0);
         JsonUtils.addField(sb, OPT_START_TIME, startTime);
         JsonUtils.addField(sb, FILTER_SUBJECT, filterSubject);
         JsonUtils.addField(sb, EXTERNAL, external);
+        JsonUtils.addJsons(sb, SUBJECT_TRANSFORMS, subjectTransforms);
         return endJson(sb).toString();
     }
 
@@ -98,6 +102,10 @@ abstract class SourceBase implements JsonSerializable {
         return external;
     }
 
+    public List<SubjectTransform> getSubjectTransforms() {
+        return subjectTransforms;
+    }
+
     @Override
     public String toString() {
         return JsonUtils.toKey(getClass()) + toJson();
@@ -109,6 +117,7 @@ abstract class SourceBase implements JsonSerializable {
         ZonedDateTime startTime;
         String filterSubject;
         External external;
+        List<SubjectTransform> subjectTransforms = new ArrayList<>();
 
         abstract T getThis();
 
@@ -157,6 +166,31 @@ abstract class SourceBase implements JsonSerializable {
             external = prefix == null ? null : External.builder().api(prefix).build();
             return getThis();
         }
+
+        public T subjectTransforms(SubjectTransform... subjectTransforms) {
+            this.subjectTransforms.clear();
+            return addSubjectTransforms(subjectTransforms);
+        }
+
+        public T subjectTransforms(Collection<SubjectTransform> subjectTransforms) {
+            this.subjectTransforms.clear();
+            return addSubjectTransforms(subjectTransforms);
+        }
+
+        public T addSubjectTransforms(SubjectTransform... subjectTransforms) {
+            return addSubjectTransforms(Arrays.asList(subjectTransforms));
+        }
+
+        public T addSubjectTransforms(Collection<SubjectTransform> subjectTransforms) {
+            if (subjectTransforms != null) {
+                for (SubjectTransform subjectTransform : subjectTransforms) {
+                    if (subjectTransform != null && !this.subjectTransforms.contains(subjectTransform)) {
+                        this.subjectTransforms.add(subjectTransform);
+                    }
+                }
+            }
+            return getThis();
+        }
     }
 
     @Override
@@ -167,11 +201,12 @@ abstract class SourceBase implements JsonSerializable {
         SourceBase that = (SourceBase) o;
 
         if (startSeq != that.startSeq) return false;
-        if (name != null ? !name.equals(that.name) : that.name != null) return false;
-        if (startTime != null ? !startTime.equals(that.startTime) : that.startTime != null) return false;
-        if (filterSubject != null ? !filterSubject.equals(that.filterSubject) : that.filterSubject != null)
+        if (!Objects.equals(name, that.name)) return false;
+        if (!Objects.equals(startTime, that.startTime)) return false;
+        if (!Objects.equals(filterSubject, that.filterSubject))
             return false;
-        return external != null ? external.equals(that.external) : that.external == null;
+        if (!Objects.equals(external, that.external)) return false;
+        return listsAreEquivalent(subjectTransforms, that.subjectTransforms);
     }
 
     @Override
@@ -181,6 +216,7 @@ abstract class SourceBase implements JsonSerializable {
         result = 31 * result + (startTime != null ? startTime.hashCode() : 0);
         result = 31 * result + (filterSubject != null ? filterSubject.hashCode() : 0);
         result = 31 * result + (external != null ? external.hashCode() : 0);
+        result = 31 * result + (subjectTransforms != null ? subjectTransforms.hashCode() : 0);
         return result;
     }
 }

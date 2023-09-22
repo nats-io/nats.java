@@ -295,6 +295,13 @@ public abstract class JsonUtils {
         }
     }
 
+    @SuppressWarnings("rawtypes")
+    public static void addEnumWhenNot(StringBuilder sb, String fname, Enum e, Enum dontAddIfThis) {
+        if (e != dontAddIfThis) {
+            addField(sb, fname, e.toString());
+        }
+    }
+
     interface ListAdder<T> {
         void append(StringBuilder sb, T t);
     }
@@ -305,7 +312,7 @@ public abstract class JsonUtils {
      * @param sb string builder
      * @param fname fieldname
      * @param list value list
-     * @param adder implementation to add value, including it's quotes if required
+     * @param adder implementation to add value, including its quotes if required
      */
     public static <T> void _addList(StringBuilder sb, String fname, List<T> list, ListAdder<T> adder) {
         sb.append(Q);
@@ -359,7 +366,7 @@ public abstract class JsonUtils {
      * @param jsons field value
      */
     public static void addJsons(StringBuilder sb, String fname, List<? extends JsonSerializable> jsons) {
-        if (jsons != null && jsons.size() > 0) {
+        if (jsons != null && !jsons.isEmpty()) {
             _addList(sb, fname, jsons, (sbs, s) -> sbs.append(s.toJson()));
         }
     }
