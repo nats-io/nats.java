@@ -14,10 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.ConnectionListener.Events;
-import io.nats.client.impl.DataPort;
-import io.nats.client.impl.ErrorListenerLoggerImpl;
-import io.nats.client.impl.TestHandler;
-import io.nats.client.impl.TestStatisticsCollector;
+import io.nats.client.impl.*;
 import io.nats.client.support.HttpRequest;
 import io.nats.client.support.NatsUri;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
@@ -354,21 +351,33 @@ public class OptionsTests {
     @SuppressWarnings("deprecation")
     @Test
     public void testDeprecated() {
-        // clientSideLimitChecks, supportUTF8Subjects are deprecated and always returns false
+        // supportUTF8Subjects are deprecated and always returns false
         Options o = new Options.Builder().build();
-        assertFalse(o.clientSideLimitChecks());
         assertFalse(o.supportUTF8Subjects());
 
-        o = new Options.Builder().clientSideLimitChecks(true).supportUTF8Subjects().build();
-        assertFalse(o.clientSideLimitChecks());
+        o = new Options.Builder().supportUTF8Subjects().build();
         assertFalse(o.supportUTF8Subjects());
 
         Properties props = new Properties();
-        props.setProperty(Options.PROP_CLIENT_SIDE_LIMIT_CHECKS, "true");
         props.setProperty(Options.PROP_UTF8_SUBJECTS, "true");
         o = new Options.Builder(props).build();
-        assertFalse(o.clientSideLimitChecks());
         assertFalse(o.supportUTF8Subjects());
+    }
+
+    @Test
+    public void testBuilderCoverageOptions() {
+        Options o = new Options.Builder().build();
+        assertTrue(o.clientSideLimitChecks());
+        assertNull(o.getServerPool()); // there is a default provider
+
+        o = new Options.Builder().clientSideLimitChecks(true).build();
+        assertTrue(o.clientSideLimitChecks());
+        o = new Options.Builder()
+            .clientSideLimitChecks(false)
+            .serverPool(new NatsServerPool())
+            .build();
+        assertFalse(o.clientSideLimitChecks());
+        assertNotNull(o.getServerPool());
     }
 
     @Test
@@ -492,7 +501,7 @@ public class OptionsTests {
         assertNull(o.getSslContext());
         assertTrue(o.isNoHeaders());
         assertTrue(o.isNoNoResponders());
-        assertFalse(o.clientSideLimitChecks()); // clientSideLimitChecks is deprecated and always returns false
+        assertTrue(o.clientSideLimitChecks());
         assertTrue(o.isIgnoreDiscoveredServers());
         assertTrue(o.isNoResolveHostnames());
     }
