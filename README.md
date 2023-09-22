@@ -83,17 +83,6 @@ In this release, support was added to
 
 For details on the other features, see the "Options" sections
 
-#### Version 2.16.12: Max Payload Check
-
-As of version 2.16.12, there is no longer client side checking
-1. that a message payload is less than the server configuration (Core and JetStream publishes)
-2. is less than the stream configuration (JetStream publishes)
-
-Please see unit test for examples of this behavior.
-`testMaxPayload` in [PublishTests.java](src/test/java/io/nats/client/PublishTests.java)
-and
-`testMaxPayloadJs` in [JetStreamPubTests.cs](src/test/java/io/nats/client/impl/JetStreamPubTests.java)
-
 #### Version 2.16.8: Websocket Support
 
 As of version 2.16.8 Websocket (`ws` and `wss`) protocols are supported for connecting to the server.
@@ -247,6 +236,7 @@ When options are built, the SSLContext will be accepted or created in the follow
 | io.nats.client.norandomize                   | Property used to configure noRandomize.                                                     |
 | io.nats.client.noResolveHostnames            | Property used to configure noResolveHostnames.                                              |
 | io.nats.client.reportNoResponders            | Property used to configure reportNoResponders.                                              |
+| io.nats.clientsidelimitchecks                | Property use to configure clientsidelimitchecks.                                            | 
 | io.nats.client.url                           | Property used to configure server.  The value can be a comma-separated list of server URLs. |
 | io.nats.client.servers                       | Property used to configure servers. The value can be a comma-separated list of server URLs. |
 | io.nats.client.password                      | Property used to configure userinfo password.                                               |
@@ -562,8 +552,8 @@ The Java NATS library provides two mechanisms to listen for messages, three if y
 
 ## JetStream
 
-Publishing and subscribing to JetStream enabled servers is straightforward.  A 
-JetStream enabled application will connect to a server, establish a JetStream 
+Publishing and subscribing to JetStream-enabled servers is straightforward. A 
+JetStream-enabled application will connect to a server, establish a JetStream 
 context, and then publish or subscribe.  This can be mixed and matched with standard
 NATS subject, and JetStream subscribers, depending on configuration, receive messages
 from both streams and directly from other NATS producers.
