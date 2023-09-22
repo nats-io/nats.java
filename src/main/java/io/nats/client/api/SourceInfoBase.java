@@ -87,9 +87,4 @@ abstract class SourceInfoBase {
     public Error getError() {
         return error;
     }
-
-    @Override
-    public String toString() {
-        return jv.toString();
-    }
 }
