@@ -55,7 +55,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .compressionOption(compressionOption)
                 .build();
             JetStreamManagement jsm = nc.jetStreamManagement();
-            validate(jsm.addStream(sc).getConfiguration(), true, compressionOption);
+            validate(jsm.addStream(sc).getConfiguration(), true);
         });
     }
 
@@ -63,13 +63,13 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     public void testConstruction() {
         StreamConfiguration testSc = getTestConfiguration();
         // from json
-        validate(testSc, false, S2);
+        validate(testSc, false);
 
         // test toJson
-        validate(StreamConfiguration.instance(JsonParser.parseUnchecked(testSc.toJson())), false, S2);
+        validate(StreamConfiguration.instance(JsonParser.parseUnchecked(testSc.toJson())), false);
 
         // copy constructor
-        validate(StreamConfiguration.builder(testSc).build(), false, S2);
+        validate(StreamConfiguration.builder(testSc).build(), false);
 
         Map<String, String> metaData = new HashMap<>(); metaData.put("meta-foo", "meta-bar");
 
@@ -94,6 +94,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .duplicateWindow(testSc.getDuplicateWindow())
             .placement(testSc.getPlacement())
             .republish(testSc.getRepublish())
+            .subjectTransform(testSc.getSubjectTransform())
             .mirror(testSc.getMirror())
             .sources(testSc.getSources())
             .sealed(testSc.getSealed())
@@ -105,14 +106,14 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .discardNewPerSubject(testSc.isDiscardNewPerSubject())
             .metadata(metaData)
             .firstSequence(82942);
-        validate(builder.build(), false, S2);
-        validate(builder.addSources((Source)null).build(), false, S2);
+        validate(builder.build(), false);
+        validate(builder.addSources((Source)null).build(), false);
 
         List<Source> sources = new ArrayList<>(testSc.getSources());
         sources.add(null);
         Source copy = new Source(JsonParser.parseUnchecked(sources.get(0).toJson()));
         sources.add(copy);
-        validate(builder.addSources(sources).build(), false, S2);
+        validate(builder.addSources(sources).build(), false);
 
         // covering add a single source
         sources = new ArrayList<>(testSc.getSources());
@@ -122,7 +123,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             builder.addSource(source);
         }
         builder.addSource(sources.get(0));
-        validate(builder.build(), false, S2);
+        validate(builder.build(), false);
 
         // equals and hashcode coverage
         External external = copy.getExternal();
@@ -386,15 +387,14 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(DiscardPolicy.Old, builder.build().getDiscardPolicy());
     }
 
-    private void validate(StreamConfiguration sc, boolean serverTest, CompressionOption compressionOption) {
+    private void validate(StreamConfiguration sc, boolean serverTest) {
         assertEquals("sname", sc.getName());
         assertEquals("blah blah", sc.getDescription());
-        assertEquals(3, sc.getSubjects().size());
+        assertEquals(4, sc.getSubjects().size());
         assertEquals("foo", sc.getSubjects().get(0));
         assertEquals("bar", sc.getSubjects().get(1));
         assertEquals("repub.>", sc.getSubjects().get(2));
-
-        assertSame(compressionOption, sc.getCompressionOption());
+        assertEquals("st.>", sc.getSubjects().get(3));
 
         assertSame(RetentionPolicy.Interest, sc.getRetentionPolicy());
         assertEquals(730, sc.getMaxConsumers());
@@ -455,6 +455,12 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             assertEquals(1, sc.getMetadata().size());
             assertEquals("meta-bar", sc.getMetadata().get("meta-foo"));
             assertEquals(82942, sc.getFirstSequence());
+
+            assertSame(S2, sc.getCompressionOption());
+
+            assertNotNull(sc.getSubjectTransform());
+            assertEquals("st.>", sc.getSubjectTransform().getSource());
+            assertEquals("stdest.>", sc.getSubjectTransform().getDestination());
         }
     }
 
@@ -492,15 +498,26 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> Republish.builder().source("src.>").build());
         assertThrows(IllegalArgumentException.class, () -> Republish.builder().destination("dest.>").build());
 
-        Republish p = Republish.builder().source("src.>").destination("dest.>").build();
-        assertEquals("src.>", p.getSource());
-        assertEquals("dest.>", p.getDestination());
-        assertFalse(p.isHeadersOnly());
+        Republish r = Republish.builder().source("src.>").destination("dest.>").build();
+        assertEquals("src.>", r.getSource());
+        assertEquals("dest.>", r.getDestination());
+        assertFalse(r.isHeadersOnly());
 
-        p = Republish.builder().source("src.>").destination("dest.>").headersOnly(true).build();
-        assertEquals("src.>", p.getSource());
-        assertEquals("dest.>", p.getDestination());
-        assertTrue(p.isHeadersOnly());
+        r = Republish.builder().source("src.>").destination("dest.>").headersOnly(true).build();
+        assertEquals("src.>", r.getSource());
+        assertEquals("dest.>", r.getDestination());
+        assertTrue(r.isHeadersOnly());
+    }
+
+    @Test
+    public void testSubjectTransform() {
+        SubjectTransform st = SubjectTransform.builder().source("src.>").destination("dest.>").build();
+        assertEquals("src.>", st.getSource());
+        assertEquals("dest.>", st.getDestination());
+
+        st = SubjectTransform.builder().build();
+        assertNull(st.getSource());
+        assertNull(st.getDestination());
     }
 
     @Test
