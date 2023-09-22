@@ -40,6 +40,7 @@ public interface ApiConstants {
     String CONNECT_URLS      = "connect_urls";
     String CONSUMER_COUNT    = "consumer_count";
     String CONSUMER_SEQ      = "consumer_seq";
+    String CONSUMER_LIMITS   = "consumer_limits";
     String CONSUMERS         = "consumers";
     String CREATED           = "created";
     String CURRENT           = "current";

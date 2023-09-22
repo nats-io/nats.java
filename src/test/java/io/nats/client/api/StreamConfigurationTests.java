@@ -28,6 +28,7 @@ import java.util.*;
 
 import static io.nats.client.api.CompressionOption.None;
 import static io.nats.client.api.CompressionOption.S2;
+import static io.nats.client.api.ConsumerConfiguration.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamConfigurationTests extends JetStreamTestBase {
@@ -105,7 +106,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .denyPurge(testSc.getDenyPurge())
             .discardNewPerSubject(testSc.isDiscardNewPerSubject())
             .metadata(metaData)
-            .firstSequence(82942);
+            .firstSequence(82942)
+            .consumerLimits(testSc.getConsumerLimits());
         validate(builder.build(), false);
         validate(builder.addSources((Source)null).build(), false);
 
@@ -461,6 +463,10 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             assertNotNull(sc.getSubjectTransform());
             assertEquals("st.>", sc.getSubjectTransform().getSource());
             assertEquals("stdest.>", sc.getSubjectTransform().getDestination());
+
+            assertNotNull(sc.getConsumerLimits());
+            assertEquals(Duration.ofSeconds(50), sc.getConsumerLimits().getInactiveThreshold());
+            assertEquals(42, sc.getConsumerLimits().getMaxAckPending());
         }
     }
 
@@ -518,6 +524,43 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         st = SubjectTransform.builder().build();
         assertNull(st.getSource());
         assertNull(st.getDestination());
+    }
+
+    @Test
+    public void testConsumerLimits() {
+        ConsumerLimits cl = ConsumerLimits.builder().build();
+        assertEquals(null, cl.getInactiveThreshold());
+        assertEquals(INTEGER_UNSET, cl.getMaxAckPending());
+
+        cl = ConsumerLimits.builder().inactiveThreshold(Duration.ofMillis(0)).build();
+        assertEquals(Duration.ZERO, cl.getInactiveThreshold());
+
+        cl = ConsumerLimits.builder().inactiveThreshold(0L).build();
+        assertEquals(Duration.ZERO, cl.getInactiveThreshold());
+
+        cl = ConsumerLimits.builder().inactiveThreshold(Duration.ofMillis(1)).build();
+        assertEquals(Duration.ofMillis(1), cl.getInactiveThreshold());
+
+        cl = ConsumerLimits.builder().inactiveThreshold(1L).build();
+        assertEquals(Duration.ofMillis(1), cl.getInactiveThreshold());
+
+        cl = ConsumerLimits.builder().inactiveThreshold(Duration.ofMillis(-1)).build();
+        assertEquals(DURATION_UNSET, cl.getInactiveThreshold());
+
+        cl = ConsumerLimits.builder().inactiveThreshold(-1).build();
+        assertEquals(DURATION_UNSET, cl.getInactiveThreshold());
+
+        cl = ConsumerLimits.builder().maxAckPending(STANDARD_MIN).build();
+        assertEquals(STANDARD_MIN, cl.getMaxAckPending());
+
+        cl = ConsumerLimits.builder().maxAckPending(INTEGER_UNSET).build();
+        assertEquals(INTEGER_UNSET, cl.getMaxAckPending());
+
+        cl = ConsumerLimits.builder().maxAckPending(-2).build();
+        assertEquals(INTEGER_UNSET, cl.getMaxAckPending());
+
+        cl = ConsumerLimits.builder().maxAckPending(Long.MAX_VALUE).build();
+        assertEquals(Integer.MAX_VALUE, cl.getMaxAckPending());
     }
 
     @Test
