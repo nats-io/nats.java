@@ -297,7 +297,7 @@ public abstract class JsonUtils {
 
     @SuppressWarnings("rawtypes")
     public static void addEnumWhenNot(StringBuilder sb, String fname, Enum e, Enum dontAddIfThis) {
-        if (e != dontAddIfThis) {
+        if (e != null && e != dontAddIfThis) {
             addField(sb, fname, e.toString());
         }
     }

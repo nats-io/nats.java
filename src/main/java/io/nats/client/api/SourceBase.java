@@ -19,7 +19,10 @@ import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 
 import static io.nats.client.JetStreamOptions.convertDomainToPrefix;
 import static io.nats.client.support.ApiConstants.*;
@@ -168,27 +171,12 @@ public abstract class SourceBase implements JsonSerializable {
         }
 
         public T subjectTransforms(SubjectTransform... subjectTransforms) {
-            this.subjectTransforms.clear();
-            return addSubjectTransforms(subjectTransforms);
+            this.subjectTransforms = subjectTransforms == null ? null : Arrays.asList(subjectTransforms);
+            return getThis();
         }
 
-        public T subjectTransforms(Collection<SubjectTransform> subjectTransforms) {
-            this.subjectTransforms.clear();
-            return addSubjectTransforms(subjectTransforms);
-        }
-
-        public T addSubjectTransforms(SubjectTransform... subjectTransforms) {
-            return addSubjectTransforms(Arrays.asList(subjectTransforms));
-        }
-
-        public T addSubjectTransforms(Collection<SubjectTransform> subjectTransforms) {
-            if (subjectTransforms != null) {
-                for (SubjectTransform subjectTransform : subjectTransforms) {
-                    if (subjectTransform != null && !this.subjectTransforms.contains(subjectTransform)) {
-                        this.subjectTransforms.add(subjectTransform);
-                    }
-                }
-            }
+        public T subjectTransforms(List<SubjectTransform> subjectTransforms) {
+            this.subjectTransforms = subjectTransforms;
             return getThis();
         }
     }
