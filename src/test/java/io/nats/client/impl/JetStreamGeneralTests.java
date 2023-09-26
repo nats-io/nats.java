@@ -277,18 +277,23 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             Dispatcher d = nc.createDispatcher();
 
             for (String bad : BAD_SUBJECTS_OR_QUEUES) {
-                // subject
-                IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(bad));
-                assertTrue(iae.getMessage().startsWith("Subject"));
-                iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(bad, (PushSubscribeOptions)null));
-                assertTrue(iae.getMessage().startsWith("Subject"));
+                if (bad == null || bad.isEmpty()) {
+                    // subject
+                    IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(bad));
+                    assertTrue(iae.getMessage().startsWith("Subject"));
+                    assertClientError(JsSubSubjectNeededToLookupStream, () -> js.subscribe(bad, (PushSubscribeOptions)null));
+                }
+                else {
+                    // subject
+                    IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(bad));
+                    assertTrue(iae.getMessage().startsWith("Subject"));
+                    iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(bad, (PushSubscribeOptions)null));
+                    assertTrue(iae.getMessage().startsWith("Subject"));
 
-                // queue
-                if (bad != null && !bad.isEmpty()) {
+                    // queue
                     iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, bad, null));
                     assertTrue(iae.getMessage().startsWith("Queue"));
-                    iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, bad, d, m -> {
-                    }, false, null));
+                    iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, bad, d, m -> {}, false, null));
                     assertTrue(iae.getMessage().startsWith("Queue"));
                 }
             }

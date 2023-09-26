@@ -25,6 +25,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static io.nats.client.support.NatsConstants.GT;
 import static io.nats.client.support.NatsJetStreamClientError.JsConsumerCreate290NotAvailable;
 import static io.nats.client.support.NatsJetStreamClientError.JsMultipleFilterSubjects210NotAvailable;
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
@@ -80,21 +81,23 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
             throw JsConsumerCreate290NotAvailable.instance();
         }
 
-        boolean multipleFilterSubject = config.getFilterSubjects().size() > 1;
-        if (multipleFilterSubject && !multipleSubjectFilter210Available) {
+        boolean hasMultipleFilterSubjects = config.hasMultipleFilterSubjects();
+
+        // seems strange that this could happen, but checking anyway...
+        if (hasMultipleFilterSubjects && !multipleSubjectFilter210Available) {
             throw JsMultipleFilterSubjects210NotAvailable.instance();
         }
 
         String durable = config.getDurable();
         String subj;
         // new consumer create not available before 290 and can't be used with multiple filter subjects
-        if (consumerCreate290Available && !multipleFilterSubject) {
+        if (consumerCreate290Available && !hasMultipleFilterSubjects) {
             if (consumerName == null) {
                 // if both consumerName and durable are null, generate a name
                 consumerName = durable == null ? generateConsumerName() : durable;
             }
-            String fs = config.getFilterSubject();
-            if (fs == null || fs.equals(">")) {
+            String fs = config.getFilterSubject(); // we've already determined not multiple so this gives us 1 or null
+            if (fs == null || fs.equals(GT)) {
                 subj = String.format(JSAPI_CONSUMER_CREATE_V290, streamName, consumerName);
             }
             else {

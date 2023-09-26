@@ -859,54 +859,55 @@ You can however set the deliver policy which will be used to start the subscript
 * Consumer creation
 * Object Store operations
 
-| Name                                         | Group | Code  | Description                                                                                         |
-|----------------------------------------------|-------|-------|-----------------------------------------------------------------------------------------------------|
-| JsSoDurableMismatch                          | SO    | 90101 | Builder durable must match the consumer configuration durable if both are provided.                 |
-| JsSoDeliverGroupMismatch                     | SO    | 90102 | Builder deliver group must match the consumer configuration deliver group if both are provided.     |
-| JsSoDeliverSubjectMismatch                   | SO    | 90103 | Builder deliver subject must match the consumer configuration deliver subject if both are provided. |
-| JsSoOrderedNotAllowedWithBind                | SO    | 90104 | Bind is not allowed with an ordered consumer.                                                       |
-| JsSoOrderedNotAllowedWithDeliverGroup        | SO    | 90105 | Deliver group is not allowed with an ordered consumer.                                              |
-| JsSoOrderedNotAllowedWithDurable             | SO    | 90106 | Durable is not allowed with an ordered consumer.                                                    |
-| JsSoOrderedNotAllowedWithDeliverSubject      | SO    | 90107 | Deliver subject is not allowed with an ordered consumer.                                            |
-| JsSoOrderedRequiresAckPolicyNone             | SO    | 90108 | Ordered consumer requires Ack Policy None.                                                          |
-| JsSoOrderedRequiresMaxDeliverOfOne           | SO    | 90109 | Max deliver is limited to 1 with an ordered consumer.                                               |
-| JsSoNameMismatch                             | SO    | 90110 | Builder name must match the consumer configuration name if both are provided.                       |
-| JsSoOrderedMemStorageNotSuppliedOrTrue       | SO    | 90111 | Mem Storage must be true if supplied.                                                               |
-| JsSoOrderedReplicasNotSuppliedOrOne          | SO    | 90112 | Replicas must be 1 if supplied.                                                                     |
-| JsSoNameOrDurableRequiredForBind             | SO    | 90113 | Name or Durable required for Bind.                                                                  |
-| JsSubPullCantHaveDeliverGroup                | SUB   | 90001 | Pull subscriptions can't have a deliver group.                                                      |
-| JsSubPullCantHaveDeliverSubject              | SUB   | 90002 | Pull subscriptions can't have a deliver subject.                                                    |
-| JsSubPushCantHaveMaxPullWaiting              | SUB   | 90003 | Push subscriptions cannot supply max pull waiting.                                                  |
-| JsSubQueueDeliverGroupMismatch               | SUB   | 90004 | Queue / deliver group mismatch.                                                                     |
-| JsSubFcHbNotValidPull                        | SUB   | 90005 | Flow Control and/or heartbeat is not valid with a pull subscription.                                |
-| JsSubFcHbNotValidQueue                       | SUB   | 90006 | Flow Control and/or heartbeat is not valid in queue mode.                                           |
-| JsSubNoMatchingStreamForSubject              | SUB   | 90007 | No matching streams for subject.                                                                    |
-| JsSubConsumerAlreadyConfiguredAsPush         | SUB   | 90008 | Consumer is already configured as a push consumer.                                                  |
-| JsSubConsumerAlreadyConfiguredAsPull         | SUB   | 90009 | Consumer is already configured as a pull consumer.                                                  |
-| _removed_                                    | SUB   | 90010 |                                                                                                     |
-| JsSubSubjectDoesNotMatchFilter               | SUB   | 90011 | Subject does not match consumer configuration filter.                                               |
-| JsSubConsumerAlreadyBound                    | SUB   | 90012 | Consumer is already bound to a subscription.                                                        |
-| JsSubExistingConsumerNotQueue                | SUB   | 90013 | Existing consumer is not configured as a queue / deliver group.                                     |
-| JsSubExistingConsumerIsQueue                 | SUB   | 90014 | Existing consumer is configured as a queue / deliver group.                                         |
-| JsSubExistingQueueDoesNotMatchRequestedQueue | SUB   | 90015 | Existing consumer deliver group does not match requested queue / deliver group.                     |
-| JsSubExistingConsumerCannotBeModified        | SUB   | 90016 | Existing consumer cannot be modified.                                                               |
-| JsSubConsumerNotFoundRequiredInBind          | SUB   | 90017 | Consumer not found, required in bind mode.                                                          |
-| JsSubOrderedNotAllowOnQueues                 | SUB   | 90018 | Ordered consumer not allowed on queues.                                                             |
-| JsSubPushCantHaveMaxBatch                    | SUB   | 90019 | Push subscriptions cannot supply max batch.                                                         |
-| JsSubPushCantHaveMaxBytes                    | SUB   | 90020 | Push subscriptions cannot supply max bytes.                                                         |
-| JsSubPushAsyncCantSetPending                 | SUB   | 90021 | Pending limits must be set directly on the dispatcher.                                              |
-| JsConsumerCreate290NotAvailable              | CON   | 90301 | Name field not valid when v2.9.0 consumer create api is not available.                              |
-| JsConsumerNameDurableMismatch                | CON   | 90302 | Name must match durable if both are supplied.                                                       |
-| JsMultipleFilterSubjects210NotAvailable      | CON   | 90303 | Multiple filter subjects not available until server version 2.10.0.                                 |
-| OsObjectNotFound                             | OS    | 90201 | The object was not found.                                                                           |
-| OsObjectIsDeleted                            | OS    | 90202 | The object is deleted.                                                                              |
-| OsObjectAlreadyExists                        | OS    | 90203 | An object with that name already exists.                                                            |
-| OsCantLinkToLink                             | OS    | 90204 | A link cannot link to another link.                                                                 |
-| OsGetDigestMismatch                          | OS    | 90205 | Digest does not match meta data.                                                                    |
-| OsGetChunksMismatch                          | OS    | 90206 | Number of chunks does not match meta data.                                                          |
-| OsGetSizeMismatch                            | OS    | 90207 | Total size does not match meta data.                                                                |
-| OsGetLinkToBucket                            | OS    | 90208 | Cannot get object, it is a link to a bucket.                                                        |
-| OsLinkNotAllowOnPut                          | OS    | 90209 | Link not allowed in metadata when putting an object.                                                |
+| Name                                         | Group | Code  | Description                                                                                                    |
+|----------------------------------------------|-------|-------|----------------------------------------------------------------------------------------------------------------|
+| JsSoDurableMismatch                          | SO    | 90101 | Builder durable must match the consumer configuration durable if both are provided.                            |
+| JsSoDeliverGroupMismatch                     | SO    | 90102 | Builder deliver group must match the consumer configuration deliver group if both are provided.                |
+| JsSoDeliverSubjectMismatch                   | SO    | 90103 | Builder deliver subject must match the consumer configuration deliver subject if both are provided.            |
+| JsSoOrderedNotAllowedWithBind                | SO    | 90104 | Bind is not allowed with an ordered consumer.                                                                  |
+| JsSoOrderedNotAllowedWithDeliverGroup        | SO    | 90105 | Deliver group is not allowed with an ordered consumer.                                                         |
+| JsSoOrderedNotAllowedWithDurable             | SO    | 90106 | Durable is not allowed with an ordered consumer.                                                               |
+| JsSoOrderedNotAllowedWithDeliverSubject      | SO    | 90107 | Deliver subject is not allowed with an ordered consumer.                                                       |
+| JsSoOrderedRequiresAckPolicyNone             | SO    | 90108 | Ordered consumer requires Ack Policy None.                                                                     |
+| JsSoOrderedRequiresMaxDeliverOfOne           | SO    | 90109 | Max deliver is limited to 1 with an ordered consumer.                                                          |
+| JsSoNameMismatch                             | SO    | 90110 | Builder name must match the consumer configuration name if both are provided.                                  |
+| JsSoOrderedMemStorageNotSuppliedOrTrue       | SO    | 90111 | Mem Storage must be true if supplied.                                                                          |
+| JsSoOrderedReplicasNotSuppliedOrOne          | SO    | 90112 | Replicas must be 1 if supplied.                                                                                |
+| JsSoNameOrDurableRequiredForBind             | SO    | 90113 | Name or Durable required for Bind.                                                                             |
+| JsSubPullCantHaveDeliverGroup                | SUB   | 90001 | Pull subscriptions can't have a deliver group.                                                                 |
+| JsSubPullCantHaveDeliverSubject              | SUB   | 90002 | Pull subscriptions can't have a deliver subject.                                                               |
+| JsSubPushCantHaveMaxPullWaiting              | SUB   | 90003 | Push subscriptions cannot supply max pull waiting.                                                             |
+| JsSubQueueDeliverGroupMismatch               | SUB   | 90004 | Queue / deliver group mismatch.                                                                                |
+| JsSubFcHbNotValidPull                        | SUB   | 90005 | Flow Control and/or heartbeat is not valid with a pull subscription.                                           |
+| JsSubFcHbNotValidQueue                       | SUB   | 90006 | Flow Control and/or heartbeat is not valid in queue mode.                                                      |
+| JsSubNoMatchingStreamForSubject              | SUB   | 90007 | No matching streams for subject.                                                                               |
+| JsSubConsumerAlreadyConfiguredAsPush         | SUB   | 90008 | Consumer is already configured as a push consumer.                                                             |
+| JsSubConsumerAlreadyConfiguredAsPull         | SUB   | 90009 | Consumer is already configured as a pull consumer.                                                             |
+| _removed_                                    | SUB   | 90010 |                                                                                                                |
+| JsSubSubjectDoesNotMatchFilter               | SUB   | 90011 | Subject does not match consumer configuration filter.                                                          |
+| JsSubConsumerAlreadyBound                    | SUB   | 90012 | Consumer is already bound to a subscription.                                                                   |
+| JsSubExistingConsumerNotQueue                | SUB   | 90013 | Existing consumer is not configured as a queue / deliver group.                                                |
+| JsSubExistingConsumerIsQueue                 | SUB   | 90014 | Existing consumer is configured as a queue / deliver group.                                                    |
+| JsSubExistingQueueDoesNotMatchRequestedQueue | SUB   | 90015 | Existing consumer deliver group does not match requested queue / deliver group.                                |
+| JsSubExistingConsumerCannotBeModified        | SUB   | 90016 | Existing consumer cannot be modified.                                                                          |
+| JsSubConsumerNotFoundRequiredInBind          | SUB   | 90017 | Consumer not found, required in bind mode.                                                                     |
+| JsSubOrderedNotAllowOnQueues                 | SUB   | 90018 | Ordered consumer not allowed on queues.                                                                        |
+| JsSubPushCantHaveMaxBatch                    | SUB   | 90019 | Push subscriptions cannot supply max batch.                                                                    |
+| JsSubPushCantHaveMaxBytes                    | SUB   | 90020 | Push subscriptions cannot supply max bytes.                                                                    |
+| JsSubPushAsyncCantSetPending                 | SUB   | 90021 | Pending limits must be set directly on the dispatcher.                                                         |
+| JsSubSubjectNeededToLookupStream             | SUB   | 90022 | Subject needed to lookup stream. Provide either a subscribe subject or a ConsumerConfiguration filter subject. |
+| JsConsumerCreate290NotAvailable              | CON   | 90301 | Name field not valid when v2.9.0 consumer create api is not available.                                         |
+| JsConsumerNameDurableMismatch                | CON   | 90302 | Name must match durable if both are supplied.                                                                  |
+| JsMultipleFilterSubjects210NotAvailable      | CON   | 90303 | Multiple filter subjects not available until server version 2.10.0.                                            |
+| OsObjectNotFound                             | OS    | 90201 | The object was not found.                                                                                      |
+| OsObjectIsDeleted                            | OS    | 90202 | The object is deleted.                                                                                         |
+| OsObjectAlreadyExists                        | OS    | 90203 | An object with that name already exists.                                                                       |
+| OsCantLinkToLink                             | OS    | 90204 | A link cannot link to another link.                                                                            |
+| OsGetDigestMismatch                          | OS    | 90205 | Digest does not match meta data.                                                                               |
+| OsGetChunksMismatch                          | OS    | 90206 | Number of chunks does not match meta data.                                                                     |
+| OsGetSizeMismatch                            | OS    | 90207 | Total size does not match meta data.                                                                           |
+| OsGetLinkToBucket                            | OS    | 90208 | Cannot get object, it is a link to a bucket.                                                                   |
+| OsLinkNotAllowOnPut                          | OS    | 90209 | Link not allowed in metadata when putting an object.                                                           |
 
 ### Message Acknowledgements
 

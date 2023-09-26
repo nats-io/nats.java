@@ -66,7 +66,6 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final String name;
     protected final String deliverSubject;
     protected final String deliverGroup;
-    protected final List<String> filterSubjects;
     protected final String sampleFrequency;
     protected final ZonedDateTime startTime;
     protected final Duration ackWait;
@@ -86,6 +85,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final Boolean memStorage;
     protected final List<Duration> backoff;
     protected final Map<String, String> metadata;
+    protected final List<String> filterSubjects;
 
     protected ConsumerConfiguration(ConsumerConfiguration cc) {
         this.deliverPolicy = cc.deliverPolicy;
@@ -96,7 +96,6 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.name = cc.name;
         this.deliverSubject = cc.deliverSubject;
         this.deliverGroup = cc.deliverGroup;
-        this.filterSubjects = cc.filterSubjects;
         this.sampleFrequency = cc.sampleFrequency;
         this.startTime = cc.startTime;
         this.ackWait = cc.ackWait;
@@ -116,6 +115,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.memStorage = cc.memStorage;
         this.backoff = cc.backoff == null ? null : new ArrayList<>(cc.backoff);
         this.metadata = cc.metadata == null ? null : new HashMap<>(cc.metadata);
+        this.filterSubjects = cc.filterSubjects == null ? null : new ArrayList<>(cc.filterSubjects);
     }
 
     ConsumerConfiguration(JsonValue v) {
@@ -128,15 +128,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         name = readString(v, NAME);
         deliverSubject = readString(v, DELIVER_SUBJECT);
         deliverGroup = readString(v, DELIVER_GROUP);
-        String tempFs = readString(v, FILTER_SUBJECT);
-        if (tempFs != null) {
-            filterSubjects = Collections.singletonList(tempFs);
-        }
-        else {
-            filterSubjects = readStringList(v, FILTER_SUBJECTS);
-        }
         sampleFrequency = readString(v, SAMPLE_FREQ);
-
         startTime = readDate(v, OPT_START_TIME);
         ackWait = readNanos(v, ACK_WAIT);
         idleHeartbeat = readNanos(v, IDLE_HEARTBEAT);
@@ -158,6 +150,14 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         backoff = readNanosList(v, BACKOFF, true);
         metadata = readStringStringMap(v, METADATA);
+
+        String tempFs = emptyAsNull(readString(v, FILTER_SUBJECT));
+        if (tempFs == null) {
+            filterSubjects = readOptionalStringList(v, FILTER_SUBJECTS);
+        }
+        else {
+            filterSubjects = Collections.singletonList(tempFs);
+        }
     }
 
     // For the builder
@@ -172,7 +172,6 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.name = b.name;
         this.startTime = b.startTime;
         this.ackWait = b.ackWait;
-        this.filterSubjects = b.filterSubjects;
         this.sampleFrequency = b.sampleFrequency;
         this.deliverSubject = b.deliverSubject;
         this.deliverGroup = b.deliverGroup;
@@ -195,6 +194,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         this.backoff = b.backoff;
         this.metadata = b.metadata;
+        this.filterSubjects = b.filterSubjects;
     }
 
     /**
@@ -216,12 +216,6 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addFieldAsNanos(sb, ACK_WAIT, ackWait);
         JsonUtils.addFieldWhenGtZero(sb, MAX_DELIVER, maxDeliver);
         JsonUtils.addField(sb, MAX_ACK_PENDING, maxAckPending);
-        if (filterSubjects.size() > 1) {
-            JsonUtils.addStrings(sb, FILTER_SUBJECTS, filterSubjects);
-        }
-        else if (filterSubjects.size() == 1) {
-            JsonUtils.addField(sb, FILTER_SUBJECT, filterSubjects.get(0));
-        }
         JsonUtils.addField(sb, REPLAY_POLICY, GetOrDefault(replayPolicy).toString());
         JsonUtils.addField(sb, SAMPLE_FREQ, sampleFrequency);
         JsonUtils.addFieldWhenGtZero(sb, RATE_LIMIT_BPS, rateLimit);
@@ -237,6 +231,14 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, NUM_REPLICAS, numReplicas);
         JsonUtils.addField(sb, MEM_STORAGE, memStorage);
         JsonUtils.addField(sb, METADATA, metadata);
+        if (filterSubjects != null) {
+            if (filterSubjects.size() > 1) {
+                JsonUtils.addStrings(sb, FILTER_SUBJECTS, filterSubjects);
+            }
+            else if (filterSubjects.size() == 1) {
+                JsonUtils.addField(sb, FILTER_SUBJECT, filterSubjects.get(0));
+            }
+        }
         return endJson(sb).toString();
     }
 
@@ -329,19 +331,29 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
-     * Gets the first filter subject of this consumer configuration. Will be null if there are none.
+     * Gets the filter subject of this consumer configuration.
+     * With the introduction of multiple filter subjects, this method will
+     * return null if there are not exactly one filter subjects
      * @return the first filter subject.
      */
     public String getFilterSubject() {
-        return filterSubjects.isEmpty() ? null : filterSubjects.get(0);
+        return filterSubjects == null || filterSubjects.size() != 1 ? null : filterSubjects.get(0);
     }
 
     /**
-     * Gets the filter subjects as a list. May be empty, but won't be null
+     * Gets the filter subjects as a list. May be null, otherwise won't be empty
      * @return the list
      */
     public List<String> getFilterSubjects() {
         return filterSubjects;
+    }
+
+    /**
+     * Whether there are multiple filter subjects for this consumer configuration.
+     * @return true if there are multiple filter subjects
+     */
+    public boolean hasMultipleFilterSubjects() {
+        return filterSubjects != null && filterSubjects.size() > 1;
     }
 
     /**
@@ -635,7 +647,6 @@ public class ConsumerConfiguration implements JsonSerializable {
         private String name;
         private String deliverSubject;
         private String deliverGroup;
-        private List<String> filterSubjects = new ArrayList<>();
         private String sampleFrequency;
 
         private ZonedDateTime startTime;
@@ -659,6 +670,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         private List<Duration> backoff;
         private Map<String, String> metadata;
+        private List<String> filterSubjects;
 
         public Builder() {}
 
@@ -673,7 +685,6 @@ public class ConsumerConfiguration implements JsonSerializable {
                 this.name = cc.name;
                 this.deliverSubject = cc.deliverSubject;
                 this.deliverGroup = cc.deliverGroup;
-                this.filterSubjects = new ArrayList<>(cc.filterSubjects);
                 this.sampleFrequency = cc.sampleFrequency;
 
                 this.startTime = cc.startTime;
@@ -700,6 +711,9 @@ public class ConsumerConfiguration implements JsonSerializable {
                 }
                 if (cc.metadata != null) {
                     this.metadata = new HashMap<>(cc.metadata);
+                }
+                if (cc.filterSubjects != null) {
+                    this.filterSubjects = new ArrayList<>(cc.filterSubjects);
                 }
             }
         }
@@ -852,9 +866,11 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder filterSubject(String filterSubject) {
-            this.filterSubjects.clear();
-            if (!nullOrEmpty(filterSubject)) {
-                this.filterSubjects.add(filterSubject);
+            if (nullOrEmpty(filterSubject)) {
+                this.filterSubjects = null;
+            }
+            else {
+                this.filterSubjects = Collections.singletonList(filterSubject);
             }
             return this;
         }
@@ -862,7 +878,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * Sets the filter subjects of the ConsumerConfiguration.
-         * @param filterSubjects the array of filter subjects
+         * @param filterSubjects one or more filter subjects
          * @return Builder
          */
         public Builder filterSubjects(String... filterSubjects) {
@@ -875,13 +891,16 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder filterSubjects(List<String> filterSubjects) {
-            this.filterSubjects.clear();
+            this.filterSubjects = new ArrayList<>();
             if (filterSubjects != null) {
                 for (String fs : filterSubjects) {
                     if (!nullOrEmpty(fs)) {
                         this.filterSubjects.add(fs);
                     }
                 }
+            }
+            if (this.filterSubjects.isEmpty()) {
+                this.filterSubjects = null;
             }
             return this;
         }
@@ -1255,36 +1274,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     @Override
     public String toString() {
-        return "ConsumerConfiguration{" +
-            "description='" + description + '\'' +
-            ", durable='" + durable + '\'' +
-            ", name='" + name + '\'' +
-            ", deliverPolicy=" + deliverPolicy +
-            ", deliverSubject='" + deliverSubject + '\'' +
-            ", deliverGroup='" + deliverGroup + '\'' +
-            ", startSeq=" + startSeq +
-            ", startTime=" + startTime +
-            ", ackPolicy=" + ackPolicy +
-            ", ackWait=" + ackWait +
-            ", maxDeliver=" + maxDeliver +
-            ", filterSubjects='" + String.join(",", filterSubjects) + '\'' +
-            ", replayPolicy=" + replayPolicy +
-            ", sampleFrequency='" + sampleFrequency + '\'' +
-            ", rateLimit=" + rateLimit +
-            ", maxAckPending=" + maxAckPending +
-            ", idleHeartbeat=" + idleHeartbeat +
-            ", flowControl=" + flowControl +
-            ", maxPullWaiting=" + maxPullWaiting +
-            ", maxBatch=" + maxBatch +
-            ", maxBytes=" + maxBytes +
-            ", maxExpires=" + maxExpires +
-            ", numReplicas=" + numReplicas +
-            ", headersOnly=" + headersOnly +
-            ", memStorage=" + memStorage +
-            ", inactiveThreshold=" + inactiveThreshold +
-            ", backoff=" + backoff +
-            ", metadata=" + metadata +
-            '}';
+        return "ConsumerConfiguration " + toJson();
     }
 
     protected static int getOrUnset(Integer val)

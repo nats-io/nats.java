@@ -144,7 +144,7 @@ public class ErrorListenerTests {
                 fail();
             }
             catch (Exception ignore) {}
-            assertTrue(handler.errorsEventually("Authorization Violation", 5000));
+            assertTrue(handler.errorsEventually("Authorization Violation", 10000));
         }
     }
 

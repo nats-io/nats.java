@@ -41,7 +41,7 @@ public class ValidatorTests {
         allowedRequired(Validator::validateSubject, Arrays.asList(STAR_SEGMENT, GT_LAST_SEGMENT));
         notAllowedRequired(Validator::validateSubject, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_CR, HAS_LF));
         notAllowedRequired(Validator::validateSubject, Arrays.asList(STARTS_WITH_DOT, STAR_NOT_SEGMENT, GT_NOT_SEGMENT, EMPTY_SEGMENT));
-        notAllowedRequired(Validator::validateSubject, Arrays.asList(ENDS_WITH_DOT, ENDS_WITH_SPACE, ENDS_WITH_CR, ENDS_WITH_LF, ENDS_WITH_TAB));
+        notAllowedRequired(Validator::validateSubject, Arrays.asList(ENDS_WITH_DOT, ENDS_WITH_DOT_SPACE, ENDS_WITH_CR, ENDS_WITH_LF, ENDS_WITH_TAB));
 
         // subject not required, null and empty both mean not supplied
         allowedNotRequiredEmptyAsNull(Validator::validateSubject, Arrays.asList(null, EMPTY));
@@ -50,7 +50,7 @@ public class ValidatorTests {
         allowedNotRequired(Validator::validateSubject, Arrays.asList(STAR_SEGMENT, GT_LAST_SEGMENT));
         notAllowedNotRequired(Validator::validateSubject, Arrays.asList(HAS_SPACE, HAS_CR, HAS_LF));
         notAllowedNotRequired(Validator::validateSubject, Arrays.asList(STARTS_WITH_DOT, STAR_NOT_SEGMENT, GT_NOT_SEGMENT, EMPTY_SEGMENT));
-        notAllowedNotRequired(Validator::validateSubject, Arrays.asList(ENDS_WITH_DOT, ENDS_WITH_SPACE, ENDS_WITH_CR, ENDS_WITH_LF, ENDS_WITH_TAB));
+        notAllowedNotRequired(Validator::validateSubject, Arrays.asList(ENDS_WITH_DOT, ENDS_WITH_DOT_SPACE, ENDS_WITH_CR, ENDS_WITH_LF, ENDS_WITH_TAB));
     }
 
     @Test

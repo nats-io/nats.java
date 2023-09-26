@@ -38,6 +38,8 @@ public interface NatsConstants {
     String EMPTY = "";
     String CRLF = "\r\n";
     String DOT = ".";
+    String GT = ">";
+    String STAR = "*";
 
     byte TAB = '\t';
     byte SP = ' ';
