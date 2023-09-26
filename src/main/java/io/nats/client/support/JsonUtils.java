@@ -303,7 +303,7 @@ public abstract class JsonUtils {
         }
     }
 
-    interface ListAdder<T> {
+    public interface ListAdder<T> {
         void append(StringBuilder sb, T t);
     }
 
