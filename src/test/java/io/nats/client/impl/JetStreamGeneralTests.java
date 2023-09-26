@@ -806,67 +806,72 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            createDefaultTestStream(jsm);
+            String stream = stream();
+            String subject = subject();
+            createMemoryStream(nc, stream, subject);
 
             // push
-            nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pushDurableBuilder().build());
+            String uname = durable();
+            String deliver = deliver();
+            nc.jetStreamManagement().addOrUpdateConsumer(stream, pushDurableBuilder(subject, uname, deliver).build());
 
-            changeExPush(js, pushDurableBuilder().deliverPolicy(DeliverPolicy.Last), "deliverPolicy");
-            changeExPush(js, pushDurableBuilder().deliverPolicy(DeliverPolicy.New), "deliverPolicy");
-            changeExPush(js, pushDurableBuilder().ackPolicy(AckPolicy.None), "ackPolicy");
-            changeExPush(js, pushDurableBuilder().ackPolicy(AckPolicy.All), "ackPolicy");
-            changeExPush(js, pushDurableBuilder().replayPolicy(ReplayPolicy.Original), "replayPolicy");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).deliverPolicy(DeliverPolicy.Last), "deliverPolicy");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).deliverPolicy(DeliverPolicy.New), "deliverPolicy");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).ackPolicy(AckPolicy.None), "ackPolicy");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).ackPolicy(AckPolicy.All), "ackPolicy");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).replayPolicy(ReplayPolicy.Original), "replayPolicy");
 
-            changeExPush(js, pushDurableBuilder().flowControl(10000), "flowControl");
-            changeExPush(js, pushDurableBuilder().headersOnly(true), "headersOnly");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).flowControl(10000), "flowControl");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).headersOnly(true), "headersOnly");
 
-            changeExPush(js, pushDurableBuilder().startTime(ZonedDateTime.now()), "startTime");
-            changeExPush(js, pushDurableBuilder().ackWait(Duration.ofMillis(1)), "ackWait");
-            changeExPush(js, pushDurableBuilder().description("x"), "description");
-            changeExPush(js, pushDurableBuilder().sampleFrequency("x"), "sampleFrequency");
-            changeExPush(js, pushDurableBuilder().idleHeartbeat(Duration.ofMillis(1000)), "idleHeartbeat");
-            changeExPush(js, pushDurableBuilder().maxExpires(Duration.ofMillis(1000)), "maxExpires");
-            changeExPush(js, pushDurableBuilder().inactiveThreshold(Duration.ofMillis(1000)), "inactiveThreshold");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).startTime(ZonedDateTime.now()), "startTime");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).ackWait(Duration.ofMillis(1)), "ackWait");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).description("x"), "description");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).sampleFrequency("x"), "sampleFrequency");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).idleHeartbeat(Duration.ofMillis(1000)), "idleHeartbeat");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).maxExpires(Duration.ofMillis(1000)), "maxExpires");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).inactiveThreshold(Duration.ofMillis(1000)), "inactiveThreshold");
 
             // value
-            changeExPush(js, pushDurableBuilder().maxDeliver(MAX_DELIVER_MIN), "maxDeliver");
-            changeExPush(js, pushDurableBuilder().maxAckPending(0), "maxAckPending");
-            changeExPush(js, pushDurableBuilder().ackWait(0), "ackWait");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).maxDeliver(MAX_DELIVER_MIN), "maxDeliver");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).maxAckPending(0), "maxAckPending");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).ackWait(0), "ackWait");
 
             // value unsigned
-            changeExPush(js, pushDurableBuilder().startSequence(1), "startSequence");
-            changeExPush(js, pushDurableBuilder().rateLimit(1), "rateLimit");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).startSequence(1), "startSequence");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).rateLimit(1), "rateLimit");
 
             // unset doesn't fail because the server provides a value equal to the unset
-            changeOkPush(js, pushDurableBuilder().maxDeliver(INTEGER_UNSET));
+            changeOkPush(js, subject, pushDurableBuilder(subject, uname, deliver).maxDeliver(INTEGER_UNSET));
 
             // unset doesn't fail because the server does not provide a value
             // negatives are considered the unset
-            changeOkPush(js, pushDurableBuilder().startSequence(ULONG_UNSET));
-            changeOkPush(js, pushDurableBuilder().startSequence(-1));
-            changeOkPush(js, pushDurableBuilder().rateLimit(ULONG_UNSET));
-            changeOkPush(js, pushDurableBuilder().rateLimit(-1));
+            changeOkPush(js, subject, pushDurableBuilder(subject, uname, deliver).startSequence(ULONG_UNSET));
+            changeOkPush(js, subject, pushDurableBuilder(subject, uname, deliver).startSequence(-1));
+            changeOkPush(js, subject, pushDurableBuilder(subject, uname, deliver).rateLimit(ULONG_UNSET));
+            changeOkPush(js, subject, pushDurableBuilder(subject, uname, deliver).rateLimit(-1));
 
             // unset fail b/c the server does set a value that is not equal to the unset or the minimum
-            changeExPush(js, pushDurableBuilder().maxAckPending(LONG_UNSET), "maxAckPending");
-            changeExPush(js, pushDurableBuilder().maxAckPending(0), "maxAckPending");
-            changeExPush(js, pushDurableBuilder().ackWait(LONG_UNSET), "ackWait");
-            changeExPush(js, pushDurableBuilder().ackWait(0), "ackWait");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).maxAckPending(LONG_UNSET), "maxAckPending");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).maxAckPending(0), "maxAckPending");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).ackWait(LONG_UNSET), "ackWait");
+            changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).ackWait(0), "ackWait");
 
             // pull
-            nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pullDurableBuilder().build());
+            String lname = durable();
+            nc.jetStreamManagement().addOrUpdateConsumer(stream, pullDurableBuilder(subject, lname).build());
 
             // value
-            changeExPull(js, pullDurableBuilder().maxPullWaiting(0), "maxPullWaiting");
-            changeExPull(js, pullDurableBuilder().maxBatch(0), "maxBatch");
-            changeExPull(js, pullDurableBuilder().maxBytes(0), "maxBytes");
+            changeExPull(js, subject, pullDurableBuilder(subject, lname).maxPullWaiting(0), "maxPullWaiting");
+            changeExPull(js, subject, pullDurableBuilder(subject, lname).maxBatch(0), "maxBatch");
+            changeExPull(js, subject, pullDurableBuilder(subject, lname).maxBytes(0), "maxBytes");
 
             // unsets fail b/c the server does set a value
-            changeExPull(js, pullDurableBuilder().maxPullWaiting(-1), "maxPullWaiting");
+            changeExPull(js, subject, pullDurableBuilder(subject, lname).maxPullWaiting(-1), "maxPullWaiting");
 
             // unset
-            changeOkPull(js, pullDurableBuilder().maxBatch(-1));
-            changeOkPull(js, pullDurableBuilder().maxBytes(-1));
+            changeOkPull(js, subject, pullDurableBuilder(subject, lname).maxBatch(-1));
+            changeOkPull(js, subject, pullDurableBuilder(subject, lname).maxBytes(-1));
 
             // metadata
             Map<String, String> metadataA = new HashMap<>(); metadataA.put("a", "A");
@@ -874,39 +879,39 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
                 // metadata server null versus new not null
-                nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pushDurableBuilder().build());
-                changeExPush(js, pushDurableBuilder().metadata(metadataA), "metadata");
+                nc.jetStreamManagement().addOrUpdateConsumer(stream, pushDurableBuilder(subject, uname, deliver).build());
+                changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataA), "metadata");
 
                 // metadata server not null versus new null
-                nc.jetStreamManagement().addOrUpdateConsumer(STREAM, pushDurableBuilder().metadata(metadataA).build());
-                changeOkPush(js, pushDurableBuilder());
+                nc.jetStreamManagement().addOrUpdateConsumer(stream, pushDurableBuilder(subject, uname, deliver).metadata(metadataA).build());
+                changeOkPush(js, subject, pushDurableBuilder(subject, uname, deliver));
 
                 // metadata server not null versus new not null but different
-                changeExPush(js, pushDurableBuilder().metadata(metadataB), "metadata");
+                changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataB), "metadata");
 
                 // metadata server not null versus new not null and same
-                changeOkPush(js, pushDurableBuilder().metadata(metadataA));
+                changeOkPush(js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataA));
             }
         });
     }
 
-    private void changeOkPush(JetStream js, Builder builder) throws IOException, JetStreamApiException {
-        unsubscribeEnsureNotBound(js.subscribe(SUBJECT, builder.buildPushSubscribeOptions()));
+    private void changeOkPush(JetStream js, String subject, Builder builder) throws IOException, JetStreamApiException {
+        unsubscribeEnsureNotBound(js.subscribe(subject, builder.buildPushSubscribeOptions()));
     }
 
-    private void changeOkPull(JetStream js, Builder builder) throws IOException, JetStreamApiException {
-        unsubscribeEnsureNotBound(js.subscribe(SUBJECT, builder.buildPullSubscribeOptions()));
+    private void changeOkPull(JetStream js, String subject, Builder builder) throws IOException, JetStreamApiException {
+        unsubscribeEnsureNotBound(js.subscribe(subject, builder.buildPullSubscribeOptions()));
     }
 
-    private void changeExPush(JetStream js, Builder builder, String changedField) {
+    private void changeExPush(JetStream js, String subject, Builder builder, String changedField) {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
-            () -> js.subscribe(SUBJECT, PushSubscribeOptions.builder().configuration(builder.build()).build()));
+            () -> js.subscribe(subject, PushSubscribeOptions.builder().configuration(builder.build()).build()));
         _changeEx(iae, changedField);
     }
 
-    private void changeExPull(JetStream js, Builder builder, String changedField) {
+    private void changeExPull(JetStream js, String subject, Builder builder, String changedField) {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
-            () -> js.subscribe(SUBJECT, PullSubscribeOptions.builder().configuration(builder.build()).build()));
+            () -> js.subscribe(subject, PullSubscribeOptions.builder().configuration(builder.build()).build()));
         _changeEx(iae, changedField);
     }
 
@@ -916,12 +921,12 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         assertTrue(iaeMessage.contains(changedField));
     }
 
-    private Builder pushDurableBuilder() {
-        return builder().durable(PUSH_DURABLE).deliverSubject(DELIVER).filterSubject(SUBJECT);
+    private Builder pushDurableBuilder(String subject, String durable, String deliver) {
+        return builder().durable(durable).deliverSubject(deliver).filterSubject(subject);
     }
 
-    private Builder pullDurableBuilder() {
-        return builder().durable(PULL_DURABLE).filterSubject(SUBJECT);
+    private Builder pullDurableBuilder(String subject, String durable) {
+        return builder().durable(durable).filterSubject(subject);
     }
 
     @Test

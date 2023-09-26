@@ -15,6 +15,7 @@ plugins {
 
 def jarVersion = "2.17.0"
 
+def isDevLocal = System.getenv("DEV_LOCAL") == "yes"
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 def bs = System.getenv("BRANCH_SNAPSHOT")
 def snap = bs == null || bs.equals("") ? "-SNAPSHOT" : "." + bs + "-SNAPSHOT"
@@ -84,7 +85,7 @@ test {
         maxFailures = 5
         maxRetries = 5
     }
-    maxParallelForks = Runtime.runtime.availableProcessors()
+    maxParallelForks = isDevLocal ? Runtime.runtime.availableProcessors() : Math.max(1, Runtime.runtime.availableProcessors() / 2)
 }
 
 javadoc {
