@@ -23,6 +23,7 @@ package io.nats.client;
 public interface StatisticsCollector extends Statistics {
     /**
      * Sets whether advanced stats are/should be tracked.
+     * @param trackAdvanced the advanced tracking flag. set to true to turn on advanced tracking
      */
     void setAdvancedTracking(boolean trackAdvanced);
 
@@ -92,6 +93,7 @@ public interface StatisticsCollector extends Statistics {
 
     /**
      * Increment the total number of message bytes that have come in to this connection.
+     * @param bytes the number of bytes coming in
      */
     void incrementInBytes(long bytes);
 
@@ -117,15 +119,15 @@ public interface StatisticsCollector extends Statistics {
 
     /**
      * Registers a Socket read by this connection.
-     * <p>
-     * NOTE: Implementations should only count this if advanced stats are enabled.
+     * <p>NOTE: Implementations should only count this if advanced stats are enabled.</p>
+     * @param bytes the number of bytes being read
      */
     void registerRead(long bytes);
 
     /**
      * Registers a Socket write by this connection.
-     * <p>
-     * NOTE: Implementations should only count this if advanced stats are enabled.
+     * <p>NOTE: Implementations should only count this if advanced stats are enabled.</p>
+     * @param bytes the number of bytes being written
      */
     void registerWrite(long bytes);
 }

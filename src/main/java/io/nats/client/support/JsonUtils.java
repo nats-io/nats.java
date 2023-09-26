@@ -252,6 +252,7 @@ public abstract class JsonUtils {
      * @param sb string builder
      * @param fname fieldname
      * @param value field value
+     * @param gt the number the value must be greater than
      */
     public static void addFieldWhenGreaterThan(StringBuilder sb, String fname, Long value, long gt) {
         if (value != null && value > gt) {
