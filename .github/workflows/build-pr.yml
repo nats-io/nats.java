@@ -24,7 +24,7 @@ jobs:
           distribution: 'adopt'
       - name: Install Nats Server
         run: |
-          curl -sf https://binaries.nats.dev/nats-io/nats-server/v2@bbe172d | PREFIX=. sh
+          curl -sf https://binaries.nats.dev/nats-io/nats-server/v2@f3411f6 | PREFIX=. sh
           sudo mv nats-server /usr/local/bin
           nats-server -v
       - name: Check out code
