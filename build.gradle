@@ -84,7 +84,7 @@ test {
         maxFailures = 5
         maxRetries = 5
     }
-    maxParallelForks = 1 // Runtime.runtime.availableProcessors()
+    maxParallelForks = Runtime.runtime.availableProcessors()
 }
 
 javadoc {
