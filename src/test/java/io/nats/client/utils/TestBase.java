@@ -40,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class TestBase {
 
     public static final String STAR_SEGMENT        = "*.star.*.segment.*";
+    public static final String GT_NOT_LAST_SEGMENT = "gt.>.notlast";
     public static final String GT_LAST_SEGMENT     = "gt.last.>";
     public static final String STARTS_WITH_DOT     = ".starts-with-dot";
     public static final String ENDS_WITH_DOT       = "ends-with-dot.";

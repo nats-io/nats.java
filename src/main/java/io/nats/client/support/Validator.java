@@ -44,6 +44,9 @@ public abstract class Validator {
             throw new IllegalArgumentException(label + " cannot end with '.'");
         }
 
+        if (subject.contains(".>.")) {
+            int x = 0;
+        }
         String[] segments = subject.split("\\.");
         for (int seg = 0; seg < segments.length; seg++) {
             String segment = segments[seg];
@@ -64,8 +67,12 @@ public abstract class Validator {
                         case '\t':
                             throw new IllegalArgumentException(label + " cannot contain space, tab, carriage return or linefeed character");
                         case '*':
-                        case '>':
                             if (sl != 1) {
+                                throw new IllegalArgumentException(label + " wildcard improperly placed.");
+                            }
+                            break;
+                        case '>':
+                            if (sl != 1 || (seg + 1 != segments.length)) {
                                 throw new IllegalArgumentException(label + " wildcard improperly placed.");
                             }
                             break;
