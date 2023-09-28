@@ -16,6 +16,7 @@ package io.nats.client.api;
 import io.nats.client.JetStreamManagement;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonParseException;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
 import io.nats.client.utils.ResourceUtils;
@@ -105,8 +106,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .denyDelete(testSc.getDenyDelete())
             .denyPurge(testSc.getDenyPurge())
             .discardNewPerSubject(testSc.isDiscardNewPerSubject())
-            .metadata(metaData)
-            .firstSequence(82942)
+            .metadata(testSc.getMetadata())
+            .firstSequence(testSc.getFirstSequence())
             .consumerLimits(testSc.getConsumerLimits());
         validate(builder.build(), false);
         validate(builder.addSources((Source)null).build(), false);
@@ -256,6 +257,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         sb.external(m.getExternal());
         mb.external(m.getExternal());
+
+        sb.subjectTransforms(m.getSubjectTransforms());
+        mb.subjectTransforms(m.getSubjectTransforms());
 
         assertEquals(s1, sb.build());
         assertEquals(m1, mb.build());
@@ -439,20 +443,23 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
             assertEquals(5, sc.getReplicas());
             assertEquals("twnr", sc.getTemplateOwner());
-            assertNotNull(sc.getMirror());
-            assertEquals("eman", sc.getMirror().getSourceName());
-            assertEquals(736, sc.getMirror().getStartSeq());
-            assertEquals(zdt, sc.getMirror().getStartTime());
-            assertEquals("mfsub", sc.getMirror().getFilterSubject());
 
-            assertNotNull(sc.getMirror().getExternal());
-            assertEquals("apithing", sc.getMirror().getExternal().getApi());
-            assertEquals("dlvrsub", sc.getMirror().getExternal().getDeliver());
+            Mirror mirror = sc.getMirror();
+            assertNotNull(mirror);
+            assertEquals("eman", mirror.getSourceName());
+            assertEquals(736, mirror.getStartSeq());
+            assertEquals(zdt, mirror.getStartTime());
+            assertEquals("mfsub", mirror.getFilterSubject());
+
+            assertNotNull(mirror.getExternal());
+            assertEquals("apithing", mirror.getExternal().getApi());
+            assertEquals("dlvrsub", mirror.getExternal().getDeliver());
+
+            validateSubjectTransforms(mirror.getSubjectTransforms(), 2, "m");
 
             assertEquals(2, sc.getSources().size());
-
-            validateSource(sc.getSources().get(0), "s0", 737, "s0sub", "s0api", "s0dlvrsub", zdt);
-            validateSource(sc.getSources().get(1), "s1", 738, "s1sub", "s1api", "s1dlvrsub", zdt);
+            validateSource(sc.getSources().get(0), 0, zdt);
+            validateSource(sc.getSources().get(1), 1, zdt);
 
             assertEquals(1, sc.getMetadata().size());
             assertEquals("meta-bar", sc.getMetadata().get("meta-foo"));
@@ -460,9 +467,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
             assertSame(S2, sc.getCompressionOption());
 
-            assertNotNull(sc.getSubjectTransform());
-            assertEquals("st.>", sc.getSubjectTransform().getSource());
-            assertEquals("stdest.>", sc.getSubjectTransform().getDestination());
+            validateSubjectTransforms(Collections.singletonList(sc.getSubjectTransform()), 1, "sc");
 
             assertNotNull(sc.getConsumerLimits());
             assertEquals(Duration.ofSeconds(50), sc.getConsumerLimits().getInactiveThreshold());
@@ -470,15 +475,29 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         }
     }
 
-    private void validateSource(Source source, String name, long seq, String filter, String api, String deliver, ZonedDateTime zdt) {
+    private void validateSource(Source source, int index, ZonedDateTime zdt) {
+        long seq = 737 + index;
+        String name = "s" + index;
         assertEquals(name, source.getSourceName());
         assertEquals(seq, source.getStartSeq());
         assertEquals(zdt, source.getStartTime());
-        assertEquals(filter, source.getFilterSubject());
+        assertEquals(name + "sub", source.getFilterSubject());
 
         assertNotNull(source.getExternal());
-        assertEquals(api, source.getExternal().getApi());
-        assertEquals(deliver, source.getExternal().getDeliver());
+        assertEquals(name + "api", source.getExternal().getApi());
+        assertEquals(name + "dlvrsub", source.getExternal().getDeliver());
+
+        validateSubjectTransforms(source.getSubjectTransforms(), 2, name);
+    }
+
+    public static void validateSubjectTransforms(List<SubjectTransform> subjectTransforms, int count, String name) {
+        assertNotNull(subjectTransforms);
+        assertEquals(count, subjectTransforms.size());
+        for (int x = 0; x < count; x++) {
+            SubjectTransform st = subjectTransforms.get(x);
+            assertEquals(name + "_st_src" + x, st.getSource());
+            assertEquals(name + "_st_dest" + x, st.getDestination());
+        }
     }
 
     @Test
@@ -579,5 +598,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         // really testing SourceBase
         EqualsVerifier.simple().forClass(Mirror.class).verify();
         EqualsVerifier.simple().forClass(Source.class).verify();
+    }
+
+    public static StreamConfiguration getStreamConfigurationFromJson(String jsonFile) throws JsonParseException {
+        return StreamConfiguration.instance(JsonParser.parse(ResourceUtils.dataAsString(jsonFile)));
     }
 }

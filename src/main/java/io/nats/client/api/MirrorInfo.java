@@ -30,6 +30,6 @@ public class MirrorInfo extends SourceInfoBase {
 
     @Override
     public String toString() {
-        return "Mirror" + super.toString();
+        return "MirrorInfo " + super.toString();
     }
 }

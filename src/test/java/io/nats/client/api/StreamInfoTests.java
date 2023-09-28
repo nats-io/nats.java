@@ -149,32 +149,12 @@ public class StreamInfoTests {
         assertEquals(16, mi.getLag());
         assertEquals(Duration.ofNanos(160000000000L), mi.getActive());
         assertNull(mi.getError());
-        External e = mi.getExternal();
-        assertNotNull(e);
-        assertNotNull(e.toString()); // coverage
-        assertEquals("api16", e.getApi());
-        assertEquals("dlvr16", e.getDeliver());
+        validateExternal(mi.getExternal(), 16);
+        StreamConfigurationTests.validateSubjectTransforms(mi.getSubjectTransforms(), 2, "16");
 
         assertEquals(2, si.getSourceInfos().size());
-
-        SourceInfo sisi = si.getSourceInfos().get(0);
-        assertNotNull(sisi.toString()); // coverage
-        assertEquals("sname17", sisi.getName());
-        assertEquals(17, sisi.getLag());
-        assertEquals(Duration.ofNanos(170000000000L), sisi.getActive());
-        e = sisi.getExternal();
-        assertNotNull(e);
-        assertEquals("api17", e.getApi());
-        assertEquals("dlvr17", e.getDeliver());
-
-        sisi = si.getSourceInfos().get(1);
-        assertEquals("sname18", sisi.getName());
-        assertEquals(18, sisi.getLag());
-        assertEquals(Duration.ofNanos(180000000000L), sisi.getActive());
-        e = sisi.getExternal();
-        assertNotNull(e);
-        assertEquals("api18", e.getApi());
-        assertEquals("dlvr18", e.getDeliver());
+        validateSourceInfo(si.getSourceInfos().get(0), 17);
+        validateSourceInfo(si.getSourceInfos().get(1), 18);
 
         si = new StreamInfo(JsonValue.EMPTY_MAP);
         assertNull(si.getCreateTime());
@@ -188,6 +168,22 @@ public class StreamInfoTests {
         assertNull(Replica.optionalListOf(null));
         assertNull(Replica.optionalListOf(JsonValue.NULL));
         assertNull(Replica.optionalListOf(JsonValue.EMPTY_ARRAY));
+    }
+
+    private static void validateSourceInfo(SourceInfo sourceInfo, int id) {
+        assertNotNull(sourceInfo.toString()); // coverage
+        assertEquals("sname" + id, sourceInfo.getName());
+        assertEquals(id, sourceInfo.getLag());
+        assertEquals(Duration.ofNanos(id * 10000000000L), sourceInfo.getActive());
+        validateExternal(sourceInfo.getExternal(), id);
+        StreamConfigurationTests.validateSubjectTransforms(sourceInfo.getSubjectTransforms(), 2, "" + id);
+    }
+
+    private static void validateExternal(External e, int id) {
+        assertNotNull(e);
+        assertNotNull(e.toString()); // coverage
+        assertEquals("api" + id, e.getApi());
+        assertEquals("dlvr" + id, e.getDeliver());
     }
 
     @Test

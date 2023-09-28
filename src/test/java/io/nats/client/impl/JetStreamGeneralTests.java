@@ -877,7 +877,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             Map<String, String> metadataA = new HashMap<>(); metadataA.put("a", "A");
             Map<String, String> metadataB = new HashMap<>(); metadataB.put("b", "B");
 
-            if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
+            if (nc.getServerInfo().isNewerVersionThan("2.9.99")) {
                 // metadata server null versus new not null
                 nc.jetStreamManagement().addOrUpdateConsumer(stream, pushDurableBuilder(subject, uname, deliver).build());
                 changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataA), "metadata");

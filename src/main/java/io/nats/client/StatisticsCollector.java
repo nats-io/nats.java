@@ -99,6 +99,7 @@ public interface StatisticsCollector extends Statistics {
 
     /**
      * Increment the total number of message bytes that have gone out of this connection.
+     * @param bytes the number of bytes going out
      */
     void incrementOutBytes(long bytes);
 

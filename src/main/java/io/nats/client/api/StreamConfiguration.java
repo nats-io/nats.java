@@ -156,9 +156,7 @@ public class StreamConfiguration implements JsonSerializable {
         JsonUtils.addField(sb, DESCRIPTION, description);
         addStrings(sb, SUBJECTS, subjects);
         addField(sb, RETENTION, retentionPolicy.toString());
-        if (compressionOption != CompressionOption.None) {
-            addField(sb, COMPRESSION, compressionOption.toString());
-        }
+        addEnumWhenNot(sb, COMPRESSION, compressionOption, CompressionOption.None);
         addField(sb, MAX_CONSUMERS, maxConsumers);
         addField(sb, MAX_MSGS, maxMsgs);
         addField(sb, MAX_MSGS_PER_SUB, maxMsgsPerSubject);
@@ -451,36 +449,7 @@ public class StreamConfiguration implements JsonSerializable {
 
     @Override
     public String toString() {
-        return "StreamConfiguration{" +
-            "name='" + name + '\'' +
-            ", description='" + description + '\'' +
-            ", subjects=" + subjects +
-            ", retentionPolicy=" + retentionPolicy +
-            ", compressionOption=" + compressionOption +
-            ", maxConsumers=" + maxConsumers +
-            ", maxMsgs=" + maxMsgs +
-            ", maxMsgsPerSubject=" + maxMsgsPerSubject +
-            ", maxBytes=" + maxBytes +
-            ", maxAge=" + maxAge +
-            ", maxMsgSize=" + maxMsgSize +
-            ", storageType=" + storageType +
-            ", replicas=" + replicas +
-            ", noAck=" + noAck +
-            ", template='" + templateOwner + '\'' +
-            ", discardPolicy=" + discardPolicy +
-            ", duplicateWindow=" + duplicateWindow +
-            ", allowRollup=" + allowRollup +
-            ", allowDirect=" + allowDirect +
-            ", mirrorDirect=" + mirrorDirect +
-            ", denyDelete=" + denyDelete +
-            ", denyPurge=" + denyPurge +
-            ", discardNewPerSubject=" + discardNewPerSubject +
-            ", firstSequence=" + firstSequence +
-            ", " + mirror +
-            ", " + placement +
-            ", sources=" + sources +
-            ", metadata=" + metadata +
-            '}';
+        return toJson();
     }
 
     /**
