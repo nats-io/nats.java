@@ -593,7 +593,7 @@ public abstract class Validator {
         return SEMVER_PATTERN.matcher(s).find();
     }
 
-    // This functions tests filter subject equivalency
+    // This function tests filter subject equivalency
     // It does not care what order and also assumes that there are no duplicates.
     // From the server: consumer subject filters cannot overlap [10138]
     public static <T> boolean consumerFilterSubjectsAreEquivalent(List<T> l1, List<T> l2)
