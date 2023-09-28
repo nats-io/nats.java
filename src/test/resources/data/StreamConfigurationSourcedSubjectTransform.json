@@ -1,0 +1,40 @@
+{
+  "name": "sourcingstream",
+  "retention": "limits",
+  "max_consumers": -1,
+  "max_msgs_per_subject": -1,
+  "max_msgs": -1,
+  "max_bytes": -1,
+  "max_age": 0,
+  "max_msg_size": -1,
+  "storage": "file",
+  "discard": "old",
+  "num_replicas": 1,
+  "duplicate_window": 120000000000,
+  "sources": [
+    {
+      "name": "sourcedstream",
+      "subject_transforms": [
+        {
+          "src": "foo",
+          "dest": "foo-transformed"
+        }
+      ]
+    },
+    {
+      "name": "sourcedstream",
+      "subject_transforms": [
+        {
+          "src": "bar",
+          "dest": "bar-transformed"
+        }
+      ]
+    }
+  ],
+  "sealed": false,
+  "deny_delete": false,
+  "deny_purge": false,
+  "allow_rollup_hdrs": false,
+  "allow_direct": false,
+  "mirror_direct": false
+}

@@ -180,6 +180,7 @@ public interface ApiConstants {
     String STREAMS           = "streams";
     String SUBJECT           = "subject";
     String SUBJECT_TRANSFORM = "subject_transform";
+    String SUBJECT_TRANSFORMS = "subject_transforms";
     String SUBJECTS          = "subjects";
     String SUBJECTS_FILTER   = "subjects_filter";
     String SUCCESS           = "success";

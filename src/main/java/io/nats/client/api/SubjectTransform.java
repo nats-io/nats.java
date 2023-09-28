@@ -15,6 +15,10 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
+
+import java.util.List;
+import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.DEST;
 import static io.nats.client.support.ApiConstants.SRC;
@@ -30,6 +34,10 @@ public class SubjectTransform implements JsonSerializable {
 
     static SubjectTransform optionalInstance(JsonValue vSubjectTransform) {
         return vSubjectTransform == null ? null : new SubjectTransform(vSubjectTransform);
+    }
+
+    static List<SubjectTransform> optionalListOf(JsonValue vSubjectTransforms) {
+        return JsonValueUtils.optionalListOf(vSubjectTransforms, SubjectTransform::new);
     }
 
     SubjectTransform(JsonValue vSubjectTransform) {
@@ -111,5 +119,23 @@ public class SubjectTransform implements JsonSerializable {
         public SubjectTransform build() {
             return new SubjectTransform(source, destination);
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        SubjectTransform that = (SubjectTransform) o;
+
+        if (!Objects.equals(source, that.source)) return false;
+        return Objects.equals(destination, that.destination);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = source != null ? source.hashCode() : 0;
+        result = 31 * result + (destination != null ? destination.hashCode() : 0);
+        return result;
     }
 }

@@ -16,22 +16,27 @@ package io.nats.client.api;
 import io.nats.client.support.JsonValue;
 
 import java.time.Duration;
+import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonValueUtils.*;
 
 abstract class SourceInfoBase {
+    protected JsonValue jv;
     protected final String name;
     protected final long lag;
     protected final Duration active;
     protected final External external;
+    protected final List<SubjectTransform> subjectTransforms;
     protected final Error error;
 
     SourceInfoBase(JsonValue vSourceInfo) {
+        jv = vSourceInfo;
         name = readString(vSourceInfo, NAME);
         lag = readLong(vSourceInfo, LAG, 0);
         active = readNanos(vSourceInfo, ACTIVE, Duration.ZERO);
         external = External.optionalInstance(readValue(vSourceInfo, EXTERNAL));
+        subjectTransforms = SubjectTransform.optionalListOf(readValue(vSourceInfo, SUBJECT_TRANSFORMS));
         error = Error.optionalInstance(readValue(vSourceInfo, ERROR));
     }
 
@@ -68,21 +73,18 @@ abstract class SourceInfoBase {
     }
 
     /**
+     * The list of subject transforms, if any
+     * @return the list of subject transforms
+     */
+    public List<SubjectTransform> getSubjectTransforms() {
+        return subjectTransforms;
+    }
+
+    /**
      * The last error
      * @return the error
      */
     public Error getError() {
         return error;
-    }
-
-    @Override
-    public String toString() {
-        return "Mirror{" +
-            "name='" + getName() + '\'' +
-            ", lag=" + getLag() +
-            ", active=" + getActive() +
-            ", " + external +
-            ", " + error +
-            '}';
     }
 }

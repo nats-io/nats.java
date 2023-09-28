@@ -30,4 +30,9 @@ public class SourceInfo extends SourceInfoBase {
     SourceInfo(JsonValue vSourceInfo) {
         super(vSourceInfo);
     }
+
+    @Override
+    public String toString() {
+        return "SourceInfo " + jv;
+    }
 }
