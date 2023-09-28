@@ -862,6 +862,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * Sets the filter subject of the ConsumerConfiguration.
+         * Replaces any other filter subjects set in the builder
          * @param filterSubject the filter subject
          * @return Builder
          */
@@ -878,6 +879,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * Sets the filter subjects of the ConsumerConfiguration.
+         * Replaces any other filter subjects set in the builder
          * @param filterSubjects one or more filter subjects
          * @return Builder
          */
@@ -887,6 +889,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * Sets the filter subjects of the ConsumerConfiguration.
+         * Replaces any other filter subjects set in the builder
          * @param filterSubjects the list of filter subjects
          * @return Builder
          */
