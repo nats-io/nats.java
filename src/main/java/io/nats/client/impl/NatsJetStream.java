@@ -254,7 +254,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         SubscribeOptions so;
         String stream;
         ConsumerConfiguration userCC;
-        String deliverGroup = null; // push might set this
+        String settledDeliverGroup = null; // push might set this
 
         if (isPullMode) {
             so = pullSubscribeOptions; // options must have already been checked to be non-null
@@ -276,8 +276,8 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             if (userCC.maxBytesWasSet())       { throw JsSubPushCantHaveMaxBytes.instance(); }
 
             // figure out the queue name
-            deliverGroup = validateMustMatchIfBothSupplied(userCC.getDeliverGroup(), queueName, JsSubQueueDeliverGroupMismatch);
-            if (so.isOrdered() && deliverGroup != null) {
+            settledDeliverGroup = validateMustMatchIfBothSupplied(userCC.getDeliverGroup(), queueName, JsSubQueueDeliverGroupMismatch);
+            if (so.isOrdered() && settledDeliverGroup != null) {
                 throw JsSubOrderedNotAllowOnQueues.instance();
             }
 
@@ -294,25 +294,25 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             if (isPullMode) {
                 throw JsSubFcHbNotValidPull.instance();
             }
-            if (deliverGroup != null) {
+            if (settledDeliverGroup != null) {
                 throw JsSubFcHbNotValidQueue.instance();
             }
         }
 
-        // 2. figure out user provided subjects and prepare the userCcFilterSubjects
+        // 2. figure out user provided subjects and prepare the settledFilterSubjects
         userSubscribeSubject = emptyAsNull(userSubscribeSubject);
-        List<String> userCcFilterSubjects = new ArrayList<>();
-        if (userCC.getFilterSubject() == null) { // empty filterSubjects gives null
-            // userCC.filterSubjects empty, populate userCcFilterSubjects w/userSubscribeSubject if possible
+        List<String> settledFilterSubjects = new ArrayList<>();
+        if (userCC.getFilterSubjects() == null) { // empty filterSubjects gives null
+            // userCC.filterSubjects empty, populate settledFilterSubjects w/userSubscribeSubject if possible
             if (userSubscribeSubject != null) {
-                userCcFilterSubjects.add(userSubscribeSubject);
+                settledFilterSubjects.add(userSubscribeSubject);
             }
         }
         else {
             // userCC.filterSubjects not empty, validate them
-            userCcFilterSubjects.addAll(userCC.getFilterSubjects());
+            settledFilterSubjects.addAll(userCC.getFilterSubjects());
             // If userSubscribeSubject is provided it must be one of the filter subjects.
-            if (userSubscribeSubject != null && !userCcFilterSubjects.contains(userSubscribeSubject)) {
+            if (userSubscribeSubject != null && !settledFilterSubjects.contains(userSubscribeSubject)) {
                 throw JsSubSubjectDoesNotMatchFilter.instance();
             }
         }
@@ -320,10 +320,10 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         // 3. Did they tell me what stream? No? look it up.
         final String settledStream;
         if (stream == null) {
-            if (userCcFilterSubjects.isEmpty()) {
-                throw new IllegalArgumentException("Subject needed to lookup stream. Provide either a subscribe subject or a ConsumerConfiguration filter subject.");
+            if (settledFilterSubjects.isEmpty()) {
+                throw JsSubSubjectNeededToLookupStream.instance();
             }
-            settledStream = lookupStreamBySubject(userCcFilterSubjects.get(0));
+            settledStream = lookupStreamBySubject(settledFilterSubjects.get(0));
             if (settledStream == null) {
                 throw JsSubNoMatchingStreamForSubject.instance();
             }
@@ -367,7 +367,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
                 if (serverCC.getDeliverGroup() == null) {
                     // lookedUp was null, means existing consumer is not a queue consumer
-                    if (deliverGroup == null) {
+                    if (settledDeliverGroup == null) {
                         // ok fine, no queue requested and the existing consumer is also not a queue consumer
                         // we must check if the consumer is in use though
                         if (serverInfo.isPushBound()) {
@@ -378,21 +378,23 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
                         throw JsSubExistingConsumerNotQueue.instance();
                     }
                 }
-                else if (deliverGroup == null) {
+                else if (settledDeliverGroup == null) {
                     throw JsSubExistingConsumerIsQueue.instance();
                 }
-                else if (!serverCC.getDeliverGroup().equals(deliverGroup)) {
+                else if (!serverCC.getDeliverGroup().equals(settledDeliverGroup)) {
                     throw JsSubExistingQueueDoesNotMatchRequestedQueue.instance();
                 }
 
                 // consumer already exists, make sure the filter subject matches
                 // subscribeSubject, if supplied came from the user directly
                 // or in the userCC or might not have been in either place
-                if (userCcFilterSubjects.isEmpty()) {
+                if (settledFilterSubjects.isEmpty()) {
                     // still also might be null, which the server treats as >
-                    userCcFilterSubjects = serverCC.getFilterSubjects();
+                    if (serverCC.getFilterSubjects() != null) {
+                        settledFilterSubjects = serverCC.getFilterSubjects();
+                    }
                 }
-                else if (!listsAreEquivalent(userCcFilterSubjects, serverCC.getFilterSubjects())) {
+                else if (!consumerFilterSubjectsAreEquivalent(settledFilterSubjects, serverCC.getFilterSubjects())) {
                     throw JsSubSubjectDoesNotMatchFilter.instance();
                 }
 
@@ -417,8 +419,8 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
         // 6. If consumer does not exist, create and settle on the config. Name will have to wait
         //    If the consumer exists, I know what the settled info is
-        final String settledConsumerName;
         final ConsumerConfiguration settledCC;
+        final String settledConsumerName;
         if (so.isFastBind() || serverCC != null) {
             settledCC = serverCC;
             settledConsumerName = so.getName(); // will never be null in this case
@@ -434,9 +436,9 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             // userCC.filterSubjects might have originally been empty
             // but there might have been a userSubscribeSubject,
             // so this makes sure it's resolved either way
-            ccBuilder.filterSubjects(userCcFilterSubjects);
+            ccBuilder.filterSubjects(settledFilterSubjects);
 
-            ccBuilder.deliverGroup(deliverGroup);
+            ccBuilder.deliverGroup(settledDeliverGroup);
 
             settledCC = ccBuilder.build();
             settledConsumerName = null; // the server will give us a name
@@ -453,7 +455,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         }
         else {
             MessageManagerFactory mmFactory = so.isOrdered() ? _pushOrderedMessageManagerFactory : _pushMessageManagerFactory;
-            mm = mmFactory.createMessageManager(conn, this, settledStream, so, settledCC, false, dispatcher == null);
+            mm = mmFactory.createMessageManager(conn, this, settledStream, so, settledCC, settledDeliverGroup != null, dispatcher == null);
             subFactory = (sid, lSubject, lQgroup, lConn, lDispatcher) -> {
                 NatsJetStreamSubscription nsub = new NatsJetStreamSubscription(sid, lSubject, lQgroup, lConn, lDispatcher,
                     this, settledStream, settledConsumerName, mm);
@@ -465,11 +467,11 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         }
         NatsJetStreamSubscription sub;
         if (dispatcher == null) {
-            sub = (NatsJetStreamSubscription) conn.createSubscription(settledInboxDeliver, deliverGroup, null, subFactory);
+            sub = (NatsJetStreamSubscription) conn.createSubscription(settledInboxDeliver, settledDeliverGroup, null, subFactory);
         }
         else {
             AsyncMessageHandler handler = new AsyncMessageHandler(mm, userHandler, isAutoAck, settledCC);
-            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(settledInboxDeliver, deliverGroup, handler, subFactory);
+            sub = (NatsJetStreamSubscription) dispatcher.subscribeImplJetStream(settledInboxDeliver, settledDeliverGroup, handler, subFactory);
         }
 
         // 8. The consumer might need to be created, do it here
@@ -514,14 +516,14 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
             if (startTime != null && !startTime.equals(serverCcc.startTime)) { changes.add("startTime"); }
 
-            if (!filterSubjects.isEmpty() && !listsAreEquivalent(filterSubjects, serverCcc.filterSubjects)) { changes.add("filterSubjects"); }
             if (description != null && !description.equals(serverCcc.description)) { changes.add("description"); }
             if (sampleFrequency != null && !sampleFrequency.equals(serverCcc.sampleFrequency)) { changes.add("sampleFrequency"); }
             if (deliverSubject != null && !deliverSubject.equals(serverCcc.deliverSubject)) { changes.add("deliverSubject"); }
             if (deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup)) { changes.add("deliverGroup"); }
 
-            if (backoff != null && !listsAreEquivalent(backoff, serverCcc.backoff)) { changes.add("backoff"); }
+            if (backoff != null && !consumerFilterSubjectsAreEquivalent(backoff, serverCcc.backoff)) { changes.add("backoff"); }
             if (metadata != null && !mapsAreEquivalent(metadata, serverCcc.metadata)) { changes.add("metadata"); }
+            if (filterSubjects != null && !consumerFilterSubjectsAreEquivalent(filterSubjects, serverCcc.filterSubjects)) { changes.add("filterSubjects"); }
 
             // do not need to check Durable because the original is retrieved by the durable name
 

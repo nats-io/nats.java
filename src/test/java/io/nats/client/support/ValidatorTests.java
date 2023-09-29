@@ -40,8 +40,8 @@ public class ValidatorTests {
         allowedRequired(Validator::validateSubject, UTF_ONLY_STRINGS);
         allowedRequired(Validator::validateSubject, Arrays.asList(STAR_SEGMENT, GT_LAST_SEGMENT));
         notAllowedRequired(Validator::validateSubject, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_CR, HAS_LF));
-        notAllowedRequired(Validator::validateSubject, Arrays.asList(STARTS_WITH_DOT, STAR_NOT_SEGMENT, GT_NOT_SEGMENT, EMPTY_SEGMENT));
-        notAllowedRequired(Validator::validateSubject, Arrays.asList(ENDS_WITH_DOT, ENDS_WITH_SPACE, ENDS_WITH_CR, ENDS_WITH_LF, ENDS_WITH_TAB));
+        notAllowedRequired(Validator::validateSubject, Arrays.asList(STARTS_WITH_DOT, STAR_NOT_SEGMENT, GT_NOT_SEGMENT, EMPTY_SEGMENT, GT_NOT_LAST_SEGMENT));
+        notAllowedRequired(Validator::validateSubject, Arrays.asList(ENDS_WITH_DOT, ENDS_WITH_DOT_SPACE, ENDS_WITH_CR, ENDS_WITH_LF, ENDS_WITH_TAB));
 
         // subject not required, null and empty both mean not supplied
         allowedNotRequiredEmptyAsNull(Validator::validateSubject, Arrays.asList(null, EMPTY));
@@ -49,8 +49,8 @@ public class ValidatorTests {
         allowedNotRequired(Validator::validateSubject, UTF_ONLY_STRINGS);
         allowedNotRequired(Validator::validateSubject, Arrays.asList(STAR_SEGMENT, GT_LAST_SEGMENT));
         notAllowedNotRequired(Validator::validateSubject, Arrays.asList(HAS_SPACE, HAS_CR, HAS_LF));
-        notAllowedNotRequired(Validator::validateSubject, Arrays.asList(STARTS_WITH_DOT, STAR_NOT_SEGMENT, GT_NOT_SEGMENT, EMPTY_SEGMENT));
-        notAllowedNotRequired(Validator::validateSubject, Arrays.asList(ENDS_WITH_DOT, ENDS_WITH_SPACE, ENDS_WITH_CR, ENDS_WITH_LF, ENDS_WITH_TAB));
+        notAllowedNotRequired(Validator::validateSubject, Arrays.asList(STARTS_WITH_DOT, STAR_NOT_SEGMENT, GT_NOT_SEGMENT, EMPTY_SEGMENT, GT_NOT_LAST_SEGMENT));
+        notAllowedNotRequired(Validator::validateSubject, Arrays.asList(ENDS_WITH_DOT, ENDS_WITH_DOT_SPACE, ENDS_WITH_CR, ENDS_WITH_LF, ENDS_WITH_TAB));
     }
 
     @Test
@@ -545,7 +545,7 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testListsAreEqual() {
+    public void testConsumerFilterSubjectsAreEquivalent() {
         List<String> l1 = Arrays.asList("one", "two");
         List<String> l2 = Arrays.asList("two", "one");
         List<String> l3 = Arrays.asList("one", "not");
@@ -553,47 +553,47 @@ public class ValidatorTests {
         List<String> l5 = null;
         List<String> l6 = new ArrayList<>();
 
-        assertTrue(listsAreEquivalent(l1, l1));
-        assertTrue(listsAreEquivalent(l1, l2));
-        assertFalse(listsAreEquivalent(l1, l3));
-        assertFalse(listsAreEquivalent(l1, l4));
-        assertFalse(listsAreEquivalent(l1, l5));
-        assertFalse(listsAreEquivalent(l1, l6));
+        assertTrue(consumerFilterSubjectsAreEquivalent(l1, l1));
+        assertTrue(consumerFilterSubjectsAreEquivalent(l1, l2));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l1, l3));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l1, l4));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l1, l5));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l1, l6));
 
-        assertTrue(listsAreEquivalent(l2, l1));
-        assertTrue(listsAreEquivalent(l2, l2));
-        assertFalse(listsAreEquivalent(l2, l3));
-        assertFalse(listsAreEquivalent(l2, l4));
-        assertFalse(listsAreEquivalent(l2, l5));
-        assertFalse(listsAreEquivalent(l2, l6));
+        assertTrue(consumerFilterSubjectsAreEquivalent(l2, l1));
+        assertTrue(consumerFilterSubjectsAreEquivalent(l2, l2));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l2, l3));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l2, l4));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l2, l5));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l2, l6));
 
-        assertFalse(listsAreEquivalent(l3, l1));
-        assertFalse(listsAreEquivalent(l3, l2));
-        assertTrue(listsAreEquivalent(l3, l3));
-        assertFalse(listsAreEquivalent(l3, l4));
-        assertFalse(listsAreEquivalent(l3, l5));
-        assertFalse(listsAreEquivalent(l3, l6));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l3, l1));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l3, l2));
+        assertTrue(consumerFilterSubjectsAreEquivalent(l3, l3));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l3, l4));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l3, l5));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l3, l6));
 
-        assertFalse(listsAreEquivalent(l4, l1));
-        assertFalse(listsAreEquivalent(l4, l2));
-        assertFalse(listsAreEquivalent(l4, l3));
-        assertTrue(listsAreEquivalent(l4, l4));
-        assertFalse(listsAreEquivalent(l4, l5));
-        assertFalse(listsAreEquivalent(l4, l6));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l4, l1));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l4, l2));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l4, l3));
+        assertTrue(consumerFilterSubjectsAreEquivalent(l4, l4));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l4, l5));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l4, l6));
 
-        assertFalse(listsAreEquivalent(l5, l1));
-        assertFalse(listsAreEquivalent(l5, l2));
-        assertFalse(listsAreEquivalent(l5, l3));
-        assertFalse(listsAreEquivalent(l5, l4));
-        assertTrue(listsAreEquivalent(l5, l5));
-        assertTrue(listsAreEquivalent(l5, l6));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l5, l1));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l5, l2));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l5, l3));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l5, l4));
+        assertTrue(consumerFilterSubjectsAreEquivalent(l5, l5));
+        assertTrue(consumerFilterSubjectsAreEquivalent(l5, l6));
 
-        assertFalse(listsAreEquivalent(l6, l1));
-        assertFalse(listsAreEquivalent(l6, l2));
-        assertFalse(listsAreEquivalent(l6, l3));
-        assertFalse(listsAreEquivalent(l6, l4));
-        assertTrue(listsAreEquivalent(l6, l5));
-        assertTrue(listsAreEquivalent(l6, l6));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l6, l1));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l6, l2));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l6, l3));
+        assertFalse(consumerFilterSubjectsAreEquivalent(l6, l4));
+        assertTrue(consumerFilterSubjectsAreEquivalent(l6, l5));
+        assertTrue(consumerFilterSubjectsAreEquivalent(l6, l6));
     }
 
     @Test

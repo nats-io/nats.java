@@ -13,9 +13,12 @@
 
 package io.nats.client;
 
+import io.nats.client.api.StorageType;
+import io.nats.client.api.StreamConfiguration;
 import io.nats.client.impl.TestHandler;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 
@@ -28,7 +31,7 @@ public class RequestTests {
 
     @Test
     public void testRequestNoResponder() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer(false, true)) {
             Options optCancel = Options.builder().server(ts.getURI()).errorListener(new TestHandler()).build();
             Options optReport = Options.builder().server(ts.getURI()).reportNoResponders().errorListener(new TestHandler()).build();
             try (Connection ncCancel = standardConnection(optCancel);
@@ -39,6 +42,19 @@ public class RequestTests {
                 ExecutionException ee = assertThrows(ExecutionException.class, () -> ncReport.request(subject(999), null).get());
                 assertTrue(ee.getCause() instanceof JetStreamStatusException);
                 assertTrue(ee.getMessage().contains("503 No Responders Available For Request"));
+
+                ncCancel.jetStreamManagement().addStream(
+                    StreamConfiguration.builder()
+                        .name("testRequestNoResponder").subjects("trnrExists").storageType(StorageType.Memory)
+                        .build());
+
+                JetStream jsCancel = ncCancel.jetStream();
+                JetStream jsReport = ncReport.jetStream();
+
+                IOException ioe = assertThrows(IOException.class, () -> jsCancel.publish("not-exist", null));
+                assertTrue(ioe.getMessage().contains("503"));
+                ioe = assertThrows(IOException.class, () -> jsReport.publish("trnrNotExist", null));
+                assertTrue(ioe.getMessage().contains("503"));
             }
         }
     }

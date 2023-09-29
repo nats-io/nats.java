@@ -64,8 +64,12 @@ public abstract class Validator {
                         case '\t':
                             throw new IllegalArgumentException(label + " cannot contain space, tab, carriage return or linefeed character");
                         case '*':
-                        case '>':
                             if (sl != 1) {
+                                throw new IllegalArgumentException(label + " wildcard improperly placed.");
+                            }
+                            break;
+                        case '>':
+                            if (sl != 1 || (seg + 1 != segments.length)) {
                                 throw new IllegalArgumentException(label + " wildcard improperly placed.");
                             }
                             break;
@@ -593,20 +597,22 @@ public abstract class Validator {
         return SEMVER_PATTERN.matcher(s).find();
     }
 
-    public static <T> boolean listsAreEquivalent(List<T> l1, List<T> l2)
+    // This function tests filter subject equivalency
+    // It does not care what order and also assumes that there are no duplicates.
+    // From the server: consumer subject filters cannot overlap [10138]
+    public static <T> boolean consumerFilterSubjectsAreEquivalent(List<T> l1, List<T> l2)
     {
-        int s1 = l1 == null ? 0 : l1.size();
-        int s2 = l2 == null ? 0 : l2.size();
+        if (l1 == null || l1.isEmpty()) {
+            return l2 == null || l2.isEmpty();
+        }
 
-        if (s1 != s2) {
+        if (l2 == null || l1.size() != l2.size()) {
             return false;
         }
 
-        if (s1 > 0) {
-            for (T t : l1) {
-                if (!l2.contains(t)) {
-                    return false;
-                }
+        for (T t : l1) {
+            if (!l2.contains(t)) {
+                return false;
             }
         }
         return true;

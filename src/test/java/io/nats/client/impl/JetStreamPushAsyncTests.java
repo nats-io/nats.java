@@ -164,7 +164,9 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createDefaultTestStream(nc);
+            String stream = stream();
+            String subject = subject();
+            createMemoryStream(nc, stream, subject);
 
             byte[] data = new byte[8192];
 
@@ -174,7 +176,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             for (int x = 100_000; x < MSG_COUNT + 100_000; x++) {
                 byte[] fill = (""+ x).getBytes();
                 System.arraycopy(fill, 0, data, 0, 6);
-                js.publish(NatsMessage.builder().subject(SUBJECT).data(data).build());
+                js.publish(NatsMessage.builder().subject(subject).data(data).build());
             }
 
             // create a dispatcher without a default handler.
@@ -190,13 +192,14 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
                 if (set.get().add(id)) {
                     count.incrementAndGet();
                 }
+                sleep(5); // slow the process down to hopefully get flow control more often
                 msg.ack();
                 msgLatch.countDown();
             };
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder().flowControl(1000).build();
             PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
-            js.subscribe(SUBJECT, dispatcher, handler, false, pso);
+            js.subscribe(subject, dispatcher, handler, false, pso);
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever

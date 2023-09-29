@@ -55,13 +55,25 @@ public abstract class SubscribeOptions {
 
         stream = validateStreamName(builder.stream, bind); // required when bind mode
 
-        // read the names and do basic validation
-        String temp = validateConsumerName(
-            validateMustMatchIfBothSupplied(builder.name, builder.cc == null ? null : builder.cc.getName(), JsSoNameMismatch),
-            false);
-        String durable = validateDurable(
-            validateMustMatchIfBothSupplied(builder.durable, builder.cc == null ? null : builder.cc.getDurable(), JsSoDurableMismatch),
-            false);
+        // read the consumer names and do basic validation
+        // A1. validate name input
+        String temp = validateMustMatchIfBothSupplied(
+            builder.name,
+            builder.cc == null ? null : builder.cc.getName(),
+            JsSoNameMismatch);
+        // B1. Must be a valid consumer name if supplied
+        temp = validateConsumerName(temp, false);
+
+        // A2. validate durable input
+        String durable = validateMustMatchIfBothSupplied(
+            builder.durable,
+            builder.cc == null ? null : builder.cc.getDurable(),
+            JsSoDurableMismatch);
+
+        // B2. Must be a valid consumer name if supplied
+        durable = validateDurable(durable, false);
+
+        // C. name must match durable if both supplied
         name = validateMustMatchIfBothSupplied(temp, durable, JsConsumerNameDurableMismatch);
 
         if (bind && name == null) {
@@ -105,7 +117,7 @@ public abstract class SubscribeOptions {
                 .ackPolicy(AckPolicy.None)
                 .maxDeliver(1)
                 .ackWait(Duration.ofHours(22))
-                .name(temp)
+                .name(name)
                 .memStorage(true)
                 .numReplicas(1);
 
@@ -119,7 +131,7 @@ public abstract class SubscribeOptions {
                 .durable(durable)
                 .deliverSubject(deliverSubject)
                 .deliverGroup(deliverGroup)
-                .name(temp)
+                .name(name)
                 .build();
         }
     }

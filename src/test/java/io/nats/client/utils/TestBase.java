@@ -40,10 +40,11 @@ import static org.junit.jupiter.api.Assertions.*;
 public class TestBase {
 
     public static final String STAR_SEGMENT        = "*.star.*.segment.*";
+    public static final String GT_NOT_LAST_SEGMENT = "gt.>.notlast";
     public static final String GT_LAST_SEGMENT     = "gt.last.>";
     public static final String STARTS_WITH_DOT     = ".starts-with-dot";
     public static final String ENDS_WITH_DOT       = "ends-with-dot.";
-    public static final String ENDS_WITH_SPACE     = "ends-with-space. ";
+    public static final String ENDS_WITH_DOT_SPACE = "ends-with-space. ";
     public static final String ENDS_WITH_CR       = "ends-with-space.\r";
     public static final String ENDS_WITH_LF       = "ends-with-space.\n";
     public static final String ENDS_WITH_TAB      = "ends-with-space.\t";
@@ -54,7 +55,7 @@ public class TestBase {
     public static final String PLAIN          = "plain";
     public static final String HAS_SPACE      = "has space";
     public static final String STARTS_SPACE   = " startsspace";
-    public static final String ENDS_SPACE   = " endssspace ";
+    public static final String ENDS_SPACE     = "endsspace ";
     public static final String HAS_PRINTABLE  = "has-print!able";
     public static final String HAS_DOT        = "has.dot";
     public static final String HAS_DASH       = "has-dash";
@@ -120,8 +121,16 @@ public class TestBase {
         runInServer(false, true, new Options.Builder().errorListener(el), null, inServerTest);
     }
 
+    public static void runInJsServer(VersionCheck vc,  ErrorListener el, InServerTest inServerTest) throws Exception {
+        runInServer(false, true, new Options.Builder().errorListener(el), vc, inServerTest);
+    }
+
     public static void runInJsServer(Options.Builder builder, InServerTest inServerTest) throws Exception {
         runInServer(false, true, builder, null, inServerTest);
+    }
+
+    public static void runInJsServer(Options.Builder builder, VersionCheck vc, InServerTest inServerTest) throws Exception {
+        runInServer(false, true, builder, vc, inServerTest);
     }
 
     public static void runInJsServer(VersionCheck vc, InServerTest inServerTest) throws Exception {

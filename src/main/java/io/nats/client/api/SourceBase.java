@@ -29,7 +29,7 @@ import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readValue;
-import static io.nats.client.support.Validator.listsAreEquivalent;
+import static io.nats.client.support.Validator.consumerFilterSubjectsAreEquivalent;
 
 public abstract class SourceBase implements JsonSerializable {
     private final String name;
@@ -194,7 +194,7 @@ public abstract class SourceBase implements JsonSerializable {
         if (!Objects.equals(filterSubject, that.filterSubject))
             return false;
         if (!Objects.equals(external, that.external)) return false;
-        return listsAreEquivalent(subjectTransforms, that.subjectTransforms);
+        return consumerFilterSubjectsAreEquivalent(subjectTransforms, that.subjectTransforms);
     }
 
     @Override

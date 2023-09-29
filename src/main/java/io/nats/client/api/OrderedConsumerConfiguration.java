@@ -132,11 +132,15 @@ public class OrderedConsumerConfiguration {
     }
 
     public String getFilterSubject() {
-        return filterSubjects.get(0);
+        return filterSubjects == null || filterSubjects.size() != 1 ? null : filterSubjects.get(0);
     }
 
     public List<String> getFilterSubjects() {
         return filterSubjects;
+    }
+
+    public boolean hasMultipleFilterSubjects() {
+        return filterSubjects != null && filterSubjects.size() > 1;
     }
 
     public DeliverPolicy getDeliverPolicy() {

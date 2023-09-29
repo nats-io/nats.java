@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.support.Status;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -31,6 +32,15 @@ import static io.nats.client.support.Status.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPullTests extends JetStreamTestBase {
+
+    class ErrorListenerPullImpl extends ErrorListenerLoggerImpl {
+        @Override
+        public void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {}
+    }
+
+    private Options.Builder noPullWarnings() {
+        return Options.builder().errorListener(new ErrorListenerPullImpl());
+    }
 
     @Test
     public void testFetch() throws Exception {
@@ -293,7 +303,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testNoWait() throws Exception {
-        runInJsServer(nc -> {
+        runInJsServer(noPullWarnings(), nc -> {
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
@@ -367,7 +377,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testPullExpires() throws Exception {
-        runInJsServer(nc -> {
+        runInJsServer(noPullWarnings(), nc -> {
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
@@ -598,7 +608,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testDurable() throws Exception {
-        runInJsServer(nc -> {
+        runInJsServer(noPullWarnings(), nc -> {
             // create the stream.
             CreateStreamResult csr = createMemoryStream(nc);
             String durable = durable();
@@ -638,7 +648,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testNamed() throws Exception {
-        runInJsServer(this::atLeast290, nc -> {
+        runInJsServer(noPullWarnings(), this::atLeast290, nc -> {
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
@@ -1007,12 +1017,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testExceedsMaxRequestBytesNthMessageSyncSub() throws Exception {
         TestHandler handler = new TestHandler();
-        AtomicBoolean skip = new AtomicBoolean(false);
-        runInJsServer(handler, nc -> {
-            skip.set(versionIsBefore(nc, "2.9.1"));
-            if (skip.get()) {
-                return;
-            }
+        runInJsServer(this::atLeast291, handler, nc -> {
             createDefaultTestStream(nc);
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
@@ -1040,12 +1045,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testExceedsMaxRequestBytesExactBytes() throws Exception {
         TestHandler handler = new TestHandler();
-        AtomicBoolean skip = new AtomicBoolean(false);
-        runInJsServer(handler, nc -> {
-            skip.set(versionIsBefore(nc, "2.9.1"));
-            if (skip.get()) {
-                return;
-            }
+        runInJsServer(this::atLeast291, handler, nc -> {
             createDefaultTestStream(nc);
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
