@@ -44,9 +44,6 @@ public abstract class Validator {
             throw new IllegalArgumentException(label + " cannot end with '.'");
         }
 
-        if (subject.contains(".>.")) {
-            int x = 0;
-        }
         String[] segments = subject.split("\\.");
         for (int seg = 0; seg < segments.length; seg++) {
             String segment = segments[seg];
