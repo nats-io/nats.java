@@ -1,5 +1,47 @@
 # Change Log
 
+## 2.17.0
+
+This release added:
+* support for server 2.10 features
+* some additional JetStream tuning
+* StatisticsCollector to add flexibility to statistics tracking
+* Better ability to create connection options completely from a properties file
+* Doc updates.
+
+#### JetStream 2.10 Specific
+
+* stream/consumer info timestamps, stream config first_seq #962 @scottf
+* Multiple Filter Subjects and Subject validation changes #965 @scottf
+* Stream Configuration Compression Option #976 @scottf
+* Subject Transform Stream Configuration Part 1 #978 @scottf
+* Consumer Limits Stream Configuration #979 @scottf
+* Subject Transforms in Mirror/Info and Source/Info #982 @scottf
+* Multiple Filter Subjects Review #984 @scottf
+
+#### JetStream
+
+* Fast Bind #959 @scottf
+* Provide a default consumerByteCount implementation #969 @scottf
+
+#### Core
+
+* Add StatisticsCollector to Options for custom statistics tracking #964 @johnlcox
+* Construct Options builder from properties file for user. #971 @scottf
+* Revert removal of client side checks #981 @scottf
+
+#### Docs / Testing / Misc
+
+* Test coverage and add note about websocket to readme. #956 @scottf
+* Add issue forms #957 @bruth
+* fixed text in error message #961 @scottf
+* Simplify issue forms #966 @bruth
+* README.md library version more visible #972 @scottf
+* Update README to document connect Options properties #973 @scottf
+* update builds to use better way to install server #975 @scottf
+* Small improvements README.md #977 @aaabramov
+* Minor Api doc fixes #983 @scottf
+
 ## 2.16.14
 
 This release takes the experimental tag off both the Simplification API and the Service Framework.
