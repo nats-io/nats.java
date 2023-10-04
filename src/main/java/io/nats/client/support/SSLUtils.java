@@ -69,6 +69,9 @@ public class SSLUtils {
     }
 
     public static KeyManager[] createKeyManagers(String keystorePath, char[] keystorePwd, String tlsAlgo) throws GeneralSecurityException, IOException {
+        if (keystorePath == null) {
+            return null;
+        }
         KeyStore store = loadKeystore(keystorePath, keystorePwd);
         KeyManagerFactory factory = KeyManagerFactory.getInstance(tlsAlgo);
         factory.init(store, keystorePwd);
@@ -80,6 +83,9 @@ public class SSLUtils {
     }
 
     public static TrustManager[] createTrustManagers(String truststorePath, char[] truststorePwd, String tlsAlgo) throws GeneralSecurityException, IOException {
+        if (truststorePath == null) {
+            return null;
+        }
         KeyStore store = loadKeystore(truststorePath, truststorePwd);
         TrustManagerFactory factory = TrustManagerFactory.getInstance(tlsAlgo);
         factory.init(store);

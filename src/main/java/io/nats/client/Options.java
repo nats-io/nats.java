@@ -42,8 +42,7 @@ import static io.nats.client.support.Encoding.uriDecode;
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.NatsUri.DEFAULT_NATS_URI;
 import static io.nats.client.support.SSLUtils.DEFAULT_TLS_ALGORITHM;
-import static io.nats.client.support.Validator.emptyAsNull;
-import static io.nats.client.support.Validator.emptyOrNullAs;
+import static io.nats.client.support.Validator.*;
 
 /**
  * The Options class specifies the connection options for a new NATs connection, including the default options.
@@ -1497,14 +1496,14 @@ public class Options {
             }
 
             boolean checkUrisForSecure = true;
-            if (natsServerUris.size() == 0) {
+            if (natsServerUris.isEmpty()) {
                 server(DEFAULT_URL);
                 checkUrisForSecure = false;
             }
 
             if (sslContext == null) {
                 // ssl context can be directly provided, but if it's not
-                if (keystore != null) {
+                if (keystore != null || truststore != null) {
                     try {
                         sslContext = SSLUtils.createSSLContext(keystore, keystorePassword, truststore, truststorePassword, tlsAlgorithm);
                     }
@@ -1512,8 +1511,9 @@ public class Options {
                         throw new IllegalStateException("Unable to create SSL context", e);
                     }
                 }
-                else { // the sslContext has not been requested via keystore properties
-                    // if we haven't been told to use the default or the trust all context
+                else {
+                    // the sslContext has not been requested via keystore/truststore properties
+                    // If we haven't been told to use the default or the trust all context
                     // and the server isn't the default url, check to see if the server uris
                     // suggest we need the ssl context.
                     if (!useDefaultTls && !useTrustAllTls && checkUrisForSecure) {
@@ -1558,7 +1558,7 @@ public class Options {
             }
 
             if (this.executor == null) {
-                String threadPrefix = (this.connectionName != null && this.connectionName.length() > 0) ? this.connectionName : DEFAULT_THREAD_NAME_PREFIX;
+                String threadPrefix = nullOrEmpty(this.connectionName) ? DEFAULT_THREAD_NAME_PREFIX : this.connectionName;
                 this.executor = new ThreadPoolExecutor(0, Integer.MAX_VALUE,
                     500L, TimeUnit.MILLISECONDS,
                     new SynchronousQueue<>(),
