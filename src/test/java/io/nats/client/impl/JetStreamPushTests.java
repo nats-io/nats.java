@@ -45,22 +45,22 @@ public class JetStreamPushTests extends JetStreamTestBase {
     }
 
     private void _testPushEphemeral(String deliverSubject) throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             // create the stream.
-            createDefaultTestStream(nc);
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // publish some messages
-            jsPublish(js, SUBJECT, 1, 5);
+            jsPublish(js, tsc.subject(), 1, 5);
 
             // Build our subscription options.
             PushSubscribeOptions options = PushSubscribeOptions.builder().deliverSubject(deliverSubject).build();
 
             // Subscription 1
-            JetStreamSubscription sub1 = js.subscribe(SUBJECT, options);
-            assertSubscription(sub1, STREAM, null, deliverSubject, false);
+            JetStreamSubscription sub1 = js.subscribe(tsc.subject(), options);
+            assertSubscription(sub1, tsc.stream, null, deliverSubject, false);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // read what is available
@@ -79,7 +79,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             unsubscribeEnsureNotBound(sub1);
 
             // Subscription 2
-            JetStreamSubscription sub2 = js.subscribe(SUBJECT, options);
+            JetStreamSubscription sub2 = js.subscribe(tsc.subject(), options);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // read what is available, same messages
@@ -97,7 +97,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             unsubscribeEnsureNotBound(sub2);
 
             // Subscription 3 testing null timeout
-            JetStreamSubscription sub3 = js.subscribe(SUBJECT, options);
+            JetStreamSubscription sub3 = js.subscribe(tsc.subject(), options);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
             sleep(1000); // give time to make sure the messages get to the client
 
@@ -105,7 +105,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             validateRedAndTotal(5, messages0.size(), 5, 5);
 
             // Subscription 4 testing timeout <= 0 duration / millis
-            JetStreamSubscription sub4 = js.subscribe(SUBJECT, options);
+            JetStreamSubscription sub4 = js.subscribe(tsc.subject(), options);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
             sleep(1000); // give time to make sure the messages get to the client
             assertNotNull(sub4.nextMessage(Duration.ZERO));
@@ -128,9 +128,11 @@ public class JetStreamPushTests extends JetStreamTestBase {
     }
 
     private void _testPushDurable(boolean useDeliverSubject) throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             // create the stream.
-            createMemoryStream(nc, STREAM, subjectDot(">"));
+            String stream = stream();
+            String subjectDotGt = subject() + ".>";
+            createMemoryStream(nc, stream, subjectDotGt);
 
             // Create our JetStream context.
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -140,7 +142,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             Dispatcher dispatcher = nc.createDispatcher();
 
             // normal, no bind
-            _testPushDurableSubSync(jsm, js, 11, useDeliverSubject, false, (s, cc) -> {
+            _testPushDurableSubSync(jsm, js, stream, subjectDotGt, useDeliverSubject, false, (s, cc) -> {
                 PushSubscribeOptions options = PushSubscribeOptions.builder()
                     .durable(cc.getDurable())
                     .deliverSubject(cc.getDeliverSubject())
@@ -148,7 +150,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
                 return js.subscribe(s, options);
             });
 
-            _testPushDurableSubAsync(jsm, js, dispatcher, 12, useDeliverSubject, false, (s, d, h, cc) -> {
+            _testPushDurableSubAsync(jsm, js, dispatcher, stream, subjectDotGt, useDeliverSubject, false, (s, d, h, cc) -> {
                 PushSubscribeOptions options = PushSubscribeOptions.builder()
                     .durable(cc.getDurable())
                     .deliverSubject(cc.getDeliverSubject())
@@ -157,36 +159,36 @@ public class JetStreamPushTests extends JetStreamTestBase {
             });
 
             // use configuration, no bind
-            _testPushDurableSubSync(jsm, js, 21, useDeliverSubject, false, (s, cc) -> {
+            _testPushDurableSubSync(jsm, js, stream, subjectDotGt, useDeliverSubject, false, (s, cc) -> {
                 PushSubscribeOptions options = PushSubscribeOptions.builder().configuration(cc).build();
                 return js.subscribe(s, options);
             });
 
-            _testPushDurableSubAsync(jsm, js, dispatcher, 22, useDeliverSubject, false, (s, d, h, cc) -> {
+            _testPushDurableSubAsync(jsm, js, dispatcher, stream, subjectDotGt, useDeliverSubject, false, (s, d, h, cc) -> {
                 PushSubscribeOptions options = PushSubscribeOptions.builder().configuration(cc).build();
                 return js.subscribe(s, d, h, false, options);
             });
 
             if (useDeliverSubject) {
                 // bind long form
-                _testPushDurableSubSync(jsm, js, 31, true, true, (s, cc) -> {
-                    PushSubscribeOptions options = PushSubscribeOptions.builder().stream(STREAM).durable(cc.getDurable()).bind(true).build();
+                _testPushDurableSubSync(jsm, js, stream, subjectDotGt, true, true, (s, cc) -> {
+                    PushSubscribeOptions options = PushSubscribeOptions.builder().stream(stream).durable(cc.getDurable()).bind(true).build();
                     return js.subscribe(s, options);
                 });
 
-                _testPushDurableSubAsync(jsm, js, dispatcher, 32, true, true, (s, d, h, cc) -> {
-                    PushSubscribeOptions options = PushSubscribeOptions.builder().stream(STREAM).durable(cc.getDurable()).bind(true).build();
+                _testPushDurableSubAsync(jsm, js, dispatcher, stream, subjectDotGt, true, true, (s, d, h, cc) -> {
+                    PushSubscribeOptions options = PushSubscribeOptions.builder().stream(stream).durable(cc.getDurable()).bind(true).build();
                     return js.subscribe(s, d, h, false, options);
                 });
 
                 // bind short form
-                _testPushDurableSubSync(jsm, js, 41, true, true, (s, cc) -> {
-                    PushSubscribeOptions options = PushSubscribeOptions.bind(STREAM, cc.getDurable());
+                _testPushDurableSubSync(jsm, js, stream, subjectDotGt, true, true, (s, cc) -> {
+                    PushSubscribeOptions options = PushSubscribeOptions.bind(stream, cc.getDurable());
                     return js.subscribe(s, options);
                 });
 
-                _testPushDurableSubAsync(jsm, js, dispatcher, 42, true, true, (s, d, h, cc) -> {
-                    PushSubscribeOptions options = PushSubscribeOptions.bind(STREAM, cc.getDurable());
+                _testPushDurableSubAsync(jsm, js, dispatcher, stream, subjectDotGt, true, true, (s, d, h, cc) -> {
+                    PushSubscribeOptions options = PushSubscribeOptions.bind(stream, cc.getDurable());
                     return js.subscribe(s, d, h, false, options);
                 });
             }
@@ -201,10 +203,10 @@ public class JetStreamPushTests extends JetStreamTestBase {
         JetStreamSubscription get(String subject, Dispatcher dispatcher, MessageHandler handler, ConsumerConfiguration cc) throws IOException, JetStreamApiException;
     }
 
-    private void _testPushDurableSubSync(JetStreamManagement jsm, JetStream js, int id, boolean useDeliverSubject, boolean bind, SubscriptionSupplier supplier) throws Exception {
-        String durable = durable(id);
-        String subject = subjectDot("" + id);
-        String deliverSubject = useDeliverSubject ? deliver(id) : null;
+    private void _testPushDurableSubSync(JetStreamManagement jsm, JetStream js, String stream, String subjectDotGt, boolean useDeliverSubject, boolean bind, SubscriptionSupplier supplier) throws Exception {
+        String subject = subjectDotGt.replace(">", subject());
+        String durable = durable();
+        String deliverSubject = useDeliverSubject ? deliver() : null;
         ConsumerConfiguration cc = ConsumerConfiguration.builder()
             .durable(durable)
             .deliverSubject(deliverSubject)
@@ -212,14 +214,14 @@ public class JetStreamPushTests extends JetStreamTestBase {
             .build();
 
         if (bind) {
-            jsm.addOrUpdateConsumer(STREAM, cc);
+            jsm.addOrUpdateConsumer(stream, cc);
         }
 
         // publish some messages
         jsPublish(js, subject, 1, 5);
 
         JetStreamSubscription sub = supplier.get(subject, cc);
-        assertSubscription(sub, STREAM, durable, deliverSubject, false);
+        assertSubscription(sub, stream, durable, deliverSubject, false);
 
         // read what is available
         List<Message> messages = readMessagesAck(sub);
@@ -244,17 +246,16 @@ public class JetStreamPushTests extends JetStreamTestBase {
         unsubscribeEnsureNotBound(sub);
     }
 
-    private void _testPushDurableSubAsync(JetStreamManagement jsm, JetStream js, Dispatcher dispatcher, int id, boolean useDeliverSubject, boolean bind, SubscriptionSupplierAsync supplier) throws IOException, JetStreamApiException, InterruptedException {
-        String durable = durable(id);
-        String subject = subjectDot("" + id);
-        String deliverSubject = useDeliverSubject ? deliver(id) : null;
+    private void _testPushDurableSubAsync(JetStreamManagement jsm, JetStream js, Dispatcher dispatcher, String stream, String subjectDotGt, boolean useDeliverSubject, boolean bind, SubscriptionSupplierAsync supplier) throws IOException, JetStreamApiException, InterruptedException {
+        String subject = subjectDotGt.replace(">", subject());
+        String deliverSubject = useDeliverSubject ? deliver() : null;
         ConsumerConfiguration cc = ConsumerConfiguration.builder()
-            .durable(durable)
+            .durable(durable())
             .deliverSubject(deliverSubject)
             .filterSubject(subject)
             .build();
         if (bind) {
-            jsm.addOrUpdateConsumer(STREAM, cc);
+            jsm.addOrUpdateConsumer(stream, cc);
         }
 
         // publish some messages
@@ -282,22 +283,22 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
     @Test
     public void testCantPullOnPushSub() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createDefaultTestStream(nc);
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
-            JetStreamSubscription sub = js.subscribe(SUBJECT);
-            assertSubscription(sub, STREAM, null, null, false);
+            JetStreamSubscription sub = js.subscribe(tsc.subject());
+            assertSubscription(sub, tsc.stream, null, null, false);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             assertCantPullOnPushSub(sub);
             unsubscribeEnsureNotBound(sub);
 
             PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true).build();
-            sub = js.subscribe(SUBJECT, pso);
+            sub = js.subscribe(tsc.subject(), pso);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             assertCantPullOnPushSub(sub);
@@ -321,17 +322,17 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
     @Test
     public void testHeadersOnly() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createDefaultTestStream(nc);
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
             PushSubscribeOptions pso = ConsumerConfiguration.builder().headersOnly(true).buildPushSubscribeOptions();
-            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            JetStreamSubscription sub = js.subscribe(tsc.subject(), pso);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
-            jsPublish(js, SUBJECT, 5);
+            jsPublish(js, tsc.subject(), 5);
 
             List<Message> messages = readMessagesAck(sub, Duration.ZERO, 5);
             assertEquals(5, messages.size());
@@ -343,20 +344,20 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
     @Test
     public void testAcks() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createDefaultTestStream(nc);
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder().ackWait(Duration.ofMillis(1500)).build();
             PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
-            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            JetStreamSubscription sub = js.subscribe(tsc.subject(), pso);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // TERM
-            jsPublish(js, SUBJECT, "TERM", 1);
+            jsPublish(js, tsc.subject(), "TERM", 1);
 
             Message message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
@@ -368,7 +369,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
             // Ack Wait timeout
-            jsPublish(js, SUBJECT, "WAIT", 1);
+            jsPublish(js, tsc.subject(), "WAIT", 1);
 
             message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
@@ -384,7 +385,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertEquals("WAIT1", data);
 
             // In Progress
-            jsPublish(js, SUBJECT, "PRO", 1);
+            jsPublish(js, tsc.subject(), "PRO", 1);
 
             message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
@@ -408,7 +409,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
             // ACK Sync
-            jsPublish(js, SUBJECT, "ACKSYNC", 1);
+            jsPublish(js, tsc.subject(), "ACKSYNC", 1);
 
             message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
@@ -420,7 +421,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
             // NAK
-            jsPublish(js, SUBJECT, "NAK", 1, 1);
+            jsPublish(js, tsc.subject(), "NAK", 1, 1);
 
             message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
@@ -438,7 +439,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
-            jsPublish(js, SUBJECT, "NAK", 2, 1);
+            jsPublish(js, tsc.subject(), "NAK", 2, 1);
 
             message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
@@ -458,7 +459,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             assertNull(sub.nextMessage(Duration.ofMillis(500)));
 
-            jsPublish(js, SUBJECT, "NAK", 3, 1);
+            jsPublish(js, tsc.subject(), "NAK", 3, 1);
 
             message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
@@ -482,12 +483,13 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
     @Test
     public void testDeliveryPolicy() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createMemoryStream(jsm, STREAM, SUBJECT_STAR);
+            String stream = stream();
+            createMemoryStream(jsm, stream, SUBJECT_STAR);
 
             String subjectA = subjectDot("A");
             String subjectB = subjectDot("B");
@@ -499,7 +501,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             js.publish(subjectB, dataBytes(91));
             js.publish(subjectB, dataBytes(92));
 
-            jsm.deleteMessage(STREAM, 4);
+            jsm.deleteMessage(stream, 4);
 
             // DeliverPolicy.All
             PushSubscribeOptions pso = PushSubscribeOptions.builder()
@@ -576,8 +578,8 @@ public class JetStreamPushTests extends JetStreamTestBase {
             PublishAck pa4 = js.publish(subjectA, dataBytes(4));
             PublishAck pa5 = js.publish(subjectA, dataBytes(5));
             js.publish(subjectA, dataBytes(6));
-            jsm.deleteMessage(STREAM, pa4.getSeqno());
-            jsm.deleteMessage(STREAM, pa5.getSeqno());
+            jsm.deleteMessage(stream, pa4.getSeqno());
+            jsm.deleteMessage(stream, pa5.getSeqno());
 
             pso = PushSubscribeOptions.builder()
                 .configuration(ConsumerConfiguration.builder()
@@ -606,7 +608,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createDefaultTestStream(nc);
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
             byte[] data = new byte[1024*10];
 
@@ -614,10 +616,9 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             // publish some messages
             for (int x = 100_000; x < MSG_COUNT + 100_000; x++) {
-                //noinspection ConcatenationWithEmptyString
                 byte[] fill = ("" + x).getBytes();
                 System.arraycopy(fill, 0, data, 0, 6);
-                js.publish(NatsMessage.builder().subject(SUBJECT).data(data).build());
+                js.publish(NatsMessage.builder().subject(tsc.subject()).data(data).build());
             }
 
             // reset the counters
@@ -625,7 +626,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder().flowControl(1000).build();
             PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
-            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            JetStreamSubscription sub = js.subscribe(tsc.subject(), pso);
             for (int x = 0; x < MSG_COUNT; x++) {
                 Message msg = sub.nextMessage(1000);
                 set.add(new String(Arrays.copyOf(msg.getData(), 6)));
@@ -634,23 +635,23 @@ public class JetStreamPushTests extends JetStreamTestBase {
             }
 
             assertEquals(MSG_COUNT, set.size());
-            assertTrue(handler.getFlowControlProcessedEvents().size() > 0);
+            assertFalse(handler.getFlowControlProcessedEvents().isEmpty());
 
             // coverage for subscribe options heartbeat directly
             cc = ConsumerConfiguration.builder().idleHeartbeat(100).build();
             pso = PushSubscribeOptions.builder().configuration(cc).build();
-            js.subscribe(SUBJECT, pso);
+            js.subscribe(tsc.subject(), pso);
         });
     }
 
     @Test
     public void testPendingLimits() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createDefaultTestStream(nc);
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
             int customMessageLimit = 1000;
             int customByteLimit = 1024 * 1024;
@@ -673,19 +674,19 @@ public class JetStreamPushTests extends JetStreamTestBase {
                 .pendingByteLimit(-1)
                 .build();
 
-            JetStreamSubscription syncSub = js.subscribe(SUBJECT, psoDefaultSync);
+            JetStreamSubscription syncSub = js.subscribe(tsc.subject(), psoDefaultSync);
             assertEquals(Consumer.DEFAULT_MAX_MESSAGES, syncSub.getPendingMessageLimit());
             assertEquals(Consumer.DEFAULT_MAX_BYTES, syncSub.getPendingByteLimit());
 
-            syncSub = js.subscribe(SUBJECT, psoCustomSync);
+            syncSub = js.subscribe(tsc.subject(), psoCustomSync);
             assertEquals(customMessageLimit, syncSub.getPendingMessageLimit());
             assertEquals(customByteLimit, syncSub.getPendingByteLimit());
 
-            syncSub = js.subscribe(SUBJECT, psoCustomSyncUnlimited0);
+            syncSub = js.subscribe(tsc.subject(), psoCustomSyncUnlimited0);
             assertEquals(0, syncSub.getPendingMessageLimit());
             assertEquals(0, syncSub.getPendingByteLimit());
 
-            syncSub = js.subscribe(SUBJECT, psoCustomSyncUnlimitedUnlimitedNegative);
+            syncSub = js.subscribe(tsc.subject(), psoCustomSyncUnlimitedUnlimitedNegative);
             assertEquals(0, syncSub.getPendingMessageLimit());
             assertEquals(0, syncSub.getPendingByteLimit());
 
@@ -700,11 +701,11 @@ public class JetStreamPushTests extends JetStreamTestBase {
                 .pendingByteLimit(Consumer.DEFAULT_MAX_BYTES)
                 .build();
 
-            JetStreamSubscription subAsync = js.subscribe(SUBJECT, d, m -> {}, false, psoAsyncDefault);
+            JetStreamSubscription subAsync = js.subscribe(tsc.subject(), d, m -> {}, false, psoAsyncDefault);
             assertEquals(Consumer.DEFAULT_MAX_MESSAGES, subAsync.getPendingMessageLimit());
             assertEquals(Consumer.DEFAULT_MAX_BYTES, subAsync.getPendingByteLimit());
 
-            subAsync = js.subscribe(SUBJECT, d, m -> {}, false, psoAsyncNonDefaultValid);
+            subAsync = js.subscribe(tsc.subject(), d, m -> {}, false, psoAsyncNonDefaultValid);
             assertEquals(Consumer.DEFAULT_MAX_MESSAGES, subAsync.getPendingMessageLimit());
             assertEquals(Consumer.DEFAULT_MAX_BYTES, subAsync.getPendingByteLimit());
 
