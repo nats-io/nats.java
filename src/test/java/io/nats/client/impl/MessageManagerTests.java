@@ -385,19 +385,19 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void test_received_time() throws Exception {
         runInJsServer(nc -> {
-            createDefaultTestStream(nc);
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
 
-            _received_time_yes(push_hb_fc(), js);
-            _received_time_yes(push_hb_xfc(), js);
-            _received_time_no(js, jsm, js.subscribe(SUBJECT, push_xhb_xfc()));
+            _received_time_yes(push_hb_fc(), js, tsc.subject());
+            _received_time_yes(push_hb_xfc(), js, tsc.subject());
+            _received_time_no(js, jsm, tsc.stream, tsc.subject(), js.subscribe(tsc.subject(), push_xhb_xfc()));
         });
     }
 
-    private void _received_time_yes(PushSubscribeOptions so, JetStream js) throws Exception {
+    private void _received_time_yes(PushSubscribeOptions so, JetStream js, String subject) throws Exception {
         long before = System.currentTimeMillis();
-        NatsJetStreamSubscription sub = (NatsJetStreamSubscription) js.subscribe(SUBJECT, so);
+        NatsJetStreamSubscription sub = (NatsJetStreamSubscription) js.subscribe(subject, so);
 
         // during the sleep, the heartbeat is delivered and is checked
         // by the heartbeat listener and recorded as received
@@ -416,12 +416,12 @@ public class MessageManagerTests extends JetStreamTestBase {
         return null;
     };
 
-    private void _received_time_no(JetStream js, JetStreamManagement jsm, JetStreamSubscription sub) throws IOException, JetStreamApiException, InterruptedException {
-        js.publish(SUBJECT, dataBytes(0));
+    private void _received_time_no(JetStream js, JetStreamManagement jsm, String stream, String subject, JetStreamSubscription sub) throws IOException, JetStreamApiException, InterruptedException {
+        js.publish(subject, dataBytes(0));
         sub.nextMessage(1000);
         NatsJetStreamSubscription nsub = (NatsJetStreamSubscription)sub;
         assertTrue(findStatusManager(nsub).getLastMsgReceived() <= System.currentTimeMillis());
-        jsm.purgeStream(STREAM);
+        jsm.purgeStream(stream);
         sub.unsubscribe();
     }
 

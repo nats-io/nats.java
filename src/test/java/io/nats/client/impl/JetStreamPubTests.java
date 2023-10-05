@@ -33,48 +33,49 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPublishVarieties() throws Exception {
-        runInJsServer(nc -> {
-            createDefaultTestStream(nc);
+        jsServer.run(nc -> {
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
+
             JetStream js = nc.jetStream();
 
-            PublishAck pa = js.publish(SUBJECT, dataBytes(1));
-            assertPublishAck(pa, 1);
+            PublishAck pa = js.publish(tsc.subject(), dataBytes(1));
+            assertPublishAck(pa, tsc.stream, 1);
 
-            Message msg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
+            Message msg = NatsMessage.builder().subject(tsc.subject()).data(dataBytes(2)).build();
             pa = js.publish(msg);
-            assertPublishAck(pa, 2);
+            assertPublishAck(pa, tsc.stream, 2);
 
             PublishOptions po = PublishOptions.builder().build();
-            pa = js.publish(SUBJECT, dataBytes(3), po);
-            assertPublishAck(pa, 3);
+            pa = js.publish(tsc.subject(), dataBytes(3), po);
+            assertPublishAck(pa, tsc.stream, 3);
 
-            msg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(4)).build();
+            msg = NatsMessage.builder().subject(tsc.subject()).data(dataBytes(4)).build();
             pa = js.publish(msg, po);
-            assertPublishAck(pa, 4);
+            assertPublishAck(pa, tsc.stream, 4);
 
-            pa = js.publish(SUBJECT, null);
-            assertPublishAck(pa, 5);
+            pa = js.publish(tsc.subject(), null);
+            assertPublishAck(pa, tsc.stream, 5);
 
-            msg = NatsMessage.builder().subject(SUBJECT).build();
+            msg = NatsMessage.builder().subject(tsc.subject()).build();
             pa = js.publish(msg);
-            assertPublishAck(pa, 6);
+            assertPublishAck(pa, tsc.stream, 6);
 
-            pa = js.publish(SUBJECT, null, po);
-            assertPublishAck(pa, 7);
+            pa = js.publish(tsc.subject(), null, po);
+            assertPublishAck(pa, tsc.stream, 7);
 
-            msg = NatsMessage.builder().subject(SUBJECT).build();
+            msg = NatsMessage.builder().subject(tsc.subject()).build();
             pa = js.publish(msg, po);
-            assertPublishAck(pa, 8);
+            assertPublishAck(pa, tsc.stream, 8);
 
             Headers h = new Headers().put("foo", "bar9");
-            pa = js.publish(SUBJECT, h, dataBytes(9));
-            assertPublishAck(pa, 9);
+            pa = js.publish(tsc.subject(), h, dataBytes(9));
+            assertPublishAck(pa, tsc.stream, 9);
 
             h = new Headers().put("foo", "bar10");
-            pa = js.publish(SUBJECT, h, dataBytes(10), po);
-            assertPublishAck(pa, 10);
+            pa = js.publish(tsc.subject(), h, dataBytes(10), po);
+            assertPublishAck(pa, tsc.stream, 10);
 
-            Subscription s = js.subscribe(SUBJECT);
+            Subscription s = js.subscribe(tsc.subject());
             assertNextMessage(s, data(1), null);
             assertNextMessage(s, data(2), null);
             assertNextMessage(s, data(3), null);
@@ -107,10 +108,6 @@ public class JetStreamPubTests extends JetStreamTestBase {
         }
     }
 
-    private void assertPublishAck(PublishAck pa, long seqno) {
-        assertPublishAck(pa, STREAM, seqno);
-    }
-
     private void assertPublishAck(PublishAck pa, String stream, long seqno) {
         assertEquals(stream, pa.getStream());
         if (seqno != -1) {
@@ -121,40 +118,40 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPublishAsyncVarieties() throws Exception {
-        runInJsServer(nc -> {
-            createDefaultTestStream(nc);
+        jsServer.run(nc -> {
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
             JetStream js = nc.jetStream();
 
             List<CompletableFuture<PublishAck>> futures = new ArrayList<>();
 
-            futures.add(js.publishAsync(SUBJECT, dataBytes(1)));
+            futures.add(js.publishAsync(tsc.subject(), dataBytes(1)));
 
-            Message msg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
+            Message msg = NatsMessage.builder().subject(tsc.subject()).data(dataBytes(2)).build();
             futures.add(js.publishAsync(msg));
 
             PublishOptions po = PublishOptions.builder().build();
-            futures.add(js.publishAsync(SUBJECT, dataBytes(3), po));
+            futures.add(js.publishAsync(tsc.subject(), dataBytes(3), po));
 
-            msg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(4)).build();
+            msg = NatsMessage.builder().subject(tsc.subject()).data(dataBytes(4)).build();
             futures.add(js.publishAsync(msg, po));
 
             Headers h = new Headers().put("foo", "bar5");
-            futures.add(js.publishAsync(SUBJECT, h, dataBytes(5)));
+            futures.add(js.publishAsync(tsc.subject(), h, dataBytes(5)));
 
             h = new Headers().put("foo", "bar6");
-            futures.add(js.publishAsync(SUBJECT, h, dataBytes(6), po));
+            futures.add(js.publishAsync(tsc.subject(), h, dataBytes(6), po));
 
             sleep(100); // just make sure all the publish complete
 
             for (int i = 1; i <= 6; i++) {
                 CompletableFuture<PublishAck> future = futures.get(i-1);
                 PublishAck pa = future.get();
-                assertEquals(STREAM, pa.getStream());
+                assertEquals(tsc.stream, pa.getStream());
                 assertFalse(pa.isDuplicate());
                 assertEquals(i, pa.getSeqno());
             }
 
-            Subscription s = js.subscribe(SUBJECT);
+            Subscription s = js.subscribe(tsc.subject());
             for (int x = 1; x <= 6; x++) {
                 Message m = s.nextMessage(DEFAULT_TIMEOUT);
                 assertNotNull(m);
@@ -180,9 +177,9 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
             PublishOptions pox2 = PublishOptions.builder().expectedLastMsgId(messageId(999)).build();
 
-            assertFutureJetStreamApiException(js.publishAsync(SUBJECT, null, pox2));
+            assertFutureJetStreamApiException(js.publishAsync(tsc.subject(), null, pox2));
 
-            msg = NatsMessage.builder().subject(SUBJECT).build();
+            msg = NatsMessage.builder().subject(tsc.subject()).build();
             assertFutureJetStreamApiException(js.publishAsync(msg, pox2));
         });
     }
@@ -201,100 +198,104 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPublishExpectations() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            createMemoryStream(jsm, stream(1), subject(1), subject(2));
+            TestingStreamContainer tsc = new TestingStreamContainer(nc, 2);
+            createMemoryStream(jsm, tsc.stream, tsc.subject(0), tsc.subject(1));
 
             PublishOptions po = PublishOptions.builder()
-                    .expectedStream(stream(1))
+                    .expectedStream(tsc.stream)
                     .messageId(messageId(1))
                     .build();
-            PublishAck pa = js.publish(subject(1), dataBytes(1), po);
-            assertPublishAck(pa, stream(1), 1);
+            PublishAck pa = js.publish(tsc.subject(0), dataBytes(1), po);
+            assertPublishAck(pa, tsc.stream, 1);
 
             po = PublishOptions.builder()
                     .expectedLastMsgId(messageId(1))
                     .messageId(messageId(2))
                     .build();
-            pa = js.publish(subject(1), dataBytes(2), po);
-            assertPublishAck(pa, stream(1), 2);
+            pa = js.publish(tsc.subject(0), dataBytes(2), po);
+            assertPublishAck(pa, tsc.stream, 2);
 
             po = PublishOptions.builder()
                     .expectedLastSequence(2)
                     .messageId(messageId(3))
                     .build();
-            pa = js.publish(subject(1), dataBytes(3), po);
-            assertPublishAck(pa, stream(1), 3);
+            pa = js.publish(tsc.subject(0), dataBytes(3), po);
+            assertPublishAck(pa, tsc.stream, 3);
 
             po = PublishOptions.builder()
                     .expectedLastSequence(3)
                     .messageId(messageId(4))
                     .build();
-            pa = js.publish(subject(2), dataBytes(4), po);
-            assertPublishAck(pa, stream(1), 4);
+            pa = js.publish(tsc.subject(1), dataBytes(4), po);
+            assertPublishAck(pa, tsc.stream, 4);
 
             po = PublishOptions.builder()
                     .expectedLastSubjectSequence(3)
                     .messageId(messageId(5))
                     .build();
-            pa = js.publish(subject(1), dataBytes(5), po);
-            assertPublishAck(pa, stream(1), 5);
+            pa = js.publish(tsc.subject(0), dataBytes(5), po);
+            assertPublishAck(pa, tsc.stream, 5);
 
             po = PublishOptions.builder()
                     .expectedLastSubjectSequence(4)
                     .messageId(messageId(6))
                     .build();
-            pa = js.publish(subject(2), dataBytes(6), po);
-            assertPublishAck(pa, stream(1), 6);
+            pa = js.publish(tsc.subject(1), dataBytes(6), po);
+            assertPublishAck(pa, tsc.stream, 6);
 
+            String subject0 = tsc.subject(0);
             PublishOptions po1 = PublishOptions.builder().expectedStream(stream(999)).build();
-            assertThrows(JetStreamApiException.class, () -> js.publish(subject(1), dataBytes(999), po1));
+            assertThrows(JetStreamApiException.class, () -> js.publish(subject0, dataBytes(999), po1));
 
             PublishOptions po2 = PublishOptions.builder().expectedLastMsgId(messageId(999)).build();
-            assertThrows(JetStreamApiException.class, () -> js.publish(subject(1), dataBytes(999), po2));
+            assertThrows(JetStreamApiException.class, () -> js.publish(subject0, dataBytes(999), po2));
 
             PublishOptions po3 = PublishOptions.builder().expectedLastSequence(999).build();
-            assertThrows(JetStreamApiException.class, () -> js.publish(subject(1), dataBytes(999), po3));
+            assertThrows(JetStreamApiException.class, () -> js.publish(subject0, dataBytes(999), po3));
 
             PublishOptions po4 = PublishOptions.builder().expectedLastSubjectSequence(999).build();
-            assertThrows(JetStreamApiException.class, () -> js.publish(subject(1), dataBytes(999), po4));
+            assertThrows(JetStreamApiException.class, () -> js.publish(subject0, dataBytes(999), po4));
 
             // 0 has meaning to expectedLastSubjectSequence
-            createMemoryStream(jsm, stream(2), subject(22));
+            tsc = new TestingStreamContainer(nc);
+            createMemoryStream(jsm, tsc.stream, tsc.subject());
             PublishOptions poLss = PublishOptions.builder().expectedLastSubjectSequence(0).build();
-            pa = js.publish(subject(22), dataBytes(22), poLss);
-            assertPublishAck(pa, stream(2), 1);
+            pa = js.publish(tsc.subject(), dataBytes(22), poLss);
+            assertPublishAck(pa, tsc.stream, 1);
 
-            assertThrows(JetStreamApiException.class, () -> js.publish(subject(22), dataBytes(999), poLss));
+            final String fSubject = tsc.subject();
+            assertThrows(JetStreamApiException.class, () -> js.publish(fSubject, dataBytes(999), poLss));
 
             // 0 has meaning
-            createMemoryStream(jsm, stream(3), subject(33));
+            tsc = new TestingStreamContainer(nc);
             PublishOptions poLs = PublishOptions.builder().expectedLastSequence(0).build();
-            pa = js.publish(subject(33), dataBytes(331), poLs);
-            assertPublishAck(pa, stream(3), 1);
+            pa = js.publish(tsc.subject(), dataBytes(331), poLs);
+            assertPublishAck(pa, tsc.stream, 1);
 
-            createMemoryStream(jsm, stream(4), subject(44));
+            tsc = new TestingStreamContainer(nc);
             poLs = PublishOptions.builder().expectedLastSubjectSequence(0).build();
-            pa = js.publish(subject(44), dataBytes(441), poLs);
-            assertPublishAck(pa, stream(4), 1);
+            pa = js.publish(tsc.subject(), dataBytes(441), poLs);
+            assertPublishAck(pa, tsc.stream, 1);
         });
     }
 
     @Test
     public void testPublishMiscExceptions() throws Exception {
-        runInJsServer(nc -> {
-            createDefaultTestStream(nc);
+        jsServer.run(nc -> {
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
             JetStream js = nc.jetStream();
 
             // stream supplied and matches
-            PublishOptions po = PublishOptions.builder().stream(STREAM).build();
-            js.publish(SUBJECT, dataBytes(999), po);
+            PublishOptions po = PublishOptions.builder().stream(tsc.stream).build();
+            js.publish(tsc.subject(), dataBytes(999), po);
 
             // mismatch stream to PO stream
             PublishOptions po1 = PublishOptions.builder().stream(stream(999)).build();
-            assertThrows(IOException.class, () -> js.publish(SUBJECT, dataBytes(999), po1));
+            assertThrows(IOException.class, () -> js.publish(tsc.subject(), dataBytes(999), po1));
 
             // invalid subject
             assertThrows(IOException.class, () -> js.publish(subject(999), dataBytes(999)));
@@ -313,8 +314,8 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPublishNoAck() throws Exception {
-        runInJsServer(nc -> {
-            createDefaultTestStream(nc);
+        jsServer.run(nc -> {
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
             JetStreamOptions jso = JetStreamOptions.builder().publishNoAck(true).build();
             JetStream js = nc.jetStream(jso);
@@ -322,13 +323,13 @@ public class JetStreamPubTests extends JetStreamTestBase {
             String data1 = "noackdata1";
             String data2 = "noackdata2";
 
-            PublishAck pa = js.publish(SUBJECT, data1.getBytes());
+            PublishAck pa = js.publish(tsc.subject(), data1.getBytes());
             assertNull(pa);
 
-            CompletableFuture<PublishAck> f = js.publishAsync(SUBJECT, data2.getBytes());
+            CompletableFuture<PublishAck> f = js.publishAsync(tsc.subject(), data2.getBytes());
             assertNull(f);
 
-            JetStreamSubscription sub = js.subscribe(SUBJECT);
+            JetStreamSubscription sub = js.subscribe(tsc.subject());
             Message m = sub.nextMessage(Duration.ofSeconds(2));
             assertNotNull(m);
             assertEquals(data1, new String(m.getData()));

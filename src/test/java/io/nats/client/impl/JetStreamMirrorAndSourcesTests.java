@@ -25,22 +25,16 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
-    static final String S1 = stream(1);
-    static final String S2 = stream(2);
-    static final String S3 = stream(3);
-    static final String S4 = stream(4);
-    static final String S5 = stream(5);
-    static final String S99 = stream(99);
-    static final String U1 = subject(1);
-    static final String U2 = subject(2);
-    static final String U3 = subject(3);
-    static final String M1 = mirror(1);
-    static final String R1 = source(1);
-    static final String R2 = source(2);
 
     @Test
     public void testMirrorBasics() throws Exception {
-        runInJsServer(nc -> {
+        String S1 = stream();
+        String U1 = subject();
+        String U2 = subject();
+        String U3 = subject();
+        String M1 = mirror();
+
+        jsServer.run(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
@@ -117,7 +111,12 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
     @Test
     public void testMirrorReading() throws Exception {
-        runInJsServer(nc -> {
+        String S1 = stream();
+        String U1 = subject();
+        String U2 = subject();
+        String M1 = mirror();
+
+        jsServer.run(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
@@ -184,14 +183,14 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
     @Test
     public void testMirrorExceptions() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             Mirror mirror = Mirror.builder().sourceName(STREAM).build();
 
             StreamConfiguration scEx = StreamConfiguration.builder()
-                    .name(mirror(99))
-                    .subjects(subject(1))
+                    .name(mirror())
+                    .subjects(subject())
                     .mirror(mirror)
                     .build();
             assertThrows(JetStreamApiException.class, () -> jsm.addStream(scEx));
@@ -200,8 +199,16 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
     @Test
     public void testSourceBasics() throws Exception {
-        runInJsServer(nc -> {
+        String S1 = stream();
+        String S2 = stream();
+        String S3 = stream();
+        String S4 = stream();
+        String S5 = stream();
+        String S99 = stream();
+        String R1 = source();
+        String R2 = source();
 
+        jsServer.run(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
@@ -288,7 +295,7 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
     @Test
     public void testSourceAndTransformsRoundTrips() throws Exception {
-        runInJsServer(si -> si.isNewerVersionThan("2.9.99"), nc -> {
+        jsServer.run(si -> si.isNewerVersionThan("2.9.99"), nc -> {
             StreamConfiguration scMirror = StreamConfigurationTests.getStreamConfigurationFromJson("StreamConfigurationMirrorSubjectTransform.json");
             StreamConfiguration scSource = StreamConfigurationTests.getStreamConfigurationFromJson("StreamConfigurationSourcedSubjectTransform.json");
 
@@ -308,8 +315,11 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
             Source source = scSource.getSources().get(0);
             SourceInfo info = si.getSourceInfos().get(0);
-            assertEquals(source.getName(), info.getName());
             assertEquals(1, info.getSubjectTransforms().size());
+
+            assertEquals(source.getName(), info.getName());
+            assertEquals(1, source.getSubjectTransforms().size());
+
             SubjectTransform st = source.getSubjectTransforms().get(0);
             SubjectTransform infoSt = info.getSubjectTransforms().get(0);
             assertEquals(st.getSource(), infoSt.getSource());
@@ -325,7 +335,6 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
             assertEquals(st.getDestination(), infoSt.getDestination());
 
             jsm.deleteStream(scSource.getName());
-
         });
     }
 }

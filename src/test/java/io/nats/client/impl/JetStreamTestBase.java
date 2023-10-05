@@ -16,14 +16,14 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.utils.TestBase;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.function.Executable;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -44,6 +44,18 @@ public class JetStreamTestBase extends TestBase {
     public static final String InvalidMetaLt8Tokens = "$JS.ACK.less-than.8-tokens.1.2.3";
     public static final String InvalidMeta10Tokens = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000";
     public static final String InvalidMetaData = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.not-a-number";
+
+    public static RunningServer jsServer;
+
+    @BeforeAll
+    public static void beforeAll() throws IOException, InterruptedException {
+        jsServer = new RunningServer();
+    }
+
+    @AfterAll
+    public static void afterAll() throws Exception {
+        jsServer.close();
+    }
 
     public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(1000);
 
@@ -95,20 +107,65 @@ public class JetStreamTestBase extends TestBase {
     // ----------------------------------------------------------------------------------------------------
     // Management
     // ----------------------------------------------------------------------------------------------------
-    public static class CreateStreamResult {
+    public static class TestingStreamContainer {
+        private String defaultSubjectVariant;
+        private final String defaultNameVariant = TestBase.name();
+        public final StreamInfo si;
         public final String stream = stream();
-        public final String subject = subject();
-        public StreamInfo si;
+        private final Map<Object, String> subjects = new HashMap<>();
+        private final Map<Object, String> names = new HashMap<>();
 
-        public CreateStreamResult info(StreamInfo si) {
-            this.si = si;
-            return this;
+        public TestingStreamContainer(Connection nc) throws JetStreamApiException, IOException {
+            this(nc.jetStreamManagement(), (String[])null);
         }
-    }
 
-    public static CreateStreamResult createMemoryStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
-        CreateStreamResult csr = new CreateStreamResult();
-        return csr.info(createMemoryStream(jsm, csr.stream, csr.subject));
+        public TestingStreamContainer(Connection nc, int subjectCount) throws JetStreamApiException, IOException {
+            this(nc.jetStreamManagement(), subjectCount);
+        }
+
+        public TestingStreamContainer(Connection nc, String... subjects) throws JetStreamApiException, IOException {
+            this(nc.jetStreamManagement(), subjects);
+        }
+
+        public TestingStreamContainer(JetStreamManagement jsm) throws JetStreamApiException, IOException {
+            this(jsm, (String[])null);
+        }
+
+        public TestingStreamContainer(JetStreamManagement jsm, String... subjects) throws JetStreamApiException, IOException {
+            if (subjects == null) {
+                this.si = createMemoryStream(jsm, stream, subject());
+            }
+            else {
+                this.si = createMemoryStream(jsm, stream, subjects);
+            }
+        }
+
+        public TestingStreamContainer(JetStreamManagement jsm, int subjectCount) throws JetStreamApiException, IOException {
+            String[] subjects = new String[subjectCount];
+            for (int x = 0; x < subjectCount; x++) {
+                subjects[x] = subject(x);
+            }
+            this.si = createMemoryStream(jsm, stream, subjects);
+        }
+
+        public String subject() {
+            if (defaultSubjectVariant == null) {
+                defaultSubjectVariant = TestBase.subject();
+            }
+            return subject(defaultSubjectVariant);
+        }
+
+        public String subject(Object variant) {
+            return subjects.computeIfAbsent(variant, TestBase::subject);
+        }
+
+        public String name() {
+            return name(defaultNameVariant);
+        }
+
+        public String name(Object variant) {
+            return names.computeIfAbsent(variant, TestBase::name);
+        }
     }
 
     public static StreamInfo createMemoryStream(JetStreamManagement jsm, String streamName, String... subjects) throws IOException, JetStreamApiException {
@@ -126,11 +183,6 @@ public class JetStreamTestBase extends TestBase {
                 .subjects(subjects).build();
 
         return jsm.addStream(sc);
-    }
-
-    public static CreateStreamResult createMemoryStream(Connection nc)
-        throws IOException, JetStreamApiException {
-        return createMemoryStream(nc.jetStreamManagement());
     }
 
     public static StreamInfo createMemoryStream(Connection nc, String streamName, String... subjects)
@@ -207,6 +259,10 @@ public class JetStreamTestBase extends TestBase {
 
     public static PublishAck jsPublish(JetStream js) throws IOException, JetStreamApiException {
         return jsPublish(js, SUBJECT, DATA);
+    }
+
+    public static PublishAck jsPublish(JetStream js, String subject) throws IOException, JetStreamApiException {
+        return jsPublish(js, subject, DATA);
     }
 
     public static List<Message> readMessagesAck(JetStreamSubscription sub) throws InterruptedException {

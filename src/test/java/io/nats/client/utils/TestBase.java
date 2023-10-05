@@ -149,11 +149,11 @@ public class TestBase {
         runInServer(debug, jetstream, builder, null, inServerTest);
     }
 
-    private static ServerInfo runServerInfo;
+    private static ServerInfo RUN_SERVER_INFO;
 
     public static void runInServer(boolean debug, boolean jetstream, Options.Builder builder, VersionCheck vc, InServerTest inServerTest) throws Exception {
-        if (vc != null && runServerInfo != null) {
-            if (!vc.runTest(runServerInfo)) {
+        if (vc != null && RUN_SERVER_INFO != null) {
+            if (!vc.runTest(RUN_SERVER_INFO)) {
                 return;
             }
             vc = null; // since we've already determined it should run, null this out so we don't check below
@@ -167,10 +167,70 @@ public class TestBase {
              Connection nc = standardConnection(builder.server(ts.getURI()).build()))
         {
             if (vc != null) {
-                runServerInfo = nc.getServerInfo();
-                if (!vc.runTest(runServerInfo)) {
+                initRunServerInfo(nc);
+                if (!vc.runTest(RUN_SERVER_INFO)) {
                     return;
                 }
+            }
+
+            try {
+                inServerTest.test(nc);
+            }
+            finally {
+                if (jetstream) {
+                    cleanupJs(nc);
+                }
+            }
+        }
+    }
+
+    private static void initRunServerInfo(Connection nc) {
+        RUN_SERVER_INFO = nc.getServerInfo();
+    }
+
+    public static class RunningServer implements AutoCloseable {
+        public final boolean debug;
+        public final boolean jetstream;
+        public final NatsTestServer ts;
+        public final Options.Builder builder;
+        public final Connection nc;
+
+        public RunningServer() throws IOException, InterruptedException {
+            this(false, true, null);
+        }
+
+        public RunningServer(boolean debug, boolean jetstream, Options.Builder builder) throws IOException, InterruptedException {
+            this.debug = debug;
+            this.jetstream = jetstream;
+            this.builder = builder == null ? new Options.Builder() : builder;
+            ts = new NatsTestServer(debug, jetstream);
+            nc = connect();
+            initRunServerInfo(nc);
+        }
+
+        public Connection connect() throws IOException, InterruptedException {
+            return standardConnection(builder.server(ts.getURI()).build());
+        }
+
+        @Override
+        public void close() throws Exception {
+            if (jetstream) {
+                afterJetstream();
+            }
+            nc.close();
+        }
+
+        public void afterJetstream() {
+            cleanupJs(nc);
+        }
+
+        public void run(InServerTest inServerTest) throws Exception {
+            run(null, inServerTest);
+        }
+
+        public void run(VersionCheck vc, InServerTest inServerTest) throws Exception {
+            if (vc != null && !vc.runTest(RUN_SERVER_INFO)) {
+                return;
             }
 
             try {
@@ -278,8 +338,16 @@ public class TestBase {
         return STREAM + "-" + variant(variant);
     }
 
+    public static String mirror() {
+        return MIRROR + "-" + variant(null);
+    }
+
     public static String mirror(Object variant) {
         return MIRROR + "-" + variant(variant);
+    }
+
+    public static String source() {
+        return SOURCE + "-" + variant(null);
     }
 
     public static String source(Object variant) {

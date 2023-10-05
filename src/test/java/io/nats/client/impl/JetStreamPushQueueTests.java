@@ -32,24 +32,24 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
 
     @Test
     public void testQueueSubWorkflow() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             // Create our JetStream context.
             JetStream js = nc.jetStream();
 
             // create the stream.
-            createDefaultTestStream(nc);
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
-            // Setup the subscribers
+            // Set up the subscribers
             // - the PushSubscribeOptions can be re-used since all the subscribers are the same
             // - use a concurrent integer to track all the messages received
             // - have a list of subscribers and threads so I can track them
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(DURABLE).build();
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(tsc.name()).build();
             AtomicInteger allReceived = new AtomicInteger();
             List<JsQueueSubscriber> subscribers = new ArrayList<>();
             List<Thread> subThreads = new ArrayList<>();
             for (int id = 1; id <= 3; id++) {
-                // setup the subscription
-                JetStreamSubscription sub = js.subscribe(SUBJECT, QUEUE, pso);
+                // set up the subscription
+                JetStreamSubscription sub = js.subscribe(tsc.subject(), QUEUE, pso);
                 // create and track the runnable
                 JsQueueSubscriber qs = new JsQueueSubscriber(100, js, sub, allReceived);
                 subscribers.add(qs);
@@ -61,7 +61,7 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // create and start the publishing
-            Thread pubThread = new Thread(new JsPublisher(js, 100));
+            Thread pubThread = new Thread(new JsPublisher(js, tsc.subject(), 100));
             pubThread.start();
 
             // wait for all threads to finish
@@ -88,10 +88,12 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
 
     static class JsPublisher implements Runnable {
         JetStream js;
+        String subject;
         int msgCount;
 
-        public JsPublisher(JetStream js, int msgCount) {
+        public JsPublisher(JetStream js, String subject, int msgCount) {
             this.js = js;
+            this.subject = subject;
             this.msgCount = msgCount;
         }
 
@@ -99,7 +101,7 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
         public void run() {
             for (int x = 1; x <= msgCount; x++) {
                 try {
-                    js.publish(SUBJECT, ("Data # " + x).getBytes(StandardCharsets.US_ASCII));
+                    js.publish(subject, ("Data # " + x).getBytes(StandardCharsets.US_ASCII));
                 } catch (IOException | JetStreamApiException e) {
                     throw new RuntimeException(e);
                 }

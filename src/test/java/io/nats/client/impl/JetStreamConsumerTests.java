@@ -56,13 +56,12 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsumerSync() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            String subject = subject(111);
-            createMemoryStream(jsm, stream(111), subject);
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
 
             // Get this in place before any subscriptions are made
             ((NatsJetStream)js)._pushOrderedMessageManagerFactory = OrderedTestDropSimulator::new;
@@ -71,16 +70,16 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true).build();
 
             // Test queue exception
-            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, QUEUE, pso));
+            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(tsc.subject(), QUEUE, pso));
             assertTrue(iae.getMessage().contains(JsSubOrderedNotAllowOnQueues.id()));
 
             // Setup sync subscription
-            JetStreamSubscription sub = js.subscribe(subject, pso);
+            JetStreamSubscription sub = js.subscribe(tsc.subject(), pso);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
             sleep(1000);
 
             // Published messages will be intercepted by the OrderedTestDropSimulator
-            jsPublish(js, subject, 101, 6);
+            jsPublish(js, tsc.subject(), 101, 6);
 
             // Loop through the messages to make sure I get stream sequence 1 to 6
             int expectedStreamSeq = 1;
@@ -97,13 +96,12 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsumerAsync() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            String subject = subject(222);
-            createMemoryStream(jsm, stream(222), subject);
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
 
             // Get this in place before any subscriptions are made
             ((NatsJetStream)js)._pushOrderedMessageManagerFactory = OrderedTestDropSimulator::new;
@@ -115,7 +113,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             Dispatcher d = nc.createDispatcher();
 
             // Test queue exception
-            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, QUEUE, d, m -> {}, false, pso));
+            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(tsc.subject(), QUEUE, d, m -> {}, false, pso));
             assertTrue(iae.getMessage().contains(JsSubOrderedNotAllowOnQueues.id()));
 
             // Setup async subscription
@@ -130,12 +128,12 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
                 msgLatch.countDown();
             };
 
-            js.subscribe(subject, d, handler, false, pso);
+            js.subscribe(tsc.subject(), d, handler, false, pso);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
             sleep(1000);
 
             // publish after sub b/c interceptor is set during sub, so before messages come in
-            jsPublish(js, subject, 201, 6);
+            jsPublish(js, tsc.subject(), 201, 6);
 
             // wait for the messages
             awaitAndAssert(msgLatch);
@@ -217,7 +215,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
     public void testHeartbeatError() throws Exception {
         TestHandler testHandler = new TestHandler();
         runInJsServer(testHandler, nc -> {
-            createDefaultTestStream(nc);
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
             JetStream js = nc.jetStream();
 
@@ -226,30 +224,31 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
             PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
             CountDownLatch latch = setupFactory(js);
-            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            JetStreamSubscription sub = js.subscribe(tsc.subject(), pso);
             validate(sub, testHandler, latch, null);
 
             latch = setupFactory(js);
-            sub = js.subscribe(SUBJECT, d, m -> {}, false, pso);
+            sub = js.subscribe(tsc.subject(), d, m -> {}, false, pso);
             validate(sub, testHandler, latch, d);
 
             pso = PushSubscribeOptions.builder().ordered(true).configuration(cc).build();
             latch = setupOrderedFactory(js);
-            sub = js.subscribe(SUBJECT, pso);
+            sub = js.subscribe(tsc.subject(), pso);
             validate(sub, testHandler, latch, null);
 
             latch = setupOrderedFactory(js);
-            sub = js.subscribe(SUBJECT, d, m -> {}, false, pso);
+            sub = js.subscribe(tsc.subject(), d, m -> {}, false, pso);
             validate(sub, testHandler, latch, d);
 
             latch = setupPulLFactory(js);
-            sub = js.subscribe(SUBJECT, PullSubscribeOptions.DEFAULT_PULL_OPTS);
+            sub = js.subscribe(tsc.subject(), PullSubscribeOptions.DEFAULT_PULL_OPTS);
             sub.pull(PullRequestOptions.builder(1).idleHeartbeat(100).expiresIn(2000).build());
             validate(sub, testHandler, latch, null);
         });
     }
 
     private static void validate(JetStreamSubscription sub, TestHandler handler, CountDownLatch latch, Dispatcher d) throws InterruptedException {
+        //noinspection ResultOfMethodCallIgnored
         latch.await(2, TimeUnit.SECONDS);
         if (d == null) {
             sub.unsubscribe();
@@ -258,7 +257,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             d.unsubscribe(sub);
         }
         assertEquals(0, latch.getCount());
-        assertTrue(handler.getHeartbeatAlarms().size() > 0);
+        assertFalse(handler.getHeartbeatAlarms().isEmpty());
         handler.reset();
     }
 
@@ -288,64 +287,62 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     @Test
     public void testMultipleSubjectFilters() throws Exception {
-        runInJsServer(this::atLeast210, nc -> {
+        jsServer.run(this::atLeast210, nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            String subject1 = subject();
-            String subject2 = subject();
-            String stream = stream();
-            createMemoryStream(jsm, stream, subject1, subject2);
-            jsPublish(js, subject1, 10);
-            jsPublish(js, subject2, 5);
+            TestingStreamContainer tsc = new TestingStreamContainer(nc, 2);
+
+            jsPublish(js, tsc.subject(0), 10);
+            jsPublish(js, tsc.subject(1), 5);
 
             // push ephemeral
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().filterSubjects(subject1, subject2).build();
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().filterSubjects(tsc.subject(0), tsc.subject(1)).build();
             JetStreamSubscription sub = js.subscribe(null, PushSubscribeOptions.builder().configuration(cc).build());
-            validateMultipleSubjectFilterSub(sub, subject1);
+            validateMultipleSubjectFilterSub(sub, tsc.subject(0));
 
             // pull ephemeral
             sub = js.subscribe(null, PullSubscribeOptions.builder().configuration(cc).build());
             sub.pullExpiresIn(15, 1000);
-            validateMultipleSubjectFilterSub(sub, subject1);
+            validateMultipleSubjectFilterSub(sub, tsc.subject(0));
 
             // push named
             String name = name();
-            cc = ConsumerConfiguration.builder().filterSubjects(subject1, subject2).name(name).deliverSubject(deliver()).build();
-            jsm.addOrUpdateConsumer(stream, cc);
+            cc = ConsumerConfiguration.builder().filterSubjects(tsc.subject(0), tsc.subject(1)).name(name).deliverSubject(deliver()).build();
+            jsm.addOrUpdateConsumer(tsc.stream, cc);
             sub = js.subscribe(null, PushSubscribeOptions.builder().configuration(cc).build());
-            validateMultipleSubjectFilterSub(sub, subject1);
+            validateMultipleSubjectFilterSub(sub, tsc.subject(0));
 
             name = name();
-            cc = ConsumerConfiguration.builder().filterSubjects(subject1, subject2).name(name).deliverSubject(deliver()).build();
-            jsm.addOrUpdateConsumer(stream, cc);
-            sub = js.subscribe(null, PushSubscribeOptions.bind(stream, name));
-            validateMultipleSubjectFilterSub(sub, subject1);
+            cc = ConsumerConfiguration.builder().filterSubjects(tsc.subject(0), tsc.subject(1)).name(name).deliverSubject(deliver()).build();
+            jsm.addOrUpdateConsumer(tsc.stream, cc);
+            sub = js.subscribe(null, PushSubscribeOptions.bind(tsc.stream, name));
+            validateMultipleSubjectFilterSub(sub, tsc.subject(0));
 
             // pull named
             name = name();
-            cc = ConsumerConfiguration.builder().filterSubjects(subject1, subject2).name(name).build();
-            jsm.addOrUpdateConsumer(stream, cc);
+            cc = ConsumerConfiguration.builder().filterSubjects(tsc.subject(0), tsc.subject(1)).name(name).build();
+            jsm.addOrUpdateConsumer(tsc.stream, cc);
             sub = js.subscribe(null, PullSubscribeOptions.builder().configuration(cc).build());
             sub.pullExpiresIn(15, 1000);
-            validateMultipleSubjectFilterSub(sub, subject1);
+            validateMultipleSubjectFilterSub(sub, tsc.subject(0));
 
             name = name();
-            cc = ConsumerConfiguration.builder().filterSubjects(subject1, subject2).name(name).build();
-            jsm.addOrUpdateConsumer(stream, cc);
-            sub = js.subscribe(null, PullSubscribeOptions.bind(stream, name));
+            cc = ConsumerConfiguration.builder().filterSubjects(tsc.subject(0), tsc.subject(1)).name(name).build();
+            jsm.addOrUpdateConsumer(tsc.stream, cc);
+            sub = js.subscribe(null, PullSubscribeOptions.bind(tsc.stream, name));
             sub.pullExpiresIn(15, 1000);
-            validateMultipleSubjectFilterSub(sub, subject1);
+            validateMultipleSubjectFilterSub(sub, tsc.subject(0));
         });
     }
 
-    private static void validateMultipleSubjectFilterSub(JetStreamSubscription sub, String subject1) throws InterruptedException {
+    private static void validateMultipleSubjectFilterSub(JetStreamSubscription sub, String subject0) throws InterruptedException {
         int count1 = 0;
         int count2 = 0;
         Message m = sub.nextMessage(1000);
         while (m != null) {
-            if (m.getSubject().equals(subject1)) {
+            if (m.getSubject().equals(subject0)) {
                 count1++;
             }
             else {
