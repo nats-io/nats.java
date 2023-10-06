@@ -218,7 +218,6 @@ public class TestBase {
                 afterJetstream();
             }
             nc.close();
-            ts.close();
         }
 
         public void afterJetstream() {
