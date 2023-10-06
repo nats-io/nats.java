@@ -100,6 +100,7 @@ class NatsConnection implements Connection {
     private final boolean advancedTracking;
 
     private final ServerPool serverPool;
+    private final DispatcherFactory dispatcherFactory;
     private final CancelAction cancelAction;
 
     NatsConnection(Options options) {
@@ -157,6 +158,7 @@ class NatsConnection implements Connection {
 
         serverPool = options.getServerPool() == null ? new NatsServerPool() : options.getServerPool();
         serverPool.initialize(options);
+        dispatcherFactory = options.getDispatcherFactory() == null ? new DispatcherFactory() : options.getDispatcherFactory();
 
         cancelAction = options.isReportNoResponders() ? CancelAction.REPORT : CancelAction.CANCEL;
 
@@ -165,7 +167,7 @@ class NatsConnection implements Connection {
 
     // Connect is only called after creation
     void connect(boolean reconnectOnConnect) throws InterruptedException, IOException {
-        if (options.getServers().size() == 0) {
+        if (options.getServers().isEmpty()) {
             throw new IllegalArgumentException("No servers provided in options");
         }
 
@@ -191,7 +193,7 @@ class NatsConnection implements Connection {
 
             // let server pool resolve hostnames, then loop through resolved
             List<NatsUri> resolvedList = resolveHost(cur);
-            while (resolvedList.size() > 0) {
+            while (!resolvedList.isEmpty()) {
                 if (isClosed()) {
                     keepGoing = false;
                     break;
@@ -281,7 +283,7 @@ class NatsConnection implements Connection {
                 // let server list provider resolve hostnames
                 // then loop through resolved
                 List<NatsUri> resolvedList = resolveHost(cur);
-                while (keepGoing && resolvedList.size() > 0) {
+                while (keepGoing && !resolvedList.isEmpty()) {
                     if (isClosed()) {
                         keepGoing = false;
                     }
@@ -1136,8 +1138,11 @@ class NatsConnection implements Connection {
         }
 
         if (inboxDispatcher.get() == null) {
-            NatsDispatcher d = new NatsDispatcher(this, this::deliverReply);
+            NatsDispatcher d = dispatcherFactory.createDispatcher(this, this::deliverReply);
 
+            // compareAndSet here basically ensures that the inboxDispatcher
+            // has not been set yet, even though it was just checked,
+            // I assume out of an abundance of caution
             if (inboxDispatcher.compareAndSet(null, d)) {
                 String id = this.nuid.next();
                 this.dispatchers.put(id, d);
@@ -1229,7 +1234,7 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Connection is Draining");
         }
 
-        NatsDispatcher dispatcher = new NatsDispatcher(this, handler);
+        NatsDispatcher dispatcher = dispatcherFactory.createDispatcher(this, handler);
         String id = this.nuid.next();
         this.dispatchers.put(id, dispatcher);
         dispatcher.start(id);
@@ -1463,7 +1468,7 @@ class NatsConnection implements Connection {
                     gotCR = true;
                 } else {
                     if (!protocolBuffer.hasRemaining()) {
-                        protocolBuffer = enlargeBuffer(protocolBuffer, 0); // just double it
+                        protocolBuffer = enlargeBuffer(protocolBuffer); // just double it
                     }
                     protocolBuffer.put(b);
                 }
@@ -1493,7 +1498,7 @@ class NatsConnection implements Connection {
         this.serverInfo.set(serverInfo);
 
         List<String> urls = this.serverInfo.get().getConnectURLs();
-        if (urls != null && urls.size() > 0) {
+        if (urls != null && !urls.isEmpty()) {
             if (serverPool.acceptDiscoveredUrls(urls)) {
                 processConnectionEvent(Events.DISCOVERED_SERVERS);
             }
@@ -1750,7 +1755,7 @@ class NatsConnection implements Connection {
         //    - pool returned nothing or
         //    - resolving failed...
         //    so the list just becomes the original host.
-        if (results.size() == 0) {
+        if (results.isEmpty()) {
             results.add(nuri);
         }
         return results;
@@ -1926,9 +1931,9 @@ class NatsConnection implements Connection {
         this.reconnectWaiter.complete(Boolean.TRUE);
     }
 
-    ByteBuffer enlargeBuffer(ByteBuffer buffer, int atLeast) {
+    ByteBuffer enlargeBuffer(ByteBuffer buffer) {
         int current = buffer.capacity();
-        int newSize = Math.max(current * 2, atLeast);
+        int newSize = current * 2;
         ByteBuffer newBuffer = ByteBuffer.allocate(newSize);
         buffer.flip();
         newBuffer.put(buffer);
@@ -1992,8 +1997,7 @@ class NatsConnection implements Connection {
         Instant start = Instant.now();
 
         // Don't include subscribers with dispatchers
-        HashSet<NatsSubscription> pureSubscribers = new HashSet<>();
-        pureSubscribers.addAll(this.subscribers.values());
+        HashSet<NatsSubscription> pureSubscribers = new HashSet<>(this.subscribers.values());
         pureSubscribers.removeIf((s) -> s.getDispatcher() != null);
 
         final HashSet<NatsConsumer> consumers = new HashSet<>();
@@ -2030,10 +2034,11 @@ class NatsConnection implements Connection {
                         || Duration.between(start, now).compareTo(timeout) < 0) {
                     consumers.removeIf(NatsConsumer::isDrained);
 
-                    if (consumers.size() == 0) {
+                    if (consumers.isEmpty()) {
                         break;
                     }
 
+                    //noinspection BusyWait
                     Thread.sleep(1); // Sleep 1 milli
 
                     now = Instant.now();
@@ -2057,7 +2062,7 @@ class NatsConnection implements Connection {
                 }
 
                 this.close(false); // close the connection after the last flush
-                tracker.complete(consumers.size() == 0);
+                tracker.complete(consumers.isEmpty());
             } catch (TimeoutException | InterruptedException e) {
                 this.processException(e);
             } finally {
