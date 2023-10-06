@@ -27,26 +27,28 @@ import static io.nats.client.support.Validator.*;
 
 class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
-    private MessageQueue incoming;
-    private MessageHandler defaultHandler;
+    protected final MessageQueue incoming;
+    protected final MessageHandler defaultHandler;
 
-    private Future<Boolean> thread;
-    private final AtomicBoolean running;
+    protected Future<Boolean> thread;
+    protected final AtomicBoolean running;
+    protected final AtomicBoolean started;
 
-    private String id;
+    protected String id;
 
     // We will use the subject as the key for subscriptions that use the
     // default handler.
-    private Map<String, NatsSubscription> subscriptionsUsingDefaultHandler;
-    // We will use the SID as the key. Sicne these subscriptions provide
+    protected final Map<String, NatsSubscription> subscriptionsUsingDefaultHandler;
+
+    // We will use the SID as the key. Since  these subscriptions provide
     // their own handlers, we allow duplicates. There is a subtle but very
     // important difference here.
-    private Map<String, NatsSubscription> subscriptionsWithHandlers;
+    protected final Map<String, NatsSubscription> subscriptionsWithHandlers;
+
     // We use the SID as the key here.
-    private Map<String, MessageHandler> subscriptionHandlers;
+    protected final Map<String, MessageHandler> subscriptionHandlers;
 
-    private Duration waitForMessage;
-
+    protected final Duration waitForMessage;
 
     NatsDispatcher(NatsConnection conn, MessageHandler handler) {
         super(conn);
@@ -56,13 +58,24 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         this.subscriptionsWithHandlers = new ConcurrentHashMap<>();
         this.subscriptionHandlers = new ConcurrentHashMap<>();
         this.running = new AtomicBoolean(false);
+        this.started = new AtomicBoolean(false);
         this.waitForMessage = Duration.ofMinutes(5); // This can be long since we aren't doing anything
     }
 
-    void start(String id) {
-        this.id = id;
-        this.running.set(true);
-        thread = connection.getExecutor().submit(this, Boolean.TRUE);
+    @Override
+    public void start(String id) {
+        internalStart(id, true);
+    }
+
+    protected void internalStart(String id, boolean threaded) {
+        if (!started.get()) {
+            this.id = id;
+            this.running.set(true);
+            this.started.set(true);
+            if (threaded) {
+                thread = connection.getExecutor().submit(this, Boolean.TRUE);
+            }
+        }
     }
 
     boolean breakRunLoop() {

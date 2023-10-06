@@ -26,22 +26,22 @@ import java.util.function.Predicate;
 import static io.nats.client.support.NatsConstants.EMPTY_BODY;
 
 class MessageQueue {
-    private final static int STOPPED = 0;
-    private final static int RUNNING = 1;
-    private final static int DRAINING = 2;
+    protected final static int STOPPED = 0;
+    protected final static int RUNNING = 1;
+    protected final static int DRAINING = 2;
 
-    private final AtomicLong length;
-    private final AtomicLong sizeInBytes;
-    private final AtomicInteger running;
-    private final boolean singleThreadedReader;
-    private final LinkedBlockingQueue<NatsMessage> queue;
-    private final Lock filterLock;
-    private final boolean discardWhenFull;
+    protected final AtomicLong length;
+    protected final AtomicLong sizeInBytes;
+    protected final AtomicInteger running;
+    protected final boolean singleThreadedReader;
+    protected final LinkedBlockingQueue<NatsMessage> queue;
+    protected final Lock filterLock;
+    protected final boolean discardWhenFull;
 
     // Poison pill is a graphic, but common term for an item that breaks loops or stop something.
     // In this class the poisonPill is used to break out of timed waits on the blocking queue.
     // A simple == is used to check if any message in the queue is this message.
-    private final NatsMessage poisonPill;
+    protected final NatsMessage poisonPill;
 
     /**
      * If publishHighwaterMark is set to 0 the underlying queue can grow forever (or until the max size of a linked blocking queue that is).

@@ -258,7 +258,7 @@ class NatsConnectionReader implements Runnable {
                     this.gotCR = true;
                 } else {
                     if (!protocolBuffer.hasRemaining()) {
-                        this.protocolBuffer = this.connection.enlargeBuffer(this.protocolBuffer, 0); // just double it
+                        this.protocolBuffer = this.connection.enlargeBuffer(this.protocolBuffer); // just double it
                     }
                     this.protocolBuffer.put(b);
                 }

@@ -34,6 +34,14 @@ package io.nats.client;
 public interface Dispatcher extends Consumer {
 
     /**
+     * Start the dispatcher with a given id.
+     * Use post-construction to start to the dispatcher,
+     * which should not be started on construction.
+     * @param id the assigned id of the dispatcher
+     */
+    void start(String id);
+
+    /**
      * Create a subscription to the specified subject under the control of this
      * dispatcher.
      *
@@ -46,7 +54,7 @@ public interface Dispatcher extends Consumer {
      * @return The Dispatcher, so calls can be chained.
      * @throws IllegalStateException if the dispatcher was previously closed
      */
-    public Dispatcher subscribe(String subject);
+    Dispatcher subscribe(String subject);
 
     /**
      * Create a subscription to the specified subject and queue under the control of
@@ -62,7 +70,7 @@ public interface Dispatcher extends Consumer {
      * @return The Dispatcher, so calls can be chained.
      * @throws IllegalStateException if the dispatcher was previously closed
      */
-    public Dispatcher subscribe(String subject, String queue);
+    Dispatcher subscribe(String subject, String queue);
 
     /**
      * Create a subscription to the specified subject under the control of this
@@ -80,7 +88,7 @@ public interface Dispatcher extends Consumer {
      * @return The Subscription, so subscriptions may be later unsubscribed manually.
      * @throws IllegalStateException if the dispatcher was previously closed
      */
-    public Subscription subscribe(String subject, MessageHandler handler);
+    Subscription subscribe(String subject, MessageHandler handler);
 
     /**
      * Create a subscription to the specified subject under the control of this
@@ -99,7 +107,7 @@ public interface Dispatcher extends Consumer {
      * @return The Subscription, so subscriptions may be later unsubscribed manually.
      * @throws IllegalStateException if the dispatcher was previously closed
      */
-    public Subscription subscribe(String subject, String queue, MessageHandler handler);
+    Subscription subscribe(String subject, String queue, MessageHandler handler);
 
     /**
      * Unsubscribe from the specified subject, the queue is implicit.
@@ -110,7 +118,7 @@ public interface Dispatcher extends Consumer {
      * @return The Dispatcher, so calls can be chained.
      * @throws IllegalStateException if the dispatcher was previously closed
      */
-    public Dispatcher unsubscribe(String subject);
+    Dispatcher unsubscribe(String subject);
 
     /**
      * Unsubscribe from the specified Subscription.
@@ -124,7 +132,7 @@ public interface Dispatcher extends Consumer {
      * @throws IllegalStateException if the dispatcher was previously closed
      * @throws IllegalStateException if the Subscription is not managed by this dispatcher
      */
-    public Dispatcher unsubscribe(Subscription subscription);
+    Dispatcher unsubscribe(Subscription subscription);
 
     /**
      * Unsubscribe from the specified subject, the queue is implicit, after the
@@ -147,7 +155,7 @@ public interface Dispatcher extends Consumer {
      * @return The Dispatcher, so calls can be chained.
      * @throws IllegalStateException if the dispatcher was previously closed
      */
-    public Dispatcher unsubscribe(String subject, int after);
+    Dispatcher unsubscribe(String subject, int after);
 
     /**
      * Unsubscribe from the specified subject, the queue is implicit, after the
@@ -168,5 +176,5 @@ public interface Dispatcher extends Consumer {
      * @throws IllegalStateException if the dispatcher was previously closed
      * @throws IllegalStateException if the Subscription is not managed by this dispatcher
      */
-    public Dispatcher unsubscribe(Subscription subscription, int after);
+    Dispatcher unsubscribe(Subscription subscription, int after);
 }
