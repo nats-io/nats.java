@@ -39,6 +39,22 @@ public class PublishAckTests {
     }
 
     @Test
+    public void testValidAckForDuplicateWithSeq0() {
+        String json = "{\"stream\":\"test-stream\",\"seq\":0,\"domain\":\"test-domain\", \"duplicate\" : true }";
+
+        try {
+            PublishAck ack = new PublishAck(getDataMessage(json));
+            assertEquals("test-stream", ack.getStream());
+            assertEquals("test-domain", ack.getDomain());
+            assertEquals(0, ack.getSeqno());
+            assertTrue(ack.isDuplicate());
+        }
+        catch (Exception e) {
+            fail("Unexpected Exception: " + e.getMessage());
+        }
+    }
+
+    @Test
     public void testThrowsOnGarbage() {
         assertThrows(JetStreamApiException.class, () -> {
             new PublishAck(getDataMessage("notjson"));
