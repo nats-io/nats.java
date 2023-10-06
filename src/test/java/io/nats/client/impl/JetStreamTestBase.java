@@ -45,11 +45,11 @@ public class JetStreamTestBase extends TestBase {
     public static final String InvalidMeta10Tokens = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000";
     public static final String InvalidMetaData = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.not-a-number";
 
-    public static RunningServer jsServer;
+    public static LongRunningNatsTestServer jsServer;
 
     @BeforeAll
     public static void beforeAll() throws IOException, InterruptedException {
-        jsServer = new RunningServer();
+        jsServer = new LongRunningNatsTestServer(false, true, null);
     }
 
     @AfterAll
