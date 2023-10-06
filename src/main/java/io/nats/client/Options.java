@@ -14,6 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.impl.DataPort;
+import io.nats.client.impl.DispatcherFactory;
 import io.nats.client.impl.ErrorListenerLoggerImpl;
 import io.nats.client.impl.SocketDataPort;
 import io.nats.client.support.HttpRequest;
@@ -403,6 +404,11 @@ public class Options {
      */
     public static final String PROP_SERVERS_POOL_IMPLEMENTATION_CLASS_PREFERRED = "servers.pool.implementation.class";
     /**
+     * Property used to set class name for the Dispatcher Factory
+     * {@link Builder#dispatcherFactory(DispatcherFactory) dispatcherFactory}.
+     */
+    public static final String PROP_DISPATCHER_FACTORY_CLASS = "dispatcher.factory.class";
+    /**
      * Property for the keystore path used to create an SSLContext
      */
     public static final String PROP_KEYSTORE = PFX + "keyStore";
@@ -572,6 +578,7 @@ public class Options {
 
     private final ExecutorService executor;
     private final ServerPool serverPool;
+    private final DispatcherFactory dispatcherFactory;
 
     private final List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
     private final Proxy proxy;
@@ -665,6 +672,7 @@ public class Options {
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
         private boolean ignoreDiscoveredServers = false;
         private ServerPool serverPool = null;
+        private DispatcherFactory dispatcherFactory = null;
 
         private AuthHandler authHandler;
         private ReconnectDelayHandler reconnectDelayHandler;
@@ -788,6 +796,8 @@ public class Options {
 
             booleanProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, b -> this.ignoreDiscoveredServers = b);
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
+            classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);
+
             return this;
         }
 
@@ -1456,12 +1466,22 @@ public class Options {
         }
 
         /**
-         * Set the ServerPool implementation for connections to use instead of the default bahvior
+         * Set the ServerPool implementation for connections to use instead of the default implementation
          * @param serverPool the implementation
          * @return the Builder for chaining
          */
         public Builder serverPool(ServerPool serverPool) {
             this.serverPool = serverPool;
+            return this;
+        }
+
+        /**
+         * Set the DispatcherFactory  implementation for connections to use instead of the default implementation
+         * @param dispatcherFactory the implementation
+         * @return the Builder for chaining
+         */
+        public Builder dispatcherFactory(DispatcherFactory dispatcherFactory) {
+            this.dispatcherFactory = dispatcherFactory;
             return this;
         }
 
@@ -1624,6 +1644,7 @@ public class Options {
             this.ignoreDiscoveredServers = o.ignoreDiscoveredServers;
 
             this.serverPool = o.serverPool;
+            this.dispatcherFactory = o.dispatcherFactory;
         }
     }
 
@@ -1684,6 +1705,7 @@ public class Options {
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
 
         this.serverPool = b.serverPool;
+        this.dispatcherFactory = b.dispatcherFactory;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -2059,11 +2081,19 @@ public class Options {
     }
 
     /**
-     * Get a provided ServerPool. If null, a default implementation is used.
+     * Get the ServerPool implementation. If null, a default implementation is used.
      * @return the ServerPool implementation
      */
     public ServerPool getServerPool() {
         return serverPool;
+    }
+
+    /**
+     * Get the DispatcherFactory implementation. If null, a default implementation is used.
+     * @return the DispatcherFactory implementation
+     */
+    public DispatcherFactory getDispatcherFactory() {
+        return dispatcherFactory;
     }
 
     public URI createURIForServer(String serverURI) throws URISyntaxException {
