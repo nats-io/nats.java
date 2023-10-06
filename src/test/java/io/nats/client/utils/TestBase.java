@@ -188,40 +188,27 @@ public class TestBase {
         RUN_SERVER_INFO = nc.getServerInfo();
     }
 
-    public static class RunningServer implements AutoCloseable {
-        public final boolean debug;
+    public static class LongRunningNatsTestServer extends NatsTestServer {
         public final boolean jetstream;
-        public final NatsTestServer ts;
         public final Options.Builder builder;
         public final Connection nc;
 
-        public RunningServer() throws IOException, InterruptedException {
-            this(false, true, null);
-        }
-
-        public RunningServer(boolean debug, boolean jetstream, Options.Builder builder) throws IOException, InterruptedException {
-            this.debug = debug;
+        public LongRunningNatsTestServer(boolean debug, boolean jetstream, Options.Builder builder) throws IOException, InterruptedException {
+            super(debug, jetstream);
             this.jetstream = jetstream;
             this.builder = builder == null ? new Options.Builder() : builder;
-            ts = new NatsTestServer(debug, jetstream);
             nc = connect();
             initRunServerInfo(nc);
         }
 
         public Connection connect() throws IOException, InterruptedException {
-            return standardConnection(builder.server(ts.getURI()).build());
+            return standardConnection(builder.server(getURI()).build());
         }
 
         @Override
         public void close() throws Exception {
-            if (jetstream) {
-                afterJetstream();
-            }
-            nc.close();
-        }
-
-        public void afterJetstream() {
-            cleanupJs(nc);
+            try { nc.close(); } catch (Exception ignore) {};
+            super.close();
         }
 
         public void run(InServerTest inServerTest) throws Exception {
