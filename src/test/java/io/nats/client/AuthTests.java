@@ -604,13 +604,32 @@ public class AuthTests extends TestBase {
 
     @Test
     public void testReconnectAfterExpiration() throws Exception {
+        _testReconnectAfter("user authentication expired");
+    }
+
+    @Test
+    public void testReconnectAfterRevoked() throws Exception {
+        _testReconnectAfter("user authentication revoked");
+    }
+
+    @Test
+    public void testReconnectAfterAuthorizationViolation() throws Exception {
+        _testReconnectAfter("authorization violation");
+    }
+
+    @Test
+    public void testReconnectAfterAccountAuthenticationExpired() throws Exception {
+        _testReconnectAfter("account authentication expired");
+    }
+
+    private static void _testReconnectAfter(String errText) throws Exception {
         TestHandler handler = new TestHandler();
 
         CompletableFuture<Boolean> f = new CompletableFuture<Boolean>();
 
         NatsServerProtocolMock.Customizer timeoutCustomizer = (ts, r, w) -> {
             f.join(); // wait until we are ready
-            w.write("-ERR user authentication expired\r\n"); // Drop the line feed
+            w.write("-ERR " + errText + "\r\n"); // Drop the line feed
             w.flush();
         };
 
@@ -619,12 +638,13 @@ public class AuthTests extends TestBase {
         // Connect should fail on ts1
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(timeoutCustomizer, port, true);
              NatsTestServer ts2 = new NatsTestServer("src/test/resources/operator.conf", false)) {
-            Options options = new Options.Builder().
-                    servers(new String[]{ts.getURI(), ts2.getURI()}).
-                    maxReconnects(-1).
-                    noRandomize().
-                    authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).
-                    build();
+            Options options = new Options.Builder()
+                .servers(new String[]{ts.getURI(), ts2.getURI()})
+                .maxReconnects(-1)
+                .noRandomize()
+                .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds"))
+                .errorListener(new ErrorListener() {})
+                .build();
 
             Connection nc = standardConnection(options);
             assertEquals(ts.getURI(), nc.getConnectedUrl());
@@ -638,7 +658,7 @@ public class AuthTests extends TestBase {
 
             String err = nc.getLastError();
             assertNotNull(err);
-            assertTrue(err.toLowerCase().startsWith("user authentication"));
+            assertTrue(err.toLowerCase().contains(errText));
             standardCloseConnection(nc);
         }
     }
