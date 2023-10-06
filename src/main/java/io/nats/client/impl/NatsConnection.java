@@ -1140,9 +1140,10 @@ class NatsConnection implements Connection {
         if (inboxDispatcher.get() == null) {
             NatsDispatcher d = dispatcherFactory.createDispatcher(this, this::deliverReply);
 
-            // compareAndSet here basically ensures that the inboxDispatcher
-            // has not been set yet, even though it was just checked,
-            // I assume out of an abundance of caution
+            // Theoretically two threads could be here
+            // compareAndSet returns false if thread 2 set the dispatcher
+            // in between the time thread 1 did get above and tried to compareAndSet
+            // really thin edge condition - could have used a lock, but this is probably enough
             if (inboxDispatcher.compareAndSet(null, d)) {
                 String id = this.nuid.next();
                 this.dispatchers.put(id, d);
