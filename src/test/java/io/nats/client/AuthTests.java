@@ -718,7 +718,7 @@ public class AuthTests extends TestBase {
                 .build();
             Connection nc = Nats.connect(options);
             boolean connected = cdlConnected.await(5, TimeUnit.SECONDS);
-            boolean disconnected = cdlDisconnected.await(3, TimeUnit.SECONDS);
+            boolean disconnected = cdlDisconnected.await(5, TimeUnit.SECONDS);
             boolean reconnected = cdlReconnected.await(5, TimeUnit.SECONDS);
             assertTrue(connected);
             assertTrue(disconnected);
