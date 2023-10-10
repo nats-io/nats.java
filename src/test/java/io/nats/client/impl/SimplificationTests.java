@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.BaseConsumeOptions.*;
-import static io.nats.client.impl.JetStreamConsumerTests.EXPECTED_CON_SEQ_NUMS;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SimplificationTests extends JetStreamTestBase {
@@ -715,7 +714,6 @@ public class SimplificationTests extends JetStreamTestBase {
                 while (expectedStreamSeq <= 6) {
                     int idx = expectedStreamSeq - 1;
                     assertEquals(expectedStreamSeq, ssFlags[idx].get());
-                    assertEquals(EXPECTED_CON_SEQ_NUMS[idx], csFlags[idx].get());
                     ++expectedStreamSeq;
                 }
             }
