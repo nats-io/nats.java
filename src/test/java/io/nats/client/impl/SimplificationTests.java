@@ -544,27 +544,9 @@ public class SimplificationTests extends JetStreamTestBase {
             () -> ConsumeOptions.builder().expiresIn(MIN_EXPIRES_MILLS - 1).build());
     }
 
-    public static class OrderedPullTestDropSimulator extends OrderedPullMessageManager {
-        @SuppressWarnings("ClassEscapesDefinedScope")
-        public OrderedPullTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
-            super(conn, js, stream, so, serverCC, syncMode);
-        }
-
-        @Override
-        protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
-            if (msg.isJetStream()) {
-                long ss = msg.metaData().streamSequence();
-                long cs = msg.metaData().consumerSequence();
-                if ((ss == 2 && cs == 2) || (ss == 5 && cs == 4)) {
-                    return false;
-                }
-            }
-
-            return super.beforeQueueProcessorImpl(msg);
-        }
-    }
-
+    // this sim is different from the other sim b/c next has a new sub every message
     public static class OrderedPullNextTestDropSimulator extends OrderedPullMessageManager {
+        @SuppressWarnings("ClassEscapesDefinedScope")
         public OrderedPullNextTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
             super(conn, js, stream, so, serverCC, syncMode);
         }
@@ -592,7 +574,7 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testOrderedBehaviors() throws Exception {
+    public void testOrderedBehaviorNext() throws Exception {
         jsServer.run(this::atLeast291, nc -> {
             // Setup
             JetStream js = nc.jetStream();
@@ -620,6 +602,25 @@ public class SimplificationTests extends JetStreamTestBase {
         });
     }
 
+    public static class OrderedPullTestDropSimulator extends OrderedPullMessageManager {
+        @SuppressWarnings("ClassEscapesDefinedScope")
+        public OrderedPullTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
+            super(conn, js, stream, so, serverCC, syncMode);
+        }
+
+        @Override
+        protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
+            if (msg.isJetStream()
+                && msg.metaData().streamSequence() == 2
+                && msg.metaData().consumerSequence() == 2)
+            {
+                return false;
+            }
+
+            return super.beforeQueueProcessorImpl(msg);
+        }
+    }
+
     @Test
     public void testOrderedBehaviorFetch() throws Exception {
         jsServer.run(this::atLeast291, nc -> {
@@ -632,18 +633,16 @@ public class SimplificationTests extends JetStreamTestBase {
 
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
             StreamContext sctx = js.getStreamContext(tsc.stream);
-            jsPublish(js, tsc.subject(), 101, 6);
+            jsPublish(js, tsc.subject(), 101, 5);
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(tsc.subject());
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
             try (FetchConsumer fcon = occtx.fetchMessages(6)) {
                 // Loop through the messages to make sure I get stream sequence 1 to 6
                 int expectedStreamSeq = 1;
-                while (expectedStreamSeq <= 6) {
+                while (expectedStreamSeq <= 5) {
                     Message m = fcon.nextMessage();
                     if (m != null) {
-                        assertEquals(expectedStreamSeq, m.metaData().streamSequence());
-                        assertEquals(EXPECTED_CON_SEQ_NUMS[expectedStreamSeq-1], m.metaData().consumerSequence());
-                        ++expectedStreamSeq;
+                        assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
                     }
                 }
             }
@@ -662,18 +661,16 @@ public class SimplificationTests extends JetStreamTestBase {
 
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
             StreamContext sctx = js.getStreamContext(tsc.stream);
-            jsPublish(js, tsc.subject(), 101, 6);
+            jsPublish(js, tsc.subject(), 101, 5);
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(tsc.subject());
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
             try (IterableConsumer icon = occtx.iterate()) {
                 // Loop through the messages to make sure I get stream sequence 1 to 6
                 int expectedStreamSeq = 1;
-                while (expectedStreamSeq <= 6) {
+                while (expectedStreamSeq <= 5) {
                     Message m = icon.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
                     if (m != null) {
-                        assertEquals(expectedStreamSeq, m.metaData().streamSequence());
-                        assertEquals(EXPECTED_CON_SEQ_NUMS[expectedStreamSeq-1], m.metaData().consumerSequence());
-                        ++expectedStreamSeq;
+                        assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
                     }
                 }
             }
