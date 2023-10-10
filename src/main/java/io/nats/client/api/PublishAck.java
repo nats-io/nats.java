@@ -44,8 +44,8 @@ public class PublishAck extends ApiResponse<PublishAck> {
         if (stream == null) {
             throw new IOException("Invalid JetStream ack.");
         }
-        seq = JsonValueUtils.readLong(jv, SEQ, 0);
-        if (seq == 0) {
+        seq = JsonValueUtils.readLong(jv, SEQ, -1);
+        if (seq < 0) {
             throw new IOException("Invalid JetStream ack.");
         }
         domain = JsonValueUtils.readString(jv, DOMAIN);
