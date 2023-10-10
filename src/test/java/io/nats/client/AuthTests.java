@@ -681,7 +681,7 @@ public class AuthTests extends TestBase {
         String accountId = "ACPWDUYSZRRF7XAEZKUAGPUH6RPICWEHSTFELYKTOWUVZ4R2XMP4QJJX";
         NKey nKeyUser = NKey.createUser(RandomUtils.SRAND);
         String publicUserKey = new String(nKeyUser.getPublicKey());
-        Duration expiration = Duration.ofSeconds(1);
+        Duration expiration = Duration.ofSeconds(2);
         String jwt = JwtUtils.issueUserJWT(nKeyAccount, accountId, publicUserKey, "jnatsTestUser", expiration);
         String creds = String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(nKeyUser.getSeed()));
         String credsFile = ResourceUtils.createTempFile("nats_java_test", ".creds", creds.split("\\Q\\n\\E"));
