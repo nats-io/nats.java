@@ -66,7 +66,6 @@ public class Service {
         // ? do we need an internal dispatcher for any user endpoints
         // ! also while we are here, we need to collect the endpoints for the SchemaResponse
         Dispatcher dTemp = null;
-        List<Endpoint> infoEndpoints = new ArrayList<>();
         serviceContexts = new HashMap<>();
         for (ServiceEndpoint se : b.serviceEndpoints.values()) {
             if (se.getDispatcher() == null) {
@@ -78,7 +77,6 @@ public class Service {
             else {
                 serviceContexts.put(se.getName(), new EndpointContext(conn, null, true, se));
             }
-            infoEndpoints.add(se.getEndpoint());
         }
         if (dTemp != null) {
             dInternals.add(dTemp);
@@ -86,7 +84,7 @@ public class Service {
 
         // build static responses
         pingResponse = new PingResponse(id, b.name, b.version, b.metadata);
-        infoResponse = new InfoResponse(id, b.name, b.version, b.metadata, b.description, infoEndpoints);
+        infoResponse = new InfoResponse(id, b.name, b.version, b.metadata, b.description, b.serviceEndpoints.values());
 
         if (b.pingDispatcher == null || b.infoDispatcher == null || b.schemaDispatcher == null || b.statsDispatcher == null) {
             dTemp = conn.createDispatcher();
@@ -129,7 +127,7 @@ public class Service {
 
     private Endpoint internalEndpoint(String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {
         String subject = toDiscoverySubject(discoveryName, optionalServiceNameSegment, optionalServiceIdSegment);
-        return new Endpoint(subject, subject, null, false);
+        return new Endpoint(subject, subject, null, null, false);
     }
 
     static String toDiscoverySubject(String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {

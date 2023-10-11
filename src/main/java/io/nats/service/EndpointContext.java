@@ -13,13 +13,12 @@ import java.util.concurrent.atomic.AtomicLong;
  * Internal class to support service implementation
  */
 class EndpointContext {
-    private static final String QGROUP = "q";
 
     private final Connection conn;
     private final ServiceEndpoint se;
     private final ServiceMessageHandler handler;
-    private final boolean recordStats;
     private final String qGroup;
+    private final boolean recordStats;
 
     private final boolean internalDispatcher;
     private final Dispatcher dispatcher;
@@ -36,8 +35,8 @@ class EndpointContext {
         this.conn = conn;
         this.se = se;
         handler = se.getHandler();
+        qGroup = se.getQueueGroup();
         this.recordStats = recordStats;
-        qGroup = recordStats ? QGROUP : null;
 
         if (se.getDispatcher() == null) {
             dispatcher = internalDispatcher;

@@ -56,6 +56,7 @@ public class ServiceTests extends JetStreamTestBase {
     public static final String SORT_ENDPOINT_DESCENDING_NAME = "SortEndpointDescending";
     public static final String SORT_ENDPOINT_ASCENDING_SUBJECT = "ascending";
     public static final String SORT_ENDPOINT_DESCENDING_SUBJECT = "descending";
+    public static final String CUSTOM_QGROUP = "customQ";
 
     @Test
     public void testServiceWorkflow() throws Exception {
@@ -67,6 +68,7 @@ public class ServiceTests extends JetStreamTestBase {
                 Endpoint endEcho = Endpoint.builder()
                     .name(ECHO_ENDPOINT_NAME)
                     .subject(ECHO_ENDPOINT_SUBJECT)
+                    .queueGroup(CUSTOM_QGROUP)
                     .build();
 
                 Endpoint endSortA = Endpoint.builder()
@@ -865,8 +867,7 @@ public class ServiceTests extends JetStreamTestBase {
         Group g2 = new Group(subject(2)).appendGroup(g1);
         Endpoint e1 = new Endpoint(name(100), subject(100));
         Endpoint e2 = new Endpoint(name(200), subject(200));
-        ServiceMessageHandler smh = m -> {
-        };
+        ServiceMessageHandler smh = m -> {};
         Supplier<JsonValue> sds = () -> null;
 
         ServiceEndpoint se = ServiceEndpoint.builder()
@@ -955,6 +956,40 @@ public class ServiceTests extends JetStreamTestBase {
         iae = assertThrows(IllegalArgumentException.class,
             () -> ServiceEndpoint.builder().endpoint(e1).build());
         assertTrue(iae.getMessage().contains("Handler"));
+
+        se = ServiceEndpoint.builder()
+            .endpointName("directName")
+            .endpointQueueGroup("directQ")
+            .handler(m -> {})
+            .build();
+
+        assertEquals("directName", se.getName());
+        assertEquals("directName", se.getSubject());
+        assertEquals("directQ", se.getQueueGroup());
+
+        se = ServiceEndpoint.builder()
+            .endpointName("directName")
+            .endpointSubject("directSubject")
+            .endpointQueueGroup("directQ")
+            .handler(m -> {})
+            .build();
+
+        assertEquals("directName", se.getName());
+        assertEquals("directSubject", se.getSubject());
+        assertEquals("directQ", se.getQueueGroup());
+
+        Group g = new Group("directG");
+        se = ServiceEndpoint.builder()
+            .group(g)
+            .endpointName("directName")
+            .endpointSubject("directSubject")
+            .endpointQueueGroup("directQ")
+            .handler(m -> {})
+            .build();
+
+        assertEquals("directName", se.getName());
+        assertEquals("directG.directSubject", se.getSubject());
+        assertEquals("directQ", se.getQueueGroup());
     }
 
     @Test
@@ -1009,10 +1044,10 @@ public class ServiceTests extends JetStreamTestBase {
 
         Map<String, String> endMeta = new HashMap<>();
         endMeta.put("foo", "bar");
-        Endpoint end1 = new Endpoint("endfoo", endMeta);
-        InfoResponse ir1 = new InfoResponse("id", "name", "0.0.0", metadata, "desc", Collections.singletonList(end1));
+        Endpoint ep = new Endpoint("endfoo", endMeta);
+        ServiceEndpoint se = new ServiceEndpoint(ep, m -> {}, null);
+        InfoResponse ir1 = new InfoResponse("id", "name", "0.0.0", metadata, "desc", Collections.singletonList(se));
         InfoResponse ir2 = new InfoResponse(ir1.toJson().getBytes());
-        System.out.println(ir1.toJson());
         validateApiInOutInfoResponse(ir1);
         validateApiInOutInfoResponse(ir2);
 
