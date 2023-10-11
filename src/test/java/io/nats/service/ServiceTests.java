@@ -779,9 +779,10 @@ public class ServiceTests extends JetStreamTestBase {
             .verify();
         ZonedDateTime zdt = DateTimeUtils.gmtNow();
 
-        EndpointStats er = new EndpointStats("name", "subject", 0, 0, 0, null, null, zdt);
+        EndpointStats er = new EndpointStats("name", "subject", "queue", 0, 0, 0, null, null, zdt);
         assertEquals("name", er.getName());
         assertEquals("subject", er.getSubject());
+        assertEquals("queue", er.getQueueGroup());
         assertNull(er.getLastError());
         assertNull(er.getData());
         assertEquals(0, er.getNumRequests());
@@ -790,9 +791,10 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(0, er.getAverageProcessingTime());
         assertEquals(zdt, er.getStarted());
 
-        er = new EndpointStats("name", "subject", 2, 4, 10, "lastError", data, zdt);
+        er = new EndpointStats("name", "subject", "queue", 2, 4, 10, "lastError", data, zdt);
         assertEquals("name", er.getName());
         assertEquals("subject", er.getSubject());
+        assertEquals("queue", er.getQueueGroup());
         assertEquals("lastError", er.getLastError());
         assertEquals("\"data\"", er.getData().toString());
         assertEquals(2, er.getNumRequests());
@@ -805,6 +807,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertTrue(j.startsWith("{"));
         assertTrue(j.contains("\"name\":\"name\""));
         assertTrue(j.contains("\"subject\":\"subject\""));
+        assertTrue(j.contains("\"queue_group\":\"queue\""));
         assertTrue(j.contains("\"last_error\":\"lastError\""));
         assertTrue(j.contains("\"data\":\"data\""));
         assertTrue(j.contains("\"num_requests\":2"));
@@ -1060,8 +1063,8 @@ public class ServiceTests extends JetStreamTestBase {
 
         List<EndpointStats> statsList = new ArrayList<>();
         JsonValue[] data = new JsonValue[]{supplyData(), supplyData()};
-        statsList.add(new EndpointStats("endName0", "endSubject0", 1000, 0, 10000, "lastError0", data[0], endStarteds[0]));
-        statsList.add(new EndpointStats("endName1", "endSubject1", 2000, 10, 10000, "lastError1", data[1], endStarteds[1]));
+        statsList.add(new EndpointStats("endName0", "endSubject0", "endQueue0", 1000, 0, 10000, "lastError0", data[0], endStarteds[0]));
+        statsList.add(new EndpointStats("endName1", "endSubject1", "endQueue1", 2000, 10, 10000, "lastError1", data[1], endStarteds[1]));
 
         StatsResponse stat1 = new StatsResponse(pr1, serviceStarted, statsList);
         StatsResponse stat2 = new StatsResponse(stat1.toJson().getBytes());
@@ -1083,6 +1086,7 @@ public class ServiceTests extends JetStreamTestBase {
             EndpointStats e = stat.getEndpointStatsList().get(x);
             assertEquals("endName" + x, e.getName());
             assertEquals("endSubject" + x, e.getSubject());
+            assertEquals("endQueue" + x, e.getQueueGroup());
             long nr = x * 1000 + 1000;
             long errs = x * 10;
             long avg = 10000 / nr;

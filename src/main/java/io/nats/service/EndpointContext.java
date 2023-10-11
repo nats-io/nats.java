@@ -89,6 +89,7 @@ class EndpointContext {
         return new EndpointStats(
             se.getEndpoint().getName(),
             se.getSubject(),
+            se.getQueueGroup(),
             numRequests.get(),
             numErrors.get(),
             processingTime.get(),

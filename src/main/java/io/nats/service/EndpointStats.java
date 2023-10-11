@@ -37,6 +37,7 @@ import static io.nats.client.support.JsonValueUtils.*;
  * "endpoints": [{
  *     "name": "SortEndpointAscending",
  *     "subject": "sort.ascending",
+ *     "queue_group": "q",
  *     "num_requests": 1,
  *     "processing_time": 538900,
  *     "average_processing_time": 538900,
@@ -71,6 +72,7 @@ import static io.nats.client.support.JsonValueUtils.*;
 public class EndpointStats implements JsonSerializable {
     private final String name;
     private final String subject;
+    private final String queueGroup;
     private final long numRequests;
     private final long numErrors;
     private final long processingTime;
@@ -83,9 +85,10 @@ public class EndpointStats implements JsonSerializable {
         return JsonValueUtils.listOf(vEndpointStats, EndpointStats::new);
     }
 
-    EndpointStats(String name, String subject, long numRequests, long numErrors, long processingTime, String lastError, JsonValue data, ZonedDateTime started) {
+    EndpointStats(String name, String subject, String queueGroup, long numRequests, long numErrors, long processingTime, String lastError, JsonValue data, ZonedDateTime started) {
         this.name = name;
         this.subject = subject;
+        this.queueGroup = queueGroup;
         this.numRequests = numRequests;
         this.numErrors = numErrors;
         this.processingTime = processingTime;
@@ -98,6 +101,7 @@ public class EndpointStats implements JsonSerializable {
     EndpointStats(JsonValue vEndpointStats) {
         name = readString(vEndpointStats, NAME);
         subject = readString(vEndpointStats, SUBJECT);
+        queueGroup = readString(vEndpointStats, QUEUE_GROUP);
         numRequests = readLong(vEndpointStats, NUM_REQUESTS, 0);
         numErrors = readLong(vEndpointStats, NUM_ERRORS, 0);
         processingTime = readLong(vEndpointStats, PROCESSING_TIME, 0);
@@ -112,6 +116,7 @@ public class EndpointStats implements JsonSerializable {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, SUBJECT, subject);
+        JsonUtils.addField(sb, QUEUE_GROUP, queueGroup);
         JsonUtils.addFieldWhenGtZero(sb, NUM_REQUESTS, numRequests);
         JsonUtils.addFieldWhenGtZero(sb, NUM_ERRORS, numErrors);
         JsonUtils.addFieldWhenGtZero(sb, PROCESSING_TIME, processingTime);
@@ -136,6 +141,14 @@ public class EndpointStats implements JsonSerializable {
      */
     public String getSubject() {
         return subject;
+    }
+
+    /**
+     * Get the queueGroup of the Endpoint
+     * @return the queueGroup
+     */
+    public String getQueueGroup() {
+        return queueGroup;
     }
 
     /**
