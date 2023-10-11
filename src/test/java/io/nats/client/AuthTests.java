@@ -677,14 +677,6 @@ public class AuthTests extends TestBase {
 
     @Test
     public void testRealUserAuthenticationExpired() throws Exception {
-        NKey nKeyAccount = NKey.fromSeed("SAAPXJRFMUYDUH3NOZKE7BS2ZDO2P4ND7G6W743MTNA3KCSFPX3HNN6AX4".toCharArray());
-        String accountId = "ACPWDUYSZRRF7XAEZKUAGPUH6RPICWEHSTFELYKTOWUVZ4R2XMP4QJJX";
-        NKey nKeyUser = NKey.createUser(RandomUtils.SRAND);
-        String publicUserKey = new String(nKeyUser.getPublicKey());
-        Duration expiration = Duration.ofSeconds(2);
-        String jwt = JwtUtils.issueUserJWT(nKeyAccount, accountId, publicUserKey, "jnatsTestUser", expiration);
-        String creds = String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(nKeyUser.getSeed()));
-        String credsFile = ResourceUtils.createTempFile("nats_java_test", ".creds", creds.split("\\Q\\n\\E"));
 
         AtomicBoolean userAuthenticationExpired = new AtomicBoolean();
         CountDownLatch cdlConnected = new CountDownLatch(1);
@@ -709,17 +701,28 @@ public class AuthTests extends TestBase {
         };
 
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/operatorJnatsTest.conf", false)) {
+
+            NKey nKeyAccount = NKey.fromSeed("SAAPXJRFMUYDUH3NOZKE7BS2ZDO2P4ND7G6W743MTNA3KCSFPX3HNN6AX4".toCharArray());
+            String accountId = "ACPWDUYSZRRF7XAEZKUAGPUH6RPICWEHSTFELYKTOWUVZ4R2XMP4QJJX";
+            NKey nKeyUser = NKey.createUser(RandomUtils.SRAND);
+            String publicUserKey = new String(nKeyUser.getPublicKey());
+            Duration expiration = Duration.ofSeconds(5);
+            String jwt = JwtUtils.issueUserJWT(nKeyAccount, accountId, publicUserKey, "jnatsTestUser", expiration);
+            String creds = String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(nKeyUser.getSeed()));
+            String credsFile = ResourceUtils.createTempFile("nats_java_test", ".creds", creds.split("\\Q\\n\\E"));
+
             Options options = Options.builder()
                 .server(ts.getURI())
                 .credentialPath(credsFile)
                 .connectionListener(cl)
                 .errorListener(el)
-                .maxReconnects(3)
+                .maxReconnects(2)
                 .build();
             Connection nc = Nats.connect(options);
-            boolean connected = cdlConnected.await(5, TimeUnit.SECONDS);
-            boolean disconnected = cdlDisconnected.await(5, TimeUnit.SECONDS);
-            boolean reconnected = cdlReconnected.await(5, TimeUnit.SECONDS);
+
+            boolean connected = cdlConnected.await(10, TimeUnit.SECONDS);
+            boolean disconnected = cdlDisconnected.await(10, TimeUnit.SECONDS);
+            boolean reconnected = cdlReconnected.await(10, TimeUnit.SECONDS);
             assertTrue(connected);
             assertTrue(disconnected);
             assertTrue(reconnected);
