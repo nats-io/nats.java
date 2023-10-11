@@ -32,7 +32,6 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -678,26 +677,26 @@ public class AuthTests extends TestBase {
     @Test
     public void testRealUserAuthenticationExpired() throws Exception {
 
-        AtomicBoolean userAuthenticationExpired = new AtomicBoolean();
         CountDownLatch cdlConnected = new CountDownLatch(1);
         CountDownLatch cdlDisconnected = new CountDownLatch(1);
-        CountDownLatch cdlReconnected = new CountDownLatch(1);
+        CountDownLatch elUserAuthenticationExpired = new CountDownLatch(1);
+        CountDownLatch elAuthorizationViolation = new CountDownLatch(1);
 
         ConnectionListener cl = (conn, type) -> {
-            System.out.println("[" + System.nanoTime() + "] ConnectionListener Event: " + type);
             switch (type) {
                 case CONNECTED: cdlConnected.countDown(); break;
                 case DISCONNECTED: cdlDisconnected.countDown(); break;
-                case RECONNECTED: cdlReconnected.countDown(); break;
             }
         };
 
         ErrorListener el = new ErrorListener() {
             @Override
             public void errorOccurred(Connection conn, String error) {
-                System.out.println("[" + System.nanoTime() + "] ErrorListener errorOccurred: " + error);
-                if (error.toLowerCase().contains("user authentication expired")) {
-                    userAuthenticationExpired.set(true);
+                if (error.equalsIgnoreCase("user authentication expired")) {
+                    elUserAuthenticationExpired.countDown();
+                }
+                else if (error.equalsIgnoreCase("authorization violation")) {
+                    elAuthorizationViolation.countDown();
                 }
             }
         };
@@ -708,7 +707,7 @@ public class AuthTests extends TestBase {
             String accountId = "ACPWDUYSZRRF7XAEZKUAGPUH6RPICWEHSTFELYKTOWUVZ4R2XMP4QJJX";
             NKey nKeyUser = NKey.createUser(RandomUtils.SRAND);
             String publicUserKey = new String(nKeyUser.getPublicKey());
-            Duration expiration = Duration.ofSeconds(5);
+            Duration expiration = Duration.ofMillis(2500);
             String jwt = JwtUtils.issueUserJWT(nKeyAccount, accountId, publicUserKey, "jnatsTestUser", expiration);
             String creds = String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(nKeyUser.getSeed()));
             String credsFile = ResourceUtils.createTempFile("nats_java_test", ".creds", creds.split("\\Q\\n\\E"));
@@ -718,17 +717,16 @@ public class AuthTests extends TestBase {
                 .credentialPath(credsFile)
                 .connectionListener(cl)
                 .errorListener(el)
-                .maxReconnects(5)
+                .maxReconnects(4)
                 .build();
             Connection nc = Nats.connect(options);
 
-            boolean connected = cdlConnected.await(10, TimeUnit.SECONDS);
-            boolean disconnected = cdlDisconnected.await(10, TimeUnit.SECONDS);
-            boolean reconnected = cdlReconnected.await(10, TimeUnit.SECONDS);
-            assertTrue(connected);
-            assertTrue(disconnected);
-            assertTrue(reconnected);
-            assertTrue(userAuthenticationExpired.get());
+            assertTrue(cdlConnected.await(5, TimeUnit.SECONDS));
+            assertTrue(cdlDisconnected.await(5, TimeUnit.SECONDS));
+            assertTrue(elUserAuthenticationExpired.await(5, TimeUnit.SECONDS));
+            assertTrue(elAuthorizationViolation.await(5, TimeUnit.SECONDS));
+
+            nc.close();
         }
         catch (Exception ignore) {}
     }
