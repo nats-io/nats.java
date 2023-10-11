@@ -222,6 +222,7 @@ public class EndpointStats implements JsonSerializable {
 
     @Override
     public boolean equals(Object o) {
+
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
@@ -233,6 +234,7 @@ public class EndpointStats implements JsonSerializable {
         if (averageProcessingTime != that.averageProcessingTime) return false;
         if (!Objects.equals(name, that.name)) return false;
         if (!Objects.equals(subject, that.subject)) return false;
+        if (!Objects.equals(queueGroup, that.queueGroup)) return false;
         if (!Objects.equals(lastError, that.lastError)) return false;
         if (!Objects.equals(data, that.data)) return false;
         return Objects.equals(started, that.started);
@@ -242,6 +244,7 @@ public class EndpointStats implements JsonSerializable {
     public int hashCode() {
         int result = name != null ? name.hashCode() : 0;
         result = 31 * result + (subject != null ? subject.hashCode() : 0);
+        result = 31 * result + (queueGroup != null ? queueGroup.hashCode() : 0);
         result = 31 * result + (int) (numRequests ^ (numRequests >>> 32));
         result = 31 * result + (int) (numErrors ^ (numErrors >>> 32));
         result = 31 * result + (int) (processingTime ^ (processingTime >>> 32));

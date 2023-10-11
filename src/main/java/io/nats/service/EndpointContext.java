@@ -17,8 +17,8 @@ class EndpointContext {
     private final Connection conn;
     private final ServiceEndpoint se;
     private final ServiceMessageHandler handler;
-    private final String qGroup;
     private final boolean recordStats;
+    private final String qGroup;
 
     private final boolean internalDispatcher;
     private final Dispatcher dispatcher;
@@ -31,12 +31,12 @@ class EndpointContext {
     private final AtomicLong numErrors;
     private final AtomicLong processingTime;
 
-    EndpointContext(Connection conn, Dispatcher internalDispatcher, boolean recordStats, ServiceEndpoint se) {
+    EndpointContext(Connection conn, Dispatcher internalDispatcher, boolean internalEndpoint, ServiceEndpoint se) {
         this.conn = conn;
         this.se = se;
         handler = se.getHandler();
-        qGroup = se.getQueueGroup();
-        this.recordStats = recordStats;
+        this.recordStats = !internalEndpoint;
+        qGroup = internalEndpoint ? null : se.getQueueGroup();
 
         if (se.getDispatcher() == null) {
             dispatcher = internalDispatcher;

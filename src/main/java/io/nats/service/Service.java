@@ -72,10 +72,10 @@ public class Service {
                 if (dTemp == null) {
                     dTemp = conn.createDispatcher();
                 }
-                serviceContexts.put(se.getName(), new EndpointContext(conn, dTemp, true, se));
+                serviceContexts.put(se.getName(), new EndpointContext(conn, dTemp, false, se));
             }
             else {
-                serviceContexts.put(se.getName(), new EndpointContext(conn, null, true, se));
+                serviceContexts.put(se.getName(), new EndpointContext(conn, null, false, se));
             }
         }
         if (dTemp != null) {
@@ -109,7 +109,7 @@ public class Service {
 
         for (Endpoint endpoint : endpoints) {
             discoveryContexts.add(
-                new EndpointContext(conn, dInternal, false,
+                new EndpointContext(conn, dInternal, true,
                     new ServiceEndpoint(endpoint, handler, dUser)));
         }
     }
