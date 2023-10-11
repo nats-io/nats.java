@@ -15,6 +15,8 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.StreamConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -746,5 +748,41 @@ public class DrainTests {
                 subCon.drain(Duration.ofSeconds(1));
             }
         });
+    }
+
+    @Test
+    public void testDrainWithFetchRequestTimeoutStatusMessage() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false, true)) {
+            final Connection nc = standardConnection(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+
+            String stream = "stream";
+            nc.jetStreamManagement().addStream(StreamConfiguration.builder()
+                    .name(stream)
+                    .build()
+            );
+
+            StreamContext sc = nc.getStreamContext(stream);
+            ConsumerContext cc = sc.createOrUpdateConsumer(ConsumerConfiguration.builder()
+                    .durable("consumer")
+                    .build()
+            );
+
+            // fetch messages, let it time out, and don't close it manually
+            cc.fetch(FetchConsumeOptions.builder()
+                    .maxMessages(10)
+                    .expiresIn(Duration.ofSeconds(1).toMillis())
+                    .build());
+
+            nc.flush(Duration.ofSeconds(1)); // Get the sub to the server, so drain has things to do
+
+
+            try {
+                Thread.sleep(2000); // go slow so fetch times out
+            } catch (Exception e) {
+            }
+
+            CompletableFuture<Boolean> tracker = nc.drain(Duration.ZERO);
+            assertTrue(tracker.get(1, TimeUnit.SECONDS));
+        }
     }
 }
