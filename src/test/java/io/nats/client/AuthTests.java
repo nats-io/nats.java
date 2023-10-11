@@ -684,6 +684,7 @@ public class AuthTests extends TestBase {
         CountDownLatch cdlReconnected = new CountDownLatch(1);
 
         ConnectionListener cl = (conn, type) -> {
+            System.out.println("[" + System.nanoTime() + "] ConnectionListener Event: " + type);
             switch (type) {
                 case CONNECTED: cdlConnected.countDown(); break;
                 case DISCONNECTED: cdlDisconnected.countDown(); break;
@@ -694,6 +695,7 @@ public class AuthTests extends TestBase {
         ErrorListener el = new ErrorListener() {
             @Override
             public void errorOccurred(Connection conn, String error) {
+                System.out.println("[" + System.nanoTime() + "] ErrorListener errorOccurred: " + error);
                 if (error.toLowerCase().contains("user authentication expired")) {
                     userAuthenticationExpired.set(true);
                 }
