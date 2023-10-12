@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.impl.SimulateSocketDataPortException;
 import io.nats.client.impl.TestHandler;
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +25,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -427,5 +429,96 @@ public class ConnectTests {
 
             standardCloseConnection(nc);
         }
+    }
+
+    @SuppressWarnings({"unused", "UnusedAssignment", "resource"})
+    @Test
+    public void testSocketLevelException() throws Exception {
+        int port = NatsTestServer.nextPort();
+
+        AtomicBoolean reconnect = new AtomicBoolean();
+        AtomicBoolean disconnect = new AtomicBoolean();
+        ConnectionListener cl = (conn, type) -> {
+            if (type.equals(Events.RECONNECTED)) {
+                reconnect.set(true);
+            }
+            else if (type.equals(Events.DISCONNECTED)) {
+                disconnect.set(true);
+            }
+        };
+
+
+        AtomicBoolean simExReceived = new AtomicBoolean();
+        ErrorListener el = new ErrorListener() {
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {
+                if (exp.getMessage().contains("Simulated Exception")) {
+                    simExReceived.set(true);
+                }
+            }
+        };
+
+        Options options = new Options.Builder()
+            .server(NatsTestServer.getNatsLocalhostUri(port))
+            .dataPortType("io.nats.client.impl.SimulateSocketDataPortException")
+            .connectionListener(cl)
+            .errorListener(el)
+            .reconnectDelayHandler(l -> Duration.ofSeconds(1))
+            .build();
+
+        Connection connection;
+
+        // 1. DO NOT RECONNECT ON CONNECT
+        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+            try {
+                SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
+                connection = Nats.connect(options);
+                Thread.sleep(500);
+                fail();
+            }
+            catch (Exception ignore) {}
+        }
+
+        Thread.sleep(200); // just making sure messages get through
+        assertFalse(reconnect.get());
+        assertTrue(disconnect.get());
+        assertTrue(simExReceived.get());
+        reconnect.set(false);
+        disconnect.set(false);
+        simExReceived.set(false);
+
+        // 2. RECONNECT ON CONNECT
+        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+            try {
+                SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
+                connection = Nats.connectReconnectOnConnect(options);
+                Thread.sleep(500);
+            }
+            catch (Exception e) {
+                fail("should have connected " + e);
+            }
+        }
+
+        Thread.sleep(200); // just making sure messages get through
+        assertTrue(reconnect.get());
+        assertTrue(disconnect.get());
+        assertTrue(simExReceived.get());
+        reconnect.set(false);
+        disconnect.set(false);
+        simExReceived.set(false);
+
+        // 2. NORMAL RECONNECT
+        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+            SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
+            try {
+                Thread.sleep(1000);
+            }
+            catch (Exception e) {
+                fail("should have reconnected " + e);
+            }
+        }
+
+        Thread.sleep(200); // just making sure messages get through
+        assertTrue(reconnect.get());
     }
 }

@@ -104,7 +104,7 @@ public abstract class Nats {
     }
 
     /**
-     * Connect to the default URL, {@link Options#DEFAULT_URL Options.DEFAULT_URL}, with all of the
+     * Connect to the default URL, {@link Options#DEFAULT_URL Options.DEFAULT_URL}, with all the
      * default options.
      * 
      * <p>This is a synchronous call, and the connection should be ready for use on return
@@ -114,10 +114,10 @@ public abstract class Nats {
      * <p>If the connection fails, an IOException is thrown
      * 
      * <p>See {@link Nats#connect(Options) connect(Options)} for more information on exceptions.
-     * 
+     *
+     * @return the connection
      * @throws IOException if a networking issue occurs
      * @throws InterruptedException if the current thread is interrupted
-     * @return the connection
      */
     public static Connection connect() throws IOException, InterruptedException {
         Options options = new Options.Builder().server(Options.DEFAULT_URL).build();
@@ -125,27 +125,40 @@ public abstract class Nats {
     }
 
     /**
+     * Connect to the default URL, {@link Options#DEFAULT_URL Options.DEFAULT_URL}, with all the
+     * default options, allowing re-connect attempts if the initial connection fails
+     * @return the connection
+     * @throws IOException if an unrecoverable networking issue occurs
+     * @throws InterruptedException if the current thread is interrupted
+     */
+    public static Connection connectReconnectOnConnect() throws IOException, InterruptedException {
+        Options options = new Options.Builder().server(Options.DEFAULT_URL).build();
+        return createConnection(options, true);
+    }
+
+    /**
+     * Connect to specific url, with all the default options.
      * The Java client generally expects URLs of the form {@code nats://hostname:port}
-     * 
-     * <p>but also allows urls with a user password {@code nats://user:pass@hostname:port}.
-     * 
-     * <p>or token in them {@code nats://token@hostname:port}.
-     * 
+     *
+     * <p>but also allows urls with a user password {@code nats://user:pass@hostname:port}.</p>
+     *
+     * <p>or token in them {@code nats://token@hostname:port}.</p>
+     *
      * <p>Moreover, you can initiate a TLS connection, by using the `tls`
      * schema, which will use the default SSLContext, or fail if one is not set. For
      * testing and development, the `opentls` schema is support when the server is
      * in non-verify mode. In this case, the client will accept any server
-     * certificate and will not provide one of its own.
-     * 
+     * certificate and will not provide one of its own.</p>
+     *
      * <p>This is a synchronous call, and the connection should be ready for use on return
      * there are network timing issues that could result in a successful connect call but
-     * the connection is invalid soon after return, where soon is in the network/thread world.
+     * the connection is invalid soon after return, where soon is in the network/thread world.</p>
      * 
-     * <p>If the connection fails, an IOException is thrown
+     * <p>If the connection fails, an IOException is thrown</p>
      * 
-     * <p>See {@link Nats#connect(Options) connect(Options)} for more information on exceptions.
-     * 
-     * @param url the url of the server, ie. nats://localhost:4222
+     * <p>See {@link Nats#connect(Options) connect(Options)} for more information on exceptions.</p>
+     *
+     * @param url comma separated list of the URLs of the server, i.e. nats://localhost:4222,nats://localhost:4223
      * @throws IOException if a networking issue occurs
      * @throws InterruptedException if the current thread is interrupted
      * @return the connection
@@ -156,7 +169,20 @@ public abstract class Nats {
     }
 
     /**
-     * Connect to the specified URL with the specified username, password and default options.
+     * Connect to specific url, with all the default options,
+     * allowing re-connect attempts if the initial connection fails
+     * @param url comma separated list of the URLs of the server, i.e. nats://localhost:4222,nats://localhost:4223
+     * @return the connection
+     * @throws IOException if an unrecoverable networking issue occurs
+     * @throws InterruptedException if the current thread is interrupted
+     */
+    public static Connection connectReconnectOnConnect(String url) throws IOException, InterruptedException {
+        Options options = new Options.Builder().server(url).build();
+        return createConnection(options, true);
+    }
+
+    /**
+     * Connect to the specified URL with the specified auth handler.
      *
      * <p>This is a synchronous call, and the connection should be ready for use on return
      * there are network timing issues that could result in a successful connect call but
@@ -166,7 +192,7 @@ public abstract class Nats {
      *
      * <p>See {@link Nats#connect(Options) connect(Options)} for more information on exceptions.
      *
-     * @param url comma separated list of the URLs of the server, ie. nats://localhost:4222,nats://localhost:4223
+     * @param url comma separated list of the URLs of the server, i.e. nats://localhost:4222,nats://localhost:4223
      * @param handler the authentication handler implementation
      * @return the connection
      * @throws IOException if a networking issue occurs
@@ -175,6 +201,19 @@ public abstract class Nats {
     public static Connection connect(String url, AuthHandler handler) throws IOException, InterruptedException {
         Options options = new Options.Builder().server(url).authHandler(handler).build();
         return createConnection(options, false);
+    }
+
+    /**
+     * Connect to the specified URL with the specified auth handler,
+     * allowing re-connect attempts if the initial connection fails
+     * @param url comma separated list of the URLs of the server, i.e. nats://localhost:4222,nats://localhost:4223
+     * @return the connection
+     * @throws IOException if an unrecoverable networking issue occurs
+     * @throws InterruptedException if the current thread is interrupted
+     */
+    public static Connection connectReconnectOnConnect(String url, AuthHandler handler) throws IOException, InterruptedException {
+        Options options = new Options.Builder().server(url).authHandler(handler).build();
+        return createConnection(options, true);
     }
 
     /**
@@ -202,12 +241,23 @@ public abstract class Nats {
      * again in the future.
      * 
      * @param options the options object to use to create the connection
+     * @return the connection
      * @throws IOException if a networking issue occurs
      * @throws InterruptedException if the current thread is interrupted
-     * @return the connection
      */
     public static Connection connect(Options options) throws IOException, InterruptedException {
         return createConnection(options, false);
+    }
+
+    /**
+     * Connect, allowing re-connect attempts if the initial connection fails
+     * @param options the options object to use to create the connection
+     * @return the connection
+     * @throws IOException if an unrecoverable networking issue occurs
+     * @throws InterruptedException if the current thread is interrupted
+     */
+    public static Connection connectReconnectOnConnect(Options options) throws IOException, InterruptedException {
+        return createConnection(options, true);
     }
 
     /**
