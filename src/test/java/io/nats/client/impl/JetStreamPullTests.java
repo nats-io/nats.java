@@ -926,7 +926,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
-    // This just flaps. It's a timing thing. Already spent too much time, it should work as is.
+    // This just flaps. It's a timing thing? Already spent too much time, IWOMM and it should work as is.
     @Test
     @Disabled
     public void testConsumerDeletedSyncSub() throws Exception {
@@ -941,7 +941,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
-    // This just flaps. It's a timing thing. Already spent too much time, it should work as is.
+    // This just flaps. It's a timing thing? Already spent too much time, IWOMM and it should work as is.
     @Test
     @Disabled
     public void testConsumerDeletedAsyncSub() throws Exception {
