@@ -207,6 +207,7 @@ public abstract class Nats {
      * Connect to the specified URL with the specified auth handler,
      * allowing re-connect attempts if the initial connection fails
      * @param url comma separated list of the URLs of the server, i.e. nats://localhost:4222,nats://localhost:4223
+     * @param handler the authentication handler implementation
      * @return the connection
      * @throws IOException if an unrecoverable networking issue occurs
      * @throws InterruptedException if the current thread is interrupted

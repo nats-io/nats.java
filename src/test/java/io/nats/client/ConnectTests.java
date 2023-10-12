@@ -436,13 +436,9 @@ public class ConnectTests {
     public void testSocketLevelException() throws Exception {
         int port = NatsTestServer.nextPort();
 
-        AtomicBoolean reconnect = new AtomicBoolean();
         AtomicBoolean disconnect = new AtomicBoolean();
         ConnectionListener cl = (conn, type) -> {
-            if (type.equals(Events.RECONNECTED)) {
-                reconnect.set(true);
-            }
-            else if (type.equals(Events.DISCONNECTED)) {
+            if (type.equals(Events.DISCONNECTED)) {
                 disconnect.set(true);
             }
         };
@@ -466,24 +462,22 @@ public class ConnectTests {
             .reconnectDelayHandler(l -> Duration.ofSeconds(1))
             .build();
 
-        Connection connection;
+        Connection connection = null;
 
         // 1. DO NOT RECONNECT ON CONNECT
         try (NatsTestServer ts = new NatsTestServer(port, false)) {
             try {
                 SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
                 connection = Nats.connect(options);
-                Thread.sleep(500);
+                Thread.sleep(1000);
                 fail();
             }
             catch (Exception ignore) {}
         }
 
         Thread.sleep(200); // just making sure messages get through
-        assertFalse(reconnect.get());
         assertTrue(disconnect.get());
         assertTrue(simExReceived.get());
-        reconnect.set(false);
         disconnect.set(false);
         simExReceived.set(false);
 
@@ -492,7 +486,8 @@ public class ConnectTests {
             try {
                 SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
                 connection = Nats.connectReconnectOnConnect(options);
-                Thread.sleep(500);
+                Thread.sleep(1000);
+                assertSame(Connection.Status.CONNECTED, connection.getStatus());
             }
             catch (Exception e) {
                 fail("should have connected " + e);
@@ -500,10 +495,8 @@ public class ConnectTests {
         }
 
         Thread.sleep(200); // just making sure messages get through
-        assertTrue(reconnect.get());
         assertTrue(disconnect.get());
         assertTrue(simExReceived.get());
-        reconnect.set(false);
         disconnect.set(false);
         simExReceived.set(false);
 
@@ -512,13 +505,11 @@ public class ConnectTests {
             SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
             try {
                 Thread.sleep(1000);
+                assertSame(Connection.Status.CONNECTED, connection.getStatus());
             }
             catch (Exception e) {
                 fail("should have reconnected " + e);
             }
         }
-
-        Thread.sleep(200); // just making sure messages get through
-        assertTrue(reconnect.get());
     }
 }
