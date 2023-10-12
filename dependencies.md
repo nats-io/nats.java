@@ -2,6 +2,13 @@
 
 This file lists the dependencies used in this repository.
 
+#### Tool Dependencies
+
+| Dependency       | License                                    |
+|------------------|--------------------------------------------|
+| Java JDK 8 Adopt | GNU General Public License (GPL) Version 2 |
+| Gradle           | Apache 2.0 License |
+
 #### Runtime Dependencies
 
 | Dependency                           | License                                 |
@@ -51,3 +58,7 @@ This file lists the dependencies used in this repository.
 [BSD Licenses](https://en.wikipedia.org/wiki/BSD_licenses)
 
 [MIT License](https://en.wikipedia.org/wiki/MIT_License)
+
+[GNU General Public License, version 2, with the Classpath Exception](https://openjdk.org/legal/gplv2+ce.html)
+
+[Adoption Adopt JDK](https://adoptium.net/about/)
