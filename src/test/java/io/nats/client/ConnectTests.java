@@ -436,15 +436,8 @@ public class ConnectTests {
     public void testSocketLevelException() throws Exception {
         int port = NatsTestServer.nextPort();
 
-        AtomicBoolean disconnect = new AtomicBoolean();
-        ConnectionListener cl = (conn, type) -> {
-            if (type.equals(Events.DISCONNECTED)) {
-                disconnect.set(true);
-            }
-        };
-
-
         AtomicBoolean simExReceived = new AtomicBoolean();
+        TestHandler th = new TestHandler();
         ErrorListener el = new ErrorListener() {
             @Override
             public void exceptionOccurred(Connection conn, Exception exp) {
@@ -457,7 +450,7 @@ public class ConnectTests {
         Options options = new Options.Builder()
             .server(NatsTestServer.getNatsLocalhostUri(port))
             .dataPortType("io.nats.client.impl.SimulateSocketDataPortException")
-            .connectionListener(cl)
+            .connectionListener(th)
             .errorListener(el)
             .reconnectDelayHandler(l -> Duration.ofSeconds(1))
             .build();
@@ -469,43 +462,39 @@ public class ConnectTests {
             try {
                 SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
                 connection = Nats.connect(options);
-                Thread.sleep(1000);
                 fail();
             }
             catch (Exception ignore) {}
         }
 
         Thread.sleep(200); // just making sure messages get through
-        assertTrue(disconnect.get());
+        assertNull(connection);
         assertTrue(simExReceived.get());
-        disconnect.set(false);
         simExReceived.set(false);
 
         // 2. RECONNECT ON CONNECT
         try (NatsTestServer ts = new NatsTestServer(port, false)) {
             try {
                 SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
+                th.prepForStatusChange(Events.RECONNECTED);
                 connection = Nats.connectReconnectOnConnect(options);
-                Thread.sleep(1000);
-                assertSame(Connection.Status.CONNECTED, connection.getStatus());
+                assertTrue(th.waitForStatusChange(5, TimeUnit.SECONDS));
+                th.prepForStatusChange(Events.DISCONNECTED);
             }
             catch (Exception e) {
                 fail("should have connected " + e);
             }
         }
-
-        Thread.sleep(200); // just making sure messages get through
-        assertTrue(disconnect.get());
+        assertTrue(th.waitForStatusChange(5, TimeUnit.SECONDS));
         assertTrue(simExReceived.get());
-        disconnect.set(false);
         simExReceived.set(false);
 
         // 2. NORMAL RECONNECT
+        th.prepForStatusChange(Events.RECONNECTED);
         try (NatsTestServer ts = new NatsTestServer(port, false)) {
             SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
             try {
-                Thread.sleep(1000);
-                assertSame(Connection.Status.CONNECTED, connection.getStatus());
+                assertTrue(th.waitForStatusChange(5, TimeUnit.SECONDS));
             }
             catch (Exception e) {
                 fail("should have reconnected " + e);
