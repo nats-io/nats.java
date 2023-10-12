@@ -37,8 +37,8 @@ public class JwtUtilsTests {
             "------END NATS USER JWT------\n" +
             "\n" +
             "************************* IMPORTANT *************************\n" +
-            "    NKEY Seed printed below can be used to sign and prove identity.\n" +
-            "    NKEYs are sensitive and should be treated as secrets.\n" +
+            "NKEY Seed printed below can be used to sign and prove identity.\n" +
+            "NKEYs are sensitive and should be treated as secrets.\n" +
             "\n" +
             "-----BEGIN USER NKEY SEED-----\n" +
             "SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY\n" +
@@ -80,8 +80,8 @@ public class JwtUtilsTests {
             "------END NATS USER JWT------\n" +
             "\n" +
             "************************* IMPORTANT *************************\n" +
-            "    NKEY Seed printed below can be used to sign and prove identity.\n" +
-            "    NKEYs are sensitive and should be treated as secrets.\n" +
+            "NKEY Seed printed below can be used to sign and prove identity.\n" +
+            "NKEYs are sensitive and should be treated as secrets.\n" +
             "\n" +
             "-----BEGIN USER NKEY SEED-----\n" +
             "SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY\n" +
@@ -153,8 +153,8 @@ public class JwtUtilsTests {
             "------END NATS USER JWT------\n" +
             "\n" +
             "************************* IMPORTANT *************************\n" +
-            "    NKEY Seed printed below can be used to sign and prove identity.\n" +
-            "    NKEYs are sensitive and should be treated as secrets.\n" +
+            "NKEY Seed printed below can be used to sign and prove identity.\n" +
+            "NKEYs are sensitive and should be treated as secrets.\n" +
             "\n" +
             "-----BEGIN USER NKEY SEED-----\n" +
             "SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY\n" +
@@ -213,8 +213,8 @@ public class JwtUtilsTests {
                 "------END NATS USER JWT------\n" +
                 "\n" +
                 "************************* IMPORTANT *************************\n" +
-                "    NKEY Seed printed below can be used to sign and prove identity.\n" +
-                "    NKEYs are sensitive and should be treated as secrets.\n" +
+                "NKEY Seed printed below can be used to sign and prove identity.\n" +
+                "NKEYs are sensitive and should be treated as secrets.\n" +
                 "\n" +
                 "-----BEGIN USER NKEY SEED-----\n" +
                 "SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY\n" +
@@ -260,8 +260,8 @@ public class JwtUtilsTests {
             "------END NATS USER JWT------\n" +
             "\n" +
             "************************* IMPORTANT *************************\n" +
-            "    NKEY Seed printed below can be used to sign and prove identity.\n" +
-            "    NKEYs are sensitive and should be treated as secrets.\n" +
+            "NKEY Seed printed below can be used to sign and prove identity.\n" +
+            "NKEYs are sensitive and should be treated as secrets.\n" +
             "\n" +
             "-----BEGIN USER NKEY SEED-----\n" +
             "SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY\n" +

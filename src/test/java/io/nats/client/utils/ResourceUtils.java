@@ -1,7 +1,6 @@
 package io.nats.client.utils;
 
-import java.io.File;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
@@ -46,5 +45,17 @@ public abstract class ResourceUtils {
         catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static String createTempFile(String prefix, String suffix, String[] lines) throws IOException {
+        File f = File.createTempFile(prefix, suffix);
+        BufferedWriter writer = new BufferedWriter(new FileWriter(f));
+        for (String line : lines) {
+            writer.write(line);
+            writer.write(System.lineSeparator());
+        }
+        writer.flush();
+        writer.close();
+        return f.getAbsolutePath();
     }
 }

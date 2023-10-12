@@ -2084,7 +2084,9 @@ class NatsConnection implements Connection {
             return false;
         }
         err = err.toLowerCase();
-        return err.startsWith("user authentication") || err.contains("authorization violation");
+        return err.startsWith("user authentication")
+            || err.contains("authorization violation")
+            || err.startsWith("account authentication expired");
     }
 
     /**

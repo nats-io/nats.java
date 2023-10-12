@@ -150,7 +150,7 @@ public class JetStreamTestBase extends TestBase {
 
         public String subject() {
             if (defaultSubjectVariant == null) {
-                defaultSubjectVariant = TestBase.subject();
+                defaultSubjectVariant = TestBase.variant(null);
             }
             return subject(defaultSubjectVariant);
         }
