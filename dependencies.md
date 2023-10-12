@@ -7,7 +7,7 @@ This file lists the dependencies used in this repository.
 | Dependency       | License                                    |
 |------------------|--------------------------------------------|
 | Java JDK 8 Adopt | GNU General Public License (GPL) Version 2 |
-| Gradle           | Apache 2.0 License                         |
+| Gradle 6.8.3     | Apache 2.0 License                         |
 
 #### Runtime Dependencies
 
