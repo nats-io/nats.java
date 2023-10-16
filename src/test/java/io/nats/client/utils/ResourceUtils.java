@@ -15,6 +15,10 @@ public abstract class ResourceUtils {
         return resourceAsString("data/" + fileName);
     }
 
+    public static InputStream dataAsInputStream(String fileName) {
+        return resourceAsInputStream("data/" + fileName);
+    }
+
     public static List<String> resourceAsLines(String fileName) {
         try {
             ClassLoader classLoader = ResourceUtils.class.getClassLoader();
