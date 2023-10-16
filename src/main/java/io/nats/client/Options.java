@@ -433,6 +433,12 @@ public class Options {
      */
     public static final String PROP_CREDENTIAL_PATH = PFX + "credential.path";
     /**
+     * Property used to configure tls first behavior
+     * This property is a boolean flag, telling connections whether
+     * to do TLS upgrade first, before INFO
+     */
+    public static final String PROP_TLS_FIRST = PFX + "tls.first";
+    /**
      * This property is used to enable support for UTF8 subjects. See {@link Builder#supportUTF8Subjects() supportUTF8Subjects()}
      * @deprecated only plain ascii subjects are supported
      */
@@ -564,6 +570,7 @@ public class Options {
     private final int maxMessagesInOutgoingQueue;
     private final boolean discardMessagesWhenOutgoingQueueFull;
     private final boolean ignoreDiscoveredServers;
+    private final boolean tlsFirst;
 
     private final AuthHandler authHandler;
     private final ReconnectDelayHandler reconnectDelayHandler;
@@ -671,6 +678,7 @@ public class Options {
         private int maxMessagesInOutgoingQueue = DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
         private boolean ignoreDiscoveredServers = false;
+        private boolean tlsFirst = false;
         private ServerPool serverPool = null;
         private DispatcherFactory dispatcherFactory = null;
 
@@ -795,6 +803,8 @@ public class Options {
             booleanProperty(props, PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, b -> this.discardMessagesWhenOutgoingQueueFull = b);
 
             booleanProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, b -> this.ignoreDiscoveredServers = b);
+            booleanProperty(props, PROP_TLS_FIRST, b -> this.tlsFirst = b);
+
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
             classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);
 
@@ -1466,6 +1476,15 @@ public class Options {
         }
 
         /**
+         * Set tls first behavior on. Default is off
+         * @return the Builder for chaining
+         */
+        public Builder tlsFirst() {
+            this.tlsFirst = true;
+            return this;
+        }
+
+        /**
          * Set the ServerPool implementation for connections to use instead of the default implementation
          * @param serverPool the implementation
          * @return the Builder for chaining
@@ -1642,6 +1661,7 @@ public class Options {
             this.proxy = o.proxy;
 
             this.ignoreDiscoveredServers = o.ignoreDiscoveredServers;
+            this.tlsFirst = o.tlsFirst;
 
             this.serverPool = o.serverPool;
             this.dispatcherFactory = o.dispatcherFactory;
@@ -1703,6 +1723,7 @@ public class Options {
         this.proxy = b.proxy;
 
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
+        this.tlsFirst = b.tlsFirst;
 
         this.serverPool = b.serverPool;
         this.dispatcherFactory = b.dispatcherFactory;
@@ -2078,6 +2099,14 @@ public class Options {
      */
     public boolean isIgnoreDiscoveredServers() {
         return ignoreDiscoveredServers;
+    }
+
+    /**
+     * Get whether to do tls first
+     * @return the flag
+     */
+    public boolean isTlsFirst() {
+        return tlsFirst;
     }
 
     /**
