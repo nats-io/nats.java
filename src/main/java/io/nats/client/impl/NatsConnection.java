@@ -431,6 +431,7 @@ class NatsConnection implements Connection {
 
             // Wait for the INFO message manually
             // all other traffic will use the reader and writer
+            // TLS First, don't read info until after upgrade
             Callable<Object> connectTask = () -> {
                 if (!options.isTlsFirst()) {
                     readInitialInfo();
@@ -443,6 +444,10 @@ class NatsConnection implements Connection {
                     // https://github.com/nats-io/nats.java#linux-platform-note
                     timeTrace(true, "TLS upgrade took: %.3f (s)",
                             ((double) (System.nanoTime() - start)) / 1_000_000_000.0);
+                }
+                if (options.isTlsFirst()) {
+                    readInitialInfo();
+                    checkVersionRequirements();
                 }
                 return null;
             };
