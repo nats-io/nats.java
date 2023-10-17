@@ -1934,7 +1934,7 @@ public class Options {
      * @return true if there is an sslContext for this Options, otherwise false, see {@link Builder#secure() secure()} in the builder doc
      */
     public boolean isTLSRequired() {
-        return (this.sslContext != null);
+        return tlsFirst || this.sslContext != null;
     }
 
     /**

@@ -432,8 +432,10 @@ class NatsConnection implements Connection {
             // Wait for the INFO message manually
             // all other traffic will use the reader and writer
             Callable<Object> connectTask = () -> {
-                readInitialInfo();
-                checkVersionRequirements();
+                if (!options.isTlsFirst()) {
+                    readInitialInfo();
+                    checkVersionRequirements();
+                }
                 long start = System.nanoTime();
                 upgradeToSecureIfNeeded(resolved);
                 if (trace && options.isTLSRequired()) {
@@ -545,27 +547,32 @@ class NatsConnection implements Connection {
 
     void upgradeToSecureIfNeeded(NatsUri nuri) throws IOException {
         Options clientOptions = getOptions();
-        ServerInfo serverInfo = getInfo();
-        boolean before2_9_19 = serverInfo.isOlderThanVersion("2.9.19");
-
-        boolean isTLSRequired = clientOptions.isTLSRequired();
-        boolean upgradeRequired = isTLSRequired;
-        if (isTLSRequired && nuri.isWebsocket()) {
-            // We are already communicating over "https" websocket, so
-            // do NOT try to upgrade to secure.
-            if (before2_9_19) {
-                isTLSRequired = false;
-            }
-            upgradeRequired = false;
-        }
-        if (isTLSRequired && !serverInfo.isTLSRequired()) {
-            throw new IOException("SSL connection wanted by client.");
-        }
-        else if (!isTLSRequired && serverInfo.isTLSRequired()) {
-            throw new IOException("SSL required by server.");
-        }
-        if (upgradeRequired) {
+        if (clientOptions.isTlsFirst()) {
             this.dataPort.upgradeToSecure();
+        }
+        else {
+            ServerInfo serverInfo = getInfo();
+            boolean before2_9_19 = serverInfo.isOlderThanVersion("2.9.19");
+
+            boolean isTLSRequired = clientOptions.isTLSRequired();
+            boolean upgradeRequired = isTLSRequired;
+            if (isTLSRequired && nuri.isWebsocket()) {
+                // We are already communicating over "https" websocket, so
+                // do NOT try to upgrade to secure.
+                if (before2_9_19) {
+                    isTLSRequired = false;
+                }
+                upgradeRequired = false;
+            }
+            if (isTLSRequired && !serverInfo.isTLSRequired()) {
+                throw new IOException("SSL connection wanted by client.");
+            }
+            else if (!isTLSRequired && serverInfo.isTLSRequired()) {
+                throw new IOException("SSL required by server.");
+            }
+            if (upgradeRequired) {
+                this.dataPort.upgradeToSecure();
+            }
         }
     }
 
