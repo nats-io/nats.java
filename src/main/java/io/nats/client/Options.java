@@ -1476,7 +1476,12 @@ public class Options {
         }
 
         /**
-         * Set tls first behavior on. Default is off
+         * Set TLS Handshake First behavior on. Default is off.
+         * TLS Handshake First is used to instruct the library perform
+         * the TLS handshake right after the connect and before receiving
+         * the INFO protocol from the server. If this option is enabled
+         * but the server is not configured to perform the TLS handshake
+         * first, the connection will fail.
          * @return the Builder for chaining
          */
         public Builder tlsFirst() {
