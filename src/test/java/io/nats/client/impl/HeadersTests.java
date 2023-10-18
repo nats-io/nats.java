@@ -357,15 +357,19 @@ public class HeadersTests {
     }
 
     @Test
-    public void getFirsts() {
+    public void testGetFirstGetLast() {
         Headers headers = new Headers();
         assertNull(headers.getFirst(KEY1));
+        assertNull(headers.getLast(KEY1));
         headers.add(KEY1, VAL1);
         assertEquals(VAL1, headers.getFirst(KEY1));
+        assertEquals(VAL1, headers.getLast(KEY1));
         headers.add(KEY1, VAL2);
         assertEquals(VAL1, headers.getFirst(KEY1));
+        assertEquals(VAL2, headers.getLast(KEY1));
         headers.put(KEY1, VAL3);
         assertEquals(VAL3, headers.getFirst(KEY1));
+        assertEquals(VAL3, headers.getLast(KEY1));
     }
 
     private void remove(
