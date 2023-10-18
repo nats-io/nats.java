@@ -110,10 +110,10 @@ public class JetStreamTestBase extends TestBase {
     public static class TestingStreamContainer {
         private String defaultSubjectVariant;
         private final String defaultNameVariant = TestBase.name();
+        public final StreamInfo si;
         public final String stream = stream();
         private final Map<Object, String> subjects = new HashMap<>();
         private final Map<Object, String> names = new HashMap<>();
-        public final StreamInfo si;
 
         public TestingStreamContainer(Connection nc) throws JetStreamApiException, IOException {
             this(nc.jetStreamManagement(), (String[])null);
