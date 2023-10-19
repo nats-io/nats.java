@@ -65,7 +65,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
 
         if (direct) {
             this.headers = msg.getHeaders();
-            this.subject = headers.getFirst(NATS_SUBJECT);
+            this.subject = headers.getLast(NATS_SUBJECT);
             this.data = msg.getData();
             seq = Long.parseLong(headers.getFirst(NATS_SEQUENCE));
             time = DateTimeUtils.parseDateTime(headers.getFirst(NATS_TIMESTAMP));
