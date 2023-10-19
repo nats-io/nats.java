@@ -70,6 +70,20 @@ public class TLSConnectTests {
     }
 
     @Test
+    public void testSimpleTlsFirstConnection() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls_first.conf", false)) {
+            String servers = ts.getURI();
+            Options options = new Options.Builder()
+                .server(servers)
+                .maxReconnects(0)
+                .tlsFirst()
+                .sslContext(TestSSLUtils.createTestSSLContext())
+                .build();
+            assertCanConnectAndPubSub(options);
+        }
+    }
+
+    @Test
     public void testSimpleUrlTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
