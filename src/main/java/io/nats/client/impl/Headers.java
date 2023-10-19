@@ -300,6 +300,17 @@ public class Headers {
 	}
 
 	/**
+	 * Returns the last value for the specific (case sensitive) key.
+	 * Will be {@code null} if the key is not found.
+	 *
+	 * @return the last value for the case sensitive key.
+	 */
+	public String getLast(String key) {
+		List<String> values = valuesMap.get(key);
+		return values == null ? null : values.get(values.size() - 1);
+	}
+
+	/**
 	 * Returns a {@link List} view of the values for the specific (case insensitive) key.
 	 * Will be {@code null} if the key is not found.
 	 *

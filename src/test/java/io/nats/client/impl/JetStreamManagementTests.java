@@ -133,9 +133,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             StreamConfiguration sc = StreamConfiguration.builder()
-                    .name(STREAM)
-                    .storageType(StorageType.Memory)
-                    .build();
+                .name(STREAM)
+                .storageType(StorageType.Memory)
+                .build();
 
             StreamInfo si = jsm.addStream(sc);
             assertTrue(now <= si.getCreateTime().toEpochSecond());
@@ -272,8 +272,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             // cannot change MaxConsumers
             StreamConfiguration scMaxCon = getTestStreamConfigurationBuilder()
-                    .maxConsumers(2)
-                    .build();
+                .maxConsumers(2)
+                .build();
             assertThrows(JetStreamApiException.class, () -> jsm.updateStream(scMaxCon));
 
             StreamConfiguration scReten = getTestStreamConfigurationBuilder()
@@ -306,9 +306,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     private static StreamConfiguration.Builder getTestStreamConfigurationBuilder() {
         return StreamConfiguration.builder()
-                .name(STREAM)
-                .storageType(StorageType.Memory)
-                .subjects(subject(0), subject(1));
+            .name(STREAM)
+            .storageType(StorageType.Memory)
+            .subjects(subject(0), subject(1));
     }
 
     @Test
@@ -596,7 +596,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStreamApiException jsapiEx =
-                    assertThrows(JetStreamApiException.class, () -> jsm.deleteStream(STREAM));
+                assertThrows(JetStreamApiException.class, () -> jsm.deleteStream(STREAM));
             assertEquals(10059, jsapiEx.getApiErrorCode());
 
             createDefaultTestStream(jsm);
@@ -681,7 +681,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             final ConsumerConfiguration cc = ConsumerConfiguration.builder().build();
             IllegalArgumentException iae =
-                    assertThrows(IllegalArgumentException.class, () -> jsm.addOrUpdateConsumer(null, cc));
+                assertThrows(IllegalArgumentException.class, () -> jsm.addOrUpdateConsumer(null, cc));
             assertTrue(iae.getMessage().contains("Stream cannot be null or empty"));
             iae = assertThrows(IllegalArgumentException.class, () -> jsm.addOrUpdateConsumer(STREAM, null));
             assertTrue(iae.getMessage().contains("Config cannot be null"));
@@ -826,12 +826,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         catch (Exception e) { /* ignore */ }
 
         ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                .durable(durable(1))
-                .ackPolicy(AckPolicy.Explicit)
-                .deliverSubject(deliver(1))
-                .maxDeliver(3)
-                .filterSubject(SUBJECT_GT)
-                .build();
+            .durable(durable(1))
+            .ackPolicy(AckPolicy.Explicit)
+            .deliverSubject(deliver(1))
+            .maxDeliver(3)
+            .filterSubject(SUBJECT_GT)
+            .build();
         assertValidAddOrUpdate(jsm, cc);
         return cc;
     }
@@ -966,9 +966,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         for (int x = 1; x <= count; x++) {
             String dur = durable(durableVary, x);
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .durable(dur)
-                    .filterSubject(filterSubject)
-                    .build();
+                .durable(dur)
+                .filterSubject(filterSubject)
+                .build();
             ConsumerInfo ci = jsm.addOrUpdateConsumer(stream, cc);
             assertEquals(dur, ci.getName());
             assertEquals(dur, ci.getConsumerConfiguration().getDurable());
@@ -1091,16 +1091,16 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             createMemoryStream(jsm, STREAM, subject(0), subject(1));
 
             final ConsumerConfiguration cc0 = ConsumerConfiguration.builder()
-                    .durable(durable(0))
-                    .build();
+                .durable(durable(0))
+                .build();
             ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc0);
             // server returns 0 when value is not set
             assertEquals(0, ci.getConsumerConfiguration().getNumReplicas());
 
             final ConsumerConfiguration cc1 = ConsumerConfiguration.builder()
-                    .durable(durable(0))
-                    .numReplicas(1)
-                    .build();
+                .durable(durable(0))
+                .numReplicas(1)
+                .build();
             ci = jsm.addOrUpdateConsumer(STREAM, cc1);
             assertEquals(1, ci.getConsumerConfiguration().getNumReplicas());
         });
@@ -1239,5 +1239,50 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertEquals(seq > 0 && nextBySubject == null, mgr.isSequenceOnly());
         assertEquals(lastBySubject != null, mgr.isLastBySubject());
         assertEquals(nextBySubject != null, mgr.isNextBySubject());
+    }
+
+    @Test
+    public void testDirectMessageRepublishedSubject() throws Exception {
+        jsServer.run(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            String streamBucketName = "sb-" + variant(null);
+            String subject = subject();
+            String streamSubject = subject + ".>";
+            String publishSubject1 = subject + ".one";
+            String publishSubject2 = subject + ".two";
+            String publishSubject3 = subject + ".three";
+            String republishDest = "$KV." + streamBucketName + ".>";
+
+            StreamConfiguration sc = StreamConfiguration.builder()
+                .name(streamBucketName)
+                .storageType(StorageType.Memory)
+                .subjects(streamSubject)
+                .republish(Republish.builder().source(">").destination(republishDest).build())
+                .build();
+            jsm.addStream(sc);
+
+            KeyValueConfiguration kvc = KeyValueConfiguration.builder().name(streamBucketName).build();
+            nc.keyValueManagement().create(kvc);
+            KeyValue kv = nc.keyValue(streamBucketName);
+
+            nc.publish(publishSubject1, "uno".getBytes());
+            nc.jetStream().publish(publishSubject2, "dos".getBytes());
+            kv.put(publishSubject3, "tres");
+
+            KeyValueEntry kve1 = kv.get(publishSubject1);
+            assertEquals(streamBucketName, kve1.getBucket());
+            assertEquals(publishSubject1, kve1.getKey());
+            assertEquals("uno", kve1.getValueAsString());
+
+            KeyValueEntry kve2 = kv.get(publishSubject2);
+            assertEquals(streamBucketName, kve2.getBucket());
+            assertEquals(publishSubject2, kve2.getKey());
+            assertEquals("dos", kve2.getValueAsString());
+
+            KeyValueEntry kve3 = kv.get(publishSubject3);
+            assertEquals(streamBucketName, kve3.getBucket());
+            assertEquals(publishSubject3, kve3.getKey());
+            assertEquals("tres", kve3.getValueAsString());
+        });
     }
 }
