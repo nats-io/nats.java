@@ -456,47 +456,71 @@ There are also examples in the [java-nats-examples](https://github.com/nats-io/j
 
 ### Connecting
 
-There are four different ways to connect using the Java library:
+There are five different ways to connect using the Java library, 
+each with a parallel method that will allow doing reconnect logic if the initial connect fails.
+The ability to reconnect on  the initial connection failure is _NOT_ an Options setting.
 
-1. Connect to a local server on the default port:
+1. Connect to a local server on the default url. From the Options class: `DEFAULT_URL = "nats://localhost:4222";`
 
     ```java
+    // default options 
     Connection nc = Nats.connect();
+   
+    // default options, reconnect on connect 
+    Connection nc = Nats.connectReconnectOnConnect();
     ```
 
-2. Connect to one or more servers using a URL:
+1. Connect to one or more servers using a URL:
 
     ```java
-    //single URL
+    // single URL, all other default options
     Connection nc = Nats.connect("nats://myhost:4222");
 
-    //comma-separated list of URLs
+    // comma-separated list of URLs, all other default options
     Connection nc = Nats.connect("nats://myhost:4222,nats://myhost:4223");
+
+    // single URL, all other default options, reconnect on connect
+    Connection nc = Nats.connectReconnectOnConnect("nats://myhost:4222");
+
+    // comma-separated list of URLs, all other default options, reconnect on connect
+    Connection nc = Nats.connectReconnectOnConnect("nats://myhost:4222,nats://myhost:4223");
     ```
 
-3. Connect to one or more servers with a custom configuration:
+1. Connect to one or more servers with a custom configuration:
 
     ```java
     Options o = new Options.Builder().server("nats://serverone:4222").server("nats://servertwo:4222").maxReconnects(-1).build();
+
+    // custom options
     Connection nc = Nats.connect(o);
+
+    // custom options, reconnect on connect
+    Connection nc = Nats.connectReconnectOnConnect(o);
     ```
 
-    See the javadoc for a complete list of configuration options.
-
-4. Connect asynchronously, this requires a callback to tell the application when the client is connected:
+1. Connect asynchronously, this requires a callback to tell the application when the client is connected:
 
     ```java
     Options options = new Options.Builder().server(Options.DEFAULT_URL).connectionListener(handler).build();
     Nats.connectAsynchronously(options, true);
     ```
 
-    This feature is experimental, please let us know if you like it.
-
-5. Connect with authentication handler:
+1. Connect with authentication handler:
 
     ```java
     AuthHandler authHandler = Nats.credentials(System.getenv("NATS_CREDS"));
+
+    // single URL, all other default options
     Connection nc = Nats.connect("nats://myhost:4222", authHandler);
+
+    // comma-separated list of URLs, all other default options
+    Connection nc = Nats.connect("nats://myhost:4222,nats://myhost:4223", authHandler);
+
+    // single URL, all other default options, reconnect on connect
+    Connection nc = Nats.connectReconnectOnConnect("nats://myhost:4222", authHandler);
+
+    // comma-separated list of URLs, all other default options, reconnect on connect
+    Connection nc = Nats.connectReconnectOnConnect("nats://myhost:4222,nats://myhost:4223", authHandler);
     ```
 
 ### Publishing
