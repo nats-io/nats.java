@@ -101,6 +101,26 @@ public class TestBase {
         boolean runTest(ServerInfo si);
     }
 
+    public static boolean atLeast2_9_0(Connection nc) {
+        return atLeast2_9_0(nc.getServerInfo());
+    }
+
+    public static boolean atLeast2_9_0(ServerInfo si) {
+        return si.isSameOrNewerThanVersion("2.9.0");
+    }
+
+    public static boolean atLeast2_9_1(ServerInfo si) {
+        return si.isSameOrNewerThanVersion("2.9.1");
+    }
+
+    public static boolean atLeast2_10(ServerInfo si) {
+        return si.isNewerVersionThan("2.9.99");
+    }
+
+    public static boolean atLeast2_10_3(ServerInfo si) {
+        return si.isSameOrNewerThanVersion("2.10.3");
+    }
+
     public static void runInServer(InServerTest inServerTest) throws Exception {
         runInServer(false, false, null, null, inServerTest);
     }
@@ -166,8 +186,11 @@ public class TestBase {
         try (NatsTestServer ts = new NatsTestServer(debug, jetstream);
              Connection nc = standardConnection(builder.server(ts.getURI()).build()))
         {
-            if (vc != null) {
+            if (RUN_SERVER_INFO == null) {
                 initRunServerInfo(nc);
+            }
+
+            if (vc != null) {
                 if (!vc.runTest(RUN_SERVER_INFO)) {
                     return;
                 }
@@ -182,6 +205,13 @@ public class TestBase {
                 }
             }
         }
+    }
+
+    public static ServerInfo ensureRunServerInfo() throws Exception {
+        if (RUN_SERVER_INFO == null) {
+            runInServer(nc -> {});
+        }
+        return RUN_SERVER_INFO;
     }
 
     private static void initRunServerInfo(Connection nc) {

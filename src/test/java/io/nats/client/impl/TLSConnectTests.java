@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -71,15 +72,17 @@ public class TLSConnectTests {
 
     @Test
     public void testSimpleTlsFirstConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls_first.conf", false)) {
-            String servers = ts.getURI();
-            Options options = new Options.Builder()
-                .server(servers)
-                .maxReconnects(0)
-                .tlsFirst()
-                .sslContext(TestSSLUtils.createTestSSLContext())
-                .build();
-            assertCanConnectAndPubSub(options);
+        if (TestBase.atLeast2_10_3(ensureRunServerInfo())) {
+            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls_first.conf", false)) {
+                String servers = ts.getURI();
+                Options options = new Options.Builder()
+                    .server(servers)
+                    .maxReconnects(0)
+                    .tlsFirst()
+                    .sslContext(TestSSLUtils.createTestSSLContext())
+                    .build();
+                assertCanConnectAndPubSub(options);
+            }
         }
     }
 
