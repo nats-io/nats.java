@@ -24,16 +24,6 @@ public class ClientCompatibilityMain {
     public static ExecutorService EXEC_SERVICE = Executors.newFixedThreadPool(10);
 
     public static void main(String[] args) throws IOException {
-        if (args != null) {
-            if (args.length == 1) {
-                Utility.RESOURCE_LOCATION = args[0];
-            }
-            else if (args.length != 0 ){
-                System.err.println("USAGE: ClientCompatibilityMain [<pathToResourceFolder>]");
-                System.exit(-1);
-            }
-        }
-
         Options options = new Options.Builder()
             .server("nats://localhost:4222")
             .errorListener(new ErrorListener() {})

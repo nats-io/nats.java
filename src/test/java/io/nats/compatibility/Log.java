@@ -81,22 +81,11 @@ public abstract class Log {
         }
 
         if (extraStr == null || extraStr.isEmpty()) {
-//            if (error) {
-//                System.err.println(start);
-//            }
-//            else {
-                System.out.println(start);
-//            }
+            System.out.println(start);
             return;
         }
 
-        extraStr = NEWLINE_INDENT + extraStr.replaceAll("\n", NEWLINE_INDENT);
-//        if (error) {
-//            System.err.println(start + extraStr);
-//        }
-//        else {
-            System.out.println(start + extraStr);
-//        }
+        System.out.println(start + NEWLINE_INDENT + extraStr.replaceAll("\n", NEWLINE_INDENT));
     }
 
     private static String time() {

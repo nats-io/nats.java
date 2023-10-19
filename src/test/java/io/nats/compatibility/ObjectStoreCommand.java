@@ -22,22 +22,25 @@ import io.nats.client.support.ApiConstants;
 import io.nats.client.support.JsonValueUtils;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class ObjectStoreCommand extends Command {
-
     final String bucket;
     final String object;
+    final String url;
 
     public ObjectStoreCommand(Connection nc, TestMessage tm) {
         super(nc, tm);
         bucket = JsonValueUtils.readString(full, "bucket");
         object = JsonValueUtils.readString(full, "object");
+        url = JsonValueUtils.readString(full, "url");
     }
 
     public void execute() {
@@ -59,7 +62,7 @@ public class ObjectStoreCommand extends Command {
 
     private void doCreateBucket() {
         try {
-            _createBucket();
+            createBucket();
             respond();
         }
         catch (Exception e) {
@@ -68,25 +71,33 @@ public class ObjectStoreCommand extends Command {
     }
 
     private void doPutObject() {
+        File f = null;
         try {
-            _createBucket();
             String objectName = JsonValueUtils.readString(config, "name");
             String description = JsonValueUtils.readString(config, "description");
-            _putObject(objectName, description);
+            ObjectStore os = nc.objectStore(bucket);
+            ObjectMeta meta = ObjectMeta.builder(objectName).description(description).build();
+            f = Utility.downloadToTempFile(url, "putobject", ".dat");
+            InputStream inputStream = Files.newInputStream(f.toPath());
+            os.put(meta, inputStream);
             respond();
         }
         catch (Exception e) {
             handleException(e);
         }
+        finally {
+            if (f != null) {
+                //noinspection ResultOfMethodCallIgnored
+                f.delete();
+            }
+        }
     }
 
     private void doGetObject() {
         try {
-            _createBucket();
-            _putObject(object, null);
             ObjectStore os = nc.objectStore(bucket);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            _respondDigest(os.get(object, baos));
+            respondDigest(os.get(object, baos));
         }
         catch (Exception e) {
             handleException(e);
@@ -95,8 +106,6 @@ public class ObjectStoreCommand extends Command {
 
     private void doUpdateMetadata() {
         try {
-            _createBucket();
-            _putObject(object, null);
             ObjectStore os = nc.objectStore(bucket);
             String objectName = JsonValueUtils.readString(config, "name");
             String description = JsonValueUtils.readString(config, "description");
@@ -113,7 +122,7 @@ public class ObjectStoreCommand extends Command {
         try {
             ObjectStore os = nc.objectStore(bucket);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            _respondDigest(os.get(object, baos));
+            respondDigest(os.get(object, baos));
         }
         catch (Exception e) {
             handleException(e);
@@ -123,7 +132,6 @@ public class ObjectStoreCommand extends Command {
     private void doPutLink() {
         try {
             String linkName = JsonValueUtils.readString(full, "link_name");
-
             ObjectStore os = nc.objectStore(bucket);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ObjectInfo oi = os.get(object, baos);
@@ -201,26 +209,14 @@ public class ObjectStoreCommand extends Command {
         public void endOfData() {}
     }
 
-    protected void _respondDigest(ObjectInfo oi) {
+    protected void respondDigest(ObjectInfo oi) {
         String digest = oi.getDigest();
         Log.info("RESPOND " + subject + " digest " + digest);
         byte[] payload = Base64.getUrlDecoder().decode(digest.substring(8));
         nc.publish(replyTo, payload);
     }
 
-    private void _putObject(String objectName, String description) {
-        try {
-            ObjectStore os = nc.objectStore(bucket);
-            ObjectMeta meta = ObjectMeta.builder(objectName).description(description).build();
-            InputStream inputStream = Utility.getFileAsInputStream("nats-server.zip");
-            os.put(meta, inputStream);
-        }
-        catch (Exception e) {
-            handleException(e);
-        }
-    }
-
-    private void _createBucket() {
+    private void createBucket() {
         ObjectStoreManagement osm;
         try {
             osm = nc.objectStoreManagement();
