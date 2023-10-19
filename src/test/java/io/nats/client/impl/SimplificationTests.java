@@ -636,7 +636,7 @@ public class SimplificationTests extends JetStreamTestBase {
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(tsc.subject());
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
             try (FetchConsumer fcon = occtx.fetchMessages(6)) {
-                // Loop through the messages to make sure I get stream sequence 1 to 6
+                // Loop through the messages to make sure I get stream sequence 1 to 5
                 int expectedStreamSeq = 1;
                 while (expectedStreamSeq <= 5) {
                     Message m = fcon.nextMessage();
@@ -664,7 +664,7 @@ public class SimplificationTests extends JetStreamTestBase {
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(tsc.subject());
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
             try (IterableConsumer icon = occtx.iterate()) {
-                // Loop through the messages to make sure I get stream sequence 1 to 6
+                // Loop through the messages to make sure I get stream sequence 1 to 5
                 int expectedStreamSeq = 1;
                 while (expectedStreamSeq <= 5) {
                     Message m = icon.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
@@ -693,11 +693,9 @@ public class SimplificationTests extends JetStreamTestBase {
             CountDownLatch msgLatch = new CountDownLatch(6);
             AtomicInteger received = new AtomicInteger();
             AtomicLong[] ssFlags = new AtomicLong[6];
-            AtomicLong[] csFlags = new AtomicLong[6];
             MessageHandler handler = hmsg -> {
                 int i = received.incrementAndGet() - 1;
                 ssFlags[i] = new AtomicLong(hmsg.metaData().streamSequence());
-                csFlags[i] = new AtomicLong(hmsg.metaData().consumerSequence());
                 msgLatch.countDown();
             };
 
@@ -713,8 +711,7 @@ public class SimplificationTests extends JetStreamTestBase {
                 int expectedStreamSeq = 1;
                 while (expectedStreamSeq <= 6) {
                     int idx = expectedStreamSeq - 1;
-                    assertEquals(expectedStreamSeq, ssFlags[idx].get());
-                    ++expectedStreamSeq;
+                    assertEquals(expectedStreamSeq++, ssFlags[idx].get());
                 }
             }
         });

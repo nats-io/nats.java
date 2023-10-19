@@ -16,9 +16,7 @@ package io.nats.service;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 import static io.nats.client.support.ApiConstants.DESCRIPTION;
 import static io.nats.client.support.ApiConstants.ENDPOINTS;
@@ -35,10 +33,18 @@ public class InfoResponse extends ServiceResponse {
     private final String description;
     private final List<Endpoint> endpoints;
 
-    InfoResponse(String id, String name, String version, Map<String, String> metadata, String description, List<Endpoint> endpoints) {
+    InfoResponse(String id, String name, String version, Map<String, String> metadata, String description, Collection<ServiceEndpoint> serviceEndpoints) {
         super(TYPE, id, name, version, metadata);
         this.description = description;
-        this.endpoints = endpoints;
+        this.endpoints = new ArrayList<>();
+        for (ServiceEndpoint se : serviceEndpoints) {
+            endpoints.add(new Endpoint(
+                se.getName(),
+                se.getSubject(),
+                se.getQueueGroup(),
+                se.getMetadata()
+            ));
+        }
     }
 
     InfoResponse(byte[] jsonBytes) {

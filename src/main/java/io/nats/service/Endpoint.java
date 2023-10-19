@@ -37,8 +37,11 @@ import static io.nats.client.support.Validator.validateIsRestrictedTerm;
  * </p>
  */
 public class Endpoint implements JsonSerializable {
+    private static final String DEFAULT_QGROUP = "q";
+
     private final String name;
     private final String subject;
+    private final String queueGroup;
     private final Map<String, String> metadata;
 
     /**
@@ -46,7 +49,7 @@ public class Endpoint implements JsonSerializable {
      * @param name the name
      */
     public Endpoint(String name) {
-        this(name, null, null, true);
+        this(name, null, null, null, true);
     }
 
     /**
@@ -55,7 +58,7 @@ public class Endpoint implements JsonSerializable {
      * @param metadata the metadata
      */
     public Endpoint(String name, Map<String, String> metadata) {
-        this(name, null, metadata, true);
+        this(name, null, null, metadata, true);
     }
 
     /**
@@ -64,7 +67,7 @@ public class Endpoint implements JsonSerializable {
      * @param subject the subject
      */
     public Endpoint(String name, String subject) {
-        this(name, subject, null, true);
+        this(name, subject, null, null, true);
     }
 
     /**
@@ -74,11 +77,22 @@ public class Endpoint implements JsonSerializable {
      * @param metadata the metadata
      */
     public Endpoint(String name, String subject, Map<String, String> metadata) {
-        this(name, subject, metadata, true);
+        this(name, subject, null, metadata, true);
+    }
+
+    /**
+     * Directly construct an Endpoint with a name, the subject, queueGroup and metadata
+     * @param name the name
+     * @param subject the subject
+     * @param queueGroup the queueGroup
+     * @param metadata the metadata
+     */
+    public Endpoint(String name, String subject, String queueGroup, Map<String, String> metadata) {
+        this(name, subject, queueGroup, metadata, true);
     }
 
     // internal use constructors
-    Endpoint(String name, String subject, Map<String, String> metadata, boolean validate) {
+    Endpoint(String name, String subject, String queueGroup, Map<String, String> metadata, boolean validate) {
         if (validate) {
             this.name = validateIsRestrictedTerm(name, "Endpoint Name", true);
             if (subject == null) {
@@ -87,10 +101,17 @@ public class Endpoint implements JsonSerializable {
             else {
                 this.subject = Validator.validateSubjectTerm(subject, "Endpoint Subject", false);
             }
+            if (queueGroup == null) {
+                this.queueGroup = DEFAULT_QGROUP;
+            }
+            else {
+                this.queueGroup = Validator.validateSubjectTerm(queueGroup, "Endpoint Queue Group", true);
+            }
         }
         else {
             this.name = name;
             this.subject = subject;
+            this.queueGroup = queueGroup;
         }
         this.metadata = metadata == null || metadata.isEmpty() ? null : metadata;
     }
@@ -98,11 +119,12 @@ public class Endpoint implements JsonSerializable {
     Endpoint(JsonValue vEndpoint) {
         name = readString(vEndpoint, NAME);
         subject = readString(vEndpoint, SUBJECT);
+        queueGroup = readString(vEndpoint, QUEUE_GROUP);
         metadata = readStringStringMap(vEndpoint, METADATA);
     }
 
     Endpoint(Builder b) {
-        this(b.name, b.subject, b.metadata, true);
+        this(b.name, b.subject, b.queueGroup, b.metadata, true);
     }
 
     @Override
@@ -110,6 +132,7 @@ public class Endpoint implements JsonSerializable {
         StringBuilder sb = JsonUtils.beginJson();
         JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, SUBJECT, subject);
+        JsonUtils.addField(sb, QUEUE_GROUP, queueGroup);
         JsonUtils.addField(sb, METADATA, metadata);
         return endJson(sb).toString();
     }
@@ -136,6 +159,14 @@ public class Endpoint implements JsonSerializable {
     }
 
     /**
+     * Get the queueGroup for the Endpoint
+     * @return the queueGroup
+     */
+    public String getQueueGroup() {
+        return queueGroup;
+    }
+
+    /**
      * Get a copy of the metadata of the Endpoint
      * @return the copy of metadata
      */
@@ -157,6 +188,7 @@ public class Endpoint implements JsonSerializable {
     public static class Builder {
         private String name;
         private String subject;
+        private String queueGroup = DEFAULT_QGROUP;
         private Map<String, String> metadata;
 
         /**
@@ -170,7 +202,10 @@ public class Endpoint implements JsonSerializable {
          * @return the Endpoint.Builder
          */
         public Builder endpoint(Endpoint endpoint) {
-            return name(endpoint.getName()).subject(endpoint.getSubject()).metadata(endpoint.getMetadata());
+            return name(endpoint.getName())
+                .subject(endpoint.getSubject())
+                .queueGroup(endpoint.getQueueGroup())
+                .metadata(endpoint.getMetadata());
         }
 
         /**
@@ -180,6 +215,16 @@ public class Endpoint implements JsonSerializable {
          */
         public Builder name(String name) {
             this.name = name;
+            return this;
+        }
+
+        /**
+         * Set the queueGroup for the Endpoint, overriding the system default queue group
+         * @param queueGroup the queueGroup
+         * @return the Endpoint.Builder
+         */
+        public Builder queueGroup(String queueGroup) {
+            this.queueGroup = queueGroup == null ? DEFAULT_QGROUP : queueGroup;
             return this;
         }
 
@@ -222,17 +267,19 @@ public class Endpoint implements JsonSerializable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        Endpoint that = (Endpoint) o;
+        Endpoint endpoint = (Endpoint) o;
 
-        if (!Objects.equals(name, that.name)) return false;
-        if (!Objects.equals(subject, that.subject)) return false;
-        return JsonUtils.mapEquals(metadata, that.metadata);
+        if (!Objects.equals(name, endpoint.name)) return false;
+        if (!Objects.equals(subject, endpoint.subject)) return false;
+        if (!Objects.equals(queueGroup, endpoint.queueGroup)) return false;
+        return Objects.equals(metadata, endpoint.metadata);
     }
 
     @Override
     public int hashCode() {
         int result = name != null ? name.hashCode() : 0;
         result = 31 * result + (subject != null ? subject.hashCode() : 0);
+        result = 31 * result + (queueGroup != null ? queueGroup.hashCode() : 0);
         result = 31 * result + (metadata != null ? metadata.hashCode() : 0);
         return result;
     }
