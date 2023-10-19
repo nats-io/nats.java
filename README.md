@@ -13,7 +13,6 @@
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
 [![Release Badge](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml/badge.svg?event=release)](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml)
 
-#
 ### Simplification
 
 There is a new simplified api that makes working with streams and consumers well, simpler! Simplification is released as of 2.16.14.
@@ -50,6 +49,26 @@ The NATS server renamed itself from gnatsd to nats-server around 2.4.4. This and
 Version 2.5.0 adds some back pressure to publish calls to alleviate issues when there is a slow network. This may alter performance characteristics of publishing apps, although the total performance is equivalent.
 
 Previous versions are still available in the repo.
+
+#### Version 2.17.1 Support for TLS First
+
+There is a new connection Option, `tlsFirst` for "TLSHandshakeFirst"
+
+In Server 2.10.3 and later, there is the ability to have TLS Handshake First. 
+The server config will add this:
+
+```text
+tls {
+  ...
+  handshake_first: 300ms
+}
+```
+
+TLS Handshake First is used to instruct the library perform
+the TLS handshake right after the connect and before receiving
+the INFO protocol from the server. If this option is enabled
+but the server is not configured to perform the TLS handshake
+first, the connection will fail.
 
 #### Version 2.17.0: Server 2.10 support. Subject and Queue Name Validation
 
