@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -287,7 +288,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     @Test
     public void testMultipleSubjectFilters() throws Exception {
-        jsServer.run(this::atLeast210, nc -> {
+        jsServer.run(TestBase::atLeast2_10, nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();

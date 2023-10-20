@@ -176,7 +176,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             unsubscribeEnsureNotBound(dispatcher, sub);
             js.subscribe("", queue(102), dispatcher, mh -> {}, false, psoBind);
 
-            if (atLeast290(nc)) {
+            if (atLeast2_9_0(nc)) {
                 ConsumerConfiguration cc = builder().name(name(1)).build();
                 pso = PushSubscribeOptions.builder().configuration(cc).build();
                 sub = js.subscribe(tsc.subject(), pso);

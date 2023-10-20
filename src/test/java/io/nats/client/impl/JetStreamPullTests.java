@@ -17,6 +17,7 @@ import io.nats.client.*;
 import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.support.Status;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -651,7 +652,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testNamed() throws Exception {
-        runInJsServer(noPullWarnings(), this::atLeast290, nc -> {
+        runInJsServer(noPullWarnings(), TestBase::atLeast2_9_0, nc -> {
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
@@ -1023,7 +1024,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testExceedsMaxRequestBytesNthMessageSyncSub() throws Exception {
         TestHandler handler = new TestHandler();
-        runInJsServer(this::atLeast291, handler, nc -> {
+        runInJsServer(TestBase::atLeast2_9_1, handler, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
@@ -1051,7 +1052,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testExceedsMaxRequestBytesExactBytes() throws Exception {
         TestHandler handler = new TestHandler();
-        runInJsServer(this::atLeast291, handler, nc -> {
+        runInJsServer(TestBase::atLeast2_9_1, handler, nc -> {
             String stream = "sixsix"; // six letters so I can count
             String subject = "seven"; // seven letters so I can count
             String durable = durable(0); // short keeps under max bytes
