@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -1241,7 +1242,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testDirectMessageRepublishedSubject() throws Exception {
-        jsServer.run(this::atLeast290, nc -> {
+        jsServer.run(TestBase::atLeast2_9_0, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             String streamBucketName = "sb-" + variant(null);
             String subject = subject();
