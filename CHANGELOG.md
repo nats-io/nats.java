@@ -1,5 +1,33 @@
 # Change Log
 
+## 2.17.1
+
+This release added was mostly about TLS and testing
+
+#### Core
+
+* Allow trust store without key store #999 @scottf @jnmoyne
+* Allow for custom dispatcher #1001 @scottf
+* Expanded support for server sent authorization errors #1006 @scottf
+* Reconnect on Connect additional api #1012 @scottf
+* Accept Tls First as an Option #1015 @scottf
+
+#### JetStream
+
+* Duplicate message for Interest stream fails seq check in PublishAck #1005 @MauriceVanVeen
+* Direct Message Subject Header May Contain Multiple Subjects #1016 @scottf
+
+#### Service Framework
+
+* Added custom endpoint queue support and fixed InfoResponse to show proper subject. #1010 @scottf
+
+#### Docs / Testing / Misc
+
+* Removing generic-ness from naming #1000 #1004 @scottf
+* Subscribe options name handling vs 2.8.4 #1011 @scottf
+* Client Compatibility Tests engine #1013 @scottf
+* Regression and Test Improvements #1017 #1018 @scottf
+
 ## 2.17.0
 
 This release added:
