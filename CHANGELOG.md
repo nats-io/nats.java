@@ -10,7 +10,7 @@ This release added was mostly about TLS and testing
 * Allow for custom dispatcher #1001 @scottf
 * Expanded support for server sent authorization errors #1006 @scottf
 * Reconnect on Connect additional api #1012 @scottf
-* Accept Tls First as an Option #1015
+* Accept Tls First as an Option #1015 @scottf
 
 #### JetStream
 
@@ -24,7 +24,7 @@ This release added was mostly about TLS and testing
 #### Docs / Testing / Misc
 
 * Removing generic-ness from naming #1000 #1004 @scottf
-* Subscribe options name handling vs 2.8.4 @scottf
+* Subscribe options name handling vs 2.8.4 #1011 @scottf
 * Client Compatibility Tests engine #1013 @scottf
 * Regression and Test Improvements #1017 #1018 @scottf
 
