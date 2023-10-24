@@ -124,7 +124,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         String originalJson = ResourceUtils.dataAsString("StreamConfiguration.json");
 
-
+        // Loops through each field in the StreamConfiguration JSON format and ensures that the
+        // StreamConfiguration can be built without that field being present in the JSON
         for (String streamConfigFieldName: streamConfigFields) {
             JsonValue originalParsedJson = JsonParser.parse(originalJson);
             originalParsedJson.map.remove(streamConfigFieldName);
@@ -138,13 +139,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         String originalJson = ResourceUtils.dataAsString("StreamConfiguration.json");
         JsonValue originalParsedJson = JsonParser.parse(originalJson);
         originalParsedJson.map.put(NAME, new JsonValue("Inavlid*Name"));
-        assertThrows(IllegalArgumentException.class,
-                new Executable() {
-                    @Override
-                    public void execute() throws Throwable {
-                        StreamConfiguration.instance(originalParsedJson.toJson());
-                    }
-                });
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.instance(originalParsedJson.toJson()));
     }
 
     @Test

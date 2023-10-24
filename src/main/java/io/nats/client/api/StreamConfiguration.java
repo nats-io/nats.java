@@ -150,14 +150,12 @@ public class StreamConfiguration implements JsonSerializable {
      * @throws JsonParseException
      */
     public static StreamConfiguration instance(String json) throws JsonParseException {
-        JsonValue parsedJson = JsonParser.parse(json);
-        return instance(parsedJson);
+        return instance(JsonParser.parse(json));
     }
 
     /**
      * Returns a JSON representation of this consumer configuration.
      *
-     * @see #instance(String)
      * @return json consumer configuration to send to the server.
      */
     public String toJson() {
