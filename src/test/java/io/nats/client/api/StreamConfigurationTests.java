@@ -22,6 +22,7 @@ import io.nats.client.support.JsonValue;
 import io.nats.client.utils.ResourceUtils;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -30,6 +31,10 @@ import java.util.*;
 import static io.nats.client.api.CompressionOption.None;
 import static io.nats.client.api.CompressionOption.S2;
 import static io.nats.client.api.ConsumerConfiguration.*;
+import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.ApiConstants.FIRST_SEQ;
+import static io.nats.client.support.JsonValueUtils.*;
+import static io.nats.client.support.JsonValueUtils.readLong;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamConfigurationTests extends JetStreamTestBase {
@@ -59,6 +64,87 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
             validate(jsm.addStream(sc).getConfiguration(), true);
         });
+    }
+
+    @Test
+    public void testSerializationDeserialization() throws Exception {
+        String originalJson = ResourceUtils.dataAsString("StreamConfiguration.json");
+        StreamConfiguration sc = StreamConfiguration.instance(originalJson);
+        validate(sc, false);
+        String serializedJson = sc.toJson();
+        validate(StreamConfiguration.instance(serializedJson), false);
+    }
+
+    @Test
+    public void testSerializationDeserializationDefaults() throws Exception {
+        StreamConfiguration sc = StreamConfiguration.instance("");
+        assertNotNull(sc);
+        String serializedJson = sc.toJson();
+        assertNotNull(StreamConfiguration.instance(serializedJson));
+    }
+
+    @Test
+    public void testMissingJsonFields() throws Exception{
+        List<String> streamConfigFields = new ArrayList<String>(){
+            {
+                add(RETENTION);
+                add(COMPRESSION);
+                add(STORAGE);
+                add(DISCARD);
+                add(NAME);
+                add(DESCRIPTION);
+                add(MAX_CONSUMERS);
+                add(MAX_MSGS);
+                add(MAX_MSGS_PER_SUB);
+                add(MAX_BYTES);
+                add(MAX_AGE);
+                add(MAX_MSG_SIZE);
+                add(NUM_REPLICAS);
+                add(NO_ACK);
+                add(TEMPLATE_OWNER);
+                add(DUPLICATE_WINDOW);
+                add(SUBJECTS);
+                add(PLACEMENT);
+                add(REPUBLISH);
+                add(SUBJECT_TRANSFORM);
+                add(CONSUMER_LIMITS);
+                add(MIRROR);
+                add(SOURCES);
+                add(SEALED);
+                add(ALLOW_ROLLUP_HDRS);
+                add(ALLOW_DIRECT);
+                add(MIRROR_DIRECT);
+                add(DENY_DELETE);
+                add(DENY_PURGE);
+                add(DISCARD_NEW_PER_SUBJECT);
+                add(METADATA);
+                add(FIRST_SEQ);
+            }
+        };
+
+        String originalJson = ResourceUtils.dataAsString("StreamConfiguration.json");
+
+
+        for (String streamConfigFieldName: streamConfigFields) {
+            JsonValue originalParsedJson = JsonParser.parse(originalJson);
+            originalParsedJson.map.remove(streamConfigFieldName);
+            StreamConfiguration sc = StreamConfiguration.instance(originalParsedJson.toJson());
+            assertNotNull(sc);
+        }
+    }
+
+    @Test
+    public void testInvalidNameInJson() throws Exception{
+        String originalJson = ResourceUtils.dataAsString("StreamConfiguration.json");
+        JsonValue originalParsedJson = JsonParser.parse(originalJson);
+        originalParsedJson.map.put(NAME, new JsonValue("Inavlid*Name"));
+        assertThrows(IllegalArgumentException.class,
+                new Executable() {
+                    @Override
+                    public void execute() throws Throwable {
+                        StreamConfiguration.instance(originalParsedJson.toJson());
+                    }
+                });
     }
 
     @Test
