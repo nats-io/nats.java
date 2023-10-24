@@ -1806,6 +1806,9 @@ public class Options {
      * @return the data port described by these options
      */
     public DataPort buildDataPort() {
+        if (dataPortType.equals(DEFAULT_DATA_PORT_TYPE)) {
+            return new SocketDataPort();
+        }
         return (DataPort) Options.createInstanceOf(dataPortType);
     }
 
