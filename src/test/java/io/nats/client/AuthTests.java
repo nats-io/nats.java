@@ -17,7 +17,6 @@ import io.nats.client.Connection.Status;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.TestHandler;
 import io.nats.client.support.JwtUtils;
-import io.nats.client.support.RandomUtils;
 import io.nats.client.utils.ResourceUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
@@ -701,30 +700,38 @@ public class AuthTests extends TestBase {
             }
         };
 
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/operatorJnatsTest.conf", false)) {
+        String accountSeed = "SAAPXJRFMUYDUH3NOZKE7BS2ZDO2P4ND7G6W743MTNA3KCSFPX3HNN6AX4";
+        String accountId = "ACPWDUYSZRRF7XAEZKUAGPUH6RPICWEHSTFELYKTOWUVZ4R2XMP4QJJX";
+        String userSeed = "SUAJ44FQWKEWGRSIPRFCIGDTVYSMUMRRHB4CPFXXRG5GODO5XY7S2L45ZA";
 
-            NKey nKeyAccount = NKey.fromSeed("SAAPXJRFMUYDUH3NOZKE7BS2ZDO2P4ND7G6W743MTNA3KCSFPX3HNN6AX4".toCharArray());
-            String accountId = "ACPWDUYSZRRF7XAEZKUAGPUH6RPICWEHSTFELYKTOWUVZ4R2XMP4QJJX";
-            NKey nKeyUser = NKey.createUser(RandomUtils.SRAND);
-            String publicUserKey = new String(nKeyUser.getPublicKey());
-            Duration expiration = Duration.ofMillis(2500);
-            String jwt = JwtUtils.issueUserJWT(nKeyAccount, accountId, publicUserKey, "jnatsTestUser", expiration);
-            String creds = String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(nKeyUser.getSeed()));
-            String credsFile = ResourceUtils.createTempFile("nats_java_test", ".creds", creds.split("\\Q\\n\\E"));
+        NKey nKeyAccount = NKey.fromSeed(accountSeed.toCharArray());
+
+        NKey nKeyUser = NKey.fromSeed(userSeed.toCharArray());
+        String publicUserKey = new String(nKeyUser.getPublicKey());
+
+        long expires = 2500;
+        long wait = 5000;
+        Duration expiration = Duration.ofMillis(expires);
+        String jwt = JwtUtils.issueUserJWT(nKeyAccount, accountId, publicUserKey, "jnatsTestUser", expiration);
+
+        String creds = String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(nKeyUser.getSeed()));
+        String credsFile = ResourceUtils.createTempFile("nats_java_test", ".creds", creds.split("\\Q\\n\\E"));
+
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/operatorJnatsTest.conf", false)) {
 
             Options options = Options.builder()
                 .server(ts.getURI())
                 .credentialPath(credsFile)
                 .connectionListener(cl)
                 .errorListener(el)
-                .maxReconnects(4)
+                .maxReconnects(3)
                 .build();
             Connection nc = Nats.connect(options);
 
-            assertTrue(cdlConnected.await(5, TimeUnit.SECONDS));
-            assertTrue(cdlDisconnected.await(5, TimeUnit.SECONDS));
-            assertTrue(elUserAuthenticationExpired.await(5, TimeUnit.SECONDS));
-            assertTrue(elAuthorizationViolation.await(5, TimeUnit.SECONDS));
+            assertTrue(cdlConnected.await(wait, TimeUnit.MILLISECONDS));
+            assertTrue(cdlDisconnected.await(wait, TimeUnit.MILLISECONDS));
+            assertTrue(elUserAuthenticationExpired.await(wait, TimeUnit.MILLISECONDS));
+            assertTrue(elAuthorizationViolation.await(wait, TimeUnit.MILLISECONDS));
 
             nc.close();
         }
