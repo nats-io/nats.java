@@ -169,7 +169,20 @@ public class TestBase {
         runInServer(debug, jetstream, builder, null, inServerTest);
     }
 
-    private static ServerInfo RUN_SERVER_INFO;
+    public static ServerInfo RUN_SERVER_INFO;
+
+    public static ServerInfo ensureRunServerInfo() throws Exception {
+        if (RUN_SERVER_INFO == null) {
+            runInServer(false, false, null, null, nc -> {});
+        }
+        return RUN_SERVER_INFO;
+    }
+
+    public static void initRunServerInfo(Connection nc) {
+        if (RUN_SERVER_INFO == null) {
+            RUN_SERVER_INFO = nc.getServerInfo();
+        }
+    }
 
     public static void runInServer(boolean debug, boolean jetstream, Options.Builder builder, VersionCheck vc, InServerTest inServerTest) throws Exception {
         if (vc != null && RUN_SERVER_INFO != null) {
@@ -186,9 +199,7 @@ public class TestBase {
         try (NatsTestServer ts = new NatsTestServer(debug, jetstream);
              Connection nc = standardConnection(builder.server(ts.getURI()).build()))
         {
-            if (RUN_SERVER_INFO == null) {
-                initRunServerInfo(nc);
-            }
+            initRunServerInfo(nc);
 
             if (vc != null) {
                 if (!vc.runTest(RUN_SERVER_INFO)) {
@@ -205,17 +216,6 @@ public class TestBase {
                 }
             }
         }
-    }
-
-    public static ServerInfo ensureRunServerInfo() throws Exception {
-        if (RUN_SERVER_INFO == null) {
-            runInServer(nc -> {});
-        }
-        return RUN_SERVER_INFO;
-    }
-
-    private static void initRunServerInfo(Connection nc) {
-        RUN_SERVER_INFO = nc.getServerInfo();
     }
 
     public static class LongRunningNatsTestServer extends NatsTestServer {
