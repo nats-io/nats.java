@@ -6,11 +6,14 @@ import io.nats.client.Options;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 
 /**
  * This is an internal class and is only public for access.
  */
 public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
+    public static final boolean USE_TIMEOUT_EXCEPTION = Boolean.getBoolean(System.getProperty("nats.use-timeout-exception")); // TODO: Remove. Use TimeoutException instead of CancellationException.
+
     public enum CancelAction { CANCEL, REPORT, COMPLETE }
     private static final long DEFAULT_TIMEOUT = Options.DEFAULT_REQUEST_CLEANUP_INTERVAL.toMillis(); // currently 5 seconds
 
@@ -32,7 +35,8 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
 
     public void cancelTimedOut() {
         wasCancelledTimedOut = true;
-        completeExceptionally(new CancellationException("Future cancelled, response not registered in time, likely due to server disconnect."));
+        final String message = "Future cancelled, response not registered in time, likely due to server disconnect.";
+        completeExceptionally(USE_TIMEOUT_EXCEPTION ? new TimeoutException(message) : new CancellationException(message));
     }
 
     public CancelAction getCancelAction() {
