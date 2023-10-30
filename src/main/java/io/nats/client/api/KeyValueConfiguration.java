@@ -40,19 +40,19 @@ public class KeyValueConfiguration extends FeatureConfiguration {
     }
 
     /**
-     * Gets the maximum number of bytes for this bucket.
-     * @return the maximum number of bytes for this bucket.
-     */
-    public long getMaxBucketSize() {
-        return sc.getMaxBytes();
-    }
-
-    /**
      * Gets the maximum size for an individual value in the bucket.
      * @return the maximum size for a value.
      */      
     public long getMaxValueSize() {
         return sc.getMaxMsgSize();
+    }
+
+    /**
+     * Get the republish configuration. Might be null.
+     * @return the republish object
+     */
+    public Republish getRepublish() {
+        return sc.getRepublish();
     }
 
     @Override
@@ -68,15 +68,8 @@ public class KeyValueConfiguration extends FeatureConfiguration {
             ", replicas=" + getReplicas() +
             ", placement=" + getPlacement() +
             ", republish=" + getRepublish() +
+            ", isCompressed=" + isCompressed() +
             '}';
-    }
-
-    /**
-     * Get the republish configuration. Might be null.
-     * @return the republish object
-     */
-    public Republish getRepublish() {
-        return sc.getRepublish();
     }
 
     /**
@@ -86,7 +79,6 @@ public class KeyValueConfiguration extends FeatureConfiguration {
     public static Builder builder() {
         return new Builder((KeyValueConfiguration)null);
     }
-
 
     /**
      * Creates a builder for the Key Value Configuration.
@@ -322,6 +314,17 @@ public class KeyValueConfiguration extends FeatureConfiguration {
         }
 
         /**
+         * Sets whether to use compression for the KeyValueConfiguration.
+         * If set, will use the default compression algorithm of the KV backing store.
+         * @param compression whether to use compression in the KeyValueConfiguration
+         * @return Builder
+         */
+        public Builder compression(boolean compression) {
+            scBuilder.compressionOption(compression ? JS_COMPRESSION : CompressionOption.None);
+            return this;
+        }
+
+        /**
          * Builds the KeyValueConfiguration
          * @return the KeyValueConfiguration.
          */
@@ -346,7 +349,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
                             .build());
                 }
             }
-            else if (sources.size() > 0) {
+            else if (!sources.isEmpty()) {
                 for (Source source : sources) {
                     String name = source.getName();
                     if (hasPrefix(name)) {

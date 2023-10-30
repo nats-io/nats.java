@@ -16,6 +16,8 @@ package io.nats.client.api;
 import java.time.Duration;
 
 public abstract class FeatureConfiguration {
+    protected static final CompressionOption JS_COMPRESSION = CompressionOption.S2;
+
     protected final StreamConfiguration sc;
     protected final String bucketName;
     
@@ -49,6 +51,14 @@ public abstract class FeatureConfiguration {
     }
 
     /**
+     * Gets the maximum number of bytes for this bucket.
+     * @return the maximum number of bytes for this bucket.
+     */
+    public long getMaxBucketSize() {
+        return sc.getMaxBytes();
+    }
+
+    /**
      * Gets the maximum age for a value in this bucket.
      * @return the maximum age.
      */
@@ -79,5 +89,13 @@ public abstract class FeatureConfiguration {
      */
     public Placement getPlacement() {
         return sc.getPlacement();
+    }
+
+    /**
+     * Gets the state of compression
+     * @return true if compression is used
+     */
+    public boolean isCompressed() {
+        return sc.getCompressionOption() != null && sc.getCompressionOption() != CompressionOption.None;
     }
 }

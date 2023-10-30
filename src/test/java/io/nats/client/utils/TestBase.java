@@ -109,16 +109,32 @@ public class TestBase {
         return si.isSameOrNewerThanVersion("2.9.0");
     }
 
+    public static boolean atLeast2_9_0() {
+        return atLeast2_9_0(RUN_SERVER_INFO);
+    }
+
     public static boolean atLeast2_9_1(ServerInfo si) {
         return si.isSameOrNewerThanVersion("2.9.1");
+    }
+
+    public static boolean atLeast2_9_1() {
+        return atLeast2_9_1(RUN_SERVER_INFO);
     }
 
     public static boolean atLeast2_10(ServerInfo si) {
         return si.isNewerVersionThan("2.9.99");
     }
 
+    public static boolean atLeast2_10() {
+        return atLeast2_10(RUN_SERVER_INFO);
+    }
+
     public static boolean atLeast2_10_3(ServerInfo si) {
         return si.isSameOrNewerThanVersion("2.10.3");
+    }
+
+    public static boolean atLeast2_10_3() {
+        return atLeast2_10_3(RUN_SERVER_INFO);
     }
 
     public static void runInServer(InServerTest inServerTest) throws Exception {
@@ -347,6 +363,10 @@ public class TestBase {
         return variant == null ? NUID.nextGlobalSequence() : "" + variant;
     }
 
+    public static String variant() {
+        return NUID.nextGlobalSequence();
+    }
+
     public static String stream() {
         return STREAM + "-" + variant(null);
     }
@@ -418,8 +438,16 @@ public class TestBase {
         return BUCKET + "-" + variant(variant);
     }
 
+    public static String bucket() {
+        return bucket(null);
+    }
+
     public static String key(Object variant) {
         return KEY + "-" + variant(variant);
+    }
+
+    public static String key() {
+        return KEY + "-" + variant(null);
     }
 
     public static String messageId(Object variant) {
@@ -430,6 +458,9 @@ public class TestBase {
         return DATA + "-" + variant(variant);
     }
 
+    public static byte[] dataBytes() {
+        return data(variant()).getBytes(StandardCharsets.US_ASCII);
+    }
     public static byte[] dataBytes(Object variant) {
         return data(variant).getBytes(StandardCharsets.US_ASCII);
     }

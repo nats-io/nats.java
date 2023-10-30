@@ -28,14 +28,6 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
         super(sc, extractBucketName(sc.getName()));
     }
 
-    /**
-     * Gets the maximum number of bytes for this bucket.
-     * @return the maximum number of bytes for this bucket.
-     */
-    public long getMaxBucketSize() {
-        return sc.getMaxBytes();
-    }
-
     @Override
     public String toString() {
         return "ObjectStoreConfiguration{" +
@@ -46,6 +38,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
             ", storageType=" + getStorageType() +
             ", replicas=" + getReplicas() +
             ", placement=" + getPlacement() +
+            ", isCompressed=" + isCompressed() +
             '}';
     }
 
@@ -184,6 +177,17 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          */
         public Builder placement(Placement placement) {
             scBuilder.placement(placement);
+            return this;
+        }
+
+        /**
+         * Sets whether to use compression for the ObjectStoreConfiguration.
+         * If set, will use the default compression algorithm of the Object Store backing.
+         * @param compression whether to use compression in the ObjectStoreConfiguration
+         * @return Builder
+         */
+        public Builder compression(boolean compression) {
+            scBuilder.compressionOption(compression ? JS_COMPRESSION : CompressionOption.None);
             return this;
         }
 

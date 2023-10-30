@@ -109,6 +109,14 @@ public class ObjectStoreStatus {
     }
 
     /**
+     * Gets the state of compression
+     * @return true if compression is used
+     */
+    public boolean isCompressed() {
+        return config.isCompressed();
+    }
+
+    /**
      * Gets the name of the type of backing store, currently only "JetStream"
      * @return the name of the store, currently only "JetStream"
      */

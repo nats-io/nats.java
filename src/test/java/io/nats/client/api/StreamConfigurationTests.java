@@ -22,7 +22,6 @@ import io.nats.client.support.JsonValue;
 import io.nats.client.utils.ResourceUtils;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -32,9 +31,6 @@ import static io.nats.client.api.CompressionOption.None;
 import static io.nats.client.api.CompressionOption.S2;
 import static io.nats.client.api.ConsumerConfiguration.*;
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.ApiConstants.FIRST_SEQ;
-import static io.nats.client.support.JsonValueUtils.*;
-import static io.nats.client.support.JsonValueUtils.readLong;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamConfigurationTests extends JetStreamTestBase {
@@ -49,7 +45,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     @Test
     public void testRoundTrip() throws Exception {
         runInJsServer(si -> si.isNewerVersionThan("2.8.4"), nc -> {
-            CompressionOption compressionOption = nc.getServerInfo().isOlderThanVersion("2.10.0") ? None : S2;
+            CompressionOption compressionOption = atLeast2_10() ? S2 : None;
             StreamConfiguration sc = StreamConfiguration.builder(getTestConfiguration())
                 .mirror(null)
                 .sources()
