@@ -444,6 +444,11 @@ public class Options {
      */
     @Deprecated
     public static final String PROP_UTF8_SUBJECTS = "allow.utf8.subjects";
+    /**
+     * Property used to throw {@link java.util.concurrent.TimeoutException} on timeout instead of {@link java.util.concurrent.CancellationException}.
+     * {@link Builder#useTimeoutException()}.
+     */
+    public static final String PROP_USE_TIMEOUT_EXCEPTION = PFX + "use.timeout.exception";
 
     // ----------------------------------------------------------------------------------------------------
     // PROTOCOL CONNECT OPTION CONSTANTS
@@ -571,6 +576,7 @@ public class Options {
     private final boolean discardMessagesWhenOutgoingQueueFull;
     private final boolean ignoreDiscoveredServers;
     private final boolean tlsFirst;
+    private final boolean useTimeoutException;
 
     private final AuthHandler authHandler;
     private final ReconnectDelayHandler reconnectDelayHandler;
@@ -679,6 +685,7 @@ public class Options {
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
         private boolean ignoreDiscoveredServers = false;
         private boolean tlsFirst = false;
+        private boolean useTimeoutException = false;
         private ServerPool serverPool = null;
         private DispatcherFactory dispatcherFactory = null;
 
@@ -804,6 +811,7 @@ public class Options {
 
             booleanProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, b -> this.ignoreDiscoveredServers = b);
             booleanProperty(props, PROP_TLS_FIRST, b -> this.tlsFirst = b);
+            booleanProperty(props, PROP_USE_TIMEOUT_EXCEPTION, b -> this.useTimeoutException = b);
 
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
             classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);
@@ -1490,6 +1498,15 @@ public class Options {
         }
 
         /**
+         * Throw {@link java.util.concurrent.TimeoutException} on timeout instead of {@link java.util.concurrent.CancellationException}?
+         * @return the Builder for chaining
+         */
+        public Builder useTimeoutException() {
+            this.useTimeoutException = true;
+            return this;
+        }
+
+        /**
          * Set the ServerPool implementation for connections to use instead of the default implementation
          * @param serverPool the implementation
          * @return the Builder for chaining
@@ -1667,6 +1684,7 @@ public class Options {
 
             this.ignoreDiscoveredServers = o.ignoreDiscoveredServers;
             this.tlsFirst = o.tlsFirst;
+            this.useTimeoutException = o.useTimeoutException;
 
             this.serverPool = o.serverPool;
             this.dispatcherFactory = o.dispatcherFactory;
@@ -1729,6 +1747,7 @@ public class Options {
 
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
         this.tlsFirst = b.tlsFirst;
+        this.useTimeoutException = b.useTimeoutException;
 
         this.serverPool = b.serverPool;
         this.dispatcherFactory = b.dispatcherFactory;
@@ -2115,6 +2134,14 @@ public class Options {
      */
     public boolean isTlsFirst() {
         return tlsFirst;
+    }
+
+    /**
+     * Get whether to throw {@link java.util.concurrent.TimeoutException} on timeout instead of {@link java.util.concurrent.CancellationException}.
+     * @return the flag
+     */
+    public boolean isUseTimeoutException() {
+        return useTimeoutException;
     }
 
     /**
