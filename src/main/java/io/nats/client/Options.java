@@ -2140,7 +2140,7 @@ public class Options {
      * Get whether to throw {@link java.util.concurrent.TimeoutException} on timeout instead of {@link java.util.concurrent.CancellationException}.
      * @return the flag
      */
-    public boolean isUseTimeoutException() {
+    public boolean useTimeoutException() {
         return useTimeoutException;
     }
 

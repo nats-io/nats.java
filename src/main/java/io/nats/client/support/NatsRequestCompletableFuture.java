@@ -54,8 +54,4 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
     public boolean wasCancelledTimedOut() {
         return wasCancelledTimedOut;
     }
-
-    public boolean isUseTimeoutException() {
-        return useTimeoutException;
-    }
 }

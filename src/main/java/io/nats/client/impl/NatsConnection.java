@@ -1169,7 +1169,7 @@ class NatsConnection implements Connection {
         String responseToken = getResponseToken(responseInbox);
         NatsRequestCompletableFuture future =
             new NatsRequestCompletableFuture(cancelAction,
-                futureTimeout == null ? options.getRequestCleanupInterval() : futureTimeout, options.isUseTimeoutException());
+                futureTimeout == null ? options.getRequestCleanupInterval() : futureTimeout, options.useTimeoutException());
 
         if (!oldStyle) {
             responsesAwaiting.put(responseToken, future);
