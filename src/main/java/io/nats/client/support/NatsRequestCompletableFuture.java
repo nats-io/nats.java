@@ -6,6 +6,7 @@ import io.nats.client.Options;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 
 /**
  * This is an internal class and is only public for access.
@@ -18,11 +19,13 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
     private final long timeOutAfter;
     private boolean wasCancelledClosing;
     private boolean wasCancelledTimedOut;
+    private final boolean useTimeoutException;
 
-    public NatsRequestCompletableFuture(CancelAction cancelAction, Duration timeout) {
+    public NatsRequestCompletableFuture(CancelAction cancelAction, Duration timeout, boolean useTimeoutException) {
         this.cancelAction = cancelAction;
         timeOutAfter = System.currentTimeMillis() + 10 + (timeout == null ? DEFAULT_TIMEOUT : timeout.toMillis());
         // 10 extra millis allows for communication time, probably more than needed but...
+        this.useTimeoutException = useTimeoutException;
     }
 
     public void cancelClosing() {
@@ -32,7 +35,8 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
 
     public void cancelTimedOut() {
         wasCancelledTimedOut = true;
-        completeExceptionally(new CancellationException("Future cancelled, response not registered in time, likely due to server disconnect."));
+        final String message = "Future cancelled, response not registered in time, likely due to server disconnect.";
+        completeExceptionally(useTimeoutException ? new TimeoutException(message) : new CancellationException(message));
     }
 
     public CancelAction getCancelAction() {
