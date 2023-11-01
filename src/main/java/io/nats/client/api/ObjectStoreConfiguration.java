@@ -17,7 +17,7 @@ import io.nats.client.support.NatsObjectStoreUtil;
 import java.time.Duration;
 
 import static io.nats.client.support.NatsObjectStoreUtil.*;
-import static io.nats.client.support.Validator.*;
+import static io.nats.client.support.Validator.required;
 
 /**
  * The ObjectStoreStatus class contains information about an object store.
@@ -75,9 +75,13 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
      * <p>{@code new ObjectStoreConfiguration.Builder().build()} will create a new ObjectStoreConfiguration.
      *
      */
-    public static class Builder {
-        String name;
-        StreamConfiguration.Builder scBuilder;
+    public static class Builder
+        extends FeatureConfiguration.Builder<ObjectStoreConfiguration.Builder, ObjectStoreConfiguration>
+    {
+        @Override
+        protected Builder getThis() {
+            return this;
+        }
 
         /**
          * Default Builder
@@ -116,8 +120,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @return the builder
          */
         public Builder name(String name) {
-            this.name = validateBucketName(name, true);
-            return this;
+            return super.name(name);
         }
 
         /**
@@ -126,8 +129,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @return the builder
          */
         public Builder description(String description) {
-            scBuilder.description(description);
-            return this;
+            return super.description(description);
         }
 
         /**
@@ -136,8 +138,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @return Builder
          */
         public Builder maxBucketSize(long maxBucketSize) {
-            scBuilder.maxBytes(validateMaxBucketBytes(maxBucketSize));
-            return this;
+            return super.maxBucketSize(maxBucketSize);
         }
 
         /**
@@ -146,8 +147,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @return Builder
          */
         public Builder ttl(Duration ttl) {
-            scBuilder.maxAge(ttl);
-            return this;
+            return super.ttl(ttl);
         }
 
         /**
@@ -156,8 +156,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @return Builder
          */
         public Builder storageType(StorageType storageType) {
-            scBuilder.storageType(storageType);
-            return this;
+            return super.storageType(storageType);
         }
 
         /**
@@ -166,8 +165,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @return Builder
          */
         public Builder replicas(int replicas) {
-            scBuilder.replicas(replicas);
-            return this;
+            return super.replicas(replicas);
         }
 
         /**
@@ -176,8 +174,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @return Builder
          */
         public Builder placement(Placement placement) {
-            scBuilder.placement(placement);
-            return this;
+            return super.placement(placement);
         }
 
         /**
@@ -187,8 +184,7 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @return Builder
          */
         public Builder compression(boolean compression) {
-            scBuilder.compressionOption(compression ? JS_COMPRESSION : CompressionOption.None);
-            return this;
+            return super.compression(compression);
         }
 
         /**

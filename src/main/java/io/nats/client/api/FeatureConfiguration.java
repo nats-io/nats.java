@@ -15,8 +15,12 @@ package io.nats.client.api;
 
 import java.time.Duration;
 
+import static io.nats.client.support.Validator.validateBucketName;
+import static io.nats.client.support.Validator.validateMaxBucketBytes;
+
 public abstract class FeatureConfiguration {
-    protected static final CompressionOption JS_COMPRESSION = CompressionOption.S2;
+    protected static final CompressionOption JS_COMPRESSION_YES = CompressionOption.S2;
+    protected static final CompressionOption JS_COMPRESSION_NO = CompressionOption.None;
 
     protected final StreamConfiguration sc;
     protected final String bucketName;
@@ -97,5 +101,98 @@ public abstract class FeatureConfiguration {
      */
     public boolean isCompressed() {
         return sc.getCompressionOption() != null && sc.getCompressionOption() != CompressionOption.None;
+    }
+
+    protected static abstract class Builder<B, FC> {
+        String name;
+        StreamConfiguration.Builder scBuilder;
+        protected abstract B getThis();
+
+        /**
+         * Sets the name of the store.
+         * @param name name of the store.
+         * @return the builder
+         */
+        protected B name(String name) {
+            this.name = validateBucketName(name, true);
+            return getThis();
+        }
+
+        /**
+         * Sets the description of the store.
+         * @param description description of the store.
+         * @return the builder
+         */
+        protected B description(String description) {
+            scBuilder.description(description);
+            return getThis();
+        }
+
+        /**
+         * Sets the maximum number of bytes in the ObjectStoreConfiguration.
+         * @param maxBucketSize the maximum number of bytes
+         * @return Builder
+         */
+        protected B maxBucketSize(long maxBucketSize) {
+            scBuilder.maxBytes(validateMaxBucketBytes(maxBucketSize));
+            return getThis();
+        }
+
+        /**
+         * Sets the maximum age for a value in this ObjectStoreConfiguration.
+         * @param ttl the maximum age
+         * @return Builder
+         */
+        protected B ttl(Duration ttl) {
+            scBuilder.maxAge(ttl);
+            return getThis();
+        }
+
+        /**
+         * Sets the storage type in the ObjectStoreConfiguration.
+         * @param storageType the storage type
+         * @return Builder
+         */
+        protected B storageType(StorageType storageType) {
+            scBuilder.storageType(storageType);
+            return getThis();
+        }
+
+        /**
+         * Sets the number of replicas a message must be stored on in the ObjectStoreConfiguration.
+         * @param replicas the number of replicas
+         * @return Builder
+         */
+        protected B replicas(int replicas) {
+            scBuilder.replicas(replicas);
+            return getThis();
+        }
+
+        /**
+         * Sets the placement directive object
+         * @param placement the placement directive object
+         * @return Builder
+         */
+        protected B placement(Placement placement) {
+            scBuilder.placement(placement);
+            return getThis();
+        }
+
+        /**
+         * Sets whether to use compression for the ObjectStoreConfiguration.
+         * If set, will use the default compression algorithm of the Object Store backing.
+         * @param compression whether to use compression in the ObjectStoreConfiguration
+         * @return Builder
+         */
+        protected B compression(boolean compression) {
+            scBuilder.compressionOption(compression ? JS_COMPRESSION_YES : JS_COMPRESSION_NO);
+            return getThis();
+        }
+
+        /**
+         * Builds the feature options.
+         * @return feature options
+         */
+        public abstract FC build();
     }
 }
