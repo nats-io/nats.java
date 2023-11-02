@@ -215,9 +215,6 @@ public class PullRequestOptions implements JsonSerializable {
                     }
                 }
             }
-            if (noWait && (expiresIn != null && expiresIn.toNanos() > 0)) {
-                throw new IllegalArgumentException("No Wait and ExpiresIn are Incompatible.");
-            }
             return new PullRequestOptions(this);
         }
     }
