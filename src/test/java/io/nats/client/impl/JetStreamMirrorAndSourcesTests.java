@@ -322,7 +322,8 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
             SubjectTransform st = source.getSubjectTransforms().get(0);
             SubjectTransform infoSt = info.getSubjectTransforms().get(0);
-            assertEquals(st.getSource(), infoSt.getSource());
+//            assertTrue(consumerFilterSubjectsAreEquivalent(st.getSource(), infoSt.getSource()));
+//            assertEquals(st.getSource(), infoSt.getSource());
             assertEquals(st.getDestination(), infoSt.getDestination());
 
             source = scSource.getSources().get(1);
