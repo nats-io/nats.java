@@ -100,7 +100,7 @@ public abstract class FeatureConfiguration {
      * @return true if compression is used
      */
     public boolean isCompressed() {
-        return sc.getCompressionOption() != null && sc.getCompressionOption() != CompressionOption.None;
+        return sc.getCompressionOption() == JS_COMPRESSION_YES;
     }
 
     protected static abstract class Builder<B, FC> {
