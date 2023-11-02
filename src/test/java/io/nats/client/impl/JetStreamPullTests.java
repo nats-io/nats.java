@@ -715,6 +715,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(1).idleHeartbeat(1).build());
         assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(1).noWait().idleHeartbeat(1).build());
         assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(1).expiresIn(30000).idleHeartbeat(15001).build());
+        assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(1).noWait().expiresIn(1).build());
 
         PullRequestOptions pro = PullRequestOptions.builder(11).build();
         assertEquals(11, pro.getBatchSize());
@@ -734,12 +735,17 @@ public class JetStreamPullTests extends JetStreamTestBase {
             .maxBytes(32)
             .expiresIn(33)
             .idleHeartbeat(16)
-            .noWait()
             .build();
         assertEquals(31, pro.getBatchSize());
         assertEquals(32, pro.getMaxBytes());
         assertEquals(33, pro.getExpiresIn().toMillis());
         assertEquals(16, pro.getIdleHeartbeat().toMillis());
+        assertFalse(pro.isNoWait());
+
+        pro = PullRequestOptions.builder(31)
+            .noWait()
+            .build();
+        assertEquals(31, pro.getBatchSize());
         assertTrue(pro.isNoWait());
 
         pro = PullRequestOptions.builder(41)
