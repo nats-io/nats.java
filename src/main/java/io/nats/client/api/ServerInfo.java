@@ -46,7 +46,6 @@ public class ServerInfo {
     private final String cluster;
 
     public ServerInfo(String json) {
-        System.out.println(json);
         // INFO<sp>{ INFO<\t>{ or {
         if (json == null || json.length() < 6 || ('{' != json.charAt(0) && '{' != json.charAt(5))) {
             throw new IllegalArgumentException("Invalid Server Info");
