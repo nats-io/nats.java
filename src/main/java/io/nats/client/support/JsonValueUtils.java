@@ -313,7 +313,7 @@ public abstract class JsonValueUtils {
         }
 
         public MapBuilder put(String s, Map<String, String> stringMap) {
-            if (stringMap != null && !stringMap.isEmpty()) {
+            if (stringMap != null) {
                 MapBuilder mb = new MapBuilder();
                 for (String key : stringMap.keySet()) {
                     mb.put(key, stringMap.get(key));

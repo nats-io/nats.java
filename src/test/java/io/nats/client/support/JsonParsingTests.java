@@ -517,7 +517,7 @@ public final class JsonParsingTests {
         EqualsVerifier.simple().forClass(JsonValue.class)
             .withPrefabValues(Map.class, map1, map2)
             .withPrefabValues(List.class, list3, list4)
-            .withIgnoredFields("object", "number")
+            .withIgnoredFields("object", "number", "mapOrder")
             .suppress(Warning.BIGDECIMAL_EQUALITY)
             .verify();
     }
