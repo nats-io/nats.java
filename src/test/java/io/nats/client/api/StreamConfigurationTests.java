@@ -45,7 +45,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     @Test
     public void testRoundTrip() throws Exception {
         runInJsServer(si -> si.isNewerVersionThan("2.8.4"), nc -> {
-            CompressionOption compressionOption = atLeast2_10() ? S2 : None;
+            CompressionOption compressionOption = atLeast2_10(ensureRunServerInfo()) ? S2 : None;
             StreamConfiguration sc = StreamConfiguration.builder(getTestConfiguration())
                 .mirror(null)
                 .sources()

@@ -109,32 +109,16 @@ public class TestBase {
         return si.isSameOrNewerThanVersion("2.9.0");
     }
 
-    public static boolean atLeast2_9_0() {
-        return atLeast2_9_0(RUN_SERVER_INFO);
-    }
-
     public static boolean atLeast2_9_1(ServerInfo si) {
         return si.isSameOrNewerThanVersion("2.9.1");
-    }
-
-    public static boolean atLeast2_9_1() {
-        return atLeast2_9_1(RUN_SERVER_INFO);
     }
 
     public static boolean atLeast2_10(ServerInfo si) {
         return si.isNewerVersionThan("2.9.99");
     }
 
-    public static boolean atLeast2_10() {
-        return atLeast2_10(RUN_SERVER_INFO);
-    }
-
     public static boolean atLeast2_10_3(ServerInfo si) {
         return si.isSameOrNewerThanVersion("2.10.3");
-    }
-
-    public static boolean atLeast2_10_3() {
-        return atLeast2_10_3(RUN_SERVER_INFO);
     }
 
     public static void runInServer(InServerTest inServerTest) throws Exception {

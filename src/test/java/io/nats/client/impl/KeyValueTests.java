@@ -477,7 +477,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(1, history.size());
             assertEquals(2, history.get(0).getValueAsLong());
 
-            boolean compression = atLeast2_10();
+            boolean compression = atLeast2_10(ensureRunServerInfo());
             String desc = variant();
             KeyValueConfiguration kvc = KeyValueConfiguration.builder(kvs.getConfiguration())
                 .description(desc)
