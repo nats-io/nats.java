@@ -21,10 +21,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
 import static io.nats.client.api.KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS;
@@ -52,6 +49,9 @@ public class KeyValueTests extends JetStreamTestBase {
             KeyValueManagement kvm = nc.keyValueManagement();
             nc.keyValueManagement(KeyValueOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage
 
+            Map<String, String> metadata = new HashMap<>();
+            metadata.put("meta-foo", "meta-bar");
+
             // create the bucket
             String bucket = bucket();
             String desc = variant();
@@ -60,20 +60,21 @@ public class KeyValueTests extends JetStreamTestBase {
                 .description(desc)
                 .maxHistoryPerKey(3)
                 .storageType(StorageType.Memory)
+                .metadata(metadata)
                 .build();
 
             KeyValueStatus status = kvm.create(kvc);
-            assertInitialStatus(status, bucket, desc);
+            assertInitialStatus(status, bucket, desc, metadata);
 
             // get the kv context for the specific bucket
             KeyValue kv = nc.keyValue(bucket);
             assertEquals(bucket, kv.getBucketName());
             status = kv.getStatus();
-            assertInitialStatus(status, bucket, desc);
+            assertInitialStatus(status, bucket, desc, metadata);
 
             KeyValue kv2 = nc.keyValue(bucket, KeyValueOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage
             assertEquals(bucket, kv2.getBucketName());
-            assertInitialStatus(kv2.getStatus(), bucket, desc);
+            assertInitialStatus(kv2.getStatus(), bucket, desc, metadata);
 
             // Put some keys. Each key is put in a subject in the bucket (stream)
             // The put returns the sequence number in the bucket (stream)
@@ -292,7 +293,7 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(status.getByteCount(), status.getBackingStreamInfo().getStreamState().getByteCount());
     }
 
-    private void assertInitialStatus(KeyValueStatus status, String bucket, String desc) {
+    private void assertInitialStatus(KeyValueStatus status, String bucket, String desc, Map<String, String> metadata) {
         KeyValueConfiguration kvc;
         kvc = status.getConfiguration();
         assertEquals(bucket, status.getBucketName());
@@ -316,7 +317,11 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(1, kvc.getReplicas());
         assertEquals(0, status.getEntryCount());
         assertEquals("JetStream", status.getBackingStore());
-
+        assertEquals(1, status.getMetadata().size());
+        assertEquals("meta-bar", status.getMetadata().get("meta-foo"));
+        assertNotNull(status.getConfiguration()); // coverage
+        assertNotNull(status.getConfiguration().toString()); // coverage
+        assertNotNull(status.toString()); // coverage
         assertTrue(status.toString().contains(bucket));
         assertTrue(status.toString().contains(desc));
     }

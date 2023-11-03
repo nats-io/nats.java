@@ -12,11 +12,13 @@
 // limitations under the License.
 package io.nats.client.api;
 
+import io.nats.client.support.JsonValueUtils;
+
 import java.time.Duration;
+import java.util.Map;
 
 /**
  * The ObjectStoreStatus class contains information about an object store.
- * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public class ObjectStoreStatus {
 
@@ -69,11 +71,19 @@ public class ObjectStoreStatus {
     }
 
     /**
-     * If true, indicates the stream is sealed and cannot be modified in any way
+     * Gets the maximum number of bytes for this bucket.
+     * @return the maximum number of bytes for this bucket.
+     */
+    public long getMaxBucketSize() {
+        return config.getMaxBucketSize();
+    }
+
+    /**
+     * If true, indicates the store is sealed and cannot be modified in any way
      * @return the sealed setting
      */
     public boolean isSealed() {
-        return config.getBackingConfig().getSealed();
+        return config.isSealed();
     }
 
     /**
@@ -117,6 +127,14 @@ public class ObjectStoreStatus {
     }
 
     /**
+     * Get the metadata for the store
+     * @return the metadata map. Might be null.
+     */
+    public Map<String, String> getMetadata() {
+        return config.getMetadata();
+    }
+
+    /**
      * Gets the name of the type of backing store, currently only "JetStream"
      * @return the name of the store, currently only "JetStream"
      */
@@ -126,13 +144,10 @@ public class ObjectStoreStatus {
 
     @Override
     public String toString() {
-        return "ObjectStoreStatus{" +
-            "name='" + getBucketName() + '\'' +
-            ", description='" + getDescription() + '\'' +
-            ", ttl=" + getTtl() +
-            ", storageType=" + getStorageType() +
-            ", replicas=" + getReplicas() +
-            ", isSealed=" + isSealed() +
-            '}';
+        JsonValueUtils.MapBuilder mb = new JsonValueUtils.MapBuilder();
+        mb.put("size", getSize());
+        mb.put("isSealed", isSealed());
+        mb.put("config", config);
+        return "ObjectStoreStatus" + mb.toJsonValue().toJson();
     }
 }

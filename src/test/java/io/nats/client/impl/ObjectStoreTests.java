@@ -24,9 +24,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
 import static io.nats.client.api.ObjectStoreWatchOption.IGNORE_DELETE;
@@ -42,6 +40,9 @@ public class ObjectStoreTests extends JetStreamTestBase {
             ObjectStoreManagement osm = nc.objectStoreManagement();
             nc.objectStoreManagement(ObjectStoreOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage
 
+            Map<String, String> metadata = new HashMap<>();
+            metadata.put("meta-foo", "meta-bar");
+
             String bucket = bucket();
             String desc = variant();
             // create the bucket
@@ -49,11 +50,12 @@ public class ObjectStoreTests extends JetStreamTestBase {
                 .description(desc)
                 .ttl(Duration.ofHours(24))
                 .storageType(StorageType.Memory)
+                .metadata(metadata)
                 .build();
 
             ObjectStoreStatus status = osm.create(osc);
-            validateStatus(status, bucket, desc);
-            validateStatus(osm.getStatus(bucket), bucket, desc);
+            validateStatus(status, bucket, desc, metadata);
+            validateStatus(osm.getStatus(bucket), bucket, desc, metadata);
 
             JetStreamManagement jsm = nc.jetStreamManagement();
             assertNotNull(jsm.getStreamInfo("OBJ_" + bucket));
@@ -66,7 +68,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
             ObjectStore os = nc.objectStore(bucket);
             nc.objectStore(bucket, ObjectStoreOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage;
 
-            validateStatus(os.getStatus(), bucket, desc);
+            validateStatus(os.getStatus(), bucket, desc, metadata);
 
             // object not found errors
             assertClientError(OsObjectNotFound, () -> os.get("notFound", new ByteArrayOutputStream()));
@@ -157,7 +159,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
         });
     }
 
-    private static void validateStatus(ObjectStoreStatus status, String bucket, String desc) {
+    private static void validateStatus(ObjectStoreStatus status, String bucket, String desc, Map<String, String> metadata) {
         assertEquals(bucket, status.getBucketName());
         assertEquals(desc, status.getDescription());
         assertFalse(status.isSealed());
@@ -167,9 +169,12 @@ public class ObjectStoreTests extends JetStreamTestBase {
         assertEquals(1, status.getReplicas());
         assertNull(status.getPlacement());
         assertNotNull(status.getConfiguration()); // coverage
+        assertNotNull(status.getConfiguration().toString()); // coverage
         assertNotNull(status.getBackingStreamInfo()); // coverage
         assertEquals("JetStream", status.getBackingStore());
         assertNotNull(status.toString()); // coverage
+        assertEquals(1, status.getMetadata().size());
+        assertEquals("meta-bar", status.getMetadata().get("meta-foo"));
     }
 
     @SuppressWarnings("SameParameterValue")

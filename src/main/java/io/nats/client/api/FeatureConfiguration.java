@@ -13,18 +13,44 @@
 
 package io.nats.client.api;
 
+import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
+
 import java.time.Duration;
+import java.util.Map;
 
 import static io.nats.client.support.Validator.validateBucketName;
 import static io.nats.client.support.Validator.validateMaxBucketBytes;
 
-public abstract class FeatureConfiguration {
+public abstract class FeatureConfiguration implements JsonSerializable {
     protected static final CompressionOption JS_COMPRESSION_YES = CompressionOption.S2;
     protected static final CompressionOption JS_COMPRESSION_NO = CompressionOption.None;
 
     protected final StreamConfiguration sc;
     protected final String bucketName;
-    
+
+    @Override
+    public String toJson() {
+        JsonValue jv = toJsonValue();
+        return jv.toString();
+    }
+
+    @Override
+    public JsonValue toJsonValue() {
+        JsonValueUtils.MapBuilder mb = new JsonValueUtils.MapBuilder();
+        mb.put("name", bucketName);
+        mb.put("description", getDescription());
+        mb.put("maxBucketSize", getMaxBucketSize());
+        mb.put("ttl", getTtl());
+        mb.put("storageType", getStorageType());
+        mb.put("replicas", getReplicas());
+        mb.put("placement", getPlacement());
+        mb.put("isCompressed", isCompressed());
+        mb.put("metaData", getMetadata());
+        return mb.toJsonValue();
+    }
+
     public FeatureConfiguration(StreamConfiguration sc, String bucketName) {
         this.sc = sc;
         this.bucketName = bucketName;
@@ -103,6 +129,14 @@ public abstract class FeatureConfiguration {
         return sc.getCompressionOption() == JS_COMPRESSION_YES;
     }
 
+    /**
+     * Get the metadata for the feature
+     * @return the metadata map. Might be null.
+     */
+    public Map<String, String> getMetadata() {
+        return sc.getMetadata();
+    }
+
     protected static abstract class Builder<B, FC> {
         String name;
         StreamConfiguration.Builder scBuilder;
@@ -129,7 +163,7 @@ public abstract class FeatureConfiguration {
         }
 
         /**
-         * Sets the maximum number of bytes in the ObjectStoreConfiguration.
+         * Sets the maximum number of bytes in the configuration.
          * @param maxBucketSize the maximum number of bytes
          * @return Builder
          */
@@ -139,7 +173,7 @@ public abstract class FeatureConfiguration {
         }
 
         /**
-         * Sets the maximum age for a value in this ObjectStoreConfiguration.
+         * Sets the maximum age for a value in this configuration.
          * @param ttl the maximum age
          * @return Builder
          */
@@ -149,7 +183,7 @@ public abstract class FeatureConfiguration {
         }
 
         /**
-         * Sets the storage type in the ObjectStoreConfiguration.
+         * Sets the storage type in the configuration.
          * @param storageType the storage type
          * @return Builder
          */
@@ -159,7 +193,7 @@ public abstract class FeatureConfiguration {
         }
 
         /**
-         * Sets the number of replicas a message must be stored on in the ObjectStoreConfiguration.
+         * Sets the number of replicas a message must be stored on in the configuration.
          * @param replicas the number of replicas
          * @return Builder
          */
@@ -179,13 +213,23 @@ public abstract class FeatureConfiguration {
         }
 
         /**
-         * Sets whether to use compression for the ObjectStoreConfiguration.
-         * If set, will use the default compression algorithm of the Object Store backing.
-         * @param compression whether to use compression in the ObjectStoreConfiguration
+         * Sets whether to use compression for the configuration.
+         * If set, will use the default compression algorithm of the feature backing.
+         * @param compression whether to use compression in the configuration
          * @return Builder
          */
         protected B compression(boolean compression) {
             scBuilder.compressionOption(compression ? JS_COMPRESSION_YES : JS_COMPRESSION_NO);
+            return getThis();
+        }
+
+        /**
+         * Sets the metadata for the configuration
+         * @param metadata the metadata map
+         * @return Builder
+         */
+        public B metadata(Map<String, String> metadata) {
+            scBuilder.metadata(metadata);
             return getThis();
         }
 

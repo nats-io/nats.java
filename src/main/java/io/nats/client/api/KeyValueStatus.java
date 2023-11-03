@@ -12,7 +12,10 @@
 // limitations under the License.
 package io.nats.client.api;
 
+import io.nats.client.support.JsonValueUtils;
+
 import java.time.Duration;
+import java.util.Map;
 
 /**
  * The KeyValueStatus class contains information about a Key Value Bucket.
@@ -148,6 +151,14 @@ public class KeyValueStatus {
     }
 
     /**
+     * Get the metadata for the store
+     * @return the metadata map. Might be null.
+     */
+    public Map<String, String> getMetadata() {
+        return config.getMetadata();
+    }
+
+    /**
      * Gets the name of the type of backing store, currently only "JetStream"
      * @return the name of the store, currently only "JetStream"
      */
@@ -157,16 +168,10 @@ public class KeyValueStatus {
 
     @Override
     public String toString() {
-        return "KeyValueStatus{" +
-            "name='" + getBucketName() + '\'' +
-            ", description='" + getDescription() + '\'' +
-            ", entryCount=" + getEntryCount() +
-            ", maxHistoryPerKey=" + getMaxHistoryPerKey() +
-            ", maxBucketSize=" + getMaxBucketSize() +
-            ", maxValueSize=" + getMaxValueSize() +
-            ", ttl=" + getTtl() +
-            ", storageType=" + getStorageType() +
-            ", replicas=" + getReplicas() +
-            '}';
+        JsonValueUtils.MapBuilder mb = new JsonValueUtils.MapBuilder();
+        mb.put("entryCount", getEntryCount());
+        mb.put("byteCount", getByteCount());
+        mb.put("config", config);
+        return "KeyValueStatus" + mb.toJsonValue().toJson();
     }
 }

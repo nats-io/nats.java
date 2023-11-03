@@ -12,13 +12,12 @@
 // limitations under the License.
 package io.nats.client.api;
 
+import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 import io.nats.client.support.NatsKeyValueUtil;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
@@ -55,21 +54,38 @@ public class KeyValueConfiguration extends FeatureConfiguration {
         return sc.getRepublish();
     }
 
+    /**
+     * The mirror definition for this configuration
+     * @return the mirror
+     */
+    public Mirror getMirror() {
+        return sc.getMirror();
+    }
+
+    /**
+     * The sources for this configuration
+     * @return the sources
+     */
+    public List<Source> getSources() {
+        return sc.getSources();
+    }
+
     @Override
     public String toString() {
-        return "KeyValueConfiguration{" +
-            "name='" + bucketName + '\'' +
-            ", description='" + getDescription() + '\'' +
-            ", maxHistoryPerKey=" + getMaxHistoryPerKey() +
-            ", maxBucketSize=" + getMaxBucketSize() +
-            ", maxValueSize=" + getMaxValueSize() +
-            ", ttl=" + getTtl() +
-            ", storageType=" + getStorageType() +
-            ", replicas=" + getReplicas() +
-            ", placement=" + getPlacement() +
-            ", republish=" + getRepublish() +
-            ", isCompressed=" + isCompressed() +
-            '}';
+        return "KeyValueConfiguration" + toJson();
+    }
+
+    @Override
+    public JsonValue toJsonValue() {
+        JsonValueUtils.MapBuilder mb = new JsonValueUtils.MapBuilder(super.toJsonValue());
+        mb.jv.mapOrder.remove("metaData");
+        mb.put("maxHistoryPerKey", getMaxHistoryPerKey());
+        mb.put("maxValueSize", getMaxValueSize());
+        mb.put("republish", getRepublish());
+        mb.put("mirror", getMirror());
+        mb.put("sources", getSources());
+        mb.jv.mapOrder.add("metaData");
+        return mb.toJsonValue();
     }
 
     /**
@@ -232,6 +248,25 @@ public class KeyValueConfiguration extends FeatureConfiguration {
         }
 
         /**
+         * Sets whether to use compression for the KeyValueConfiguration.
+         * If set, will use the default compression algorithm of the KV backing store.
+         * @param compression whether to use compression in the KeyValueConfiguration
+         * @return Builder
+         */
+        public Builder compression(boolean compression) {
+            return super.compression(compression);
+        }
+
+        /**
+         * Sets the metadata for the KeyValueConfiguration
+         * @param metadata the metadata map
+         * @return Builder
+         */
+        public Builder metadata(Map<String, String> metadata) {
+            return super.metadata(metadata);
+        }
+
+        /**
          * Sets the Republish options
          * @param republish the Republish object
          * @return Builder
@@ -309,16 +344,6 @@ public class KeyValueConfiguration extends FeatureConfiguration {
                 }
             }
             return this;
-        }
-
-        /**
-         * Sets whether to use compression for the KeyValueConfiguration.
-         * If set, will use the default compression algorithm of the KV backing store.
-         * @param compression whether to use compression in the KeyValueConfiguration
-         * @return Builder
-         */
-        public Builder compression(boolean compression) {
-            return super.compression(compression);
         }
 
         /**

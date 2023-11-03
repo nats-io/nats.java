@@ -15,13 +15,13 @@ package io.nats.client.api;
 import io.nats.client.support.NatsObjectStoreUtil;
 
 import java.time.Duration;
+import java.util.Map;
 
 import static io.nats.client.support.NatsObjectStoreUtil.*;
 import static io.nats.client.support.Validator.required;
 
 /**
  * The ObjectStoreStatus class contains information about an object store.
- * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public class ObjectStoreConfiguration extends FeatureConfiguration {
     ObjectStoreConfiguration(StreamConfiguration sc) {
@@ -30,16 +30,15 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
 
     @Override
     public String toString() {
-        return "ObjectStoreConfiguration{" +
-            "name='" + bucketName + '\'' +
-            ", description='" + getDescription() + '\'' +
-            ", maxBucketSize=" + getMaxBucketSize() +
-            ", ttl=" + getTtl() +
-            ", storageType=" + getStorageType() +
-            ", replicas=" + getReplicas() +
-            ", placement=" + getPlacement() +
-            ", isCompressed=" + isCompressed() +
-            '}';
+        return "ObjectStoreConfiguration" + toJson();
+    }
+
+    /**
+     * If true, indicates the store is sealed and cannot be modified in any way
+     * @return the sealed setting
+     */
+    public boolean isSealed() {
+        return sc.getSealed();
     }
 
     /**
@@ -185,6 +184,15 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          */
         public Builder compression(boolean compression) {
             return super.compression(compression);
+        }
+
+        /**
+         * Sets the metadata for the ObjectStoreConfiguration
+         * @param metadata the metadata map
+         * @return Builder
+         */
+        public Builder metadata(Map<String, String> metadata) {
+            return super.metadata(metadata);
         }
 
         /**
