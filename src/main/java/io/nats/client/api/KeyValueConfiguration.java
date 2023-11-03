@@ -169,6 +169,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param name name of the key value bucket.
          * @return the builder
          */
+        @Override
         public Builder name(String name) {
             return super.name(name);
         }
@@ -178,6 +179,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param description description of the store.
          * @return the builder
          */
+        @Override
         public Builder description(String description) {
             return super.description(description);
         }
@@ -197,6 +199,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param maxBucketSize the maximum number of bytes
          * @return Builder
          */
+        @Override
         public Builder maxBucketSize(long maxBucketSize) {
             return super.maxBucketSize(maxBucketSize);
         }
@@ -216,6 +219,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param ttl the maximum age
          * @return Builder
          */
+        @Override
         public Builder ttl(Duration ttl) {
             return super.ttl(ttl);
         }
@@ -225,6 +229,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param storageType the storage type
          * @return Builder
          */
+        @Override
         public Builder storageType(StorageType storageType) {
             return super.storageType(storageType);
         }
@@ -234,6 +239,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param replicas the number of replicas
          * @return Builder
          */
+        @Override
         public Builder replicas(int replicas) {
             return super.replicas(replicas);
         }
@@ -243,6 +249,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param placement the placement directive object
          * @return Builder
          */
+        @Override
         public Builder placement(Placement placement) {
             return super.placement(placement);
         }
@@ -253,6 +260,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param compression whether to use compression in the KeyValueConfiguration
          * @return Builder
          */
+        @Override
         public Builder compression(boolean compression) {
             return super.compression(compression);
         }
@@ -262,6 +270,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param metadata the metadata map
          * @return Builder
          */
+        @Override
         public Builder metadata(Map<String, String> metadata) {
             return super.metadata(metadata);
         }
