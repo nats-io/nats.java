@@ -138,7 +138,7 @@ public class MessageManagerTests extends JetStreamTestBase {
             testPullBqpAndManage(sub, handler, pullMgr);
 
             pullMgr = getPullManager(nc, sub, true);
-            pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).idleHeartbeat(100).build(), true, null);
+            pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build(), true, null);
             testPullBqpAndManage(sub, handler, pullMgr);
         });
     }
@@ -253,13 +253,13 @@ public class MessageManagerTests extends JetStreamTestBase {
 
             handler.reset();
             handler.prepForHeartbeatAlarm();
-            pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).idleHeartbeat(100).build(), false, null);
+            pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build(), false, null);
             TestHandler.HeartbeatAlarmEvent event = handler.waitForHeartbeatAlarm(1000);
             assertNotNull(event);
 
             handler.reset();
             handler.prepForHeartbeatAlarm();
-            pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).idleHeartbeat(100).build(), false, null);
+            pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build(), false, null);
             event = handler.waitForHeartbeatAlarm(1000);
             assertNotNull(event);
 

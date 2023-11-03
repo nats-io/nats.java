@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.support.JsonUtils;
 import io.nats.client.support.Status;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Disabled;
@@ -30,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.api.ConsumerConfiguration.builder;
+import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.Status.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -712,6 +714,9 @@ public class JetStreamPullTests extends JetStreamTestBase {
     public void testPullRequestOptionsBuilder() {
         assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(0).build());
         assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(-1).build());
+        assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(1).idleHeartbeat(1).build());
+        assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(1).noWait().idleHeartbeat(1).build());
+        assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(1).expiresIn(30000).idleHeartbeat(15001).build());
 
         PullRequestOptions pro = PullRequestOptions.builder(11).build();
         assertEquals(11, pro.getBatchSize());
@@ -730,24 +735,24 @@ public class JetStreamPullTests extends JetStreamTestBase {
         pro = PullRequestOptions.builder(31)
             .maxBytes(32)
             .expiresIn(33)
-            .idleHeartbeat(34)
+            .idleHeartbeat(16)
             .noWait()
             .build();
         assertEquals(31, pro.getBatchSize());
         assertEquals(32, pro.getMaxBytes());
         assertEquals(33, pro.getExpiresIn().toMillis());
-        assertEquals(34, pro.getIdleHeartbeat().toMillis());
+        assertEquals(16, pro.getIdleHeartbeat().toMillis());
         assertTrue(pro.isNoWait());
 
         pro = PullRequestOptions.builder(41)
             .expiresIn(Duration.ofMillis(43))
-            .idleHeartbeat(Duration.ofMillis(44))
+            .idleHeartbeat(Duration.ofMillis(21))
             .noWait(false) // just coverage of this method
             .build();
         assertEquals(41, pro.getBatchSize());
         assertEquals(0, pro.getMaxBytes());
         assertEquals(43, pro.getExpiresIn().toMillis());
-        assertEquals(44, pro.getIdleHeartbeat().toMillis());
+        assertEquals(21, pro.getIdleHeartbeat().toMillis());
         assertFalse(pro.isNoWait());
     }
 
@@ -958,12 +963,27 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
+    static class BadPullRequestOptions extends PullRequestOptions {
+        public BadPullRequestOptions() {
+            super(PullRequestOptions.builder(1));
+        }
+
+        @Override
+        public String toJson() {
+            StringBuilder sb = JsonUtils.beginJson();
+            JsonUtils.addField(sb, BATCH, 1);
+            JsonUtils.addFldWhenTrue(sb, NO_WAIT, true);
+            JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, Duration.ofMillis(1));
+            return JsonUtils.endJson(sb).toString();
+        }
+    }
+
     @Test
     public void testBadRequestSyncSub() throws Exception {
         testConflictStatus(400, BAD_REQUEST, TYPE_ERROR, "2.9.0", (nc, jsm, js, tsc, handler) -> {
             PullSubscribeOptions so = makePso(b -> b);
             JetStreamSubscription sub = js.subscribe(tsc.subject(), so);
-            sub.pull(PullRequestOptions.builder(1).noWait().idleHeartbeat(1).build());
+            sub.pull(new BadPullRequestOptions());
             return sub;
         });
     }
@@ -974,7 +994,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             Dispatcher d = nc.createDispatcher();
             PullSubscribeOptions so = makePso(b -> b);
             JetStreamSubscription sub = js.subscribe(tsc.subject(), d, m -> {}, so);
-            sub.pull(PullRequestOptions.builder(1).noWait().idleHeartbeat(1).build());
+            sub.pull(new BadPullRequestOptions());
             return sub;
         });
     }
