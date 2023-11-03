@@ -138,4 +138,12 @@ public class SubjectTransform implements JsonSerializable {
         result = 31 * result + (destination != null ? destination.hashCode() : 0);
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "SubjectTransform{" +
+            "source='" + source + '\'' +
+            ", destination='" + destination + '\'' +
+            '}';
+    }
 }
