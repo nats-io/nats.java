@@ -32,8 +32,7 @@ public abstract class FeatureConfiguration implements JsonSerializable {
 
     @Override
     public String toJson() {
-        JsonValue jv = toJsonValue();
-        return jv.toString();
+        return toJsonValue().toString();
     }
 
     @Override
