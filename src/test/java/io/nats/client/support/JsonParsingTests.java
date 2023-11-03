@@ -939,7 +939,6 @@ public final class JsonParsingTests {
             .put("string", "string")
             .toJsonValue();
 
-        System.out.println(jv.toJson());
         assertNull(readStringStringMap(jv, "string"));
         assertNull(readStringStringMap(jv, "empty"));
         Map<String, String> stringString = readStringStringMap(jv, "stringString");
