@@ -725,7 +725,7 @@ public class AuthTests extends TestBase {
                 .credentialPath(credsFile)
                 .connectionListener(cl)
                 .errorListener(el)
-                .maxReconnects(2)
+                .maxReconnects(5)
                 .build();
             Connection nc = Nats.connect(options);
 
