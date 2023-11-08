@@ -347,6 +347,10 @@ public class TestBase {
         return variant == null ? NUID.nextGlobalSequence() : "" + variant;
     }
 
+    public static String variant() {
+        return NUID.nextGlobalSequence();
+    }
+
     public static String stream() {
         return STREAM + "-" + variant(null);
     }
@@ -418,8 +422,16 @@ public class TestBase {
         return BUCKET + "-" + variant(variant);
     }
 
+    public static String bucket() {
+        return bucket(null);
+    }
+
     public static String key(Object variant) {
         return KEY + "-" + variant(variant);
+    }
+
+    public static String key() {
+        return KEY + "-" + variant(null);
     }
 
     public static String messageId(Object variant) {
@@ -430,6 +442,9 @@ public class TestBase {
         return DATA + "-" + variant(variant);
     }
 
+    public static byte[] dataBytes() {
+        return data(variant()).getBytes(StandardCharsets.US_ASCII);
+    }
     public static byte[] dataBytes(Object variant) {
         return data(variant).getBytes(StandardCharsets.US_ASCII);
     }

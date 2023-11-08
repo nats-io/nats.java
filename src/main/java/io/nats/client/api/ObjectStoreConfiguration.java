@@ -15,38 +15,30 @@ package io.nats.client.api;
 import io.nats.client.support.NatsObjectStoreUtil;
 
 import java.time.Duration;
+import java.util.Map;
 
 import static io.nats.client.support.NatsObjectStoreUtil.*;
-import static io.nats.client.support.Validator.*;
+import static io.nats.client.support.Validator.required;
 
 /**
  * The ObjectStoreStatus class contains information about an object store.
- * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public class ObjectStoreConfiguration extends FeatureConfiguration {
     ObjectStoreConfiguration(StreamConfiguration sc) {
         super(sc, extractBucketName(sc.getName()));
     }
 
-    /**
-     * Gets the maximum number of bytes for this bucket.
-     * @return the maximum number of bytes for this bucket.
-     */
-    public long getMaxBucketSize() {
-        return sc.getMaxBytes();
-    }
-
     @Override
     public String toString() {
-        return "ObjectStoreConfiguration{" +
-            "name='" + bucketName + '\'' +
-            ", description='" + getDescription() + '\'' +
-            ", maxBucketSize=" + getMaxBucketSize() +
-            ", ttl=" + getTtl() +
-            ", storageType=" + getStorageType() +
-            ", replicas=" + getReplicas() +
-            ", placement=" + getPlacement() +
-            '}';
+        return "ObjectStoreConfiguration" + toJson();
+    }
+
+    /**
+     * If true, indicates the store is sealed and cannot be modified in any way
+     * @return the sealed setting
+     */
+    public boolean isSealed() {
+        return sc.getSealed();
     }
 
     /**
@@ -82,9 +74,13 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
      * <p>{@code new ObjectStoreConfiguration.Builder().build()} will create a new ObjectStoreConfiguration.
      *
      */
-    public static class Builder {
-        String name;
-        StreamConfiguration.Builder scBuilder;
+    public static class Builder
+        extends FeatureConfiguration.Builder<ObjectStoreConfiguration.Builder, ObjectStoreConfiguration>
+    {
+        @Override
+        protected Builder getThis() {
+            return this;
+        }
 
         /**
          * Default Builder
@@ -122,9 +118,9 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @param name name of the store.
          * @return the builder
          */
+        @Override
         public Builder name(String name) {
-            this.name = validateBucketName(name, true);
-            return this;
+            return super.name(name);
         }
 
         /**
@@ -132,9 +128,9 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @param description description of the store.
          * @return the builder
          */
+        @Override
         public Builder description(String description) {
-            scBuilder.description(description);
-            return this;
+            return super.description(description);
         }
 
         /**
@@ -142,9 +138,9 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @param maxBucketSize the maximum number of bytes
          * @return Builder
          */
+        @Override
         public Builder maxBucketSize(long maxBucketSize) {
-            scBuilder.maxBytes(validateMaxBucketBytes(maxBucketSize));
-            return this;
+            return super.maxBucketSize(maxBucketSize);
         }
 
         /**
@@ -152,9 +148,9 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @param ttl the maximum age
          * @return Builder
          */
+        @Override
         public Builder ttl(Duration ttl) {
-            scBuilder.maxAge(ttl);
-            return this;
+            return super.ttl(ttl);
         }
 
         /**
@@ -162,9 +158,9 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @param storageType the storage type
          * @return Builder
          */
+        @Override
         public Builder storageType(StorageType storageType) {
-            scBuilder.storageType(storageType);
-            return this;
+            return super.storageType(storageType);
         }
 
         /**
@@ -172,9 +168,9 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @param replicas the number of replicas
          * @return Builder
          */
+        @Override
         public Builder replicas(int replicas) {
-            scBuilder.replicas(replicas);
-            return this;
+            return super.replicas(replicas);
         }
 
         /**
@@ -182,9 +178,30 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
          * @param placement the placement directive object
          * @return Builder
          */
+        @Override
         public Builder placement(Placement placement) {
-            scBuilder.placement(placement);
-            return this;
+            return super.placement(placement);
+        }
+
+        /**
+         * Sets whether to use compression for the ObjectStoreConfiguration.
+         * If set, will use the default compression algorithm of the Object Store backing.
+         * @param compression whether to use compression in the ObjectStoreConfiguration
+         * @return Builder
+         */
+        @Override
+        public Builder compression(boolean compression) {
+            return super.compression(compression);
+        }
+
+        /**
+         * Sets the metadata for the ObjectStoreConfiguration
+         * @param metadata the metadata map
+         * @return Builder
+         */
+        @Override
+        public Builder metadata(Map<String, String> metadata) {
+            return super.metadata(metadata);
         }
 
         /**

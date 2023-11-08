@@ -49,6 +49,8 @@ public class JsonValue implements JsonSerializable {
     public final Object object;
     public final Number number;
 
+    public final List<String> mapOrder;
+
     public JsonValue() {
         this(null, null, null, null, null, null, null, null, null, null);
     }
@@ -103,6 +105,7 @@ public class JsonValue implements JsonSerializable {
 
     private JsonValue(String string, Boolean bool, Integer i, Long l, Double d, Float f, BigDecimal bd, BigInteger bi, Map<String, JsonValue> map, List<JsonValue> array) {
         this.map = map;
+        mapOrder = new ArrayList<>();
         this.array = array;
         this.string = string;
         this.bool = bool;
@@ -212,8 +215,15 @@ public class JsonValue implements JsonSerializable {
 
     private String valueString(Map<String, JsonValue> map) {
         StringBuilder sbo = beginJson();
-        for (String key : map.keySet()) {
-            addField(sbo, key, map.get(key));
+        if (!mapOrder.isEmpty()) {
+            for (String key : mapOrder) {
+                addField(sbo, key, map.get(key));
+            }
+        }
+        else {
+            for (String key : map.keySet()) {
+                addField(sbo, key, map.get(key));
+            }
         }
         return endJson(sbo).toString();
     }

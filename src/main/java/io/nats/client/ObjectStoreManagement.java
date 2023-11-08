@@ -21,13 +21,11 @@ import java.util.List;
 
 /**
  * Object Store Management context for creation and access to object stores.
- * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public interface ObjectStoreManagement {
 
     /**
      * Create an object store.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param config the object store configuration
      * @return bucket info
      * @throws IOException covers various communication issues with the NATS
@@ -39,7 +37,6 @@ public interface ObjectStoreManagement {
 
     /**
      * Get the list of object stores bucket names
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @return list of object stores bucket names
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -49,7 +46,6 @@ public interface ObjectStoreManagement {
 
     /**
      * Gets the status for an existing object store bucket.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param bucketName the object store bucket name to get info for
      * @return the bucket status object
      * @throws IOException covers various communication issues with the NATS
@@ -60,7 +56,6 @@ public interface ObjectStoreManagement {
 
     /**
      * Gets the status for all object store buckets.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @return list of statuses
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -70,7 +65,6 @@ public interface ObjectStoreManagement {
 
     /**
      * Deletes an existing object store. Will throw a JetStreamApiException if the delete fails.
-     * THIS IS A BETA FEATURE AND SUBJECT TO CHANGE
      * @param bucketName the object store bucket name to delete
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption

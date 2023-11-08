@@ -442,7 +442,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Metadata for the consumer
+     * Metadata for the stream
      * @return the metadata map. Might be null.
      */
     public Map<String, String> getMetadata() {

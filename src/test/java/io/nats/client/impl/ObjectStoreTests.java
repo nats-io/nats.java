@@ -14,6 +14,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
@@ -23,9 +24,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
 import static io.nats.client.api.ObjectStoreWatchOption.IGNORE_DELETE;
@@ -37,40 +36,47 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
     @Test
     public void testWorkflow() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             ObjectStoreManagement osm = nc.objectStoreManagement();
             nc.objectStoreManagement(ObjectStoreOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage
 
+            Map<String, String> metadata = new HashMap<>();
+            metadata.put("meta-foo", "meta-bar");
+
+            String bucket = bucket();
+            String desc = variant();
             // create the bucket
-            ObjectStoreConfiguration osc = ObjectStoreConfiguration.builder(BUCKET)
-                .description(PLAIN)
+            ObjectStoreConfiguration osc = ObjectStoreConfiguration.builder(bucket)
+                .description(desc)
                 .ttl(Duration.ofHours(24))
                 .storageType(StorageType.Memory)
+                .metadata(metadata)
                 .build();
 
             ObjectStoreStatus status = osm.create(osc);
-            validateStatus(status);
-            validateStatus(osm.getStatus(BUCKET));
+            validateStatus(status, bucket, desc, metadata);
+            validateStatus(osm.getStatus(bucket), bucket, desc, metadata);
 
             JetStreamManagement jsm = nc.jetStreamManagement();
-            assertNotNull(jsm.getStreamInfo("OBJ_" + BUCKET));
+            assertNotNull(jsm.getStreamInfo("OBJ_" + bucket));
 
             List<String> names = osm.getBucketNames();
             assertEquals(1, names.size());
-            assertTrue(names.contains(BUCKET));
+            assertTrue(names.contains(bucket));
 
             // put some objects into the stores
-            ObjectStore os = nc.objectStore(BUCKET);
-            nc.objectStore(BUCKET, ObjectStoreOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage;
+            ObjectStore os = nc.objectStore(bucket);
+            nc.objectStore(bucket, ObjectStoreOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage;
 
-            validateStatus(os.getStatus());
+            validateStatus(os.getStatus(), bucket, desc, metadata);
 
             // object not found errors
             assertClientError(OsObjectNotFound, () -> os.get("notFound", new ByteArrayOutputStream()));
             assertClientError(OsObjectNotFound, () -> os.updateMeta("notFound", ObjectMeta.objectName("notFound")));
             assertClientError(OsObjectNotFound, () -> os.delete("notFound"));
 
-            ObjectMeta meta = ObjectMeta.builder("object-name")
+            String objectName = name();
+            ObjectMeta meta = ObjectMeta.builder(objectName)
                 .description("object-desc")
                 .headers(new Headers().put(key(1), data(1)).put(key(2), data(21)).add(key(2), data(22)))
                 .chunkSize(4096)
@@ -84,14 +90,14 @@ public class ObjectStoreTests extends JetStreamTestBase {
             }
             File file = (File)input[1];
             InputStream in = Files.newInputStream(file.toPath());
-            ObjectInfo oi1 = validateObjectInfo(os.put(meta, in), len, expectedChunks, 4096);
+            ObjectInfo oi1 = validateObjectInfo(os.put(meta, in), bucket, objectName, len, expectedChunks, 4096);
 
-            ByteArrayOutputStream baos = validateGet(os, len, expectedChunks, 4096);
+            ByteArrayOutputStream baos = validateGet(os, bucket, objectName, len, expectedChunks, 4096);
             byte[] bytes = baos.toByteArray();
             byte[] bytes4k = Arrays.copyOf(bytes, 4096);
 
-            ObjectInfo oi2 = validateObjectInfo(os.put(meta, new ByteArrayInputStream(bytes4k)), 4096, 1, 4096);
-            validateGet(os, 4096, 1, 4096);
+            ObjectInfo oi2 = validateObjectInfo(os.put(meta, new ByteArrayInputStream(bytes4k)), bucket, objectName, 4096, 1, 4096);
+            validateGet(os, bucket, objectName, 4096, 1, 4096);
 
             assertNotEquals(oi1.getNuid(), oi2.getNuid());
 
@@ -114,8 +120,8 @@ public class ObjectStoreTests extends JetStreamTestBase {
             assertEquals(1, oi3.getHeaders().size());
 
             // check the old object is not found at all
-            assertClientError(OsObjectNotFound, () -> os.get("object-name", new ByteArrayOutputStream()));
-            assertClientError(OsObjectNotFound, () -> os.updateMeta("object-name", ObjectMeta.objectName("notFound")));
+            assertClientError(OsObjectNotFound, () -> os.get(objectName, new ByteArrayOutputStream()));
+            assertClientError(OsObjectNotFound, () -> os.updateMeta(objectName, ObjectMeta.objectName("notFound")));
 
             // delete object, then try to update meta
             ObjectInfo delInfo = os.delete(oi3.getObjectName());
@@ -140,22 +146,22 @@ public class ObjectStoreTests extends JetStreamTestBase {
             os.updateMeta(oi.getObjectName(), ObjectMeta.objectName(oi3.getObjectName()));
 
             // alternate puts
-            String name = "put-name-input-coverage";
+            String altName = name();
             expectedChunks = len / DEFAULT_CHUNK_SIZE;
             if (expectedChunks * DEFAULT_CHUNK_SIZE < len) {
                 expectedChunks++;
             }
             in = Files.newInputStream(file.toPath());
-            validateObjectInfo(os.put(name, in), name, null, false, len, expectedChunks, DEFAULT_CHUNK_SIZE);
+            validateObjectInfo(os.put(altName, in), bucket, altName, null, false, len, expectedChunks, DEFAULT_CHUNK_SIZE);
 
-            name = file.getName();
-            validateObjectInfo(os.put(file), name, null, false, len, expectedChunks, DEFAULT_CHUNK_SIZE);
+            altName = file.getName();
+            validateObjectInfo(os.put(file), bucket, altName, null, false, len, expectedChunks, DEFAULT_CHUNK_SIZE);
         });
     }
 
-    private static void validateStatus(ObjectStoreStatus status) {
-        assertEquals(BUCKET, status.getBucketName());
-        assertEquals(PLAIN, status.getDescription());
+    private static void validateStatus(ObjectStoreStatus status, String bucket, String desc, Map<String, String> metadata) {
+        assertEquals(bucket, status.getBucketName());
+        assertEquals(desc, status.getDescription());
         assertFalse(status.isSealed());
         assertEquals(0, status.getSize());
         assertEquals(Duration.ofHours(24), status.getTtl());
@@ -163,26 +169,29 @@ public class ObjectStoreTests extends JetStreamTestBase {
         assertEquals(1, status.getReplicas());
         assertNull(status.getPlacement());
         assertNotNull(status.getConfiguration()); // coverage
+        assertNotNull(status.getConfiguration().toString()); // coverage
         assertNotNull(status.getBackingStreamInfo()); // coverage
         assertEquals("JetStream", status.getBackingStore());
         assertNotNull(status.toString()); // coverage
+        assertEquals(1, status.getMetadata().size());
+        assertEquals("meta-bar", status.getMetadata().get("meta-foo"));
     }
 
     @SuppressWarnings("SameParameterValue")
-    private ByteArrayOutputStream validateGet(ObjectStore os, long len, long chunks, int chunkSize) throws IOException, JetStreamApiException, InterruptedException, NoSuchAlgorithmException {
+    private ByteArrayOutputStream validateGet(ObjectStore os, String bucket, String objectName, long len, long chunks, int chunkSize) throws IOException, JetStreamApiException, InterruptedException, NoSuchAlgorithmException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectInfo oi = os.get("object-name", baos);
+        ObjectInfo oi = os.get(objectName, baos);
         assertEquals(len, baos.size());
-        validateObjectInfo(oi, len, chunks, chunkSize);
+        validateObjectInfo(oi, bucket, objectName, len, chunks, chunkSize);
         return baos;
     }
 
-    private ObjectInfo validateObjectInfo(ObjectInfo oi, long size, long chunks, int chunkSize) {
-        return validateObjectInfo(oi, "object-name", "object-desc", true, size, chunks, chunkSize);
+    private ObjectInfo validateObjectInfo(ObjectInfo oi, String bucket, String objectName, long size, long chunks, int chunkSize) {
+        return validateObjectInfo(oi, bucket, objectName, "object-desc", true, size, chunks, chunkSize);
     }
 
-    private ObjectInfo validateObjectInfo(ObjectInfo oi, String objectName, String objectDesc, boolean headers, long size, long chunks, int chunkSize) {
-        assertEquals(BUCKET, oi.getBucket());
+    private ObjectInfo validateObjectInfo(ObjectInfo oi, String bucket, String objectName, String objectDesc, boolean headers, long size, long chunks, int chunkSize) {
+        assertEquals(bucket, oi.getBucket());
         assertEquals(objectName, oi.getObjectName());
         if (objectDesc == null) {
             assertNull(oi.getDescription());
@@ -237,21 +246,21 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
     @Test
     public void testManageGetBucketNamesStatuses() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             ObjectStoreManagement osm = nc.objectStoreManagement();
 
             // create bucket 1
-            osm.create(ObjectStoreConfiguration.builder(bucket(1))
+            String bucket1 = bucket();
+            osm.create(ObjectStoreConfiguration.builder(bucket1)
                 .storageType(StorageType.Memory)
                 .build());
 
             // create bucket 2
-            osm.create(ObjectStoreConfiguration.builder(bucket(2))
+            String bucket2 = bucket();
+            osm.create(ObjectStoreConfiguration.builder(bucket2)
                 .storageType(StorageType.Memory)
                 .build());
 
-            createMemoryStream(nc, stream(1));
-            createMemoryStream(nc, stream(2));
             List<ObjectStoreStatus> infos = osm.getStatuses();
             assertEquals(2, infos.size());
             List<String> buckets = new ArrayList<>();
@@ -259,12 +268,12 @@ public class ObjectStoreTests extends JetStreamTestBase {
                 buckets.add(status.getBucketName());
             }
             assertEquals(2, buckets.size());
-            assertTrue(buckets.contains(bucket(1)));
-            assertTrue(buckets.contains(bucket(2)));
+            assertTrue(buckets.contains(bucket1));
+            assertTrue(buckets.contains(bucket2));
 
             buckets = osm.getBucketNames();
-            assertTrue(buckets.contains(bucket(1)));
-            assertTrue(buckets.contains(bucket(2)));
+            assertTrue(buckets.contains(bucket1));
+            assertTrue(buckets.contains(bucket2));
         });
     }
 
@@ -298,20 +307,26 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
     @Test
     public void testObjectLinks() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             ObjectStoreManagement osm = nc.objectStoreManagement();
 
-            osm.create(ObjectStoreConfiguration.builder(bucket(1)).storageType(StorageType.Memory).build());
-            ObjectStore os1 = nc.objectStore(bucket(1));
+            String bucket1 = bucket();
+            String bucket2 = bucket();
 
-            osm.create(ObjectStoreConfiguration.builder(bucket(2)).storageType(StorageType.Memory).build());
-            ObjectStore os2 = nc.objectStore(bucket(2));
+            osm.create(ObjectStoreConfiguration.builder(bucket1).storageType(StorageType.Memory).build());
+            ObjectStore os1 = nc.objectStore(bucket1);
 
-            os1.put(key(11), "11".getBytes());
-            os1.put(key(12), "12".getBytes());
+            osm.create(ObjectStoreConfiguration.builder(bucket2).storageType(StorageType.Memory).build());
+            ObjectStore os2 = nc.objectStore(bucket2);
 
-            ObjectInfo info11 = os1.getInfo(key(11));
-            ObjectInfo info12 = os1.getInfo(key(12));
+            String name1 = name();
+            String name2 = name();
+            byte[] bytes2 = dataBytes();
+            os1.put(name1, dataBytes());
+            os1.put(name2, bytes2);
+
+            ObjectInfo info11 = os1.getInfo(name1);
+            ObjectInfo info12 = os1.getInfo(name2);
 
             // can't overwrite object with a link
             assertClientError(OsObjectAlreadyExists, () -> os1.addLink(info11.getObjectName(), info11));
@@ -337,16 +352,19 @@ public class ObjectStoreTests extends JetStreamTestBase {
             // link to a link
             assertClientError(OsCantLinkToLink, () -> os1.addLink("linkToLinkIsErr", linkTo11));
 
-            os2.put(key(21), "21".getBytes());
-            ObjectInfo info21 = os2.getInfo(key(21));
+            String name3 = name();
+            byte[] bytes3 = dataBytes();
+            os2.put(name3, bytes3);
+            ObjectInfo info21 = os2.getInfo(name3);
 
-            ObjectInfo crossLink = os2.addLink("crossLink", info11);
-            validateLink(crossLink, "crossLink", info11, null);
+            String crossLinkName = name();
+            ObjectInfo crossLink = os2.addLink(crossLinkName, info11);
+            validateLink(crossLink, crossLinkName, info11, null);
             ByteArrayOutputStream baosCross = new ByteArrayOutputStream();
             ObjectInfo crossGet = os2.get(crossLink.getObjectName(), baosCross);
             assertEquals(info11, crossGet);
             byte[] bytes = baosCross.toByteArray();
-            assertEquals(2, bytes.length);
+            assertEquals(bytes3.length, bytes.length);
 
             ObjectInfo bucketLink = os2.addBucketLink("bucketLink", os1);
             validateLink(bucketLink, "bucketLink", null, os1);
@@ -368,12 +386,13 @@ public class ObjectStoreTests extends JetStreamTestBase {
             assertClientError(OsObjectNotFound, () -> os2.get("targetWillBeDeleted", new ByteArrayOutputStream()));
             assertClientError(OsCantLinkToLink, () -> os2.addLink("willException", oiLink)); // can't link to link
 
-            os2.addLink("cross", info12);
+            String crossName = name();
+            os2.addLink(crossName, info12);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ObjectInfo crossInfo12 = os2.get("cross", baos);
+            ObjectInfo crossInfo12 = os2.get(crossName, baos);
             assertEquals(info12, crossInfo12);
-            assertEquals(2, baos.size());
-            assertEquals("12", baos.toString());
+            assertEquals(bytes2.length, baos.size());
+            assertEquals(new String(bytes2), baos.toString());
 
             ObjectMeta linkInPut = ObjectMeta.builder("linkInPut").link(ObjectLink.object("na", "na")).build();
             assertClientError(OsLinkNotAllowOnPut, () -> os2.put(linkInPut, new ByteArrayInputStream("na".getBytes())));
@@ -403,45 +422,49 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
     @Test
     public void testList() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             ObjectStoreManagement osm = nc.objectStoreManagement();
-            osm.create(ObjectStoreConfiguration.builder(BUCKET).storageType(StorageType.Memory).build());
 
-            ObjectStore os = nc.objectStore(BUCKET);
+            String bucket = bucket();
+            osm.create(ObjectStoreConfiguration.builder(bucket).storageType(StorageType.Memory).build());
 
-            os.put(key(1), "11".getBytes());
-            os.put(key(2), "21".getBytes());
-            os.put(key(3), "31".getBytes());
-            ObjectInfo info = os.put(key(2), "22".getBytes());
+            ObjectStore os = nc.objectStore(bucket);
 
-            os.addLink(key(4), info);
+            String[] names = new String[] {name(), name(), name(), name(), name()};
+            os.put(names[0], dataBytes());
+            os.put(names[1], dataBytes());
+            os.put(names[2], dataBytes());
+            ObjectInfo info = os.put(names[1], dataBytes());
 
-            os.put(key(9), "91".getBytes());
-            os.delete(key(9));
+            os.addLink(names[3], info);
+
+            os.put(names[4], dataBytes());
+            os.delete(names[4]);
 
             List<ObjectInfo> list = os.getList();
             assertEquals(4, list.size());
 
-            List<String> names = new ArrayList<>();
+            List<String> gotNames = new ArrayList<>();
             for (int x = 1; x <= 4; x++) {
-                names.add(list.get(x-1).getObjectName());
+                gotNames.add(list.get(x-1).getObjectName());
             }
 
-            for (int x = 1; x <= 4; x++) {
-                assertTrue(names.contains(key(x)));
+            for (int x = 0; x < 4; x++) {
+                assertTrue(gotNames.contains(names[x]));
             }
         });
     }
 
     @Test
     public void testSeal() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
+            String bucket = bucket();
             ObjectStoreManagement osm = nc.objectStoreManagement();
-            osm.create(ObjectStoreConfiguration.builder(BUCKET)
+            osm.create(ObjectStoreConfiguration.builder(bucket)
                 .storageType(StorageType.Memory)
                 .build());
 
-            ObjectStore os = nc.objectStore(BUCKET);
+            ObjectStore os = nc.objectStore(bucket);
             os.put("name", "data".getBytes());
 
             ObjectStoreStatus status = os.seal();
@@ -452,6 +475,21 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
             ObjectMeta meta = ObjectMeta.builder("change").build();
             assertThrows(JetStreamApiException.class, () -> os.updateMeta("name", meta));
+        });
+    }
+
+    @Test
+    public void testCompression() throws Exception {
+        jsServer.run(TestBase::atLeast2_10, nc -> {
+            String bucket = bucket();
+            ObjectStoreManagement osm = nc.objectStoreManagement();
+            osm.create(ObjectStoreConfiguration.builder(bucket)
+                .storageType(StorageType.Memory)
+                .compression(true)
+                .build());
+            ObjectStore os = nc.objectStore(bucket);
+            ObjectStoreStatus oss = os.getStatus();
+            assertTrue(oss.isCompressed());
         });
     }
 
@@ -485,7 +523,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
         @Override
         public void endOfData() {
-            if (++endOfDataReceived == 1 && entries.size() == 0) {
+            if (++endOfDataReceived == 1 && entries.isEmpty()) {
                 endBeforeEntries = true;
             }
         }

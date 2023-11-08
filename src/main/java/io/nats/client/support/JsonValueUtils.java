@@ -291,12 +291,35 @@ public abstract class JsonValueUtils {
     }
 
     public static class MapBuilder implements JsonSerializable {
-        public JsonValue jv = new JsonValue(new HashMap<>());
+        public JsonValue jv;
+
+        public MapBuilder() {
+            jv = new JsonValue(new HashMap<>());
+        }
+
+        public MapBuilder(JsonValue jv) {
+            this.jv = jv;
+        }
 
         public MapBuilder put(String s, Object o) {
-            JsonValue vv = JsonValueUtils.toJsonValue(o);
-            if (vv.type != JsonValue.Type.NULL) {
-                jv.map.put(s, vv);
+            if (o != null) {
+                JsonValue vv = JsonValueUtils.toJsonValue(o);
+                if (vv.type != JsonValue.Type.NULL) {
+                    jv.map.put(s, vv);
+                    jv.mapOrder.add(s);
+                }
+            }
+            return this;
+        }
+
+        public MapBuilder put(String s, Map<String, String> stringMap) {
+            if (stringMap != null) {
+                MapBuilder mb = new MapBuilder();
+                for (String key : stringMap.keySet()) {
+                    mb.put(key, stringMap.get(key));
+                }
+                jv.map.put(s, mb.jv);
+                jv.mapOrder.add(s);
             }
             return this;
         }
@@ -324,9 +347,11 @@ public abstract class JsonValueUtils {
     public static class ArrayBuilder implements JsonSerializable {
         public JsonValue jv = new JsonValue(new ArrayList<>());
         public ArrayBuilder add(Object o) {
-            JsonValue vv = JsonValueUtils.toJsonValue(o);
-            if (vv.type != JsonValue.Type.NULL) {
-                jv.array.add(JsonValueUtils.toJsonValue(o));
+            if (o != null) {
+                JsonValue vv = JsonValueUtils.toJsonValue(o);
+                if (vv.type != JsonValue.Type.NULL) {
+                    jv.array.add(JsonValueUtils.toJsonValue(o));
+                }
             }
             return this;
         }

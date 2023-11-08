@@ -25,7 +25,6 @@ import static io.nats.client.support.JsonValueUtils.readString;
 
 /**
  * The ObjectLink is used to embed links to other objects.
- * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public class ObjectLink implements JsonSerializable {
 

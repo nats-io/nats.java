@@ -42,6 +42,7 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
             .storageType(StorageType.Memory)
             .replicas(2)
             .placement(p)
+            .compression(true)
             .build();
         validate(bc);
 
@@ -61,6 +62,7 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         assertNotNull(osc.getPlacement());
         assertEquals("cluster", osc.getPlacement().getCluster());
         assertEquals(2, osc.getPlacement().getTags().size());
+        assertTrue(osc.isCompressed());
 
         assertTrue(osc.toString().contains("bucketName"));
     }
