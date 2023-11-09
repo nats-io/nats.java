@@ -569,7 +569,7 @@ class NatsConnection implements Connection {
                 }
                 upgradeRequired = false;
             }
-            if (isTLSRequired && !serverInfo.isTLSRequired()) {
+            if (isTLSRequired && upgradeRequired && !serverInfo.isTLSRequired()) {
                 throw new IOException("SSL connection wanted by client.");
             }
             else if (!isTLSRequired && serverInfo.isTLSRequired()) {
