@@ -113,6 +113,10 @@ public class TestBase {
         return si.isSameOrNewerThanVersion("2.9.1");
     }
 
+    public static boolean atLeast2_10() {
+        return RUN_SERVER_INFO.isNewerVersionThan("2.9.99");
+    }
+
     public static boolean atLeast2_10(ServerInfo si) {
         return si.isNewerVersionThan("2.9.99");
     }

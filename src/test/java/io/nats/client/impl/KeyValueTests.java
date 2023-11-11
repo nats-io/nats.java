@@ -317,13 +317,16 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(1, kvc.getReplicas());
         assertEquals(0, status.getEntryCount());
         assertEquals("JetStream", status.getBackingStore());
-        assertEquals(1, status.getMetadata().size());
-        assertEquals("meta-bar", status.getMetadata().get("meta-foo"));
         assertNotNull(status.getConfiguration()); // coverage
         assertNotNull(status.getConfiguration().toString()); // coverage
         assertNotNull(status.toString()); // coverage
         assertTrue(status.toString().contains(bucket));
         assertTrue(status.toString().contains(desc));
+
+        if (atLeast2_10()) {
+            assertEquals(1, status.getMetadata().size());
+            assertEquals("meta-bar", status.getMetadata().get("meta-foo"));
+        }
     }
 
     @Test

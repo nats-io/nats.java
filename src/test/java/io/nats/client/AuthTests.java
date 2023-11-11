@@ -675,9 +675,9 @@ public class AuthTests extends TestBase {
 
     @Test
     public void testRealUserAuthenticationExpired() throws Exception {
-
         CountDownLatch cdlConnected = new CountDownLatch(1);
         CountDownLatch cdlDisconnected = new CountDownLatch(1);
+        CountDownLatch cdlReconnected = new CountDownLatch(1);
         CountDownLatch elUserAuthenticationExpired = new CountDownLatch(1);
         CountDownLatch elAuthorizationViolation = new CountDownLatch(1);
 
@@ -685,6 +685,7 @@ public class AuthTests extends TestBase {
             switch (type) {
                 case CONNECTED: cdlConnected.countDown(); break;
                 case DISCONNECTED: cdlDisconnected.countDown(); break;
+                case RECONNECTED: cdlReconnected.countDown(); break;
             }
         };
 
@@ -724,12 +725,13 @@ public class AuthTests extends TestBase {
                 .credentialPath(credsFile)
                 .connectionListener(cl)
                 .errorListener(el)
-                .maxReconnects(3)
+                .maxReconnects(5)
                 .build();
             Connection nc = Nats.connect(options);
 
             assertTrue(cdlConnected.await(wait, TimeUnit.MILLISECONDS));
             assertTrue(cdlDisconnected.await(wait, TimeUnit.MILLISECONDS));
+            assertTrue(cdlReconnected.await(wait, TimeUnit.MILLISECONDS));
             assertTrue(elUserAuthenticationExpired.await(wait, TimeUnit.MILLISECONDS));
             assertTrue(elAuthorizationViolation.await(wait, TimeUnit.MILLISECONDS));
 

@@ -321,7 +321,7 @@ public class WebsocketSupportClassesTests {
     public void testWebSocketCoverage() throws Exception {
         AtomicReference<String> lastMethod = new AtomicReference<>();
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/ws.conf", false)) {
-            try (Socket tcpSocket = new Socket("localhost", ts.getPort())) {
+            try (Socket tcpSocket = new Socket("localhost", ts.getPort("ws"))) {
                 WebSocket webSocket = new WebSocket(new Socket() {
                     @Override
                     public InputStream getInputStream() throws IOException {
