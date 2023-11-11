@@ -323,7 +323,7 @@ public class KeyValueTests extends JetStreamTestBase {
         assertTrue(status.toString().contains(bucket));
         assertTrue(status.toString().contains(desc));
 
-        if (atLeast2_10(RUN_SERVER_INFO)) {
+        if (atLeast2_10()) {
             assertEquals(1, status.getMetadata().size());
             assertEquals("meta-bar", status.getMetadata().get("meta-foo"));
         }

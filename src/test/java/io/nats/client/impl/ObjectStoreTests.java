@@ -173,8 +173,11 @@ public class ObjectStoreTests extends JetStreamTestBase {
         assertNotNull(status.getBackingStreamInfo()); // coverage
         assertEquals("JetStream", status.getBackingStore());
         assertNotNull(status.toString()); // coverage
-        assertEquals(1, status.getMetadata().size());
-        assertEquals("meta-bar", status.getMetadata().get("meta-foo"));
+
+        if (atLeast2_10()) {
+            assertEquals(1, status.getMetadata().size());
+            assertEquals("meta-bar", status.getMetadata().get("meta-foo"));
+        }
     }
 
     @SuppressWarnings("SameParameterValue")
