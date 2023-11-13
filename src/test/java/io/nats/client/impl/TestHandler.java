@@ -25,6 +25,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+@SuppressWarnings("CallToPrintStackTrace")
 public class TestHandler implements ErrorListener, ConnectionListener {
     private final ReentrantLock prepLock = new ReentrantLock();
 
@@ -44,6 +45,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     private Events eventToWaitFor;
     private String errorToWaitFor;
 
+    private final List<Events> connectionEvents = new ArrayList<>();
     private final List<String> errors = new ArrayList<>();
     private final List<Exception> exceptions = new ArrayList<>();
     private final List<Consumer> slowConsumers = new ArrayList<>();
@@ -80,6 +82,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         pullStatusErrorWaitFuture = null;
         eventToWaitFor = null;
         errorToWaitFor = null;
+        connectionEvents.clear();
         errors.clear();
         exceptions.clear();
         slowConsumers.clear();
@@ -220,6 +223,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     public void connectionEvent(Connection conn, Events type) {
         lastEventConnection = conn;
+        connectionEvents.add(type);
         count.incrementAndGet();
 
         prepLock.lock();
@@ -276,7 +280,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     private void report(String func, Object message) {
-        System.out.println("[" + System.currentTimeMillis() + " TestHelper." + func + "] " + message);
+        System.out.println("[" + System.currentTimeMillis() + " TestHander." + func + "] " + message);
     }
 
     private final Object listLock = new Object();
@@ -290,6 +294,10 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         synchronized (listLock) {
             list.add(t);
         }
+    }
+
+    public List<Events> getConnectionEvents() {
+        return connectionEvents;
     }
 
     public List<String> getErrors() {

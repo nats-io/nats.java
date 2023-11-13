@@ -82,6 +82,10 @@ public class NatsTestServer extends NatsServerRunner {
         super(port, debug, jetstream, configFilePath, configInserts, customArgs);
     }
 
+    public NatsTestServer(Builder b) throws IOException {
+        super(b);
+    }
+
     public static int nextPort() throws IOException {
         return NatsRunnerUtils.nextPort();
     }
