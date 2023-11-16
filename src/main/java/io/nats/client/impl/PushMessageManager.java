@@ -73,7 +73,7 @@ class PushMessageManager extends MessageManager {
     @Override
     protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
         if (hb) {
-            messageReceived(); // only need to track when heartbeats are expected
+            lastMsgReceived = System.currentTimeMillis();  // only need to track when heartbeats are expected
             Status status = msg.getStatus();
             if (status != null) {
                 // only fc heartbeats get queued

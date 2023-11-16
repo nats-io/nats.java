@@ -55,4 +55,10 @@ public interface MessageConsumer extends AutoCloseable {
      * @return the finished flag
      */
     boolean isFinished();
+
+    /**
+     * Geta a future
+     * @return
+     */
+//    CompletableFuture<Boolean> getStoppedFuture();
 }

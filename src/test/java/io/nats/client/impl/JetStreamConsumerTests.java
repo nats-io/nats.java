@@ -241,7 +241,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             sub = js.subscribe(tsc.subject(), d, m -> {}, false, pso);
             validate(sub, testHandler, latch, d);
 
-            latch = setupPulLFactory(js);
+            latch = setupPullFactory(js);
             sub = js.subscribe(tsc.subject(), PullSubscribeOptions.DEFAULT_PULL_OPTS);
             sub.pull(PullRequestOptions.builder(1).idleHeartbeat(100).expiresIn(2000).build());
             validate(sub, testHandler, latch, null);
@@ -278,8 +278,9 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
         return latch;
     }
 
-    private static CountDownLatch setupPulLFactory(JetStream js) {
-        CountDownLatch latch = new CountDownLatch(2);
+    private static CountDownLatch setupPullFactory(JetStream js) {
+        // expected latch count is 1 b/c pull is dead once there is a hb error
+        CountDownLatch latch = new CountDownLatch(1);
         ((NatsJetStream)js)._pullMessageManagerFactory =
             (conn, lJs, stream, so, serverCC, qmode, dispatcher) ->
                 new PullHeartbeatErrorSimulator(conn, false, latch);

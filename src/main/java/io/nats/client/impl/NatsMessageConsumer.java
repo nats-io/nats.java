@@ -19,9 +19,12 @@ import io.nats.client.api.ConsumerInfo;
 import java.io.IOException;
 
 class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManagerObserver {
-    protected final PullRequestOptions rePullPro;
+    protected final ConsumeOptions opts;
     protected final int thresholdMessages;
     protected final long thresholdBytes;
+    protected final SimplifiedSubscriptionMaker subscriptionMaker;
+    protected final Dispatcher userDispatcher;
+    protected final MessageHandler userMessageHandler;
 
     NatsMessageConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
                         ConsumerInfo cachedConsumerInfo,
@@ -31,40 +34,67 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
     {
         super(cachedConsumerInfo);
 
+        this.subscriptionMaker = subscriptionMaker;
+        this.opts = opts;
+        this.userDispatcher = userDispatcher;
+        this.userMessageHandler = userMessageHandler;
+
         int bm = opts.getBatchSize();
         long bb = opts.getBatchBytes();
-
         int rePullMessages = Math.max(1, bm * opts.getThresholdPercent() / 100);
         long rePullBytes = bb == 0 ? 0 : Math.max(1, bb * opts.getThresholdPercent() / 100);
-        rePullPro = PullRequestOptions.builder(rePullMessages)
-            .maxBytes(rePullBytes)
-            .expiresIn(opts.getExpiresInMillis())
-            .idleHeartbeat(opts.getIdleHeartbeat())
-            .build();
-
         thresholdMessages = bm - rePullMessages;
         thresholdBytes = bb == 0 ? Integer.MIN_VALUE : bb - rePullBytes;
 
+        doSub();
+    }
+
+    void doSub() throws JetStreamApiException, IOException {
         MessageHandler mh = userMessageHandler == null ? null : msg -> {
             userMessageHandler.onMessage(msg);
             if (stopped.get() && pmm.noMorePending()) {
                 finished.set(true);
             }
         };
-        initSub(subscriptionMaker.subscribe(mh, userDispatcher));
-        sub._pull(PullRequestOptions.builder(bm)
-                .maxBytes(bb)
-                .expiresIn(opts.getExpiresInMillis())
-                .idleHeartbeat(opts.getIdleHeartbeat())
-                .build(),
-            false, this);
+        super.initSub(subscriptionMaker.subscribe(mh, userDispatcher));
+        repull();
     }
 
     @Override
     public void pendingUpdated() {
         if (!stopped.get() && (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
         {
-            sub._pull(rePullPro, false, this);
+            repull();
         }
+    }
+
+    boolean subMadeAfterHeartbeatError = false;
+
+    @Override
+    public void heartbeatError() {
+        try {
+            if (pmm.hasUnansweredPulls() && subMadeAfterHeartbeatError) {
+                // we went an entire heartbeat cycle without so much as
+                // this consumer is dead
+                lenientClose();
+                return;
+            }
+            subMadeAfterHeartbeatError = true;
+            doSub();
+        }
+        catch (JetStreamApiException | IOException e) {
+            // TODO FIGURE OUT WHAT TO DO HERE IF ANYTHING
+        }
+    }
+
+    private void repull() {
+        int rePullMessages = Math.max(1, opts.getBatchSize() - pmm.pendingMessages);
+        long rePullBytes = opts.getBatchBytes() == 0 ? 0 : opts.getBatchBytes() - pmm.pendingBytes;
+        PullRequestOptions pro = PullRequestOptions.builder(rePullMessages)
+            .maxBytes(rePullBytes)
+            .expiresIn(opts.getExpiresInMillis())
+            .idleHeartbeat(opts.getIdleHeartbeat())
+            .build();
+        sub._pull(pro, false, this);
     }
 }

@@ -65,6 +65,13 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         multipleSubjectFilter210Available = conn.getInfo().isNewerVersionThan("2.9.99");
     }
 
+    NatsJetStreamImpl(NatsJetStreamImpl impl) throws IOException {
+        conn = impl.conn;
+        jso = impl.jso;
+        consumerCreate290Available = impl.consumerCreate290Available;
+        multipleSubjectFilter210Available = impl.multipleSubjectFilter210Available;
+    }
+
     // ----------------------------------------------------------------------------------------------------
     // Management that is also needed by regular context
     // ----------------------------------------------------------------------------------------------------
@@ -173,7 +180,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         return NUID.nextGlobalSequence();
     }
 
-    ConsumerConfiguration nextOrderedConsumerConfiguration(
+    ConsumerConfiguration consumerConfigurationStartAfterLast(
         ConsumerConfiguration originalCc,
         long lastStreamSeq,
         String newDeliverSubject)

@@ -88,7 +88,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             }
             ConsumerConfiguration cc = lastConsumer == null
                 ? originalOrderedCc
-                : streamCtx.js.nextOrderedConsumerConfiguration(originalOrderedCc, highestSeq, null);
+                : streamCtx.js.consumerConfigurationStartAfterLast(originalOrderedCc, highestSeq, null);
             pso = new OrderedPullSubscribeOptionsBuilder(streamCtx.streamName, cc).build();
         }
         else {

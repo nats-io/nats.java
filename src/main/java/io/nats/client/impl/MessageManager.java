@@ -80,12 +80,6 @@ abstract class MessageManager {
         // does nothing - only implemented for pulls, but in base class since instance is referenced as MessageManager, not subclass
     }
 
-    protected void messageReceived() {
-        synchronized (stateChangeLock) {
-            lastMsgReceived = System.currentTimeMillis();
-        }
-    }
-
     protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
         return true;
     }

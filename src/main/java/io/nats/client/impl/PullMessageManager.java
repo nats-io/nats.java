@@ -18,6 +18,9 @@ import io.nats.client.PullRequestOptions;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.support.Status;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static io.nats.client.impl.MessageManager.ManageResult.*;
 import static io.nats.client.support.NatsJetStreamConstants.NATS_PENDING_BYTES;
 import static io.nats.client.support.NatsJetStreamConstants.NATS_PENDING_MESSAGES;
@@ -30,12 +33,14 @@ class PullMessageManager extends MessageManager {
     protected boolean trackingBytes;
     protected boolean raiseStatusWarnings;
     protected PullManagerObserver pullManagerObserver;
+    protected boolean initialized;
+    protected List<String> unansweredPulls;
 
     protected PullMessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
         super(conn, so, syncMode);
-        trackingBytes = false;
-        pendingMessages = 0;
-        pendingBytes = 0;
+        initialized = false;
+        unansweredPulls = new ArrayList<>();
+        reset();
     }
 
     @Override
@@ -59,61 +64,98 @@ class PullMessageManager extends MessageManager {
             else {
                 shutdownHeartbeatTimer();
             }
+            unansweredPulls.add(pullSubject);
         }
     }
 
-    private void trackPending(int m, long b) {
+    @Override
+    protected void handleHeartbeatError() {
+        super.handleHeartbeatError();
+        reset();
+        if (pullManagerObserver != null) {
+            pullManagerObserver.heartbeatError();
+        }
+    }
+
+    private void trackIncoming(int m, long b, String pullsubject) {
         synchronized (stateChangeLock) {
-            pendingMessages -= m;
-            boolean zero = pendingMessages < 1;
-            if (trackingBytes) {
-                pendingBytes -= b;
-                zero |= pendingBytes < 1;
+            // message time used for heartbeat tracking
+            // subjects used to detect multiple failed heartbeats
+            lastMsgReceived = System.currentTimeMillis();
+
+            if (pullsubject == null) {
+                unansweredPulls.clear();
             }
-            if (zero) {
-                pendingMessages = 0;
-                pendingBytes = 0;
-                trackingBytes = false;
-                if (hb) {
-                    shutdownHeartbeatTimer();
+            else {
+                unansweredPulls.remove(pullsubject);
+            }
+
+            if (m != Integer.MIN_VALUE) {
+                pendingMessages -= m;
+                boolean zero = pendingMessages < 1;
+                if (trackingBytes) {
+                    pendingBytes -= b;
+                    zero |= pendingBytes < 1;
+                }
+                if (zero) {
+                    reset();
+                }
+
+                if (pullManagerObserver != null) {
+                    pullManagerObserver.pendingUpdated();
                 }
             }
-            if (pullManagerObserver != null) {
-                pullManagerObserver.pendingUpdated();
-            }
+        }
+    }
+
+    protected void reset() {
+        pendingMessages = 0;
+        pendingBytes = 0;
+        trackingBytes = false;
+        if (initialized && hb) {
+            shutdownHeartbeatTimer();
+        }
+        initialized = true;
+    }
+
+    protected boolean hasUnansweredPulls() {
+        synchronized (stateChangeLock) {
+            return !unansweredPulls.isEmpty();
         }
     }
 
     @Override
     protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
-        messageReceived(); // record message time. Used for heartbeat tracking
-
         Status status = msg.getStatus();
 
         // normal js message
         if (status == null) {
-            trackPending(1, msg.consumeByteCount());
+            trackIncoming(1, msg.consumeByteCount(), null);
             return true;
         }
 
         // heartbeat just needed to be recorded
         if (status.isHeartbeat()) {
+            trackIncoming(Integer.MIN_VALUE, -1, msg.subject);
             return false;
         }
 
         Headers h = msg.getHeaders();
+        int m = Integer.MIN_VALUE;
+        long b = -1;
         if (h != null) {
             String s = h.getFirst(NATS_PENDING_MESSAGES);
             if (s != null) {
                 try {
-                    int m = Integer.parseInt(s);
-                    long b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
-                    trackPending(m, b);
+                    m = Integer.parseInt(s);
+                    b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
                 }
-                catch (NumberFormatException ignore) {} // shouldn't happen but don't fail
+                catch (NumberFormatException ignore) {
+                    m = Integer.MIN_VALUE; // shouldn't happen but don't fail; make sure don't track m/b
+                }
             }
         }
-
+        trackIncoming(m, b, msg.subject);
         return true;
     }
 
