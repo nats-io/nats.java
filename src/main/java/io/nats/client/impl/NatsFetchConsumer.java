@@ -35,7 +35,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             .expiresIn(fetchConsumeOptions.getExpiresInMillis())
             .idleHeartbeat(fetchConsumeOptions.getIdleHeartbeat())
             .build();
-        initSub(subscriptionMaker.subscribe(null, null));
+        initSub(subscriptionMaker.subscribe(null, null, null));
         pullSubject = sub._pull(pro, false, null);
         startNanos = -1;
     }

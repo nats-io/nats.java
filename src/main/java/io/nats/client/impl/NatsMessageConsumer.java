@@ -56,7 +56,8 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
                 finished.set(true);
             }
         };
-        super.initSub(subscriptionMaker.subscribe(mh, userDispatcher));
+        stopped.set(false);
+        super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm));
         repull();
     }
 
@@ -68,18 +69,12 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         }
     }
 
-    boolean subMadeAfterHeartbeatError = false;
-
     @Override
     public void heartbeatError() {
         try {
-            if (pmm.hasUnansweredPulls() && subMadeAfterHeartbeatError) {
-                // we went an entire heartbeat cycle without so much as
-                // this consumer is dead
-                lenientClose();
-                return;
-            }
-            subMadeAfterHeartbeatError = true;
+            // just close the current sub and make another one.
+            // this could go on endlessly
+            lenientClose();
             doSub();
         }
         catch (JetStreamApiException | IOException e) {

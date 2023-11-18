@@ -33,14 +33,12 @@ class PullMessageManager extends MessageManager {
     protected boolean trackingBytes;
     protected boolean raiseStatusWarnings;
     protected PullManagerObserver pullManagerObserver;
-    protected boolean initialized;
     protected List<String> unansweredPulls;
 
     protected PullMessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
         super(conn, so, syncMode);
-        initialized = false;
         unansweredPulls = new ArrayList<>();
-        reset();
+        resetTracking();
     }
 
     @Override
@@ -62,7 +60,7 @@ class PullMessageManager extends MessageManager {
                 initOrResetHeartbeatTimer();
             }
             else {
-                shutdownHeartbeatTimer();
+                shutdownHeartbeatTimer(); // just in case the pull was changed from hb to non-hb
             }
             unansweredPulls.add(pullSubject);
         }
@@ -71,7 +69,7 @@ class PullMessageManager extends MessageManager {
     @Override
     protected void handleHeartbeatError() {
         super.handleHeartbeatError();
-        reset();
+        resetTracking();
         if (pullManagerObserver != null) {
             pullManagerObserver.heartbeatError();
         }
@@ -81,7 +79,7 @@ class PullMessageManager extends MessageManager {
         synchronized (stateChangeLock) {
             // message time used for heartbeat tracking
             // subjects used to detect multiple failed heartbeats
-            lastMsgReceived = System.currentTimeMillis();
+            updateLastMessageReceived();
 
             if (pullsubject == null) {
                 unansweredPulls.clear();
@@ -98,9 +96,8 @@ class PullMessageManager extends MessageManager {
                     zero |= pendingBytes < 1;
                 }
                 if (zero) {
-                    reset();
+                    resetTracking();
                 }
-
                 if (pullManagerObserver != null) {
                     pullManagerObserver.pendingUpdated();
                 }
@@ -108,14 +105,11 @@ class PullMessageManager extends MessageManager {
         }
     }
 
-    protected void reset() {
+    protected void resetTracking() {
         pendingMessages = 0;
         pendingBytes = 0;
         trackingBytes = false;
-        if (initialized && hb) {
-            shutdownHeartbeatTimer();
-        }
-        initialized = true;
+        updateLastMessageReceived();
     }
 
     protected boolean hasUnansweredPulls() {

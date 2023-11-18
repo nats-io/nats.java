@@ -218,7 +218,7 @@ public class NatsJsUtils {
             return null;
         }
 
-        String text = prefix + "-" + x + ".";
+        String text = prefix + "-" + x;
         if (verbose) {
             System.out.print(" " + text);
         }
@@ -435,6 +435,10 @@ public class NatsJsUtils {
             .subjects(subs)
             .build();
         jsm.addStream(sc);
+    }
+
+    public static void createCleanFileStream(Connection nc, String stream, String... subs) throws IOException, JetStreamApiException {
+        createCleanFileStream(nc.jetStreamManagement(), stream, subs);
     }
 
     public static void createCleanFileStream(JetStreamManagement jsm, String stream, String... subs) throws IOException, JetStreamApiException {

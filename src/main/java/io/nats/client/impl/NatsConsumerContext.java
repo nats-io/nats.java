@@ -68,7 +68,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             .replayPolicy(config.getReplayPolicy())
             .headersOnly(config.getHeadersOnly())
             .build();
-        subscribeSubject = originalOrderedCc.getFilterSubject();
+        subscribeSubject = Validator.validateSubject(originalOrderedCc.getFilterSubject(), false);
         unorderedBindPso = null;
     }
 
@@ -80,7 +80,8 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         }
     }
 
-    public NatsJetStreamPullSubscription subscribe(MessageHandler messageHandler, Dispatcher userDispatcher) throws IOException, JetStreamApiException {
+    @Override
+    public NatsJetStreamPullSubscription subscribe(MessageHandler messageHandler, Dispatcher userDispatcher, PullMessageManager optionalPmm) throws IOException, JetStreamApiException {
         PullSubscribeOptions pso;
         if (ordered) {
             if (lastConsumer != null) {
@@ -96,7 +97,8 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         }
 
         if (messageHandler == null) {
-            return (NatsJetStreamPullSubscription) streamCtx.js.subscribe(subscribeSubject, pso);
+            return (NatsJetStreamPullSubscription) streamCtx.js.createSubscription(
+                subscribeSubject, null, pso, null, null, null, false, optionalPmm);
         }
 
         Dispatcher d = userDispatcher;
@@ -106,7 +108,8 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             }
             d = defaultDispatcher;
         }
-        return (NatsJetStreamPullSubscription) streamCtx.js.subscribe(subscribeSubject, d, messageHandler, pso);
+        return (NatsJetStreamPullSubscription)streamCtx.js.createSubscription(
+            subscribeSubject, null, pso, null, (NatsDispatcher) d, messageHandler, false, optionalPmm);
     }
 
     private void checkState() throws IOException {
@@ -181,7 +184,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             }
 
             con = new NatsMessageConsumerBase(cachedConsumerInfo);
-            con.initSub(subscribe(null, null));
+            con.initSub(subscribe(null, null, null));
             con.sub._pull(PullRequestOptions.builder(1)
                 .expiresIn(maxWaitMillis - EXPIRE_ADJUSTMENT)
                 .build(), false, null);
