@@ -37,5 +37,6 @@ public class PushConsumer extends ConnectableConsumer {
             .build();
 
         sub = js.subscribe(App.SUBJECT, d, handler, false, pso);
+        Ui.controlMessage(ID, "ConsumerInfo", sub.getConsumerInfo().getJv());
     }
 }
