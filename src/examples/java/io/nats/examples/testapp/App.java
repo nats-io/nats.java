@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -16,72 +16,107 @@ package io.nats.examples.testapp;
 import io.nats.client.Connection;
 import io.nats.client.JetStreamManagement;
 import io.nats.client.Nats;
+import io.nats.client.Options;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
+import io.nats.examples.testapp.support.CommandLine;
+import io.nats.examples.testapp.support.CommandLineConsumer;
+import io.nats.examples.testapp.support.ConsumerType;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class App {
 
-    public static final String STREAM = "app-stream";
-    public static final String SUBJECT = "app-subject";
-    public static final String BOOTSTRAP = "nats://192.168.50.99:4222";
-//    public static final String BOOTSTRAP = "nats://localhost:4222";
+    public static String[] MANUAL_ARGS = (
+//        "--servers nats://192.168.50.99:4222"
+        " --servers nats://localhost:4222"
+            + " --stream app-stream"
+            + " --subject app-subject"
+            + " --subject app-subject"
+//            + " --runtime 60" // minutes
+            + " --pubjitter 50"
+//            + " --simple ordered,100,5000"
+//            + " --simple durable 100 5000"
+            + " --push ordered"
+//            + " --push durable"
+            + " --screen left"
+    ).split(" ");
 
     public static void main(String[] args) throws Exception {
-        try {
-            Ui.start(Ui.Monitor.Left, false, false);
-//            Debug.DEBUG_PRINTER = s -> {
-//                System.out.println(s);
-//                Ui.debugMessage(s);
-//            };
 
-            try (Connection nc = Nats.connect(BOOTSTRAP)) {
+        args = MANUAL_ARGS; // comment in to use
+
+        CommandLine cmd = new CommandLine(args);
+
+        try {
+            Ui.start(cmd.uiScreen, cmd.work, cmd.debug);
+            Ui.controlMessage("APP", cmd.toString().replace(" --", "    \n--"));
+
+            Options options = Options.builder().servers(cmd.servers).build();
+            try (Connection nc = Nats.connect(options)) {
                 JetStreamManagement jsm = nc.jetStreamManagement();
-                createOrReplaceStream(jsm);
+                createOrReplaceStream(cmd, jsm);
             }
             catch (Exception e) {
                 Ui.controlMessage("APP", e.getMessage());
             }
 
-            Publisher publisher = new Publisher(50);
+            Publisher publisher = new Publisher(cmd, cmd.pubjitter);
             Thread pubThread = new Thread(publisher);
             pubThread.start();
 
-            CountDownLatch waitForever = new CountDownLatch(1);
+            CountDownLatch waiter = new CountDownLatch(1);
 
-            SimpleConsumer simpleConsumer = new SimpleConsumer(true, 100, 5000);
-            PushConsumer pushConsumer = new PushConsumer(true);
+            List<ConnectableConsumer> cons = new ArrayList<>();
+            for (CommandLineConsumer clc : cmd.commandLineConsumers) {
+                ConnectableConsumer con;
+                if (clc.consumerType == ConsumerType.Simple) {
+                    con = new SimpleConsumer(cmd, clc.consumerKind, clc.batchSize, clc.expiresIn);
+                }
+                else {
+                    con = new PushConsumer(cmd, clc.consumerKind);
+                }
+                Ui.consoleMessage("APP", con.label);
+                cons.add(con);
+            }
 
-            Monitor monitor = new Monitor(publisher, simpleConsumer, pushConsumer);
+            Monitor monitor = new Monitor(cmd, publisher, cons);
             Thread monThread = new Thread(monitor);
             monThread.start();
 
-            waitForever.await();
+            //noinspection ResultOfMethodCallIgnored
+            long runtime = cmd.runtime < 1 ? Long.MAX_VALUE : cmd.runtime;
+            waiter.await(runtime, TimeUnit.MILLISECONDS);
         }
         catch (Exception e) {
             //noinspection CallToPrintStackTrace
             e.printStackTrace();
         }
+        Ui.dumpControl();
+        System.exit(0);
     }
 
-    public static void createOrReplaceStream(JetStreamManagement jsm) {
+    public static void createOrReplaceStream(CommandLine cmd, JetStreamManagement jsm) {
         try {
-            jsm.deleteStream(STREAM);
+            jsm.deleteStream(cmd.stream);
         }
         catch (Exception ignore) {}
         try {
             StreamConfiguration sc = StreamConfiguration.builder()
-                .name(STREAM)
+                .name(cmd.stream)
                 .storageType(StorageType.File)
-                .subjects(SUBJECT)
+                .subjects(cmd.subject)
                 .build();
             StreamInfo si = jsm.addStream(sc);
             Ui.controlMessage("APP", si.getConfiguration());
         }
         catch (Exception e) {
-            System.out.println("Failed creating stream: '" + STREAM + "' " + e);
+            Ui.consoleMessage("FATAL", "Failed creating stream: '" + cmd.stream + "' " + e);
+            System.exit(-1);
         }
     }
 }

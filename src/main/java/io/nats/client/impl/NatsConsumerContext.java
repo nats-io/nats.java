@@ -34,12 +34,13 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     private final Object stateLock;
     private final NatsStreamContext streamCtx;
     private final boolean ordered;
-    private final String consumerName;
     private final ConsumerConfiguration originalOrderedCc;
     private final String subscribeSubject;
     private final PullSubscribeOptions unorderedBindPso;
 
     private ConsumerInfo cachedConsumerInfo;
+
+    private String consumerName;
     private NatsMessageConsumerBase lastConsumer;
     private long highestSeq;
     private Dispatcher defaultDispatcher;
@@ -48,9 +49,9 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         stateLock = new Object();
         streamCtx = sc;
         ordered = false;
-        consumerName = ci.getName();
         originalOrderedCc = null;
         subscribeSubject = null;
+        consumerName = ci.getName();
         unorderedBindPso = PullSubscribeOptions.fastBind(sc.streamName, consumerName);
         cachedConsumerInfo = ci;
     }
@@ -59,7 +60,6 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         stateLock = new Object();
         streamCtx = sc;
         ordered = true;
-        consumerName = null;
         originalOrderedCc = ConsumerConfiguration.builder()
             .filterSubjects(config.getFilterSubjects())
             .deliverPolicy(config.getDeliverPolicy())
@@ -96,20 +96,24 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             pso = unorderedBindPso;
         }
 
+        NatsJetStreamPullSubscription sub;
         if (messageHandler == null) {
-            return (NatsJetStreamPullSubscription) streamCtx.js.createSubscription(
+            sub = (NatsJetStreamPullSubscription) streamCtx.js.createSubscription(
                 subscribeSubject, null, pso, null, null, null, false, optionalPmm);
         }
-
-        Dispatcher d = userDispatcher;
-        if (d == null) {
-            if (defaultDispatcher == null) {
-                defaultDispatcher = streamCtx.js.conn.createDispatcher();
+        else {
+            Dispatcher d = userDispatcher;
+            if (d == null) {
+                if (defaultDispatcher == null) {
+                    defaultDispatcher = streamCtx.js.conn.createDispatcher();
+                }
+                d = defaultDispatcher;
             }
-            d = defaultDispatcher;
+            sub = (NatsJetStreamPullSubscription) streamCtx.js.createSubscription(
+                subscribeSubject, null, pso, null, (NatsDispatcher) d, messageHandler, false, optionalPmm);
         }
-        return (NatsJetStreamPullSubscription)streamCtx.js.createSubscription(
-            subscribeSubject, null, pso, null, (NatsDispatcher) d, messageHandler, false, optionalPmm);
+
+        return sub;
     }
 
     private void checkState() throws IOException {
@@ -144,6 +148,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
         cachedConsumerInfo = streamCtx.jsm.getConsumerInfo(streamCtx.streamName, consumerName);
+        consumerName = cachedConsumerInfo.getName();
         return cachedConsumerInfo;
     }
 

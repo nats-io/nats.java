@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -18,19 +18,23 @@ import io.nats.client.JetStream;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 import io.nats.client.api.PublishAck;
+import io.nats.examples.testapp.support.CommandLine;
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class Publisher implements Runnable {
 
-    static final String ID = "PUBLISHER";
+    static final String LABEL = "PUBLISHER";
 
-    long pubDelay;
-    AtomicLong lastSeqno = new AtomicLong(-1);
+
+    final CommandLine cmd;
+    final long pubDelay;
+    final AtomicLong lastSeqno = new AtomicLong(-1);
     int errorRun = 0;
 
-    public Publisher(long pubDelay) {
+    public Publisher(CommandLine cmd, long pubDelay) {
+        this.cmd = cmd;
         this.pubDelay = pubDelay;
     }
 
@@ -41,9 +45,9 @@ public class Publisher implements Runnable {
     @Override
     public void run() {
         Options options = new Options.Builder()
-            .server(App.BOOTSTRAP)
-            .connectionListener((c, t) -> Ui.controlMessage(ID, "Connection: " + c.getServerInfo().getPort() + " " + t))
-            .errorListener(new UiErrorListener(ID) {})
+            .servers(cmd.servers)
+            .connectionListener((c, t) -> Ui.controlMessage(LABEL, "Connection: " + c.getServerInfo().getPort() + " " + t))
+            .errorListener(new UiErrorListener(LABEL) {})
             .maxReconnects(-1)
             .build();
 
@@ -52,20 +56,20 @@ public class Publisher implements Runnable {
             //noinspection InfiniteLoopStatement
             while (true) {
                 if (lastSeqno.get() == -1) {
-                    Ui.controlMessage(ID, "Starting Publish");
+                    Ui.controlMessage(LABEL, "Starting Publish");
                     lastSeqno.set(0);
                 }
                 try {
-                    PublishAck pa = js.publish(App.SUBJECT, null);
+                    PublishAck pa = js.publish(cmd.subject, null);
                     lastSeqno.set(pa.getSeqno());
                     if (errorRun > 0) {
-                        Ui.controlMessage(ID, "Restarting Publish");
+                        Ui.controlMessage(LABEL, "Restarting Publish");
                     }
                     errorRun = 0;
                 }
                 catch (Exception e) {
                     if (++errorRun == 1) {
-                        Ui.controlMessage(ID, e.getMessage());
+                        Ui.controlMessage(LABEL, e.getMessage());
                     }
                 }
                 try {

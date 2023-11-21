@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -17,26 +17,29 @@ import io.nats.client.Dispatcher;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamSubscription;
 import io.nats.client.PushSubscribeOptions;
+import io.nats.examples.testapp.support.CommandLine;
+import io.nats.examples.testapp.support.ConsumerKind;
 
 import java.io.IOException;
 
 public class PushConsumer extends ConnectableConsumer {
-    static final String ID = "PushConsumer";
-
     final Dispatcher d;
     final JetStreamSubscription sub;
 
-    public PushConsumer(boolean durable) throws IOException, InterruptedException, JetStreamApiException {
-        super(ID, durable);
+    public PushConsumer(CommandLine cmd, ConsumerKind consumerKind) throws IOException, InterruptedException, JetStreamApiException {
+        super(cmd, "pu", consumerKind);
 
         d = nc.createDispatcher();
 
         PushSubscribeOptions pso = PushSubscribeOptions.builder()
-            .stream(App.STREAM)
-            .configuration(startCreateConsumer().idleHeartbeat(1000).build())
+            .stream(cmd.stream)
+            .configuration(newCreateConsumer()
+                .idleHeartbeat(1000)
+                .build())
+            .ordered(consumerKind == ConsumerKind.Ordered)
             .build();
 
-        sub = js.subscribe(App.SUBJECT, d, handler, false, pso);
-        Ui.controlMessage(ID, "ConsumerInfo", sub.getConsumerInfo().getJv());
+        sub = js.subscribe(cmd.subject, d, handler, false, pso);
+        Ui.controlMessage(label, sub.getConsumerName());
     }
 }

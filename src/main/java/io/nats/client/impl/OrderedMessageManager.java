@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.JetStreamManagement;
 import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
@@ -75,18 +76,28 @@ class OrderedMessageManager extends PushMessageManager {
             // 1. shutdown the manager, for instance stops heartbeat timers
             shutdown();
 
-            // 2. re-subscribe. This means kill the sub then make a new one
+            // 2. delete the consumer by name so we can recreate it with a different delivery policy
+            //    b/c we cannot edit a push consumer's delivery policy
+            JetStreamManagement jsm = conn.jetStreamManagement(js.jso);
+            try {
+                if (originalCc.getName() != null) {
+                    jsm.deleteConsumer(stream, originalCc.getName());
+                }
+            }
+            catch (Exception ignore) {}
+
+            // 3. re-subscribe. This means kill the sub then make a new one
             //    New sub needs a new deliverSubject
             String newDeliverSubject = sub.connection.createInbox();
             sub.reSubscribe(newDeliverSubject);
             targetSid.set(sub.getSID());
 
-            // 3. make a new consumer using the same deliver subject but
+            // 4. make a new consumer using the same deliver subject but
             //    with a new starting point
             ConsumerConfiguration userCC = js.consumerConfigurationStartAfterLast(originalCc, lastStreamSeq, newDeliverSubject);
             js._createConsumerUnsubscribeOnException(stream, userCC, sub);
 
-            // 4. restart the manager.
+            // 5. restart the manager.
             startup(sub);
         }
         catch (Exception e) {

@@ -30,6 +30,11 @@ public class NatsOrderedConsumerContext implements OrderedConsumerContext {
     }
 
     @Override
+    public String getConsumerName() {
+        return impl.getConsumerName();
+    }
+
+    @Override
     public Message next() throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
         return impl.next();
     }

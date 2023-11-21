@@ -19,9 +19,15 @@ import io.nats.client.support.Status;
 
 public class UiErrorListener implements ErrorListener {
     String id;
+    java.util.function.Consumer<String> watcher;
 
     public UiErrorListener(String id) {
+        this(id, null);
+    }
+
+    public UiErrorListener(String id, java.util.function.Consumer<String> watcher) {
         this.id = id;
+        this.watcher = watcher;
     }
 
     private String supplyMessage(String label, Connection conn, Consumer consumer, Subscription sub, Object... pairs) {
@@ -29,23 +35,25 @@ public class UiErrorListener implements ErrorListener {
         if (conn != null) {
             ServerInfo si = conn.getServerInfo();
             if (si != null) {
-                sb.append(", Connection: ").append(conn.getServerInfo().getClientId());
+                sb.append(", CONN: ").append(conn.getServerInfo().getClientId());
             }
         }
         if (consumer != null) {
-            sb.append(", Consumer: ").append(consumer.hashCode());
+            sb.append(", CON: ").append(consumer.hashCode());
         }
         if (sub != null) {
-            sb.append(", Subscription: ").append(sub.hashCode());
+            sb.append(", SUB: ").append(sub.hashCode());
             if (sub instanceof JetStreamSubscription) {
                 JetStreamSubscription jssub = (JetStreamSubscription)sub;
-                sb.append(", Consumer Name: ").append(jssub.getConsumerName());
+                sb.append(", CON: ").append(jssub.getConsumerName());
             }
         }
         for (int x = 0; x < pairs.length; x++) {
             sb.append(", ").append(pairs[x]).append(pairs[++x]);
         }
-        sb.append("\n");
+        if (watcher != null) {
+            watcher.accept(sb.toString());
+        }
         return sb.toString();
     }
 
@@ -62,7 +70,7 @@ public class UiErrorListener implements ErrorListener {
      */
     @Override
     public void exceptionOccurred(final Connection conn, final Exception exp) {
-        Ui.controlMessage(id, supplyMessage("SEVERE exceptionOccurred", conn, null, null, "Exception: ", exp));
+        Ui.controlMessage(id, supplyMessage("SEVERE exceptionOccurred", conn, null, null, "EX: ", exp));
     }
 
     /**
@@ -70,7 +78,7 @@ public class UiErrorListener implements ErrorListener {
      */
     @Override
     public void slowConsumerDetected(final Connection conn, final Consumer consumer) {
-        Ui.controlMessage(id, supplyMessage("WARNING slowConsumerDetected", conn, consumer, null));
+        Ui.controlMessage(id, supplyMessage("WARN slowConsumerDetected", conn, consumer, null));
     }
 
     /**
@@ -87,7 +95,7 @@ public class UiErrorListener implements ErrorListener {
     @Override
     public void heartbeatAlarm(final Connection conn, final JetStreamSubscription sub,
                                final long lastStreamSequence, final long lastConsumerSequence) {
-        Ui.controlMessage(id, supplyMessage("SEVERE heartbeatAlarm", conn, null, sub, "lastStreamSequence: ", lastStreamSequence, "lastConsumerSequence: ", lastConsumerSequence));
+        Ui.controlMessage(id, supplyMessage("SEVERE HbAlarm", conn, null, sub, "lastStreamSeq: ", lastStreamSequence, "lastConsumerSeq: ", lastConsumerSequence));
     }
 
     /**
@@ -95,7 +103,7 @@ public class UiErrorListener implements ErrorListener {
      */
     @Override
     public void unhandledStatus(final Connection conn, final JetStreamSubscription sub, final Status status) {
-        Ui.controlMessage(id, supplyMessage("WARNING unhandledStatus", conn, null, sub, "Status:", status));
+        Ui.controlMessage(id, supplyMessage("WARN unhandledStatus", conn, null, sub, "Status:", status));
     }
 
     /**
@@ -103,7 +111,7 @@ public class UiErrorListener implements ErrorListener {
      */
     @Override
     public void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {
-        Ui.controlMessage(id, supplyMessage("WARNING pullStatusWarning", conn, null, sub, "Status:", status));
+//        Ui.controlMessage(id, supplyMessage("WARN pullStatusWarning", conn, null, sub, "Status:", status));
     }
 
     /**

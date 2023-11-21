@@ -57,8 +57,14 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
             }
         };
         stopped.set(false);
-        super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm));
-        repull();
+        try {
+            super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm));
+            repull();
+        }
+        catch (JetStreamApiException | IOException e) {
+            pmm.resetTracking();
+            pmm.initOrResetHeartbeatTimer();
+        }
     }
 
     @Override

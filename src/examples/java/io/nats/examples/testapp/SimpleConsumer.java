@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -14,29 +14,39 @@
 package io.nats.examples.testapp;
 
 import io.nats.client.*;
+import io.nats.client.api.OrderedConsumerConfiguration;
+import io.nats.examples.testapp.support.CommandLine;
+import io.nats.examples.testapp.support.ConsumerKind;
 
 import java.io.IOException;
 
 public class SimpleConsumer extends ConnectableConsumer {
-    static final String ID = "SimpleConsumer";
-
     final StreamContext sc;
     final ConsumerContext cc;
+    final OrderedConsumerContext occ;
     final MessageConsumer mc;
 
-    public SimpleConsumer(boolean durable, int batchSize, long expiresIn) throws IOException, InterruptedException, JetStreamApiException {
-        super(ID, durable);
+    public SimpleConsumer(CommandLine cmd, ConsumerKind consumerKind, int batchSize, long expiresIn) throws IOException, InterruptedException, JetStreamApiException {
+        super(cmd, "sc", consumerKind);
 
-        sc = nc.getStreamContext(App.STREAM);
-        cc = sc.createOrUpdateConsumer(startCreateConsumer().build());
-        Ui.controlMessage(ID, "ConsumerInfo", cc.getConsumerInfo().getJv());
+        sc = nc.getStreamContext(cmd.stream);
 
         ConsumeOptions co = ConsumeOptions.builder()
             .batchSize(batchSize)
             .expiresIn(expiresIn)
             .build();
 
-        //noinspection resource
-        mc = cc.consume(co, handler);
+        if (consumerKind == ConsumerKind.Ordered) {
+            OrderedConsumerConfiguration ocConfig = new OrderedConsumerConfiguration().filterSubjects(cmd.subject);
+            cc = null;
+            occ = sc.createOrderedConsumer(ocConfig);
+            mc = occ.consume(co, handler);
+        }
+        else {
+            occ = null;
+            cc = sc.createOrUpdateConsumer(newCreateConsumer().build());
+            mc = cc.consume(co, handler);
+        }
+        Ui.controlMessage(label, mc.getConsumerName());
     }
 }

@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -18,44 +18,55 @@ import io.nats.client.JetStreamManagement;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 import io.nats.client.api.StreamInfo;
-import io.nats.client.api.StreamState;
+import io.nats.examples.testapp.support.CommandLine;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.nats.examples.testapp.Ui.formatted;
 
-public class Monitor implements Runnable {
+public class Monitor implements Runnable, java.util.function.Consumer<String> {
 
-    static final String ID = "MONITOR";
+    static final String LABEL = "MONITOR";
     static final long REPORT_FREQUENCY = 5000;
+    static final int SHORT_REPORTS = 50;
 
+    final CommandLine cmd;
     final Publisher publisher;
     final List<ConnectableConsumer> consumers;
     final AtomicBoolean reportFull;
 
-    public Monitor(Publisher publisher, ConnectableConsumer... consumers) {
+    public Monitor(CommandLine cmd, Publisher publisher, List<ConnectableConsumer> consumers) {
+        this.cmd = cmd;
         this.publisher = publisher;
-        this.consumers = Arrays.asList(consumers);
+        this.consumers = consumers;
         reportFull = new AtomicBoolean(true);
+    }
+
+    @Override
+    public void accept(String s) {
+        reportFull.set(true);
+        // Ui.print(LABEL, s);
     }
 
     @Override
     public void run() {
         Options options = new Options.Builder()
-            .server(App.BOOTSTRAP)
+            .servers(cmd.servers)
             .connectionListener((c, t) -> {
                 reportFull.set(true);
-                Ui.controlMessage(ID, "Connection: " + c.getServerInfo().getPort() + " " + t);
+                String s = "Connection: " + c.getServerInfo().getPort() + " " + t;
+                Ui.controlMessage(LABEL, s);
+                // Ui.print(LABEL, s);
             })
-            .errorListener(new UiErrorListener(ID) {})
+            .errorListener(new UiErrorListener(LABEL, this) {})
             .maxReconnects(-1)
             .build();
 
         long started = System.currentTimeMillis();
 
+        int shortReportsOwed = 0;
         try (Connection nc = Nats.connect(options)) {
             JetStreamManagement jsm = nc.jetStreamManagement();
             //noinspection InfiniteLoopStatement
@@ -63,25 +74,37 @@ public class Monitor implements Runnable {
                 //noinspection BusyWait
                 Thread.sleep(REPORT_FREQUENCY);
                 try {
+                    StringBuilder conReport = new StringBuilder();
                     if (reportFull.get()) {
-                        StreamInfo si = jsm.getStreamInfo(App.STREAM);
-                        Ui.controlMessage(ID, si.getConfiguration());
-                        Ui.controlMessage(ID, formatted(si.getClusterInfo()));
+                        StreamInfo si = jsm.getStreamInfo(cmd.stream);
+                        String message = formatted(si.getConfiguration())
+                            + "\n" + formatted(si.getClusterInfo());
+                        Ui.controlMessage(LABEL, message);
                         reportFull.set(false);
                     }
-
-                    StringBuilder sb = new StringBuilder();
-                    for (ConnectableConsumer c : consumers) {
-                        sb.append(" | ").append(c.id).append(": ").append(c.getLastReceivedSequence());
+                    if (shortReportsOwed < 1) {
+                        shortReportsOwed = SHORT_REPORTS;
+                        for (ConnectableConsumer con : consumers) {
+                            conReport.append("\n").append(con.label).append(" | Last Sequence: ").append(con.getLastReceivedSequence());
+                        }
                     }
-                    Ui.controlMessage(ID,
+                    else {
+                        shortReportsOwed--;
+                        for (ConnectableConsumer con : consumers) {
+                            conReport.append(" | ")
+                                .append(con.name)
+                                .append(": ")
+                                .append(con.getLastReceivedSequence());
+                        }
+                    }
+                    Ui.controlMessage(LABEL,
                         "Uptime: " + Duration.ofMillis(System.currentTimeMillis() - started).toString().replace("PT", "")
-                        + " | Published: " + publisher.getLastSeqno()
-                        + sb.toString()
+                            + " | Published: " + publisher.getLastSeqno()
+                            + conReport
                     );
                 }
                 catch (Exception e) {
-                    Ui.controlMessage(ID, e.getMessage());
+                    Ui.controlMessage(LABEL, e.getMessage());
                     reportFull.set(true);
                 }
             }
@@ -90,11 +113,5 @@ public class Monitor implements Runnable {
             e.printStackTrace();
             System.exit(-1);
         }
-    }
-
-    private String toString(StreamInfo si) {
-        StreamState ss = si.getStreamState();
-        return "lastSeq=" + ss.getLastSequence() + ", consumers=" + ss.getConsumerCount();
-
     }
 }

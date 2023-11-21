@@ -184,7 +184,8 @@ class PullMessageManager extends MessageManager {
                 }
 
                 if (statMsg.equals(BATCH_COMPLETED) ||
-                    statMsg.equals(MESSAGE_SIZE_EXCEEDS_MAX_BYTES))
+                    statMsg.equals(MESSAGE_SIZE_EXCEEDS_MAX_BYTES) ||
+                    statMsg.equals(SERVER_SHUTDOWN))
                 {
                     return STATUS_TERMINUS;
                 }
