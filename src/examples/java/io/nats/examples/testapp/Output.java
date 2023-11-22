@@ -15,25 +15,35 @@ package io.nats.examples.testapp;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
+import io.nats.examples.testapp.support.CommandLine;
 
 import javax.swing.*;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
 import java.awt.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-public class Ui extends JPanel {
+public class Output extends JPanel {
     public enum Screen {Left, Main}
 
-    static Ui workInstance;
-    static Ui controlInstance;
-    static Ui debugInstance;
+    static Output workInstance;
+    static Output controlInstance;
+    static Output debugInstance;
     static final Object workLock = new Object();
     static final Object controlLock = new Object();
     static final Object debugLock = new Object();
+    static PrintStream workLog;
+    static PrintStream controlLog;
+    static PrintStream debugLog;
 
     static final int HEIGHT_REDUCTION = 45;
 
-    static final Font UI_FONT;
+    static final Font DISPLAY_FONT;
     static final int SCREEN_AVAILABLE_WIDTH;
     static final int SCREEN_AVAILABLE_HEIGHT;
     static final int ROWS;
@@ -52,8 +62,7 @@ public class Ui extends JPanel {
                 break;
             }
         }
-        UI_FONT = new Font(fontName, Font.PLAIN, 14);
-
+        DISPLAY_FONT = new Font(fontName, Font.PLAIN, 14);
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         SCREEN_AVAILABLE_WIDTH = (int)screenSize.getWidth();
         SCREEN_AVAILABLE_HEIGHT = (int)screenSize.getHeight() - HEIGHT_REDUCTION;
@@ -61,22 +70,54 @@ public class Ui extends JPanel {
         ROWS = SCREEN_AVAILABLE_HEIGHT / 21;
     }
 
-    public static void start(Screen screen, boolean showWork, boolean showDebug) {
+    public static void start(CommandLine cmd) {
         if (controlInstance != null) {
             return;
         }
 
+        // LOG FILES
+        if (cmd.logdir != null) {
+            File f = new File(cmd.logdir);
+            if (!f.exists() && !f.mkdirs()) {
+                consoleMessage("OUTPUT", "Unable to create logdir: " + cmd.logdir);
+                System.exit(-1);
+            }
+            String template = "applog-" + System.currentTimeMillis() + "-zzz.txt";
+            try {
+                String fn = template.replace("zzz", "control");
+                Path p = Paths.get(f.getAbsolutePath(), fn);
+                controlLog = new PrintStream(new FileOutputStream(p.toFile()));
+
+                if (cmd.debug) {
+                    fn = template.replace("zzz", "debug");
+                    p = Paths.get(f.getAbsolutePath(), fn);
+                    debugLog = new PrintStream(new FileOutputStream(p.toFile()));
+                }
+
+                if (cmd.work) {
+                    fn = template.replace("zzz", "work");
+                    p = Paths.get(f.getAbsolutePath(), fn);
+                    workLog = new PrintStream(new FileOutputStream(p.toFile()));
+                }
+            }
+            catch (FileNotFoundException e) {
+                consoleMessage("OUTPUT", "Unable to create log file: " + e);
+                System.exit(-1);
+            }
+        }
+
+        // SCREEN
         int debugWidth = (int)(SCREEN_AVAILABLE_WIDTH * 0.42);
         int workWidth =  (int)(SCREEN_AVAILABLE_WIDTH * 0.24);
         int controlWidth = SCREEN_AVAILABLE_WIDTH - debugWidth - workWidth;
         int offset = 0;
-        if (screen == Screen.Left) {
-            if (showDebug || showWork) {
-                if (showDebug) {
+        if (cmd.uiScreen == Screen.Left) {
+            if (cmd.debug || cmd.work) {
+                if (cmd.debug) {
                     debugInstance = newUi("Debug", -debugWidth, debugWidth, SCREEN_AVAILABLE_HEIGHT);
                     offset = -debugWidth;
                 }
-                if (showWork) {
+                if (cmd.work) {
                     offset -= controlWidth;
                     controlInstance = newUi("Control", offset, controlWidth, SCREEN_AVAILABLE_HEIGHT);
                     workInstance = newUi("Work", offset - workWidth, workWidth, SCREEN_AVAILABLE_HEIGHT);
@@ -92,12 +133,12 @@ public class Ui extends JPanel {
             }
         }
         else {
-            if (showDebug || showWork) {
-                if (showDebug) {
+            if (cmd.debug || cmd.work) {
+                if (cmd.debug) {
                     debugInstance = newUi("Debug", 0, debugWidth, SCREEN_AVAILABLE_HEIGHT);
                     offset = debugWidth;
                 }
-                if (showWork) {
+                if (cmd.work) {
                     controlInstance = newUi("Control", offset, controlWidth, SCREEN_AVAILABLE_HEIGHT);
                     offset += controlWidth;
                     workInstance = newUi("Work", offset, workWidth, SCREEN_AVAILABLE_HEIGHT);
@@ -113,28 +154,28 @@ public class Ui extends JPanel {
         }
     }
 
-    private static Ui newUi(String name, int xLoc, int width, int height) {
+    private static Output newUi(String name, int xLoc, int width, int height) {
         //Create and set up the window.
         JFrame frame = new JFrame(name);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         //Add contents to the window.
-        Ui ui = new Ui();
-        frame.add(ui);
+        Output output = new Output();
+        frame.add(output);
 
         //Display the window.
         frame.setLocation(xLoc, 0);
         frame.setPreferredSize(new Dimension(width, height));
         frame.pack();
         frame.setVisible(true);
-        return ui;
+        return output;
     }
 
-    private Ui() {
+    private Output() {
         super(new GridLayout(1, 1));
         area = new JTextArea(ROWS, 40);
         area.setEditable(false);
-        area.setFont(UI_FONT);
+        area.setFont(DISPLAY_FONT);
         add(new JScrollPane(area));
     }
 
@@ -147,6 +188,9 @@ public class Ui extends JPanel {
         if (workInstance != null) {
             synchronized (workLock) {
                 append(label, s, workInstance.area);
+                if (workLog != null) {
+                    consoleMessage(label, s, workLog);
+                }
             }
         }
     }
@@ -162,6 +206,9 @@ public class Ui extends JPanel {
     public static void controlMessage(String label, String s) {
         synchronized (controlLock) {
             append(label, s, controlInstance.area);
+            if (controlLog != null) {
+                consoleMessage(label, s, controlLog);
+            }
         }
     }
 
@@ -189,6 +236,9 @@ public class Ui extends JPanel {
                 debugInstance.area.append(s);
                 debugInstance.area.append("\n");
                 afterAppend(debugInstance.area);
+                if (debugLog != null) {
+                    consoleMessage(null, s + "\n", controlLog);
+                }
             }
         }
     }
@@ -215,22 +265,28 @@ public class Ui extends JPanel {
     }
 
     public static void consoleMessage(String label, String s) {
+        consoleMessage(label, s, System.out);
+    }
+
+    public static void consoleMessage(String label, String s, PrintStream out) {
         if (s.contains("\n")) {
-            String timeLabel = time() + " | " + label;
-            System.out.print(timeLabel);
+            String timeLabel = time() + (label == null ? "" : " | " + label);
+            out.print(timeLabel);
             if (!s.startsWith("\n")) {
-                System.out.print(" | ");
+                out.print(" | ");
             }
-            System.out.print(s.replace("\n", NLINDENT));
+            out.print(s.replace("\n", NLINDENT));
         }
         else {
-            System.out.print(time());
-            System.out.print(" | ");
-            System.out.print(label);
-            System.out.print(" | ");
-            System.out.print(s);
+            out.print(time());
+            if (label != null) {
+                out.print(" | ");
+                out.print(label);
+            }
+            out.print(" | ");
+            out.print(s);
         }
-        System.out.println();
+        out.println();
     }
 
     private static void afterAppend(JTextArea area) {

@@ -16,7 +16,7 @@ package io.nats.examples.testapp.support;
 import io.nats.client.ConnectionListener;
 import io.nats.client.ErrorListener;
 import io.nats.client.Options;
-import io.nats.examples.testapp.Ui;
+import io.nats.examples.testapp.Output;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,9 +55,11 @@ public class CommandLine {
             "  * (Re)Create the stream.\n" +
             "--publish\n" +
             "  * Turns on publishing.\n" +
-            "-- pubjitter\n" +
+            "--pubjitter\n" +
             "  * publish jitter in milliseconds, amount of time to pause between publish\n" +
             "  * not supplied uses 50ms\n" +
+            "--logdir\n" +
+            "  * Directory to log to. Only logs if supplied\n" +
             "----------------------------------------------------------------------------------------------------\n"
         );
     }
@@ -65,13 +67,14 @@ public class CommandLine {
     public final String[] servers;
     public final String stream;
     public final String subject;
+    public final String logdir;
     public final long runtime;
     public final long pubjitter;
     public final boolean create;
     public final boolean publish;
     public final boolean debug;
     public final boolean work;
-    public final Ui.Screen uiScreen;
+    public final Output.Screen uiScreen;
     public final List<CommandLineConsumer> commandLineConsumers;
 
     public Options makeManagmentOptions() {
@@ -106,13 +109,14 @@ public class CommandLine {
         append(sb, "servers", String.join(",", servers), true);
         append(sb, "stream", stream, true);
         append(sb, "subject", subject, true);
+        append(sb, "logdir", logdir, logdir != null);
         append(sb, "runtime", runtime, true);
         append(sb, "create", create, create);
         append(sb, "publish", publish, publish);
         append(sb, "pubjitter", pubjitter, publish);
         append(sb, "debug", debug, debug);
         append(sb, "work", work, work);
-        append(sb, "screen", uiScreen, uiScreen != Ui.Screen.Main);
+        append(sb, "screen", uiScreen, uiScreen != Output.Screen.Main);
         for (CommandLineConsumer cc : commandLineConsumers) {
             append(sb, "consumer", cc, true);
         }
@@ -127,13 +131,14 @@ public class CommandLine {
             String[] _servers = new String[]{Options.DEFAULT_URL};
             String _stream = "app-stream";
             String _subject = "app-subject";
+            String _logdir = null;
             long _runtime = -1;
             long _publishJitter = 50;
             boolean _debug = false;
             boolean _create = false;
             boolean _publish = false;
             boolean _work = false;
-            Ui.Screen _uiScreen = Ui.Screen.Main;
+            Output.Screen _uiScreen = Output.Screen.Main;
             List<CommandLineConsumer> _commandLineConsumers = new ArrayList<>();
 
             if (args != null && args.length > 0) {
@@ -152,6 +157,9 @@ public class CommandLine {
                                 break;
                             case "--subject":
                                 _subject = asString(args[++x]);
+                                break;
+                            case "--logdir":
+                                _logdir = asString(args[++x]);
                                 break;
                             case "--runtime":
                                 _runtime = (long) asNumber("runtime", args[++x], -1) * 1000;
@@ -174,10 +182,10 @@ public class CommandLine {
                             case "--screen":
                                 String screen = asString(args[++x]).toLowerCase();
                                 if (screen.equals("left")) {
-                                    _uiScreen = Ui.Screen.Left;
+                                    _uiScreen = Output.Screen.Left;
                                 }
                                 else if (screen.equals("center")) {
-                                    _uiScreen = Ui.Screen.Main;
+                                    _uiScreen = Output.Screen.Main;
                                 }
                                 else {
                                     throw new IllegalArgumentException("Unknown Screen");
@@ -220,8 +228,9 @@ public class CommandLine {
             }
 
             servers = _servers;
-            this.stream = _stream;
-            this.subject = _subject;
+            stream = _stream;
+            subject = _subject;
+            logdir = _logdir;
             runtime = _runtime;
             create = _create;
             publish = _publish;

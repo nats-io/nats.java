@@ -24,7 +24,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static io.nats.examples.testapp.Ui.formatted;
+import static io.nats.examples.testapp.Output.formatted;
 
 public class Monitor implements Runnable, java.util.function.Consumer<String> {
 
@@ -47,7 +47,7 @@ public class Monitor implements Runnable, java.util.function.Consumer<String> {
     @Override
     public void accept(String s) {
         reportFull.set(true);
-        // Ui.print(LABEL, s);
+        // Output.print(LABEL, s);
     }
 
     @Override
@@ -57,10 +57,10 @@ public class Monitor implements Runnable, java.util.function.Consumer<String> {
             .connectionListener((c, t) -> {
                 reportFull.set(true);
                 String s = "Connection: " + c.getServerInfo().getPort() + " " + t;
-                Ui.controlMessage(LABEL, s);
-                // Ui.print(LABEL, s);
+                Output.controlMessage(LABEL, s);
+                // Output.print(LABEL, s);
             })
-            .errorListener(new UiErrorListener(LABEL, this) {})
+            .errorListener(new OutputErrorListener(LABEL, this) {})
             .maxReconnects(-1)
             .build();
 
@@ -79,7 +79,7 @@ public class Monitor implements Runnable, java.util.function.Consumer<String> {
                         StreamInfo si = jsm.getStreamInfo(cmd.stream);
                         String message = "Stream\n" + formatted(si.getConfiguration())
                             + "\n" + formatted(si.getClusterInfo());
-                        Ui.controlMessage(LABEL, message);
+                        Output.controlMessage(LABEL, message);
                         reportFull.set(false);
                     }
                     if (shortReportsOwed < 1) {
@@ -103,20 +103,20 @@ public class Monitor implements Runnable, java.util.function.Consumer<String> {
                     }
 
                     if (consumers == null) {
-                        Ui.controlMessage(LABEL, "Uptime: " + uptime(started)
+                        Output.controlMessage(LABEL, "Uptime: " + uptime(started)
                             + " | Published: " + publisher.getLastSeqno());
                     }
                     else if (publisher == null){
-                        Ui.controlMessage(LABEL, "Uptime: " + uptime(started));
+                        Output.controlMessage(LABEL, "Uptime: " + uptime(started));
                     }
                     else {
-                        Ui.controlMessage(LABEL, "Uptime: " + uptime(started)
+                        Output.controlMessage(LABEL, "Uptime: " + uptime(started)
                             + " | Published: " + publisher.getLastSeqno()
                             + conReport);
                     }
                 }
                 catch (Exception e) {
-                    Ui.controlMessage(LABEL, e.getMessage());
+                    Output.controlMessage(LABEL, e.getMessage());
                     reportFull.set(true);
                 }
             }

@@ -46,8 +46,8 @@ public class Publisher implements Runnable {
     public void run() {
         Options options = new Options.Builder()
             .servers(cmd.servers)
-            .connectionListener((c, t) -> Ui.controlMessage(LABEL, "Connection: " + c.getServerInfo().getPort() + " " + t))
-            .errorListener(new UiErrorListener(LABEL) {})
+            .connectionListener((c, t) -> Output.controlMessage(LABEL, "Connection: " + c.getServerInfo().getPort() + " " + t))
+            .errorListener(new OutputErrorListener(LABEL) {})
             .maxReconnects(-1)
             .build();
 
@@ -56,20 +56,20 @@ public class Publisher implements Runnable {
             //noinspection InfiniteLoopStatement
             while (true) {
                 if (lastSeqno.get() == -1) {
-                    Ui.controlMessage(LABEL, "Starting Publish");
+                    Output.controlMessage(LABEL, "Starting Publish");
                     lastSeqno.set(0);
                 }
                 try {
                     PublishAck pa = js.publish(cmd.subject, null);
                     lastSeqno.set(pa.getSeqno());
                     if (errorRun > 0) {
-                        Ui.controlMessage(LABEL, "Restarting Publish");
+                        Output.controlMessage(LABEL, "Restarting Publish");
                     }
                     errorRun = 0;
                 }
                 catch (Exception e) {
                     if (++errorRun == 1) {
-                        Ui.controlMessage(LABEL, e.getMessage());
+                        Output.controlMessage(LABEL, e.getMessage());
                     }
                 }
                 try {

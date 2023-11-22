@@ -47,6 +47,6 @@ public class SimpleConsumer extends ConnectableConsumer {
             cc = sc.createOrUpdateConsumer(newCreateConsumer().build());
             mc = cc.consume(co, handler);
         }
-        Ui.controlMessage(label, mc.getConsumerName());
+        Output.controlMessage(label, mc.getConsumerName());
     }
 }

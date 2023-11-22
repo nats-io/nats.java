@@ -16,17 +16,17 @@ package io.nats.examples.testapp;
 import io.nats.client.Connection;
 import io.nats.client.ConnectionListener;
 
-public class UiConnectionListener implements ConnectionListener {
+public class OutputConnectionListener implements ConnectionListener {
 
     String id;
 
-    public UiConnectionListener(String id) {
+    public OutputConnectionListener(String id) {
         this.id = id;
     }
 
     @Override
     public void connectionEvent(Connection conn, Events type) {
-        Ui.controlMessage(id, "Connection: " + conn.getServerInfo().getPort() + " " + type.name().toLowerCase());
+        Output.controlMessage(id, "Connection: " + conn.getServerInfo().getPort() + " " + type.name().toLowerCase());
 
         switch (type) {
             case CONNECTED: connected(conn); break;

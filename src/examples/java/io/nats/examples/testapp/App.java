@@ -32,8 +32,8 @@ import java.util.concurrent.TimeUnit;
 public class App {
 
     public static String[] MANUAL_ARGS = (
-//        "--servers nats://192.168.50.99:4222"
-        " --servers nats://localhost:4222"
+        "--servers nats://192.168.50.99:4222"
+//        " --servers nats://localhost:4222"
             + " --stream app-stream"
             + " --subject app-subject"
             + " --subject app-subject"
@@ -43,35 +43,36 @@ public class App {
             + " --publish"
             + " --pubjitter 30"
             + " --simple ordered,100,5000"
-//            + " --simple durable 100 5000"
+            + " --simple durable 100 5000" // space or commas work, the parser figures it out
             + " --push ordered"
-//            + " --push durable"
+            + " --push durable"
+            + " --logdir c:\\temp"
     ).split(" ");
 
     public static void main(String[] args) throws Exception {
 
-        args = MANUAL_ARGS; // comment out for command line
+        // args = MANUAL_ARGS; // comment out for real command line
 
         CommandLine cmd = new CommandLine(args);
         Monitor monitor;
 
         try {
-            Ui.start(cmd.uiScreen, cmd.work, cmd.debug);
-            Ui.controlMessage("APP", cmd.toString().replace(" --", "    \n--"));
+            Output.start(cmd);
+            Output.controlMessage("APP", cmd.toString().replace(" --", "    \n--"));
             CountDownLatch waiter = new CountDownLatch(1);
 
             Publisher publisher = null;
             List<ConnectableConsumer> cons = null;
 
             if (cmd.create) {
-                Ui.consoleMessage("APP", cmd.toString().replace(" --", "    \n--"));
+                Output.consoleMessage("APP", cmd.toString().replace(" --", "    \n--"));
                 Options options = cmd.makeManagmentOptions();
                 try (Connection nc = Nats.connect(options)) {
                     JetStreamManagement jsm = nc.jetStreamManagement();
                     createOrReplaceStream(cmd, jsm);
                 }
                 catch (Exception e) {
-                    Ui.consoleMessage("APP", e.getMessage());
+                    Output.consoleMessage("APP", e.getMessage());
                 }
             }
 
@@ -85,7 +86,7 @@ public class App {
                     else {
                         con = new PushConsumer(cmd, clc.consumerKind);
                     }
-                    Ui.consoleMessage("APP", con.label);
+                    Output.consoleMessage("APP", con.label);
                     cons.add(con);
                 }
             }
@@ -114,7 +115,7 @@ public class App {
             e.printStackTrace();
         }
         finally {
-            Ui.dumpControl();
+            Output.dumpControl();
             System.exit(0);
         }
     }
@@ -131,10 +132,10 @@ public class App {
                 .subjects(cmd.subject)
                 .build();
             StreamInfo si = jsm.addStream(sc);
-            Ui.controlMessage("APP", "Create Stream\n" + Ui.formatted(si.getConfiguration()));
+            Output.controlMessage("APP", "Create Stream\n" + Output.formatted(si.getConfiguration()));
         }
         catch (Exception e) {
-            Ui.consoleMessage("FATAL", "Failed creating stream: '" + cmd.stream + "' " + e);
+            Output.consoleMessage("FATAL", "Failed creating stream: '" + cmd.stream + "' " + e);
             System.exit(-1);
         }
     }

@@ -26,8 +26,8 @@ public abstract class ConnectableConsumer {
 
     protected final Connection nc;
     protected final JetStream js;
-    protected final UiConnectionListener connectionListener;
-    protected final UiErrorListener errorListener;
+    protected final OutputConnectionListener connectionListener;
+    protected final OutputErrorListener errorListener;
     protected final AtomicLong lastReceivedSequence;
     protected final MessageHandler handler;
     protected final ConsumerKind consumerKind;
@@ -59,8 +59,8 @@ public abstract class ConnectableConsumer {
         this.initials = initials;
         updateNameAndLabel(name);
 
-        connectionListener = new UiConnectionListener(label);
-        errorListener = new UiErrorListener(label);
+        connectionListener = new OutputConnectionListener(label);
+        errorListener = new OutputErrorListener(label);
 
         Options options = cmd.makeOptions(connectionListener, errorListener);
         nc = Nats.connect(options);
@@ -70,7 +70,7 @@ public abstract class ConnectableConsumer {
             m.ack();
             long seq = m.metaData().streamSequence();
             lastReceivedSequence.set(seq);
-            Ui.workMessage(label, "Last Received Seq: " + seq);
+            Output.workMessage(label, "Last Received Seq: " + seq);
         };
     }
 

@@ -17,15 +17,15 @@ import io.nats.client.*;
 import io.nats.client.api.ServerInfo;
 import io.nats.client.support.Status;
 
-public class UiErrorListener implements ErrorListener {
+public class OutputErrorListener implements ErrorListener {
     String id;
     java.util.function.Consumer<String> watcher;
 
-    public UiErrorListener(String id) {
+    public OutputErrorListener(String id) {
         this(id, null);
     }
 
-    public UiErrorListener(String id, java.util.function.Consumer<String> watcher) {
+    public OutputErrorListener(String id, java.util.function.Consumer<String> watcher) {
         this.id = id;
         this.watcher = watcher;
     }
@@ -62,7 +62,7 @@ public class UiErrorListener implements ErrorListener {
      */
     @Override
     public void errorOccurred(final Connection conn, final String error) {
-        Ui.controlMessage(id, supplyMessage("SEVERE errorOccurred", conn, null, null, "Error: ", error));
+        Output.controlMessage(id, supplyMessage("SEVERE errorOccurred", conn, null, null, "Error: ", error));
     }
 
     /**
@@ -70,7 +70,7 @@ public class UiErrorListener implements ErrorListener {
      */
     @Override
     public void exceptionOccurred(final Connection conn, final Exception exp) {
-        Ui.controlMessage(id, supplyMessage("SEVERE exceptionOccurred", conn, null, null, "EX: ", exp));
+        Output.controlMessage(id, supplyMessage("SEVERE exceptionOccurred", conn, null, null, "EX: ", exp));
     }
 
     /**
@@ -78,7 +78,7 @@ public class UiErrorListener implements ErrorListener {
      */
     @Override
     public void slowConsumerDetected(final Connection conn, final Consumer consumer) {
-        Ui.controlMessage(id, supplyMessage("WARN slowConsumerDetected", conn, consumer, null));
+        Output.controlMessage(id, supplyMessage("WARN slowConsumerDetected", conn, consumer, null));
     }
 
     /**
@@ -86,7 +86,7 @@ public class UiErrorListener implements ErrorListener {
      */
     @Override
     public void messageDiscarded(final Connection conn, final Message msg) {
-        Ui.controlMessage(id, supplyMessage("INFO messageDiscarded", conn, null, null, "Message: ", msg));
+        Output.controlMessage(id, supplyMessage("INFO messageDiscarded", conn, null, null, "Message: ", msg));
     }
 
     /**
@@ -95,7 +95,7 @@ public class UiErrorListener implements ErrorListener {
     @Override
     public void heartbeatAlarm(final Connection conn, final JetStreamSubscription sub,
                                final long lastStreamSequence, final long lastConsumerSequence) {
-        Ui.controlMessage(id, supplyMessage("SEVERE HbAlarm", conn, null, sub, "lastStreamSeq: ", lastStreamSequence, "lastConsumerSeq: ", lastConsumerSequence));
+        Output.controlMessage(id, supplyMessage("SEVERE HbAlarm", conn, null, sub, "lastStreamSeq: ", lastStreamSequence, "lastConsumerSeq: ", lastConsumerSequence));
     }
 
     /**
@@ -103,7 +103,7 @@ public class UiErrorListener implements ErrorListener {
      */
     @Override
     public void unhandledStatus(final Connection conn, final JetStreamSubscription sub, final Status status) {
-        Ui.controlMessage(id, supplyMessage("WARN unhandledStatus", conn, null, sub, "Status:", status));
+        Output.controlMessage(id, supplyMessage("WARN unhandledStatus", conn, null, sub, "Status:", status));
     }
 
     /**
@@ -111,7 +111,7 @@ public class UiErrorListener implements ErrorListener {
      */
     @Override
     public void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {
-//        Ui.controlMessage(id, supplyMessage("WARN pullStatusWarning", conn, null, sub, "Status:", status));
+//        Output.controlMessage(id, supplyMessage("WARN pullStatusWarning", conn, null, sub, "Status:", status));
     }
 
     /**
@@ -119,7 +119,7 @@ public class UiErrorListener implements ErrorListener {
      */
     @Override
     public void pullStatusError(Connection conn, JetStreamSubscription sub, Status status) {
-        Ui.controlMessage(id, supplyMessage("SEVERE pullStatusError", conn, null, sub, "Status:", status));
+        Output.controlMessage(id, supplyMessage("SEVERE pullStatusError", conn, null, sub, "Status:", status));
     }
 
     /**
@@ -127,6 +127,6 @@ public class UiErrorListener implements ErrorListener {
      */
     @Override
     public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String id, FlowControlSource source) {
-        Ui.controlMessage(this.id, supplyMessage("INFO flowControlProcessed", conn, null, sub, "FlowControlSource:", source));
+        Output.controlMessage(this.id, supplyMessage("INFO flowControlProcessed", conn, null, sub, "FlowControlSource:", source));
     }
 }
