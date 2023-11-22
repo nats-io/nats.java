@@ -18,7 +18,7 @@ import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 
-class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer {
+class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer, PullManagerObserver {
     private final long maxWaitNanos;
     private final String pullSubject;
     private long startNanos;
@@ -36,8 +36,18 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             .idleHeartbeat(fetchConsumeOptions.getIdleHeartbeat())
             .build();
         initSub(subscriptionMaker.subscribe(null, null, null));
-        pullSubject = sub._pull(pro, false, null);
+        pullSubject = sub._pull(pro, false, this);
         startNanos = -1;
+    }
+
+    @Override
+    public void pendingUpdated() {
+    }
+
+    @Override
+    public void heartbeatError() {
+        stopped.set(true);
+        finished.set(true);
     }
 
     @Override

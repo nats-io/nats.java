@@ -13,6 +13,8 @@
 
 package io.nats.examples.testapp.support;
 
+import io.nats.client.ConnectionListener;
+import io.nats.client.ErrorListener;
 import io.nats.client.Options;
 import io.nats.examples.testapp.Ui;
 
@@ -35,22 +37,27 @@ public class CommandLine {
             "  * not supplied uses \"app-stream\"\n" +
             "--subject <subject>\n" +
             "  * not supplied uses \"app-subject\"\n" +
-            "--runtime <MINUTES>\n" +
-            "  * not supplied or less than 1 means infinite\n" +
-            "-- pubjitter\n" +
-            "  * publish jitter in milliseconds, amount of time to pause between publish\n" +
-            "  * not supplied uses 50ms\n" +
+            "--runtime <>m|<>s|<>ms|<>\n" +
+            "  * not supplied or zero or negative infinite" +
+            "  * m minute, s second ms millseconds no suffix milliseonds\n" +
             "--debug\n" +
             "  * show the debug window\n" +
             "--work\n" +
             "  * work the work window\n" +
             "--screen <left|center>\n" +
-                "--simple,<ephemeral|durable|ordered>,batchSize,expiresInMs\n" +
-                "--simple,<ephemeral|durable|ordered> batchSize expiresInMs\n" +
+            "--simple,<ephemeral|durable|ordered>,batchSize,expiresInMs\n" +
+            "--simple,<ephemeral|durable|ordered> batchSize expiresInMs\n" +
             "  * Simple Consumer.\n" +
             "--push,<ephemeral|durable|ordered>\n" +
             "  * Push Consumer.\n" +
             "*** One or more consumers is required.\n" +
+            "--create\n" +
+            "  * (Re)Create the stream.\n" +
+            "--publish\n" +
+            "  * Turns on publishing.\n" +
+            "-- pubjitter\n" +
+            "  * publish jitter in milliseconds, amount of time to pause between publish\n" +
+            "  * not supplied uses 50ms\n" +
             "----------------------------------------------------------------------------------------------------\n"
         );
     }
@@ -60,10 +67,29 @@ public class CommandLine {
     public final String subject;
     public final long runtime;
     public final long pubjitter;
+    public final boolean create;
+    public final boolean publish;
     public final boolean debug;
     public final boolean work;
     public final Ui.Screen uiScreen;
     public final List<CommandLineConsumer> commandLineConsumers;
+
+    public Options makeManagmentOptions() {
+        return makeOptions((conn, event) -> {}, new ErrorListener() {}, 0);
+    }
+
+    public Options makeOptions(ConnectionListener cl, ErrorListener el) {
+        return makeOptions(cl, el, -1);
+    }
+
+    public Options makeOptions(ConnectionListener cl, ErrorListener el, int maxReconnects) {
+        return new Options.Builder()
+            .servers(servers)
+            .connectionListener(cl)
+            .errorListener(el)
+            .maxReconnects(maxReconnects)
+            .build();
+    }
 
     // ----------------------------------------------------------------------------------------------------
     // ToString
@@ -81,7 +107,9 @@ public class CommandLine {
         append(sb, "stream", stream, true);
         append(sb, "subject", subject, true);
         append(sb, "runtime", runtime, true);
-        append(sb, "pubjitter", pubjitter, true);
+        append(sb, "create", create, create);
+        append(sb, "publish", publish, publish);
+        append(sb, "pubjitter", pubjitter, publish);
         append(sb, "debug", debug, debug);
         append(sb, "work", work, work);
         append(sb, "screen", uiScreen, uiScreen != Ui.Screen.Main);
@@ -102,6 +130,8 @@ public class CommandLine {
             long _runtime = -1;
             long _publishJitter = 50;
             boolean _debug = false;
+            boolean _create = false;
+            boolean _publish = false;
             boolean _work = false;
             Ui.Screen _uiScreen = Ui.Screen.Main;
             List<CommandLineConsumer> _commandLineConsumers = new ArrayList<>();
@@ -124,10 +154,16 @@ public class CommandLine {
                                 _subject = asString(args[++x]);
                                 break;
                             case "--runtime":
-                                _runtime = (long) asNumber("runtime", args[++x], -1) * 60000;
+                                _runtime = (long) asNumber("runtime", args[++x], -1) * 1000;
                                 break;
                             case "--pubjitter":
                                 _publishJitter = asNumber("pubjitter", args[++x], -1);
+                                break;
+                            case "--create":
+                                _create = true;
+                                break;
+                            case "--publish":
+                                _publish = true;
                                 break;
                             case "--debug":
                                 _debug = true;
@@ -179,14 +215,16 @@ public class CommandLine {
                 }
             }
 
-            if (_commandLineConsumers.isEmpty()) {
-                throw new IllegalArgumentException("Consumer commands are required");
+            if (!(_create || _publish) && _commandLineConsumers.isEmpty()) {
+                throw new IllegalArgumentException("Consumer commands are required if not creating or publishing");
             }
 
             servers = _servers;
             this.stream = _stream;
             this.subject = _subject;
             runtime = _runtime;
+            create = _create;
+            publish = _publish;
             pubjitter = _publishJitter;
             debug = _debug;
             work = _work;

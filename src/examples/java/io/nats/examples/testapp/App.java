@@ -37,67 +37,86 @@ public class App {
             + " --stream app-stream"
             + " --subject app-subject"
             + " --subject app-subject"
-//            + " --runtime 60" // minutes
-            + " --pubjitter 50"
-//            + " --simple ordered,100,5000"
+//            + " --runtime 3600 // 1 hour in seconds
+            + " --screen left"
+            + " --create"
+            + " --publish"
+            + " --pubjitter 30"
+            + " --simple ordered,100,5000"
 //            + " --simple durable 100 5000"
             + " --push ordered"
 //            + " --push durable"
-            + " --screen left"
     ).split(" ");
 
     public static void main(String[] args) throws Exception {
 
-        args = MANUAL_ARGS; // comment in to use
+        args = MANUAL_ARGS; // comment out for command line
 
         CommandLine cmd = new CommandLine(args);
+        Monitor monitor;
 
         try {
             Ui.start(cmd.uiScreen, cmd.work, cmd.debug);
             Ui.controlMessage("APP", cmd.toString().replace(" --", "    \n--"));
-
-            Options options = Options.builder().servers(cmd.servers).build();
-            try (Connection nc = Nats.connect(options)) {
-                JetStreamManagement jsm = nc.jetStreamManagement();
-                createOrReplaceStream(cmd, jsm);
-            }
-            catch (Exception e) {
-                Ui.controlMessage("APP", e.getMessage());
-            }
-
-            Publisher publisher = new Publisher(cmd, cmd.pubjitter);
-            Thread pubThread = new Thread(publisher);
-            pubThread.start();
-
             CountDownLatch waiter = new CountDownLatch(1);
 
-            List<ConnectableConsumer> cons = new ArrayList<>();
-            for (CommandLineConsumer clc : cmd.commandLineConsumers) {
-                ConnectableConsumer con;
-                if (clc.consumerType == ConsumerType.Simple) {
-                    con = new SimpleConsumer(cmd, clc.consumerKind, clc.batchSize, clc.expiresIn);
+            Publisher publisher = null;
+            List<ConnectableConsumer> cons = null;
+
+            if (cmd.create) {
+                Ui.consoleMessage("APP", cmd.toString().replace(" --", "    \n--"));
+                Options options = cmd.makeManagmentOptions();
+                try (Connection nc = Nats.connect(options)) {
+                    JetStreamManagement jsm = nc.jetStreamManagement();
+                    createOrReplaceStream(cmd, jsm);
                 }
-                else {
-                    con = new PushConsumer(cmd, clc.consumerKind);
+                catch (Exception e) {
+                    Ui.consoleMessage("APP", e.getMessage());
                 }
-                Ui.consoleMessage("APP", con.label);
-                cons.add(con);
             }
 
-            Monitor monitor = new Monitor(cmd, publisher, cons);
+            if (!cmd.commandLineConsumers.isEmpty()) {
+                cons = new ArrayList<>();
+                for (CommandLineConsumer clc : cmd.commandLineConsumers) {
+                    ConnectableConsumer con;
+                    if (clc.consumerType == ConsumerType.Simple) {
+                        con = new SimpleConsumer(cmd, clc.consumerKind, clc.batchSize, clc.expiresIn);
+                    }
+                    else {
+                        con = new PushConsumer(cmd, clc.consumerKind);
+                    }
+                    Ui.consoleMessage("APP", con.label);
+                    cons.add(con);
+                }
+            }
+
+            if (cmd.publish) {
+                publisher = new Publisher(cmd, cmd.pubjitter);
+                Thread pubThread = new Thread(publisher);
+                pubThread.start();
+            }
+
+            // just creating the stream?
+            if (publisher == null && cons == null) {
+                return;
+            }
+
+            monitor = new Monitor(cmd, publisher, cons);
             Thread monThread = new Thread(monitor);
             monThread.start();
 
-            //noinspection ResultOfMethodCallIgnored
             long runtime = cmd.runtime < 1 ? Long.MAX_VALUE : cmd.runtime;
+            //noinspection ResultOfMethodCallIgnored
             waiter.await(runtime, TimeUnit.MILLISECONDS);
         }
         catch (Exception e) {
             //noinspection CallToPrintStackTrace
             e.printStackTrace();
         }
-        Ui.dumpControl();
-        System.exit(0);
+        finally {
+            Ui.dumpControl();
+            System.exit(0);
+        }
     }
 
     public static void createOrReplaceStream(CommandLine cmd, JetStreamManagement jsm) {
@@ -112,7 +131,7 @@ public class App {
                 .subjects(cmd.subject)
                 .build();
             StreamInfo si = jsm.addStream(sc);
-            Ui.controlMessage("APP", si.getConfiguration());
+            Ui.controlMessage("APP", "Create Stream\n" + Ui.formatted(si.getConfiguration()));
         }
         catch (Exception e) {
             Ui.consoleMessage("FATAL", "Failed creating stream: '" + cmd.stream + "' " + e);

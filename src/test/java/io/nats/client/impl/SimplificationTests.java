@@ -636,16 +636,22 @@ public class SimplificationTests extends JetStreamTestBase {
             jsPublish(js, tsc.subject(), 101, 5);
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(tsc.subject());
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
-            try (FetchConsumer fcon = occtx.fetchMessages(6)) {
-                // Loop through the messages to make sure I get stream sequence 1 to 5
-                int expectedStreamSeq = 1;
-                while (expectedStreamSeq <= 5) {
+            int expectedStreamSeq = 1;
+            FetchConsumeOptions fco = FetchConsumeOptions.builder().maxMessages(6).expiresIn(1000).build();
+            while (expectedStreamSeq <= 5) {
+                try (FetchConsumer fcon = occtx.fetch(fco)) {
+                    // Loop through the messages to make sure I get stream sequence 1 to 5
                     Message m = fcon.nextMessage();
-                    if (m != null) {
+                    while (m != null) {
                         assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
+                        m = fcon.nextMessage();
+                    }
+                    while (!fcon.isFinished()) {
+                        sleep(1);
                     }
                 }
             }
+            assertEquals(6, expectedStreamSeq);
         });
     }
 

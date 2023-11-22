@@ -45,29 +45,24 @@ public abstract class ConnectableConsumer {
         switch (consumerKind) {
             case Durable:
                 durableName = initials + "-dur-" + new NUID().nextSequence();
+                name = durableName;
                 break;
             case Ephemeral:
                 durableName = null;
+                name = initials + "-eph-" + new NUID().nextSequence();
                 break;
             case Ordered:
                 durableName = null;
+                name = initials + "-ord-" + new NUID().nextSequence();
                 break;
         }
         this.initials = initials;
-        updateNameAndLabel(durableName == null
-            ? initials + "-con-" + new NUID().nextSequence()
-            : durableName);
+        updateNameAndLabel(name);
 
         connectionListener = new UiConnectionListener(label);
         errorListener = new UiErrorListener(label);
 
-        Options options = new Options.Builder()
-            .servers(cmd.servers)
-            .connectionListener(connectionListener)
-            .errorListener(errorListener)
-            .maxReconnects(-1)
-            .build();
-
+        Options options = cmd.makeOptions(connectionListener, errorListener);
         nc = Nats.connect(options);
         js = nc.jetStream();
 

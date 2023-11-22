@@ -198,7 +198,9 @@ public class Ui extends JPanel {
         if (s.contains("\n")) {
             String timeLabel = time() + " | " + label;
             area.append(timeLabel);
-            area.append(NLINDENT);
+            if (!s.startsWith("\n")) {
+                area.append(" | ");
+            }
             area.append(s.replace("\n", NLINDENT));
         }
         else {
@@ -216,7 +218,9 @@ public class Ui extends JPanel {
         if (s.contains("\n")) {
             String timeLabel = time() + " | " + label;
             System.out.print(timeLabel);
-            System.out.print(NLINDENT);
+            if (!s.startsWith("\n")) {
+                System.out.print(" | ");
+            }
             System.out.print(s.replace("\n", NLINDENT));
         }
         else {
