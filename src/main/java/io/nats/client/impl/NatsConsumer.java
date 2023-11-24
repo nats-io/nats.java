@@ -230,7 +230,7 @@ abstract class NatsConsumer implements Consumer {
    }
 
     /**
-     * @return whether or not this consumer is still processing messages. For a
+     * @return whether this consumer is still processing messages. For a
      *         subscription the answer is false after unsubscribe. For a dispatcher,
      *         false after stop.
      */

@@ -183,14 +183,20 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     ConsumerConfiguration consumerConfigurationStartAfterLast(
         ConsumerConfiguration originalCc,
         long lastStreamSeq,
-        String newDeliverSubject)
+        String newDeliverSubject, String consumerName)
     {
-        return ConsumerConfiguration.builder(originalCc)
-            .deliverPolicy(DeliverPolicy.ByStartSequence)
-            .deliverSubject(newDeliverSubject)
-            .startSequence(Math.max(1, lastStreamSeq + 1))
-            .startTime(null) // clear start time in case it was originally set
-            .build();
+        ConsumerConfiguration.Builder builder =
+            ConsumerConfiguration.builder(originalCc)
+                .deliverPolicy(DeliverPolicy.ByStartSequence)
+                .deliverSubject(newDeliverSubject)
+                .startSequence(Math.max(1, lastStreamSeq + 1))
+                .startTime(null); // clear start time in case it was originally set
+
+        if (consumerName != null) {
+            builder.name(consumerName);
+        }
+
+        return builder.build();
     }
 
     ConsumerInfo lookupConsumerInfo(String streamName, String consumerName) throws IOException, JetStreamApiException {

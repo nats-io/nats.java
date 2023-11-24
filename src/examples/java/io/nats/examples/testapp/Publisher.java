@@ -31,7 +31,7 @@ public class Publisher implements Runnable {
     final CommandLine cmd;
     final long pubDelay;
     final AtomicLong lastSeqno = new AtomicLong(-1);
-    int errorRun = 0;
+    final AtomicLong errorRun = new AtomicLong(0);
 
     public Publisher(CommandLine cmd, long pubDelay) {
         this.cmd = cmd;
@@ -40,6 +40,9 @@ public class Publisher implements Runnable {
 
     public long getLastSeqno() {
         return lastSeqno.get();
+    }
+    public boolean isInErrorState() {
+        return errorRun.get() > 0;
     }
 
     @Override
@@ -62,13 +65,13 @@ public class Publisher implements Runnable {
                 try {
                     PublishAck pa = js.publish(cmd.subject, null);
                     lastSeqno.set(pa.getSeqno());
-                    if (errorRun > 0) {
+                    if (errorRun.get() > 0) {
                         Output.controlMessage(LABEL, "Restarting Publish");
                     }
-                    errorRun = 0;
+                    errorRun.set(0);
                 }
                 catch (Exception e) {
-                    if (++errorRun == 1) {
+                    if (errorRun.incrementAndGet() == 1) {
                         Output.controlMessage(LABEL, e.getMessage());
                     }
                 }

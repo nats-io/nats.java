@@ -42,4 +42,9 @@ public class PushConsumer extends ConnectableConsumer {
         sub = js.subscribe(cmd.subject, d, handler, false, pso);
         Output.controlMessage(label, sub.getConsumerName());
     }
+
+    @Override
+    public void refreshInfo() {
+        updateNameAndLabel(sub.getConsumerName());
+    }
 }

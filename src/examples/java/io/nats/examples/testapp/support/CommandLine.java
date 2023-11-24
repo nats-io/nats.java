@@ -223,7 +223,7 @@ public class CommandLine {
                 }
             }
 
-            if (!(_create || _publish) && _commandLineConsumers.isEmpty()) {
+            if (!_create && !_publish && _commandLineConsumers.isEmpty()) {
                 throw new IllegalArgumentException("Consumer commands are required if not creating or publishing");
             }
 

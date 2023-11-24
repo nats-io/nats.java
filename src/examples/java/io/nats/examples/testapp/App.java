@@ -32,8 +32,8 @@ import java.util.concurrent.TimeUnit;
 public class App {
 
     public static String[] MANUAL_ARGS = (
-        "--servers nats://192.168.50.99:4222"
-//        " --servers nats://localhost:4222"
+//        "--servers nats://192.168.50.99:4222"
+        "--servers nats://localhost:4222"
             + " --stream app-stream"
             + " --subject app-subject"
             + " --subject app-subject"

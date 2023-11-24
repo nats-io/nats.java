@@ -82,20 +82,21 @@ public class Output extends JPanel {
                 consoleMessage("OUTPUT", "Unable to create logdir: " + cmd.logdir);
                 System.exit(-1);
             }
-            String template = "applog-" + System.currentTimeMillis() + "-zzz.txt";
+//            String template = "applog-" + System.currentTimeMillis() + "-zzz.txt";
+            String template = "applog-which.txt";
             try {
-                String fn = template.replace("zzz", "control");
+                String fn = template.replace("which", "control");
                 Path p = Paths.get(f.getAbsolutePath(), fn);
                 controlLog = new PrintStream(new FileOutputStream(p.toFile()));
 
                 if (cmd.debug) {
-                    fn = template.replace("zzz", "debug");
+                    fn = template.replace("which", "debug");
                     p = Paths.get(f.getAbsolutePath(), fn);
                     debugLog = new PrintStream(new FileOutputStream(p.toFile()));
                 }
 
                 if (cmd.work) {
-                    fn = template.replace("zzz", "work");
+                    fn = template.replace("which", "work");
                     p = Paths.get(f.getAbsolutePath(), fn);
                     workLog = new PrintStream(new FileOutputStream(p.toFile()));
                 }

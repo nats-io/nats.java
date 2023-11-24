@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.Message;
+import io.nats.client.NUID;
 import io.nats.client.PullRequestOptions;
 import io.nats.client.SubscribeOptions;
 
@@ -122,12 +123,17 @@ abstract class MessageManager {
     }
 
     class MmTimerTask extends TimerTask {
+        public String id = new NUID().nextSequence();
         long alarmPeriod;
         final AtomicBoolean alive;
 
         public MmTimerTask(long alarmPeriod) {
             this.alarmPeriod = alarmPeriod;
             alive = new AtomicBoolean(true);
+        }
+
+        public void reuse() {
+            alive.getAndSet(true);
         }
 
         public void shutdown() {
@@ -148,12 +154,17 @@ abstract class MessageManager {
     protected void initOrResetHeartbeatTimer() {
         synchronized (stateChangeLock) {
             if (heartbeatTimer != null) {
+                // Same settings, just reuse the existing timer
                 if (heartbeatTimerTask.alarmPeriod == alarmPeriodSetting) {
+                    heartbeatTimerTask.reuse();
                     updateLastMessageReceived();
                     return;
                 }
+
+                // Replace timer since settings have changed
                 shutdownHeartbeatTimer();
             }
+            // replacement or new comes here
             heartbeatTimer = new Timer();
             heartbeatTimerTask = new MmTimerTask(alarmPeriodSetting);
             heartbeatTimer.schedule(heartbeatTimerTask, alarmPeriodSetting, alarmPeriodSetting);

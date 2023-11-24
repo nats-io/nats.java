@@ -49,6 +49,30 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         doSub();
     }
 
+    @Override
+    public void heartbeatError() {
+        restart();
+    }
+
+    @Override
+    public void connectionEvent(Connection conn, Events type) {
+        if (type == Events.RECONNECTED) {
+            restart();
+        }
+    }
+
+    private void restart() {
+        try {
+            // just close the current sub and make another one.
+            // this could go on endlessly
+            lenientClose();
+            doSub();
+        }
+        catch (JetStreamApiException | IOException e) {
+            // TODO FIGURE OUT WHAT TO DO HERE IF ANYTHING
+        }
+    }
+
     void doSub() throws JetStreamApiException, IOException {
         MessageHandler mh = userMessageHandler == null ? null : msg -> {
             userMessageHandler.onMessage(msg);
@@ -56,10 +80,10 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
                 finished.set(true);
             }
         };
-        stopped.set(false);
         try {
             super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm));
             repull();
+            stopped.set(false);
         }
         catch (JetStreamApiException | IOException e) {
             pmm.resetTracking();
@@ -72,19 +96,6 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         if (!stopped.get() && (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
         {
             repull();
-        }
-    }
-
-    @Override
-    public void heartbeatError() {
-        try {
-            // just close the current sub and make another one.
-            // this could go on endlessly
-            lenientClose();
-            doSub();
-        }
-        catch (JetStreamApiException | IOException e) {
-            // TODO FIGURE OUT WHAT TO DO HERE IF ANYTHING
         }
     }
 

@@ -95,7 +95,7 @@ public class OutputErrorListener implements ErrorListener {
     @Override
     public void heartbeatAlarm(final Connection conn, final JetStreamSubscription sub,
                                final long lastStreamSequence, final long lastConsumerSequence) {
-        Output.controlMessage(id, supplyMessage("SEVERE HbAlarm", conn, null, sub, "lastStreamSeq: ", lastStreamSequence, "lastConsumerSeq: ", lastConsumerSequence));
+        Output.controlMessage(id, supplyMessage("SEVERE HB Alarm", conn, null, sub, "lastStreamSeq: ", lastStreamSequence, "lastConsumerSeq: ", lastConsumerSequence));
     }
 
     /**

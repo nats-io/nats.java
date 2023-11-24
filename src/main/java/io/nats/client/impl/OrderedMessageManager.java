@@ -68,43 +68,44 @@ class OrderedMessageManager extends PushMessageManager {
         return manageStatus(msg);
     }
 
+    @Override
+    protected void handleHeartbeatError() {
+        super.handleHeartbeatError();
+        handleErrorCondition();
+    }
+
     private void handleErrorCondition() {
         try {
             targetSid.set(null);
             expectedExternalConsumerSeq = 1; // consumer always starts with consumer sequence 1
 
-            // 1. shutdown the manager, for instance stops heartbeat timers
-            shutdown();
-
-            // 2. delete the consumer by name so we can recreate it with a different delivery policy
+            // 1. delete the consumer by name so we can recreate it with a different delivery policy
             //    b/c we cannot edit a push consumer's delivery policy
             JetStreamManagement jsm = conn.jetStreamManagement(js.jso);
+            String actualConsumerName = sub.getConsumerName();
             try {
-                if (originalCc.getName() != null) {
-                    jsm.deleteConsumer(stream, originalCc.getName());
-                }
+                jsm.deleteConsumer(stream, actualConsumerName);
             }
             catch (Exception ignore) {}
 
-            // 3. re-subscribe. This means kill the sub then make a new one
+            // 2. re-subscribe. This means kill the sub then make a new one
             //    New sub needs a new deliverSubject
             String newDeliverSubject = sub.connection.createInbox();
             sub.reSubscribe(newDeliverSubject);
             targetSid.set(sub.getSID());
 
-            // 4. make a new consumer using the same deliver subject but
+            // 3. make a new consumer using the same deliver subject but
             //    with a new starting point
-            ConsumerConfiguration userCC = js.consumerConfigurationStartAfterLast(originalCc, lastStreamSeq, newDeliverSubject);
+            ConsumerConfiguration userCC = js.consumerConfigurationStartAfterLast(originalCc, lastStreamSeq, newDeliverSubject, actualConsumerName);
             js._createConsumerUnsubscribeOnException(stream, userCC, sub);
 
-            // 5. restart the manager.
+            // 4. restart the manager.
             startup(sub);
         }
         catch (Exception e) {
             js.conn.processException(e);
-            if (syncMode) {
-                throw new RuntimeException("Ordered subscription fatal error.", e);
-            }
+            updateLastMessageReceived();
+            initOrResetHeartbeatTimer();
         }
     }
 }

@@ -81,6 +81,11 @@ public class Monitor implements Runnable, java.util.function.Consumer<String> {
                             + "\n" + formatted(si.getClusterInfo());
                         Output.controlMessage(LABEL, message);
                         reportFull.set(false);
+                        if (consumers != null) {
+                            for (ConnectableConsumer con : consumers) {
+                                con.refreshInfo();
+                            }
+                        }
                     }
                     if (shortReportsOwed < 1) {
                         shortReportsOwed = SHORT_REPORTS;
@@ -102,18 +107,12 @@ public class Monitor implements Runnable, java.util.function.Consumer<String> {
                         }
                     }
 
-                    if (consumers == null) {
-                        Output.controlMessage(LABEL, "Uptime: " + uptime(started)
-                            + " | Published: " + publisher.getLastSeqno());
+                    String pubReport = "";
+                    if (publisher != null) {
+                        pubReport = "| Publisher: " + publisher.getLastSeqno() +
+                            (publisher.isInErrorState() ? " (Paused)" : " (Running)");
                     }
-                    else if (publisher == null){
-                        Output.controlMessage(LABEL, "Uptime: " + uptime(started));
-                    }
-                    else {
-                        Output.controlMessage(LABEL, "Uptime: " + uptime(started)
-                            + " | Published: " + publisher.getLastSeqno()
-                            + conReport);
-                    }
+                    Output.controlMessage(LABEL, "Uptime: " + uptime(started) + pubReport + conReport);
                 }
                 catch (Exception e) {
                     Output.controlMessage(LABEL, e.getMessage());

@@ -13,6 +13,8 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Connection;
+import io.nats.client.ConnectionListener;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.MessageConsumer;
 import io.nats.client.api.ConsumerInfo;
@@ -20,7 +22,7 @@ import io.nats.client.api.ConsumerInfo;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-class NatsMessageConsumerBase implements MessageConsumer {
+class NatsMessageConsumerBase implements MessageConsumer, ConnectionListener {
     protected NatsJetStreamPullSubscription sub;
     protected PullMessageManager pmm;
     protected final AtomicBoolean stopped;
@@ -37,6 +39,9 @@ class NatsMessageConsumerBase implements MessageConsumer {
         this.sub = sub;
         pmm = (PullMessageManager)sub.manager;
     }
+
+    @Override
+    public void connectionEvent(Connection conn, Events type) {}
 
     /**
      * {@inheritDoc}

@@ -22,11 +22,10 @@ import io.nats.examples.testapp.support.ConsumerKind;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
-public abstract class ConnectableConsumer {
+public abstract class ConnectableConsumer implements ConnectionListener {
 
     protected final Connection nc;
     protected final JetStream js;
-    protected final OutputConnectionListener connectionListener;
     protected final OutputErrorListener errorListener;
     protected final AtomicLong lastReceivedSequence;
     protected final MessageHandler handler;
@@ -59,10 +58,9 @@ public abstract class ConnectableConsumer {
         this.initials = initials;
         updateNameAndLabel(name);
 
-        connectionListener = new OutputConnectionListener(label);
         errorListener = new OutputErrorListener(label);
 
-        Options options = cmd.makeOptions(connectionListener, errorListener);
+        Options options = cmd.makeOptions(this, errorListener);
         nc = Nats.connect(options);
         js = nc.jetStream();
 
@@ -72,6 +70,14 @@ public abstract class ConnectableConsumer {
             lastReceivedSequence.set(seq);
             Output.workMessage(label, "Last Received Seq: " + seq);
         };
+    }
+
+    public abstract void refreshInfo();
+
+    @Override
+    public void connectionEvent(Connection conn, Events type) {
+        Output.controlMessage(label, "Connection: " + conn.getServerInfo().getPort() + " " + type.name().toLowerCase());
+        refreshInfo();
     }
 
     protected void updateNameAndLabel(String updatedName) {
