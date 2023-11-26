@@ -96,24 +96,20 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             pso = unorderedBindPso;
         }
 
-        NatsJetStreamPullSubscription sub;
         if (messageHandler == null) {
-            sub = (NatsJetStreamPullSubscription) streamCtx.js.createSubscription(
+            return (NatsJetStreamPullSubscription) streamCtx.js.createSubscription(
                 subscribeSubject, null, pso, null, null, null, false, optionalPmm);
         }
-        else {
-            Dispatcher d = userDispatcher;
-            if (d == null) {
-                if (defaultDispatcher == null) {
-                    defaultDispatcher = streamCtx.js.conn.createDispatcher();
-                }
-                d = defaultDispatcher;
-            }
-            sub = (NatsJetStreamPullSubscription) streamCtx.js.createSubscription(
-                subscribeSubject, null, pso, null, (NatsDispatcher) d, messageHandler, false, optionalPmm);
-        }
 
-        return sub;
+        Dispatcher d = userDispatcher;
+        if (d == null) {
+            if (defaultDispatcher == null) {
+                defaultDispatcher = streamCtx.js.conn.createDispatcher();
+            }
+            d = defaultDispatcher;
+        }
+        return (NatsJetStreamPullSubscription) streamCtx.js.createSubscription(
+            subscribeSubject, null, pso, null, (NatsDispatcher) d, messageHandler, false, optionalPmm);
     }
 
     private void checkState() throws IOException {
