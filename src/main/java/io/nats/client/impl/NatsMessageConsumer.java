@@ -54,13 +54,6 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         restart();
     }
 
-    @Override
-    public void connectionEvent(Connection conn, Events type) {
-        if (type == Events.RECONNECTED) {
-            restart();
-        }
-    }
-
     private void restart() {
         try {
             // just close the current sub and make another one.
