@@ -270,4 +270,12 @@ public interface JetStreamManagement {
      * @return true if the delete succeeded
      */
     boolean deleteMessage(String streamName, long seq, boolean erase) throws IOException, JetStreamApiException;
+
+    /**
+     * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
+     * and consumers, using the same connection and JetStreamOptions as the management.
+     * @return a JetStream instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    JetStream jetStream() throws IOException;
 }

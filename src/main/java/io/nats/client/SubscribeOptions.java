@@ -229,8 +229,13 @@ public abstract class SubscribeOptions {
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
-            "stream='" + stream + '\'' +
-            "bind=" + bind +
+            "name='" + name + '\'' +
+            ", stream='" + stream + '\'' +
+            ", pull='" + pull + '\'' +
+            ", bind=" + bind +
+            ", fastBind=" + fastBind +
+            ", ordered=" + ordered +
+            ", messageAlarmTime=" + messageAlarmTime +
             ", " + consumerConfig +
             '}';
     }

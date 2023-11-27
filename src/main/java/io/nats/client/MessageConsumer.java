@@ -23,6 +23,13 @@ import java.io.IOException;
  */
 public interface MessageConsumer extends AutoCloseable {
     /**
+     * Gets the consumer name that was used to create the message consumer
+     * since in some cases the consumer info is not available.
+     * @return the consumer name
+     */
+    String getConsumerName();
+
+    /**
      * Gets information about the consumer behind this subscription.
      * @return consumer information
      * @throws IOException covers various communication issues with the NATS

@@ -33,9 +33,7 @@ class PullMessageManager extends MessageManager {
 
     protected PullMessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
         super(conn, so, syncMode);
-        trackingBytes = false;
-        pendingMessages = 0;
-        pendingBytes = 0;
+        resetTracking();
     }
 
     @Override
@@ -57,63 +55,82 @@ class PullMessageManager extends MessageManager {
                 initOrResetHeartbeatTimer();
             }
             else {
-                shutdownHeartbeatTimer();
-            }
-        }
-    }
-
-    private void trackPending(int m, long b) {
-        synchronized (stateChangeLock) {
-            pendingMessages -= m;
-            boolean zero = pendingMessages < 1;
-            if (trackingBytes) {
-                pendingBytes -= b;
-                zero |= pendingBytes < 1;
-            }
-            if (zero) {
-                pendingMessages = 0;
-                pendingBytes = 0;
-                trackingBytes = false;
-                if (hb) {
-                    shutdownHeartbeatTimer();
-                }
-            }
-            if (pullManagerObserver != null) {
-                pullManagerObserver.pendingUpdated();
+                shutdownHeartbeatTimer(); // just in case the pull was changed from hb to non-hb
             }
         }
     }
 
     @Override
-    protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
-        messageReceived(); // record message time. Used for heartbeat tracking
+    protected void handleHeartbeatError() {
+        super.handleHeartbeatError();
+        resetTracking();
+        if (pullManagerObserver != null) {
+            pullManagerObserver.heartbeatError();
+        }
+    }
 
+    private void trackIncoming(int m, long b, String pullsubject) {
+        synchronized (stateChangeLock) {
+            // message time used for heartbeat tracking
+            // subjects used to detect multiple failed heartbeats
+            updateLastMessageReceived();
+
+            if (m != Integer.MIN_VALUE) {
+                pendingMessages -= m;
+                boolean zero = pendingMessages < 1;
+                if (trackingBytes) {
+                    pendingBytes -= b;
+                    zero |= pendingBytes < 1;
+                }
+                if (zero) {
+                    resetTracking();
+                }
+                if (pullManagerObserver != null) {
+                    pullManagerObserver.pendingUpdated();
+                }
+            }
+        }
+    }
+
+    protected void resetTracking() {
+        pendingMessages = 0;
+        pendingBytes = 0;
+        trackingBytes = false;
+        updateLastMessageReceived();
+    }
+
+    @Override
+    protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
         Status status = msg.getStatus();
 
         // normal js message
         if (status == null) {
-            trackPending(1, msg.consumeByteCount());
+            trackIncoming(1, msg.consumeByteCount(), null);
             return true;
         }
 
         // heartbeat just needed to be recorded
         if (status.isHeartbeat()) {
+            trackIncoming(Integer.MIN_VALUE, -1, msg.subject);
             return false;
         }
 
         Headers h = msg.getHeaders();
+        int m = Integer.MIN_VALUE;
+        long b = -1;
         if (h != null) {
             String s = h.getFirst(NATS_PENDING_MESSAGES);
             if (s != null) {
                 try {
-                    int m = Integer.parseInt(s);
-                    long b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
-                    trackPending(m, b);
+                    m = Integer.parseInt(s);
+                    b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
                 }
-                catch (NumberFormatException ignore) {} // shouldn't happen but don't fail
+                catch (NumberFormatException ignore) {
+                    m = Integer.MIN_VALUE; // shouldn't happen but don't fail; make sure don't track m/b
+                }
             }
         }
-
+        trackIncoming(m, b, msg.subject);
         return true;
     }
 
@@ -148,7 +165,8 @@ class PullMessageManager extends MessageManager {
                 }
 
                 if (statMsg.equals(BATCH_COMPLETED) ||
-                    statMsg.equals(MESSAGE_SIZE_EXCEEDS_MAX_BYTES))
+                    statMsg.equals(MESSAGE_SIZE_EXCEEDS_MAX_BYTES) ||
+                    statMsg.equals(SERVER_SHUTDOWN))
                 {
                     return STATUS_TERMINUS;
                 }

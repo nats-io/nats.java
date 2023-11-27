@@ -40,6 +40,7 @@ public class Status {
     public static String EXCEEDED_MAX_REQUEST_MAX_BYTES = "Exceeded MaxRequestMaxBytes"; // 409
 
     public static String BATCH_COMPLETED                = "Batch Completed"; // 409 informational
+    public static String SERVER_SHUTDOWN                = "Server Shutdown"; // 409 informational with headers
 
     private final int code;
     private final String message;

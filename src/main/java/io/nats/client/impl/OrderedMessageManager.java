@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.JetStreamManagement;
 import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
@@ -67,13 +68,25 @@ class OrderedMessageManager extends PushMessageManager {
         return manageStatus(msg);
     }
 
+    @Override
+    protected void handleHeartbeatError() {
+        super.handleHeartbeatError();
+        handleErrorCondition();
+    }
+
     private void handleErrorCondition() {
         try {
             targetSid.set(null);
             expectedExternalConsumerSeq = 1; // consumer always starts with consumer sequence 1
 
-            // 1. shutdown the manager, for instance stops heartbeat timers
-            shutdown();
+            // 1. delete the consumer by name so we can recreate it with a different delivery policy
+            //    b/c we cannot edit a push consumer's delivery policy
+            JetStreamManagement jsm = conn.jetStreamManagement(js.jso);
+            String actualConsumerName = sub.getConsumerName();
+            try {
+                jsm.deleteConsumer(stream, actualConsumerName);
+            }
+            catch (Exception ignore) {}
 
             // 2. re-subscribe. This means kill the sub then make a new one
             //    New sub needs a new deliverSubject
@@ -83,7 +96,7 @@ class OrderedMessageManager extends PushMessageManager {
 
             // 3. make a new consumer using the same deliver subject but
             //    with a new starting point
-            ConsumerConfiguration userCC = js.nextOrderedConsumerConfiguration(originalCc, lastStreamSeq, newDeliverSubject);
+            ConsumerConfiguration userCC = js.consumerConfigurationForOrdered(originalCc, lastStreamSeq, newDeliverSubject, actualConsumerName);
             js._createConsumerUnsubscribeOnException(stream, userCC, sub);
 
             // 4. restart the manager.
@@ -91,9 +104,12 @@ class OrderedMessageManager extends PushMessageManager {
         }
         catch (Exception e) {
             js.conn.processException(e);
-            if (syncMode) {
-                throw new RuntimeException("Ordered subscription fatal error.", e);
-            }
+            setupHbAlarmToTrigger();
         }
+    }
+
+    private void setupHbAlarmToTrigger() {
+        updateLastMessageReceived();
+        initOrResetHeartbeatTimer();
     }
 }

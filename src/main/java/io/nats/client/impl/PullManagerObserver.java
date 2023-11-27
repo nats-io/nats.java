@@ -15,4 +15,5 @@ package io.nats.client.impl;
 
 interface PullManagerObserver {
     void pendingUpdated();
+    void heartbeatError();
 }

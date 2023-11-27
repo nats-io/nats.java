@@ -295,4 +295,12 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         Message resp = makeRequestResponseRequired(subj, mdr.serialize(), jso.getRequestTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public JetStream jetStream() throws IOException {
+        return new NatsJetStream(this);
+    }
 }
