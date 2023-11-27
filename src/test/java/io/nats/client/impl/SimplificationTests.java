@@ -638,20 +638,28 @@ public class SimplificationTests extends JetStreamTestBase {
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
             int expectedStreamSeq = 1;
             FetchConsumeOptions fco = FetchConsumeOptions.builder().maxMessages(6).expiresIn(1000).build();
-            while (expectedStreamSeq <= 5) {
-                try (FetchConsumer fcon = occtx.fetch(fco)) {
-                    // Loop through the messages to make sure I get stream sequence 1 to 5
-                    Message m = fcon.nextMessage();
-                    while (m != null) {
-                        assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
-                        m = fcon.nextMessage();
-                    }
-                    while (!fcon.isFinished()) {
-                        sleep(1);
-                    }
+            try (FetchConsumer fcon = occtx.fetch(fco)) {
+                Message m = fcon.nextMessage();
+                while (m != null) {
+                    assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
+                    m = fcon.nextMessage();
+                }
+                // we know this because the simulator is designed to fail the first time at the second message
+                assertEquals(2, expectedStreamSeq);
+                // fetch failure will stop the consumer, but make sure it's done b/c with ordered
+                // I can't have more than one consuming at a time.
+                while (!fcon.isFinished()) {
+                    sleep(1);
                 }
             }
-            assertEquals(6, expectedStreamSeq);
+            // this should finish without error
+            try (FetchConsumer fcon = occtx.fetch(fco)) {
+                Message m = fcon.nextMessage();
+                while (expectedStreamSeq <= 5) {
+                    assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
+                    m = fcon.nextMessage();
+                }
+            }
         });
     }
 
