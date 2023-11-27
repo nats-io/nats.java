@@ -18,9 +18,6 @@ import io.nats.client.PullRequestOptions;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.support.Status;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import static io.nats.client.impl.MessageManager.ManageResult.*;
 import static io.nats.client.support.NatsJetStreamConstants.NATS_PENDING_BYTES;
 import static io.nats.client.support.NatsJetStreamConstants.NATS_PENDING_MESSAGES;
@@ -33,11 +30,9 @@ class PullMessageManager extends MessageManager {
     protected boolean trackingBytes;
     protected boolean raiseStatusWarnings;
     protected PullManagerObserver pullManagerObserver;
-    protected List<String> unansweredPulls;
 
     protected PullMessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
         super(conn, so, syncMode);
-        unansweredPulls = new ArrayList<>();
         resetTracking();
     }
 
@@ -62,7 +57,6 @@ class PullMessageManager extends MessageManager {
             else {
                 shutdownHeartbeatTimer(); // just in case the pull was changed from hb to non-hb
             }
-            unansweredPulls.add(pullSubject);
         }
     }
 
@@ -80,13 +74,6 @@ class PullMessageManager extends MessageManager {
             // message time used for heartbeat tracking
             // subjects used to detect multiple failed heartbeats
             updateLastMessageReceived();
-
-            if (pullsubject == null) {
-                unansweredPulls.clear();
-            }
-            else {
-                unansweredPulls.remove(pullsubject);
-            }
 
             if (m != Integer.MIN_VALUE) {
                 pendingMessages -= m;
@@ -110,12 +97,6 @@ class PullMessageManager extends MessageManager {
         pendingBytes = 0;
         trackingBytes = false;
         updateLastMessageReceived();
-    }
-
-    protected boolean hasUnansweredPulls() {
-        synchronized (stateChangeLock) {
-            return !unansweredPulls.isEmpty();
-        }
     }
 
     @Override

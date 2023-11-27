@@ -104,8 +104,12 @@ class OrderedMessageManager extends PushMessageManager {
         }
         catch (Exception e) {
             js.conn.processException(e);
-            updateLastMessageReceived();
-            initOrResetHeartbeatTimer();
+            setupHbAlarmToTrigger();
         }
+    }
+
+    private void setupHbAlarmToTrigger() {
+        updateLastMessageReceived();
+        initOrResetHeartbeatTimer();
     }
 }
