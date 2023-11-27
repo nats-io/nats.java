@@ -180,7 +180,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         return NUID.nextGlobalSequence();
     }
 
-    ConsumerConfiguration consumerConfigurationStartAfterLast(
+    ConsumerConfiguration consumerConfigurationForOrdered(
         ConsumerConfiguration originalCc,
         long lastStreamSeq,
         String newDeliverSubject, String consumerName)
