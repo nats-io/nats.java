@@ -69,7 +69,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
             doSub();
         }
         catch (JetStreamApiException | IOException e) {
-            // TODO FIGURE OUT WHAT TO DO HERE IF ANYTHING
+            setupHbAlarmToTrigger();
         }
     }
 
@@ -86,9 +86,13 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
             stopped.set(false);
         }
         catch (JetStreamApiException | IOException e) {
-            pmm.resetTracking();
-            pmm.initOrResetHeartbeatTimer();
+            setupHbAlarmToTrigger();
         }
+    }
+
+    private void setupHbAlarmToTrigger() {
+        pmm.resetTracking();
+        pmm.initOrResetHeartbeatTimer();
     }
 
     @Override
