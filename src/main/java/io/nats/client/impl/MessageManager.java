@@ -149,6 +149,17 @@ abstract class MessageManager {
                 }
             }
         }
+
+        @Override
+        public String toString() {
+            long sinceLast = System.currentTimeMillis() - lastMsgReceived.get();
+            return "MmTimerTask{" +
+                "id='" + id + '\'' +
+                ", alarmPeriod=" + alarmPeriod +
+                ", alive=" + alive.get() +
+                ", sinceLast=" + sinceLast +
+                '}';
+        }
     }
 
     protected void initOrResetHeartbeatTimer() {
