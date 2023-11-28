@@ -17,6 +17,7 @@ import io.nats.client.JetStreamManagement;
 import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.ConsumerInfo;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -97,19 +98,15 @@ class OrderedMessageManager extends PushMessageManager {
             // 3. make a new consumer using the same deliver subject but
             //    with a new starting point
             ConsumerConfiguration userCC = js.consumerConfigurationForOrdered(originalCc, lastStreamSeq, newDeliverSubject, actualConsumerName);
-            js._createConsumerUnsubscribeOnException(stream, userCC, sub);
+            ConsumerInfo ci = js._createConsumer(stream, userCC); // this can fail when a server is down.
+            sub.setConsumerName(ci.getName());
 
             // 4. restart the manager.
             startup(sub);
         }
         catch (Exception e) {
             js.conn.processException(e);
-            setupHbAlarmToTrigger();
+            initOrResetHeartbeatTimer();
         }
-    }
-
-    private void setupHbAlarmToTrigger() {
-        updateLastMessageReceived();
-        initOrResetHeartbeatTimer();
     }
 }
