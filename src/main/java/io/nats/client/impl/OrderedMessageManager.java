@@ -105,7 +105,12 @@ class OrderedMessageManager extends PushMessageManager {
             startup(sub);
         }
         catch (Exception e) {
-            js.conn.processException(e);
+            // don't want this doubly failing for any reason
+            try {
+                e.printStackTrace();
+                js.conn.processException(e);
+            }
+            catch (Exception ignore) {}
             initOrResetHeartbeatTimer();
         }
     }

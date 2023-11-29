@@ -192,7 +192,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
                 .startSequence(Math.max(1, lastStreamSeq + 1))
                 .startTime(null); // clear start time in case it was originally set
 
-        if (consumerName != null) {
+        if (consumerName != null && consumerCreate290Available) {
             builder.name(consumerName);
         }
 
