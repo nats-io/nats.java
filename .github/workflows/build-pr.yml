@@ -22,10 +22,21 @@ jobs:
         with:
           java-version: '8'
           distribution: 'adopt'
+      - name: Setup GO
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.21.4'
       - name: Install Nats Server
         run: |
-          curl -sf https://binaries.nats.dev/nats-io/nats-server/v2@main | PREFIX=. sh
-          sudo mv nats-server /usr/local/bin
+          cd $GITHUB_WORKSPACE
+          git clone https://github.com/nats-io/nats-server.git
+          cd nats-server
+          go get
+          go build main.go
+          mkdir -p ~/.local/bin
+          cp main ~/.local/bin/nats-server
+          cd ..
+          rm -rf nats-server
           nats-server -v
       - name: Check out code
         uses: actions/checkout@v3
