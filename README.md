@@ -72,10 +72,22 @@ the INFO protocol from the server. If this option is enabled
 but the server is not configured to perform the TLS handshake
 first, the connection will fail.
 
-#### Version 2.17.0: Server 2.10 support. Subject and Queue Name Validation
+#### Version 2.17.0: Server 2.10 support.
+The release has support for Server 2.10 features and client validation improvements including:
 
-With the release of the 2.10 server, the client has been updated to support new features. 
-The most important new feature is the ability to have multipler filter subjects for any single JetStream consumer.
+* Stream and Consumer info timestamps
+* Stream Configuration
+   * Compression Option
+   * Subject Transform
+   * Consumer Limits
+   * First Sequence
+* Multiple Filter Subjects
+* Subject and Queue Name Validation
+
+#### Multiple Filter Subjects
+
+A new  feature is the ability to have multiple filter subjects for any single JetStream consumer.
+
 ```java
 ConsumerConfiguration cc = ConsumerConfiguration.builder()
     ...
@@ -83,17 +95,34 @@ ConsumerConfiguration cc = ConsumerConfiguration.builder()
     .build();
 ```
 
+#### Subject and Queue Name Validation
+
 For subjects, up until now, the client has been very strict when validating subject names for consumer subject filters and subscriptions.
 It only allowed printable ascii characters except for `*`, `>`, `.`, `\\` and `/`. This restriction has been changed to the following:
 * cannot contain spaces \r \n \t
 * cannot start or end with subject token delimiter .
 * cannot have empty segments
 
-**This means that UTF characters are now allowed in this client.**
-
+This means that UTF characters are now allowed in subjects in this client.
 
 For queue names, there has been inconsistent validation, if any. Queue names now require the same validation as subjects.
-**Important** We realize this may affect existing applications, but need to require consistency across clients 
+**Important** We realize this may affect existing applications, but need to require consistency across clients.
+
+**Subscribe Subject Validation**
+
+Additionally, for subjects used in subscribe api, applications may start throwing an exception:
+
+```text
+90011 Subject does not match consumer configuration filter
+```
+Let's say you have a stream with subject `foo.>` And you are subscribing to `foo.a`.
+When you don't supply a filter subject on a consumer, it becomes `>`, which means all subjects.
+
+So this is a problem, because you think you are subscribing to `foo.a` but in reality, without this check,
+you will be getting all messages `foo.>` subjects, not just `foo.a`
+
+Validating the subscribe subject against the filter subject is needed to prevent this.
+Unfortunately, this makes existing code throw the `90011` exception.
 
 #### Version 2.16.14: Options properties improvements
 
