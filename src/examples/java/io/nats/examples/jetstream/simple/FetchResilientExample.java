@@ -60,7 +60,7 @@ public class FetchResilientExample {
             JetStream js = nc.jetStream();
 
             // simulating a publisher somewhere else.
-            ResilientPublisher rp = new ResilientPublisher(js, SUBJECT, MESSAGE_TEXT_PREFIX, Integer.MAX_VALUE, PUBLISH_DELAY);
+            RecoveringPublisher rp = new RecoveringPublisher(js, SUBJECT, MESSAGE_TEXT_PREFIX, Integer.MAX_VALUE, PUBLISH_DELAY);
             Thread pubThread = new Thread(rp);
             pubThread.start();
 
@@ -133,14 +133,14 @@ public class FetchResilientExample {
         }
     }
 
-    static class ResilientPublisher implements Runnable {
+    static class RecoveringPublisher implements Runnable {
         JetStream js;
         String subject;
         String prefix;
         int count;
         long delay;
 
-        public ResilientPublisher(JetStream js, String subject, String prefix, int count, long delay) {
+        public RecoveringPublisher(JetStream js, String subject, String prefix, int count, long delay) {
             this.js = js;
             this.subject = subject;
             this.prefix = prefix;
