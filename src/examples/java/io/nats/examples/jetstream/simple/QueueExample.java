@@ -24,7 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
+import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
 
 /**
  * This example will demonstrate simplified next

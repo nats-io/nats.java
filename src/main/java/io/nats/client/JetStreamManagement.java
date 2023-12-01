@@ -275,7 +275,6 @@ public interface JetStreamManagement {
      * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
      * and consumers, using the same connection and JetStreamOptions as the management.
      * @return a JetStream instance.
-     * @throws IOException various IO exception such as timeout or interruption
      */
-    JetStream jetStream() throws IOException;
+    JetStream jetStream();
 }

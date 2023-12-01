@@ -70,25 +70,30 @@ public class NatsJsUtils {
         }
     }
 
-    public static StreamInfo createOrReplaceStream(JetStreamManagement jsm, String streamName, StorageType storageType, String... subjects) throws IOException, JetStreamApiException {
+    public static StreamInfo createOrReplaceStream(Connection nc, String stream, String... subjects) throws IOException {
+        return createOrReplaceStream(nc.jetStreamManagement(), stream, StorageType.Memory, subjects);
+    }
+
+    public static StreamInfo createOrReplaceStream(JetStreamManagement jsm, String stream, String... subjects) {
+        return createOrReplaceStream(jsm, stream, StorageType.Memory, subjects);
+    }
+
+    public static StreamInfo createOrReplaceStream(JetStreamManagement jsm, String stream, StorageType storageType, String... subjects) {
+        // in case the stream was here before, we want a completely new one
+        try { jsm.deleteStream(stream); } catch (Exception ignore) {}
+
         try {
-            jsm.deleteStream(streamName);
+            return jsm.addStream(StreamConfiguration.builder()
+                .name(stream)
+                .storageType(storageType)
+                .subjects(subjects)
+                .build());
         }
-        catch (Exception ignore) {}
-        // Create a stream, here will use a file storage type, and one subject,
-        // the passed subject.
-        StreamConfiguration sc = StreamConfiguration.builder()
-            .name(streamName)
-            .storageType(storageType)
-            .subjects(subjects)
-            .build();
-
-        // Add or use an existing stream.
-        StreamInfo si = jsm.addStream(sc);
-        System.out.printf("Created stream '%s' with subject(s) %s\n",
-            streamName, si.getConfiguration().getSubjects());
-
-        return si;
+        catch (Exception e) {
+            System.err.println("Fatal error, cannot create stream.");
+            System.exit(-1);
+            return null; // java
+        }
     }
 
     public static StreamInfo createStream(JetStreamManagement jsm, String streamName, StorageType storageType, String... subjects) throws IOException, JetStreamApiException {
@@ -210,6 +215,18 @@ public class NatsJsUtils {
         }
         if (verbose) {
             System.out.println(" <-");
+        }
+    }
+
+    public static void publishOrExit(JetStream js, String subject, String prefix, int count) {
+        try {
+            for (int x = 1; x <= count; x++) {
+                js.publish(subject, (prefix + "-" + x).getBytes());
+            }
+        }
+        catch (Exception e) {
+            System.err.println("Fatal error, publish failure.");
+            System.exit(-1);
         }
     }
 
@@ -378,7 +395,12 @@ public class NatsJsUtils {
     // ----------------------------------------------------------------------------------------------------
     // REPORT
     // ----------------------------------------------------------------------------------------------------
-    public static void report(List<Message> list) {
+    public static void report(String message) {
+        String t = "" + System.currentTimeMillis();
+        System.out.println("[" + t.substring(t.length() - 9) + "] " + message);
+    }
+
+    public static void reportFetch(List<Message> list) {
         System.out.print("Fetch ->");
         for (Message m : list) {
             System.out.print(" " + new String(m.getData()));
@@ -386,7 +408,7 @@ public class NatsJsUtils {
         System.out.println(" <- ");
     }
 
-    public static List<Message> report(Iterator<Message> list) {
+    public static List<Message> reportFetch(Iterator<Message> list) {
         List<Message> messages = new ArrayList<>();
         System.out.print("Fetch ->");
         while (list.hasNext()) {
@@ -396,6 +418,27 @@ public class NatsJsUtils {
         }
         System.out.println(" <- ");
         return messages;
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // EXAMPLES REPORT THREADS
+    // ----------------------------------------------------------------------------------------------------
+    public static Thread getStreamReportingThread(JetStreamManagement jsm, String stream, long reportFrequency) {
+        return new Thread(() -> {
+            while (true) {
+                try {
+                    StreamInfo si = jsm.getStreamInfo(stream);
+                    NatsJsUtils.report("Stream Configuration:" + si.getConfiguration().toJson());
+                    NatsJsUtils.report(si.getClusterInfo().toString());
+                    NatsJsUtils.report(si.getStreamState().toString());
+                    //noinspection BusyWait
+                    Thread.sleep(reportFrequency);
+                }
+                catch (Exception e) {
+                    NatsJsUtils.report("Misc Reporting Exception: " + e);
+                }
+            }
+        });
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -432,24 +475,6 @@ public class NatsJsUtils {
         StreamConfiguration sc = StreamConfiguration.builder()
             .name(stream)
             .storageType(StorageType.Memory)
-            .subjects(subs)
-            .build();
-        jsm.addStream(sc);
-    }
-
-    public static void createCleanFileStream(Connection nc, String stream, String... subs) throws IOException, JetStreamApiException {
-        createCleanFileStream(nc.jetStreamManagement(), stream, subs);
-    }
-
-    public static void createCleanFileStream(JetStreamManagement jsm, String stream, String... subs) throws IOException, JetStreamApiException {
-        try {
-            jsm.deleteStream(stream);
-        }
-        catch (Exception ignore) {}
-
-        StreamConfiguration sc = StreamConfiguration.builder()
-            .name(stream)
-            .storageType(StorageType.File)
             .subjects(subs)
             .build();
         jsm.addStream(sc);

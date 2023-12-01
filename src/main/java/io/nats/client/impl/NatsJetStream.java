@@ -35,7 +35,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         super(connection, jsOptions);
     }
 
-    NatsJetStream(NatsJetStreamImpl impl) throws IOException {
+    NatsJetStream(NatsJetStreamImpl impl) {
         super(impl);
     }
     // ----------------------------------------------------------------------------------------------------

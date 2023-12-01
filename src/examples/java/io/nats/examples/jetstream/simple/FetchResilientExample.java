@@ -14,12 +14,14 @@
 package io.nats.examples.jetstream.simple;
 
 import io.nats.client.*;
-import io.nats.client.api.*;
-import io.nats.client.impl.NatsMessage;
+import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.StorageType;
+import io.nats.examples.jetstream.ResilientPublisher;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static io.nats.examples.jetstream.NatsJsUtils.*;
 
 /**
  * This example will demonstrate simplified fetch that is resilient
@@ -30,16 +32,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 4. See the output showing things aren't running.
  * 5. Bring the killed server back up and watch the output showing recovery.
  */
-public class FetchResilientExample {
+public class FetchResilientExample implements Runnable {
     static final String STREAM = "fetch-resilient-stream";
     static final String SUBJECT = "fetch-resilient-subject";
     static final String CONSUMER_NAME = "fetch-resilient-consumer";
-    static final String MESSAGE_TEXT_PREFIX = "fetch-resilient-message";
+    static final String MESSAGE_PREFIX = "fetch-resilient-message";
     static final int FETCH_SIZE = 500;
     static final int PUBLISH_DELAY = 100;
-    static final int CONSUME_REPORT_FREQUENCY = 2000;
-    static final int PRINT_REPORT_FREQUENCY = 5000;
-    static final int MISC_REPORT_FREQUENCY = 30000;
+    static final long CONSUME_REPORT_FREQUENCY = 2000;
+    static final long PUB_REPORT_FREQUENCY = 5000;
+    static final long STREAM_REPORT_FREQUENCY = 30000;
 
     static String SERVER = "nats://localhost:4222";
 
@@ -53,16 +55,18 @@ public class FetchResilientExample {
         try (Connection nc = Nats.connect(options)) {
             final JetStreamManagement jsm = nc.jetStreamManagement();
 
-            setupStream(jsm, STREAM, SUBJECT);
-            Thread miscReportingThread = getMiscReportingThread(jsm);
-            miscReportingThread.start();
+            createOrReplaceStream(jsm, STREAM, StorageType.File, SUBJECT);
 
-            JetStream js = nc.jetStream();
+            Thread streamReportingThread = getStreamReportingThread(jsm, STREAM, STREAM_REPORT_FREQUENCY);
+            streamReportingThread.start();
 
             // simulating a publisher somewhere else.
-            RecoveringPublisher rp = new RecoveringPublisher(js, SUBJECT, MESSAGE_TEXT_PREFIX, Integer.MAX_VALUE, PUBLISH_DELAY);
+            ResilientPublisher rp = ResilientPublisher.
+                newInstanceReportingAndDelay(jsm, STREAM, SUBJECT, MESSAGE_PREFIX, PUBLISH_DELAY, PUB_REPORT_FREQUENCY);
             Thread pubThread = new Thread(rp);
             pubThread.start();
+
+            JetStream js = jsm.jetStream();
 
             StreamContext sc = js.getStreamContext(STREAM);
             ConsumerContext cc = sc.createOrUpdateConsumer(
@@ -71,7 +75,7 @@ public class FetchResilientExample {
                     .filterSubject(SUBJECT)
                     .build());
 
-            ExampleFetchConsumer example = new ExampleFetchConsumer(cc);
+            FetchResilientExample example = new FetchResilientExample(cc);
             Thread consumeThread = new Thread(example);
             consumeThread.start();
 
@@ -88,142 +92,51 @@ public class FetchResilientExample {
         }
     }
 
-    static class ExampleFetchConsumer implements Runnable {
-        public AtomicBoolean keepGoing = new AtomicBoolean(true);
-        ConsumerContext cc;
-        long reportAt = 0;
+    public final AtomicBoolean keepGoing = new AtomicBoolean(true);
+    private final ConsumerContext cc;
+    private long reportAt = 0;
 
-        public ExampleFetchConsumer(ConsumerContext cc) {
-            this.cc = cc;
-        }
+    public FetchResilientExample(ConsumerContext cc) {
+        this.cc = cc;
+    }
 
-        @Override
-        public void run() {
-            long lastReadStreamSeq = 0;
-            while (keepGoing.get()) {
-                try (FetchConsumer fc = cc.fetchMessages(FETCH_SIZE)) {
-                    Message m = fc.nextMessage();
-                    while (m != null) {
-                        lastReadStreamSeq = m.metaData().streamSequence();
-                        if (System.currentTimeMillis() > reportAt) {
-                            report("Last Read Sequence: " + lastReadStreamSeq);
-                            reportAt = System.currentTimeMillis() + CONSUME_REPORT_FREQUENCY;
-                        }
-                        m.ack();
-                        m = fc.nextMessage();
-                    }
-                }
-                catch (Exception e) {
-                    // do we care if the autocloseable FetchConsumer errors on close?
-                    // probably not, but maybe log it.
-                }
+    public void stop() {
+        keepGoing.set(false);
+    }
 
-                // simulating some work to be done between fetches
-                try {
+    @Override
+    public void run() {
+        long lastReadStreamSeq = 0;
+        while (keepGoing.get()) {
+            try (FetchConsumer fc = cc.fetchMessages(FETCH_SIZE)) {
+                Message m = fc.nextMessage();
+                while (m != null) {
+                    lastReadStreamSeq = m.metaData().streamSequence();
                     if (System.currentTimeMillis() > reportAt) {
                         report("Last Read Sequence: " + lastReadStreamSeq);
                         reportAt = System.currentTimeMillis() + CONSUME_REPORT_FREQUENCY;
                     }
-                    Thread.sleep(10);
-                }
-                catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                    m.ack();
+                    m = fc.nextMessage();
                 }
             }
-        }
-    }
-
-    static class RecoveringPublisher implements Runnable {
-        JetStream js;
-        String subject;
-        String prefix;
-        int count;
-        long delay;
-
-        public RecoveringPublisher(JetStream js, String subject, String prefix, int count, long delay) {
-            this.js = js;
-            this.subject = subject;
-            this.prefix = prefix;
-            this.count = count;
-            this.delay = delay;
-        }
-
-        public void run() {
-            boolean lastOk = false;
-            long reportAt = 0;
-            long count = 0;
-            while (true) {
-                try {
-                    if (delay > 0) {
-                        Thread.sleep(delay);
-                    }
-                    String data = prefix + "-" + (++count);
-                    Message msg = NatsMessage.builder()
-                        .subject(subject)
-                        .data(data.getBytes(StandardCharsets.US_ASCII))
-                        .build();
-                    PublishAck pa = js.publish(msg);
-                    if (!lastOk) {
-                        reportAt = 0; // so it reports this time
-                    }
-                    lastOk = true;
-                    if (System.currentTimeMillis() > reportAt) {
-                        report("Published Sequence: " + pa.getSeqno());
-                        reportAt = System.currentTimeMillis() + PRINT_REPORT_FREQUENCY;
-                    }
-                }
-                catch (Exception e) {
-                    if (lastOk || System.currentTimeMillis() > reportAt) {
-                        report("Publish Exception: " + e);
-                        reportAt = System.currentTimeMillis() + PRINT_REPORT_FREQUENCY;
-                    }
-                    lastOk = false;
-                    try {
-                        Thread.sleep(PUBLISH_DELAY);
-                    }
-                    catch (InterruptedException ignore) {
-                    }
-                }
+            catch (Exception e) {
+                // do we care if the autocloseable FetchConsumer errors on close?
+                // probably not, but maybe log it.
             }
-        };
-    }
 
-    private static Thread getMiscReportingThread(JetStreamManagement jsm) {
-        return new Thread(() -> {
-            while (true) {
-                try {
-                    StreamInfo si = jsm.getStreamInfo(STREAM);
-                    report("Stream Configuration:" + si.getConfiguration().toJson());
-                    report(si.getClusterInfo().toString());
-                    report(si.getStreamState().toString());
-                    Thread.sleep(MISC_REPORT_FREQUENCY);
+            // simulating some work to be done between fetches
+            try {
+                if (System.currentTimeMillis() > reportAt) {
+                    report("Last Read Sequence: " + lastReadStreamSeq);
+                    reportAt = System.currentTimeMillis() + CONSUME_REPORT_FREQUENCY;
                 }
-                catch (Exception e) {
-                    report("Misc Reporting Exception: " + e);
-                }
+                //noinspection BusyWait
+                Thread.sleep(10);
             }
-        });
-    }
-
-    public static void setupStream(JetStreamManagement jsm, String stream, String subject) {
-        // in case the stream was here before, we want a completely new one
-        try { jsm.deleteStream(stream); } catch (Exception ignore) {}
-
-        try {
-            jsm.addStream(StreamConfiguration.builder()
-                .name(stream)
-                .storageType(StorageType.File)
-                .subjects(subject)
-                .build());
+            catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
-        catch (Exception e) {
-            System.err.println("Fatal error, cannot create stream.");
-            System.exit(-1);
-        }
-    }
-
-    public static void report(String message) {
-        String t = "" + System.currentTimeMillis();
-        System.out.println("[" + t.substring(t.length() - 9) + "] " + message);
     }
 }
