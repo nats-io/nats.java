@@ -65,7 +65,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         multipleSubjectFilter210Available = conn.getInfo().isNewerVersionThan("2.9.99");
     }
 
-    NatsJetStreamImpl(NatsJetStreamImpl impl) throws IOException {
+    NatsJetStreamImpl(NatsJetStreamImpl impl) {
         conn = impl.conn;
         jso = impl.jso;
         consumerCreate290Available = impl.consumerCreate290Available;

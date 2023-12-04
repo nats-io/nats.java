@@ -24,6 +24,7 @@ import java.util.List;
 import static io.nats.client.support.Validator.*;
 
 public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStreamManagement {
+    private NatsJetStream js; // this is lazy init'ed
 
     public NatsJetStreamManagement(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
         super(connection, jsOptions);
@@ -300,7 +301,10 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
-    public JetStream jetStream() throws IOException {
-        return new NatsJetStream(this);
+    public JetStream jetStream() {
+        if (js == null) {
+            js = new NatsJetStream(this);
+        }
+        return js;
     }
 }
