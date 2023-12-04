@@ -37,6 +37,7 @@ public abstract class SubscribeOptions {
     protected final long pendingMessageLimit; // Only applicable for non dispatched (sync) push consumers.
     protected final long pendingByteLimit; // Only applicable for non dispatched (sync) push consumers.
     protected final String name;
+    protected Deserializer deserializer;
 
     @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
     protected SubscribeOptions(Builder builder, boolean isPull,
@@ -134,6 +135,10 @@ public abstract class SubscribeOptions {
                 .deliverGroup(deliverGroup)
                 .build();
         }
+        
+        if(builder.deserializer != null) {
+            this.deserializer = builder.deserializer;
+        }
     }
 
     /**
@@ -226,6 +231,8 @@ public abstract class SubscribeOptions {
         return pendingByteLimit;
     }
 
+    public Deserializer getDeserializer() { return deserializer; };
+
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
@@ -253,6 +260,8 @@ public abstract class SubscribeOptions {
         protected ConsumerConfiguration cc;
         protected long messageAlarmTime = -1;
         protected boolean ordered;
+        protected Deserializer deserializer;
+
 
         protected abstract B getThis();
 
@@ -331,5 +340,10 @@ public abstract class SubscribeOptions {
          * @return subscribe options
          */
         public abstract SO build();
+
+        public B deserializer(Deserializer deserializer) {
+            this.deserializer = deserializer;
+            return getThis();
+        }
     }
 }

@@ -18,6 +18,7 @@ import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.Subscription;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
@@ -166,6 +167,15 @@ class NatsSubscription extends NatsConsumer implements Subscription {
 
         if (this.reachedUnsubLimit()) {
             this.connection.invalidate(this);
+        }
+
+        if(getDeserializer() != null) {
+            try{
+                byte[] data = getDeserializer().decode(subject, msg.data);
+                msg.data = data;
+            }catch(IOException e){
+                throw new IllegalStateException("Unable to decode data", e);
+            }
         }
 
         return msg;

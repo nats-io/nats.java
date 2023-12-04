@@ -144,7 +144,9 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
     private PublishAck publishSyncInternal(String subject, Headers headers, byte[] data, PublishOptions options) throws IOException, JetStreamApiException {
         Headers merged = mergePublishOptions(headers, options);
-
+        if (options != null && options.getSerializer() != null) { //Run if user has provided serializer
+            data = options.getSerializer().encode(subject, data);
+        }
         if (jso.isPublishNoAck()) {
             conn.publishInternal(subject, null, merged, data);
             return null;
@@ -459,7 +461,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
                 mm = pmmInstance;
             }
             subFactory = (sid, lSubject, lQgroup, lConn, lDispatcher)
-                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, lDispatcher, this, settledStream, settledConsumerName, mm);
+                -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, lDispatcher, this, settledStream, settledConsumerName, mm, pullSubscribeOptions.getDeserializer());
         }
         else {
             MessageManagerFactory mmFactory = so.isOrdered() ? _pushOrderedMessageManagerFactory : _pushMessageManagerFactory;

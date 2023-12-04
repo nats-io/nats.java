@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.Consumer;
+import io.nats.client.Deserializer;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -32,6 +33,7 @@ abstract class NatsConsumer implements Consumer {
     private final AtomicLong messagesDelivered;
     private final AtomicBoolean slow;
     private final AtomicReference<CompletableFuture<Boolean>> drainingFuture;
+    private Deserializer deserializer;
 
     NatsConsumer(NatsConnection conn) {
         this.connection = conn;
@@ -251,4 +253,12 @@ abstract class NatsConsumer implements Consumer {
      * Abstract method, called by the connection when the drain is complete.
      */
     abstract void cleanUpAfterDrain();
+
+    public void setDeserializer(Deserializer deserializer){
+        this.deserializer = deserializer;
+    }
+
+    public Deserializer getDeserializer() {
+        return deserializer;
+    }
 }

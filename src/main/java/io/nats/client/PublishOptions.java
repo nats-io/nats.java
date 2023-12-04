@@ -45,8 +45,9 @@ public class PublishOptions {
     private final long expectedLastSeq;
     private final long expectedLastSubSeq;
     private final String msgId;
+    private final Serializer serializer;
 
-    private PublishOptions(String stream, Duration streamTimeout, String expectedStream, String expectedLastId, long expectedLastSeq, long expectedLastSubSeq, String msgId) {
+    private PublishOptions(String stream, Duration streamTimeout, String expectedStream, String expectedLastId, long expectedLastSeq, long expectedLastSubSeq, String msgId, Serializer serializer) {
         this.stream = stream;
         this.streamTimeout = streamTimeout;
         this.expectedStream = expectedStream;
@@ -54,6 +55,7 @@ public class PublishOptions {
         this.expectedLastSeq = expectedLastSeq;
         this.expectedLastSubSeq = expectedLastSubSeq;
         this.msgId = msgId;
+        this.serializer = serializer;
     }
 
     /**
@@ -114,6 +116,9 @@ public class PublishOptions {
         return expectedLastSubSeq;
     }
 
+    public Serializer getSerializer() { return this.serializer; }
+
+
     /**
      * Gets the message ID
      * @return the message id;
@@ -144,6 +149,7 @@ public class PublishOptions {
         long expectedLastSeq = UNSET_LAST_SEQUENCE;
         long expectedLastSubSeq = UNSET_LAST_SEQUENCE;
         String msgId;
+        Serializer serializer;
 
         /**
          * Constructs a new publish options Builder with the default values.
@@ -254,12 +260,17 @@ public class PublishOptions {
             return this;
         }
 
+        public Builder serializer(Serializer serializer) {
+            this.serializer = serializer;
+            return this;
+        }
+
         /**
          * Builds the publish options.
          * @return publish options
          */
         public PublishOptions build() {
-            return new PublishOptions(stream, streamTimeout, expectedStream, expectedLastId, expectedLastSeq, expectedLastSubSeq, msgId);
+            return new PublishOptions(stream, streamTimeout, expectedStream, expectedLastId, expectedLastSeq, expectedLastSubSeq, msgId, serializer);
         }
     }
 }

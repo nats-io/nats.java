@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import io.nats.client.Deserializer;
 
 public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
@@ -35,6 +36,15 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                                   MessageManager manager) {
         super(sid, subject, null, connection, dispatcher, js, stream, consumer, manager);
         pullSubjectIdHolder = new AtomicLong();
+    }
+
+    NatsJetStreamPullSubscription(String sid, String subject,
+                                  NatsConnection connection, NatsDispatcher dispatcher,
+                                  NatsJetStream js,
+                                  String stream, String consumer,
+                                  MessageManager manager, Deserializer deserializer) {
+        this(sid,subject, connection, dispatcher, js, stream, consumer, manager);
+        setDeserializer(deserializer);
     }
 
     @Override
