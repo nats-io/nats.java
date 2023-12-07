@@ -20,6 +20,7 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.*;
@@ -36,7 +37,7 @@ import static io.nats.client.support.Validator.*;
  * if necessary the server.
  * Options are created using a ConsumerConfiguration.Builder.
  */
-public class ConsumerConfiguration implements JsonSerializable {
+public class ConsumerConfiguration implements JsonSerializable, Serializable {
     @Deprecated
     public static final Duration DURATION_MIN = Duration.ofNanos(1);
 
