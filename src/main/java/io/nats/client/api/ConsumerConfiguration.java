@@ -37,7 +37,8 @@ import static io.nats.client.support.Validator.*;
  * if necessary the server.
  * Options are created using a ConsumerConfiguration.Builder.
  */
-public class ConsumerConfiguration implements JsonSerializable,Serializable {
+public class ConsumerConfiguration implements JsonSerializable, Serializable {
+    private static final long serialVersionUID = 1L;
     @Deprecated
     public static final Duration DURATION_MIN = Duration.ofNanos(1);
 

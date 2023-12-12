@@ -33,8 +33,8 @@ import static io.nats.client.support.Validator.*;
  * The StreamConfiguration class specifies the configuration for creating a JetStream stream on the server.
  * Options are created using a {@link StreamConfiguration.Builder Builder}.
  */
-public class StreamConfiguration implements JsonSerializable,Serializable {
-
+public class StreamConfiguration implements JsonSerializable, Serializable {
+    private static final long serialVersionUID = 1L;
     // see builder for defaults
     private final String name;
     private final String description;
