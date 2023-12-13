@@ -240,7 +240,6 @@ public class NatsMessageTests {
         assertNull(m.getConnection());
         assertEquals(23, m.getControlLineLength());
         assertNotNull(m.toDetailString()); // COVERAGE
-        assertNotNull(m.getOrCreateHeaders());
 
         m.getHeaders().remove("key");
         assertFalse(m.hasHeaders());
@@ -250,7 +249,6 @@ public class NatsMessageTests {
         assertFalse(m.hasHeaders());
         assertNull(m.getHeaders());
         assertNotNull(m.toString()); // COVERAGE
-        assertNotNull(m.getOrCreateHeaders());
 
         ProtocolMessage pm = new ProtocolMessage((byte[])null);
         assertNotNull(pm.protocolBab);

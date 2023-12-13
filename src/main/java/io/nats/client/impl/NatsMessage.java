@@ -90,7 +90,7 @@ public class NatsMessage implements Message {
         this(data);
         this.subject = validateSubject(subject, true);
         this.replyTo = validateReplyTo(replyTo, false);
-        this.headers = headers;
+        this.headers = copyOf(headers);
         this.utf8mode = false;
         finishConstruct();
     }
@@ -99,9 +99,13 @@ public class NatsMessage implements Message {
         this(message.getData());
         this.subject = message.getSubject();
         this.replyTo = message.getReplyTo();
-        this.headers = message.getHeaders();
+        this.headers = copyOf(message.getHeaders());
         this.utf8mode = message.isUtf8mode();
         finishConstruct();
+    }
+
+    private static Headers copyOf(Headers headers) {
+        return headers == null ? null : new Headers(headers, true);
     }
 
     protected void finishConstruct() {
@@ -165,13 +169,6 @@ public class NatsMessage implements Message {
 
     int getControlLineLength() {
         return controlLineLength;
-    }
-
-    Headers getOrCreateHeaders() {
-        if (headers == null) {
-            headers = new Headers();
-        }
-        return headers;
     }
 
     void setSubscription(NatsSubscription sub) {

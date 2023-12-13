@@ -40,17 +40,28 @@ public class Headers {
 	private int dataLength;
 
 	public Headers() {
-		valuesMap = new HashMap<>();
-		lengthMap = new HashMap<>();
+		this(null, false);
 	}
 
 	public Headers(Headers headers) {
-		this();
+		this(headers, false);
+	}
+
+	public Headers(Headers headers, boolean readOnly) {
+		Map<String, List<String>> tempValuesMap = new HashMap<>();
+		Map<String, Integer> tempLengthMap = new HashMap<>();
 		if (headers != null) {
-			valuesMap.putAll(headers.valuesMap);
-			lengthMap.putAll(headers.lengthMap);
+			tempValuesMap.putAll(headers.valuesMap);
+			tempLengthMap.putAll(headers.lengthMap);
 			dataLength = headers.dataLength;
-			serialized = null;
+		}
+		if (readOnly) {
+			valuesMap = Collections.unmodifiableMap(tempValuesMap);
+			lengthMap = Collections.unmodifiableMap(tempLengthMap);
+		}
+		else {
+			valuesMap = tempValuesMap;
+			lengthMap = tempLengthMap;
 		}
 	}
 
