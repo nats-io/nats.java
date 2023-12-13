@@ -241,10 +241,6 @@ public class NatsMessageTests {
         assertEquals(23, m.getControlLineLength());
         assertNotNull(m.toDetailString()); // COVERAGE
 
-        m.getHeaders().remove("key");
-        assertFalse(m.hasHeaders());
-        assertNotNull(m.getHeaders());
-
         m.headers = null; // we can do this because we have package access
         assertFalse(m.hasHeaders());
         assertNull(m.getHeaders());

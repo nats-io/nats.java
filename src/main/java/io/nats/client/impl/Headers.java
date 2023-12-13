@@ -25,7 +25,7 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
  * An object that represents a map of keys to a list of values. It does not accept
  * null or invalid keys. It ignores null values, accepts empty string as a value
  * and rejects invalid values.
- *
+ * !!!
  * THIS CLASS IS NOT THREAD SAFE
  */
 public class Headers {
@@ -40,20 +40,29 @@ public class Headers {
 	private int dataLength;
 
 	public Headers() {
-		this(null, false);
+		this(null, false, (String[])null);
 	}
 
 	public Headers(Headers headers) {
-		this(headers, false);
+		this(headers, false, (String[])null);
 	}
 
-	public Headers(Headers headers, boolean readOnly) {
+	public Headers(Headers headers, boolean readOnly, String... keysToRemoveWhenCopying) {
 		Map<String, List<String>> tempValuesMap = new HashMap<>();
 		Map<String, Integer> tempLengthMap = new HashMap<>();
 		if (headers != null) {
 			tempValuesMap.putAll(headers.valuesMap);
 			tempLengthMap.putAll(headers.lengthMap);
 			dataLength = headers.dataLength;
+			if (keysToRemoveWhenCopying != null) {
+				for (String key : keysToRemoveWhenCopying) {
+					if (key != null) {
+						if (tempValuesMap.remove(key) != null) {
+							dataLength -= tempLengthMap.remove(key);
+						}
+					}
+				}
+			}
 		}
 		if (readOnly) {
 			valuesMap = Collections.unmodifiableMap(tempValuesMap);
@@ -166,7 +175,7 @@ public class Headers {
 
 	// the put delegate that all puts call
 	private void _put(String key, Collection<String> values) {
-		if (key == null || key.length() == 0) {
+		if (key == null || key.isEmpty()) {
 			throw new IllegalArgumentException("Key cannot be null or empty.");
 		}
 		if (values != null) {
@@ -214,7 +223,7 @@ public class Headers {
 	}
 
 	/**
-	 * Returns the number of keys (case sensitive) in the header.
+	 * Returns the number of keys (case-sensitive) in the header.
 	 *
 	 * @return the number of keys
 	 */
@@ -232,7 +241,7 @@ public class Headers {
 	}
 
 	/**
-	 * Removes all of the keys The object map will be empty after this call returns.
+	 * Removes all the keys The object map will be empty after this call returns.
 	 */
 	public void clear() {
 		valuesMap.clear();
@@ -242,20 +251,20 @@ public class Headers {
 	}
 
 	/**
-	 * Returns <tt>true</tt> if key (case sensitive) is present (has values)
+	 * Returns <tt>true</tt> if key (case-sensitive) is present (has values)
 	 *
 	 * @param key key whose presence is to be tested
-	 * @return <tt>true</tt> if the key (case sensitive) is present (has values)
+	 * @return <tt>true</tt> if the key (case-sensitive) is present (has values)
 	 */
 	public boolean containsKey(String key) {
 		return valuesMap.containsKey(key);
 	}
 
 	/**
-	 * Returns <tt>true</tt> if key (case insensitive) is present (has values)
+	 * Returns <tt>true</tt> if key (case-insensitive) is present (has values)
 	 *
 	 * @param key exact key whose presence is to be tested
-	 * @return <tt>true</tt> if the key (case insensitive) is present (has values)
+	 * @return <tt>true</tt> if the key (case-insensitive) is present (has values)
 	 */
 	public boolean containsKeyIgnoreCase(String key) {
 		for (String k : valuesMap.keySet()) {
@@ -267,7 +276,7 @@ public class Headers {
 	}
 
 	/**
-	 * Returns a {@link Set} view of the keys (case sensitive) contained in the object.
+	 * Returns a {@link Set} view of the keys (case-sensitive) contained in the object.
 	 *
 	 * @return a read-only set the keys contained in this map
 	 */
@@ -276,7 +285,7 @@ public class Headers {
 	}
 
 	/**
-	 * Returns a {@link Set} view of the keys (case insensitive) contained in the object.
+	 * Returns a {@link Set} view of the keys (case-insensitive) contained in the object.
 	 *
 	 * @return a read-only set of keys (in lowercase) contained in this map
 	 */
@@ -289,10 +298,10 @@ public class Headers {
 	}
 
 	/**
-	 * Returns a {@link List} view of the values for the specific (case sensitive) key.
+	 * Returns a {@link List} view of the values for the specific (case-sensitive) key.
 	 * Will be {@code null} if the key is not found.
 	 *
-	 * @return a read-only list of the values for the case sensitive key.
+	 * @return a read-only list of the values for the case-sensitive key.
 	 */
 	public List<String> get(String key) {
 		List<String> values = valuesMap.get(key);
@@ -300,10 +309,10 @@ public class Headers {
 	}
 
 	/**
-	 * Returns the first value for the specific (case sensitive) key.
+	 * Returns the first value for the specific (case-sensitive) key.
 	 * Will be {@code null} if the key is not found.
 	 *
-	 * @return the first value for the case sensitive key.
+	 * @return the first value for the case-sensitive key.
 	 */
 	public String getFirst(String key) {
 		List<String> values = valuesMap.get(key);
@@ -311,10 +320,10 @@ public class Headers {
 	}
 
 	/**
-	 * Returns the last value for the specific (case sensitive) key.
+	 * Returns the last value for the specific (case-sensitive) key.
 	 * Will be {@code null} if the key is not found.
 	 *
-	 * @return the last value for the case sensitive key.
+	 * @return the last value for the case-sensitive key.
 	 */
 	public String getLast(String key) {
 		List<String> values = valuesMap.get(key);
@@ -322,10 +331,10 @@ public class Headers {
 	}
 
 	/**
-	 * Returns a {@link List} view of the values for the specific (case insensitive) key.
+	 * Returns a {@link List} view of the values for the specific (case-insensitive) key.
 	 * Will be {@code null} if the key is not found.
 	 *
-	 * @return a read-only list of the values for the case insensitive key.
+	 * @return a read-only list of the values for the case-insensitive key.
 	 */
 	public List<String> getIgnoreCase(String key) {
 		List<String> values = new ArrayList<>();
@@ -334,11 +343,11 @@ public class Headers {
 				values.addAll(valuesMap.get(k));
 			}
 		}
-		return values.size() == 0 ? null : Collections.unmodifiableList(values);
+		return values.isEmpty() ? null : Collections.unmodifiableList(values);
 	}
 
 	/**
-	 * Performs the given action for each header entry (case sensitive keys) until all entries
+	 * Performs the given action for each header entry (case-sensitive keys) until all entries
 	 * have been processed or the action throws an exception.
 	 * Any attempt to modify the values will throw an exception.
 	 *
@@ -352,7 +361,7 @@ public class Headers {
 	}
 
 	/**
-	 * Returns a {@link Set} read only view of the mappings contained in the header (case sensitive keys).
+	 * Returns a {@link Set} read only view of the mappings contained in the header (case-sensitive keys).
 	 * The set is not modifiable and any attempt to modify will throw an exception.
 	 *
 	 * @return a set view of the mappings contained in this map
@@ -458,7 +467,7 @@ public class Headers {
 	 */
 	private void checkKey(String key) {
 		// key cannot be null or empty and contain only printable characters except colon
-		if (key == null || key.length() == 0) {
+		if (key == null || key.isEmpty()) {
 			throw new IllegalArgumentException(KEY_CANNOT_BE_EMPTY_OR_NULL);
 		}
 
@@ -511,7 +520,7 @@ public class Headers {
 		}
 
 		boolean hasValues() {
-			return list.size() > 0;
+			return !list.isEmpty();
 		}
 	}
 
