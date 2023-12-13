@@ -41,22 +41,26 @@ public class Headers {
 	private int dataLength;
 
 	public Headers() {
-		this(null, false, (String[])null);
+		this(null, false, null);
 	}
 
 	public Headers(Headers headers) {
-		this(headers, false, (String[])null);
+		this(headers, false, null);
 	}
 
-	public Headers(Headers headers, boolean readOnly, String... keysToRemoveWhenCopying) {
+	public Headers(Headers headers, boolean readOnly) {
+		this(headers, readOnly, null);
+	}
+
+	public Headers(Headers headers, boolean readOnly, String[] keysNotToCopy) {
 		Map<String, List<String>> tempValuesMap = new HashMap<>();
 		Map<String, Integer> tempLengthMap = new HashMap<>();
 		if (headers != null) {
 			tempValuesMap.putAll(headers.valuesMap);
 			tempLengthMap.putAll(headers.lengthMap);
 			dataLength = headers.dataLength;
-			if (keysToRemoveWhenCopying != null) {
-				for (String key : keysToRemoveWhenCopying) {
+			if (keysNotToCopy != null) {
+				for (String key : keysNotToCopy) {
 					if (key != null) {
 						if (tempValuesMap.remove(key) != null) {
 							dataLength -= tempLengthMap.remove(key);

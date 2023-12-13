@@ -78,7 +78,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
                 lastSeq = JsonUtils.safeParseLong(temp, -1);
             }
             // these are control headers, not real headers so don't give them to the user.
-            headers = new Headers(msgHeaders, true, NATS_SUBJECT, NATS_SEQUENCE, NATS_TIMESTAMP, NATS_STREAM, NATS_LAST_SEQUENCE);
+            headers = new Headers(msgHeaders, true, MESSAGE_INFO_HEADERS);
         }
         else if (hasError()) {
             subject = null;
