@@ -213,13 +213,16 @@ public class HeadersTests {
     public void testReadOnly() {
         Headers notRO = new Headers();
         notRO.put(KEY1, VAL1);
+        assertFalse(notRO.isReadOnly());
         Headers headers1 = new Headers(notRO, true);
+        assertTrue(headers1.isReadOnly());
         assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, VAL2));
         assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY2, VAL2));
         assertEquals(VAL1, headers1.getFirst(KEY1));
 
         Message m = new NatsMessage("subject", null, notRO, null);
         Headers headers2 = m.getHeaders();
+        assertTrue(headers2.isReadOnly());
         assertThrows(UnsupportedOperationException.class, () -> headers2.put(KEY1, VAL2));
         assertThrows(UnsupportedOperationException.class, () -> headers2.put(KEY2, VAL2));
         assertEquals(VAL1, headers2.getFirst(KEY1));

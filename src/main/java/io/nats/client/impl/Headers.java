@@ -36,6 +36,7 @@ public class Headers {
 
 	private final Map<String, List<String>> valuesMap;
 	private final Map<String, Integer> lengthMap;
+	private final boolean readOnly;
 	private byte[] serialized;
 	private int dataLength;
 
@@ -64,6 +65,7 @@ public class Headers {
 				}
 			}
 		}
+		this.readOnly = readOnly;
 		if (readOnly) {
 			valuesMap = Collections.unmodifiableMap(tempValuesMap);
 			lengthMap = Collections.unmodifiableMap(tempLengthMap);
@@ -522,6 +524,14 @@ public class Headers {
 		boolean hasValues() {
 			return !list.isEmpty();
 		}
+	}
+
+	/**
+	 * Whether the entire Headers is read only
+	 * @return the read only state
+	 */
+	public boolean isReadOnly() {
+		return readOnly;
 	}
 
 	@Override
