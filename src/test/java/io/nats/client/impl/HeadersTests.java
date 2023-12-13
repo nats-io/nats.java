@@ -217,14 +217,18 @@ public class HeadersTests {
         Headers headers1 = new Headers(notRO, true);
         assertTrue(headers1.isReadOnly());
         assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, VAL2));
-        assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY2, VAL2));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, VAL2));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.remove(KEY1));
+        assertThrows(UnsupportedOperationException.class, headers1::clear);
         assertEquals(VAL1, headers1.getFirst(KEY1));
 
         Message m = new NatsMessage("subject", null, notRO, null);
         Headers headers2 = m.getHeaders();
         assertTrue(headers2.isReadOnly());
         assertThrows(UnsupportedOperationException.class, () -> headers2.put(KEY1, VAL2));
-        assertThrows(UnsupportedOperationException.class, () -> headers2.put(KEY2, VAL2));
+        assertThrows(UnsupportedOperationException.class, () -> headers2.put(KEY1, VAL2));
+        assertThrows(UnsupportedOperationException.class, () -> headers2.remove(KEY1));
+        assertThrows(UnsupportedOperationException.class, headers2::clear);
         assertEquals(VAL1, headers2.getFirst(KEY1));
     }
 
