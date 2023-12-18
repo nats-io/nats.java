@@ -1193,6 +1193,11 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         String expectedData = "s" + subj + "-q" + seq;
         assertEquals("d-" + expectedData, new String(mi.getData()));
         assertEquals("h-" + expectedData, mi.getHeaders().getFirst("h"));
+        assertNull(mi.getHeaders().getFirst(NATS_SUBJECT));
+        assertNull(mi.getHeaders().getFirst(NATS_SEQUENCE));
+        assertNull(mi.getHeaders().getFirst(NATS_TIMESTAMP));
+        assertNull(mi.getHeaders().getFirst(NATS_STREAM));
+        assertNull(mi.getHeaders().getFirst(NATS_LAST_SEQUENCE));
     }
 
     @SuppressWarnings("deprecation")

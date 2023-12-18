@@ -64,13 +64,13 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         this.direct = direct;
 
         if (direct) {
-            this.headers = msg.getHeaders();
-            this.subject = headers.getLast(NATS_SUBJECT);
+            Headers msgHeaders = msg.getHeaders();
+            this.subject = msgHeaders.getLast(NATS_SUBJECT);
             this.data = msg.getData();
-            seq = Long.parseLong(headers.getFirst(NATS_SEQUENCE));
-            time = DateTimeUtils.parseDateTime(headers.getFirst(NATS_TIMESTAMP));
-            stream = headers.getFirst(NATS_STREAM);
-            String temp = headers.getFirst(NATS_LAST_SEQUENCE);
+            seq = Long.parseLong(msgHeaders.getFirst(NATS_SEQUENCE));
+            time = DateTimeUtils.parseDateTime(msgHeaders.getFirst(NATS_TIMESTAMP));
+            stream = msgHeaders.getFirst(NATS_STREAM);
+            String temp = msgHeaders.getFirst(NATS_LAST_SEQUENCE);
             if (temp == null) {
                 lastSeq = -1;
             }
@@ -78,7 +78,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
                 lastSeq = JsonUtils.safeParseLong(temp, -1);
             }
             // these are control headers, not real headers so don't give them to the user.
-            headers.remove(NATS_SUBJECT, NATS_SEQUENCE, NATS_TIMESTAMP, NATS_STREAM, NATS_LAST_SEQUENCE);
+            headers = new Headers(msgHeaders, true, MESSAGE_INFO_HEADERS);
         }
         else if (hasError()) {
             subject = null;
