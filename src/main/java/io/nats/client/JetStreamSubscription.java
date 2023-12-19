@@ -26,7 +26,7 @@ import java.util.List;
 public interface JetStreamSubscription extends Subscription {
 
     /**
-     * Gets the consumer name that was used to create the subscription.
+     * Gets the consumer name associated with the subscription.
      * @return the consumer name
      */
     String getConsumerName();

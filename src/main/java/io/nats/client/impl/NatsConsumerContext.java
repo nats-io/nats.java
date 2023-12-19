@@ -81,15 +81,14 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     }
 
     @Override
-    public NatsJetStreamPullSubscription subscribe(MessageHandler messageHandler, Dispatcher userDispatcher, PullMessageManager optionalPmm) throws IOException, JetStreamApiException {
+    public NatsJetStreamPullSubscription subscribe(MessageHandler messageHandler, Dispatcher userDispatcher, PullMessageManager optionalPmm, Long optionalInactiveThreshold) throws IOException, JetStreamApiException {
         PullSubscribeOptions pso;
         if (ordered) {
             if (lastConsumer != null) {
                 highestSeq = Math.max(highestSeq, lastConsumer.pmm.lastStreamSeq);
             }
-            ConsumerConfiguration cc = lastConsumer == null
-                ? originalOrderedCc
-                : streamCtx.js.consumerConfigurationForOrdered(originalOrderedCc, highestSeq, null, null);
+            ConsumerConfiguration cc = streamCtx.js.consumerConfigurationForOrdered(
+                originalOrderedCc, highestSeq, null, null, optionalInactiveThreshold);
             pso = new OrderedPullSubscribeOptionsBuilder(streamCtx.streamName, cc).build();
         }
         else {
@@ -177,29 +176,42 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      */
     @Override
     public Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
-        NatsMessageConsumerBase con;
+        if (maxWaitMillis < MIN_EXPIRES_MILLS) {
+            throw new IllegalArgumentException("Max wait must be at least " + MIN_EXPIRES_MILLS + " milliseconds.");
+        }
+
+        NatsMessageConsumerBase nmcb = null;
         synchronized (stateLock) {
             checkState();
-            if (maxWaitMillis < MIN_EXPIRES_MILLS) {
-                throw new IllegalArgumentException("Max wait must be at least " + MIN_EXPIRES_MILLS + " milliseconds.");
-            }
 
-            con = new NatsMessageConsumerBase(cachedConsumerInfo);
-            con.initSub(subscribe(null, null, null));
-            con.sub._pull(PullRequestOptions.builder(1)
-                .expiresIn(maxWaitMillis - EXPIRE_ADJUSTMENT)
-                .build(), false, null);
-            trackConsume(con);
+            try {
+                long inactiveThreshold = maxWaitMillis * 110 / 100; // 10% longer than the wait
+                nmcb = new NatsMessageConsumerBase(cachedConsumerInfo);
+                nmcb.initSub(subscribe(null, null, null, inactiveThreshold));
+                nmcb.sub._pull(PullRequestOptions.builder(1)
+                    .expiresIn(maxWaitMillis - EXPIRE_ADJUSTMENT)
+                    .build(), false, null);
+                trackConsume(nmcb);
+            }
+            catch (Exception e) {
+                if (nmcb != null) {
+                    try {
+                        nmcb.close();
+                    }
+                    catch (Exception ignore) {}
+                }
+                return null;
+            }
         }
 
         // intentionally outside of lock
         try {
-            return con.sub.nextMessage(maxWaitMillis);
+            return nmcb.sub.nextMessage(maxWaitMillis);
         }
         finally {
             try {
-                con.finished.set(true);
-                con.close();
+                nmcb.finished.set(true);
+                nmcb.close();
             }
             catch (Exception e) {
                 // from close/autocloseable, but we know it doesn't actually throw

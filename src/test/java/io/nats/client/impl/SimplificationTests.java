@@ -545,9 +545,9 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     // this sim is different from the other sim b/c next has a new sub every message
-    public static class OrderedPullNextTestDropSimulator extends OrderedPullMessageManager {
+    public static class PullOrderedNextTestDropSimulator extends PullOrderedMessageManager {
         @SuppressWarnings("ClassEscapesDefinedScope")
-        public OrderedPullNextTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
+        public PullOrderedNextTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
             super(conn, js, stream, so, serverCC, syncMode);
         }
 
@@ -581,7 +581,7 @@ public class SimplificationTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             // Get this in place before subscriptions are made
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = OrderedPullNextTestDropSimulator::new;
+            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
 
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
             StreamContext sctx = js.getStreamContext(tsc.stream);
@@ -602,9 +602,9 @@ public class SimplificationTests extends JetStreamTestBase {
         });
     }
 
-    public static class OrderedPullTestDropSimulator extends OrderedPullMessageManager {
+    public static class PullOrderedTestDropSimulator extends PullOrderedMessageManager {
         @SuppressWarnings("ClassEscapesDefinedScope")
-        public OrderedPullTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
+        public PullOrderedTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
             super(conn, js, stream, so, serverCC, syncMode);
         }
 
@@ -629,7 +629,7 @@ public class SimplificationTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             // Get this in place before subscriptions are made
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = OrderedPullTestDropSimulator::new;
+            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
 
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
             StreamContext sctx = js.getStreamContext(tsc.stream);
@@ -671,7 +671,7 @@ public class SimplificationTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             // Get this in place before subscriptions are made
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = OrderedPullTestDropSimulator::new;
+            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
 
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
             StreamContext sctx = js.getStreamContext(tsc.stream);
@@ -703,7 +703,7 @@ public class SimplificationTests extends JetStreamTestBase {
             StreamContext sctx = js.getStreamContext(tsc.stream);
 
             // Get this in place before subscriptions are made
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = OrderedPullTestDropSimulator::new;
+            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
 
             CountDownLatch msgLatch = new CountDownLatch(6);
             AtomicInteger received = new AtomicInteger();

@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static io.nats.client.impl.MessageManager.ManageResult.MESSAGE;
 import static io.nats.client.impl.MessageManager.ManageResult.STATUS_HANDLED;
 
-class OrderedPullMessageManager extends PullMessageManager {
+class PullOrderedMessageManager extends PullMessageManager {
 
     protected final ConsumerConfiguration originalCc;
     protected final NatsJetStream js;
@@ -30,7 +30,7 @@ class OrderedPullMessageManager extends PullMessageManager {
     protected long expectedExternalConsumerSeq;
     protected final AtomicReference<String> targetSid;
 
-    protected OrderedPullMessageManager(NatsConnection conn,
+    protected PullOrderedMessageManager(NatsConnection conn,
                                         NatsJetStream js,
                                         String stream,
                                         SubscribeOptions so, ConsumerConfiguration originalCc, boolean syncMode) {
