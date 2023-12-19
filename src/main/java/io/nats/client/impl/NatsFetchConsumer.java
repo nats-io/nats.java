@@ -29,20 +29,21 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
     {
         super(cachedConsumerInfo);
 
-        maxWaitNanos = fetchConsumeOptions.getExpiresInMillis() * 1_000_000;
+        long expiresInMillis = fetchConsumeOptions.getExpiresInMillis();
+        maxWaitNanos = expiresInMillis * 1_000_000;
+        long inactiveThreshold = expiresInMillis * 110 / 100; // ten % longer than the wait
         PullRequestOptions pro = PullRequestOptions.builder(fetchConsumeOptions.getMaxMessages())
             .maxBytes(fetchConsumeOptions.getMaxBytes())
             .expiresIn(fetchConsumeOptions.getExpiresInMillis())
             .idleHeartbeat(fetchConsumeOptions.getIdleHeartbeat())
             .build();
-        initSub(subscriptionMaker.subscribe(null, null, null));
+        initSub(subscriptionMaker.subscribe(null, null, null, inactiveThreshold));
         pullSubject = sub._pull(pro, false, this);
         startNanos = -1;
     }
 
     @Override
-    public void pendingUpdated() {
-    }
+    public void pendingUpdated() {}
 
     @Override
     public void heartbeatError() {

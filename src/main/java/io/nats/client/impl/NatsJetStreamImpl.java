@@ -183,19 +183,27 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     ConsumerConfiguration consumerConfigurationForOrdered(
         ConsumerConfiguration originalCc,
         long lastStreamSeq,
-        String newDeliverSubject, String consumerName)
+        String newDeliverSubject,
+        String consumerName,
+        Long inactiveThreshold)
     {
         ConsumerConfiguration.Builder builder =
             ConsumerConfiguration.builder(originalCc)
-                .deliverPolicy(DeliverPolicy.ByStartSequence)
                 .deliverSubject(newDeliverSubject)
-                .startSequence(Math.max(1, lastStreamSeq + 1))
                 .startTime(null); // clear start time in case it was originally set
+
+        if (lastStreamSeq > 0) {
+            builder.deliverPolicy(DeliverPolicy.ByStartSequence)
+                .startSequence(Math.max(1, lastStreamSeq + 1));
+        }
 
         if (consumerName != null && consumerCreate290Available) {
             builder.name(consumerName);
         }
 
+        if (inactiveThreshold != null) {
+            builder.inactiveThreshold(inactiveThreshold);
+        }
         return builder.build();
     }
 

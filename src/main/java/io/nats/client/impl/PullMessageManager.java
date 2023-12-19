@@ -69,10 +69,9 @@ class PullMessageManager extends MessageManager {
         }
     }
 
-    private void trackIncoming(int m, long b, String pullsubject) {
+    private void trackIncoming(int m, long b) {
         synchronized (stateChangeLock) {
             // message time used for heartbeat tracking
-            // subjects used to detect multiple failed heartbeats
             updateLastMessageReceived();
 
             if (m != Integer.MIN_VALUE) {
@@ -105,32 +104,29 @@ class PullMessageManager extends MessageManager {
 
         // normal js message
         if (status == null) {
-            trackIncoming(1, msg.consumeByteCount(), null);
+            trackIncoming(1, msg.consumeByteCount());
             return true;
         }
 
         // heartbeat just needed to be recorded
         if (status.isHeartbeat()) {
-            trackIncoming(Integer.MIN_VALUE, -1, msg.subject);
+            trackIncoming(Integer.MIN_VALUE, Integer.MIN_VALUE);
             return false;
         }
 
-        Headers h = msg.getHeaders();
         int m = Integer.MIN_VALUE;
-        long b = -1;
+        long b = Long.MIN_VALUE;
+        Headers h = msg.getHeaders();
         if (h != null) {
-            String s = h.getFirst(NATS_PENDING_MESSAGES);
-            if (s != null) {
-                try {
-                    m = Integer.parseInt(s);
-                    b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
-                }
-                catch (NumberFormatException ignore) {
-                    m = Integer.MIN_VALUE; // shouldn't happen but don't fail; make sure don't track m/b
-                }
+            try {
+                m = Integer.parseInt(h.getFirst(NATS_PENDING_MESSAGES));
+                b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
+            }
+            catch (NumberFormatException ignore) {
+                m = Integer.MIN_VALUE; // shouldn't happen but don't fail; make sure don't track m/b
             }
         }
-        trackIncoming(m, b, msg.subject);
+        trackIncoming(m, b);
         return true;
     }
 

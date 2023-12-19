@@ -52,10 +52,6 @@ class NatsMessageConsumerBase implements MessageConsumer {
         return finished.get();
     }
 
-    protected void setCachedConsumerInfo(ConsumerInfo cachedConsumerInfo) {
-        this.cachedConsumerInfo = cachedConsumerInfo;
-    }
-
     /**
      * {@inheritDoc}
      */
