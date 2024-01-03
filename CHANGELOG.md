@@ -1,5 +1,37 @@
 # Change Log
 
+## 2.17.2
+
+Robustness and recovery
+
+#### Core
+* Support StreamConfiguration creation from JSON #1023 @senior
+* TimeoutException instead of CancellationException on timeout #1031 @maximbreitman
+* Message Headers Improvement #1054 @scottf
+
+#### JetStream
+* Pull Request Validate Idle Heartbeat Against Expiration #1036 @scottf
+* Client side consumer recovery #1043 @scottf
+* Ensure robustness b/w compatible with server 2.8.4 #1046 @scottf
+* Chaos Testing Tuning #1055 @scottf
+
+#### Extensions (KV / OS / Service)
+* KV and OS Compression and Metadata #1034 @scottf
+
+#### Docs / Testing / Examples / Etc.
+* Initialize SocketDataPort directly #1022 @scottf
+* Add dockerfile for compatibility tests #1024 @piotrpio
+* Update jnats-server-runner to 1.2.6 #1027 @scottf
+* Auth Test Improvement #1028 @scottf
+* Test Base Tuning #1030 @scottf
+* Publish Expectations Test for JetStream API Code #1032 @scottf
+* More Tests for recent NatsRequestCompletableFuture enhancement #1035 @scottf
+* Add nats by example link #1037 @Jarema
+* Improve test for real user authentication expired #1040 @scottf
+* Update readme / better subject validation notes #1047 @scottf
+* Fetch Resilient Example #1048 @scottf
+* Refactoring and improving example code. #1049 @scottf
+
 ## 2.17.1
 
 This release added was mostly about TLS and testing
