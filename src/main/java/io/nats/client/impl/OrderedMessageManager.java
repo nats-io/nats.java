@@ -97,7 +97,7 @@ class OrderedMessageManager extends PushMessageManager {
 
             // 3. make a new consumer using the same deliver subject but
             //    with a new starting point
-            ConsumerConfiguration userCC = js.consumerConfigurationForOrdered(originalCc, lastStreamSeq, newDeliverSubject, actualConsumerName);
+            ConsumerConfiguration userCC = js.consumerConfigurationForOrdered(originalCc, lastStreamSeq, newDeliverSubject, actualConsumerName, null);
             ConsumerInfo ci = js._createConsumer(stream, userCC); // this can fail when a server is down.
             sub.setConsumerName(ci.getName());
 
@@ -107,7 +107,6 @@ class OrderedMessageManager extends PushMessageManager {
         catch (Exception e) {
             // don't want this doubly failing for any reason
             try {
-                e.printStackTrace();
                 js.conn.processException(e);
             }
             catch (Exception ignore) {}

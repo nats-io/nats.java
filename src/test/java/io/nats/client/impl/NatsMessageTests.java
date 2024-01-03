@@ -240,17 +240,11 @@ public class NatsMessageTests {
         assertNull(m.getConnection());
         assertEquals(23, m.getControlLineLength());
         assertNotNull(m.toDetailString()); // COVERAGE
-        assertNotNull(m.getOrCreateHeaders());
-
-        m.getHeaders().remove("key");
-        assertFalse(m.hasHeaders());
-        assertNotNull(m.getHeaders());
 
         m.headers = null; // we can do this because we have package access
         assertFalse(m.hasHeaders());
         assertNull(m.getHeaders());
         assertNotNull(m.toString()); // COVERAGE
-        assertNotNull(m.getOrCreateHeaders());
 
         ProtocolMessage pm = new ProtocolMessage((byte[])null);
         assertNotNull(pm.protocolBab);

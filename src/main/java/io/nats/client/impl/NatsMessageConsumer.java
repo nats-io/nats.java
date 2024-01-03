@@ -51,10 +51,6 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
 
     @Override
     public void heartbeatError() {
-        restart();
-    }
-
-    private void restart() {
         try {
             // just close the current sub and make another one.
             // this could go on endlessly
@@ -74,9 +70,10 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
             }
         };
         try {
-            super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm));
+            super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm, null));
             repull();
             stopped.set(false);
+            finished.set(false);
         }
         catch (JetStreamApiException | IOException e) {
             setupHbAlarmToTrigger();

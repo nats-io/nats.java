@@ -235,7 +235,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     MessageManagerFactory _pullMessageManagerFactory =
         (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new PullMessageManager(mmConn, mmSo, mmSyncMode);
     MessageManagerFactory _pullOrderedMessageManagerFactory =
-        (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new OrderedPullMessageManager(mmConn, mmJs, mmStream, mmSo, mmCc, mmSyncMode);
+        (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new PullOrderedMessageManager(mmConn, mmJs, mmStream, mmSo, mmCc, mmSyncMode);
 
     JetStreamSubscription createSubscription(String userSubscribeSubject,
                                              PushSubscribeOptions pushSubscribeOptions,

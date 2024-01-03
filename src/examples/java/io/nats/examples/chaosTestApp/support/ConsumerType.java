@@ -11,17 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.impl;
+package io.nats.examples.chaosTestApp.support;
 
-import io.nats.client.Dispatcher;
-import io.nats.client.JetStreamApiException;
-import io.nats.client.MessageHandler;
+public enum ConsumerType {
+    Simple, Fetch, Push;
 
-import java.io.IOException;
-
-interface SimplifiedSubscriptionMaker {
-    NatsJetStreamPullSubscription subscribe(MessageHandler optionalMessageHandler,
-                                            Dispatcher optionalDispatcher,
-                                            PullMessageManager optionalPmm,
-                                            Long optionalInactiveThreshold) throws IOException, JetStreamApiException;
+    public static ConsumerType instance(String text) {
+        for (ConsumerType t : ConsumerType.values()) {
+            if (t.name().equalsIgnoreCase(text)) {
+                return t;
+            }
+        }
+        throw new IllegalArgumentException("Invalid ConsumerType: " + text);
+    }
 }

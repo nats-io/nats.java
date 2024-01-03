@@ -22,12 +22,6 @@ import java.io.IOException;
  */
 public interface ConsumerContext extends BaseConsumerContext {
     /**
-     * Gets the consumer name that was used to create the context.
-     * @return the consumer name
-     */
-    String getConsumerName();
-
-    /**
      * Gets information about the consumer behind this subscription.
      * @return consumer information
      * @throws IOException covers various communication issues with the NATS
