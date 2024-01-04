@@ -52,6 +52,16 @@ Version 2.5.0 adds some back pressure to publish calls to alleviate issues when 
 
 Previous versions are still available in the repo.
 
+#### Version 2.17.2 Message Immutability Headers Bug
+
+Once a message is created, it is intended to be immutable. 
+Before 2.17.2, the Headers object could be modified (via put, add, remove) after construction,
+either directly with the developer's original Headers object or from the one available via `Message.getHeaders()`.
+This will cause a protocol failure when the message is written to the server, 
+because the protocol size had already been calculated. 
+This calculation is done at construction time because there are multiple places in the workflow 
+that rely on the protocol size, so it must not change once created.
+
 #### Version 2.17.1 Support for TLS First
 
 There is a new connection Option, `tlsFirst` for "TLSHandshakeFirst"
