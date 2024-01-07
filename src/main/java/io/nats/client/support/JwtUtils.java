@@ -14,17 +14,13 @@
 package io.nats.client.support;
 
 import io.nats.client.NKey;
+import io.nats.jwt.Utils;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
-import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
-
-import static io.nats.client.support.Encoding.*;
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
 
 /**
  * Implements <a href="https://github.com/nats-io/nats-architecture-and-design/blob/main/adr/ADR-14.md">ADR-14</a>
@@ -32,11 +28,6 @@ import static io.nats.client.support.JsonUtils.endJson;
 public abstract class JwtUtils {
 
     private JwtUtils() {} /* ensures cannot be constructed */
-
-    private static final String ENCODED_CLAIM_HEADER =
-            toBase64Url("{\"typ\":\"JWT\", \"alg\":\"ed25519-nkey\"}");
-
-    private static final long NO_LIMIT = -1;
 
     /**
      * Format string with `%s` placeholder for the JWT token followed
@@ -46,29 +37,19 @@ public abstract class JwtUtils {
      * NKey userKey = NKey.createUser(new SecureRandom());
      * NKey signingKey = loadFromSecretStore();
      * String jwt = issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()));
-     * String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
+     * String.format(Utils.NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
      * </pre>
+     * @deprecated Use {@link Utils#NATS_USER_JWT_FORMAT} instead.
      */
-    public static final String NATS_USER_JWT_FORMAT = "-----BEGIN NATS USER JWT-----\n" +
-            "%s\n" +
-            "------END NATS USER JWT------\n" +
-            "\n" +
-            "************************* IMPORTANT *************************\n" +
-            "NKEY Seed printed below can be used to sign and prove identity.\n" +
-            "NKEYs are sensitive and should be treated as secrets.\n" +
-            "\n" +
-            "-----BEGIN USER NKEY SEED-----\n" +
-            "%s\n" +
-            "------END USER NKEY SEED------\n" +
-            "\n" +
-            "*************************************************************\n";
+    @Deprecated
+    public static final String NATS_USER_JWT_FORMAT = Utils.NATS_USER_JWT_FORMAT;
 
     /**
      * Get the current time in seconds since epoch. Used for issue time.
      * @return the time
      */
     public static long currentTimeSeconds() {
-        return System.currentTimeMillis() / 1000;
+        return Utils.currentTimeSeconds();
     }
 
     /**
@@ -161,6 +142,10 @@ public abstract class JwtUtils {
         return issueUserJWT(signingKey, publicUserKey, name, expiration, issuedAt, null, nats);
     }
 
+    public static String issueUserJWT(NKey signingKey, String publicUserKey, String name, Duration expiration, long issuedAt, io.nats.jwt.UserClaim nats) throws GeneralSecurityException, IOException {
+        return issueUserJWT(signingKey, publicUserKey, name, expiration, issuedAt, null, nats);
+    }
+
     /**
      * Issue a user JWT from a scoped signing key. See <a href="https://docs.nats.io/nats-tools/nsc/signing_keys">Signing Keys</a>
      * @param signingKey a mandatory account nkey pair to sign the generated jwt.
@@ -176,11 +161,13 @@ public abstract class JwtUtils {
      * @throws IOException if signingKey sign method throws this exception.
      * @return a JWT
      */
-    public static String issueUserJWT(NKey signingKey, String publicUserKey, String name, Duration expiration, long issuedAt, String audience, UserClaim nats) throws GeneralSecurityException, IOException {
+    public static String issueUserJWT(NKey signingKey, String publicUserKey, String name, Duration expiration, long issuedAt, String audience, io.nats.jwt.UserClaim nats) throws GeneralSecurityException, IOException {
         // Validate the signingKey:
         if (signingKey.getType() != NKey.Type.ACCOUNT) {
             throw new IllegalArgumentException("issueUserJWT requires an account key for the signingKey parameter, but got " + signingKey.getType());
         }
+
+        // TODO why are these keys validated but not used?
         // Validate the accountId:
         NKey accountKey = NKey.fromPublicKey(nats.issuerAccount.toCharArray());
         if (accountKey.getType() != NKey.Type.ACCOUNT) {
@@ -191,6 +178,7 @@ public abstract class JwtUtils {
         if (userKey.getType() != NKey.Type.USER) {
             throw new IllegalArgumentException("issueUserJWT requires a user key for the publicUserKey parameter, but got " + userKey.getType());
         }
+
         String accSigningKeyPub = new String(signingKey.getPublicKey());
 
         String claimName = Validator.nullOrEmpty(name) ? publicUserKey : name;
@@ -231,244 +219,135 @@ public abstract class JwtUtils {
      * @throws IOException              if signingKey sign method throws this exception.
      */
     public static String issueJWT(NKey signingKey, String publicUserKey, String name, Duration expiration, long issuedAt, String accSigningKeyPub, String audience, JsonSerializable nats) throws GeneralSecurityException, IOException {
-        Claim claim = new Claim();
-        claim.aud = audience;
-        claim.iat = issuedAt;
-        claim.iss = accSigningKeyPub;
-        claim.name = name;
-        claim.sub = publicUserKey;
-        claim.exp = expiration;
-        claim.nats = nats;
-
-        // Issue At time is stored in unix seconds
-        String claimJson = claim.toJson();
-
-        // Compute jti, a base32 encoded sha256 hash
-        MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-        byte[] encoded = sha256.digest(claimJson.getBytes(StandardCharsets.US_ASCII));
-
-        claim.jti = new String(base32Encode(encoded));
-        claimJson = claim.toJson();
-
-        // all three components (header/body/signature) are base64url encoded
-        String encBody = toBase64Url(claimJson);
-
-        // compute the signature off of header + body (. included on purpose)
-        byte[] sig = (ENCODED_CLAIM_HEADER + "." + encBody).getBytes(StandardCharsets.UTF_8);
-        String encSig = toBase64Url(signingKey.sign(sig));
-
-        // append signature to header and body and return it
-        return ENCODED_CLAIM_HEADER + "." + encBody + "." + encSig;
+        return new io.nats.jwt.ClaimIssuer()
+            .aud(audience)
+            .iat(issuedAt)
+            .iss(accSigningKeyPub)
+            .name(name)
+            .sub(publicUserKey)
+            .expiresIn(expiration)
+            .nats(nats)
+            .issueJwt(signingKey);
     }
 
     /**
      * Get the claim body from a JWT
      * @param jwt the encoded jwt
      * @return the claim body json
+     * @deprecated Use {@link Utils#getClaimBody(String)} instead.
      */
+    @Deprecated
     public static String getClaimBody(String jwt) {
-        return fromBase64Url(jwt.split("\\.")[1]);
+        return Utils.getClaimBody(jwt);
     }
 
-    public static class UserClaim implements JsonSerializable {
-        public String issuerAccount;            // User
-        public String[] tags;                   // User/GenericFields
-        public String type = "user";            // User/GenericFields
-        public int version = 2;                 // User/GenericFields
-        public Permission pub;                  // User/UserPermissionLimits/Permissions
-        public Permission sub;                  // User/UserPermissionLimits/Permissions
-        public ResponsePermission resp;         // User/UserPermissionLimits/Permissions
-        public String[] src;                    // User/UserPermissionLimits/Limits/UserLimits
-        public List<TimeRange> times;           // User/UserPermissionLimits/Limits/UserLimits
-        public String locale;                   // User/UserPermissionLimits/Limits/UserLimits
-        public long subs = NO_LIMIT;            // User/UserPermissionLimits/Limits/NatsLimits
-        public long data = NO_LIMIT;            // User/UserPermissionLimits/Limits/NatsLimits
-        public long payload = NO_LIMIT;         // User/UserPermissionLimits/Limits/NatsLimits
-        public boolean bearerToken;             // User/UserPermissionLimits
-        public String[] allowedConnectionTypes; // User/UserPermissionLimits
-
+    /**
+     * @deprecated Use {@link io.nats.jwt.UserClaim} instead.
+     */
+    @Deprecated
+    public static class UserClaim extends io.nats.jwt.UserClaim {
         public UserClaim(String issuerAccount) {
-            this.issuerAccount = issuerAccount;
-        }
-
-        @Override
-        public String toJson() {
-            StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "issuer_account", issuerAccount);
-            JsonUtils.addStrings(sb, "tags", tags);
-            JsonUtils.addField(sb, "type", type);
-            JsonUtils.addField(sb, "version", version);
-            JsonUtils.addField(sb, "pub", pub);
-            JsonUtils.addField(sb, "sub", sub);
-            JsonUtils.addField(sb, "resp", resp);
-            JsonUtils.addStrings(sb, "src", src);
-            JsonUtils.addJsons(sb, "times", times);
-            JsonUtils.addField(sb, "times_location", locale);
-            JsonUtils.addFieldWhenGteMinusOne(sb, "subs", subs);
-            JsonUtils.addFieldWhenGteMinusOne(sb, "data", data);
-            JsonUtils.addFieldWhenGteMinusOne(sb, "payload", payload);
-            JsonUtils.addFldWhenTrue(sb, "bearer_token", bearerToken);
-            JsonUtils.addStrings(sb, "allowed_connection_types", allowedConnectionTypes);
-            return endJson(sb).toString();
+            super(issuerAccount);
         }
 
         public UserClaim tags(String... tags) {
-            this.tags = tags;
+            super.tags(tags);
             return this;
         }
 
         public UserClaim pub(Permission pub) {
-            this.pub = pub;
+            super.pub(pub);
             return this;
         }
 
         public UserClaim sub(Permission sub) {
-            this.sub = sub;
+            super.sub(sub);
             return this;
         }
 
         public UserClaim resp(ResponsePermission resp) {
-            this.resp = resp;
+            super.resp(resp);
             return this;
         }
 
         public UserClaim src(String... src) {
-            this.src = src;
+            super.src(src);
             return this;
         }
 
         public UserClaim times(List<TimeRange> times) {
-            this.times = times;
+            if (times == null) {
+                super.timeRanges(null);
+            }
+            else {
+                super.timeRanges(new ArrayList<>(times));
+            }
             return this;
         }
 
         public UserClaim locale(String locale) {
-            this.locale = locale;
+            super.locale(locale);
             return this;
         }
 
         public UserClaim subs(long subs) {
-            this.subs = subs;
+            super.subs(subs);
             return this;
         }
 
         public UserClaim data(long data) {
-            this.data = data;
+            super.data(data);
             return this;
         }
 
         public UserClaim payload(long payload) {
-            this.payload = payload;
+            super.payload(payload);
             return this;
         }
 
         public UserClaim bearerToken(boolean bearerToken) {
-            this.bearerToken = bearerToken;
+            super.bearerToken(bearerToken);
             return this;
         }
 
         public UserClaim allowedConnectionTypes(String... allowedConnectionTypes) {
-            this.allowedConnectionTypes = allowedConnectionTypes;
+            super.allowedConnectionTypes(allowedConnectionTypes);
             return this;
         }
     }
 
-    public static class TimeRange implements JsonSerializable {
-        public String start;
-        public String end;
-
+    public static class TimeRange extends io.nats.jwt.TimeRange {
         public TimeRange(String start, String end) {
-            this.start = start;
-            this.end = end;
-        }
-
-        @Override
-        public String toJson() {
-            StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "start", start);
-            JsonUtils.addField(sb, "end", end);
-            return endJson(sb).toString();
+            super(start, end);
         }
     }
 
-    public static class ResponsePermission implements JsonSerializable {
-        public int maxMsgs;
-        public Duration expires;
-
+    public static class ResponsePermission extends io.nats.jwt.ResponsePermission {
         public ResponsePermission maxMsgs(int maxMsgs) {
-            this.maxMsgs = maxMsgs;
+            super.max(maxMsgs);
             return this;
         }
 
         public ResponsePermission expires(Duration expires) {
-            this.expires = expires;
+            super.expires(expires);
             return this;
         }
 
         public ResponsePermission expires(long expiresMillis) {
-            this.expires = Duration.ofMillis(expiresMillis);
+            super.expires(expiresMillis);
             return this;
-        }
-
-        @Override
-        public String toJson() {
-            StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "max", maxMsgs);
-            JsonUtils.addFieldAsNanos(sb, "ttl", expires);
-            return endJson(sb).toString();
         }
     }
 
-    public static class Permission implements JsonSerializable {
-        public String[] allow;
-        public String[] deny;
-
+    public static class Permission extends io.nats.jwt.Permission {
         public Permission allow(String... allow) {
-            this.allow = allow;
+            super.allow(allow);
             return this;
         }
 
         public Permission deny(String... deny) {
-            this.deny = deny;
+            super.deny(deny);
             return this;
-        }
-
-        @Override
-        public String toJson() {
-            StringBuilder sb = beginJson();
-            JsonUtils.addStrings(sb, "allow", allow);
-            JsonUtils.addStrings(sb, "deny", deny);
-            return endJson(sb).toString();
-        }
-    }
-
-    static class Claim implements JsonSerializable {
-        String aud;
-        String jti;
-        long iat;
-        String iss;
-        String name;
-        String sub;
-        Duration exp;
-        JsonSerializable nats;
-
-        @Override
-        public String toJson() {
-            StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "aud", aud);
-            JsonUtils.addFieldEvenEmpty(sb, "jti", jti);
-            JsonUtils.addField(sb, "iat", iat);
-            JsonUtils.addField(sb, "iss", iss);
-            JsonUtils.addField(sb, "name", name);
-            JsonUtils.addField(sb, "sub", sub);
-
-            if (exp != null && !exp.isZero() && !exp.isNegative()) {
-                long seconds = exp.toMillis() / 1000;
-                JsonUtils.addField(sb, "exp", iat + seconds); // relative to the iat
-            }
-
-            JsonUtils.addField(sb, "nats", nats);
-            return endJson(sb).toString();
         }
     }
 }

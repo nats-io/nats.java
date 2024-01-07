@@ -24,7 +24,7 @@ import static io.nats.client.support.JwtUtils.*;
 import static io.nats.client.utils.TestBase.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class JwtUtilsTests {
+public class JwtUtilsTestsDeprecated {
     static NKey USER_KEY = NKey.fromSeed("SUAGL3KX4ZBBD53BNNLSHGAAGCMXSEYZ6NTYUBUCPZQGHYNK3ZRQBUDPRY".toCharArray());
     static NKey SIGNING_KEY = NKey.fromSeed("SAANJIBNEKGCRUWJCPIWUXFBFJLR36FJTFKGBGKAT7AQXH2LVFNQWZJMQU".toCharArray());
     static String ACCOUNT_ID = "ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6";
@@ -48,7 +48,7 @@ public class JwtUtilsTests {
 
         String jwt = issueUserJWT(SIGNING_KEY, ACCOUNT_ID, new String(USER_KEY.getPublicKey()), null, null, null, 1633043378, "audience");
         String claimBody = getClaimBody(jwt);
-        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(USER_KEY.getSeed()));
+        String cred = String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(USER_KEY.getSeed()));
         /*
             Formatted Claim Body:
             {
@@ -167,14 +167,15 @@ public class JwtUtilsTests {
 
     @Test
     public void issueUserJWTSuccessCustom() throws Exception {
-        UserClaim userClaim = new UserClaim("ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6")
-            .pub(new Permission()
-                .allow(new String[] {"pub-allow-subject"})
-                .deny(new String[] {"pub-deny-subject"}))
-            .sub(new Permission()
-                .allow(new String[] {"sub-allow-subject"})
-                .deny(new String[] {"sub-deny-subject"}))
-            .tags(new String[]{"tag1", "tag\\two"});
+        //noinspection deprecation
+        JwtUtils.UserClaim userClaim = new JwtUtils.UserClaim("ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6")
+            .pub(new JwtUtils.Permission()
+                .allow("pub-allow-subject")
+                .deny("pub-deny-subject"))
+            .sub(new JwtUtils.Permission()
+                .allow("sub-allow-subject")
+                .deny("sub-deny-subject"))
+            .tags("tag1", "tag\\two");
 
         String jwt = issueUserJWT(SIGNING_KEY, new String(USER_KEY.getPublicKey()), "custom", null, 1633043378, userClaim);
         String claimBody = getClaimBody(jwt);
@@ -301,6 +302,7 @@ public class JwtUtilsTests {
 
     @Test
     public void testUserClaimJson() {
+        //noinspection deprecation
         UserClaim uc = new UserClaim("test-issuer-account");
         assertEquals(BASIC_JSON, uc.toJson());
 
