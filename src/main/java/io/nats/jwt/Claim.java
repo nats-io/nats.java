@@ -48,10 +48,10 @@ public class Claim implements JsonSerializable {
 
     Claim(ClaimIssuer issuer) {
         aud = issuer.aud;
-        exp = issuer.exp == null ? 0 : issuer.exp;
         jti = issuer.jti;
-        iat = issuer.iat;
+        iat = issuer.iatResolved;
         iss = issuer.iss;
+        exp = issuer.expResolved;
         name = issuer.name;
         nbf = issuer.nbf;
         sub = issuer.sub;

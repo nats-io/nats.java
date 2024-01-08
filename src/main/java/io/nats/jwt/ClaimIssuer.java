@@ -25,25 +25,34 @@ import java.time.Duration;
 import static io.nats.client.support.Encoding.base32Encode;
 import static io.nats.client.support.Encoding.toBase64Url;
 import static io.nats.jwt.Utils.ENCODED_CLAIM_HEADER;
+import static io.nats.jwt.Utils.currentTimeSeconds;
 
 public class ClaimIssuer {
     String aud;
     String jti;
-    long iat;
-    Long exp;
+    Long iatInput;
+    Long expInput;
+    long iatResolved;
+    long expResolved;
     String iss;
     String name;
     String nbf;
     String sub;
-    Duration expiresIn;
     JsonSerializable nats;
+    Duration expiresInInput;
 
     public String issueJwt(NKey signingKey) throws GeneralSecurityException, IOException {
-        if (exp == null) {
-            if (expiresIn != null && !expiresIn.isZero() && !expiresIn.isNegative()) {
-                exp = iat + (expiresIn.toMillis() / 1000);
+        iatResolved = iatInput == null ? currentTimeSeconds() : iatInput;
+        if (expInput == null) {
+            if (expiresInInput != null) {
+                long millis = expiresInInput.toMillis();
+                if (millis > 0) {
+                    expInput = iatResolved + (millis / 1000);
+                }
             }
         }
+        expResolved = expInput == null ? 0 : expInput;
+
         Claim claim = new Claim(this);
 
         // Issue At time is stored in unix seconds
@@ -72,18 +81,8 @@ public class ClaimIssuer {
         return this;
     }
 
-    public ClaimIssuer expiresIn(Duration expiresIn) {
-        this.expiresIn = expiresIn;
-        return this;
-    }
-
     public ClaimIssuer aud(String aud) {
         this.aud = aud;
-        return this;
-    }
-
-    public ClaimIssuer iat(long iat) {
-        this.iat = iat;
         return this;
     }
 
@@ -107,8 +106,18 @@ public class ClaimIssuer {
         return this;
     }
 
+    public ClaimIssuer iat(long iat) {
+        this.iatInput = iat;
+        return this;
+    }
+
     public ClaimIssuer exp(Long exp) {
-        this.exp = exp;
+        this.expInput = exp;
+        return this;
+    }
+
+    public ClaimIssuer expiresIn(Duration expiresIn) {
+        this.expiresInInput = expiresIn;
         return this;
     }
 }
