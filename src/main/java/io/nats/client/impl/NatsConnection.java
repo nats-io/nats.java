@@ -80,6 +80,9 @@ class NatsConnection implements Connection {
     private final ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
 
     private final String mainInbox;
+    private final String respInboxToken;
+    private final String respInboxPrefix;
+    private final int respInboxPrefixLength;
     private final AtomicReference<NatsDispatcher> inboxDispatcher;
     private Timer timer;
 
@@ -134,7 +137,25 @@ class NatsConnection implements Connection {
         this.nextSid = new AtomicLong(1);
         timeTrace(trace, "creating NUID");
         this.nuid = new NUID();
-        this.mainInbox = createInbox() + ".*";
+
+        // Options DO NOT CHANGE so contents such as options.getInboxPrefix() do not change
+        // mainInbox originally was createInbox() + .*;
+        // where createInbox() = options.getInboxPrefix() + nuid.next();
+        // and options.getInboxPrefix() = _INBOX.
+        // !!! actual inbox prefix can vary but always ends with dot
+        // so instead, I made respInboxToken then respInboxPrefix then mainInbox from that. So
+        // the token nuid is the <main-nuid>
+        // --> respInboxToken looks like  "_INBOX.<main-nuid>"
+        // --> respInboxPrefix looks like "_INBOX.<main-nuid>."
+        // --> mainInbox looks like       "_INBOX.<main-nuid>.*"
+        // --> full response inbox looks like _INBOX.<main-nuid>.<nuid>
+        // this replaces the old, each time calculation, substrings, etc.
+        // it never has to do any math or substring later.
+        // it is also better because it does not assume 22 for the nuid length.
+        respInboxToken = createInbox();                    // "_INBOX.<main-nuid>"
+        respInboxPrefix = respInboxToken + ".";            // "_INBOX.<main-nuid>."
+        respInboxPrefixLength = respInboxPrefix.length();
+        mainInbox = respInboxPrefix + STAR;                // "_INBOX.<main-nuid>.*"
 
         this.lastError = new AtomicReference<>();
         this.connectError = new AtomicReference<>();
@@ -991,26 +1012,24 @@ class NatsConnection implements Connection {
      */
     @Override
     public String createInbox() {
+        // options.getInboxPrefix() is like "_INBOX."
+        // createInbox returns something like "_INBOX.<main-nuid>"
         return options.getInboxPrefix() + nuid.next();
     }
 
-    int getRespInboxLength() {
-        return options.getInboxPrefix().length() + 22 + 1; // 22 for nuid, 1 for .
+    String createResponseInbox() {
+        // respInboxPrefix is like "_INBOX.<main-nuid>."
+        // createInbox returns something like "_INBOX.<main-nuid>.<nuid>"
+        return respInboxPrefix + nuid.next();
     }
 
-    String createResponseInbox(String inbox) {
-        // Substring gets rid of the * [trailing]
-        return inbox.substring(0, getRespInboxLength()) + nuid.next();
-    }
-
-    // If the inbox is long enough, pull out the end part, otherwise, just use the
-    // full thing
+    // A responseInbox that is too short is old style
+    // otherwise it's the new style which uses the respInboxToken of the mainInbox
     String getResponseToken(String responseInbox) {
-        int len = getRespInboxLength();
-        if (responseInbox.length() <= len) {
+        if (responseInbox.length() <= respInboxPrefixLength) {
             return responseInbox;
         }
-        return responseInbox.substring(len);
+        return respInboxToken;
     }
 
     void cleanResponses(boolean closing) {
@@ -1165,8 +1184,11 @@ class NatsConnection implements Connection {
         }
 
         boolean oldStyle = options.isOldRequestStyle();
-        String responseInbox = oldStyle ? createInbox() : createResponseInbox(this.mainInbox);
+        String responseInbox = oldStyle ? createInbox() : createResponseInbox();
         String responseToken = getResponseToken(responseInbox);
+        // so for example
+        // responseInbox = oldStyle ? "_INBOX.<nuid>" : "_INBOX.<main-nuid>.<nuid>"
+        // responseToken = oldStyle ? "_INBOX.<nuid>" : "_INBOX.<main-nuid>"
         NatsRequestCompletableFuture future =
             new NatsRequestCompletableFuture(cancelAction,
                 futureTimeout == null ? options.getRequestCleanupInterval() : futureTimeout, options.useTimeoutException());

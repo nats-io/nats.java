@@ -410,6 +410,9 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
         // 5. If pull or no deliver subject (inbox) provided or found, make an inbox.
         final String settledInboxDeliver;
+        // createInbox = options.getInboxPrefix() + nuid.next()
+        // options.getInboxPrefix() = "_INBOX."
+        // createInbox resolved = "_INBOX.<nuid>.*"
         if (isPullMode) {
             settledInboxDeliver = conn.createInbox() + ".*";
         }
