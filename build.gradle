@@ -13,7 +13,7 @@ plugins {
     id 'signing'
 }
 
-def jarVersion = "2.17.3"
+def jarVersion = "2.18.1"
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 def bs = System.getenv("BRANCH_SNAPSHOT")
@@ -32,11 +32,14 @@ java {
 
 repositories {
     mavenCentral()
+    mavenLocal()
     maven { url "https://oss.sonatype.org/content/repositories/releases/" }
 }
 
 dependencies {
-    implementation 'net.i2p.crypto:eddsa:0.3.0'
+    implementation 'io.nats:nkeys-java:1.5.0'
+    implementation 'io.nats:jnats-json:1.5.0-SNAPSHOT'
+
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
     testImplementation 'io.nats:jnats-server-runner:1.2.8'
     testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'

@@ -26,8 +26,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
-import static io.nats.client.support.Encoding.jsonDecode;
-import static io.nats.client.support.Encoding.jsonEncode;
 import static io.nats.client.support.JsonValueUtils.instance;
 import static io.nats.client.support.NatsConstants.COLON;
 
@@ -109,9 +107,9 @@ public abstract class JsonUtils {
      * @param json raw json
      */
     public static void addRawJson(StringBuilder sb, String fname, String json) {
-        if (json != null && json.length() > 0) {
+        if (json != null && !json.isEmpty()) {
             sb.append(Q);
-            jsonEncode(sb, fname);
+            JsonEncoding.jsonEncode(sb, fname);
             sb.append(QCOLON);
             sb.append(json);
             sb.append(COMMA);
@@ -125,11 +123,11 @@ public abstract class JsonUtils {
      * @param value field value
      */
     public static void addField(StringBuilder sb, String fname, String value) {
-        if (value != null && value.length() > 0) {
+        if (value != null && !value.isEmpty()) {
             sb.append(Q);
-            jsonEncode(sb, fname);
+            JsonEncoding.jsonEncode(sb, fname);
             sb.append(QCOLONQ);
-            jsonEncode(sb, value);
+            JsonEncoding.jsonEncode(sb, value);
             sb.append(QCOMMA);
         }
     }
@@ -145,9 +143,9 @@ public abstract class JsonUtils {
             value = "";
         }
         sb.append(Q);
-        jsonEncode(sb, fname);
+        JsonEncoding.jsonEncode(sb, fname);
         sb.append(QCOLONQ);
-        jsonEncode(sb, value);
+        JsonEncoding.jsonEncode(sb, value);
         sb.append(QCOMMA);
     }
 
@@ -160,7 +158,7 @@ public abstract class JsonUtils {
     public static void addField(StringBuilder sb, String fname, Boolean value) {
         if (value != null) {
             sb.append(Q);
-            jsonEncode(sb, fname);
+            JsonEncoding.jsonEncode(sb, fname);
             sb.append(QCOLON).append(value ? "true" : "false").append(COMMA);
         }
     }
@@ -186,7 +184,7 @@ public abstract class JsonUtils {
     public static void addField(StringBuilder sb, String fname, Integer value) {
         if (value != null && value >= 0) {
             sb.append(Q);
-            jsonEncode(sb, fname);
+            JsonEncoding.jsonEncode(sb, fname);
             sb.append(QCOLON).append(value).append(COMMA);
         }
     }
@@ -200,7 +198,7 @@ public abstract class JsonUtils {
     public static void addFieldWhenGtZero(StringBuilder sb, String fname, Integer value) {
         if (value != null && value > 0) {
             sb.append(Q);
-            jsonEncode(sb, fname);
+            JsonEncoding.jsonEncode(sb, fname);
             sb.append(QCOLON).append(value).append(COMMA);
         }
     }
@@ -214,7 +212,7 @@ public abstract class JsonUtils {
     public static void addField(StringBuilder sb, String fname, Long value) {
         if (value != null && value >= 0) {
             sb.append(Q);
-            jsonEncode(sb, fname);
+            JsonEncoding.jsonEncode(sb, fname);
             sb.append(QCOLON).append(value).append(COMMA);
         }
     }
@@ -228,7 +226,7 @@ public abstract class JsonUtils {
     public static void addFieldWhenGtZero(StringBuilder sb, String fname, Long value) {
         if (value != null && value > 0) {
             sb.append(Q);
-            jsonEncode(sb, fname);
+            JsonEncoding.jsonEncode(sb, fname);
             sb.append(QCOLON).append(value).append(COMMA);
         }
     }
@@ -242,7 +240,7 @@ public abstract class JsonUtils {
     public static void addFieldWhenGteMinusOne(StringBuilder sb, String fname, Long value) {
         if (value != null && value >= -1) {
             sb.append(Q);
-            jsonEncode(sb, fname);
+            JsonEncoding.jsonEncode(sb, fname);
             sb.append(QCOLON).append(value).append(COMMA);
         }
     }
@@ -257,7 +255,7 @@ public abstract class JsonUtils {
     public static void addFieldWhenGreaterThan(StringBuilder sb, String fname, Long value, long gt) {
         if (value != null && value > gt) {
             sb.append(Q);
-            jsonEncode(sb, fname);
+            JsonEncoding.jsonEncode(sb, fname);
             sb.append(QCOLON).append(value).append(COMMA);
         }
     }
@@ -271,7 +269,7 @@ public abstract class JsonUtils {
     public static void addFieldAsNanos(StringBuilder sb, String fname, Duration value) {
         if (value != null && !value.isZero() && !value.isNegative()) {
             sb.append(Q);
-            jsonEncode(sb, fname);
+            JsonEncoding.jsonEncode(sb, fname);
             sb.append(QCOLON).append(value.toNanos()).append(COMMA);
         }
     }
@@ -285,13 +283,13 @@ public abstract class JsonUtils {
     public static void addField(StringBuilder sb, String fname, JsonSerializable value) {
         if (value != null) {
             sb.append(Q);
-            jsonEncode(sb, fname);
+            JsonEncoding.jsonEncode(sb, fname);
             sb.append(QCOLON).append(value.toJson()).append(COMMA);
         }
     }
 
     public static void addField(StringBuilder sb, String fname, Map<String, String> map) {
-        if (map != null && map.size() > 0) {
+        if (map != null && !map.isEmpty()) {
             addField(sb, fname, instance(map));
         }
     }
@@ -317,7 +315,7 @@ public abstract class JsonUtils {
      */
     public static <T> void _addList(StringBuilder sb, String fname, List<T> list, ListAdder<T> adder) {
         sb.append(Q);
-        jsonEncode(sb, fname);
+        JsonEncoding.jsonEncode(sb, fname);
         sb.append("\":[");
         for (int i = 0; i < list.size(); i++) {
             if (i > 0) {
@@ -347,7 +345,7 @@ public abstract class JsonUtils {
      * @param strings field value
      */
     public static void addStrings(StringBuilder sb, String fname, List<String> strings) {
-        if (strings != null && strings.size() > 0) {
+        if (strings != null && !strings.isEmpty()) {
             _addStrings(sb, fname, strings);
         }
     }
@@ -355,7 +353,7 @@ public abstract class JsonUtils {
     private static void _addStrings(StringBuilder sb, String fname, List<String> strings) {
         _addList(sb, fname, strings, (sbs, s) -> {
             sb.append(Q);
-            jsonEncode(sb, s);
+            JsonEncoding.jsonEncode(sb, s);
             sb.append(Q);
         });
     }
@@ -379,7 +377,7 @@ public abstract class JsonUtils {
      * @param durations list of durations
      */
     public static void addDurations(StringBuilder sb, String fname, List<Duration> durations) {
-        if (durations != null && durations.size() > 0) {
+        if (durations != null && !durations.isEmpty()) {
             _addList(sb, fname, durations, (sbs, dur) -> sbs.append(dur.toNanos()));
         }
     }
@@ -393,7 +391,7 @@ public abstract class JsonUtils {
     public static void addField(StringBuilder sb, String fname, ZonedDateTime zonedDateTime) {
         if (zonedDateTime != null && !DEFAULT_TIME.equals(zonedDateTime)) {
             sb.append(Q);
-            jsonEncode(sb, fname);
+            JsonEncoding.jsonEncode(sb, fname);
             sb.append(QCOLONQ)
                 .append(DateTimeUtils.toRfc3339(zonedDateTime))
                 .append(QCOMMA);
@@ -401,9 +399,9 @@ public abstract class JsonUtils {
     }
 
     public static void addField(StringBuilder sb, String fname, Headers headers) {
-        if (headers != null && headers.size() > 0) {
+        if (headers != null && !headers.isEmpty()) {
             sb.append(Q);
-            jsonEncode(sb, fname);
+            JsonEncoding.jsonEncode(sb, fname);
             sb.append("\":{");
             for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
                 addStrings(sb, entry.getKey(), entry.getValue());
@@ -777,8 +775,8 @@ public abstract class JsonUtils {
         String[] raw = arrayString.split(",");
         for (String s : raw) {
             String cleaned = s.trim().replace("\"", "");
-            if (cleaned.length() > 0) {
-                list.add(jsonDecode(cleaned));
+            if (!cleaned.isEmpty()) {
+                list.add(JsonEncoding.jsonDecode(cleaned));
             }
         }
         return list;
@@ -841,7 +839,7 @@ public abstract class JsonUtils {
     @Deprecated
     public static String readString(String json, Pattern pattern, String dflt) {
         Matcher m = pattern.matcher(json);
-        return m.find() ? jsonDecode(m.group(1)) : dflt;
+        return m.find() ? JsonEncoding.jsonDecode(m.group(1)) : dflt;
     }
 
     @Deprecated
@@ -870,7 +868,7 @@ public abstract class JsonUtils {
                     sb.append(c);
                 }
             }
-            return jsonDecode(sb.toString());
+            return JsonEncoding.jsonDecode(sb.toString());
         }
         return dflt;
     }

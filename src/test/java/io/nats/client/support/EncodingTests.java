@@ -17,9 +17,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static io.nats.client.support.Encoding.jsonDecode;
-import static io.nats.client.support.Encoding.jsonEncode;
+import static io.nats.client.support.Encoding.*;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public final class EncodingTests {
@@ -67,5 +67,10 @@ public final class EncodingTests {
         else {
             assertEquals(targetEncode, encoded);
         }
+
+        byte[] testBytes = decoded.getBytes();
+        char[] e32 = base32Encode(testBytes);
+        byte[] d32 = base32Decode(e32);
+        assertArrayEquals(testBytes, d32);
     }
 }
