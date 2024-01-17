@@ -13,10 +13,7 @@
 
 package io.nats.client;
 
-import io.nats.client.impl.DataPort;
-import io.nats.client.impl.DispatcherFactory;
-import io.nats.client.impl.ErrorListenerLoggerImpl;
-import io.nats.client.impl.SocketDataPort;
+import io.nats.client.impl.*;
 import io.nats.client.support.HttpRequest;
 import io.nats.client.support.NatsConstants;
 import io.nats.client.support.NatsUri;
@@ -256,6 +253,11 @@ public class Options {
      * {@link Builder#connectionTimeout(Duration) connectionTimeout}.
      */
     public static final String PROP_CONNECTION_TIMEOUT = PFX + "timeout";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see
+     * {@link Builder#socketWriteTimeout(long) socketWriteTimeout}.
+     */
+    public static final String PROP_SOCKET_WRITE_TIMEOUT = PFX + "socket.write.timeout";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#reconnectBufferSize(long) reconnectBufferSize}.
@@ -558,6 +560,7 @@ public class Options {
     private final Duration reconnectJitter;
     private final Duration reconnectJitterTls;
     private final Duration connectionTimeout;
+    private final long socketWriteTimeout;
     private final Duration pingInterval;
     private final Duration requestCleanupInterval;
     private final int maxPingsOut;
@@ -665,6 +668,7 @@ public class Options {
         private Duration reconnectJitter = DEFAULT_RECONNECT_JITTER;
         private Duration reconnectJitterTls = DEFAULT_RECONNECT_JITTER_TLS;
         private Duration connectionTimeout = DEFAULT_CONNECTION_TIMEOUT;
+        private long socketWriteTimeout = -1;
         private Duration pingInterval = DEFAULT_PING_INTERVAL;
         private Duration requestCleanupInterval = DEFAULT_REQUEST_CLEANUP_INTERVAL;
         private int maxPingsOut = DEFAULT_MAX_PINGS_OUT;
@@ -793,6 +797,7 @@ public class Options {
             durationProperty(props, PROP_RECONNECT_JITTER_TLS, DEFAULT_RECONNECT_JITTER_TLS, d -> this.reconnectJitterTls = d);
             longProperty(props, PROP_RECONNECT_BUF_SIZE, DEFAULT_RECONNECT_BUF_SIZE, l -> this.reconnectBufferSize = l);
             durationProperty(props, PROP_CONNECTION_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT, d -> this.connectionTimeout = d);
+            longProperty(props, PROP_SOCKET_WRITE_TIMEOUT, DEFAULT_RECONNECT_BUF_SIZE, l -> this.socketWriteTimeout = l);
 
             intGtEqZeroProperty(props, PROP_MAX_CONTROL_LINE, DEFAULT_MAX_CONTROL_LINE, i -> this.maxControlLine = i);
             durationProperty(props, PROP_PING_INTERVAL, DEFAULT_PING_INTERVAL, d -> this.pingInterval = d);
@@ -1195,6 +1200,16 @@ public class Options {
          */
         public Builder connectionTimeout(Duration time) {
             this.connectionTimeout = time;
+            return this;
+        }
+
+        /**
+         * Set the timeout to use around socket writes
+         * @param socketWriteTimeout the timeout milliseconds
+         * @return the Builder for chaining
+         */
+        public Builder socketWriteTimeout(long socketWriteTimeout) {
+            this.socketWriteTimeout = socketWriteTimeout;
             return this;
         }
 
@@ -1626,6 +1641,10 @@ public class Options {
                     new DefaultThreadFactory(threadPrefix));
             }
 
+            if (socketWriteTimeout < 1) {
+                socketWriteTimeout = -1;
+            }
+
             return new Options(this);
         }
 
@@ -1651,6 +1670,7 @@ public class Options {
             this.reconnectJitter = o.reconnectJitter;
             this.reconnectJitterTls = o.reconnectJitterTls;
             this.connectionTimeout = o.connectionTimeout;
+            this.socketWriteTimeout = o.socketWriteTimeout;
             this.pingInterval = o.pingInterval;
             this.requestCleanupInterval = o.requestCleanupInterval;
             this.maxPingsOut = o.maxPingsOut;
@@ -1695,7 +1715,7 @@ public class Options {
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------------------------------
     private Options(Builder b) {
-        if (b.natsServerUris.size() == 0) {
+        if (b.natsServerUris.isEmpty()) {
             this.natsServerUris = Collections.singletonList(DEFAULT_NATS_URI);
         }
         else {
@@ -1714,6 +1734,7 @@ public class Options {
         this.reconnectJitter = b.reconnectJitter;
         this.reconnectJitterTls = b.reconnectJitterTls;
         this.connectionTimeout = b.connectionTimeout;
+        this.socketWriteTimeout = b.socketWriteTimeout;
         this.pingInterval = b.pingInterval;
         this.requestCleanupInterval = b.requestCleanupInterval;
         this.maxPingsOut = b.maxPingsOut;
@@ -1825,10 +1846,20 @@ public class Options {
      * @return the data port described by these options
      */
     public DataPort buildDataPort() {
+        DataPort dp;
         if (dataPortType.equals(DEFAULT_DATA_PORT_TYPE)) {
-            return new SocketDataPort();
+            if (socketWriteTimeout == -1) {
+                dp = new SocketDataPort();
+            }
+            else {
+                dp = new SocketDataPortWithWriteTimeout();
+            }
         }
-        return (DataPort) Options.createInstanceOf(dataPortType);
+        else {
+            dp = (DataPort) Options.createInstanceOf(dataPortType);
+        }
+        dp.afterContruct(this);
+        return dp;
     }
 
     /**
@@ -2004,6 +2035,13 @@ public class Options {
      */
     public Duration getConnectionTimeout() {
         return connectionTimeout;
+    }
+
+    /**
+     * @return the socketWriteTimeout, see {@link Builder#socketWriteTimeout(long) socketWriteTimeout()} in the builder doc
+     */
+    public long getSocketWriteTimeout() {
+        return socketWriteTimeout;
     }
 
     /**

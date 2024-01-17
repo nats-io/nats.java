@@ -37,14 +37,14 @@ import static io.nats.client.support.NatsConstants.SECURE_WEBSOCKET_PROTOCOL;
  */
 public class SocketDataPort implements DataPort {
 
-    private NatsConnection connection;
-    private String host;
-    private int port;
-    private Socket socket;
-    private boolean isSecure = false;
+    protected NatsConnection connection;
+    protected String host;
+    protected int port;
+    protected Socket socket;
+    protected boolean isSecure = false;
 
-    private InputStream in;
-    private OutputStream out;
+    protected InputStream in;
+    protected OutputStream out;
 
     @Override
     public void connect(String serverURI, NatsConnection conn, long timeoutNanos) throws IOException {
@@ -158,7 +158,7 @@ public class SocketDataPort implements DataPort {
         out.flush();
     }
 
-    private static boolean isWebsocketScheme(String scheme) {
+    protected static boolean isWebsocketScheme(String scheme) {
         return "ws".equalsIgnoreCase(scheme) ||
             "wss".equalsIgnoreCase(scheme);
     }
