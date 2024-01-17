@@ -52,6 +52,28 @@ Version 2.5.0 adds some back pressure to publish calls to alleviate issues when 
 
 Previous versions are still available in the repo.
 
+#### Version 2.17.3 Socket Write Timeout
+
+A java.net.Socket does not have a write timeout. 
+This means that writing data to the socket blocks.
+Under some conditions it will block indefinitely, freezing 
+that connection on the client.
+For instance, this would happen if the server is too busy to read from the socket,
+but this would indicative of an architecture issue, maybe to0 small a cluster or  
+machines running the server aren't big enough to handle the load.
+The other situation is one where there is a some network issue that blocks
+the socket but does not break the connection, maybe when there is a physical 
+connection break and the client machine is attempting to recover from it and re-establish the 
+real socket connection.
+
+To combat this, there is a new connection Options option, `socketWriteTimeout` milliseconds.
+This option defaults to -1. When the `socketWriteTimeout` value is less than 1,
+there is no change to the behavior. When the timeout is set, a timer is used
+to watch the writes and make sure they complete within the timeout. 
+If a write fails to complete, the connection is closed and goes inot the retry logic.
+There may still be messages in the output queue and some messages may be lost.
+Handling disconnections and output queue is left for another discussion.
+
 #### Version 2.17.2 Message Immutability Headers Bug
 
 Once a message is created, it is intended to be immutable. 
