@@ -59,7 +59,7 @@ This means that writing data to the socket blocks.
 Under some conditions it will block indefinitely, freezing 
 that connection on the client.
 For instance, this would happen if the server is too busy to read from the socket,
-but this would indicative of an architecture issue, maybe to0 small a cluster or  
+but this would be indicative of an architecture issue, maybe to0 small a cluster or  
 machines running the server aren't big enough to handle the load.
 The other situation is one where there is a some network issue that blocks
 the socket but does not break the connection, maybe when there is a physical 
