@@ -684,7 +684,7 @@ public class ReconnectTests {
     }
 
     @Test
-    public void testMaxReconnectOnConnect() throws Exception {
+    public void testReconnectOnConnect() throws Exception {
         int port = NatsTestServer.nextPort();
         Options options = Options.builder().server(NatsTestServer.getNatsLocalhostUri(port)).build();
 
