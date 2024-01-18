@@ -113,6 +113,12 @@ public class Options {
     public static final Duration DEFAULT_CONNECTION_TIMEOUT = Duration.ofSeconds(2);
 
     /**
+     * Default socket write timeout, see {@link #getSocketWriteTimeout() getSocketWriteTimeout()}.
+     * This property is defined as 1 minute
+     */
+    public static final Duration DEFAULT_SOCKET_WRITE_TIMEOUT = Duration.ofMinutes(1);
+
+    /**
      * Default server ping interval. The client will send a ping to the server on this interval to insure liveness.
      * The server may send pings to the client as well, these are handled automatically by the library,
      * see {@link #getPingInterval() getPingInterval()}.
@@ -560,7 +566,7 @@ public class Options {
     private final Duration reconnectJitter;
     private final Duration reconnectJitterTls;
     private final Duration connectionTimeout;
-    private final long socketWriteTimeout;
+    private final Duration socketWriteTimeout;
     private final Duration pingInterval;
     private final Duration requestCleanupInterval;
     private final int maxPingsOut;
@@ -668,7 +674,7 @@ public class Options {
         private Duration reconnectJitter = DEFAULT_RECONNECT_JITTER;
         private Duration reconnectJitterTls = DEFAULT_RECONNECT_JITTER_TLS;
         private Duration connectionTimeout = DEFAULT_CONNECTION_TIMEOUT;
-        private long socketWriteTimeout = -1;
+        private Duration socketWriteTimeout = DEFAULT_SOCKET_WRITE_TIMEOUT;
         private Duration pingInterval = DEFAULT_PING_INTERVAL;
         private Duration requestCleanupInterval = DEFAULT_REQUEST_CLEANUP_INTERVAL;
         private int maxPingsOut = DEFAULT_MAX_PINGS_OUT;
@@ -797,7 +803,7 @@ public class Options {
             durationProperty(props, PROP_RECONNECT_JITTER_TLS, DEFAULT_RECONNECT_JITTER_TLS, d -> this.reconnectJitterTls = d);
             longProperty(props, PROP_RECONNECT_BUF_SIZE, DEFAULT_RECONNECT_BUF_SIZE, l -> this.reconnectBufferSize = l);
             durationProperty(props, PROP_CONNECTION_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT, d -> this.connectionTimeout = d);
-            longProperty(props, PROP_SOCKET_WRITE_TIMEOUT, DEFAULT_RECONNECT_BUF_SIZE, l -> this.socketWriteTimeout = l);
+            durationProperty(props, PROP_SOCKET_WRITE_TIMEOUT, DEFAULT_SOCKET_WRITE_TIMEOUT, d -> this.socketWriteTimeout = d);
 
             intGtEqZeroProperty(props, PROP_MAX_CONTROL_LINE, DEFAULT_MAX_CONTROL_LINE, i -> this.maxControlLine = i);
             durationProperty(props, PROP_PING_INTERVAL, DEFAULT_PING_INTERVAL, d -> this.pingInterval = d);
@@ -1205,10 +1211,20 @@ public class Options {
 
         /**
          * Set the timeout to use around socket writes
+         * @param socketWriteTimeoutMillis the timeout milliseconds
+         * @return the Builder for chaining
+         */
+        public Builder socketWriteTimeout(long socketWriteTimeoutMillis) {
+            socketWriteTimeout = Duration.ofMillis(socketWriteTimeoutMillis);
+            return this;
+        }
+
+        /**
+         * Set the timeout to use around socket writes
          * @param socketWriteTimeout the timeout milliseconds
          * @return the Builder for chaining
          */
-        public Builder socketWriteTimeout(long socketWriteTimeout) {
+        public Builder socketWriteTimeout(Duration socketWriteTimeout) {
             this.socketWriteTimeout = socketWriteTimeout;
             return this;
         }
@@ -1641,8 +1657,8 @@ public class Options {
                     new DefaultThreadFactory(threadPrefix));
             }
 
-            if (socketWriteTimeout < 1) {
-                socketWriteTimeout = -1;
+            if (socketWriteTimeout != null && socketWriteTimeout.toMillis() < 1) {
+                socketWriteTimeout = null;
             }
 
             return new Options(this);
@@ -1848,7 +1864,7 @@ public class Options {
     public DataPort buildDataPort() {
         DataPort dp;
         if (dataPortType.equals(DEFAULT_DATA_PORT_TYPE)) {
-            if (socketWriteTimeout == -1) {
+            if (socketWriteTimeout == null) {
                 dp = new SocketDataPort();
             }
             else {
@@ -2040,7 +2056,7 @@ public class Options {
     /**
      * @return the socketWriteTimeout, see {@link Builder#socketWriteTimeout(long) socketWriteTimeout()} in the builder doc
      */
-    public long getSocketWriteTimeout() {
+    public Duration getSocketWriteTimeout() {
         return socketWriteTimeout;
     }
 

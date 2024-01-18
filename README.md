@@ -52,26 +52,25 @@ Version 2.5.0 adds some back pressure to publish calls to alleviate issues when 
 
 Previous versions are still available in the repo.
 
-#### Version 2.17.3 Socket Write Timeout
+#### Version 2.18.1 Socket Write Timeout
 
-A java.net.Socket does not have a write timeout. 
-This means that writing data to the socket blocks.
-Under some conditions it will block indefinitely, freezing 
-that connection on the client.
-For instance, this would happen if the server is too busy to read from the socket,
-but this would be indicative of an architecture issue, maybe too small a cluster or  
-machines running the server aren't big enough to handle the load.
-The other situation is one where there is a some network issue that blocks
-the socket but does not break the connection, maybe when there is a physical 
-connection break and the client machine is attempting to recover from it and re-establish the 
-real socket connection.
+The client, unless overridden, uses a java.net.Socket for connections. 
+This java.net.Socket implementation does not support a write timeout, so writing data to the socket is a blocking call.
 
-To combat this, there is a new connection Options option, `socketWriteTimeout` milliseconds.
-This option defaults to -1. When the `socketWriteTimeout` value is less than 1,
-there is no change to the behavior. When the timeout is set, a timer is used
-to watch the writes and make sure they complete within the timeout. 
-If a write fails to complete, the connection is closed and goes inot the retry logic.
-There may still be messages in the output queue and some messages may be lost.
+Under some conditions it will block indefinitely, freezing that connection on the client.
+One way this could happen is if the server was too busy to read what was being sent.
+Or, it could be a device, network or connection issue.
+Whatever it is, it blocks the jvm Socket write implementation which _used to_ block us.
+It's rare, but it does happen.
+
+To address this, we now monitor socket writes to ensure they complete within a timeout.
+The timeout is configurable in Options via the builder and `socketWriteTimeout(duration|milliseconds)`.
+The default is 1 minute if you don't set it. 
+You can turn the watching off by setting a null duration or 0 milliseconds.
+
+When the watcher is turned on, a background task watches the write operations and makes sure they complete within the timeout. 
+If a write fails to complete, the task tells the connection to close the socket, which triggers the retry logic.
+There may still be messages in the output queue and messages that were in transit are in an unknown state. 
 Handling disconnections and output queue is left for another discussion.
 
 #### Version 2.17.2 Message Immutability Headers Bug
