@@ -695,11 +695,15 @@ public class OptionsTests {
 
     @Test
     public void testDefaultDataPort() {
-        Options o = new Options.Builder().build();
+        Options o = new Options.Builder().socketWriteTimeout(null).build();
         DataPort dataPort = o.buildDataPort();
-
         assertNotNull(dataPort);
-        assertEquals(Options.DEFAULT_DATA_PORT_TYPE, dataPort.getClass().getCanonicalName(), "default dataPort");
+        assertEquals(Options.DEFAULT_DATA_PORT_TYPE, dataPort.getClass().getCanonicalName(), "old default dataPort");
+
+        o = new Options.Builder().build();
+        dataPort = o.buildDataPort();
+        assertNotNull(dataPort);
+        assertEquals(SocketDataPortWithWriteTimeout.class.getCanonicalName(), dataPort.getClass().getCanonicalName(), "new default dataPort");
     }
 
     @Test
