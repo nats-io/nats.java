@@ -17,12 +17,14 @@ import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -427,7 +429,7 @@ public class ReconnectTests {
 
         NatsServerProtocolMock.Customizer receiveMessageCustomizer = (ts, r,w) -> {
             String subLine;
-            
+
             System.out.println("*** Mock Server @" + ts.getPort() + " waiting for SUB ...");
             try {
                 subLine = r.readLine();
@@ -679,5 +681,46 @@ public class ReconnectTests {
         assertTrue(trwh.getDisconnectCount() < 3, "disconnectCount");
 
         c.close();
+    }
+
+    @Test
+    public void testReconnectOnConnect() throws Exception {
+        int port = NatsTestServer.nextPort();
+        Options options = Options.builder().server(NatsTestServer.getNatsLocalhostUri(port)).build();
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Connection> testConn = new AtomicReference<>();
+
+        Thread t = new Thread(() -> {
+            assertNull(testConn.get());
+            try {
+                Thread.sleep(2000); // give testConn time to be alive and trying.
+            }
+            catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            assertNull(testConn.get());
+
+            // start a server that test conn can connect to
+            try (NatsTestServer ts = new NatsTestServer(port, false)) {
+                //noinspection ResultOfMethodCallIgnored
+                latch.await(2000, TimeUnit.MILLISECONDS);
+                assertSame(Connection.Status.CONNECTED, testConn.get().getStatus());
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        t.start();
+
+        try {
+            testConn.set(Nats.connectReconnectOnConnect(options));
+            latch.countDown();
+        }
+        catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        t.join(5000);
     }
 }
