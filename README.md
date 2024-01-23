@@ -40,15 +40,11 @@ Check out the [ServiceExample](src/examples/java/io/nats/examples/service/Servic
 
 ### Versions Specific Notes
 
-This is version 2.x of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address the excessive use of threads, we created a Dispatcher construct to allow applications to control thread creation more intentionally. This version also removes all non-JDK runtime dependencies.
+This is version 2.x of the java-nats library.
 
 The API is [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking).
 
 Version 2+ uses a simplified versioning scheme. Any issues will be fixed in the incremental version number. As a major release, the major version has been updated to 2 to allow clients to limit there use of this new API. With the addition of drain() we updated to 2.1, NKey support moved us to 2.2.
-
-The NATS server renamed itself from gnatsd to nats-server around 2.4.4. This and other files try to use the new names, but some underlying code may change over several versions. If you are building yourself, please keep an eye out for issues and report them.
-
-Version 2.5.0 adds some back pressure to publish calls to alleviate issues when there is a slow network. This may alter performance characteristics of publishing apps, although the total performance is equivalent.
 
 Previous versions are still available in the repo.
 
