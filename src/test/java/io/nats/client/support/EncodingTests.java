@@ -17,7 +17,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static io.nats.client.support.Encoding.*;
+import static io.nats.client.NKeyUtils.base32Decode;
+import static io.nats.client.NKeyUtils.base32Encode;
+import static io.nats.client.support.Encoding.jsonDecode;
+import static io.nats.client.support.Encoding.jsonEncode;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
