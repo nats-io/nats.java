@@ -1,5 +1,17 @@
 # Change Log
 
+## 2.17.3
+
+#### Core
+* Socket Data Port with Manual Write Timeout #1064 @scottf
+* Provide implementation instead of empty trust manager check #1066 @scottf
+
+#### Test
+* Reconnect On Connect Unit Test #1062 #1063 @scottf
+
+#### Doc
+* Document Message Immutability Headers Bug #1059 @scottf
+
 ## 2.17.2
 
 Robustness and recovery
