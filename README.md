@@ -4,7 +4,7 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-**Current Release**: 2.17.2 &nbsp; **Current Snapshot**: 2.18.1-SNAPSHOT 
+**Current Release**: 2.17.3 &nbsp; **Current Snapshot**: 2.18.1-SNAPSHOT 
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
@@ -414,9 +414,9 @@ Replace `{major.minor.patch}` with the correct version in the examples.
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.2/jnats-2.17.2.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.2/jnats-2.17.2.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.3/jnats-2.17.3.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.3/jnats-2.17.3.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.2/jnats-2.17.2-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.2/jnats-2.17.2-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.3/jnats-2.17.3-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.3/jnats-2.17.3-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
