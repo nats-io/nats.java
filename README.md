@@ -48,7 +48,7 @@ Version 2+ uses a simplified versioning scheme. Any issues will be fixed in the 
 
 Previous versions are still available in the repo.
 
-#### Version 2.18.1 Socket Write Timeout
+#### Version 2.17.3 Socket Write Timeout
 
 The client, unless overridden, uses a java.net.Socket for connections. 
 This java.net.Socket implementation does not support a write timeout, so writing data to the socket is a blocking call.
