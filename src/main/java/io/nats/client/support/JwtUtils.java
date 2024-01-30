@@ -20,7 +20,6 @@ import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.util.List;
 
-import static io.nats.client.support.Encoding.toBase64Url;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 
@@ -32,11 +31,6 @@ import static io.nats.client.support.JsonUtils.endJson;
 public abstract class JwtUtils {
 
     private JwtUtils() {} /* ensures cannot be constructed */
-
-    private static final String ENCODED_CLAIM_HEADER =
-            toBase64Url("{\"typ\":\"JWT\", \"alg\":\"ed25519-nkey\"}");
-
-    private static final long NO_LIMIT = -1;
 
     /**
      * Format string with `%s` placeholder for the JWT token followed
@@ -74,7 +68,7 @@ public abstract class JwtUtils {
      */
     @Deprecated
     public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey) throws GeneralSecurityException, IOException {
-        return io.nats.jwt.JwtUtils.issueUserJWT(signingKey, publicUserKey, null, null, currentTimeSeconds(), null, new io.nats.jwt.UserClaim(accountId));
+        return io.nats.jwt.JwtUtils.issueUserJWT(signingKey, publicUserKey, null, null, io.nats.jwt.JwtUtils.currentTimeSeconds(), null, new io.nats.jwt.UserClaim(accountId));
     }
 
     /**
@@ -91,7 +85,7 @@ public abstract class JwtUtils {
      */
     @Deprecated
     public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name) throws GeneralSecurityException, IOException {
-        return io.nats.jwt.JwtUtils.issueUserJWT(signingKey, publicUserKey, name, null, currentTimeSeconds(), null, new io.nats.jwt.UserClaim(accountId));
+        return io.nats.jwt.JwtUtils.issueUserJWT(signingKey, publicUserKey, name, null, io.nats.jwt.JwtUtils.currentTimeSeconds(), null, new io.nats.jwt.UserClaim(accountId));
     }
 
     /**
@@ -271,9 +265,9 @@ public abstract class JwtUtils {
         public String[] src;                    // User/UserPermissionLimits/Limits/UserLimits
         public List<TimeRange> times;           // User/UserPermissionLimits/Limits/UserLimits
         public String locale;                   // User/UserPermissionLimits/Limits/UserLimits
-        public long subs = NO_LIMIT;            // User/UserPermissionLimits/Limits/NatsLimits
-        public long data = NO_LIMIT;            // User/UserPermissionLimits/Limits/NatsLimits
-        public long payload = NO_LIMIT;         // User/UserPermissionLimits/Limits/NatsLimits
+        public long subs = -1;                  // User/UserPermissionLimits/Limits/NatsLimits
+        public long data = -1;                  // User/UserPermissionLimits/Limits/NatsLimits
+        public long payload = -1;               // User/UserPermissionLimits/Limits/NatsLimits
         public boolean bearerToken;             // User/UserPermissionLimits
         public String[] allowedConnectionTypes; // User/UserPermissionLimits
 
