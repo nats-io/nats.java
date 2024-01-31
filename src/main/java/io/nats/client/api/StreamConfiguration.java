@@ -13,7 +13,10 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.*;
+import io.nats.client.support.JsonParseException;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonValue;
 
 import java.time.Duration;
 import java.util.*;
@@ -158,7 +161,7 @@ public class StreamConfiguration implements JsonSerializable {
         StringBuilder sb = beginJson();
 
         addField(sb, NAME, name);
-        JsonWriteUtils.addField(sb, DESCRIPTION, description);
+        addField(sb, DESCRIPTION, description);
         addStrings(sb, SUBJECTS, subjects);
         addField(sb, RETENTION, retentionPolicy.toString());
         addEnumWhenNot(sb, COMPRESSION, compressionOption, CompressionOption.None);

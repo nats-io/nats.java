@@ -14,7 +14,6 @@
 package io.nats.service;
 
 import io.nats.client.support.JsonValue;
-import io.nats.client.support.JsonWriteUtils;
 import io.nats.client.support.Validator;
 
 import java.util.*;
@@ -22,6 +21,8 @@ import java.util.*;
 import static io.nats.client.support.ApiConstants.DESCRIPTION;
 import static io.nats.client.support.ApiConstants.ENDPOINTS;
 import static io.nats.client.support.JsonValueUtils.*;
+import static io.nats.client.support.JsonWriteUtils.addField;
+import static io.nats.client.support.JsonWriteUtils.addJsons;
 
 /**
  * Info response class forms the info json payload, for example:
@@ -60,8 +61,8 @@ public class InfoResponse extends ServiceResponse {
 
     @Override
     protected void subToJson(StringBuilder sb) {
-        JsonWriteUtils.addField(sb, DESCRIPTION, description);
-        JsonWriteUtils.addJsons(sb, ENDPOINTS, endpoints);
+        addField(sb, DESCRIPTION, description);
+        addJsons(sb, ENDPOINTS, endpoints);
     }
 
     /**

@@ -19,8 +19,7 @@ import io.nats.client.support.*;
 import java.time.ZonedDateTime;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonWriteUtils.beginJson;
-import static io.nats.client.support.JsonWriteUtils.endJson;
+import static io.nats.client.support.JsonWriteUtils.*;
 
 /**
  * The ObjectInfo is Object Meta Information plus instance information
@@ -72,12 +71,12 @@ public class ObjectInfo implements JsonSerializable {
         // never write MTIME (modified)
         StringBuilder sb = beginJson();
         objectMeta.embedJson(sb); // the go code embeds the objectMeta's fields instead of as a child object.
-        JsonWriteUtils.addField(sb, BUCKET, bucket);
-        JsonWriteUtils.addField(sb, NUID, nuid);
-        JsonWriteUtils.addField(sb, SIZE, size);
-        JsonWriteUtils.addField(sb, CHUNKS, chunks);
-        JsonWriteUtils.addField(sb, DIGEST, digest);
-        JsonWriteUtils.addField(sb, DELETED, deleted);
+        addField(sb, BUCKET, bucket);
+        addField(sb, NUID, nuid);
+        addField(sb, SIZE, size);
+        addField(sb, CHUNKS, chunks);
+        addField(sb, DIGEST, digest);
+        addField(sb, DELETED, deleted);
         return endJson(sb).toString();
     }
 

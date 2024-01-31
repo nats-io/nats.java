@@ -48,7 +48,7 @@ public class JwtUtilsTests {
 
         String jwt = issueUserJWT(SIGNING_KEY, ACCOUNT_ID, new String(USER_KEY.getPublicKey()), null, null, null, 1633043378, "audience");
         String claimBody = getClaimBody(jwt);
-        String cred = String.format(io.nats.jwt.JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(USER_KEY.getSeed()));
+        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(USER_KEY.getSeed()));
         /*
             Formatted Claim Body:
             {
@@ -98,7 +98,7 @@ public class JwtUtilsTests {
 
     private static void _testMinimalNoAudience(String expectedClaimBody, String expectedCred, NKey userKey, String jwt) {
         String claimBody = getClaimBody(jwt);
-        String cred = String.format(io.nats.jwt.JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
+        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
         /*
             Formatted Claim Body:
             {
@@ -125,7 +125,7 @@ public class JwtUtilsTests {
     public void issueUserJWTSuccessAllArgs() throws Exception {
         String jwt = issueUserJWT(SIGNING_KEY, ACCOUNT_ID, new String(USER_KEY.getPublicKey()), "name", Duration.ofSeconds(100), new String[]{"tag1", "tag\\two"}, 1633043378, "audience");
         String claimBody = getClaimBody(jwt);
-        String cred = String.format(io.nats.jwt.JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(USER_KEY.getSeed()));
+        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(USER_KEY.getSeed()));
         /*
             Formatted Claim Body:
             {
@@ -178,7 +178,7 @@ public class JwtUtilsTests {
 
         String jwt = issueUserJWT(SIGNING_KEY, new String(USER_KEY.getPublicKey()), "custom", null, 1633043378, userClaim);
         String claimBody = getClaimBody(jwt);
-        String cred = String.format(io.nats.jwt.JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(USER_KEY.getSeed()));
+        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(USER_KEY.getSeed()));
         /*
             Formatted Claim Body:
             {
@@ -234,7 +234,7 @@ public class JwtUtilsTests {
 
         String jwt = issueUserJWT(SIGNING_KEY, new String(USER_KEY.getPublicKey()), null, null, 1633043378, userClaim);
         String claimBody = getClaimBody(jwt);
-        String cred = String.format(io.nats.jwt.JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(USER_KEY.getSeed()));
+        String cred = String.format(NATS_USER_JWT_FORMAT, jwt, new String(USER_KEY.getSeed()));
 
         /*
             Formatted Claim Body:
@@ -328,7 +328,7 @@ public class JwtUtilsTests {
         long seconds = JwtUtils.currentTimeSeconds();
         sleep(1000);
         assertTrue(JwtUtils.currentTimeSeconds() > seconds);
-        assertEquals(io.nats.jwt.JwtUtils.NATS_USER_JWT_FORMAT, NATS_USER_JWT_FORMAT);
+        assertEquals(NATS_USER_JWT_FORMAT, NATS_USER_JWT_FORMAT);
     }
 
     private static final String BASIC_JSON = "{\"issuer_account\":\"test-issuer-account\",\"type\":\"user\",\"version\":2,\"subs\":-1,\"data\":-1,\"payload\":-1}";

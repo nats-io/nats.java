@@ -16,7 +16,6 @@ package io.nats.service;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
-import io.nats.client.support.JsonWriteUtils;
 
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -24,8 +23,7 @@ import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonValueUtils.*;
-import static io.nats.client.support.JsonWriteUtils.beginJson;
-import static io.nats.client.support.JsonWriteUtils.endJson;
+import static io.nats.client.support.JsonWriteUtils.*;
 
 /**
  * Endpoints stats contains various stats and custom data for an endpoint.
@@ -114,16 +112,16 @@ public class EndpointStats implements JsonSerializable {
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonWriteUtils.addField(sb, NAME, name);
-        JsonWriteUtils.addField(sb, SUBJECT, subject);
-        JsonWriteUtils.addField(sb, QUEUE_GROUP, queueGroup);
-        JsonWriteUtils.addFieldWhenGtZero(sb, NUM_REQUESTS, numRequests);
-        JsonWriteUtils.addFieldWhenGtZero(sb, NUM_ERRORS, numErrors);
-        JsonWriteUtils.addFieldWhenGtZero(sb, PROCESSING_TIME, processingTime);
-        JsonWriteUtils.addFieldWhenGtZero(sb, AVERAGE_PROCESSING_TIME, averageProcessingTime);
-        JsonWriteUtils.addField(sb, LAST_ERROR, lastError);
-        JsonWriteUtils.addField(sb, DATA, data);
-        JsonWriteUtils.addField(sb, STARTED, started);
+        addField(sb, NAME, name);
+        addField(sb, SUBJECT, subject);
+        addField(sb, QUEUE_GROUP, queueGroup);
+        addFieldWhenGtZero(sb, NUM_REQUESTS, numRequests);
+        addFieldWhenGtZero(sb, NUM_ERRORS, numErrors);
+        addFieldWhenGtZero(sb, PROCESSING_TIME, processingTime);
+        addFieldWhenGtZero(sb, AVERAGE_PROCESSING_TIME, averageProcessingTime);
+        addField(sb, LAST_ERROR, lastError);
+        addField(sb, DATA, data);
+        addField(sb, STARTED, started);
         return endJson(sb).toString();
     }
 
@@ -217,7 +215,7 @@ public class EndpointStats implements JsonSerializable {
 
     @Override
     public String toString() {
-        return JsonWriteUtils.toKey(getClass()) + toJson();
+        return toKey(getClass()) + toJson();
     }
 
     @Override

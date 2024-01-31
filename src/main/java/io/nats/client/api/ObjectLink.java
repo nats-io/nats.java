@@ -14,14 +14,12 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
-import io.nats.client.support.JsonWriteUtils;
 import io.nats.client.support.Validator;
 
 import static io.nats.client.support.ApiConstants.BUCKET;
 import static io.nats.client.support.ApiConstants.NAME;
 import static io.nats.client.support.JsonValueUtils.readString;
-import static io.nats.client.support.JsonWriteUtils.beginJson;
-import static io.nats.client.support.JsonWriteUtils.endJson;
+import static io.nats.client.support.JsonWriteUtils.*;
 
 /**
  * The ObjectLink is used to embed links to other objects.
@@ -48,8 +46,8 @@ public class ObjectLink implements JsonSerializable {
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonWriteUtils.addField(sb, BUCKET, bucket);
-        JsonWriteUtils.addField(sb, NAME, objectName);
+        addField(sb, BUCKET, bucket);
+        addField(sb, NAME, objectName);
         return endJson(sb).toString();
     }
 

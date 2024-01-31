@@ -323,6 +323,7 @@ public abstract class JsonUtils {
         JsonWriteUtils.addField(sb, fname, zonedDateTime);
     }
 
+    @Deprecated
     public static void addField(StringBuilder sb, String fname, Headers headers) {
         if (headers != null && !headers.isEmpty()) {
             sb.append(Q);
@@ -367,80 +368,26 @@ public abstract class JsonUtils {
      * @param o the object
      * @return the formatted string
      */
+    @Deprecated
     public static String getFormatted(Object o) {
-        StringBuilder sb = new StringBuilder();
-        int level = 0;
-        int arrayLevel = 0;
-        boolean lastWasClose = false;
-        boolean indentNext = true;
-        String indent = "";
-        String s = o.toString();
-        for (int x = 0; x < s.length(); x++) {
-            char c = s.charAt(x);
-            if (c == '{') {
-                if (arrayLevel > 0 && lastWasClose) {
-                    sb.append(indent);
-                }
-                sb.append(c).append('\n');
-                indent = indent(++level);
-                indentNext = true;
-                lastWasClose = false;
-            }
-            else if (c == '}') {
-                indent = indent(--level);
-                sb.append('\n').append(indent).append(c);
-                lastWasClose = true;
-            }
-            else if (c == ',') {
-                sb.append(",\n");
-                indentNext = true;
-            }
-            else {
-                if (c == '[') {
-                    arrayLevel++;
-                }
-                else if (c == ']') {
-                    arrayLevel--;
-                }
-                if (indentNext) {
-                    if (c != ' ') {
-                        sb.append(indent).append(c);
-                        indentNext = false;
-                    }
-                }
-                else {
-                    sb.append(c);
-                }
-                lastWasClose = lastWasClose && Character.isWhitespace(c);
-            }
-        }
-        return sb.toString();
+        return JsonWriteUtils.getFormatted(o);
     }
 
     public static void printFormatted(Object o) {
-        System.out.println(getFormatted(o));
+        System.out.println(JsonWriteUtils.getFormatted(o));
     }
 
     // ----------------------------------------------------------------------------------------------------
     // SAFE NUMBER PARSING HELPERS
     // ----------------------------------------------------------------------------------------------------
+    @Deprecated
     public static Long safeParseLong(String s) {
-        try {
-            return Long.parseLong(s);
-        }
-        catch (Exception e1) {
-            try {
-                return Long.parseUnsignedLong(s);
-            }
-            catch (Exception e2) {
-                return null;
-            }
-        }
+        return JsonWriteUtils.safeParseLong(s);
     }
 
+    @Deprecated
     public static long safeParseLong(String s, long dflt) {
-        Long l = safeParseLong(s);
-        return l == null ? dflt : l;
+        return JsonWriteUtils.safeParseLong(s, dflt);
     }
 
     // ----------------------------------------------------------------------------------------------------

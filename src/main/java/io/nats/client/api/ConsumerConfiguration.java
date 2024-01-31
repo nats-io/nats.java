@@ -18,7 +18,6 @@ import io.nats.client.PushSubscribeOptions;
 import io.nats.client.support.ApiConstants;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
-import io.nats.client.support.JsonWriteUtils;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -26,8 +25,7 @@ import java.util.*;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonValueUtils.*;
-import static io.nats.client.support.JsonWriteUtils.beginJson;
-import static io.nats.client.support.JsonWriteUtils.endJson;
+import static io.nats.client.support.JsonWriteUtils.*;
 import static io.nats.client.support.NatsJetStreamClientError.JsConsumerNameDurableMismatch;
 import static io.nats.client.support.Validator.*;
 
@@ -204,39 +202,39 @@ public class ConsumerConfiguration implements JsonSerializable {
      */
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonWriteUtils.addField(sb, DESCRIPTION, description);
-        JsonWriteUtils.addField(sb, DURABLE_NAME, durable);
-        JsonWriteUtils.addField(sb, NAME, name);
-        JsonWriteUtils.addField(sb, DELIVER_SUBJECT, deliverSubject);
-        JsonWriteUtils.addField(sb, DELIVER_GROUP, deliverGroup);
-        JsonWriteUtils.addField(sb, DELIVER_POLICY, GetOrDefault(deliverPolicy).toString());
-        JsonWriteUtils.addFieldWhenGtZero(sb, OPT_START_SEQ, startSeq);
-        JsonWriteUtils.addField(sb, OPT_START_TIME, startTime);
-        JsonWriteUtils.addField(sb, ACK_POLICY, GetOrDefault(ackPolicy).toString());
-        JsonWriteUtils.addFieldAsNanos(sb, ACK_WAIT, ackWait);
-        JsonWriteUtils.addFieldWhenGtZero(sb, MAX_DELIVER, maxDeliver);
-        JsonWriteUtils.addField(sb, MAX_ACK_PENDING, maxAckPending);
-        JsonWriteUtils.addField(sb, REPLAY_POLICY, GetOrDefault(replayPolicy).toString());
-        JsonWriteUtils.addField(sb, SAMPLE_FREQ, sampleFrequency);
-        JsonWriteUtils.addFieldWhenGtZero(sb, RATE_LIMIT_BPS, rateLimit);
-        JsonWriteUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
-        JsonWriteUtils.addFldWhenTrue(sb, FLOW_CONTROL, flowControl);
-        JsonWriteUtils.addField(sb, ApiConstants.MAX_WAITING, maxPullWaiting);
-        JsonWriteUtils.addFldWhenTrue(sb, HEADERS_ONLY, headersOnly);
-        JsonWriteUtils.addField(sb, MAX_BATCH, maxBatch);
-        JsonWriteUtils.addField(sb, MAX_BYTES, maxBytes);
-        JsonWriteUtils.addFieldAsNanos(sb, MAX_EXPIRES, maxExpires);
-        JsonWriteUtils.addFieldAsNanos(sb, INACTIVE_THRESHOLD, inactiveThreshold);
-        JsonWriteUtils.addDurations(sb, BACKOFF, backoff);
-        JsonWriteUtils.addField(sb, NUM_REPLICAS, numReplicas);
-        JsonWriteUtils.addField(sb, MEM_STORAGE, memStorage);
-        JsonWriteUtils.addField(sb, METADATA, metadata);
+        addField(sb, DESCRIPTION, description);
+        addField(sb, DURABLE_NAME, durable);
+        addField(sb, NAME, name);
+        addField(sb, DELIVER_SUBJECT, deliverSubject);
+        addField(sb, DELIVER_GROUP, deliverGroup);
+        addField(sb, DELIVER_POLICY, GetOrDefault(deliverPolicy).toString());
+        addFieldWhenGtZero(sb, OPT_START_SEQ, startSeq);
+        addField(sb, OPT_START_TIME, startTime);
+        addField(sb, ACK_POLICY, GetOrDefault(ackPolicy).toString());
+        addFieldAsNanos(sb, ACK_WAIT, ackWait);
+        addFieldWhenGtZero(sb, MAX_DELIVER, maxDeliver);
+        addField(sb, MAX_ACK_PENDING, maxAckPending);
+        addField(sb, REPLAY_POLICY, GetOrDefault(replayPolicy).toString());
+        addField(sb, SAMPLE_FREQ, sampleFrequency);
+        addFieldWhenGtZero(sb, RATE_LIMIT_BPS, rateLimit);
+        addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
+        addFldWhenTrue(sb, FLOW_CONTROL, flowControl);
+        addField(sb, ApiConstants.MAX_WAITING, maxPullWaiting);
+        addFldWhenTrue(sb, HEADERS_ONLY, headersOnly);
+        addField(sb, MAX_BATCH, maxBatch);
+        addField(sb, MAX_BYTES, maxBytes);
+        addFieldAsNanos(sb, MAX_EXPIRES, maxExpires);
+        addFieldAsNanos(sb, INACTIVE_THRESHOLD, inactiveThreshold);
+        addDurations(sb, BACKOFF, backoff);
+        addField(sb, NUM_REPLICAS, numReplicas);
+        addField(sb, MEM_STORAGE, memStorage);
+        addField(sb, METADATA, metadata);
         if (filterSubjects != null) {
             if (filterSubjects.size() > 1) {
-                JsonWriteUtils.addStrings(sb, FILTER_SUBJECTS, filterSubjects);
+                addStrings(sb, FILTER_SUBJECTS, filterSubjects);
             }
             else if (filterSubjects.size() == 1) {
-                JsonWriteUtils.addField(sb, FILTER_SUBJECT, filterSubjects.get(0));
+                addField(sb, FILTER_SUBJECT, filterSubjects.get(0));
             }
         }
         return endJson(sb).toString();

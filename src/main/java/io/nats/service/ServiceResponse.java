@@ -22,7 +22,7 @@ import java.util.Objects;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.JsonValueUtils.readStringStringMap;
-import static io.nats.client.support.JsonWriteUtils.endJson;
+import static io.nats.client.support.JsonWriteUtils.*;
 
 /**
  * Base class for service responses Info, Ping and Stats
@@ -114,20 +114,20 @@ public abstract class ServiceResponse implements JsonSerializable {
 
     @Override
     public String toJson() {
-        StringBuilder sb = JsonWriteUtils.beginJson();
-        JsonWriteUtils.addField(sb, ID, id);
-        JsonWriteUtils.addField(sb, NAME, name);
-        JsonWriteUtils.addField(sb, VERSION, version);
+        StringBuilder sb = beginJson();
+        addField(sb, ID, id);
+        addField(sb, NAME, name);
+        addField(sb, VERSION, version);
         subToJson(sb);
-        JsonWriteUtils.addField(sb, TYPE, type);
-        JsonWriteUtils.addField(sb, METADATA, metadata);
+        addField(sb, TYPE, type);
+        addField(sb, METADATA, metadata);
         return endJson(sb).toString();
     }
 
 
     @Override
     public String toString() {
-        return JsonWriteUtils.toKey(getClass()) + toJson();
+        return toKey(getClass()) + toJson();
     }
 
     @Override

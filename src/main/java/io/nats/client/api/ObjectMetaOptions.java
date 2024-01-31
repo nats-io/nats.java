@@ -14,14 +14,12 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
-import io.nats.client.support.JsonWriteUtils;
 
 import static io.nats.client.support.ApiConstants.LINK;
 import static io.nats.client.support.ApiConstants.MAX_CHUNK_SIZE;
 import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readValue;
-import static io.nats.client.support.JsonWriteUtils.beginJson;
-import static io.nats.client.support.JsonWriteUtils.endJson;
+import static io.nats.client.support.JsonWriteUtils.*;
 
 /**
  * The ObjectMeta is Object Meta is high level information about an object.
@@ -44,8 +42,8 @@ public class ObjectMetaOptions implements JsonSerializable {
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonWriteUtils.addField(sb, LINK, link);
-        JsonWriteUtils.addField(sb, MAX_CHUNK_SIZE, chunkSize);
+        addField(sb, LINK, link);
+        addField(sb, MAX_CHUNK_SIZE, chunkSize);
         return endJson(sb).toString();
     }
 
