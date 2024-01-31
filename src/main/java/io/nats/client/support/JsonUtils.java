@@ -325,16 +325,7 @@ public abstract class JsonUtils {
 
     @Deprecated
     public static void addField(StringBuilder sb, String fname, Headers headers) {
-        if (headers != null && !headers.isEmpty()) {
-            sb.append(Q);
-            Encoding.jsonEncode(sb, fname);
-            sb.append("\":{");
-            for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
-                addStrings(sb, entry.getKey(), entry.getValue());
-            }
-            endJson(sb);
-            sb.append(",");
-        }
+        HeadersUtils.addHeadersAsField(sb, fname, headers);
     }
 
     // ----------------------------------------------------------------------------------------------------
