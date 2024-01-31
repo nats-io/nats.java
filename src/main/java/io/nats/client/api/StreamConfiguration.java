@@ -13,19 +13,17 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.*;
+import io.nats.client.support.JsonParseException;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonValue;
 
 import java.time.Duration;
 import java.util.*;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.JsonValueUtils.readBoolean;
-import static io.nats.client.support.JsonValueUtils.readInteger;
-import static io.nats.client.support.JsonValueUtils.readLong;
-import static io.nats.client.support.JsonValueUtils.readNanos;
-import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.JsonValueUtils.*;
+import static io.nats.client.support.JsonWriteUtils.*;
 import static io.nats.client.support.Validator.*;
 
 /**
@@ -163,7 +161,7 @@ public class StreamConfiguration implements JsonSerializable {
         StringBuilder sb = beginJson();
 
         addField(sb, NAME, name);
-        JsonUtils.addField(sb, DESCRIPTION, description);
+        addField(sb, DESCRIPTION, description);
         addStrings(sb, SUBJECTS, subjects);
         addField(sb, RETENTION, retentionPolicy.toString());
         addEnumWhenNot(sb, COMPRESSION, compressionOption, CompressionOption.None);

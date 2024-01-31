@@ -14,7 +14,6 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 
 import java.time.Duration;
@@ -22,10 +21,9 @@ import java.time.Duration;
 import static io.nats.client.api.ConsumerConfiguration.*;
 import static io.nats.client.support.ApiConstants.INACTIVE_THRESHOLD;
 import static io.nats.client.support.ApiConstants.MAX_ACK_PENDING;
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readNanos;
+import static io.nats.client.support.JsonWriteUtils.*;
 
 /**
  * ConsumerLimits
@@ -66,8 +64,8 @@ public class ConsumerLimits implements JsonSerializable {
 
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonUtils.addFieldAsNanos(sb, INACTIVE_THRESHOLD, inactiveThreshold);
-        JsonUtils.addField(sb, MAX_ACK_PENDING, maxAckPending);
+        addFieldAsNanos(sb, INACTIVE_THRESHOLD, inactiveThreshold);
+        addField(sb, MAX_ACK_PENDING, maxAckPending);
         return endJson(sb).toString();
     }
 

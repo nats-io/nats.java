@@ -14,7 +14,6 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 
@@ -26,9 +25,8 @@ import java.util.Objects;
 
 import static io.nats.client.JetStreamOptions.convertDomainToPrefix;
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readValue;
+import static io.nats.client.support.JsonWriteUtils.*;
 import static io.nats.client.support.Validator.consumerFilterSubjectsAreEquivalent;
 
 public abstract class SourceBase implements JsonSerializable {
@@ -64,12 +62,12 @@ public abstract class SourceBase implements JsonSerializable {
      */
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addFieldWhenGreaterThan(sb, OPT_START_SEQ, startSeq, 0);
-        JsonUtils.addField(sb, OPT_START_TIME, startTime);
-        JsonUtils.addField(sb, FILTER_SUBJECT, filterSubject);
-        JsonUtils.addField(sb, EXTERNAL, external);
-        JsonUtils.addJsons(sb, SUBJECT_TRANSFORMS, subjectTransforms);
+        addField(sb, NAME, name);
+        addFieldWhenGreaterThan(sb, OPT_START_SEQ, startSeq, 0);
+        addField(sb, OPT_START_TIME, startTime);
+        addField(sb, FILTER_SUBJECT, filterSubject);
+        addField(sb, EXTERNAL, external);
+        addJsons(sb, SUBJECT_TRANSFORMS, subjectTransforms);
         return endJson(sb).toString();
     }
 
@@ -111,7 +109,7 @@ public abstract class SourceBase implements JsonSerializable {
 
     @Override
     public String toString() {
-        return JsonUtils.toKey(getClass()) + toJson();
+        return toKey(getClass()) + toJson();
     }
 
     public abstract static class SourceBaseBuilder<T> {

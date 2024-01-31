@@ -36,7 +36,10 @@ repositories {
 }
 
 dependencies {
-    implementation 'net.i2p.crypto:eddsa:0.3.0'
+    implementation 'io.nats:nkeys-java:1.5.2'
+    implementation 'io.nats:jnats-json:1.5.2'
+    implementation 'io.nats:jwt-java:1.5.2'
+
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
     testImplementation 'io.nats:jnats-server-runner:1.2.8'
     testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'

@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -59,7 +58,7 @@ public class AccountStatisticsTests extends JetStreamTestBase {
 
         assertNotNull(as.toString()); // COVERAGE
 
-        as = new AccountStatistics(getDataMessage(EMPTY_JSON));
+        as = new AccountStatistics(getDataMessage("{}"));
         assertEquals(0, as.getMemory());
         assertEquals(0, as.getStorage());
         assertEquals(0, as.getStreams());

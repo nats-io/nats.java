@@ -17,7 +17,7 @@ import io.nats.client.support.JsonSerializable;
 
 import static io.nats.client.support.ApiConstants.DELETED_DETAILS;
 import static io.nats.client.support.ApiConstants.SUBJECTS_FILTER;
-import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonWriteUtils.*;
 import static io.nats.client.support.Validator.emptyAsNull;
 
 /**

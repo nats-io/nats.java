@@ -17,14 +17,14 @@ import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.IncomingHeadersProcessor;
-import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 
 import java.time.ZonedDateTime;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.addRawJson;
+import static io.nats.client.support.HeadersUtils.addHeadersAsField;
 import static io.nats.client.support.JsonValueUtils.*;
+import static io.nats.client.support.JsonWriteUtils.*;
 import static io.nats.client.support.NatsJetStreamConstants.*;
 
 /**
@@ -75,7 +75,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
                 lastSeq = -1;
             }
             else {
-                lastSeq = JsonUtils.safeParseLong(temp, -1);
+                lastSeq = safeParseLong(temp, -1);
             }
             // these are control headers, not real headers so don't give them to the user.
             headers = new Headers(msgHeaders, true, MESSAGE_INFO_HEADERS);
@@ -160,22 +160,22 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
 
     @Override
     public String toString() {
-        StringBuilder sb = JsonUtils.beginJsonPrefixed("\"MessageInfo\":");
-        JsonUtils.addField(sb, "direct", direct);
-        JsonUtils.addField(sb, "error", getError());
-        JsonUtils.addField(sb, SUBJECT, subject);
-        JsonUtils.addField(sb, SEQ, seq);
+        StringBuilder sb = beginJsonPrefixed("\"MessageInfo\":");
+        addField(sb, "direct", direct);
+        addField(sb, "error", getError());
+        addField(sb, SUBJECT, subject);
+        addField(sb, SEQ, seq);
         if (data == null) {
             addRawJson(sb, DATA, "null");
         }
         else {
-            JsonUtils.addField(sb, "data_length", data.length);
+            addField(sb, "data_length", data.length);
         }
-        JsonUtils.addField(sb, TIME, time);
-        JsonUtils.addField(sb, STREAM, stream);
-        JsonUtils.addField(sb, "last_seq", lastSeq);
-        JsonUtils.addField(sb, SUBJECT, subject);
-        JsonUtils.addField(sb, HDRS, headers);
-        return JsonUtils.endJson(sb).toString();
+        addField(sb, TIME, time);
+        addField(sb, STREAM, stream);
+        addField(sb, "last_seq", lastSeq);
+        addField(sb, SUBJECT, subject);
+        addHeadersAsField(sb, HDRS, headers);
+        return endJson(sb).toString();
     }
 }

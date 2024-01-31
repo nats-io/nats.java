@@ -14,11 +14,9 @@
 package io.nats.client;
 
 import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonWriteUtils.*;
 import static io.nats.client.support.Validator.validateSubject;
 
 /**
@@ -39,9 +37,9 @@ public class PurgeOptions implements JsonSerializable {
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonUtils.addField(sb, FILTER, subject);
-        JsonUtils.addField(sb, SEQ, seq);
-        JsonUtils.addField(sb, KEEP, keep);
+        addField(sb, FILTER, subject);
+        addField(sb, SEQ, seq);
+        addField(sb, KEEP, keep);
         return endJson(sb).toString();
     }
 

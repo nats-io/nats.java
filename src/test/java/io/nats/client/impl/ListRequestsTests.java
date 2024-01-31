@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
-import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -74,7 +73,7 @@ public class ListRequestsTests extends JetStreamTestBase {
         assertEquals(DateTimeUtils.parseDateTime("2022-06-29T20:33:21.163377Z"), sinfo.getLastActive());
 
         clr = new ConsumerListReader();
-        clr.process(getDataMessage(EMPTY_JSON));
+        clr.process(getDataMessage("{}"));
         assertEquals(0, clr.getConsumers().size());
     }
 

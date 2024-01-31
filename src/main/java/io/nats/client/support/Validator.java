@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -639,4 +640,33 @@ public abstract class Validator {
         return true;
     }
 
+    public static <T> boolean listEquals(List<T> l1, List<T> l2)
+    {
+        if (l1 == null)
+        {
+            return l2 == null;
+        }
+
+        if (l2 == null)
+        {
+            return false;
+        }
+
+        return l1.equals(l2);
+    }
+
+    public static boolean mapEquals(Map<String, String> map1, Map<String, String> map2) {
+        if (map1 == null) {
+            return map2 == null;
+        }
+        if (map2 == null || map1.size() != map2.size()) {
+            return false;
+        }
+        for (String key : map1.keySet()) {
+            if (!Objects.equals(map1.get(key), map2.get(key))) {
+                return false;
+            }
+        }
+        return true;
+    }
 }

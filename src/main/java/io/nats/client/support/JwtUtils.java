@@ -16,27 +16,21 @@ package io.nats.client.support;
 import io.nats.client.NKey;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
-import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.List;
 
-import static io.nats.client.support.Encoding.*;
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonWriteUtils.beginJson;
+import static io.nats.client.support.JsonWriteUtils.endJson;
 
 /**
  * Implements <a href="https://github.com/nats-io/nats-architecture-and-design/blob/main/adr/ADR-14.md">ADR-14</a>
+ * @deprecated This class has been extracted to the io.nats.jwt.JwtUtils class in the <a href="https://github.com/nats-io/jwt.java">jwt.java</a> library.
  */
+@Deprecated
 public abstract class JwtUtils {
 
     private JwtUtils() {} /* ensures cannot be constructed */
-
-    private static final String ENCODED_CLAIM_HEADER =
-            toBase64Url("{\"typ\":\"JWT\", \"alg\":\"ed25519-nkey\"}");
-
-    private static final long NO_LIMIT = -1;
 
     /**
      * Format string with `%s` placeholder for the JWT token followed
@@ -46,27 +40,17 @@ public abstract class JwtUtils {
      * NKey userKey = NKey.createUser(new SecureRandom());
      * NKey signingKey = loadFromSecretStore();
      * String jwt = issueUserJWT(signingKey, accountId, new String(userKey.getPublicKey()));
-     * String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
+     * String.format(NATS_USER_JWT_FORMAT, jwt, new String(userKey.getSeed()));
      * </pre>
      */
-    public static final String NATS_USER_JWT_FORMAT = "-----BEGIN NATS USER JWT-----\n" +
-            "%s\n" +
-            "------END NATS USER JWT------\n" +
-            "\n" +
-            "************************* IMPORTANT *************************\n" +
-            "NKEY Seed printed below can be used to sign and prove identity.\n" +
-            "NKEYs are sensitive and should be treated as secrets.\n" +
-            "\n" +
-            "-----BEGIN USER NKEY SEED-----\n" +
-            "%s\n" +
-            "------END USER NKEY SEED------\n" +
-            "\n" +
-            "*************************************************************\n";
+    @Deprecated
+    public static final String NATS_USER_JWT_FORMAT = io.nats.jwt.JwtUtils.NATS_USER_JWT_FORMAT;
 
     /**
      * Get the current time in seconds since epoch. Used for issue time.
      * @return the time
      */
+    @Deprecated
     public static long currentTimeSeconds() {
         return System.currentTimeMillis() / 1000;
     }
@@ -82,8 +66,9 @@ public abstract class JwtUtils {
      * @throws IOException if signingKey sign method throws this exception.
      * @return a JWT
      */
+    @Deprecated
     public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey) throws GeneralSecurityException, IOException {
-        return issueUserJWT(signingKey, publicUserKey, null, null, currentTimeSeconds(), null, new UserClaim(accountId));
+        return io.nats.jwt.JwtUtils.issueUserJWT(signingKey, publicUserKey, null, null, io.nats.jwt.JwtUtils.currentTimeSeconds(), null, new io.nats.jwt.UserClaim(accountId));
     }
 
     /**
@@ -98,8 +83,9 @@ public abstract class JwtUtils {
      * @throws IOException if signingKey sign method throws this exception.
      * @return a JWT
      */
+    @Deprecated
     public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name) throws GeneralSecurityException, IOException {
-        return issueUserJWT(signingKey, publicUserKey, name, null, currentTimeSeconds(), null, new UserClaim(accountId));
+        return io.nats.jwt.JwtUtils.issueUserJWT(signingKey, publicUserKey, name, null, io.nats.jwt.JwtUtils.currentTimeSeconds(), null, new io.nats.jwt.UserClaim(accountId));
     }
 
     /**
@@ -116,8 +102,9 @@ public abstract class JwtUtils {
      * @throws IOException if signingKey sign method throws this exception.
      * @return a JWT
      */
+    @Deprecated
     public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name, Duration expiration, String... tags) throws GeneralSecurityException, IOException {
-        return issueUserJWT(signingKey, publicUserKey, name, expiration, currentTimeSeconds(), null, new UserClaim(accountId).tags(tags));
+        return io.nats.jwt.JwtUtils.issueUserJWT(signingKey, accountId, publicUserKey, name, expiration, tags, null, null);
     }
 
     /**
@@ -135,12 +122,30 @@ public abstract class JwtUtils {
      * @throws IOException if signingKey sign method throws this exception.
      * @return a JWT
      */
+    @Deprecated
     public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name, Duration expiration, String[] tags, long issuedAt) throws GeneralSecurityException, IOException {
-        return issueUserJWT(signingKey, publicUserKey, name, expiration, issuedAt, null, new UserClaim(accountId).tags(tags));
+        return io.nats.jwt.JwtUtils.issueUserJWT(signingKey, accountId, publicUserKey, name, expiration, tags, issuedAt, null);
     }
 
+    /**
+     * Issue a user JWT from a scoped signing key. See <a href="https://docs.nats.io/nats-tools/nsc/signing_keys">Signing Keys</a>
+     * @param signingKey a mandatory account nkey pair to sign the generated jwt.
+     * @param accountId a mandatory public account nkey. Will throw error when not set or not account nkey.
+     * @param publicUserKey a mandatory public user nkey. Will throw error when not set or not user nkey.
+     * @param name optional human-readable name. When absent, default to publicUserKey.
+     * @param expiration optional but recommended duration, when the generated jwt needs to expire. If not set, JWT will not expire.
+     * @param tags optional list of tags to be included in the JWT.
+     * @param issuedAt the current epoch seconds.
+     * @param audience the optional audience
+     * @throws IllegalArgumentException if the accountId or publicUserKey is not a valid public key of the proper type
+     * @throws NullPointerException if signingKey, accountId, or publicUserKey are null.
+     * @throws GeneralSecurityException if SHA-256 MessageDigest is missing, or if the signingKey can not be used for signing.
+     * @throws IOException if signingKey sign method throws this exception.
+     * @return a JWT
+     */
+    @Deprecated
     public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name, Duration expiration, String[] tags, long issuedAt, String audience) throws GeneralSecurityException, IOException {
-        return issueUserJWT(signingKey, publicUserKey, name, expiration, issuedAt, audience, new UserClaim(accountId).tags(tags));
+        return io.nats.jwt.JwtUtils.issueUserJWT(signingKey, accountId, publicUserKey, name, expiration, tags, issuedAt, audience);
     }
 
     /**
@@ -157,6 +162,7 @@ public abstract class JwtUtils {
      * @throws IOException if signingKey sign method throws this exception.
      * @return a JWT
      */
+    @Deprecated
     public static String issueUserJWT(NKey signingKey, String publicUserKey, String name, Duration expiration, long issuedAt, UserClaim nats) throws GeneralSecurityException, IOException {
         return issueUserJWT(signingKey, publicUserKey, name, expiration, issuedAt, null, nats);
     }
@@ -176,6 +182,7 @@ public abstract class JwtUtils {
      * @throws IOException if signingKey sign method throws this exception.
      * @return a JWT
      */
+    @Deprecated
     public static String issueUserJWT(NKey signingKey, String publicUserKey, String name, Duration expiration, long issuedAt, String audience, UserClaim nats) throws GeneralSecurityException, IOException {
         // Validate the signingKey:
         if (signingKey.getType() != NKey.Type.ACCOUNT) {
@@ -195,7 +202,7 @@ public abstract class JwtUtils {
 
         String claimName = Validator.nullOrEmpty(name) ? publicUserKey : name;
 
-        return issueJWT(signingKey, publicUserKey, claimName, expiration, issuedAt, accSigningKeyPub, audience, nats);
+        return io.nats.jwt.JwtUtils.issueJWT(signingKey, publicUserKey, claimName, expiration, issuedAt, accSigningKeyPub, audience, nats);
     }
 
     /**
@@ -211,8 +218,9 @@ public abstract class JwtUtils {
      * @throws IOException if signingKey sign method throws this exception.
      * @return a JWT
      */
+    @Deprecated
     public static String issueJWT(NKey signingKey, String publicUserKey, String name, Duration expiration, long issuedAt, String accSigningKeyPub, JsonSerializable nats) throws GeneralSecurityException, IOException {
-        return issueJWT(signingKey, publicUserKey, name, expiration, issuedAt, accSigningKeyPub, null, nats);
+        return io.nats.jwt.JwtUtils.issueJWT(signingKey, publicUserKey, name, expiration, issuedAt, accSigningKeyPub, null, nats);
     }
 
     /**
@@ -230,35 +238,9 @@ public abstract class JwtUtils {
      * @throws GeneralSecurityException if SHA-256 MessageDigest is missing, or if the signingKey can not be used for signing.
      * @throws IOException              if signingKey sign method throws this exception.
      */
+    @Deprecated
     public static String issueJWT(NKey signingKey, String publicUserKey, String name, Duration expiration, long issuedAt, String accSigningKeyPub, String audience, JsonSerializable nats) throws GeneralSecurityException, IOException {
-        Claim claim = new Claim();
-        claim.aud = audience;
-        claim.iat = issuedAt;
-        claim.iss = accSigningKeyPub;
-        claim.name = name;
-        claim.sub = publicUserKey;
-        claim.exp = expiration;
-        claim.nats = nats;
-
-        // Issue At time is stored in unix seconds
-        String claimJson = claim.toJson();
-
-        // Compute jti, a base32 encoded sha256 hash
-        MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-        byte[] encoded = sha256.digest(claimJson.getBytes(StandardCharsets.US_ASCII));
-
-        claim.jti = new String(base32Encode(encoded));
-        claimJson = claim.toJson();
-
-        // all three components (header/body/signature) are base64url encoded
-        String encBody = toBase64Url(claimJson);
-
-        // compute the signature off of header + body (. included on purpose)
-        byte[] sig = (ENCODED_CLAIM_HEADER + "." + encBody).getBytes(StandardCharsets.UTF_8);
-        String encSig = toBase64Url(signingKey.sign(sig));
-
-        // append signature to header and body and return it
-        return ENCODED_CLAIM_HEADER + "." + encBody + "." + encSig;
+        return io.nats.jwt.JwtUtils.issueJWT(signingKey, publicUserKey, name, expiration, issuedAt, accSigningKeyPub, audience, nats);
     }
 
     /**
@@ -266,10 +248,12 @@ public abstract class JwtUtils {
      * @param jwt the encoded jwt
      * @return the claim body json
      */
+    @Deprecated
     public static String getClaimBody(String jwt) {
-        return fromBase64Url(jwt.split("\\.")[1]);
+        return io.nats.jwt.JwtUtils.getClaimBody(jwt);
     }
 
+    @Deprecated
     public static class UserClaim implements JsonSerializable {
         public String issuerAccount;            // User
         public String[] tags;                   // User/GenericFields
@@ -281,9 +265,9 @@ public abstract class JwtUtils {
         public String[] src;                    // User/UserPermissionLimits/Limits/UserLimits
         public List<TimeRange> times;           // User/UserPermissionLimits/Limits/UserLimits
         public String locale;                   // User/UserPermissionLimits/Limits/UserLimits
-        public long subs = NO_LIMIT;            // User/UserPermissionLimits/Limits/NatsLimits
-        public long data = NO_LIMIT;            // User/UserPermissionLimits/Limits/NatsLimits
-        public long payload = NO_LIMIT;         // User/UserPermissionLimits/Limits/NatsLimits
+        public long subs = -1;                  // User/UserPermissionLimits/Limits/NatsLimits
+        public long data = -1;                  // User/UserPermissionLimits/Limits/NatsLimits
+        public long payload = -1;               // User/UserPermissionLimits/Limits/NatsLimits
         public boolean bearerToken;             // User/UserPermissionLimits
         public String[] allowedConnectionTypes; // User/UserPermissionLimits
 
@@ -294,21 +278,21 @@ public abstract class JwtUtils {
         @Override
         public String toJson() {
             StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "issuer_account", issuerAccount);
-            JsonUtils.addStrings(sb, "tags", tags);
-            JsonUtils.addField(sb, "type", type);
-            JsonUtils.addField(sb, "version", version);
-            JsonUtils.addField(sb, "pub", pub);
-            JsonUtils.addField(sb, "sub", sub);
-            JsonUtils.addField(sb, "resp", resp);
-            JsonUtils.addStrings(sb, "src", src);
-            JsonUtils.addJsons(sb, "times", times);
-            JsonUtils.addField(sb, "times_location", locale);
-            JsonUtils.addFieldWhenGteMinusOne(sb, "subs", subs);
-            JsonUtils.addFieldWhenGteMinusOne(sb, "data", data);
-            JsonUtils.addFieldWhenGteMinusOne(sb, "payload", payload);
-            JsonUtils.addFldWhenTrue(sb, "bearer_token", bearerToken);
-            JsonUtils.addStrings(sb, "allowed_connection_types", allowedConnectionTypes);
+            JsonWriteUtils.addField(sb, "issuer_account", issuerAccount);
+            JsonWriteUtils.addStrings(sb, "tags", tags);
+            JsonWriteUtils.addField(sb, "type", type);
+            JsonWriteUtils.addField(sb, "version", version);
+            JsonWriteUtils.addField(sb, "pub", pub);
+            JsonWriteUtils.addField(sb, "sub", sub);
+            JsonWriteUtils.addField(sb, "resp", resp);
+            JsonWriteUtils.addStrings(sb, "src", src);
+            JsonWriteUtils.addJsons(sb, "times", times);
+            JsonWriteUtils.addField(sb, "times_location", locale);
+            JsonWriteUtils.addFieldWhenGteMinusOne(sb, "subs", subs);
+            JsonWriteUtils.addFieldWhenGteMinusOne(sb, "data", data);
+            JsonWriteUtils.addFieldWhenGteMinusOne(sb, "payload", payload);
+            JsonWriteUtils.addFldWhenTrue(sb, "bearer_token", bearerToken);
+            JsonWriteUtils.addStrings(sb, "allowed_connection_types", allowedConnectionTypes);
             return endJson(sb).toString();
         }
 
@@ -373,6 +357,7 @@ public abstract class JwtUtils {
         }
     }
 
+    @Deprecated
     public static class TimeRange implements JsonSerializable {
         public String start;
         public String end;
@@ -385,12 +370,13 @@ public abstract class JwtUtils {
         @Override
         public String toJson() {
             StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "start", start);
-            JsonUtils.addField(sb, "end", end);
+            JsonWriteUtils.addField(sb, "start", start);
+            JsonWriteUtils.addField(sb, "end", end);
             return endJson(sb).toString();
         }
     }
 
+    @Deprecated
     public static class ResponsePermission implements JsonSerializable {
         public int maxMsgs;
         public Duration expires;
@@ -413,8 +399,8 @@ public abstract class JwtUtils {
         @Override
         public String toJson() {
             StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "max", maxMsgs);
-            JsonUtils.addFieldAsNanos(sb, "ttl", expires);
+            JsonWriteUtils.addField(sb, "max", maxMsgs);
+            JsonWriteUtils.addFieldAsNanos(sb, "ttl", expires);
             return endJson(sb).toString();
         }
     }
@@ -436,12 +422,13 @@ public abstract class JwtUtils {
         @Override
         public String toJson() {
             StringBuilder sb = beginJson();
-            JsonUtils.addStrings(sb, "allow", allow);
-            JsonUtils.addStrings(sb, "deny", deny);
+            JsonWriteUtils.addStrings(sb, "allow", allow);
+            JsonWriteUtils.addStrings(sb, "deny", deny);
             return endJson(sb).toString();
         }
     }
 
+    @Deprecated
     static class Claim implements JsonSerializable {
         String aud;
         String jti;
@@ -455,19 +442,19 @@ public abstract class JwtUtils {
         @Override
         public String toJson() {
             StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "aud", aud);
-            JsonUtils.addFieldEvenEmpty(sb, "jti", jti);
-            JsonUtils.addField(sb, "iat", iat);
-            JsonUtils.addField(sb, "iss", iss);
-            JsonUtils.addField(sb, "name", name);
-            JsonUtils.addField(sb, "sub", sub);
+            JsonWriteUtils.addField(sb, "aud", aud);
+            JsonWriteUtils.addFieldEvenEmpty(sb, "jti", jti);
+            JsonWriteUtils.addField(sb, "iat", iat);
+            JsonWriteUtils.addField(sb, "iss", iss);
+            JsonWriteUtils.addField(sb, "name", name);
+            JsonWriteUtils.addField(sb, "sub", sub);
 
             if (exp != null && !exp.isZero() && !exp.isNegative()) {
                 long seconds = exp.toMillis() / 1000;
-                JsonUtils.addField(sb, "exp", iat + seconds); // relative to the iat
+                JsonWriteUtils.addField(sb, "exp", iat + seconds); // relative to the iat
             }
 
-            JsonUtils.addField(sb, "nats", nats);
+            JsonWriteUtils.addField(sb, "nats", nats);
             return endJson(sb).toString();
         }
     }
