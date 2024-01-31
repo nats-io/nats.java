@@ -16,13 +16,13 @@ package io.nats.client.api;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.HeadersUtils;
 import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.JsonValue;
 
 import java.time.ZonedDateTime;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.HeadersUtils.addHeadersAsField;
 import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.JsonWriteUtils.*;
 import static io.nats.client.support.NatsJetStreamConstants.*;
@@ -175,7 +175,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         addField(sb, STREAM, stream);
         addField(sb, "last_seq", lastSeq);
         addField(sb, SUBJECT, subject);
-        HeadersUtils.addHeadersAsField(sb, HDRS, headers);
+        addHeadersAsField(sb, HDRS, headers);
         return endJson(sb).toString();
     }
 }
