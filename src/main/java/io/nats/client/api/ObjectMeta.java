@@ -63,7 +63,7 @@ public class ObjectMeta implements JsonSerializable {
         addField(sb, DESCRIPTION, description);
         addHeadersAsField(sb, HEADERS, headers);
 
-        // avoid adding an empty child to the json because JsonWriteUtils.addField
+        // avoid adding an empty child to the json because addField
         // only checks versus the object being null, which it is never
         if (objectMetaOptions.hasData()) {
             addField(sb, OPTIONS, objectMetaOptions);
