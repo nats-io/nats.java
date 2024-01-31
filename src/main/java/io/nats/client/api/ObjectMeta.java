@@ -13,15 +13,12 @@
 package io.nats.client.api;
 
 import io.nats.client.impl.Headers;
-import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
-import io.nats.client.support.JsonValue;
-import io.nats.client.support.Validator;
+import io.nats.client.support.*;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.*;
+import static io.nats.client.support.JsonWriteUtils.beginJson;
+import static io.nats.client.support.JsonWriteUtils.endJson;
 
 /**
  * The ObjectMeta is Object Meta is high level information about an object
@@ -60,14 +57,14 @@ public class ObjectMeta implements JsonSerializable {
     }
 
     void embedJson(StringBuilder sb) {
-        JsonUtils.addField(sb, NAME, objectName);
-        JsonUtils.addField(sb, DESCRIPTION, description);
+        JsonWriteUtils.addField(sb, NAME, objectName);
+        JsonWriteUtils.addField(sb, DESCRIPTION, description);
         JsonUtils.addField(sb, HEADERS, headers);
 
-        // avoid adding an empty child to the json because JsonUtils.addField
+        // avoid adding an empty child to the json because JsonWriteUtils.addField
         // only checks versus the object being null, which it is never
         if (objectMetaOptions.hasData()) {
-            JsonUtils.addField(sb, OPTIONS, objectMetaOptions);
+            JsonWriteUtils.addField(sb, OPTIONS, objectMetaOptions);
         }
     }
 

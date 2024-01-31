@@ -14,7 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonWriteUtils;
 
 import java.time.Duration;
 
@@ -42,13 +42,13 @@ public class PullRequestOptions implements JsonSerializable {
 
     @Override
     public String toJson() {
-        StringBuilder sb = JsonUtils.beginJson();
-        JsonUtils.addField(sb, BATCH, batchSize);
-        JsonUtils.addField(sb, MAX_BYTES, maxBytes);
-        JsonUtils.addFldWhenTrue(sb, NO_WAIT, noWait);
-        JsonUtils.addFieldAsNanos(sb, EXPIRES, expiresIn);
-        JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
-        return JsonUtils.endJson(sb).toString();
+        StringBuilder sb = JsonWriteUtils.beginJson();
+        JsonWriteUtils.addField(sb, BATCH, batchSize);
+        JsonWriteUtils.addField(sb, MAX_BYTES, maxBytes);
+        JsonWriteUtils.addFldWhenTrue(sb, NO_WAIT, noWait);
+        JsonWriteUtils.addFieldAsNanos(sb, EXPIRES, expiresIn);
+        JsonWriteUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
+        return JsonWriteUtils.endJson(sb).toString();
     }
 
     /**

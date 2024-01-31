@@ -22,8 +22,8 @@ import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.DEST;
 import static io.nats.client.support.ApiConstants.SRC;
-import static io.nats.client.support.JsonUtils.*;
 import static io.nats.client.support.JsonValueUtils.readString;
+import static io.nats.client.support.JsonWriteUtils.*;
 
 /**
  * SubjectTransform

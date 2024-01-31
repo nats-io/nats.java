@@ -20,9 +20,9 @@ import java.util.Map;
 import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.JsonValueUtils.readStringStringMap;
+import static io.nats.client.support.JsonWriteUtils.endJson;
 
 /**
  * Base class for service responses Info, Ping and Stats
@@ -114,20 +114,20 @@ public abstract class ServiceResponse implements JsonSerializable {
 
     @Override
     public String toJson() {
-        StringBuilder sb = JsonUtils.beginJson();
-        JsonUtils.addField(sb, ID, id);
-        JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, VERSION, version);
+        StringBuilder sb = JsonWriteUtils.beginJson();
+        JsonWriteUtils.addField(sb, ID, id);
+        JsonWriteUtils.addField(sb, NAME, name);
+        JsonWriteUtils.addField(sb, VERSION, version);
         subToJson(sb);
-        JsonUtils.addField(sb, TYPE, type);
-        JsonUtils.addField(sb, METADATA, metadata);
+        JsonWriteUtils.addField(sb, TYPE, type);
+        JsonWriteUtils.addField(sb, METADATA, metadata);
         return endJson(sb).toString();
     }
 
 
     @Override
     public String toString() {
-        return JsonUtils.toKey(getClass()) + toJson();
+        return JsonWriteUtils.toKey(getClass()) + toJson();
     }
 
     @Override
@@ -141,7 +141,7 @@ public abstract class ServiceResponse implements JsonSerializable {
         if (!Objects.equals(name, that.name)) return false;
         if (!Objects.equals(id, that.id)) return false;
         if (!Objects.equals(version, that.version)) return false;
-        return JsonUtils.mapEquals(metadata, that.metadata);
+        return Validator.mapEquals(metadata, that.metadata);
     }
 
     @Override

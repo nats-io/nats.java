@@ -14,18 +14,18 @@
 package io.nats.service;
 
 import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
+import io.nats.client.support.JsonWriteUtils;
 
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.*;
+import static io.nats.client.support.JsonWriteUtils.beginJson;
+import static io.nats.client.support.JsonWriteUtils.endJson;
 
 /**
  * Endpoints stats contains various stats and custom data for an endpoint.
@@ -114,16 +114,16 @@ public class EndpointStats implements JsonSerializable {
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, SUBJECT, subject);
-        JsonUtils.addField(sb, QUEUE_GROUP, queueGroup);
-        JsonUtils.addFieldWhenGtZero(sb, NUM_REQUESTS, numRequests);
-        JsonUtils.addFieldWhenGtZero(sb, NUM_ERRORS, numErrors);
-        JsonUtils.addFieldWhenGtZero(sb, PROCESSING_TIME, processingTime);
-        JsonUtils.addFieldWhenGtZero(sb, AVERAGE_PROCESSING_TIME, averageProcessingTime);
-        JsonUtils.addField(sb, LAST_ERROR, lastError);
-        JsonUtils.addField(sb, DATA, data);
-        JsonUtils.addField(sb, STARTED, started);
+        JsonWriteUtils.addField(sb, NAME, name);
+        JsonWriteUtils.addField(sb, SUBJECT, subject);
+        JsonWriteUtils.addField(sb, QUEUE_GROUP, queueGroup);
+        JsonWriteUtils.addFieldWhenGtZero(sb, NUM_REQUESTS, numRequests);
+        JsonWriteUtils.addFieldWhenGtZero(sb, NUM_ERRORS, numErrors);
+        JsonWriteUtils.addFieldWhenGtZero(sb, PROCESSING_TIME, processingTime);
+        JsonWriteUtils.addFieldWhenGtZero(sb, AVERAGE_PROCESSING_TIME, averageProcessingTime);
+        JsonWriteUtils.addField(sb, LAST_ERROR, lastError);
+        JsonWriteUtils.addField(sb, DATA, data);
+        JsonWriteUtils.addField(sb, STARTED, started);
         return endJson(sb).toString();
     }
 
@@ -217,7 +217,7 @@ public class EndpointStats implements JsonSerializable {
 
     @Override
     public String toString() {
-        return JsonUtils.toKey(getClass()) + toJson();
+        return JsonWriteUtils.toKey(getClass()) + toJson();
     }
 
     @Override

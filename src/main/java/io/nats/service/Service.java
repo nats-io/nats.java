@@ -16,7 +16,7 @@ package io.nats.service;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonWriteUtils;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonWriteUtils.endJson;
 import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
@@ -349,11 +349,11 @@ public class Service {
 
     @Override
     public String toString() {
-        StringBuilder sb = JsonUtils.beginJsonPrefixed("\"Service\":");
-        JsonUtils.addField(sb, ID, infoResponse.getId());
-        JsonUtils.addField(sb, NAME, infoResponse.getName());
-        JsonUtils.addField(sb, VERSION, infoResponse.getVersion());
-        JsonUtils.addField(sb, DESCRIPTION, infoResponse.getDescription());
+        StringBuilder sb = JsonWriteUtils.beginJsonPrefixed("\"Service\":");
+        JsonWriteUtils.addField(sb, ID, infoResponse.getId());
+        JsonWriteUtils.addField(sb, NAME, infoResponse.getName());
+        JsonWriteUtils.addField(sb, VERSION, infoResponse.getVersion());
+        JsonWriteUtils.addField(sb, DESCRIPTION, infoResponse.getDescription());
         return endJson(sb).toString();
     }
 }

@@ -17,7 +17,7 @@ import io.nats.client.support.JsonSerializable;
 
 import static io.nats.client.support.ApiConstants.NO_ERASE;
 import static io.nats.client.support.ApiConstants.SEQ;
-import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonWriteUtils.*;
 
 /**
  * Object used to make a request for message delete requests.

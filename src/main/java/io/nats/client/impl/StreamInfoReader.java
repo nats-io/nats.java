@@ -20,7 +20,7 @@ import io.nats.client.api.StreamInfoOptions;
 
 import static io.nats.client.support.ApiConstants.DELETED_DETAILS;
 import static io.nats.client.support.ApiConstants.SUBJECTS_FILTER;
-import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonWriteUtils.*;
 
 class StreamInfoReader {
 

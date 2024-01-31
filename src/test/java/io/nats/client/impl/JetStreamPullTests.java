@@ -16,7 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonWriteUtils;
 import io.nats.client.support.Status;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Disabled;
@@ -969,11 +969,11 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
         @Override
         public String toJson() {
-            StringBuilder sb = JsonUtils.beginJson();
-            JsonUtils.addField(sb, BATCH, 1);
-            JsonUtils.addFldWhenTrue(sb, NO_WAIT, true);
-            JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, Duration.ofMillis(1));
-            return JsonUtils.endJson(sb).toString();
+            StringBuilder sb = JsonWriteUtils.beginJson();
+            JsonWriteUtils.addField(sb, BATCH, 1);
+            JsonWriteUtils.addFldWhenTrue(sb, NO_WAIT, true);
+            JsonWriteUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, Duration.ofMillis(1));
+            return JsonWriteUtils.endJson(sb).toString();
         }
     }
 

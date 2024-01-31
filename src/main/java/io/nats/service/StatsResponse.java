@@ -13,8 +13,8 @@
 
 package io.nats.service;
 
-import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonWriteUtils;
 
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -87,8 +87,8 @@ public class StatsResponse extends ServiceResponse {
 
     @Override
     protected void subToJson(StringBuilder sb) {
-        JsonUtils.addJsons(sb, ENDPOINTS, endpointStatsList);
-        JsonUtils.addField(sb, STARTED, started);
+        JsonWriteUtils.addJsons(sb, ENDPOINTS, endpointStatsList);
+        JsonWriteUtils.addField(sb, STARTED, started);
     }
 
     /**

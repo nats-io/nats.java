@@ -20,8 +20,8 @@ import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.util.List;
 
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonWriteUtils.beginJson;
+import static io.nats.client.support.JsonWriteUtils.endJson;
 
 /**
  * Implements <a href="https://github.com/nats-io/nats-architecture-and-design/blob/main/adr/ADR-14.md">ADR-14</a>
@@ -278,21 +278,21 @@ public abstract class JwtUtils {
         @Override
         public String toJson() {
             StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "issuer_account", issuerAccount);
-            JsonUtils.addStrings(sb, "tags", tags);
-            JsonUtils.addField(sb, "type", type);
-            JsonUtils.addField(sb, "version", version);
-            JsonUtils.addField(sb, "pub", pub);
-            JsonUtils.addField(sb, "sub", sub);
-            JsonUtils.addField(sb, "resp", resp);
-            JsonUtils.addStrings(sb, "src", src);
-            JsonUtils.addJsons(sb, "times", times);
-            JsonUtils.addField(sb, "times_location", locale);
-            JsonUtils.addFieldWhenGteMinusOne(sb, "subs", subs);
-            JsonUtils.addFieldWhenGteMinusOne(sb, "data", data);
-            JsonUtils.addFieldWhenGteMinusOne(sb, "payload", payload);
-            JsonUtils.addFldWhenTrue(sb, "bearer_token", bearerToken);
-            JsonUtils.addStrings(sb, "allowed_connection_types", allowedConnectionTypes);
+            JsonWriteUtils.addField(sb, "issuer_account", issuerAccount);
+            JsonWriteUtils.addStrings(sb, "tags", tags);
+            JsonWriteUtils.addField(sb, "type", type);
+            JsonWriteUtils.addField(sb, "version", version);
+            JsonWriteUtils.addField(sb, "pub", pub);
+            JsonWriteUtils.addField(sb, "sub", sub);
+            JsonWriteUtils.addField(sb, "resp", resp);
+            JsonWriteUtils.addStrings(sb, "src", src);
+            JsonWriteUtils.addJsons(sb, "times", times);
+            JsonWriteUtils.addField(sb, "times_location", locale);
+            JsonWriteUtils.addFieldWhenGteMinusOne(sb, "subs", subs);
+            JsonWriteUtils.addFieldWhenGteMinusOne(sb, "data", data);
+            JsonWriteUtils.addFieldWhenGteMinusOne(sb, "payload", payload);
+            JsonWriteUtils.addFldWhenTrue(sb, "bearer_token", bearerToken);
+            JsonWriteUtils.addStrings(sb, "allowed_connection_types", allowedConnectionTypes);
             return endJson(sb).toString();
         }
 
@@ -370,8 +370,8 @@ public abstract class JwtUtils {
         @Override
         public String toJson() {
             StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "start", start);
-            JsonUtils.addField(sb, "end", end);
+            JsonWriteUtils.addField(sb, "start", start);
+            JsonWriteUtils.addField(sb, "end", end);
             return endJson(sb).toString();
         }
     }
@@ -399,8 +399,8 @@ public abstract class JwtUtils {
         @Override
         public String toJson() {
             StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "max", maxMsgs);
-            JsonUtils.addFieldAsNanos(sb, "ttl", expires);
+            JsonWriteUtils.addField(sb, "max", maxMsgs);
+            JsonWriteUtils.addFieldAsNanos(sb, "ttl", expires);
             return endJson(sb).toString();
         }
     }
@@ -422,8 +422,8 @@ public abstract class JwtUtils {
         @Override
         public String toJson() {
             StringBuilder sb = beginJson();
-            JsonUtils.addStrings(sb, "allow", allow);
-            JsonUtils.addStrings(sb, "deny", deny);
+            JsonWriteUtils.addStrings(sb, "allow", allow);
+            JsonWriteUtils.addStrings(sb, "deny", deny);
             return endJson(sb).toString();
         }
     }
@@ -442,19 +442,19 @@ public abstract class JwtUtils {
         @Override
         public String toJson() {
             StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "aud", aud);
-            JsonUtils.addFieldEvenEmpty(sb, "jti", jti);
-            JsonUtils.addField(sb, "iat", iat);
-            JsonUtils.addField(sb, "iss", iss);
-            JsonUtils.addField(sb, "name", name);
-            JsonUtils.addField(sb, "sub", sub);
+            JsonWriteUtils.addField(sb, "aud", aud);
+            JsonWriteUtils.addFieldEvenEmpty(sb, "jti", jti);
+            JsonWriteUtils.addField(sb, "iat", iat);
+            JsonWriteUtils.addField(sb, "iss", iss);
+            JsonWriteUtils.addField(sb, "name", name);
+            JsonWriteUtils.addField(sb, "sub", sub);
 
             if (exp != null && !exp.isZero() && !exp.isNegative()) {
                 long seconds = exp.toMillis() / 1000;
-                JsonUtils.addField(sb, "exp", iat + seconds); // relative to the iat
+                JsonWriteUtils.addField(sb, "exp", iat + seconds); // relative to the iat
             }
 
-            JsonUtils.addField(sb, "nats", nats);
+            JsonWriteUtils.addField(sb, "nats", nats);
             return endJson(sb).toString();
         }
     }

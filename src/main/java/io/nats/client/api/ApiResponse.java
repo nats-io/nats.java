@@ -119,7 +119,7 @@ public abstract class ApiResponse<T> {
     @Override
     public String toString() {
         return jv == null
-            ? JsonUtils.toKey(getClass()) + "\":null"
+            ? JsonWriteUtils.toKey(getClass()) + "\":null"
             : jv.toString(getClass());
     }
 }

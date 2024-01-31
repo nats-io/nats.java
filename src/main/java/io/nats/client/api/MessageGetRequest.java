@@ -16,7 +16,7 @@ package io.nats.client.api;
 import io.nats.client.support.JsonSerializable;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonWriteUtils.*;
 
 /**
  * Object used to make a request for special message get requests.
