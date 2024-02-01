@@ -22,9 +22,9 @@ import java.util.List;
 
 import static io.nats.client.support.ApiConstants.CLUSTER;
 import static io.nats.client.support.ApiConstants.TAGS;
+import static io.nats.client.support.JsonUtils.*;
 import static io.nats.client.support.JsonValueUtils.readOptionalStringList;
 import static io.nats.client.support.JsonValueUtils.readString;
-import static io.nats.client.support.JsonWriteUtils.*;
 
 /**
  * Placement directives to consider when placing replicas of a stream

@@ -322,14 +322,11 @@ public class JwtUtilsTests {
         assertEquals(FULL_JSON, uc.toJson());
     }
 
-    @SuppressWarnings("deprecation")
     @Test
     public void testMiscCoverage() {
         long seconds = JwtUtils.currentTimeSeconds();
         sleep(1000);
         assertTrue(JwtUtils.currentTimeSeconds() > seconds);
-        // coverage, also makes sure that the deprecated JsonUtils.NATS_USER_JWT_FORMAT is pointed properly
-        assertEquals(io.nats.jwt.JwtUtils.NATS_USER_JWT_FORMAT, NATS_USER_JWT_FORMAT);
     }
 
     private static final String BASIC_JSON = "{\"issuer_account\":\"test-issuer-account\",\"type\":\"user\",\"version\":2,\"subs\":-1,\"data\":-1,\"payload\":-1}";

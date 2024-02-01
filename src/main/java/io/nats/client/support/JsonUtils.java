@@ -25,14 +25,16 @@ import java.util.function.LongConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static io.nats.client.support.JsonWriteUtils.*;
+import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
+import static io.nats.client.support.Encoding.jsonDecode;
+import static io.nats.client.support.Encoding.jsonEncode;
+import static io.nats.client.support.JsonValueUtils.instance;
 import static io.nats.client.support.NatsConstants.COLON;
 
 /**
- * Internal json reading and writing helpers.
- * @deprecated This class has been extracted to the io.nats.client.support.JsonWriteUtils class in the <a href="https://github.com/nats-io/json.java">json.java</a> library.
+ * Internal json parsing helpers.
+ * Read helpers deprecated Prefer using the {@link JsonParser}
  */
-@Deprecated
 public abstract class JsonUtils {
     public static final String EMPTY_JSON = "{}";
 
@@ -44,6 +46,11 @@ public abstract class JsonUtils {
     private static final String BEFORE_FIELD_RE = "\"";
     private static final String AFTER_FIELD_RE = "\"\\s*:\\s*";
 
+    private static final String Q = "\"";
+    private static final String QCOLONQ = "\":\"";
+    private static final String QCOLON = "\":";
+    private static final String QCOMMA = "\",";
+    private static final String COMMA = ",";
     public static final String OPENQ = "{\"";
     public static final String CLOSE = "}";
 
@@ -52,39 +59,47 @@ public abstract class JsonUtils {
     // ----------------------------------------------------------------------------------------------------
     // BUILD A STRING OF JSON
     // ----------------------------------------------------------------------------------------------------
-    @Deprecated
     public static StringBuilder beginJson() {
-        return JsonWriteUtils.beginJson();
+        return new StringBuilder("{");
     }
 
-    @Deprecated
     public static StringBuilder beginArray() {
-        return JsonWriteUtils.beginArray();
+        return new StringBuilder("[");
     }
 
-    @Deprecated
     public static StringBuilder beginJsonPrefixed(String prefix) {
-        return JsonWriteUtils.beginJsonPrefixed(prefix);
+        return prefix == null ? beginJson()
+            : new StringBuilder(prefix).append('{');
     }
 
-    @Deprecated
     public static StringBuilder endJson(StringBuilder sb) {
-        return JsonWriteUtils.endJson(sb);
+        int lastIndex = sb.length() - 1;
+        if (sb.charAt(lastIndex) == ',') {
+            sb.setCharAt(lastIndex, '}');
+            return sb;
+        }
+        sb.append("}");
+        return sb;
     }
 
-    @Deprecated
     public static StringBuilder endArray(StringBuilder sb) {
-        return JsonWriteUtils.endArray(sb);
+        int lastIndex = sb.length() - 1;
+        if (sb.charAt(lastIndex) == ',') {
+            sb.setCharAt(lastIndex, ']');
+            return sb;
+        }
+        sb.append("]");
+        return sb;
     }
 
-    @Deprecated
     public static StringBuilder beginFormattedJson() {
-        return JsonWriteUtils.beginFormattedJson();
+        return new StringBuilder("{\n    ");
     }
 
-    @Deprecated
     public static String endFormattedJson(StringBuilder sb) {
-        return JsonWriteUtils.endFormattedJson(sb);
+        sb.setLength(sb.length()-1);
+        sb.append("\n}");
+        return sb.toString().replaceAll(",", ",\n    ");
     }
 
     /**
@@ -93,9 +108,14 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param json raw json
      */
-    @Deprecated
     public static void addRawJson(StringBuilder sb, String fname, String json) {
-        JsonWriteUtils.addRawJson(sb, fname, json);
+        if (json != null && json.length() > 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON);
+            sb.append(json);
+            sb.append(COMMA);
+        }
     }
 
     /**
@@ -104,9 +124,14 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
-    @Deprecated
     public static void addField(StringBuilder sb, String fname, String value) {
-        JsonWriteUtils.addField(sb, fname, value);
+        if (value != null && value.length() > 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLONQ);
+            jsonEncode(sb, value);
+            sb.append(QCOMMA);
+        }
     }
 
     /**
@@ -115,9 +140,15 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
-    @Deprecated
     public static void addFieldEvenEmpty(StringBuilder sb, String fname, String value) {
-        JsonWriteUtils.addFieldEvenEmpty(sb, fname, value);
+        if (value == null) {
+            value = "";
+        }
+        sb.append(Q);
+        jsonEncode(sb, fname);
+        sb.append(QCOLONQ);
+        jsonEncode(sb, value);
+        sb.append(QCOMMA);
     }
 
     /**
@@ -126,9 +157,12 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
-    @Deprecated
     public static void addField(StringBuilder sb, String fname, Boolean value) {
-        JsonWriteUtils.addField(sb, fname, value);
+        if (value != null) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value ? "true" : "false").append(COMMA);
+        }
     }
 
     /**
@@ -137,9 +171,10 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
-    @Deprecated
     public static void addFldWhenTrue(StringBuilder sb, String fname, Boolean value) {
-        JsonWriteUtils.addFldWhenTrue(sb, fname, value);
+        if (value != null && value) {
+            addField(sb, fname, true);
+        }
     }
 
     /**
@@ -148,9 +183,12 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
-    @Deprecated
     public static void addField(StringBuilder sb, String fname, Integer value) {
-        JsonWriteUtils.addField(sb, fname, value);
+        if (value != null && value >= 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
+        }
     }
 
     /**
@@ -159,9 +197,12 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
-    @Deprecated
     public static void addFieldWhenGtZero(StringBuilder sb, String fname, Integer value) {
-        JsonWriteUtils.addFieldWhenGtZero(sb, fname, value);
+        if (value != null && value > 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
+        }
     }
 
     /**
@@ -170,9 +211,12 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
-    @Deprecated
     public static void addField(StringBuilder sb, String fname, Long value) {
-        JsonWriteUtils.addField(sb, fname, value);
+        if (value != null && value >= 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
+        }
     }
 
     /**
@@ -181,9 +225,12 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
-    @Deprecated
     public static void addFieldWhenGtZero(StringBuilder sb, String fname, Long value) {
-        JsonWriteUtils.addFieldWhenGtZero(sb, fname, value);
+        if (value != null && value > 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
+        }
     }
 
     /**
@@ -192,9 +239,12 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
-    @Deprecated
     public static void addFieldWhenGteMinusOne(StringBuilder sb, String fname, Long value) {
-        JsonWriteUtils.addFieldWhenGteMinusOne(sb, fname, value);
+        if (value != null && value >= -1) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
+        }
     }
 
     /**
@@ -204,9 +254,12 @@ public abstract class JsonUtils {
      * @param value field value
      * @param gt the number the value must be greater than
      */
-    @Deprecated
     public static void addFieldWhenGreaterThan(StringBuilder sb, String fname, Long value, long gt) {
-        JsonWriteUtils.addFieldWhenGreaterThan(sb, fname, value, gt);
+        if (value != null && value > gt) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value).append(COMMA);
+        }
     }
 
     /**
@@ -215,9 +268,12 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value duration value
      */
-    @Deprecated
     public static void addFieldAsNanos(StringBuilder sb, String fname, Duration value) {
-        JsonWriteUtils.addFieldAsNanos(sb, fname, value);
+        if (value != null && !value.isZero() && !value.isNegative()) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value.toNanos()).append(COMMA);
+        }
     }
 
     /**
@@ -226,20 +282,25 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value JsonSerializable value
      */
-    @Deprecated
     public static void addField(StringBuilder sb, String fname, JsonSerializable value) {
-        JsonWriteUtils.addField(sb, fname, value);
+        if (value != null) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLON).append(value.toJson()).append(COMMA);
+        }
     }
 
-    @Deprecated
     public static void addField(StringBuilder sb, String fname, Map<String, String> map) {
-        JsonWriteUtils.addField(sb, fname, map);
+        if (map != null && map.size() > 0) {
+            addField(sb, fname, instance(map));
+        }
     }
 
     @SuppressWarnings("rawtypes")
-    @Deprecated
     public static void addEnumWhenNot(StringBuilder sb, String fname, Enum e, Enum dontAddIfThis) {
-        JsonWriteUtils.addEnumWhenNot(sb, fname, e, dontAddIfThis);
+        if (e != null && e != dontAddIfThis) {
+            addField(sb, fname, e.toString());
+        }
     }
 
     public interface ListAdder<T> {
@@ -254,10 +315,9 @@ public abstract class JsonUtils {
      * @param list value list
      * @param adder implementation to add value, including its quotes if required
      */
-    @Deprecated
     public static <T> void _addList(StringBuilder sb, String fname, List<T> list, ListAdder<T> adder) {
         sb.append(Q);
-        Encoding.jsonEncode(sb, fname);
+        jsonEncode(sb, fname);
         sb.append("\":[");
         for (int i = 0; i < list.size(); i++) {
             if (i > 0) {
@@ -274,9 +334,10 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param strings field value
      */
-    @Deprecated
     public static void addStrings(StringBuilder sb, String fname, String[] strings) {
-        JsonWriteUtils.addStrings(sb, fname, strings);
+        if (strings != null && strings.length > 0) {
+            _addStrings(sb, fname, Arrays.asList(strings));
+        }
     }
 
     /**
@@ -285,9 +346,18 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param strings field value
      */
-    @Deprecated
     public static void addStrings(StringBuilder sb, String fname, List<String> strings) {
-        JsonWriteUtils.addStrings(sb, fname, strings);
+        if (strings != null && strings.size() > 0) {
+            _addStrings(sb, fname, strings);
+        }
+    }
+
+    private static void _addStrings(StringBuilder sb, String fname, List<String> strings) {
+        _addList(sb, fname, strings, (sbs, s) -> {
+            sb.append(Q);
+            jsonEncode(sb, s);
+            sb.append(Q);
+        });
     }
 
     /**
@@ -296,9 +366,10 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param jsons field value
      */
-    @Deprecated
     public static void addJsons(StringBuilder sb, String fname, List<? extends JsonSerializable> jsons) {
-        JsonWriteUtils.addJsons(sb, fname, jsons);
+        if (jsons != null && !jsons.isEmpty()) {
+            _addList(sb, fname, jsons, (sbs, s) -> sbs.append(s.toJson()));
+        }
     }
 
     /**
@@ -307,9 +378,10 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param durations list of durations
      */
-    @Deprecated
     public static void addDurations(StringBuilder sb, String fname, List<Duration> durations) {
-        JsonWriteUtils.addDurations(sb, fname, durations);
+        if (durations != null && durations.size() > 0) {
+            _addList(sb, fname, durations, (sbs, dur) -> sbs.append(dur.toNanos()));
+        }
     }
 
     /**
@@ -318,14 +390,27 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param zonedDateTime field value
      */
-    @Deprecated
     public static void addField(StringBuilder sb, String fname, ZonedDateTime zonedDateTime) {
-        JsonWriteUtils.addField(sb, fname, zonedDateTime);
+        if (zonedDateTime != null && !DEFAULT_TIME.equals(zonedDateTime)) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append(QCOLONQ)
+                .append(DateTimeUtils.toRfc3339(zonedDateTime))
+                .append(QCOMMA);
+        }
     }
 
-    @Deprecated
     public static void addField(StringBuilder sb, String fname, Headers headers) {
-        HeadersUtils.addHeadersAsField(sb, fname, headers);
+        if (headers != null && headers.size() > 0) {
+            sb.append(Q);
+            jsonEncode(sb, fname);
+            sb.append("\":{");
+            for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+                addStrings(sb, entry.getKey(), entry.getValue());
+            }
+            endJson(sb);
+            sb.append(",");
+        }
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -336,9 +421,8 @@ public abstract class JsonUtils {
         return Character.toString(s.charAt(0)).toUpperCase() + s.substring(1).toLowerCase();
     }
 
-    @Deprecated
     public static String toKey(Class<?> c) {
-        return JsonWriteUtils.toKey(c);
+        return "\"" + c.getSimpleName() + "\":";
     }
 
     @Deprecated
@@ -359,26 +443,80 @@ public abstract class JsonUtils {
      * @param o the object
      * @return the formatted string
      */
-    @Deprecated
     public static String getFormatted(Object o) {
-        return JsonWriteUtils.getFormatted(o);
+        StringBuilder sb = new StringBuilder();
+        int level = 0;
+        int arrayLevel = 0;
+        boolean lastWasClose = false;
+        boolean indentNext = true;
+        String indent = "";
+        String s = o.toString();
+        for (int x = 0; x < s.length(); x++) {
+            char c = s.charAt(x);
+            if (c == '{') {
+                if (arrayLevel > 0 && lastWasClose) {
+                    sb.append(indent);
+                }
+                sb.append(c).append('\n');
+                indent = indent(++level);
+                indentNext = true;
+                lastWasClose = false;
+            }
+            else if (c == '}') {
+                indent = indent(--level);
+                sb.append('\n').append(indent).append(c);
+                lastWasClose = true;
+            }
+            else if (c == ',') {
+                sb.append(",\n");
+                indentNext = true;
+            }
+            else {
+                if (c == '[') {
+                    arrayLevel++;
+                }
+                else if (c == ']') {
+                    arrayLevel--;
+                }
+                if (indentNext) {
+                    if (c != ' ') {
+                        sb.append(indent).append(c);
+                        indentNext = false;
+                    }
+                }
+                else {
+                    sb.append(c);
+                }
+                lastWasClose = lastWasClose && Character.isWhitespace(c);
+            }
+        }
+        return sb.toString();
     }
 
     public static void printFormatted(Object o) {
-        System.out.println(JsonWriteUtils.getFormatted(o));
+        System.out.println(getFormatted(o));
     }
 
     // ----------------------------------------------------------------------------------------------------
     // SAFE NUMBER PARSING HELPERS
     // ----------------------------------------------------------------------------------------------------
-    @Deprecated
     public static Long safeParseLong(String s) {
-        return JsonWriteUtils.safeParseLong(s);
+        try {
+            return Long.parseLong(s);
+        }
+        catch (Exception e1) {
+            try {
+                return Long.parseUnsignedLong(s);
+            }
+            catch (Exception e2) {
+                return null;
+            }
+        }
     }
 
-    @Deprecated
     public static long safeParseLong(String s, long dflt) {
-        return JsonWriteUtils.safeParseLong(s, dflt);
+        Long l = safeParseLong(s);
+        return l == null ? dflt : l;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -639,8 +777,8 @@ public abstract class JsonUtils {
         String[] raw = arrayString.split(",");
         for (String s : raw) {
             String cleaned = s.trim().replace("\"", "");
-            if (!cleaned.isEmpty()) {
-                list.add(Encoding.jsonDecode(cleaned));
+            if (cleaned.length() > 0) {
+                list.add(jsonDecode(cleaned));
             }
         }
         return list;
@@ -703,7 +841,7 @@ public abstract class JsonUtils {
     @Deprecated
     public static String readString(String json, Pattern pattern, String dflt) {
         Matcher m = pattern.matcher(json);
-        return m.find() ? Encoding.jsonDecode(m.group(1)) : dflt;
+        return m.find() ? jsonDecode(m.group(1)) : dflt;
     }
 
     @Deprecated
@@ -732,7 +870,7 @@ public abstract class JsonUtils {
                     sb.append(c);
                 }
             }
-            return Encoding.jsonDecode(sb.toString());
+            return jsonDecode(sb.toString());
         }
         return dflt;
     }
@@ -834,14 +972,33 @@ public abstract class JsonUtils {
         }
     }
 
-    @Deprecated
     public static <T> boolean listEquals(List<T> l1, List<T> l2)
     {
-        return Validator.listEquals(l1, l2);
+        if (l1 == null)
+        {
+            return l2 == null;
+        }
+
+        if (l2 == null)
+        {
+            return false;
+        }
+
+        return l1.equals(l2);
     }
 
-    @Deprecated
     public static boolean mapEquals(Map<String, String> map1, Map<String, String> map2) {
-        return Validator.mapEquals(map1, map2);
+        if (map1 == null) {
+            return map2 == null;
+        }
+        if (map2 == null || map1.size() != map2.size()) {
+            return false;
+        }
+        for (String key : map1.keySet()) {
+            if (!Objects.equals(map1.get(key), map2.get(key))) {
+                return false;
+            }
+        }
+        return true;
     }
 }
