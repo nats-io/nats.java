@@ -18,9 +18,9 @@ import io.nats.client.support.JsonValue;
 import io.nats.client.support.Validator;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonUtils.*;
 import static io.nats.client.support.JsonValueUtils.readBoolean;
 import static io.nats.client.support.JsonValueUtils.readString;
-import static io.nats.client.support.JsonWriteUtils.*;
 
 /**
  * Republish Configuration

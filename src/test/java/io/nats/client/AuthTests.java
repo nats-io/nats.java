@@ -16,6 +16,7 @@ package io.nats.client;
 import io.nats.client.Connection.Status;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.TestHandler;
+import io.nats.client.support.JwtUtils;
 import io.nats.client.utils.ResourceUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
@@ -31,8 +32,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static io.nats.jwt.JwtUtils.NATS_USER_JWT_FORMAT;
-import static io.nats.jwt.JwtUtils.issueUserJWT;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class AuthTests extends TestBase {
@@ -714,9 +713,9 @@ public class AuthTests extends TestBase {
         long expires = 2500;
         long wait = 5000;
         Duration expiration = Duration.ofMillis(expires);
-        String jwt = issueUserJWT(nKeyAccount, accountId, publicUserKey, "jnatsTestUser", expiration);
+        String jwt = JwtUtils.issueUserJWT(nKeyAccount, accountId, publicUserKey, "jnatsTestUser", expiration);
 
-        String creds = String.format(NATS_USER_JWT_FORMAT, jwt, new String(nKeyUser.getSeed()));
+        String creds = String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(nKeyUser.getSeed()));
         String credsFile = ResourceUtils.createTempFile("nats_java_test", ".creds", creds.split("\\Q\\n\\E"));
 
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/operatorJnatsTest.conf", false)) {

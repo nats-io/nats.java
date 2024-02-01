@@ -13,6 +13,7 @@
 
 package io.nats.service;
 
+import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 
 import java.time.ZonedDateTime;
@@ -23,8 +24,6 @@ import static io.nats.client.support.ApiConstants.ENDPOINTS;
 import static io.nats.client.support.ApiConstants.STARTED;
 import static io.nats.client.support.JsonValueUtils.readDate;
 import static io.nats.client.support.JsonValueUtils.readValue;
-import static io.nats.client.support.JsonWriteUtils.addField;
-import static io.nats.client.support.JsonWriteUtils.addJsons;
 
 /**
  * Stats response class forms the stats json payload, for example:
@@ -88,8 +87,8 @@ public class StatsResponse extends ServiceResponse {
 
     @Override
     protected void subToJson(StringBuilder sb) {
-        addJsons(sb, ENDPOINTS, endpointStatsList);
-        addField(sb, STARTED, started);
+        JsonUtils.addJsons(sb, ENDPOINTS, endpointStatsList);
+        JsonUtils.addField(sb, STARTED, started);
     }
 
     /**
