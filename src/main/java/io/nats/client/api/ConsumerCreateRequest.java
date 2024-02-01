@@ -14,10 +14,11 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonUtils;
 
 import static io.nats.client.support.ApiConstants.CONFIG;
 import static io.nats.client.support.ApiConstants.STREAM_NAME;
-import static io.nats.client.support.JsonWriteUtils.*;
+import static io.nats.client.support.JsonUtils.*;
 
 /**
  * Object used to make a request to create a consumer. Used Internally
@@ -44,7 +45,7 @@ public class ConsumerCreateRequest implements JsonSerializable {
         StringBuilder sb = beginJson();
 
         addField(sb, STREAM_NAME, streamName);
-        addField(sb, CONFIG, config);
+        JsonUtils.addField(sb, CONFIG, config);
 
         return endJson(sb).toString();
     }

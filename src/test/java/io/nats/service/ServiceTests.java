@@ -18,7 +18,10 @@ import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.impl.MockNatsConnection;
 import io.nats.client.impl.NatsMessage;
-import io.nats.client.support.*;
+import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.jupiter.api.Test;
 
@@ -33,9 +36,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static io.nats.client.impl.NatsPackageScopeWorkarounds.getDispatchers;
+import static io.nats.client.support.JsonUtils.toKey;
 import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readString;
-import static io.nats.client.support.JsonWriteUtils.toKey;
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.service.Service.SRV_PING;
@@ -728,7 +731,7 @@ public class ServiceTests extends JetStreamTestBase {
             .build();
         assertEquals(NAME, e.getName());
         assertEquals(SUBJECT, e.getSubject());
-        assertTrue(Validator.mapEquals(metadata, e.getMetadata()));
+        assertTrue(JsonUtils.mapEquals(metadata, e.getMetadata()));
 
         // some subject testing
         e = new Endpoint(NAME, "foo.>");
@@ -740,7 +743,7 @@ public class ServiceTests extends JetStreamTestBase {
         e = new Endpoint(NAME, SUBJECT, metadata);
         assertEquals(NAME, e.getName());
         assertEquals(SUBJECT, e.getSubject());
-        assertTrue(Validator.mapEquals(metadata, e.getMetadata()));
+        assertTrue(JsonUtils.mapEquals(metadata, e.getMetadata()));
         assertThrows(IllegalArgumentException.class, () -> Endpoint.builder().build());
 
         // many names are bad and is required
@@ -947,7 +950,7 @@ public class ServiceTests extends JetStreamTestBase {
             .endpointMetadata(metadata)
             .handler(smh)
             .build();
-        assertTrue(Validator.mapEquals(metadata, se.getMetadata()));
+        assertTrue(JsonUtils.mapEquals(metadata, se.getMetadata()));
 
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> ServiceEndpoint.builder().build());
@@ -1152,7 +1155,7 @@ public class ServiceTests extends JetStreamTestBase {
 
         @Override
         public String toJson() {
-            return JsonWriteUtils.toKey(getClass()) + toJsonValue().toJson();
+            return JsonUtils.toKey(getClass()) + toJsonValue().toJson();
         }
 
         @Override

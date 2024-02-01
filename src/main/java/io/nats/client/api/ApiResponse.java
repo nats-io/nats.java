@@ -15,16 +15,12 @@ package io.nats.client.api;
 
 import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
-import io.nats.client.support.JsonParseException;
-import io.nats.client.support.JsonParser;
-import io.nats.client.support.JsonValue;
-import io.nats.client.support.JsonValueUtils;
+import io.nats.client.support.*;
 
 import static io.nats.client.support.ApiConstants.ERROR;
 import static io.nats.client.support.ApiConstants.TYPE;
 import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.JsonValueUtils.readValue;
-import static io.nats.client.support.JsonWriteUtils.toKey;
 
 public abstract class ApiResponse<T> {
 
@@ -122,6 +118,8 @@ public abstract class ApiResponse<T> {
 
     @Override
     public String toString() {
-        return jv == null ? toKey(getClass()) + "\":null" : jv.toString(getClass());
+        return jv == null
+            ? JsonUtils.toKey(getClass()) + "\":null"
+            : jv.toString(getClass());
     }
 }

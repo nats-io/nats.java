@@ -14,6 +14,7 @@
 package io.nats.service;
 
 import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.Validator;
 
@@ -22,9 +23,9 @@ import java.util.Map;
 import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.JsonValueUtils.readStringStringMap;
-import static io.nats.client.support.JsonWriteUtils.*;
 import static io.nats.client.support.Validator.validateIsRestrictedTerm;
 
 /**
@@ -128,17 +129,17 @@ public class Endpoint implements JsonSerializable {
 
     @Override
     public String toJson() {
-        StringBuilder sb = beginJson();
-        addField(sb, NAME, name);
-        addField(sb, SUBJECT, subject);
-        addField(sb, QUEUE_GROUP, queueGroup);
-        addField(sb, METADATA, metadata);
+        StringBuilder sb = JsonUtils.beginJson();
+        JsonUtils.addField(sb, NAME, name);
+        JsonUtils.addField(sb, SUBJECT, subject);
+        JsonUtils.addField(sb, QUEUE_GROUP, queueGroup);
+        JsonUtils.addField(sb, METADATA, metadata);
         return endJson(sb).toString();
     }
 
     @Override
     public String toString() {
-        return toKey(getClass()) + toJson();
+        return JsonUtils.toKey(getClass()) + toJson();
     }
 
     /**

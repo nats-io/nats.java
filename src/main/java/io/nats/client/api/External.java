@@ -19,7 +19,7 @@ import io.nats.client.support.JsonValueUtils;
 
 import static io.nats.client.support.ApiConstants.API;
 import static io.nats.client.support.ApiConstants.DELIVER;
-import static io.nats.client.support.JsonWriteUtils.*;
+import static io.nats.client.support.JsonUtils.*;
 
 /**
  * External configuration referencing a stream source in another account
