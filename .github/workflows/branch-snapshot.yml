@@ -17,7 +17,7 @@ jobs:
       COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
       GODEBUG: x509sha1=1
     steps:
-      - name: Setup JDK 8
+      - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           java-version: '8'
