@@ -17,6 +17,8 @@ import io.nats.client.Options;
 import io.nats.client.ServerPool;
 import io.nats.client.support.NatsConstants;
 import io.nats.client.support.NatsUri;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.URISyntaxException;
@@ -27,7 +29,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class NatsServerPool implements ServerPool {
-
+    private static final Logger LOG = LoggerFactory.getLogger(NatsServerPool.class);
     private final Object listLock;
     private List<ServerPoolEntry> entryList;
     private Options options;
@@ -121,7 +123,7 @@ public class NatsServerPool implements ServerPool {
 
             // 4. Add all left over from the new discovered list
             boolean discoveryContainedUnknowns = false;
-            if (discovered.size() > 0) {
+            if (!discovered.isEmpty()) {
                 discoveryContainedUnknowns = true;
                 for (NatsUri d : discovered) {
                     newEntryList.add(new ServerPoolEntry(d, true));
@@ -165,7 +167,7 @@ public class NatsServerPool implements ServerPool {
     @Override
     public NatsUri peekNextServer() {
         synchronized (listLock) {
-            return entryList.size() > 0 ? entryList.get(0).nuri : null;
+            return !entryList.isEmpty() ? entryList.get(0).nuri : null;
         }
     }
 
@@ -174,7 +176,7 @@ public class NatsServerPool implements ServerPool {
         // 0. The list is already managed for qualified by connectFailed
         // 1. Get the first item in the list, update it's time, add back to the end of list
         synchronized (listLock) {
-            if (entryList.size() > 0) {
+            if (!entryList.isEmpty()) {
                 ServerPoolEntry entry = entryList.remove(0);
                 entry.lastAttempt = System.currentTimeMillis();
                 entryList.add(entry);
@@ -185,7 +187,7 @@ public class NatsServerPool implements ServerPool {
     }
 
     @Override
-    public List<String> resolveHostToIps(String host) {
+    public List<String> resolveHostToIps(final String host) {
         // 1. if options.isNoResolveHostnames(), return empty list
         if (options.isNoResolveHostnames()) {
             return null;
@@ -194,18 +196,26 @@ public class NatsServerPool implements ServerPool {
         // 2. else, try to resolve the hostname, adding results to list
         List<String> results = new ArrayList<>();
         try {
+            LOG.debug("resolving IP for hostname [{}]", host);
             InetAddress[] addresses = InetAddress.getAllByName(host);
-            for (InetAddress a : addresses) {
-                results.add(a.getHostAddress());
+            if (addresses != null) {
+                LOG.debug("resolved IP for hostname [{}] and got [{}] number of IPs", host, addresses.length);
+                for (InetAddress a : addresses) {
+                    LOG.debug("resolved IP for hostname [{}] to [{}]", host, a);
+                    results.add(a.getHostAddress());
+                }
+            } else {
+                LOG.warn("could not resolve IP for hostname [{}]", host);
             }
         }
-        catch (UnknownHostException ignore) {
+        catch (UnknownHostException ex) {
+            LOG.error("Exception resolving host name [{}]: ", host, ex);
             // A user might have supplied a bad host, but the server shouldn't.
             // Either way, nothing much we can do.
         }
 
         // 3. no results, return null.
-        if (results.size() == 0) {
+        if (results.isEmpty()) {
             return null;
         }
 

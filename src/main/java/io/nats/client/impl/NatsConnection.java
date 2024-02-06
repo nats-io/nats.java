@@ -20,6 +20,8 @@ import io.nats.client.support.ByteArrayBuilder;
 import io.nats.client.support.NatsRequestCompletableFuture;
 import io.nats.client.support.NatsUri;
 import io.nats.client.support.Validator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -28,8 +30,6 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -45,6 +45,8 @@ import static io.nats.client.support.Validator.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 class NatsConnection implements Connection {
+
+    private static final Logger LOG = LoggerFactory.getLogger(NatsConnection.class);
 
     private final Options options;
 
@@ -105,7 +107,7 @@ class NatsConnection implements Connection {
 
     NatsConnection(Options options) {
         boolean trace = options.isTraceConnection();
-        timeTrace(trace, "creating connection object");
+        LOG.trace("creating connection object");
 
         this.options = options;
 
@@ -132,7 +134,7 @@ class NatsConnection implements Connection {
         this.serverAuthErrors = new HashMap<>();
 
         this.nextSid = new AtomicLong(1);
-        timeTrace(trace, "creating NUID");
+        LOG.trace("Remaining connect trace: [creating NUID]");
         this.nuid = new NUID();
         this.mainInbox = createInbox() + ".*";
 
@@ -145,12 +147,12 @@ class NatsConnection implements Connection {
         this.draining = new AtomicReference<>();
         this.blockPublishForDrain = new AtomicBoolean();
 
-        timeTrace(trace, "creating executors");
+        LOG.trace("creating executors");
         this.callbackRunner = Executors.newSingleThreadExecutor();
         this.executor = options.getExecutor();
         this.connectExecutor = Executors.newSingleThreadExecutor();
 
-        timeTrace(trace, "creating reader and writer");
+        LOG.trace("creating reader and writer");
         this.reader = new NatsConnectionReader(this);
         this.writer = new NatsConnectionWriter(this);
 
@@ -162,7 +164,7 @@ class NatsConnection implements Connection {
 
         cancelAction = options.isReportNoResponders() ? CancelAction.REPORT : CancelAction.CANCEL;
 
-        timeTrace(trace, "connection object created");
+        LOG.trace("connection object created");
     }
 
     // Connect is only called after creation
@@ -176,7 +178,7 @@ class NatsConnection implements Connection {
 
         this.lastError.set("");
 
-        timeTrace(trace, "starting connect loop");
+        LOG.trace("starting connect loop");
 
         Set<NatsUri> failList = new HashSet<>();
         boolean keepGoing = true;
@@ -200,10 +202,10 @@ class NatsConnection implements Connection {
                 }
                 connectError.set(""); // new on each attempt
 
-                timeTrace(trace, "setting status to connecting");
+                LOG.trace("setting status to connecting");
                 updateStatus(Status.CONNECTING);
 
-                timeTrace(trace, "trying to connect to %s", cur);
+                LOG.trace("trying to connect to %s", cur);
                 NatsUri resolved = resolvedList.remove(0);
                 tryToConnect(cur, resolved, System.nanoTime());
 
@@ -213,7 +215,7 @@ class NatsConnection implements Connection {
                     break;
                 }
 
-                timeTrace(trace, "setting status to disconnected");
+                LOG.trace("setting status to disconnected");
                 updateStatus(Status.DISCONNECTED);
 
                 failList.add(cur);
@@ -229,11 +231,11 @@ class NatsConnection implements Connection {
 
         if (!isConnected() && !isClosed()) {
             if (reconnectOnConnect) {
-                timeTrace(trace, "trying to reconnect on connect");
+                LOG.trace("trying to reconnect on connect");
                 reconnect();
             }
             else {
-                timeTrace(trace, "connection failed, closing to cleanup");
+                LOG.trace("connection failed, closing to cleanup");
                 close();
 
                 String err = connectError.get();
@@ -249,7 +251,7 @@ class NatsConnection implements Connection {
         else if (trace) {
             long end = System.nanoTime();
             double seconds = ((double) (end - start)) / 1_000_000_000.0;
-            timeTrace(trace, "connect complete in %.3f seconds", seconds);
+            LOG.trace("connect complete in %.3f seconds", seconds);
         }
     }
 
@@ -352,31 +354,11 @@ class NatsConnection implements Connection {
         processConnectionEvent(Events.RESUBSCRIBED);
     }
 
-    void timeTrace(boolean trace, String format, Object... args) {
-        if (trace) {
-            _trace(String.format(format, args));
-        }
-    }
-
-    void timeTrace(boolean trace, String message) {
-        if (trace) {
-            _trace(message);
-        }
-    }
-
-    private void _trace(String message) {
-        String timeStr = DateTimeFormatter.ISO_TIME.format(LocalDateTime.now());
-        System.out.println("[" + timeStr + "] connect trace: " + message);
-    }
-
     long timeCheck(boolean trace, long endNanos, String message) throws TimeoutException {
         long now = System.nanoTime();
         long remaining = endNanos - now;
 
-        if (trace) {
-            double seconds = ((double)remaining) / 1_000_000_000.0;
-            _trace( message + String.format(", %.3f (s) remaining", seconds) );
-        }
+        LOG.trace("Remaining connect trace: [{}] [{}](s)", message, ((double)remaining) / 1_000_000_000.0);
 
         if (remaining < 0) {
             throw new TimeoutException("connection timed out");
@@ -442,7 +424,7 @@ class NatsConnection implements Connection {
                 if (trace && options.isTLSRequired()) {
                     // If the time appears too long it might be related to
                     // https://github.com/nats-io/nats.java#linux-platform-note
-                    timeTrace(true, "TLS upgrade took: %.3f (s)",
+                    LOG.trace("TLS upgrade took: [{}](s)",
                             ((double) (System.nanoTime() - start)) / 1_000_000_000.0);
                 }
                 if (options.isTlsFirst()) {
@@ -519,7 +501,7 @@ class NatsConnection implements Connection {
             } finally {
                 statusLock.unlock();
             }
-            timeTrace(trace, "status updated");
+            LOG.trace("status updated");
         } catch (RuntimeException exp) { // runtime exceptions, like illegalArgs
             processException(exp);
             throw exp;

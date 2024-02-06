@@ -14,6 +14,8 @@
 package io.nats.client.support;
 
 import io.nats.client.impl.Headers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -36,6 +38,8 @@ import static io.nats.client.support.NatsConstants.COLON;
  * Read helpers deprecated Prefer using the {@link JsonParser}
  */
 public abstract class JsonUtils {
+    private static final Logger LOG = LoggerFactory.getLogger(JsonUtils.class);
+
     public static final String EMPTY_JSON = "{}";
 
     private static final String STRING_RE  = "\"(.+?)\"";
@@ -493,8 +497,8 @@ public abstract class JsonUtils {
         return sb.toString();
     }
 
-    public static void printFormatted(Object o) {
-        System.out.println(getFormatted(o));
+    public static void printFormatted(final Object o) {
+        LOG.info("[{}]", getFormatted(o));
     }
 
     // ----------------------------------------------------------------------------------------------------
