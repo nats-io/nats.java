@@ -15,7 +15,7 @@ package io.nats.client;
 
 /**
  * NATS provides a challenge-response based authentication scheme based on {@link NKey NKeys}. Since 
- * NKeys depend on a private seed, we do not handle them directly in the client library. Instead you can 
+ * NKeys depend on a private seed, we do not handle them directly in the client library. Instead, you can
  * work with them inside an AuthHandler that only makes the public key available to the library.
  * 
  * <pre>

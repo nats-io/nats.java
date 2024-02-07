@@ -14,7 +14,7 @@
 package io.nats.examples;
 
 import io.nats.client.AuthHandler;
-import io.nats.client.NKey;
+import io.nats.nkey.NKey;
 
 import java.io.BufferedReader;
 import java.io.File;

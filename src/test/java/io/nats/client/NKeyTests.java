@@ -27,8 +27,10 @@ import static io.nats.client.NKey.removePaddingAndClear;
 import static io.nats.client.support.Encoding.base32Decode;
 import static io.nats.client.support.Encoding.base32Encode;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
+import static io.nats.nkey.NKeyConstants.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+@SuppressWarnings("deprecation")
 public class NKeyTests {
     private static final int ED25519_SIGNATURE_SIZE = 64;
 
@@ -556,12 +558,12 @@ public class NKeyTests {
 
     @Test
     public void testTypeEnum() {
-        assertEquals(NKey.Type.USER, NKey.Type.fromPrefix(NKey.PREFIX_BYTE_USER));
-        assertEquals(NKey.Type.ACCOUNT, NKey.Type.fromPrefix(NKey.PREFIX_BYTE_ACCOUNT));
-        assertEquals(NKey.Type.SERVER, NKey.Type.fromPrefix(NKey.PREFIX_BYTE_SERVER));
-        assertEquals(NKey.Type.OPERATOR, NKey.Type.fromPrefix(NKey.PREFIX_BYTE_OPERATOR));
-        assertEquals(NKey.Type.CLUSTER, NKey.Type.fromPrefix(NKey.PREFIX_BYTE_CLUSTER));
-        assertEquals(NKey.Type.ACCOUNT, NKey.Type.fromPrefix(NKey.PREFIX_BYTE_PRIVATE));
+        assertEquals(NKey.Type.USER, NKey.Type.fromPrefix(PREFIX_BYTE_USER));
+        assertEquals(NKey.Type.ACCOUNT, NKey.Type.fromPrefix(PREFIX_BYTE_ACCOUNT));
+        assertEquals(NKey.Type.SERVER, NKey.Type.fromPrefix(PREFIX_BYTE_SERVER));
+        assertEquals(NKey.Type.OPERATOR, NKey.Type.fromPrefix(PREFIX_BYTE_OPERATOR));
+        assertEquals(NKey.Type.CLUSTER, NKey.Type.fromPrefix(PREFIX_BYTE_CLUSTER));
+        assertEquals(NKey.Type.ACCOUNT, NKey.Type.fromPrefix(PREFIX_BYTE_PRIVATE));
         assertThrows(IllegalArgumentException.class, () -> { NKey.Type ignored = NKey.Type.fromPrefix(9999); });
     }
 

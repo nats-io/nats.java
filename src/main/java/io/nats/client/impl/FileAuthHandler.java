@@ -13,15 +13,15 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.AuthHandler;
+import io.nats.nkey.NKey;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-
-import io.nats.client.AuthHandler;
-import io.nats.client.NKey;
 
 class FileAuthHandler implements AuthHandler {
     private String jwtFile;
