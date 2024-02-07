@@ -1990,13 +1990,6 @@ public class Options {
     }
 
     /**
-     * @return should we trace the connection process to system.out
-     */
-    public boolean isTraceConnection() {
-        return traceConnection;
-    }
-
-    /**
      * @return the maximum length of a control line, see {@link Builder#maxControlLine(int) maxControlLine()} in the builder doc
      */
     public int getMaxControlLine() {

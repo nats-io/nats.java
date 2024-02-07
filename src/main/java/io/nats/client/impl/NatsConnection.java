@@ -106,7 +106,6 @@ class NatsConnection implements Connection {
     private final CancelAction cancelAction;
 
     NatsConnection(Options options) {
-        boolean trace = options.isTraceConnection();
         LOG.trace("creating connection object");
 
         this.options = options;
@@ -172,8 +171,6 @@ class NatsConnection implements Connection {
         if (options.getServers().isEmpty()) {
             throw new IllegalArgumentException("No servers provided in options");
         }
-
-        boolean trace = options.isTraceConnection();
         long start = System.nanoTime();
 
         this.lastError.set("");
@@ -205,7 +202,7 @@ class NatsConnection implements Connection {
                 LOG.trace("setting status to connecting");
                 updateStatus(Status.CONNECTING);
 
-                LOG.trace("trying to connect to %s", cur);
+                LOG.trace("trying to connect to [{}]", cur);
                 NatsUri resolved = resolvedList.remove(0);
                 tryToConnect(cur, resolved, System.nanoTime());
 
@@ -248,11 +245,7 @@ class NatsConnection implements Connection {
                 }
             }
         }
-        else if (trace) {
-            long end = System.nanoTime();
-            double seconds = ((double) (end - start)) / 1_000_000_000.0;
-            LOG.trace("connect complete in %.3f seconds", seconds);
-        }
+        LOG.trace("connect complete in [{}] milli seconds", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
     }
 
     // Reconnect can only be called when the connection is disconnected
@@ -354,11 +347,11 @@ class NatsConnection implements Connection {
         processConnectionEvent(Events.RESUBSCRIBED);
     }
 
-    long timeCheck(boolean trace, long endNanos, String message) throws TimeoutException {
+    long timeCheck(long endNanos, String message) throws TimeoutException {
         long now = System.nanoTime();
         long remaining = endNanos - now;
 
-        LOG.trace("Remaining connect trace: [{}] [{}](s)", message, ((double)remaining) / 1_000_000_000.0);
+        LOG.trace("Remaining connect trace: [{}] [{}](msec)", message, TimeUnit.NANOSECONDS.toMillis(remaining));
 
         if (remaining < 0) {
             throw new TimeoutException("connection timed out");
@@ -375,9 +368,8 @@ class NatsConnection implements Connection {
 
         try {
             Duration connectTimeout = options.getConnectionTimeout();
-            boolean trace = options.isTraceConnection();
             long end = now + connectTimeout.toNanos();
-            timeCheck(trace, end, "starting connection attempt");
+            timeCheck(end, "starting connection attempt");
 
             statusLock.lock();
             try {
@@ -395,15 +387,15 @@ class NatsConnection implements Connection {
             this.dataPortFuture = new CompletableFuture<>();
 
             // Make sure the reader and writer are stopped
-            long timeoutNanos = timeCheck(trace, end, "waiting for reader");
+            long timeoutNanos = timeCheck(end, "waiting for reader");
             this.reader.stop().get(timeoutNanos, TimeUnit.NANOSECONDS);
-            timeoutNanos = timeCheck(trace, end, "waiting for writer");
+            timeoutNanos = timeCheck(end, "waiting for writer");
             this.writer.stop().get(timeoutNanos, TimeUnit.NANOSECONDS);
 
-            timeCheck(trace, end, "cleaning pong queue");
+            timeCheck(end, "cleaning pong queue");
             cleanUpPongQueue();
 
-            timeoutNanos = timeCheck(trace, end, "connecting data port");
+            timeoutNanos = timeCheck(end, "connecting data port");
             DataPort newDataPort = this.options.buildDataPort();
             newDataPort.connect(resolved.toString(), this, timeoutNanos);
 
@@ -421,11 +413,10 @@ class NatsConnection implements Connection {
                 }
                 long start = System.nanoTime();
                 upgradeToSecureIfNeeded(resolved);
-                if (trace && options.isTLSRequired()) {
+                if (options.isTLSRequired()) {
                     // If the time appears too long it might be related to
                     // https://github.com/nats-io/nats.java#linux-platform-note
-                    LOG.trace("TLS upgrade took: [{}](s)",
-                            ((double) (System.nanoTime() - start)) / 1_000_000_000.0);
+                    LOG.trace("TLS upgrade took: [{}](s)", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
                 }
                 if (options.isTlsFirst()) {
                     readInitialInfo();
@@ -434,7 +425,7 @@ class NatsConnection implements Connection {
                 return null;
             };
 
-            timeoutNanos = timeCheck(trace, end, "reading info, version and upgrading to secure if necessary");
+            timeoutNanos = timeCheck(end, "reading info, version and upgrading to secure if necessary");
             Future<Object> future = this.connectExecutor.submit(connectTask);
             try {
                 future.get(timeoutNanos, TimeUnit.NANOSECONDS);
@@ -443,15 +434,15 @@ class NatsConnection implements Connection {
             }
 
             // start the reader and writer after we secured the connection, if necessary
-            timeCheck(trace, end, "starting reader");
+            timeCheck(end, "starting reader");
             this.reader.start(this.dataPortFuture);
-            timeCheck(trace, end, "starting writer");
+            timeCheck(end, "starting writer");
             this.writer.start(this.dataPortFuture);
 
-            timeCheck(trace, end, "sending connect message");
+            timeCheck(end, "sending connect message");
             this.sendConnect(resolved);
 
-            timeoutNanos = timeCheck(trace, end, "sending initial ping");
+            timeoutNanos = timeCheck(end, "sending initial ping");
             Future<Boolean> pongFuture = sendPing();
 
             if (pongFuture != null) {
@@ -459,7 +450,7 @@ class NatsConnection implements Connection {
             }
 
             if (this.timer == null) {
-                timeCheck(trace, end, "starting ping and cleanup timers");
+                timeCheck(end, "starting ping and cleanup timers");
                 this.timer = new Timer("Nats Connection Timer");
 
                 long pingMillis = this.options.getPingInterval().toMillis();
@@ -486,7 +477,7 @@ class NatsConnection implements Connection {
             }
 
             // Set connected status
-            timeCheck(trace, end, "updating status to connected");
+            timeCheck(end, "updating status to connected");
             statusLock.lock();
             try {
                 this.connecting = false;

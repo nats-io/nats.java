@@ -15,6 +15,8 @@ package io.nats.client.impl;
 
 import io.nats.client.Options;
 import io.nats.client.support.NatsUri;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Timer;
@@ -24,7 +26,7 @@ import java.util.TimerTask;
  * This class is not thread-safe.  Caller must ensure thread safety.
  */
 public class SocketDataPortWithWriteTimeout extends SocketDataPort {
-
+    private static final Logger LOG = LoggerFactory.getLogger(SocketDataPortWithWriteTimeout.class);
     private long writeTimeoutNanos;
     private long delayPeriodMillis;
     private Timer writeWatcherTimer;
@@ -37,6 +39,8 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
             //  if now is after when it was supposed to be done by
             if (System.nanoTime() > writeMustBeDoneBy) {
                 try {
+                    LOG.warn("forcefully closing write socket as timeout [{}]msec expired [{}]",
+                            delayPeriodMillis, connection.getConnectedUrl());
                     connection.closeSocket(true);
                 }
                 catch (InterruptedException e) {
