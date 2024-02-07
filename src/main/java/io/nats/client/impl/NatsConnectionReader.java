@@ -14,6 +14,8 @@
 package io.nats.client.impl;
 
 import io.nats.client.support.IncomingHeadersProcessor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -28,6 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static io.nats.client.support.NatsConstants.*;
 
 class NatsConnectionReader implements Runnable {
+
+    private static final Logger LOG = LoggerFactory.getLogger(NatsConnectionReader.class);
 
     enum Mode {
         GATHER_OP,
@@ -157,6 +161,7 @@ class NatsConnectionReader implements Runnable {
                 }
             }
         } catch (IOException io) {
+            LOG.error("IO exception reading data: ", io);
             this.connection.handleCommunicationIssue(io);
         } catch (CancellationException | ExecutionException | InterruptedException ex) {
             // Exit

@@ -2247,4 +2247,11 @@ class NatsConnection implements Connection {
             throw new IOException("A JetStream context can't be established during close.");
         }
     }
+
+    @Override
+    public String toString() {
+        return "NatsConnection{" +
+                "ClientID='" + getServerInfo().getClientId() + "'" +
+                "}";
+    }
 }

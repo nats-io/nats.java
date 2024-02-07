@@ -15,6 +15,8 @@ package io.nats.client.impl;
 
 import io.nats.client.Options;
 import io.nats.client.StatisticsCollector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.BufferOverflowException;
@@ -31,6 +33,7 @@ import static io.nats.client.support.BuilderBase.bufferAllocSize;
 import static io.nats.client.support.NatsConstants.*;
 
 class NatsConnectionWriter implements Runnable {
+    private static final Logger LOG = LoggerFactory.getLogger(NatsConnectionWriter.class);
     private static final int BUFFER_BLOCK_SIZE = 256;
 
     private final NatsConnection connection;
@@ -187,6 +190,7 @@ class NatsConnectionWriter implements Runnable {
                 sendMessageBatch(msg, dataPort, stats);
             }
         } catch (IOException | BufferOverflowException io) {
+            LOG.error("exception sending messages: ", io);
             this.connection.handleCommunicationIssue(io);
         } catch (CancellationException | ExecutionException | InterruptedException ex) {
             // Exit

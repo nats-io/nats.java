@@ -289,6 +289,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 "consumer='" + consumerName + '\'' +
                 ", stream='" + stream + '\'' +
                 ", deliver='" + getSubject() + '\'' +
+                ", hashCode='" + hashCode() + '\'' +
                 ", isPullMode=" + isPullMode() +
                 '}';
     }
