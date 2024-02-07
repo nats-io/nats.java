@@ -11,27 +11,28 @@ This file lists the dependencies used in this repository.
 
 #### Runtime Dependencies
 
-| Dependency                           | License                                 |
-|--------------------------------------|-----------------------------------------|
-| net.i2p.crypto:eddsa:0.3.0           | CC 1.0 Universal                        |
+| Dependency                 | License          |
+|----------------------------|------------------|
+| net.i2p.crypto:eddsa:0.3.0 | CC 1.0 Universal |
+| org.slf4j:slf4j-api:2.0.12 | MIT License      |
 
 #### Test Dependencies
 
-| Dependency                                      | License                                 |
-|-------------------------------------------------|-----------------------------------------|
-| io.nats:jnats-server-runner:1.2.5               | Apache 2.0 License                      |
-| org.apiguardian:apiguardian-api:1.1.0           | Apache 2.0 License                      |
-| org.junit.jupiter:junit-jupiter:5.9.0           | Eclipse Public License v2.0             |
-| org.junit:junit-bom:5.9.0                       | Eclipse Public License v2.0             |
-| org.junit.jupiter:junit-jupiter:5.9.0           | Eclipse Public License v2.0             |
-| org.junit.jupiter:junit-jupiter-api:5.9.0       | Eclipse Public License v2.0             |
-| org.junit.jupiter:junit-jupiter-api:5.9.0       | Eclipse Public License v2.0             |
-| org.junit.jupiter:junit-jupiter-engine:5.9.0    | Eclipse Public License v2.0             |
-| org.junit.jupiter:junit-jupiter-params:5.9.0    | Eclipse Public License v2.0             |
-| org.junit.platform:junit-platform-commons:1.9.0 | Eclipse Public License v2.0             |
-| org.junit.platform:junit-platform-engine:1.9.0  | Eclipse Public License v2.0             |
-| org.opentest4j:opentest4j:1.2.0                 | Apache 2.0 License                      |
-
+| Dependency                                      | License                     |
+|-------------------------------------------------|-----------------------------|
+| io.nats:jnats-server-runner:1.2.5               | Apache 2.0 License          |
+| org.apiguardian:apiguardian-api:1.1.0           | Apache 2.0 License          |
+| org.junit.jupiter:junit-jupiter:5.9.0           | Eclipse Public License v2.0 |
+| org.junit:junit-bom:5.9.0                       | Eclipse Public License v2.0 |
+| org.junit.jupiter:junit-jupiter:5.9.0           | Eclipse Public License v2.0 |
+| org.junit.jupiter:junit-jupiter-api:5.9.0       | Eclipse Public License v2.0 |
+| org.junit.jupiter:junit-jupiter-api:5.9.0       | Eclipse Public License v2.0 |
+| org.junit.jupiter:junit-jupiter-engine:5.9.0    | Eclipse Public License v2.0 |
+| org.junit.jupiter:junit-jupiter-params:5.9.0    | Eclipse Public License v2.0 |
+| org.junit.platform:junit-platform-commons:1.9.0 | Eclipse Public License v2.0 |
+| org.junit.platform:junit-platform-engine:1.9.0  | Eclipse Public License v2.0 |
+| org.opentest4j:opentest4j:1.2.0                 | Apache 2.0 License          |
+| org.slf4j:slf4j-simple:2.0.12                   | MIT License                 |
 #### Build / Coverage Dependencies
 
 | Dependency                         | License                                 |
