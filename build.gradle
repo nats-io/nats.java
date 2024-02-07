@@ -36,10 +36,12 @@ repositories {
 }
 
 dependencies {
+    implementation 'org.slf4j:slf4j-api:2.0.12'
     implementation 'net.i2p.crypto:eddsa:0.3.0'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
     testImplementation 'io.nats:jnats-server-runner:1.2.8'
     testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
+    testImplementation 'org.slf4j:slf4j-simple:2.0.12'
 }
 
 sourceSets {
