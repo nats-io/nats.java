@@ -38,7 +38,7 @@ class DecodedSeed {
 }
 
 /**
- * @deprecated This class has been extracted to the <a href="https://github.com/nats-io/nkey.java">nkey.java</a> library.
+ * @deprecated This class has been extracted to the <a href="https://github.com/nats-io/nkeys.java">nkeys.java</a> library.
  * It is left here for full backward compatibility.
  * <p>
  * The NATS ecosystem will be moving to Ed25519 keys for identity,
