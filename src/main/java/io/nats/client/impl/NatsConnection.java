@@ -16,10 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
-import io.nats.client.support.ByteArrayBuilder;
-import io.nats.client.support.NatsRequestCompletableFuture;
-import io.nats.client.support.NatsUri;
-import io.nats.client.support.Validator;
+import io.nats.client.support.*;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -46,6 +43,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 class NatsConnection implements Connection {
 
+    private final static NatsLoggerFacade LOGGER = NatsLoggerFacade.getLogger(NatsConnection.class);
     private final Options options;
 
     private final StatisticsCollector statistics;
@@ -364,9 +362,8 @@ class NatsConnection implements Connection {
         }
     }
 
-    private void _trace(String message) {
-        String timeStr = DateTimeFormatter.ISO_TIME.format(LocalDateTime.now());
-        System.out.println("[" + timeStr + "] connect trace: " + message);
+    private void _trace(final String message) {
+        LOGGER.trace("connect trace: " + message);
     }
 
     long timeCheck(boolean trace, long endNanos, String message) throws TimeoutException {

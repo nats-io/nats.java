@@ -15,13 +15,13 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.ServerInfo;
+import io.nats.client.support.NatsLoggerFacade;
 import io.nats.client.support.Status;
 
-import java.util.logging.Logger;
 
 public class ErrorListenerLoggerImpl implements ErrorListener {
 
-    private final static Logger LOGGER = Logger.getLogger(ErrorListenerLoggerImpl.class.getName());
+    private final static NatsLoggerFacade LOGGER = NatsLoggerFacade.getLogger(ErrorListenerLoggerImpl.class);
 
     private String supplyMessage(String label, Connection conn, Consumer consumer, Subscription sub, Object... pairs) {
         StringBuilder sb = new StringBuilder(label);

@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.Options;
 import io.nats.client.ServerPool;
 import io.nats.client.support.NatsConstants;
+import io.nats.client.support.NatsLoggerFacade;
 import io.nats.client.support.NatsUri;
 
 import java.net.InetAddress;
@@ -27,6 +28,8 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class NatsServerPool implements ServerPool {
+
+    private final static NatsLoggerFacade LOGGER = NatsLoggerFacade.getLogger(NatsServerPool.class);
 
     private final Object listLock;
     private List<ServerPoolEntry> entryList;
@@ -194,12 +197,15 @@ public class NatsServerPool implements ServerPool {
         // 2. else, try to resolve the hostname, adding results to list
         List<String> results = new ArrayList<>();
         try {
+            LOGGER.info("Resolving hostname: [" + host + "]");
             InetAddress[] addresses = InetAddress.getAllByName(host);
+            LOGGER.info("Resolved hostname: [" + host + "] and got " + addresses.length + " results ");
             for (InetAddress a : addresses) {
                 results.add(a.getHostAddress());
             }
         }
-        catch (UnknownHostException ignore) {
+        catch (UnknownHostException ex) {
+            LOGGER.severe("Error resolving hostname: [" + host + "]: ", ex);
             // A user might have supplied a bad host, but the server shouldn't.
             // Either way, nothing much we can do.
         }
