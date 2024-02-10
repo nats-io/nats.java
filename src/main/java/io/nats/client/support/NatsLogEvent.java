@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2024 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -13,32 +13,47 @@
 
 package io.nats.client.support;
 
-import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 
 public class NatsLogEvent {
-    private static final DateTimeFormatter formatter = new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
     private final Level logLevel;
 
     private final String className;
 
     private final String message;
 
+    private final Supplier<String> msgSupplier;
+
     private final Throwable throwable;
 
-    private final Instant eventTime = Instant.now();
+    private final ZonedDateTime eventTime = ZonedDateTime.now();
 
-    public NatsLogEvent(Level logLevel, String className, String message) {
-        this(logLevel, className, message, null);
+    public NatsLogEvent(final Level logLevel, final String className, final String message) {
+        this(logLevel, className, message, null, null);
     }
 
-    public NatsLogEvent(Level logLevel, String className, String message, Throwable throwable) {
+    public NatsLogEvent(final Level logLevel, final String className, final String message, final Throwable throwable) {
+        this(logLevel, className, message, null, throwable);
+    }
+
+    public NatsLogEvent(final Level logLevel, final String className, final Supplier<String> msgSupplier) {
+        this(logLevel, className, null, msgSupplier, null);
+    }
+
+    public NatsLogEvent(final Level logLevel, final String className, final Supplier<String> msgSupplier, Throwable throwable) {
+        this(logLevel, className, null, msgSupplier, throwable);
+    }
+
+    public NatsLogEvent(final Level logLevel, final String className, final String message,
+                        final Supplier<String> msgSupplier, final Throwable throwable) {
         this.logLevel = logLevel;
         this.className = className;
         this.message = message;
         this.throwable = throwable;
+        this.msgSupplier = msgSupplier;
     }
 
     public Level getLogLevel() {
@@ -50,19 +65,24 @@ public class NatsLogEvent {
     }
 
     public String getMessage() {
-        return message;
+        if (msgSupplier != null) {
+            //in case provided, the supplier has precedence over a standard message.
+            return msgSupplier.get();
+        } else {
+            return message;
+        }
     }
 
     public Throwable getThrowable() {
         return throwable;
     }
 
-    public Instant getEventTime() {
+    public ZonedDateTime getEventTime() {
         return eventTime;
     }
 
     public String getFormattedEventTime() {
-        return formatter.format(eventTime);
+        return DateTimeFormatter.ISO_LOCAL_TIME.format(eventTime);
     }
 
     @Override
@@ -70,7 +90,7 @@ public class NatsLogEvent {
         return "NatsLogEvent{" +
                 "logLevel=" + logLevel +
                 ", className='" + className + '\'' +
-                ", message='" + message + '\'' +
+                ", message='" + getMessage() + '\'' +
                 ", throwable=" + throwable +
                 ", eventTime=" + eventTime +
                 '}';

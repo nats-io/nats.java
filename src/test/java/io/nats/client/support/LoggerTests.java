@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -27,6 +28,19 @@ public class LoggerTests {
 
     @Test
     public void testLoggerFacade() {
+        //NoOP Test
+        testLogger();
+        System.out.println("-------------------------------");
+        //STDOUT TEST default level
+        NatsLoggerFacade.setNatsLogger(new StdOutLogger());
+        testLogger();
+        System.out.println("-------------------------------");
+        //STDOUT TEST default level
+        NatsLoggerFacade.setNatsLogger(new StdOutLogger(Level.ALL));
+        testLogger();
+    }
+
+    private void testLogger() {
         LOGGER.severe("SEVERE TEST MESSAGE");
         LOGGER.severe("SEVERE TEST MESSAGE", new RuntimeException("SEVERE Test Exception"));
         LOGGER.severe(() -> createTestMessage("SEVERE MSG"), new RuntimeException("SEVERE Test Exception"));
@@ -103,16 +117,22 @@ public class LoggerTests {
         assertions(testLogger, before, after);
         testLogger.clearLogs();
 
-        NatsLoggerFacade.setNatsLogger(new StdOutLogger());
+        NatsLoggerFacade.setNatsLogger(new NoOpLogger());
     }
 
     @Test
     public void testStdOutLogger() {
         //Assert no exception when providing nulls...
         StdOutLogger stdOutLogger = new StdOutLogger();
-        stdOutLogger.log(new NatsLogEvent(Level.FINE, LoggerTests.class.getName(), "Test"));
-        stdOutLogger.log(new NatsLogEvent(Level.FINE, LoggerTests.class.getName(), "Test", null));
-        stdOutLogger.log(new NatsLogEvent(Level.FINE, LoggerTests.class.getName(), "Test", new RuntimeException("Exception")));
+        stdOutLogger.log(new NatsLogEvent(Level.INFO, LoggerTests.class.getName(), "Test"));
+        stdOutLogger.log(new NatsLogEvent(Level.INFO, LoggerTests.class.getName(), "Test", null));
+        stdOutLogger.log(new NatsLogEvent(Level.INFO, LoggerTests.class.getName(), "Test", new RuntimeException("Exception")));
+
+        assertEquals(Level.INFO, stdOutLogger.getMinLevel());
+        stdOutLogger.setMinLevel(Level.OFF);
+        assertEquals(Level.OFF, stdOutLogger.getMinLevel());
+        stdOutLogger.setMinLevel(null);
+        assertEquals(Level.OFF, stdOutLogger.getMinLevel());
     }
 
     @Test
@@ -121,7 +141,13 @@ public class LoggerTests {
         NatsLogEvent event = new NatsLogEvent(Level.FINE, LoggerTests.class.getName(), "Test");
         assertNotNull(event.toString());
         assertTrue(event.toString().startsWith("NatsLogEvent"));
-        event = new NatsLogEvent(null, null, null);
+
+        event = new NatsLogEvent(null, null, (String) null);
+        assertNotNull(event.toString());
+        assertTrue(event.toString().startsWith("NatsLogEvent"));
+        assertNotNull(event.getFormattedEventTime());
+
+        event = new NatsLogEvent(null, null, (Supplier<String>) null);
         assertNotNull(event.toString());
         assertTrue(event.toString().startsWith("NatsLogEvent"));
         assertNotNull(event.getFormattedEventTime());
@@ -138,16 +164,15 @@ public class LoggerTests {
         assertEquals(LoggerTests.class.getName(), testLogger.getLogEvents().get(5).getClassName());
         assertEquals(createTestMessage("OFF MSG"), testLogger.getLogEvents().get(5).getMessage());
         assertNull(testLogger.getLogEvents().get(5).getThrowable());
-        assertTrue(testLogger.getLogEvents().get(5).getEventTime().toEpochMilli() >= before.toEpochMilli());
-        assertTrue(testLogger.getLogEvents().get(5).getEventTime().toEpochMilli() <= after.toEpochMilli());
+        assertTrue(testLogger.getLogEvents().get(5).getEventTime().toInstant().toEpochMilli() >= before.toEpochMilli());
+        assertTrue(testLogger.getLogEvents().get(5).getEventTime().toInstant().toEpochMilli() <= after.toEpochMilli());
     }
-
 
     private String createTestMessage(final String content) {
         return "message " + content;
     }
 
-    static class TestLogger implements INatsLogger {
+    public static class TestLogger implements NatsLogger {
         private final List<NatsLogEvent> logEvents = new ArrayList<>();
 
         @Override

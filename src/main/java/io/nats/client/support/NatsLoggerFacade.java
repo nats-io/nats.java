@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2024 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -22,7 +22,7 @@ import java.util.logging.Level;
  */
 public class NatsLoggerFacade {
 
-    private static INatsLogger NATS_LOGGER = new StdOutLogger();
+    private static NatsLogger NATS_LOGGER = new NoOpLogger();
     private final String CLASS_NAME;
 
     public NatsLoggerFacade(final String CLASS_NAME) {
@@ -64,7 +64,7 @@ public class NatsLoggerFacade {
      * @param throwable the throwable
      */
     public void log(final Level logLevel, final Supplier<String> msgSupplier, final Throwable throwable) {
-        log(logLevel, msgSupplier.get(), throwable);
+        NATS_LOGGER.log(new NatsLogEvent(logLevel, CLASS_NAME, msgSupplier, throwable));
     }
 
     /**
@@ -73,14 +73,14 @@ public class NatsLoggerFacade {
      * @param msgSupplier the string message as a method reference
      */
     public void log(final Level logLevel, final Supplier<String> msgSupplier) {
-        log(logLevel, msgSupplier.get(), null);
+        log(logLevel, msgSupplier, null);
     }
 
     /**
      * HelperMethod for trace logs > Converts to JAVA FINEST
      */
     public void trace(final String message) {
-        log(Level.FINEST,  message);
+        log(Level.FINEST, message);
     }
 
     public void trace(final String message, final Throwable throwable) {
@@ -88,11 +88,11 @@ public class NatsLoggerFacade {
     }
 
     public void trace(final Supplier<String> msgSupplier, final Throwable throwable) {
-        trace(msgSupplier.get(), throwable);
+        log(Level.FINEST, msgSupplier, throwable);
     }
 
     public void trace(final Supplier<String> msgSupplier) {
-        trace(msgSupplier.get());
+        trace(msgSupplier, null);
     }
 
     public void info(final String message) {
@@ -104,11 +104,11 @@ public class NatsLoggerFacade {
     }
 
     public void info(final Supplier<String> msgSupplier, final Throwable throwable) {
-        info(msgSupplier.get(), throwable);
+        log(Level.INFO, msgSupplier, throwable);
     }
 
     public void info(final Supplier<String> msgSupplier) {
-        info(msgSupplier.get());
+        info(msgSupplier, null);
     }
 
     public void warning(final String message) {
@@ -120,11 +120,11 @@ public class NatsLoggerFacade {
     }
 
     public void warning(final Supplier<String> msgSupplier, final Throwable throwable) {
-        warning(msgSupplier.get(), throwable);
+        log(Level.WARNING, msgSupplier, throwable);
     }
 
     public void warning(final Supplier<String> msgSupplier) {
-        warning(msgSupplier.get());
+        warning(msgSupplier, null);
     }
 
     public void severe(final String message) {
@@ -136,14 +136,20 @@ public class NatsLoggerFacade {
     }
 
     public void severe(final Supplier<String> msgSupplier, final Throwable throwable) {
-        severe(msgSupplier.get(), throwable);
+        log(Level.SEVERE, msgSupplier, throwable);
     }
 
     public void severe(final Supplier<String> msgSupplier) {
-        severe(msgSupplier.get());
+        severe(msgSupplier, null);
     }
 
-    public static void setNatsLogger(final INatsLogger iNatsLogger) {
-        NATS_LOGGER = iNatsLogger;
+    public static void setNatsLogger(final NatsLogger natsLogger) {
+        if (natsLogger != null) {
+            NATS_LOGGER = natsLogger;
+        }
+    }
+
+    public static NatsLogger getNatsLogger() {
+        return NATS_LOGGER;
     }
 }

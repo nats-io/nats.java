@@ -197,15 +197,15 @@ public class NatsServerPool implements ServerPool {
         // 2. else, try to resolve the hostname, adding results to list
         List<String> results = new ArrayList<>();
         try {
-            LOGGER.info("Resolving hostname: [" + host + "]");
+            LOGGER.trace("Resolving hostname: [" + host + "]");
             InetAddress[] addresses = InetAddress.getAllByName(host);
-            LOGGER.info("Resolved hostname: [" + host + "] and got " + addresses.length + " results ");
+            LOGGER.trace("Resolved hostname: [" + host + "] and got " + addresses.length + " results ");
             for (InetAddress a : addresses) {
                 results.add(a.getHostAddress());
             }
         }
         catch (UnknownHostException ex) {
-            LOGGER.severe("Error resolving hostname: [" + host + "]: ", ex);
+            LOGGER.trace("Error resolving hostname: [" + host + "]: ", ex);
             // A user might have supplied a bad host, but the server shouldn't.
             // Either way, nothing much we can do.
         }

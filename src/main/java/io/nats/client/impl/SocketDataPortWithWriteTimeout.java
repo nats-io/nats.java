@@ -40,7 +40,7 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
             //  if now is after when it was supposed to be done by
             if (System.nanoTime() > writeMustBeDoneBy) {
                 try {
-                    LOGGER.severe("Closing Socket forcefully during write as watcher timeout has passed [" + delayPeriodMillis + "] msec");
+                    LOGGER.trace("Closing socket during write as watcher timeout has passed [" + delayPeriodMillis + "] msec");
                     connection.closeSocket(true);
                 }
                 catch (InterruptedException e) {

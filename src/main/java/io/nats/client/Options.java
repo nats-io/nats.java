@@ -14,10 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.impl.*;
-import io.nats.client.support.HttpRequest;
-import io.nats.client.support.NatsConstants;
-import io.nats.client.support.NatsUri;
-import io.nats.client.support.SSLUtils;
+import io.nats.client.support.*;
 
 import javax.net.ssl.SSLContext;
 import java.io.File;
@@ -232,9 +229,14 @@ public class Options {
     public static final String PROP_DATA_PORT_TYPE = PFX + "dataport.type";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
+     * {@link Builder#natsLogger(NatsLogger) natsLogger}.
+     */
+    public static final String PROP_ERROR_LISTENER = PFX + "logger";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#errorListener(ErrorListener) errorListener}.
      */
-    public static final String PROP_ERROR_LISTENER = PFX + "callback.error";
+    public static final String PROP_LOGGER = PFX + "callback.error";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#statisticsCollector(StatisticsCollector) statisticsCollector}.
@@ -590,6 +592,7 @@ public class Options {
     private final AuthHandler authHandler;
     private final ReconnectDelayHandler reconnectDelayHandler;
 
+    private final NatsLogger natsLogger;
     private final ErrorListener errorListener;
     private final ConnectionListener connectionListener;
     private final StatisticsCollector statisticsCollector;
@@ -702,6 +705,7 @@ public class Options {
         private AuthHandler authHandler;
         private ReconnectDelayHandler reconnectDelayHandler;
 
+        private NatsLogger natsLogger = null;
         private ErrorListener errorListener = null;
         private ConnectionListener connectionListener = null;
         private StatisticsCollector statisticsCollector = null;
@@ -811,6 +815,7 @@ public class Options {
             intProperty(props, PROP_MAX_PINGS, DEFAULT_MAX_PINGS_OUT, i -> this.maxPingsOut = i);
             booleanProperty(props, PROP_USE_OLD_REQUEST_STYLE, b -> this.useOldRequestStyle = b);
 
+            classnameProperty(props, PROP_LOGGER, o -> this.natsLogger = (NatsLogger) o);
             classnameProperty(props, PROP_ERROR_LISTENER, o -> this.errorListener = (ErrorListener) o);
             classnameProperty(props, PROP_CONNECTION_CB, o -> this.connectionListener = (ConnectionListener) o);
             classnameProperty(props, PROP_STATISTICS_COLLECTOR, o -> this.statisticsCollector = (StatisticsCollector) o);
@@ -1226,6 +1231,17 @@ public class Options {
          */
         public Builder socketWriteTimeout(Duration socketWriteTimeout) {
             this.socketWriteTimeout = socketWriteTimeout;
+            return this;
+        }
+
+        /**
+         * Set a custom logger to collect log events and handle in your log framework of choice.
+         * A default logger that can be used is {@see io.nats.client.support.StdOutLogger} with an optional minimum level.
+         * @param customNatsLogger your implementation of a NatsLogger
+         * @return the Builder for chaining
+         */
+        public Builder natsLogger(NatsLogger customNatsLogger) {
+            this.natsLogger = customNatsLogger;
             return this;
         }
 
@@ -1709,6 +1725,7 @@ public class Options {
             this.authHandler = o.authHandler;
             this.reconnectDelayHandler = o.reconnectDelayHandler;
 
+            this.natsLogger = o.natsLogger;
             this.errorListener = o.errorListener;
             this.connectionListener = o.connectionListener;
             this.statisticsCollector = o.statisticsCollector;
@@ -1773,6 +1790,7 @@ public class Options {
         this.authHandler = b.authHandler;
         this.reconnectDelayHandler = b.reconnectDelayHandler;
 
+        this.natsLogger = b.natsLogger == null ? new NoOpLogger() : b.natsLogger;
         this.errorListener = b.errorListener == null ? new ErrorListenerLoggerImpl() : b.errorListener;
         this.connectionListener = b.connectionListener;
         this.statisticsCollector = b.statisticsCollector;
@@ -1814,6 +1832,13 @@ public class Options {
      */
     public Proxy getProxy() {
         return this.proxy;
+    }
+
+    /**
+     * @return the used NatsLogger Implementation, see {@link Builder#natsLogger(NatsLogger) natsLogger()} in the builder doc
+     */
+    public NatsLogger getNatsLogger() {
+        return natsLogger;
     }
 
     /**
