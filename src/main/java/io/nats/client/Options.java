@@ -32,6 +32,8 @@ import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -235,6 +237,11 @@ public class Options {
      * {@link Builder#errorListener(ErrorListener) errorListener}.
      */
     public static final String PROP_ERROR_LISTENER = PFX + "callback.error";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see
+     * {@link Builder#timeTraceLogger(TimeTraceLogger) timeTraceLogger}.
+     */
+    public static final String PROP_TIME_TRACE_LOGGER = PFX + "callback.time.trace";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#statisticsCollector(StatisticsCollector) statisticsCollector}.
@@ -591,6 +598,7 @@ public class Options {
     private final ReconnectDelayHandler reconnectDelayHandler;
 
     private final ErrorListener errorListener;
+    private final TimeTraceLogger timeTraceLogger;
     private final ConnectionListener connectionListener;
     private final StatisticsCollector statisticsCollector;
     private final String dataPortType;
@@ -703,6 +711,7 @@ public class Options {
         private ReconnectDelayHandler reconnectDelayHandler;
 
         private ErrorListener errorListener = null;
+        private TimeTraceLogger timeTraceLogger = null;
         private ConnectionListener connectionListener = null;
         private StatisticsCollector statisticsCollector = null;
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
@@ -812,6 +821,7 @@ public class Options {
             booleanProperty(props, PROP_USE_OLD_REQUEST_STYLE, b -> this.useOldRequestStyle = b);
 
             classnameProperty(props, PROP_ERROR_LISTENER, o -> this.errorListener = (ErrorListener) o);
+            classnameProperty(props, PROP_TIME_TRACE_LOGGER, o -> this.timeTraceLogger = (TimeTraceLogger) o);
             classnameProperty(props, PROP_CONNECTION_CB, o -> this.connectionListener = (ConnectionListener) o);
             classnameProperty(props, PROP_STATISTICS_COLLECTOR, o -> this.statisticsCollector = (StatisticsCollector) o);
 
@@ -1393,6 +1403,16 @@ public class Options {
         }
 
         /**
+         * Set the {@link TimeTraceLogger TimeTraceLogger} to receive trace events related to this connection.
+         * @param logger The new TimeTraceLogger for this connection.
+         * @return the Builder for chaining
+         */
+        public Builder timeTraceLogger(TimeTraceLogger logger) {
+            this.timeTraceLogger = logger;
+            return this;
+        }
+
+        /**
          * Set the {@link ConnectionListener ConnectionListener} to receive asynchronous notifications of disconnect
          * events.
          *
@@ -1661,6 +1681,22 @@ public class Options {
                 socketWriteTimeout = null;
             }
 
+            if (timeTraceLogger == null) {
+                if (traceConnection) {
+                    timeTraceLogger = (format, args) -> {
+                        String timeStr = DateTimeFormatter.ISO_TIME.format(LocalDateTime.now());
+                        System.out.println("[" + timeStr + "] connect trace: " + String.format(format, args));
+                    };
+                }
+                else {
+                    timeTraceLogger = (f, a) -> {};
+                }
+            }
+            else {
+                // if the dev provided an impl, we assume they meant to time trace the connection
+                traceConnection = true;
+            }
+
             return new Options(this);
         }
 
@@ -1710,6 +1746,7 @@ public class Options {
             this.reconnectDelayHandler = o.reconnectDelayHandler;
 
             this.errorListener = o.errorListener;
+            this.timeTraceLogger = o.timeTraceLogger;
             this.connectionListener = o.connectionListener;
             this.statisticsCollector = o.statisticsCollector;
             this.dataPortType = o.dataPortType;
@@ -1774,6 +1811,7 @@ public class Options {
         this.reconnectDelayHandler = b.reconnectDelayHandler;
 
         this.errorListener = b.errorListener == null ? new ErrorListenerLoggerImpl() : b.errorListener;
+        this.timeTraceLogger = b.timeTraceLogger;
         this.connectionListener = b.connectionListener;
         this.statisticsCollector = b.statisticsCollector;
         this.dataPortType = b.dataPortType;
@@ -1821,6 +1859,16 @@ public class Options {
      */
     public ErrorListener getErrorListener() {
         return this.errorListener;
+    }
+
+    /**
+     * If the user provided a TimeTraceLogger, it's returned here.
+     * If the user set traceConnection but did not supply their own, the original time trace logging will occur
+     * If the user did not provide a TimeTraceLogger and did not set traceConnection, this will be a no-op implementation.
+     * @return the time trace logger
+     */
+    public TimeTraceLogger getTimeTraceLogger() {
+        return this.timeTraceLogger;
     }
 
     /**
@@ -1990,7 +2038,8 @@ public class Options {
     }
 
     /**
-     * @return should we trace the connection process to system.out
+     * If isTraceConnection is true, the user provided a TimeTraceLogger or manually called traceConnection in the builder
+     * @return should we trace the connection?
      */
     public boolean isTraceConnection() {
         return traceConnection;
