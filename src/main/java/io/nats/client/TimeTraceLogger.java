@@ -14,5 +14,5 @@
 package io.nats.client;
 
 public interface TimeTraceLogger {
-    void trace(String format, Object... argsMayBeEmpty);
+    void trace(String format, Object... args);
 }

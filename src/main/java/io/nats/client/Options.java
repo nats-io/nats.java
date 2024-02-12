@@ -40,7 +40,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.support.Encoding.uriDecode;
 import static io.nats.client.support.NatsConstants.*;
-import static io.nats.client.support.NatsUri.DEFAULT_NATS_URI;
 import static io.nats.client.support.SSLUtils.DEFAULT_TLS_ALGORITHM;
 import static io.nats.client.support.Validator.*;
 
@@ -1681,6 +1680,10 @@ public class Options {
                 socketWriteTimeout = null;
             }
 
+            if (errorListener == null) {
+                errorListener = new ErrorListenerLoggerImpl();
+            }
+
             if (timeTraceLogger == null) {
                 if (traceConnection) {
                     timeTraceLogger = (format, args) -> {
@@ -1768,13 +1771,8 @@ public class Options {
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------------------------------
     private Options(Builder b) {
-        if (b.natsServerUris.isEmpty()) {
-            this.natsServerUris = Collections.singletonList(DEFAULT_NATS_URI);
-        }
-        else {
-            this.natsServerUris = Collections.unmodifiableList(b.natsServerUris);
-        }
-        this.unprocessedServers = b.unprocessedServers;  // exactly how the user gave them
+        this.natsServerUris = Collections.unmodifiableList(b.natsServerUris);
+        this.unprocessedServers = Collections.unmodifiableList(b.unprocessedServers);  // exactly how the user gave them
         this.noRandomize = b.noRandomize;
         this.noResolveHostnames = b.noResolveHostnames;
         this.reportNoResponders = b.reportNoResponders;
@@ -1810,7 +1808,7 @@ public class Options {
         this.authHandler = b.authHandler;
         this.reconnectDelayHandler = b.reconnectDelayHandler;
 
-        this.errorListener = b.errorListener == null ? new ErrorListenerLoggerImpl() : b.errorListener;
+        this.errorListener = b.errorListener;
         this.timeTraceLogger = b.timeTraceLogger;
         this.connectionListener = b.connectionListener;
         this.statisticsCollector = b.statisticsCollector;
