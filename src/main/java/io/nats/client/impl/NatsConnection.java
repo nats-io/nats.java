@@ -43,7 +43,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 class NatsConnection implements Connection {
 
-    private final static NatsLoggerFacade LOGGER = NatsLoggerFacade.getLogger(NatsConnection.class);
+    private final NatsLoggerFacade LOGGER = NatsLoggerFacade.getLogger(NatsConnection.class);
     private final Options options;
 
     private final StatisticsCollector statistics;
