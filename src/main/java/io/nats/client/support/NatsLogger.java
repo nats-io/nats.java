@@ -13,12 +13,16 @@
 
 package io.nats.client.support;
 
+import java.util.logging.Level;
+
 /**
  * This interface class represents the methods that need to be implemented by a custom Logger Implementation for
  * nats.java library consumers.
  * An exemplary default implementation of this interface logging to STDOUT can be found in this repo.
  */
-public interface NatsLogger {
+public abstract class NatsLogger {
+
+    Level minLevel = Level.OFF;
 
     /**
      * Simple provisions a preformatted log line to be handled as request
@@ -26,5 +30,22 @@ public interface NatsLogger {
      * nats.java message handling threads or similar.
      * @param natsLogEvent The event to be logged containing e.g., level , message, originating class name and throwable all optional
      */
-    void log (final NatsLogEvent natsLogEvent);
+    abstract void log (final NatsLogEvent natsLogEvent);
+
+    public Level getMinLevel() {
+        if (minLevel == null) {
+            return Level.OFF;
+        }
+        return minLevel;
+    }
+
+    /**
+     * Get the minimum set log level. DEFAULT = OFF.
+     * @param minLevel the min log level set.
+     */
+    public void setMinLevel(Level minLevel) {
+        if (minLevel != null) {
+            this.minLevel = minLevel;
+        }
+    }
 }

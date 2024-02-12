@@ -2,10 +2,10 @@ package io.nats.client.impl;
 
 import io.nats.client.Options;
 import io.nats.client.support.LoggerTests;
-import io.nats.client.support.NatsLoggerFacade;
-import io.nats.client.support.NoOpLogger;
 import io.nats.client.support.StdOutLogger;
 import org.junit.jupiter.api.Test;
+
+import java.util.logging.Level;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -21,17 +21,16 @@ public class LoggerOptionsTest {
         System.out.println("-------------------");
 
         options = Options.builder().build();
-        assertInstanceOf(NoOpLogger.class, options.getNatsLogger());
+        assertInstanceOf(StdOutLogger.class, options.getNatsLogger());
+        assertEquals(Level.OFF, options.getNatsLogger().getMinLevel());
 
         System.out.println("-------------------");
 
         options = Options.builder().traceConnection().build();
-        assertInstanceOf(NoOpLogger.class, options.getNatsLogger());
-
-        System.out.println("-------------------");
-
-        new NatsConnection(options);
-        assertInstanceOf(StdOutLogger.class, NatsLoggerFacade.getNatsLogger());
+        assertInstanceOf(StdOutLogger.class, options.getNatsLogger());
+        NatsConnection conn = new NatsConnection(options);
+        assertInstanceOf(StdOutLogger.class, conn.getLOGGER());
+        assertEquals(Level.INFO, conn.getLOGGER().getMinLevel());
     }
 
 }

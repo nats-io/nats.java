@@ -24,23 +24,44 @@ import java.util.logging.Level;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class LoggerTests {
-    private final static NatsLoggerFacade LOGGER = NatsLoggerFacade.getLogger(LoggerTests.class);
 
     @Test
     public void testLoggerFacade() {
+        NatsLoggerFacade LOG = NatsLoggerFacade.getLogger(LoggerTests.class);
         //NoOP Test
         testLogger();
         System.out.println("-------------------------------");
         //STDOUT TEST default level
-        NatsLoggerFacade.setNatsLogger(new StdOutLogger());
+        LOG.setNatsLogger(new StdOutLogger());
         testLogger();
         System.out.println("-------------------------------");
         //STDOUT TEST default level
-        NatsLoggerFacade.setNatsLogger(new StdOutLogger(Level.ALL));
+        LOG.setNatsLogger(new StdOutLogger(Level.ALL));
         testLogger();
     }
 
+    @Test
+    public void testLoggerFacadeWithStaticLogger() {
+        TestLogger testLogger = new TestLogger();
+        NatsLoggerFacade.setDefaultNatsLogger(testLogger);
+        NatsLoggerFacade LOG = NatsLoggerFacade.getLogger(LoggerTests.class);
+        LOG.trace("TRACE");
+        LOG.severe("SEVERE");
+        assertEquals(2, testLogger.getLogEvents().size());
+
+        NatsLoggerFacade.setDefaultNatsLogger(null);
+        LOG.severe("SEVERE");
+        assertEquals(3, testLogger.getLogEvents().size());
+
+        NatsLoggerFacade.setDefaultNatsLogger(new StdOutLogger());
+        NatsLoggerFacade LOG2 = NatsLoggerFacade.getLogger(LoggerTests.class, testLogger);
+        LOG.trace("TRACE");
+        assertEquals(4, testLogger.getLogEvents().size());
+
+    }
+
     private void testLogger() {
+        NatsLoggerFacade LOGGER = NatsLoggerFacade.getLogger(LoggerTests.class);
         LOGGER.severe("SEVERE TEST MESSAGE");
         LOGGER.severe("SEVERE TEST MESSAGE", new RuntimeException("SEVERE Test Exception"));
         LOGGER.severe(() -> createTestMessage("SEVERE MSG"), new RuntimeException("SEVERE Test Exception"));
@@ -69,8 +90,9 @@ public class LoggerTests {
 
     @Test
     public void testLoggerFacadeWithCustomLogger() {
+        NatsLoggerFacade LOGGER = NatsLoggerFacade.getLogger(LoggerTests.class);
         TestLogger testLogger = new TestLogger();
-        NatsLoggerFacade.setNatsLogger(testLogger);
+        LOGGER.setNatsLogger(testLogger);
 
         Instant before = Instant.now();
         LOGGER.severe("SEVERE TEST MESSAGE");
@@ -116,8 +138,6 @@ public class LoggerTests {
         after = Instant.now();
         assertions(testLogger, before, after);
         testLogger.clearLogs();
-
-        NatsLoggerFacade.setNatsLogger(new NoOpLogger());
     }
 
     @Test
@@ -172,8 +192,13 @@ public class LoggerTests {
         return "message " + content;
     }
 
-    public static class TestLogger implements NatsLogger {
+    public static class TestLogger extends NatsLogger {
         private final List<NatsLogEvent> logEvents = new ArrayList<>();
+
+        public TestLogger() {
+            super();
+            minLevel = Level.ALL;
+        }
 
         @Override
         public void log(final NatsLogEvent natsLogEvent) {

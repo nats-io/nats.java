@@ -32,6 +32,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
 
 import static io.nats.client.support.Encoding.uriDecode;
 import static io.nats.client.support.NatsConstants.*;
@@ -1790,7 +1791,7 @@ public class Options {
         this.authHandler = b.authHandler;
         this.reconnectDelayHandler = b.reconnectDelayHandler;
 
-        this.natsLogger = b.natsLogger == null ? new NoOpLogger() : b.natsLogger;
+        this.natsLogger = b.natsLogger == null ? new StdOutLogger(Level.OFF) : b.natsLogger;
         this.errorListener = b.errorListener == null ? new ErrorListenerLoggerImpl() : b.errorListener;
         this.connectionListener = b.connectionListener;
         this.statisticsCollector = b.statisticsCollector;

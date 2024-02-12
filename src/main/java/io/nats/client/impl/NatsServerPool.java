@@ -199,8 +199,9 @@ public class NatsServerPool implements ServerPool {
         try {
             LOGGER.trace("Resolving hostname: [" + host + "]");
             InetAddress[] addresses = InetAddress.getAllByName(host);
-            LOGGER.trace("Resolved hostname: [" + host + "] and got " + addresses.length + " results ");
+            LOGGER.trace("Resolved hostname: [" + host + "] and got [" + addresses.length + "] results.");
             for (InetAddress a : addresses) {
+                LOGGER.trace("Resolved IP: [" + a.getHostAddress() + "]");
                 results.add(a.getHostAddress());
             }
         }

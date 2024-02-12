@@ -26,7 +26,7 @@ import java.util.TimerTask;
  */
 public class SocketDataPortWithWriteTimeout extends SocketDataPort {
 
-    private final static NatsLoggerFacade LOGGER = NatsLoggerFacade.getLogger(SocketDataPortWithWriteTimeout.class);
+    private final NatsLoggerFacade LOGGER = NatsLoggerFacade.getLogger(SocketDataPortWithWriteTimeout.class);
 
     private long writeTimeoutNanos;
     private long delayPeriodMillis;
@@ -65,6 +65,7 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
 
     @Override
     public void connect(NatsConnection conn, NatsUri nuri, long timeoutNanos) throws IOException {
+        LOGGER.setNatsLoggerViaOptions(conn.getOptions());
         super.connect(conn, nuri, timeoutNanos);
         writeWatcherTimer = new Timer();
         writeWatcherTask = new WriteWatcherTask();

@@ -25,8 +25,6 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -102,13 +100,7 @@ class NatsConnection implements Connection {
     private final CancelAction cancelAction;
 
     NatsConnection(Options options) {
-        boolean trace = options.isTraceConnection();
-        if (options.getNatsLogger().getClass() != NoOpLogger.class) {
-            NatsLoggerFacade.setNatsLogger(options.getNatsLogger());
-        } else if (trace) {
-            NatsLoggerFacade.setNatsLogger(new StdOutLogger());
-        }
-
+        LOGGER.setNatsLoggerViaOptions(options);
         LOGGER.info("connect trace: creating connection object");
 
         this.options = options;
@@ -2254,5 +2246,9 @@ class NatsConnection implements Connection {
         if (isClosing() || isClosed()) {
             throw new IOException("A JetStream context can't be established during close.");
         }
+    }
+
+    NatsLogger getLOGGER() {
+        return LOGGER.getNatsLogger();
     }
 }

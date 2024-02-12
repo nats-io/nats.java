@@ -13,6 +13,8 @@
 
 package io.nats.client.support;
 
+import io.nats.client.Options;
+
 import java.util.function.Supplier;
 import java.util.logging.Level;
 
@@ -22,10 +24,16 @@ import java.util.logging.Level;
  */
 public class NatsLoggerFacade {
 
-    private static NatsLogger NATS_LOGGER = new NoOpLogger();
+    private static NatsLogger DEFAULT_NATS_LOGGER = new StdOutLogger(Level.OFF);
+    private NatsLogger NATS_LOGGER;
     private final String CLASS_NAME;
 
     public NatsLoggerFacade(final String CLASS_NAME) {
+        this(DEFAULT_NATS_LOGGER, CLASS_NAME);
+    }
+
+    public NatsLoggerFacade(final NatsLogger NATS_LOGGER, final String CLASS_NAME) {
+        this.NATS_LOGGER = NATS_LOGGER;
         this.CLASS_NAME = CLASS_NAME;
     }
 
@@ -36,6 +44,16 @@ public class NatsLoggerFacade {
      */
     public static NatsLoggerFacade getLogger(final Class<?> clazz) {
         return new NatsLoggerFacade(clazz.getName());
+    }
+
+    /**
+     * Obtain a new instance for logging
+     * @param clazz clazz where logs originate
+     * @param natsLogger the NatsLogger used upon creation
+     * @return an instance of logger facade
+     */
+    public static NatsLoggerFacade getLogger(final Class<?> clazz, final NatsLogger natsLogger) {
+        return new NatsLoggerFacade(natsLogger, clazz.getName());
     }
 
     /**
@@ -54,17 +72,9 @@ public class NatsLoggerFacade {
      * @param throwable the throwable
      */
     public void log(final Level logLevel, final String message, final Throwable throwable) {
-        NATS_LOGGER.log(new NatsLogEvent(logLevel, CLASS_NAME, message, throwable));
-    }
-
-    /**
-     * Log with throwable that can be written to log as printable stack trace
-     * @param logLevel logging level
-     * @param msgSupplier the string message as a method reference
-     * @param throwable the throwable
-     */
-    public void log(final Level logLevel, final Supplier<String> msgSupplier, final Throwable throwable) {
-        NATS_LOGGER.log(new NatsLogEvent(logLevel, CLASS_NAME, msgSupplier, throwable));
+        if (logLevel.intValue() >= NATS_LOGGER.getMinLevel().intValue()) {
+            NATS_LOGGER.log(new NatsLogEvent(logLevel, CLASS_NAME, message, throwable));
+        }
     }
 
     /**
@@ -74,6 +84,19 @@ public class NatsLoggerFacade {
      */
     public void log(final Level logLevel, final Supplier<String> msgSupplier) {
         log(logLevel, msgSupplier, null);
+    }
+
+
+    /**
+     * Log with throwable that can be written to log as printable stack trace
+     * @param logLevel logging level
+     * @param msgSupplier the string message as a method reference
+     * @param throwable the throwable
+     */
+    public void log(final Level logLevel, final Supplier<String> msgSupplier, final Throwable throwable) {
+        if (logLevel.intValue() >= NATS_LOGGER.getMinLevel().intValue()) {
+            NATS_LOGGER.log(new NatsLogEvent(logLevel, CLASS_NAME, msgSupplier, throwable));
+        }
     }
 
     /**
@@ -143,13 +166,27 @@ public class NatsLoggerFacade {
         severe(msgSupplier, null);
     }
 
-    public static void setNatsLogger(final NatsLogger natsLogger) {
+    public void setNatsLoggerViaOptions(final Options options) {
+        if (options.getNatsLogger().getClass() != StdOutLogger.class && options.getNatsLogger().getMinLevel() != Level.OFF) {
+            setNatsLogger(options.getNatsLogger());
+        } else if (options.isTraceConnection()) {
+            setNatsLogger(new StdOutLogger());
+        }
+    }
+
+    public void setNatsLogger(final NatsLogger natsLogger) {
         if (natsLogger != null) {
             NATS_LOGGER = natsLogger;
         }
     }
 
-    public static NatsLogger getNatsLogger() {
+    public NatsLogger getNatsLogger() {
         return NATS_LOGGER;
+    }
+
+    public static void setDefaultNatsLogger(final NatsLogger defaultNatsLogger) {
+        if (defaultNatsLogger != null) {
+            DEFAULT_NATS_LOGGER = defaultNatsLogger;
+        }
     }
 }

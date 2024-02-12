@@ -21,9 +21,7 @@ import java.util.logging.Level;
  * The default nats.java logger printing messages to stdout with a prefixed timestamp.
  * Per Default the min level is set to INFO.
  */
-public class StdOutLogger implements NatsLogger {
-
-    private Level minLevel;
+public class StdOutLogger extends NatsLogger {
 
     public StdOutLogger() {
         minLevel = Level.INFO;
@@ -35,13 +33,11 @@ public class StdOutLogger implements NatsLogger {
 
     @Override
     public void log(final NatsLogEvent event) {
-        if (event.getLogLevel().intValue() >= minLevel.intValue()) {
-            String logMessage = "[" + event.getFormattedEventTime() + "] " + event.getMessage();
-            if (event.getThrowable() != null) {
-                logMessage += ": " + stackTraceToString(event.getThrowable());
-            }
-            System.out.println(logMessage);
+        String logMessage = "[" + event.getFormattedEventTime() + "] " + event.getMessage();
+        if (event.getThrowable() != null) {
+            logMessage += ": " + stackTraceToString(event.getThrowable());
         }
+        System.out.println(logMessage);
     }
 
     private String stackTraceToString(final Throwable throwable) {
@@ -51,15 +47,5 @@ public class StdOutLogger implements NatsLogger {
         final StringWriter sw = new StringWriter();
         throwable.printStackTrace(new PrintWriter(sw, true));
         return sw.toString();
-    }
-
-    public Level getMinLevel() {
-        return minLevel;
-    }
-
-    public void setMinLevel(Level minLevel) {
-        if (minLevel != null) {
-            this.minLevel = minLevel;
-        }
     }
 }
