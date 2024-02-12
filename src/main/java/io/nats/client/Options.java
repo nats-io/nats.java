@@ -231,12 +231,12 @@ public class Options {
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#natsLogger(NatsLogger) natsLogger}.
      */
-    public static final String PROP_ERROR_LISTENER = PFX + "logger";
+    public static final String PROP_ERROR_LISTENER = PFX + "callback.error";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#errorListener(ErrorListener) errorListener}.
      */
-    public static final String PROP_LOGGER = PFX + "callback.error";
+    public static final String PROP_LOGGER = PFX + "logger";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#statisticsCollector(StatisticsCollector) statisticsCollector}.
