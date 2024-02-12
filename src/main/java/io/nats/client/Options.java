@@ -241,7 +241,7 @@ public class Options {
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#timeTraceLogger(TimeTraceLogger) timeTraceLogger}.
      */
-    public static final String PROP_TIME_TRACE_LOGGER = PFX + "callback.time.trace";
+    public static final String PROP_TIME_TRACE_LOGGER = PFX + "time.trace";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#statisticsCollector(StatisticsCollector) statisticsCollector}.
