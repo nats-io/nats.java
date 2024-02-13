@@ -1165,7 +1165,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
-         * Set the list of backoff.
+         * Set the list of backoff. Will override ackwait setting.
          * @param backoffs zero or more backoff durations or an array of backoffs
          * @return Builder
          */
@@ -1193,7 +1193,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
-         * Set the list of backoff.
+         * Set the list of backoff. Will override ackwait setting.
          * @param backoffsMillis zero or more backoff in millis or an array of backoffsMillis
          * @return Builder
          */
