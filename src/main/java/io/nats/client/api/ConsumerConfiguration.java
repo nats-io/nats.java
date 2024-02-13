@@ -1166,6 +1166,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * Set the list of backoff. Will override ackwait setting.
+         * @see <a href="https://docs.nats.io/using-nats/developer/develop_jetstream/consumers#delivery-reliability">Delivery Reliability</a>
          * @param backoffs zero or more backoff durations or an array of backoffs
          * @return Builder
          */
@@ -1194,6 +1195,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * Set the list of backoff. Will override ackwait setting.
+         * @see <a href="https://docs.nats.io/using-nats/developer/develop_jetstream/consumers#delivery-reliability">Delivery Reliability</a>
          * @param backoffsMillis zero or more backoff in millis or an array of backoffsMillis
          * @return Builder
          */
