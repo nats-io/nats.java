@@ -187,7 +187,7 @@ public interface KeyValue {
     NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
-     * Watch updates for all keys.
+     * Watch updates for all keys starting from a specific revision
      * @param watcher the watcher the implementation to receive changes
      * @param fromRevision the revision to start from
      * @param watchOptions the watch options to apply. If multiple conflicting options are supplied, the last options wins.
