@@ -161,6 +161,20 @@ public interface KeyValue {
     NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
+     * Watch updates for a specific key, starting at a specific revision.
+     * @param key the key
+     * @param watcher the watcher the implementation to receive changes
+     * @param fromRevision the revision to start from
+     * @param watchOptions the watch options to apply. If multiple conflicting options are supplied, the last options wins.
+     * @return The KeyValueWatchSubscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
+     */
+    NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException;
+
+    /**
      * Watch updates for all keys.
      * @param watcher the watcher the implementation to receive changes
      * @param watchOptions the watch options to apply. If multiple conflicting options are supplied, the last options wins.
@@ -171,6 +185,19 @@ public interface KeyValue {
      * @throws InterruptedException if the thread is interrupted
      */
     NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException;
+
+    /**
+     * Watch updates for all keys.
+     * @param watcher the watcher the implementation to receive changes
+     * @param fromRevision the revision to start from
+     * @param watchOptions the watch options to apply. If multiple conflicting options are supplied, the last options wins.
+     * @return The KeyValueWatchSubscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
+     */
+    NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException;
 
     /**
      * Get a list of the keys in a bucket.

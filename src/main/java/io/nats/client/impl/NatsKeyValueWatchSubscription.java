@@ -21,7 +21,7 @@ import java.io.IOException;
 
 public class NatsKeyValueWatchSubscription extends NatsWatchSubscription<KeyValueEntry> {
 
-    public NatsKeyValueWatchSubscription(NatsKeyValue kv, String keyPattern, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException {
+    public NatsKeyValueWatchSubscription(NatsKeyValue kv, String keyPattern, KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException {
         super(kv.js);
 
         // figure out the result options
@@ -54,6 +54,6 @@ public class NatsKeyValueWatchSubscription extends NatsWatchSubscription<KeyValu
                 }
             };
 
-        finishInit(kv, kv.readSubject(keyPattern), deliverPolicy, headersOnly, handler);
+        finishInit(kv, kv.readSubject(keyPattern), deliverPolicy, headersOnly, fromRevision, handler);
     }
 }
