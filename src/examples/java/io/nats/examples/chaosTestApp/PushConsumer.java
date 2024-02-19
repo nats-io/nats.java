@@ -45,6 +45,6 @@ public class PushConsumer extends ConnectableConsumer {
 
     @Override
     public void refreshInfo() {
-        updateNameAndLabel(sub.getConsumerName());
+        updateLabel(sub.getConsumerName());
     }
 }
