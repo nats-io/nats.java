@@ -299,8 +299,8 @@ public class Output extends JPanel {
         consoleMessage("ERROR", label, s, System.out);
     }
 
-    public static void errorMessage(String label, String s, PrintStream out) {
-        consoleMessage("ERROR", label, s, out);
+    public static void fatalMessage(String label, String s) {
+        consoleMessage("FATAL", label, s, System.out);
     }
 
     public static void consoleMessage(String area, String label, String s) {

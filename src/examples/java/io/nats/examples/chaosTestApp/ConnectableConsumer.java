@@ -56,7 +56,7 @@ public abstract class ConnectableConsumer implements ConnectionListener {
                 break;
         }
         this.initials = initials;
-        updateNameAndLabel(name);
+        label = name + " (" + consumerKind.name() + ")";
 
         errorListener = new OutputErrorListener(label);
 
@@ -70,8 +70,9 @@ public abstract class ConnectableConsumer implements ConnectionListener {
     public void onMessage(Message m) throws InterruptedException {
         m.ack();
         long seq = m.metaData().streamSequence();
+        long lastSeq = lastReceivedSequence.get();
         lastReceivedSequence.set(seq);
-        Output.workMessage(label, "Last Received Seq: " + seq);
+        Output.workMessage(label, "Last Received Seq: " + seq + "(" + lastSeq + ")");
     }
 
     public abstract void refreshInfo();
@@ -82,12 +83,11 @@ public abstract class ConnectableConsumer implements ConnectionListener {
         refreshInfo();
     }
 
-    protected void updateNameAndLabel(String updatedName) {
-        name = updatedName;
-        if (updatedName == null) {
-            label = consumerKind.name();
-        }
-        else {
+    protected void updateLabel(String conName) {
+        if (!name.contains(conName))
+        {
+            int at = name.lastIndexOf("-");
+            name = name.substring(0, at + 1) + conName;
             label = name + " (" + consumerKind.name() + ")";
         }
     }

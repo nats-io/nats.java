@@ -22,10 +22,11 @@ import java.io.IOException;
 public class SimpleFetchConsumer extends ConnectableConsumer implements Runnable {
     final StreamContext sc;
     final ConsumerContext cc;
-    FetchConsumer fc;
     final int batchSize;
     final long expiresIn;
-    Thread t;
+    final Thread t;
+
+    FetchConsumer fc;
 
     public SimpleFetchConsumer(CommandLine cmd, ConsumerKind consumerKind, int batchSize, long expiresIn) throws IOException, InterruptedException, JetStreamApiException {
         super(cmd, "fc", consumerKind);
@@ -38,23 +39,21 @@ public class SimpleFetchConsumer extends ConnectableConsumer implements Runnable
 
         sc = nc.getStreamContext(cmd.stream);
 
-        ConsumeOptions co = ConsumeOptions.builder()
-            .batchSize(batchSize)
-            .expiresIn(expiresIn)
-            .build();
-
         cc = sc.createOrUpdateConsumer(newCreateConsumer().build());
         Output.controlMessage(label, cc.getConsumerName());
-        Thread t = new Thread(this);
+        t = new Thread(this);
         t.start();
     }
 
     @Override
     public void run() {
+        FetchConsumeOptions fco = FetchConsumeOptions.builder().maxMessages(batchSize).expiresIn(expiresIn).build();
+        Output.controlMessage(label, toString(fco));
+
         //noinspection InfiniteLoopStatement
         while (true) {
-            FetchConsumeOptions fco = FetchConsumeOptions.builder().maxMessages(batchSize).expiresIn(expiresIn).build();
-            try (FetchConsumer fc = cc.fetch(fco)) {
+            try (FetchConsumer autoCloseableFc = cc.fetch(fco)) {
+                fc = autoCloseableFc;
                 Message m = fc.nextMessage();
                 while (m != null) {
                     onMessage(m);
@@ -62,8 +61,7 @@ public class SimpleFetchConsumer extends ConnectableConsumer implements Runnable
                 }
             }
             catch (Exception e) {
-                // do we care if the autocloseable FetchConsumer errors on close?
-                // probably not, but maybe log it.
+                // if there was an error, just try again
             }
 
             // simulating some work to be done between fetches
@@ -81,7 +79,16 @@ public class SimpleFetchConsumer extends ConnectableConsumer implements Runnable
     @Override
     public void refreshInfo() {
         if (fc != null) {
-            updateNameAndLabel(fc.getConsumerName());
+            updateLabel(fc.getConsumerName());
         }
+    }
+
+    public static String toString(FetchConsumeOptions fco) {
+        return "FetchConsumeOptions" +
+            "\nMax Messages: " + fco.getMaxMessages() +
+            "\nMax Bytes: " + fco.getMaxBytes() +
+            "\nExpires In: " + fco.getExpiresInMillis() +
+            "\nIdleHeartbeat: " + fco.getIdleHeartbeat() +
+            "\nThreshold Percent: " + fco.getThresholdPercent();
     }
 }

@@ -52,6 +52,6 @@ public class SimpleConsumer extends ConnectableConsumer {
 
     @Override
     public void refreshInfo() {
-        updateNameAndLabel(mc.getConsumerName());
+        updateLabel(mc.getConsumerName());
     }
 }
