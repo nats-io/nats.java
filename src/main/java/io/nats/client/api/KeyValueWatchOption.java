@@ -20,7 +20,7 @@ public enum KeyValueWatchOption {
     IGNORE_DELETE,
 
     /**
-     * Only get meta data, skip value when retrieving data from the server.
+     * Only get metadata, skip value when retrieving data from the server.
      */
     META_ONLY,
 

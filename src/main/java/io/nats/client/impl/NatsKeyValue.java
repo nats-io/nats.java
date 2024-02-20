@@ -220,13 +220,26 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
     public NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
         validateKvKeyWildcardAllowedRequired(key);
         validateNotNull(watcher, "Watcher is required");
-        return new NatsKeyValueWatchSubscription(this, key, watcher, watchOptions);
+        return new NatsKeyValueWatchSubscription(this, key, watcher, -1, watchOptions);
+    }
+
+    @Override
+    public NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
+        validateKvKeyWildcardAllowedRequired(key);
+        validateNotNull(watcher, "Watcher is required");
+        return new NatsKeyValueWatchSubscription(this, key, watcher, fromRevision, watchOptions);
     }
 
     @Override
     public NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
         validateNotNull(watcher, "Watcher is required");
-        return new NatsKeyValueWatchSubscription(this, ">", watcher, watchOptions);
+        return new NatsKeyValueWatchSubscription(this, ">", watcher, -1, watchOptions);
+    }
+
+    @Override
+    public NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
+        validateNotNull(watcher, "Watcher is required");
+        return new NatsKeyValueWatchSubscription(this, ">", watcher, fromRevision, watchOptions);
     }
 
     /**

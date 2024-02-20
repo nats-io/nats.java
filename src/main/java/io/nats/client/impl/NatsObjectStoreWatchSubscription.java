@@ -22,6 +22,8 @@ import io.nats.client.api.ObjectStoreWatcher;
 
 import java.io.IOException;
 
+import static io.nats.client.api.ConsumerConfiguration.ULONG_UNSET;
+
 public class NatsObjectStoreWatchSubscription extends NatsWatchSubscription<ObjectInfo> {
 
     public NatsObjectStoreWatchSubscription(NatsObjectStore os, ObjectStoreWatcher watcher, ObjectStoreWatchOption... watchOptions) throws IOException, JetStreamApiException {
@@ -56,6 +58,6 @@ public class NatsObjectStoreWatchSubscription extends NatsWatchSubscription<Obje
                 }
             };
 
-        finishInit(os, os.rawAllMetaSubject(), deliverPolicy, headersOnly, handler);
+        finishInit(os, os.rawAllMetaSubject(), deliverPolicy, headersOnly, ULONG_UNSET, handler);
     }
 }

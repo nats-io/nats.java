@@ -28,7 +28,7 @@ import static io.nats.examples.chaosTestApp.Output.formatted;
 
 public class Monitor implements Runnable, java.util.function.Consumer<String> {
 
-    static final String LABEL = "MONITOR";
+    static final String MONITOR_LABEL = "MONITOR";
     static final long REPORT_FREQUENCY = 5000;
     static final int SHORT_REPORTS = 50;
 
@@ -47,7 +47,6 @@ public class Monitor implements Runnable, java.util.function.Consumer<String> {
     @Override
     public void accept(String s) {
         reportFull.set(true);
-        // Output.print(LABEL, s);
     }
 
     @Override
@@ -57,10 +56,9 @@ public class Monitor implements Runnable, java.util.function.Consumer<String> {
             .connectionListener((c, t) -> {
                 reportFull.set(true);
                 String s = "Connection: " + c.getServerInfo().getPort() + " " + t;
-                Output.controlMessage(LABEL, s);
-                // Output.print(LABEL, s);
+                Output.controlMessage(MONITOR_LABEL, s);
             })
-            .errorListener(new OutputErrorListener(LABEL, this) {})
+            .errorListener(new OutputErrorListener(MONITOR_LABEL, this) {})
             .maxReconnects(-1)
             .build();
 
@@ -78,7 +76,7 @@ public class Monitor implements Runnable, java.util.function.Consumer<String> {
                         StreamInfo si = jsm.getStreamInfo(cmd.stream);
                         String message = "Stream\n" + formatted(si.getConfiguration())
                             + "\n" + formatted(si.getClusterInfo());
-                        Output.controlMessage(LABEL, message);
+                        Output.controlMessage(MONITOR_LABEL, message);
                         reportFull.set(false);
                         if (consumers != null) {
                             for (ConnectableConsumer con : consumers) {
@@ -108,13 +106,13 @@ public class Monitor implements Runnable, java.util.function.Consumer<String> {
 
                     String pubReport = "";
                     if (publisher != null) {
-                        pubReport = "| Publisher: " + publisher.getLastSeqno() +
+                        pubReport = " | Publisher: " + publisher.getLastSeqno() +
                             (publisher.isInErrorState() ? " (Paused)" : " (Running)");
                     }
-                    Output.controlMessage(LABEL, "Uptime: " + uptime(started) + pubReport + conReport);
+                    Output.controlMessage(MONITOR_LABEL, "Uptime: " + uptime(started) + pubReport + conReport);
                 }
                 catch (Exception e) {
-                    Output.controlMessage(LABEL, e.getMessage());
+                    Output.controlMessage(MONITOR_LABEL, e.getMessage());
                     reportFull.set(true);
                 }
             }
