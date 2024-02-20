@@ -289,7 +289,7 @@ class NatsConnection implements Connection {
                     }
                     else {
                         connectError.set(""); // reset on each loop
-                        if (isDisconnectingOrClosed() || this.isClosing()) {
+                        if (this.isClosed() || this.isClosing()) {
                             keepGoing = false;
                         }
                         else {
