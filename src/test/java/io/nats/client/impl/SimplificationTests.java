@@ -748,23 +748,24 @@ public class SimplificationTests extends JetStreamTestBase {
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubjects(tsc.subject(0), tsc.subject(1));
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
 
+            int count0 = 0;
             int count1 = 0;
-            int count2 = 0;
             try (FetchConsumer fc = occtx.fetch(FetchConsumeOptions.builder().maxMessages(20).expiresIn(2000).build())) {
                 Message m = fc.nextMessage();
                 while (m != null) {
                     if (m.getSubject().equals(tsc.subject(0))) {
-                        count1++;
+                        count0++;
                     }
                     else {
-                        count2++;
+                        count1++;
                     }
+                    m.ack();
                     m = fc.nextMessage();
                 }
             }
 
-            assertEquals(10, count1);
-            assertEquals(5, count2);
+            assertEquals(10, count0);
+            assertEquals(5, count1);
         });
     }
 

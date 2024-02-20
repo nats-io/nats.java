@@ -30,22 +30,26 @@ import java.util.concurrent.TimeUnit;
 
 public class ChaosTestApp {
 
+    public static final String APP_LABEL = "APP";
+
     public static String[] MANUAL_ARGS = (
 //        "--servers nats://192.168.50.99:4222"
         "--servers nats://localhost:4222"
-            + " --stream app-stream"
-            + " --subject app-subject"
+            + " --stream jchaos-stream"
+            + " --subject jchaos-subject"
 //            + " --runtime 3600 // 1 hour in seconds
             + " --screen left"
+//            + " --work"
             + " --create"
-            + " --r3"
+//            + " --r3"
             + " --publish"
             + " --pubjitter 30"
-//            + " --simple ordered,100,5000"
-//            + " --simple durable 100 5000" // space or commas work, the parser figures it out
+//            + " --simple ephemeral,100,5000"
+            + " --simple ordered 100 5000"
+            + " --simple durable 100 5000" // space or commas work, the parser figures it out
             + " --fetch durable,100,5000"
-//            + " --push ordered"
-//            + " --push durable"
+            + " --push ordered"
+            + " --push durable"
 //            + " --logdir c:\\temp"
     ).split(" ");
 
@@ -58,7 +62,7 @@ public class ChaosTestApp {
 
         try {
             Output.start(cmd);
-            Output.controlMessage("APP", cmd.toString().replace(" --", "    \n--"));
+            Output.controlMessage(APP_LABEL, cmd.toString().replace(" --", "    \n--"));
             CountDownLatch waiter = new CountDownLatch(1);
 
             Publisher publisher = null;
@@ -72,7 +76,7 @@ public class ChaosTestApp {
                     createOrReplaceStream(cmd, jsm);
                 }
                 catch (Exception e) {
-                    Output.errorMessage("APP", e.getMessage());
+                    Output.errorMessage(APP_LABEL, e.getMessage());
                 }
             }
 
@@ -93,7 +97,7 @@ public class ChaosTestApp {
                         default:
                             throw new IllegalArgumentException("Unsupported consumer type: " + clc.consumerType);
                     }
-                    Output.errorMessage("APP", con.label);
+                    Output.controlMessage(APP_LABEL, con.label);
                     cons.add(con);
                 }
             }
@@ -140,10 +144,10 @@ public class ChaosTestApp {
                 .replicas(cmd.r3 ? 3 : 1)
                 .build();
             StreamInfo si = jsm.addStream(sc);
-            Output.controlMessage("APP", "Create Stream\n" + Output.formatted(si.getConfiguration()));
+            Output.controlMessage(APP_LABEL, "Create Stream\n" + Output.formatted(si.getConfiguration()));
         }
         catch (Exception e) {
-            Output.errorMessage("FATAL", "Failed creating stream: '" + cmd.stream + "' " + e);
+            Output.fatalMessage(APP_LABEL, "Failed creating stream: '" + cmd.stream + "' " + e);
             System.exit(-1);
         }
     }
