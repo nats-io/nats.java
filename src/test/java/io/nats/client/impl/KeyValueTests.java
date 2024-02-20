@@ -809,6 +809,10 @@ public class KeyValueTests extends JetStreamTestBase {
             "a", "aa", KeyValueOperation.DELETE, "aaa", KeyValueOperation.DELETE, KeyValueOperation.PURGE
         };
 
+        Object[] key1FromRevisionExpecteds = new Object[]{
+            "aa", KeyValueOperation.DELETE, "aaa"
+        };
+
         Object[] noExpecteds = new Object[0];
         Object[] purgeOnlyExpecteds = new Object[]{KeyValueOperation.PURGE};
 
@@ -828,6 +832,12 @@ public class KeyValueTests extends JetStreamTestBase {
 
         Object[] allPutsExpecteds = new Object[]{
             "a", "aa", "z", "zz", "aaa", "zzz", null
+        };
+
+        Object[] allFromRevisionExpecteds = new Object[]{
+            "aa", "z", "zz",
+            KeyValueOperation.DELETE, KeyValueOperation.DELETE,
+            "aaa", "zzz",
         };
 
         TestKeyValueWatcher key1FullWatcher = new TestKeyValueWatcher("key1FullWatcher", true);
@@ -851,33 +861,37 @@ public class KeyValueTests extends JetStreamTestBase {
         TestKeyValueWatcher key2AfterWatcher = new TestKeyValueWatcher("key2AfterWatcher", false, META_ONLY);
         TestKeyValueWatcher key2AfterStartNewWatcher = new TestKeyValueWatcher("key2AfterStartNewWatcher", false, META_ONLY, UPDATES_ONLY);
         TestKeyValueWatcher key2AfterStartFirstWatcher = new TestKeyValueWatcher("key2AfterStartFirstWatcher", false, META_ONLY, INCLUDE_HISTORY);
+        TestKeyValueWatcher key1FromRevisionAfterWatcher = new TestKeyValueWatcher("key1FromRevisionAfterWatcher", false);
+        TestKeyValueWatcher allFromRevisionAfterWatcher = new TestKeyValueWatcher("allFromRevisionAfterWatcher", false);
 
         runInJsServer(nc -> {
-            _testWatch(nc, key1FullWatcher, key1AllExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1FullWatcher, key1FullWatcher.watchOptions));
-            _testWatch(nc, key1MetaWatcher, key1AllExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1MetaWatcher, key1MetaWatcher.watchOptions));
-            _testWatch(nc, key1StartNewWatcher, key1AllExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1StartNewWatcher, key1StartNewWatcher.watchOptions));
-            _testWatch(nc, key1StartAllWatcher, key1AllExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1StartAllWatcher, key1StartAllWatcher.watchOptions));
-            _testWatch(nc, key2FullWatcher, key2AllExpecteds, kv -> kv.watch(TEST_WATCH_KEY_2, key2FullWatcher, key2FullWatcher.watchOptions));
-            _testWatch(nc, key2MetaWatcher, key2AllExpecteds, kv -> kv.watch(TEST_WATCH_KEY_2, key2MetaWatcher, key2MetaWatcher.watchOptions));
-            _testWatch(nc, allAllFullWatcher, allExpecteds, kv -> kv.watchAll(allAllFullWatcher, allAllFullWatcher.watchOptions));
-            _testWatch(nc, allAllMetaWatcher, allExpecteds, kv -> kv.watchAll(allAllMetaWatcher, allAllMetaWatcher.watchOptions));
-            _testWatch(nc, allIgDelFullWatcher, allPutsExpecteds, kv -> kv.watchAll(allIgDelFullWatcher, allIgDelFullWatcher.watchOptions));
-            _testWatch(nc, allIgDelMetaWatcher, allPutsExpecteds, kv -> kv.watchAll(allIgDelMetaWatcher, allIgDelMetaWatcher.watchOptions));
-            _testWatch(nc, starFullWatcher, allExpecteds, kv -> kv.watch("key.*", starFullWatcher, starFullWatcher.watchOptions));
-            _testWatch(nc, starMetaWatcher, allExpecteds, kv -> kv.watch("key.*", starMetaWatcher, starMetaWatcher.watchOptions));
-            _testWatch(nc, gtFullWatcher, allExpecteds, kv -> kv.watch("key.>", gtFullWatcher, gtFullWatcher.watchOptions));
-            _testWatch(nc, gtMetaWatcher, allExpecteds, kv -> kv.watch("key.>", gtMetaWatcher, gtMetaWatcher.watchOptions));
-            _testWatch(nc, key1AfterWatcher, purgeOnlyExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterWatcher, key1AfterWatcher.watchOptions));
-            _testWatch(nc, key1AfterIgDelWatcher, noExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterIgDelWatcher, key1AfterIgDelWatcher.watchOptions));
-            _testWatch(nc, key1AfterStartNewWatcher, noExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterStartNewWatcher, key1AfterStartNewWatcher.watchOptions));
-            _testWatch(nc, key1AfterStartFirstWatcher, purgeOnlyExpecteds, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterStartFirstWatcher, key1AfterStartFirstWatcher.watchOptions));
-            _testWatch(nc, key2AfterWatcher, key2AfterExpecteds, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterWatcher, key2AfterWatcher.watchOptions));
-            _testWatch(nc, key2AfterStartNewWatcher, noExpecteds, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterStartNewWatcher, key2AfterStartNewWatcher.watchOptions));
-            _testWatch(nc, key2AfterStartFirstWatcher, key2AllExpecteds, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterStartFirstWatcher, key2AfterStartFirstWatcher.watchOptions));
+            _testWatch(nc, key1FullWatcher, key1AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1FullWatcher, key1FullWatcher.watchOptions));
+            _testWatch(nc, key1MetaWatcher, key1AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1MetaWatcher, key1MetaWatcher.watchOptions));
+            _testWatch(nc, key1StartNewWatcher, key1AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1StartNewWatcher, key1StartNewWatcher.watchOptions));
+            _testWatch(nc, key1StartAllWatcher, key1AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1StartAllWatcher, key1StartAllWatcher.watchOptions));
+            _testWatch(nc, key2FullWatcher, key2AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2FullWatcher, key2FullWatcher.watchOptions));
+            _testWatch(nc, key2MetaWatcher, key2AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2MetaWatcher, key2MetaWatcher.watchOptions));
+            _testWatch(nc, allAllFullWatcher, allExpecteds, -1, kv -> kv.watchAll(allAllFullWatcher, allAllFullWatcher.watchOptions));
+            _testWatch(nc, allAllMetaWatcher, allExpecteds, -1, kv -> kv.watchAll(allAllMetaWatcher, allAllMetaWatcher.watchOptions));
+            _testWatch(nc, allIgDelFullWatcher, allPutsExpecteds, -1, kv -> kv.watchAll(allIgDelFullWatcher, allIgDelFullWatcher.watchOptions));
+            _testWatch(nc, allIgDelMetaWatcher, allPutsExpecteds, -1, kv -> kv.watchAll(allIgDelMetaWatcher, allIgDelMetaWatcher.watchOptions));
+            _testWatch(nc, starFullWatcher, allExpecteds, -1, kv -> kv.watch("key.*", starFullWatcher, starFullWatcher.watchOptions));
+            _testWatch(nc, starMetaWatcher, allExpecteds, -1, kv -> kv.watch("key.*", starMetaWatcher, starMetaWatcher.watchOptions));
+            _testWatch(nc, gtFullWatcher, allExpecteds, -1, kv -> kv.watch("key.>", gtFullWatcher, gtFullWatcher.watchOptions));
+            _testWatch(nc, gtMetaWatcher, allExpecteds, -1, kv -> kv.watch("key.>", gtMetaWatcher, gtMetaWatcher.watchOptions));
+            _testWatch(nc, key1AfterWatcher, purgeOnlyExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterWatcher, key1AfterWatcher.watchOptions));
+            _testWatch(nc, key1AfterIgDelWatcher, noExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterIgDelWatcher, key1AfterIgDelWatcher.watchOptions));
+            _testWatch(nc, key1AfterStartNewWatcher, noExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterStartNewWatcher, key1AfterStartNewWatcher.watchOptions));
+            _testWatch(nc, key1AfterStartFirstWatcher, purgeOnlyExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterStartFirstWatcher, key1AfterStartFirstWatcher.watchOptions));
+            _testWatch(nc, key2AfterWatcher, key2AfterExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterWatcher, key2AfterWatcher.watchOptions));
+            _testWatch(nc, key2AfterStartNewWatcher, noExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterStartNewWatcher, key2AfterStartNewWatcher.watchOptions));
+            _testWatch(nc, key2AfterStartFirstWatcher, key2AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterStartFirstWatcher, key2AfterStartFirstWatcher.watchOptions));
+            _testWatch(nc, key1FromRevisionAfterWatcher, key1FromRevisionExpecteds, 2, kv -> kv.watch(TEST_WATCH_KEY_1, key1FromRevisionAfterWatcher, 2, key1FromRevisionAfterWatcher.watchOptions));
+            _testWatch(nc, allFromRevisionAfterWatcher, allFromRevisionExpecteds, 2, kv -> kv.watchAll(allFromRevisionAfterWatcher, 2, allFromRevisionAfterWatcher.watchOptions));
         });
     }
 
-    private void _testWatch(Connection nc, TestKeyValueWatcher watcher, Object[] expectedKves, TestWatchSubSupplier supplier) throws Exception {
+    private void _testWatch(Connection nc, TestKeyValueWatcher watcher, Object[] expectedKves, long fromRevision, TestWatchSubSupplier supplier) throws Exception {
         KeyValueManagement kvm = nc.keyValueManagement();
 
         String bucket = watcher.name + "Bucket";
@@ -895,17 +909,29 @@ public class KeyValueTests extends JetStreamTestBase {
             sub = supplier.get(kv);
         }
 
-        kv.put(TEST_WATCH_KEY_1, "a");
-        kv.put(TEST_WATCH_KEY_1, "aa");
-        kv.put(TEST_WATCH_KEY_2, "z");
-        kv.put(TEST_WATCH_KEY_2, "zz");
-        kv.delete(TEST_WATCH_KEY_1);
-        kv.delete(TEST_WATCH_KEY_2);
-        kv.put(TEST_WATCH_KEY_1, "aaa");
-        kv.put(TEST_WATCH_KEY_2, "zzz");
-        kv.delete(TEST_WATCH_KEY_1);
-        kv.purge(TEST_WATCH_KEY_1);
-        kv.put(TEST_WATCH_KEY_NULL, (byte[]) null);
+        if (fromRevision == -1) {
+            kv.put(TEST_WATCH_KEY_1, "a");
+            kv.put(TEST_WATCH_KEY_1, "aa");
+            kv.put(TEST_WATCH_KEY_2, "z");
+            kv.put(TEST_WATCH_KEY_2, "zz");
+            kv.delete(TEST_WATCH_KEY_1);
+            kv.delete(TEST_WATCH_KEY_2);
+            kv.put(TEST_WATCH_KEY_1, "aaa");
+            kv.put(TEST_WATCH_KEY_2, "zzz");
+            kv.delete(TEST_WATCH_KEY_1);
+            kv.purge(TEST_WATCH_KEY_1);
+            kv.put(TEST_WATCH_KEY_NULL, (byte[]) null);
+        }
+        else {
+            kv.put(TEST_WATCH_KEY_1, "a");
+            kv.put(TEST_WATCH_KEY_1, "aa");
+            kv.put(TEST_WATCH_KEY_2, "z");
+            kv.put(TEST_WATCH_KEY_2, "zz");
+            kv.delete(TEST_WATCH_KEY_1);
+            kv.delete(TEST_WATCH_KEY_2);
+            kv.put(TEST_WATCH_KEY_1, "aaa");
+            kv.put(TEST_WATCH_KEY_2, "zzz");
+        }
 
         if (!watcher.beforeWatcher) {
             sub = supplier.get(kv);
