@@ -834,7 +834,7 @@ public class KeyValueTests extends JetStreamTestBase {
             "a", "aa", "z", "zz", "aaa", "zzz", null
         };
 
-        Object[] allFromRevsionExpecteds = new Object[]{
+        Object[] allFromRevisionExpecteds = new Object[]{
             "aa", "z", "zz",
             KeyValueOperation.DELETE, KeyValueOperation.DELETE,
             "aaa", "zzz",
@@ -887,7 +887,7 @@ public class KeyValueTests extends JetStreamTestBase {
             _testWatch(nc, key2AfterStartNewWatcher, noExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterStartNewWatcher, key2AfterStartNewWatcher.watchOptions));
             _testWatch(nc, key2AfterStartFirstWatcher, key2AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterStartFirstWatcher, key2AfterStartFirstWatcher.watchOptions));
             _testWatch(nc, key1FromRevisionAfterWatcher, key1FromRevisionExpecteds, 2, kv -> kv.watch(TEST_WATCH_KEY_1, key1FromRevisionAfterWatcher, 2, key1FromRevisionAfterWatcher.watchOptions));
-            _testWatch(nc, allFromRevisionAfterWatcher, allFromRevsionExpecteds, 2, kv -> kv.watchAll(allFromRevisionAfterWatcher, 2, allFromRevisionAfterWatcher.watchOptions));
+            _testWatch(nc, allFromRevisionAfterWatcher, allFromRevisionExpecteds, 2, kv -> kv.watchAll(allFromRevisionAfterWatcher, 2, allFromRevisionAfterWatcher.watchOptions));
         });
     }
 
