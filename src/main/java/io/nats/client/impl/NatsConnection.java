@@ -55,7 +55,7 @@ class NatsConnection implements Connection {
     private boolean closing; // respect a close call regardless
     private Exception exceptionDuringConnectChange; // an exception occurred in another thread while disconnecting or
                                                     // connecting
-    private final AtomicBoolean blockCloseSocket;
+    private final ReentrantLock closeSocketLock;
 
     private Status status;
     private final ReentrantLock statusLock;
@@ -114,7 +114,7 @@ class NatsConnection implements Connection {
         this.statistics = options.getStatisticsCollector() == null ? new NatsStatistics() : options.getStatisticsCollector();
         this.statistics.setAdvancedTracking(advancedTracking);
 
-        this.blockCloseSocket = new AtomicBoolean();
+        this.closeSocketLock = new ReentrantLock();
 
         this.statusLock = new ReentrantLock();
         this.statusChanged = this.statusLock.newCondition();
@@ -614,9 +614,7 @@ class NatsConnection implements Connection {
     // Close is called when the connection should shutdown, period
     void closeSocket(boolean tryReconnectIfConnected) throws InterruptedException {
         // Ensure we close the socket exclusively within one thread.
-        if (!blockCloseSocket.compareAndSet(false, true)) {
-            return;
-        }
+        closeSocketLock.lock();
 
         try {
             boolean wasConnected;
@@ -653,7 +651,7 @@ class NatsConnection implements Connection {
                 reconnect();
             }
         } finally {
-            blockCloseSocket.set(false);
+            closeSocketLock.unlock();
         }
     }
 
