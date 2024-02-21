@@ -55,6 +55,7 @@ class NatsConnection implements Connection {
     private boolean closing; // respect a close call regardless
     private Exception exceptionDuringConnectChange; // an exception occurred in another thread while disconnecting or
                                                     // connecting
+    private final AtomicBoolean blockCloseSocket;
 
     private Status status;
     private final ReentrantLock statusLock;
@@ -112,6 +113,8 @@ class NatsConnection implements Connection {
         advancedTracking = options.isTrackAdvancedStats();
         this.statistics = options.getStatisticsCollector() == null ? new NatsStatistics() : options.getStatisticsCollector();
         this.statistics.setAdvancedTracking(advancedTracking);
+
+        this.blockCloseSocket = new AtomicBoolean();
 
         this.statusLock = new ReentrantLock();
         this.statusChanged = this.statusLock.newCondition();
@@ -289,7 +292,7 @@ class NatsConnection implements Connection {
                     }
                     else {
                         connectError.set(""); // reset on each loop
-                        if (this.isClosed() || this.isClosing()) {
+                        if (isDisconnectingOrClosed() || this.isClosing()) {
                             keepGoing = false;
                         }
                         else {
@@ -610,39 +613,47 @@ class NatsConnection implements Connection {
     // Close socket is called when another connect attempt is possible
     // Close is called when the connection should shutdown, period
     void closeSocket(boolean tryReconnectIfConnected) throws InterruptedException {
-        boolean wasConnected;
+        // Ensure we close the socket exclusively within one thread.
+        if (!blockCloseSocket.compareAndSet(false, true)) {
+            return;
+        }
 
-        statusLock.lock();
         try {
-            if (isDisconnectingOrClosed()) {
-                waitForDisconnectOrClose(this.options.getConnectionTimeout());
-                return;
+            boolean wasConnected;
+
+            statusLock.lock();
+            try {
+                if (isDisconnectingOrClosed()) {
+                    waitForDisconnectOrClose(this.options.getConnectionTimeout());
+                    return;
+                }
+                this.disconnecting = true;
+                this.exceptionDuringConnectChange = null;
+                wasConnected = (this.status == Status.CONNECTED);
+                statusChanged.signalAll();
+            } finally {
+                statusLock.unlock();
             }
-            this.disconnecting = true;
-            this.exceptionDuringConnectChange = null;
-            wasConnected = (this.status == Status.CONNECTED);
-            statusChanged.signalAll();
+
+            closeSocketImpl();
+
+            statusLock.lock();
+            try {
+                updateStatus(Status.DISCONNECTED);
+                this.exceptionDuringConnectChange = null; // Ignore IOExceptions during closeSocketImpl()
+                this.disconnecting = false;
+                statusChanged.signalAll();
+            } finally {
+                statusLock.unlock();
+            }
+
+            if (isClosing()) { // Bit of a misname, but closing means we are in the close method or were asked to be
+                close();
+            } else if (wasConnected && tryReconnectIfConnected) {
+                reconnect();
+            }
         } finally {
-            statusLock.unlock();
-        }
-
-        closeSocketImpl();
-
-        statusLock.lock();
-        try {
-            updateStatus(Status.DISCONNECTED);
-            this.exceptionDuringConnectChange = null; // Ignore IOExceptions during closeSocketImpl()
-            this.disconnecting = false;
-            statusChanged.signalAll();
-        } finally {
-            statusLock.unlock();
-        }
-
-        if (isClosing()) { // Bit of a misname, but closing means we are in the close method or were asked
-                           // to be
-            close();
-        } else if (wasConnected && tryReconnectIfConnected) {
-            reconnect();
+            blockCloseSocket.set(false);
         }
     }
 
