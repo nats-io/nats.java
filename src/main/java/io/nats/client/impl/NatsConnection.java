@@ -614,7 +614,7 @@ class NatsConnection implements Connection {
     // Close is called when the connection should shutdown, period
     void closeSocket(boolean tryReconnectIfConnected) throws InterruptedException {
         // Ensure we close the socket exclusively within one thread.
-//        closeSocketLock.lock();
+        closeSocketLock.lock();
 
         try {
             boolean wasConnected;
@@ -651,7 +651,7 @@ class NatsConnection implements Connection {
                 reconnect();
             }
         } finally {
-//            closeSocketLock.unlock();
+            closeSocketLock.unlock();
         }
     }
 
