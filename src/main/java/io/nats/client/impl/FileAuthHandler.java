@@ -14,7 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.AuthHandler;
-import io.nats.nkey.NKey;
+import io.nats.client.NKey;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
