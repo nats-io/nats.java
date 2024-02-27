@@ -463,6 +463,11 @@ public class Options {
      * {@link Builder#useTimeoutException()}.
      */
     public static final String PROP_USE_TIMEOUT_EXCEPTION = PFX + "use.timeout.exception";
+    /**
+     * Property used to a dispatcher that dispatches messages via the executor service instead of with a blocking call.
+     * {@link Builder#useDispatcherWithExecutor()}.
+     */
+    public static final String PROP_USE_DISPATCHER_WITH_EXECUTOR = PFX + "use.dispatcher.with.executor";
 
     // ----------------------------------------------------------------------------------------------------
     // PROTOCOL CONNECT OPTION CONSTANTS
@@ -592,6 +597,7 @@ public class Options {
     private final boolean ignoreDiscoveredServers;
     private final boolean tlsFirst;
     private final boolean useTimeoutException;
+    private final boolean useDispatcherWithExecutor;
 
     private final AuthHandler authHandler;
     private final ReconnectDelayHandler reconnectDelayHandler;
@@ -703,6 +709,7 @@ public class Options {
         private boolean ignoreDiscoveredServers = false;
         private boolean tlsFirst = false;
         private boolean useTimeoutException = false;
+        private boolean useDispatcherWithExecutor = false;
         private ServerPool serverPool = null;
         private DispatcherFactory dispatcherFactory = null;
 
@@ -832,6 +839,7 @@ public class Options {
             booleanProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, b -> this.ignoreDiscoveredServers = b);
             booleanProperty(props, PROP_TLS_FIRST, b -> this.tlsFirst = b);
             booleanProperty(props, PROP_USE_TIMEOUT_EXCEPTION, b -> this.useTimeoutException = b);
+            booleanProperty(props, PROP_USE_DISPATCHER_WITH_EXECUTOR, b -> this.useDispatcherWithExecutor = b);
 
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
             classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);
@@ -1556,6 +1564,11 @@ public class Options {
             return this;
         }
 
+        public Builder useDispatcherWithExecutor() {
+            this.useDispatcherWithExecutor = true;
+            return this;
+        }
+
         /**
          * Set the ServerPool implementation for connections to use instead of the default implementation
          * @param serverPool the implementation
@@ -1761,6 +1774,7 @@ public class Options {
             this.ignoreDiscoveredServers = o.ignoreDiscoveredServers;
             this.tlsFirst = o.tlsFirst;
             this.useTimeoutException = o.useTimeoutException;
+            this.useDispatcherWithExecutor = o.useDispatcherWithExecutor;
 
             this.serverPool = o.serverPool;
             this.dispatcherFactory = o.dispatcherFactory;
@@ -1821,6 +1835,7 @@ public class Options {
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
         this.tlsFirst = b.tlsFirst;
         this.useTimeoutException = b.useTimeoutException;
+        this.useDispatcherWithExecutor = b.useDispatcherWithExecutor;
 
         this.serverPool = b.serverPool;
         this.dispatcherFactory = b.dispatcherFactory;
@@ -2244,6 +2259,8 @@ public class Options {
     public boolean useTimeoutException() {
         return useTimeoutException;
     }
+
+    public boolean useDispatcherWithExecutor() { return useDispatcherWithExecutor; }
 
     /**
      * Get the ServerPool implementation. If null, a default implementation is used.

@@ -37,7 +37,6 @@ repositories {
 
 dependencies {
     implementation 'net.i2p.crypto:eddsa:0.3.0'
-    implementation 'io.nats:nkeys-java:2.0.0'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
     testImplementation 'io.nats:jnats-server-runner:1.2.8'
@@ -163,7 +162,7 @@ jacocoTestReport {
     afterEvaluate { // only report on main library not examples
         classDirectories.setFrom(files(classDirectories.files.collect {
             fileTree(dir: it,
-                    exclude: ['**/examples**', '**/test**'])
+                    exclude: ['**/examples**'])
         }))
     }
 }
