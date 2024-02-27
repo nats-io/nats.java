@@ -23,6 +23,9 @@ import io.nats.client.MessageHandler;
  */
 public class DispatcherFactory {
     NatsDispatcher createDispatcher(NatsConnection conn, MessageHandler handler) {
+        if (conn.getOptions().useDispatcherWithExecutor()) {
+            return new NatsDispatcherWithExecutor(conn, handler);
+        }
         return new NatsDispatcher(conn, handler);
     }
 }
