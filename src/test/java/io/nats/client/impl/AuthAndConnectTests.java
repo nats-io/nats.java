@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.Connection;
+import io.nats.client.ErrorListener;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
 import java.time.Duration;
@@ -63,10 +64,20 @@ public class AuthAndConnectTests {
      */
     @RepeatedTest(5)
     public void testNoCloseOnSimultaneouslyClosingSocket() throws Exception {
+        // Use a custom error listener that doesn't log errors, since we'll spam exception messages otherwise.
+        ErrorListener noopErrorListener = new ErrorListener() {
+            @Override
+            public void errorOccurred(Connection conn, String error) {
+                // noop
+            }
+        };
+
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = Options.builder()
                     .server(ts.getURI())
                     .maxReconnects(-1)
+                    .reconnectWait(Duration.ZERO)
+                    .errorListener(noopErrorListener)
                     .build();
 
             NatsConnection nc = (NatsConnection) standardConnection(options);
@@ -78,6 +89,9 @@ public class AuthAndConnectTests {
             Thread parallelCommunicationIssues = new Thread(() -> {
                 while (running.get()) {
                     nc.handleCommunicationIssue(new Exception());
+
+                    // Shortly sleep, to not spam at full speed.
+                    sleep(1);
                 }
             });
             parallelCommunicationIssues.start();
