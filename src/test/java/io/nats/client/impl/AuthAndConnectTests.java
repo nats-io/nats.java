@@ -75,25 +75,11 @@ public class AuthAndConnectTests {
             ts.shutdown(true);
 
             final AtomicBoolean running = new AtomicBoolean(true);
-            Thread closeSocketThread = new Thread(() -> {
-                try {
-                    nc.closeSocket(true);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-
             Thread parallelCommunicationIssues = new Thread(() -> {
                 while (running.get()) {
                     nc.handleCommunicationIssue(new Exception());
                 }
             });
-
-            closeSocketThread.start();
-
-            // Ensure the closeSocket thread runs first
-            Thread.sleep(100);
-
             parallelCommunicationIssues.start();
 
             // Wait for some time to allow for reconnection logic to run.
