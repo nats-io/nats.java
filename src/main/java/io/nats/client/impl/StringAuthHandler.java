@@ -14,9 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.AuthHandler;
-import io.nats.nkey.NKey;
-
-import static io.nats.nkey.NKey.fromSeed;
+import io.nats.client.NKey;
 
 class StringAuthHandler implements AuthHandler {
     private final char[] nkey;
@@ -36,7 +34,7 @@ class StringAuthHandler implements AuthHandler {
      */ 
     public byte[] sign(byte[] nonce) {
         try {
-            NKey nkey = fromSeed(this.nkey);
+            NKey nkey = NKey.fromSeed(this.nkey);
             byte[] sig = nkey.sign(nonce);
             nkey.clear();
             return sig;
@@ -53,7 +51,7 @@ class StringAuthHandler implements AuthHandler {
      */
     public char[] getID() {
         try {
-            NKey nkey = fromSeed(this.nkey);
+            NKey nkey = NKey.fromSeed(this.nkey);
             char[] pubKey = nkey.getPublicKey();
             nkey.clear();
             return pubKey;
