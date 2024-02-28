@@ -634,9 +634,13 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void testMessageManagerInterfaceDefaultImplCoverage() {
+        // make a dummy connection so we can make a subscription
+        Options options = Options.builder().build();
+        NatsConnection nc = new NatsConnection(options);
+
         TestMessageManager tmm = new TestMessageManager();
         NatsJetStreamSubscription sub =
-            new NatsJetStreamSubscription(mockSid(), "sub", null, null, null, null, "stream", "con", tmm);
+            new NatsJetStreamSubscription(mockSid(), "sub", null, nc, null, null, "stream", "con", tmm);
         tmm.startup(sub);
         assertSame(sub, tmm.getSub());
     }

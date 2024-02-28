@@ -26,9 +26,9 @@ import java.util.function.Predicate;
 import static io.nats.client.support.NatsConstants.EMPTY_BODY;
 
 class MessageQueue {
-    protected final static int STOPPED = 0;
-    protected final static int RUNNING = 1;
-    protected final static int DRAINING = 2;
+    protected static final int STOPPED = 0;
+    protected static final int RUNNING = 1;
+    protected static final int DRAINING = 2;
 
     protected final AtomicLong length;
     protected final AtomicLong sizeInBytes;
@@ -37,11 +37,16 @@ class MessageQueue {
     protected final LinkedBlockingQueue<NatsMessage> queue;
     protected final Lock filterLock;
     protected final boolean discardWhenFull;
+    protected final long offerTimeoutMillis;
 
     // Poison pill is a graphic, but common term for an item that breaks loops or stop something.
     // In this class the poisonPill is used to break out of timed waits on the blocking queue.
     // A simple == is used to check if any message in the queue is this message.
     protected final NatsMessage poisonPill;
+
+    MessageQueue(boolean singleReaderMode, Duration requestCleanupInterval) {
+        this(singleReaderMode, -1, false, requestCleanupInterval);
+    }
 
     /**
      * If publishHighwaterMark is set to 0 the underlying queue can grow forever (or until the max size of a linked blocking queue that is).
@@ -51,13 +56,15 @@ class MessageQueue {
      * @param singleReaderMode allows the use of "accumulate"
      * @param publishHighwaterMark sets a limit on the size of the underlying queue
      * @param discardWhenFull allows to discard messages when the underlying queue is full
+     * @param requestCleanupInterval is used to figure the offerTimeoutMillis
      */
-    MessageQueue(boolean singleReaderMode, int publishHighwaterMark, boolean discardWhenFull) {
-        this.queue = publishHighwaterMark > 0 ? new LinkedBlockingQueue<NatsMessage>(publishHighwaterMark) : new LinkedBlockingQueue<NatsMessage>();
+    MessageQueue(boolean singleReaderMode, int publishHighwaterMark, boolean discardWhenFull, Duration requestCleanupInterval) {
+        this.queue = publishHighwaterMark > 0 ? new LinkedBlockingQueue<>(publishHighwaterMark) : new LinkedBlockingQueue<>();
         this.discardWhenFull = discardWhenFull;
         this.running = new AtomicInteger(RUNNING);
         this.sizeInBytes = new AtomicLong(0);
         this.length = new AtomicLong(0);
+        this.offerTimeoutMillis = calculateOfferTimeoutMillis(requestCleanupInterval);
 
         // The poisonPill is used to stop poll and accumulate when the queue is stopped
         this.poisonPill = new NatsMessage("_poison", null, EMPTY_BODY);
@@ -67,12 +74,8 @@ class MessageQueue {
         this.singleThreadedReader = singleReaderMode;
     }
 
-    MessageQueue(boolean singleReaderMode) {
-        this(singleReaderMode, 0);
-    }
-
-    MessageQueue(boolean singleReaderMode, int publishHighwaterMark) {
-        this(singleReaderMode, publishHighwaterMark, false);
+    private static long calculateOfferTimeoutMillis(Duration requestCleanupInterval) {
+        return Math.max(1, requestCleanupInterval.toMillis() * 95 / 100);
     }
 
     boolean isSingleReaderMode() {
@@ -143,7 +146,7 @@ class MessageQueue {
 
     boolean offer(NatsMessage msg) {
         try {
-            return this.queue.offer(msg, 5, TimeUnit.SECONDS);
+            return this.queue.offer(msg, offerTimeoutMillis, TimeUnit.MILLISECONDS);
         } catch (InterruptedException ie) {
             return false;
         }

@@ -53,7 +53,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     NatsDispatcher(NatsConnection conn, MessageHandler handler) {
         super(conn);
         this.defaultHandler = handler;
-        this.incoming = new MessageQueue(true);
+        this.incoming = new MessageQueue(true, conn.getOptions().getRequestCleanupInterval());
         this.subscriptionsUsingDefaultHandler = new ConcurrentHashMap<>();
         this.subscriptionsWithHandlers = new ConcurrentHashMap<>();
         this.subscriptionHandlers = new ConcurrentHashMap<>();
