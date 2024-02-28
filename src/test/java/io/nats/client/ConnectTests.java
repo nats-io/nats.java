@@ -22,7 +22,9 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -331,10 +333,40 @@ public class ConnectTests {
 
     @Test
     public void testTimeCheckCoverage() throws Exception {
+        List<String> traces = new ArrayList<>();
+        TimeTraceLogger l = (f, a) -> traces.add(String.format(f, a));
+
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).traceConnection().build();
             assertCanConnect(options);
+
+            options = new Options.Builder().server(ts.getURI()).timeTraceLogger(l).build();
+            assertCanConnect(options);
         }
+
+        int i = 0;
+        assertTrue(traces.get(i++).startsWith("creating connection object"));
+        assertTrue(traces.get(i++).startsWith("creating NUID"));
+        assertTrue(traces.get(i++).startsWith("creating executors"));
+        assertTrue(traces.get(i++).startsWith("creating reader and writer"));
+        assertTrue(traces.get(i++).startsWith("connection object created"));
+        assertTrue(traces.get(i++).startsWith("starting connect loop"));
+        assertTrue(traces.get(i++).startsWith("setting status to connecting"));
+        assertTrue(traces.get(i++).startsWith("trying to connect"));
+        assertTrue(traces.get(i++).startsWith("starting connection attempt"));
+        assertTrue(traces.get(i++).startsWith("waiting for reader"));
+        assertTrue(traces.get(i++).startsWith("waiting for writer"));
+        assertTrue(traces.get(i++).startsWith("cleaning pong queue"));
+        assertTrue(traces.get(i++).startsWith("connecting data port"));
+        assertTrue(traces.get(i++).startsWith("reading info"));
+        assertTrue(traces.get(i++).startsWith("starting reader"));
+        assertTrue(traces.get(i++).startsWith("starting writer"));
+        assertTrue(traces.get(i++).startsWith("sending connect message"));
+        assertTrue(traces.get(i++).startsWith("sending initial ping"));
+        assertTrue(traces.get(i++).startsWith("starting ping and cleanup timers"));
+        assertTrue(traces.get(i++).startsWith("updating status to connected"));
+        assertTrue(traces.get(i++).startsWith("status updated"));
+        assertTrue(traces.get(i).startsWith("connect complete"));
     }
 
     @Test
