@@ -34,6 +34,9 @@ abstract class NatsConsumer implements Consumer {
     private final AtomicReference<CompletableFuture<Boolean>> drainingFuture;
 
     NatsConsumer(NatsConnection conn) {
+        if (conn == null) {
+            throw new IllegalStateException("Connection Required");
+        }
         this.connection = conn;
         this.maxMessages = new AtomicLong(Consumer.DEFAULT_MAX_MESSAGES);
         this.maxBytes = new AtomicLong(Consumer.DEFAULT_MAX_BYTES);

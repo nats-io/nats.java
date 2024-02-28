@@ -14,7 +14,6 @@
 package io.nats.client.impl;
 
 import io.nats.client.Message;
-import io.nats.client.NUID;
 import io.nats.client.PullRequestOptions;
 import io.nats.client.SubscribeOptions;
 
@@ -123,7 +122,6 @@ abstract class MessageManager {
     }
 
     class MmTimerTask extends TimerTask {
-        public String id = new NUID().nextSequence();
         long alarmPeriod;
         final AtomicBoolean alive;
 
@@ -154,7 +152,6 @@ abstract class MessageManager {
         public String toString() {
             long sinceLast = System.currentTimeMillis() - lastMsgReceived.get();
             return "MmTimerTask{" +
-                "id='" + id + '\'' +
                 ", alarmPeriod=" + alarmPeriod +
                 ", alive=" + alive.get() +
                 ", sinceLast=" + sinceLast +

@@ -972,7 +972,12 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         IllegalStateException ise = assertThrows(IllegalStateException.class, njsm::getJetStreamValidatedConnection);
         assertTrue(ise.getMessage().contains("subscription"));
 
-        njsm.subscription = new NatsSubscription("sid", "sub", "q", null, null);
+        // make a dummy connection so we can make a subscription
+        Options options = Options.builder().build();
+        NatsConnection nc = new NatsConnection(options);
+        njsm.subscription = new NatsSubscription("sid", "sub", "q", nc, null);
+        // remove the connection so we can test the coverage
+        njsm.subscription.connection = null;
         ise = assertThrows(IllegalStateException.class, njsm::getJetStreamValidatedConnection);
         assertTrue(ise.getMessage().contains("connection"));
     }
