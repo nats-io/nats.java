@@ -359,19 +359,41 @@ class NatsConnection implements Connection {
     }
 
     long timeCheck(long endNanos, String message) throws TimeoutException {
-        long now = System.nanoTime();
-        long remaining = endNanos - now;
-
+        long remaining = endNanos - System.nanoTime();
         if (trace) {
-            double seconds = ((double)remaining) / NANOS_PER_SECOND;
-            timeTraceLogger.trace(message + ", %.3f (s) remaining", seconds);
+            traceTimeCheck(message, remaining);
         }
-
         if (remaining < 0) {
             throw new TimeoutException("connection timed out");
         }
-
         return remaining;
+    }
+
+    void traceTimeCheck(String message, long remaining) {
+        if (remaining < 0) {
+            if (remaining > -1_000_000) { // less than -1 ms
+                timeTraceLogger.trace(message + String.format(", %d (ns) beyond timeout", -remaining));
+            }
+            else if (remaining > -1_000_000_000) { // less than -1 second
+                long ms = -remaining / 1_000_000;
+                timeTraceLogger.trace(message + String.format(", %d (ms) beyond timeout", ms));
+            }
+            else {
+                double seconds = ((double)-remaining) / 1_000_000_000.0;
+                timeTraceLogger.trace(message + String.format(", %.3f (s) beyond timeout", seconds));
+            }
+        }
+        else if (remaining < 1_000_000) {
+            timeTraceLogger.trace(message + String.format(", %d (ns) remaining", remaining));
+        }
+        else if (remaining < 1_000_000_000) {
+            long ms = remaining / 1_000_000;
+            timeTraceLogger.trace(message + String.format(", %d (ms) remaining", ms));
+        }
+        else {
+            double seconds = ((double) remaining) / 1_000_000_000.0;
+            timeTraceLogger.trace(message + String.format(", %.3f (s) remaining", seconds));
+        }
     }
 
     // is called from reconnect and connect
