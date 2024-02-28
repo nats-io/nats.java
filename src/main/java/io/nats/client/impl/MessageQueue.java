@@ -75,7 +75,7 @@ class MessageQueue {
     }
 
     private static long calculateOfferTimeoutMillis(Duration requestCleanupInterval) {
-        return Math.max(1, requestCleanupInterval.toMillis() * 9 / 10);
+        return Math.max(1, requestCleanupInterval.toMillis() * 95 / 100);
     }
 
     boolean isSingleReaderMode() {
