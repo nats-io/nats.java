@@ -39,6 +39,8 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
         return bytes;
     }
 
+    public boolean isNoWait() { return noWait; }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -90,6 +92,27 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
         public Builder max(int maxBytes, int maxMessages) {
             messages(maxMessages);
             return bytes(maxBytes);
+        }
+
+        /**
+         * Set no wait to true
+         * @return the builder
+         */
+        public Builder noWait() {
+            this.noWait = true;
+            this.expiresIn = 0;
+            return this;
+        }
+
+        /**
+         * Set no wait to true with an expiration, special behavior.
+         * @param expiresInMillis the expiration time in milliseconds
+         * @return the builder
+         */
+        public Builder noWaitExpiresIn(long expiresInMillis) {
+            this.noWait = true;
+            expiresIn(expiresInMillis);
+            return this;
         }
 
         /**
