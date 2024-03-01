@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.api.ConsumerConfiguration;
+
 /**
  * Fetch Consume Options are provided to customize the fetch operation.
  */
@@ -100,7 +102,7 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
          */
         public Builder noWait() {
             this.noWait = true;
-            this.expiresIn = 0;
+            expiresIn = ConsumerConfiguration.LONG_UNSET;
             return this;
         }
 
