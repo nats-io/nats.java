@@ -17,6 +17,7 @@ import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.utils.TestBase;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -28,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
 import static io.nats.client.support.NatsJetStreamConstants.*;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
@@ -748,6 +750,34 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .filterSubject(subjectDot("foo"))
                     .build());
             }
+        });
+    }
+
+    @Test
+    public void testPauseResumeConsumer() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            createMemoryStream(jsm, STREAM, subjectDot(">"));
+
+            List<ConsumerInfo> list = jsm.getConsumers(STREAM);
+            assertEquals(0, list.size());
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().build();
+
+            // durable and name can both be null
+            ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
+            assertNotNull(ci.getName());
+
+            // pause consumer
+            ZonedDateTime pauseUntil = ZonedDateTime.now(ZONE_ID_GMT).plusSeconds(30);
+            ConsumerPauseResponse pauseResponse = jsm.pauseConsumer(STREAM, ci.getName(), pauseUntil);
+            assertTrue(pauseResponse.isPaused());
+            assertEquals(pauseUntil, pauseResponse.getPauseUntil());
+
+            // resume consumer
+            boolean isResumed = jsm.resumeConsumer(STREAM, ci.getName());
+            assertTrue(isResumed);
         });
     }
 
