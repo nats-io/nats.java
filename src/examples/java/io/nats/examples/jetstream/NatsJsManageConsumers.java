@@ -19,11 +19,14 @@ import io.nats.client.JetStreamManagement;
 import io.nats.client.Nats;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
+import io.nats.client.api.ConsumerPauseResponse;
 import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 
+import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
 import static io.nats.examples.jetstream.NatsJsUtils.*;
 
 /**
@@ -82,16 +85,30 @@ public class NatsJsManageConsumers {
             List<String> consumerNames = jsm.getConsumerNames(exArgs.stream);
             printObject(consumerNames);
 
-            // 4. Delete a consumer, then list them again
+            // 4. Pause a consumer
+            System.out.println("\n----------\n4. pauseConsumer");
+            ZonedDateTime pauseUntil = ZonedDateTime.now(ZONE_ID_GMT).plusSeconds(30);
+            ConsumerPauseResponse pauseResponse = jsm.pauseConsumer(exArgs.stream, durable1, pauseUntil);
+            printObject(pauseResponse);
+            ci = jsm.getConsumerInfo(exArgs.stream, durable1);
+            printObject(ci);
+
+            // 5. Resume a (paused) consumer
+            System.out.println("\n----------\n5. resumeConsumer");
+            jsm.resumeConsumer(exArgs.stream, durable1);
+            ci = jsm.getConsumerInfo(exArgs.stream, durable1);
+            printObject(ci);
+
+            // 6. Delete a consumer, then list them again
             // Subsequent calls to deleteStream will throw a
             // JetStreamApiException [10014]
-            System.out.println("\n----------\n3. Delete consumers");
+            System.out.println("\n----------\n6. Delete consumers");
             jsm.deleteConsumer(exArgs.stream, durable1);
             consumerNames = jsm.getConsumerNames(exArgs.stream);
             printObject(consumerNames);
 
-            // 5. Try to delete the consumer again and get the exception
-            System.out.println("\n----------\n5. Delete consumer again");
+            // 7. Try to delete the consumer again and get the exception
+            System.out.println("\n----------\n7. Delete consumer again");
             try
             {
                 jsm.deleteConsumer(exArgs.stream, durable1);
