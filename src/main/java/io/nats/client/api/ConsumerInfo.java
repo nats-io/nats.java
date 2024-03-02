@@ -16,6 +16,7 @@ package io.nats.client.api;
 import io.nats.client.Message;
 import io.nats.client.support.JsonValue;
 
+import java.time.Duration;
 import java.time.ZonedDateTime;
 
 import static io.nats.client.support.ApiConstants.*;
@@ -36,6 +37,8 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
     private final long numWaiting;
     private final long numAckPending;
     private final long numRedelivered;
+    private final boolean paused;
+    private final Duration pauseRemaining;
     private final ClusterInfo clusterInfo;
     private final boolean pushBound;
     private final ZonedDateTime timestamp;
@@ -59,6 +62,8 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
         numRedelivered = readLong(jv, NUM_REDELIVERED, 0);
         numPending = readLong(jv, NUM_PENDING, 0);
         numWaiting = readLong(jv, NUM_WAITING, 0);
+        paused = readBoolean(jv, PAUSED, false);
+        pauseRemaining = readNanos(jv, PAUSE_REMAINING);
 
         clusterInfo = ClusterInfo.optionalInstance(readValue(jv, CLUSTER));
         pushBound = readBoolean(jv, PUSH_BOUND);
@@ -108,6 +113,14 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
 
     public long getRedelivered() {
         return numRedelivered;
+    }
+
+    public boolean getPaused() {
+        return paused;
+    }
+
+    public Duration getPauseRemaining() {
+        return pauseRemaining;
     }
 
     public ClusterInfo getClusterInfo() {

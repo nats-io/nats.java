@@ -145,6 +145,9 @@ public interface ApiConstants {
     String OPT_START_SEQ     = "opt_start_seq";
     String OPT_START_TIME    = "opt_start_time";
     String OPTIONS           = "options";
+    String PAUSED            = "paused";
+    String PAUSE_REMAINING   = "pause_remaining";
+    String PAUSE_UNTIL       = "pause_until";
     String PLACEMENT         = "placement";
     String PORT              = "port";
     String PROCESSING_TIME   = "processing_time";
