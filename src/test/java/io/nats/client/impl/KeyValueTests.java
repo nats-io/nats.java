@@ -548,6 +548,63 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testAtomicDeleteAtomicPurge() throws Exception {
+        jsServer.run(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            // create bucket
+            String bucket = bucket();
+            kvm.create(KeyValueConfiguration.builder()
+                    .name(bucket)
+                    .storageType(StorageType.Memory)
+                    .maxHistoryPerKey(64)
+                    .build());
+
+            KeyValue kv = nc.keyValue(bucket);
+            String key = key();
+            kv.put(key, "a");
+            kv.put(key, "b");
+            kv.put(key, "c");
+            assertEquals(3, kv.get(key).getRevision());
+
+            // Delete wrong revision rejected
+            assertThrows(JetStreamApiException.class, () -> kv.delete(key, 1));
+
+            // Correct revision writes tombstone and bumps revision
+            kv.delete(key, 3);
+
+            assertHistory(Arrays.asList(
+                    kv.get(key, 1L),
+                    kv.get(key, 2L),
+                    kv.get(key, 3L),
+                    KeyValueOperation.DELETE),
+                    kv.history(key));
+
+            // Wrong revision rejected again
+            assertThrows(JetStreamApiException.class, () -> kv.delete(key, 3));
+
+            // Delete is idempotent: two consecutive tombstones
+            kv.delete(key, 4);
+
+            assertHistory(Arrays.asList(
+                    kv.get(key, 1L),
+                    kv.get(key, 2L),
+                    kv.get(key, 3L),
+                    KeyValueOperation.DELETE,
+                    KeyValueOperation.DELETE),
+                    kv.history(key));
+
+            // Purge wrong revision rejected
+            assertThrows(JetStreamApiException.class, () -> kv.purge(key, 1));
+
+            // Correct revision writes roll-up purge tombstone
+            kv.purge(key, 5);
+
+            assertHistory(Arrays.asList(KeyValueOperation.PURGE), kv.history(key));
+        });
+    }
+
+    @Test
     public void testPurgeDeletes() throws Exception {
         jsServer.run(nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();

@@ -139,6 +139,16 @@ public interface KeyValue {
     void delete(String key) throws IOException, JetStreamApiException;
 
     /**
+     * Soft deletes the key by placing a delete marker iff the key exists and its last revision matches the expected
+     * @param key the key
+     * @param expectedRevision the expected last revision
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    void delete(String key, long expectedRevision) throws IOException, JetStreamApiException;
+
+    /**
      * Purge all values/history from the specific key
      * @param key the key
      * @throws IOException covers various communication issues with the NATS
@@ -146,6 +156,16 @@ public interface KeyValue {
      * @throws JetStreamApiException the request had an error related to the data
      */
     void purge(String key) throws IOException, JetStreamApiException;
+
+    /**
+     * Purge all values/history from the specific key iff the key exists and its last revision matches the expected
+     * @param key the key
+     * @param expectedRevision the expected last revision
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    void purge(String key, long expectedRevision) throws IOException, JetStreamApiException;
 
     /**
      * Watch updates for a specific key.
