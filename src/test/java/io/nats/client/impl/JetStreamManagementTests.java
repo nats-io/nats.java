@@ -775,15 +775,15 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertTrue(pauseResponse.isPaused());
             assertEquals(pauseUntil, pauseResponse.getPauseUntil());
 
-            ConsumerInfo consumerInfo = jsm.getConsumerInfo(STREAM, ci.getName());
-            assertTrue(consumerInfo.getPaused());
+            ci = jsm.getConsumerInfo(STREAM, ci.getName());
+            assertTrue(ci.getPaused());
 
             // resume consumer
             boolean isResumed = jsm.resumeConsumer(STREAM, ci.getName());
             assertTrue(isResumed);
 
-            consumerInfo = jsm.getConsumerInfo(STREAM, ci.getName());
-            assertFalse(consumerInfo.getPaused());
+            ci = jsm.getConsumerInfo(STREAM, ci.getName());
+            assertFalse(ci.getPaused());
         });
     }
 
