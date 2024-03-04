@@ -754,6 +754,28 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testAddPausedConsumer() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            createMemoryStream(jsm, STREAM, subjectDot(">"));
+
+            List<ConsumerInfo> list = jsm.getConsumers(STREAM);
+            assertEquals(0, list.size());
+
+            ZonedDateTime pauseUntil = ZonedDateTime.now(ZONE_ID_GMT).plusSeconds(30);
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .pauseUntil(pauseUntil)
+                    .build();
+
+            // Consumer should be paused on creation.
+            ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
+            assertTrue(ci.getPaused());
+            assertEquals(pauseUntil, ci.getConsumerConfiguration().getPauseUntil());
+        });
+    }
+
+    @Test
     public void testPauseResumeConsumer() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
