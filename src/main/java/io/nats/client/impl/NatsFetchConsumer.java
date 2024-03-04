@@ -18,7 +18,11 @@ import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 
+import static io.nats.client.BaseConsumeOptions.MIN_EXPIRES_MILLS;
+import static io.nats.client.BaseConsumeOptions.MIN_NOWAIT_EXPIRES_MILLS;
+
 class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer, PullManagerObserver {
+    private final boolean isNoWait;
     private final long maxWaitNanos;
     private final String pullSubject;
     private long startNanos;
@@ -29,13 +33,22 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
     {
         super(cachedConsumerInfo);
 
+        isNoWait = fetchConsumeOptions.isNoWait();
         long expiresInMillis = fetchConsumeOptions.getExpiresInMillis();
-        maxWaitNanos = expiresInMillis * 1_000_000;
-        long inactiveThreshold = expiresInMillis * 110 / 100; // ten % longer than the wait
+        long inactiveThreshold;
+        if (expiresInMillis <= MIN_NOWAIT_EXPIRES_MILLS ) { // can be for noWait
+            maxWaitNanos = MIN_NOWAIT_EXPIRES_MILLS * 1_000_000;
+            inactiveThreshold = MIN_EXPIRES_MILLS; // no need to do the 10% longer
+        }
+        else {
+            maxWaitNanos = expiresInMillis * 1_000_000;
+            inactiveThreshold = expiresInMillis * 110 / 100; // 10% longer than the wait
+        }
         PullRequestOptions pro = PullRequestOptions.builder(fetchConsumeOptions.getMaxMessages())
             .maxBytes(fetchConsumeOptions.getMaxBytes())
-            .expiresIn(fetchConsumeOptions.getExpiresInMillis())
+            .expiresIn(expiresInMillis)
             .idleHeartbeat(fetchConsumeOptions.getIdleHeartbeat())
+            .noWait(isNoWait)
             .build();
         initSub(subscriptionMaker.subscribe(null, null, null, inactiveThreshold));
         pullSubject = sub._pull(pro, false, this);
@@ -82,7 +95,12 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             // if the timer has run out, don't allow waiting
             // this might happen once, but it should already be noMorePending
             if (timeLeftMillis < 1) {
-                return sub._nextUnmanagedNoWait(pullSubject); // null means don't wait
+                Message m = sub._nextUnmanagedNoWait(pullSubject); // null means don't wait
+                if (m == null && isNoWait) {
+                    finished.set(true);
+                    lenientClose();
+                }
+                return m;
             }
 
             return sub._nextUnmanaged(timeLeftMillis, pullSubject);

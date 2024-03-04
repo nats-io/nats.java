@@ -35,21 +35,21 @@ public class NatsJetStreamMetaData {
     private final long consumerSeq;
     private final ZonedDateTime timestamp;
     private final long pending;
-
     @Override
     public String toString() {
         return "NatsJetStreamMetaData{" +
-                "prefix='" + prefix + '\'' +
-                ", domain='" + domain + '\'' +
-                ", stream='" + stream + '\'' +
-                ", consumer='" + consumer + '\'' +
-                ", delivered=" + delivered +
-                ", streamSeq=" + streamSeq +
-                ", consumerSeq=" + consumerSeq +
-                ", timestamp=" + timestamp +
-                ", pending=" + pending +
-                '}';
+            "prefix='" + prefix + '\'' +
+            ", domain='" + domain + '\'' +
+            ", stream='" + stream + '\'' +
+            ", consumer='" + consumer + '\'' +
+            ", delivered=" + delivered +
+            ", streamSeq=" + streamSeq +
+            ", consumerSeq=" + consumerSeq +
+            ", timestamp=" + timestamp +
+            ", pending=" + pending +
+            '}';
     }
+
 
     /*
     v0 <prefix>.ACK.<stream name>.<consumer name>.<num delivered>.<stream sequence>.<consumer sequence>.<timestamp>
