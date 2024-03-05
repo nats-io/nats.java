@@ -42,11 +42,4 @@ public class ConsumerPauseRequest implements JsonSerializable {
 
         return endJson(sb).toString();
     }
-
-    @Override
-    public String toString() {
-        return "ConsumerPauseRequest{" +
-                "pauseUntil='" + pauseUntil + "'" +
-                '}';
-    }
 }
