@@ -118,6 +118,17 @@ public class NatsJsManageConsumers {
                 System.out.println("Exception was: '" + e.getMessage() + "'");
             }
 
+            // 8. Try to pause a consumer that does not exist, and you will get an exception
+            System.out.println("\n----------\n8. Pause non-existent consumer .");
+            try
+            {
+                jsm.pauseConsumer(exArgs.stream, durable1, ZonedDateTime.now());
+            }
+            catch (JetStreamApiException e)
+            {
+                System.out.println("Exception was: '" + e.getMessage() + "'");
+            }
+
             System.out.println("\n----------");
 
             // delete the stream since we are done with it.
