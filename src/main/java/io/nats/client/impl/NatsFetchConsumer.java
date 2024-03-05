@@ -14,15 +14,16 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 
 import static io.nats.client.BaseConsumeOptions.MIN_EXPIRES_MILLS;
-import static io.nats.client.BaseConsumeOptions.MIN_NOWAIT_EXPIRES_MILLS;
 
 class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer, PullManagerObserver {
     private final boolean isNoWait;
+    private final boolean isNoWaitNoExpires;
     private final long maxWaitNanos;
     private final String pullSubject;
     private long startNanos;
@@ -35,15 +36,18 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
 
         isNoWait = fetchConsumeOptions.isNoWait();
         long expiresInMillis = fetchConsumeOptions.getExpiresInMillis();
+        isNoWaitNoExpires = isNoWait && expiresInMillis == ConsumerConfiguration.LONG_UNSET;
+
         long inactiveThreshold;
-        if (expiresInMillis <= MIN_NOWAIT_EXPIRES_MILLS ) { // can be for noWait
-            maxWaitNanos = MIN_NOWAIT_EXPIRES_MILLS * 1_000_000;
+        if (expiresInMillis == ConsumerConfiguration.LONG_UNSET) { // can be for noWait
+            maxWaitNanos = MIN_EXPIRES_MILLS * 1_000_000;
             inactiveThreshold = MIN_EXPIRES_MILLS; // no need to do the 10% longer
         }
         else {
             maxWaitNanos = expiresInMillis * 1_000_000;
             inactiveThreshold = expiresInMillis * 110 / 100; // 10% longer than the wait
         }
+
         PullRequestOptions pro = PullRequestOptions.builder(fetchConsumeOptions.getMaxMessages())
             .maxBytes(fetchConsumeOptions.getMaxBytes())
             .expiresIn(expiresInMillis)
@@ -78,7 +82,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
                 Message m = sub._nextUnmanagedNoWait(pullSubject);
                 if (m == null) {
                     // if there are no messages in the internal cache AND there are no more pending,
-                    // they all have been read and we can go ahead and close the subscription.
+                    // they all have been read and we can go ahead and finish
                     finished.set(true);
                     lenientClose();
                 }
@@ -96,14 +100,21 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             // this might happen once, but it should already be noMorePending
             if (timeLeftMillis < 1) {
                 Message m = sub._nextUnmanagedNoWait(pullSubject); // null means don't wait
-                if (m == null && isNoWait) {
+                if (m == null) {
+                    // no message and no time left, go ahead and finish
                     finished.set(true);
                     lenientClose();
                 }
                 return m;
             }
 
-            return sub._nextUnmanaged(timeLeftMillis, pullSubject);
+            Message m = sub._nextUnmanaged(timeLeftMillis, pullSubject);
+            if (m == null && isNoWaitNoExpires) {
+                // no message and no wait, go ahead and finish
+                finished.set(true);
+                lenientClose();
+            }
+            return m;
         }
         catch (JetStreamStatusException e) {
             throw new JetStreamStatusCheckedException(e);
