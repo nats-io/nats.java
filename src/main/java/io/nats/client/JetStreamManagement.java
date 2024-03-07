@@ -137,7 +137,7 @@ public interface JetStreamManagement {
      * @param streamName name of the stream
      * @param consumerName the name of the consumer.
      * @param pauseUntil consumer is paused until this time.
-     * @return PauseResponse the pause response
+     * @return ConsumerPauseResponse the pause response
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data, for instance the consumer does not exist.
