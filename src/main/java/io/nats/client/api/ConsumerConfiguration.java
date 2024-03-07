@@ -80,6 +80,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final Integer maxBatch;
     protected final Integer maxBytes;
     protected final Integer numReplicas;
+    protected final ZonedDateTime pauseUntil;
     protected final Boolean flowControl;
     protected final Boolean headersOnly;
     protected final Boolean memStorage;
@@ -110,6 +111,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.maxBatch = cc.maxBatch;
         this.maxBytes = cc.maxBytes;
         this.numReplicas = cc.numReplicas;
+        this.pauseUntil = cc.pauseUntil;
         this.flowControl = cc.flowControl;
         this.headersOnly = cc.headersOnly;
         this.memStorage = cc.memStorage;
@@ -143,6 +145,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         maxBatch = readInteger(v, MAX_BATCH);
         maxBytes = readInteger(v, MAX_BYTES);
         numReplicas = readInteger(v, NUM_REPLICAS);
+        pauseUntil = readDate(v, PAUSE_UNTIL);
 
         flowControl = readBoolean(v, FLOW_CONTROL, null);
         headersOnly = readBoolean(v, HEADERS_ONLY, null);
@@ -187,6 +190,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.maxBatch = b.maxBatch;
         this.maxBytes = b.maxBytes;
         this.numReplicas = b.numReplicas;
+        this.pauseUntil = b.pauseUntil;
 
         this.flowControl = b.flowControl;
         this.headersOnly = b.headersOnly;
@@ -229,6 +233,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         JsonUtils.addFieldAsNanos(sb, INACTIVE_THRESHOLD, inactiveThreshold);
         JsonUtils.addDurations(sb, BACKOFF, backoff);
         JsonUtils.addField(sb, NUM_REPLICAS, numReplicas);
+        JsonUtils.addField(sb, PAUSE_UNTIL, pauseUntil);
         JsonUtils.addField(sb, MEM_STORAGE, memStorage);
         JsonUtils.addField(sb, METADATA, metadata);
         if (filterSubjects != null) {
@@ -486,6 +491,14 @@ public class ConsumerConfiguration implements JsonSerializable {
     public int getNumReplicas() { return getOrUnset(numReplicas); }
 
     /**
+     * Get the time until the consumer is paused.
+     * @return paused until time
+     */
+    public ZonedDateTime getPauseUntil() {
+        return pauseUntil;
+    }
+
+    /**
      * Gets whether deliver policy of this consumer configuration was set or left unset
      * @return true if the policy was set, false if the policy was not set
      */
@@ -663,6 +676,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         private Integer maxBatch;
         private Integer maxBytes;
         private Integer numReplicas;
+        private ZonedDateTime pauseUntil;
 
         private Boolean flowControl;
         private Boolean headersOnly;
@@ -1139,6 +1153,16 @@ public class ConsumerConfiguration implements JsonSerializable {
          */
         public Builder numReplicas(Integer numReplicas) {
             this.numReplicas = numReplicas == null ? null : validateNumberOfReplicas(numReplicas);
+            return this;
+        }
+
+        /**
+         * Sets the time to pause the consumer until.
+         * @param pauseUntil the time to pause
+         * @return Builder
+         */
+        public Builder pauseUntil(ZonedDateTime pauseUntil) {
+            this.pauseUntil = pauseUntil;
             return this;
         }
 
