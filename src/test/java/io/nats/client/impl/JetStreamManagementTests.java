@@ -755,56 +755,59 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testAddPausedConsumer() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(TestBase::atLeast2_11, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
 
-            createMemoryStream(jsm, STREAM, subjectDot(">"));
-
-            List<ConsumerInfo> list = jsm.getConsumers(STREAM);
+            List<ConsumerInfo> list = jsm.getConsumers(tsc.stream);
             assertEquals(0, list.size());
 
-            ZonedDateTime pauseUntil = ZonedDateTime.now(ZONE_ID_GMT).plusSeconds(30);
+            ZonedDateTime pauseUntil = ZonedDateTime.now(ZONE_ID_GMT).plusMinutes(2);
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .durable(tsc.name())
                     .pauseUntil(pauseUntil)
                     .build();
 
             // Consumer should be paused on creation.
-            ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
+            ConsumerInfo ci = jsm.addOrUpdateConsumer(tsc.stream, cc);
             assertTrue(ci.getPaused());
+            assertTrue(ci.getPauseRemaining().toMillis() > 60_000);
             assertEquals(pauseUntil, ci.getConsumerConfiguration().getPauseUntil());
         });
     }
 
     @Test
     public void testPauseResumeConsumer() throws Exception {
-        runInJsServer(nc -> {
+        jsServer.run(TestBase::atLeast2_11, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
 
-            createMemoryStream(jsm, STREAM, subjectDot(">"));
-
-            List<ConsumerInfo> list = jsm.getConsumers(STREAM);
+            List<ConsumerInfo> list = jsm.getConsumers(tsc.stream);
             assertEquals(0, list.size());
 
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().build();
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .durable(tsc.name())
+                    .build();
 
             // durable and name can both be null
-            ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
+            ConsumerInfo ci = jsm.addOrUpdateConsumer(tsc.stream, cc);
             assertNotNull(ci.getName());
 
             // pause consumer
-            ZonedDateTime pauseUntil = ZonedDateTime.now(ZONE_ID_GMT).plusSeconds(30);
-            ConsumerPauseResponse pauseResponse = jsm.pauseConsumer(STREAM, ci.getName(), pauseUntil);
+            ZonedDateTime pauseUntil = ZonedDateTime.now(ZONE_ID_GMT).plusMinutes(2);
+            ConsumerPauseResponse pauseResponse = jsm.pauseConsumer(tsc.stream, ci.getName(), pauseUntil);
             assertTrue(pauseResponse.isPaused());
             assertEquals(pauseUntil, pauseResponse.getPauseUntil());
 
-            ci = jsm.getConsumerInfo(STREAM, ci.getName());
+            ci = jsm.getConsumerInfo(tsc.stream, ci.getName());
             assertTrue(ci.getPaused());
+            assertTrue(ci.getPauseRemaining().toMillis() > 60_000);
 
             // resume consumer
-            boolean isResumed = jsm.resumeConsumer(STREAM, ci.getName());
+            boolean isResumed = jsm.resumeConsumer(tsc.stream, ci.getName());
             assertTrue(isResumed);
 
-            ci = jsm.getConsumerInfo(STREAM, ci.getName());
+            ci = jsm.getConsumerInfo(tsc.stream, ci.getName());
             assertFalse(ci.getPaused());
         });
     }
