@@ -1,0 +1,5 @@
+{
+  "type": "io.nats.jetstream.api.v1.consumer_pause_response",
+  "paused": false,
+  "pause_until": "0001-01-01T00:00:00Z"
+}

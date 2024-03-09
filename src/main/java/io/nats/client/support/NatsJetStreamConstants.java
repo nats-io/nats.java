@@ -38,6 +38,9 @@ public interface NatsJetStreamConstants {
     // JSAPI_CONSUMER_DELETE is used to delete consumers.
     String JSAPI_CONSUMER_DELETE = "CONSUMER.DELETE.%s.%s";
 
+    // JSAPI_CONSUMER_PAUSE is used to pause/resume consumers.
+    String JSAPI_CONSUMER_PAUSE = "CONSUMER.PAUSE.%s.%s";
+
     // JSAPI_CONSUMER_NAMES is used to return a list of consumer names
     String JSAPI_CONSUMER_NAMES = "CONSUMER.NAMES.%s";
 

@@ -19,6 +19,7 @@ import io.nats.client.api.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 import static io.nats.client.support.Validator.*;
@@ -140,6 +141,32 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         String subj = String.format(JSAPI_CONSUMER_DELETE, streamName, consumerName);
         Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ConsumerPauseResponse pauseConsumer(String streamName, String consumerName, ZonedDateTime pauseUntil) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
+        validateNotNull(consumerName, "Consumer Name");
+        String subj = String.format(JSAPI_CONSUMER_PAUSE, streamName, consumerName);
+        ConsumerPauseRequest pauseRequest = new ConsumerPauseRequest(pauseUntil);
+        Message resp = makeRequestResponseRequired(subj, pauseRequest.serialize(), jso.getRequestTimeout());
+        return new ConsumerPauseResponse(resp).throwOnHasError();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean resumeConsumer(String streamName, String consumerName) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
+        validateNotNull(consumerName, "Consumer Name");
+        String subj = String.format(JSAPI_CONSUMER_PAUSE, streamName, consumerName);
+        Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
+        ConsumerPauseResponse response = new ConsumerPauseResponse(resp).throwOnHasError();
+        return !response.isPaused();
     }
 
     /**

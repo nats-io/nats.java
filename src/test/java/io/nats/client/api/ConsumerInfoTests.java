@@ -60,6 +60,8 @@ public class ConsumerInfoTests {
         assertEquals(24, ci.getNumPending());
         assertEquals(42, ci.getNumAckPending());
         assertEquals(42, ci.getRedelivered());
+        assertTrue(ci.getPaused());
+        assertEquals(Duration.ofSeconds(20), ci.getPauseRemaining());
 
         ConsumerConfiguration c = ci.getConsumerConfiguration();
         assertEquals("foo-consumer", c.getDurable());
@@ -69,6 +71,7 @@ public class ConsumerInfoTests {
         assertEquals(Duration.ofSeconds(30), c.getAckWait());
         assertEquals(10, c.getMaxDeliver());
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
+        assertEquals(DateTimeUtils.parseDateTime("2024-03-02T10:43:32.062847087Z"), c.getPauseUntil());
 
         ClusterInfo clusterInfo = ci.getClusterInfo();
         assertNotNull(clusterInfo);

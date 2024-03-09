@@ -28,6 +28,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
+import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
 import static io.nats.client.support.NatsJetStreamConstants.*;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
@@ -748,6 +750,83 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .filterSubject(subjectDot("foo"))
                     .build());
             }
+        });
+    }
+
+    @Test
+    public void testAddPausedConsumer() throws Exception {
+        jsServer.run(TestBase::atLeast2_11, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+
+            List<ConsumerInfo> list = jsm.getConsumers(tsc.stream);
+            assertEquals(0, list.size());
+
+            ZonedDateTime pauseUntil = ZonedDateTime.now(ZONE_ID_GMT).plusMinutes(2);
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .durable(tsc.name())
+                    .pauseUntil(pauseUntil)
+                    .build();
+
+            // Consumer should be paused on creation.
+            ConsumerInfo ci = jsm.addOrUpdateConsumer(tsc.stream, cc);
+            assertTrue(ci.getPaused());
+            assertTrue(ci.getPauseRemaining().toMillis() > 60_000);
+            assertEquals(pauseUntil, ci.getConsumerConfiguration().getPauseUntil());
+        });
+    }
+
+    @Test
+    public void testPauseResumeConsumer() throws Exception {
+        jsServer.run(TestBase::atLeast2_11, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+
+            List<ConsumerInfo> list = jsm.getConsumers(tsc.stream);
+            assertEquals(0, list.size());
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .durable(tsc.name())
+                    .build();
+
+            // durable and name can both be null
+            ConsumerInfo ci = jsm.addOrUpdateConsumer(tsc.stream, cc);
+            assertNotNull(ci.getName());
+
+            // pause consumer
+            ZonedDateTime pauseUntil = ZonedDateTime.now(ZONE_ID_GMT).plusMinutes(2);
+            ConsumerPauseResponse pauseResponse = jsm.pauseConsumer(tsc.stream, ci.getName(), pauseUntil);
+            assertTrue(pauseResponse.isPaused());
+            assertEquals(pauseUntil, pauseResponse.getPauseUntil());
+
+            ci = jsm.getConsumerInfo(tsc.stream, ci.getName());
+            assertTrue(ci.getPaused());
+            assertTrue(ci.getPauseRemaining().toMillis() > 60_000);
+
+            // resume consumer
+            boolean isResumed = jsm.resumeConsumer(tsc.stream, ci.getName());
+            assertTrue(isResumed);
+
+            ci = jsm.getConsumerInfo(tsc.stream, ci.getName());
+            assertFalse(ci.getPaused());
+
+            // pause again
+            pauseResponse = jsm.pauseConsumer(tsc.stream, ci.getName(), pauseUntil);
+            assertTrue(pauseResponse.isPaused());
+            assertEquals(pauseUntil, pauseResponse.getPauseUntil());
+
+            // resume via pause with no date
+            pauseResponse = jsm.pauseConsumer(tsc.stream, ci.getName(), null);
+            assertFalse(pauseResponse.isPaused());
+            assertEquals(DEFAULT_TIME, pauseResponse.getPauseUntil());
+
+            ci = jsm.getConsumerInfo(tsc.stream, ci.getName());
+            assertFalse(ci.getPaused());
+
+            assertThrows(JetStreamApiException.class, () -> jsm.pauseConsumer(stream(), tsc.name(), pauseUntil));
+            assertThrows(JetStreamApiException.class, () -> jsm.pauseConsumer(tsc.stream, name(), pauseUntil));
+            assertThrows(JetStreamApiException.class, () -> jsm.resumeConsumer(stream(), tsc.name()));
+            assertThrows(JetStreamApiException.class, () -> jsm.resumeConsumer(tsc.stream, name()));
         });
     }
 

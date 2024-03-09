@@ -59,6 +59,7 @@ public class ConsumerConfigurationTests extends TestBase {
             .maxBytes(56)
             .maxExpires(77000) // duration
             .numReplicas(5)
+            .pauseUntil(zdt)
             .inactiveThreshold(88000) // duration
             .headersOnly(true)
             .memStorage(true)
@@ -234,6 +235,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(77), c.getMaxExpires());
         assertEquals(Duration.ofSeconds(88), c.getInactiveThreshold());
         assertEquals(5, c.getNumReplicas());
+        assertEquals(zdt, c.getPauseUntil());
         assertTrue(c.isHeadersOnly());
         assertTrue(c.isMemStorage());
         assertTrue(c.deliverPolicyWasSet());
