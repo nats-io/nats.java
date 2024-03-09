@@ -25,10 +25,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class NatsServerPool implements ServerPool {
 
-    private final Object listLock;
+    private final ReentrantLock listLock;
     private List<ServerPoolEntry> entryList;
     private Options options;
     private int maxConnectAttempts;
@@ -37,7 +38,7 @@ public class NatsServerPool implements ServerPool {
     private String defaultScheme;
 
     public NatsServerPool() {
-        listLock = new Object();
+        listLock = new ReentrantLock();
     }
 
     /**
@@ -52,7 +53,8 @@ public class NatsServerPool implements ServerPool {
 
         // 3. Add all the bootstrap to the server list and prepare list for next
         //    FYI bootstrap will always have at least the default url
-        synchronized (listLock) {
+        listLock.lock();
+        try {
             entryList = new ArrayList<>();
             for (NatsUri nuri : options.getNatsServerUris()) {
                 // 1. If item is not found in the list being built, add to the list
@@ -74,6 +76,9 @@ public class NatsServerPool implements ServerPool {
             // 6. prepare list for next
             afterListChanged();
         }
+        finally {
+            listLock.unlock();
+        }
     }
 
     /**
@@ -88,7 +93,8 @@ public class NatsServerPool implements ServerPool {
             return false;
         }
 
-        synchronized (listLock) {
+        listLock.lock();
+        try {
             // 2. Build a list for discovered
             //    - since we'll need the NatsUris later
             //    - and to have a list to use to prune removed gossiped servers
@@ -121,7 +127,7 @@ public class NatsServerPool implements ServerPool {
 
             // 4. Add all left over from the new discovered list
             boolean discoveryContainedUnknowns = false;
-            if (discovered.size() > 0) {
+            if (!discovered.isEmpty()) {
                 discoveryContainedUnknowns = true;
                 for (NatsUri d : discovered) {
                     newEntryList.add(new ServerPoolEntry(d, true));
@@ -136,6 +142,9 @@ public class NatsServerPool implements ServerPool {
 
             // 7.
             return discoveryContainedUnknowns;
+        }
+        finally {
+            listLock.unlock();
         }
     }
 
@@ -164,8 +173,12 @@ public class NatsServerPool implements ServerPool {
 
     @Override
     public NatsUri peekNextServer() {
-        synchronized (listLock) {
-            return entryList.size() > 0 ? entryList.get(0).nuri : null;
+        listLock.lock();
+        try {
+            return entryList.isEmpty() ? null : entryList.get(0).nuri;
+        }
+        finally {
+            listLock.unlock();
         }
     }
 
@@ -173,14 +186,18 @@ public class NatsServerPool implements ServerPool {
     public NatsUri nextServer() {
         // 0. The list is already managed for qualified by connectFailed
         // 1. Get the first item in the list, update it's time, add back to the end of list
-        synchronized (listLock) {
-            if (entryList.size() > 0) {
+        listLock.lock();
+        try {
+            if (!entryList.isEmpty()) {
                 ServerPoolEntry entry = entryList.remove(0);
                 entry.lastAttempt = System.currentTimeMillis();
                 entryList.add(entry);
                 return entry.nuri;
             }
             return null;
+        }
+        finally {
+            listLock.unlock();
         }
     }
 
@@ -205,7 +222,7 @@ public class NatsServerPool implements ServerPool {
         }
 
         // 3. no results, return null.
-        if (results.size() == 0) {
+        if (results.isEmpty()) {
             return null;
         }
 
@@ -222,7 +239,8 @@ public class NatsServerPool implements ServerPool {
         // 2. If we find the server in the list...
         //    2.1. remember it and
         //    2.2. reset failed attempts
-        synchronized (listLock) {
+        listLock.lock();
+        try {
             for (int x = entryList.size() - 1; x >= 0 ; x--) {
                 ServerPoolEntry entry = entryList.get(x);
                 if (entry.nuri.equals(nuri)) {
@@ -232,6 +250,9 @@ public class NatsServerPool implements ServerPool {
                 }
             }
         }
+        finally {
+            listLock.unlock();
+        }
     }
 
     @Override
@@ -240,7 +261,8 @@ public class NatsServerPool implements ServerPool {
         // 2. If we find the server in the list...
         //    2.1. increment failed attempts
         //    2.2. if failed attempts reaches max, remove it from the list
-        synchronized (listLock) {
+        listLock.lock();
+        try {
             for (int x = entryList.size() - 1; x >= 0 ; x--) {
                 ServerPoolEntry entry = entryList.get(x);
                 if (entry.nuri.equals(nuri)) {
@@ -251,16 +273,23 @@ public class NatsServerPool implements ServerPool {
                 }
             }
         }
+        finally {
+            listLock.unlock();
+        }
     }
 
     @Override
     public List<String> getServerList() {
-        synchronized (listLock) {
+        listLock.lock();
+        try {
             List<String> list = new ArrayList<>();
             for (ServerPoolEntry entry : entryList) {
                 list.add(entry.nuri.toString());
             }
             return list;
+        }
+        finally {
+            listLock.unlock();
         }
     }
 

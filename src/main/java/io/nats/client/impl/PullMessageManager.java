@@ -44,7 +44,8 @@ class PullMessageManager extends MessageManager {
 
     @Override
     protected void startPullRequest(String pullSubject, PullRequestOptions pro, boolean raiseStatusWarnings, PullManagerObserver pullManagerObserver) {
-        synchronized (stateChangeLock) {
+        stateChangeLock.lock();
+        try {
             this.raiseStatusWarnings = raiseStatusWarnings;
             this.pullManagerObserver = pullManagerObserver;
             pendingMessages += pro.getBatchSize();
@@ -58,6 +59,9 @@ class PullMessageManager extends MessageManager {
                 shutdownHeartbeatTimer(); // just in case the pull was changed from hb to non-hb
             }
         }
+        finally {
+            stateChangeLock.unlock();
+        }
     }
 
     @Override
@@ -70,7 +74,8 @@ class PullMessageManager extends MessageManager {
     }
 
     private void trackIncoming(int m, long b) {
-        synchronized (stateChangeLock) {
+        stateChangeLock.lock();
+        try {
             // message time used for heartbeat tracking
             updateLastMessageReceived();
 
@@ -88,6 +93,9 @@ class PullMessageManager extends MessageManager {
                     pullManagerObserver.pendingUpdated();
                 }
             }
+        }
+        finally {
+            stateChangeLock.unlock();
         }
     }
 

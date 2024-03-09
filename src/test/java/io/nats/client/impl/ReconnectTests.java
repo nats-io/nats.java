@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -640,15 +641,16 @@ public class ReconnectTests {
             }
         }
     }
-    private static class TestReconnecWaitHandler implements ConnectionListener {
-        int disconnectCount = 0;
 
-        public synchronized int getDisconnectCount() {
-            return disconnectCount;
+    private static class TestReconnecWaitHandler implements ConnectionListener {
+        AtomicInteger disconnectCount = new AtomicInteger();
+
+        public int getDisconnectCount() {
+            return disconnectCount.get();
         }
 
-        private synchronized void incrementDisconnectedCount() {
-            disconnectCount++;
+        private void incrementDisconnectedCount() {
+            disconnectCount.incrementAndGet();
         }
 
         @Override
