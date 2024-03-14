@@ -15,6 +15,8 @@
 
 package io.nats.client;
 
+import java.util.concurrent.locks.ReentrantLock;
+
 import static io.nats.client.support.RandomUtils.*;
 
 /**
@@ -50,6 +52,7 @@ public final class NUID {
     private long inc;
 
     private static final NUID globalNUID;
+    private final ReentrantLock nextLock;
 
     static {
         globalNUID = new NUID();
@@ -69,6 +72,7 @@ public final class NUID {
      *                                   SecureRandom instance.
      */
     public NUID() {
+        nextLock = new ReentrantLock();
         // Generate a cryto random int, 0 <= val < max to seed pseudorandom
         seq = nextLong(PRAND, maxSeq);
         inc = minInc + nextLong(PRAND, maxInc - minInc);
@@ -82,14 +86,14 @@ public final class NUID {
     /**
      * @return the next NUID string from a shared global NUID instance
      */
-    public static synchronized String nextGlobal() {
+    public static String nextGlobal() {
         return globalNUID.next();
     }
 
     /**
      * @return the next sequence portion of the NUID string from a shared global NUID instance
      */
-    public static synchronized String nextGlobalSequence() {
+    public static String nextGlobalSequence() {
         return globalNUID.nextSequence();
     }
 
@@ -98,45 +102,57 @@ public final class NUID {
      *
      * @return the next NUID string from this instance.
      */
-    public synchronized String next() {
-        // Increment and capture.
-        seq += inc;
-        if (seq >= maxSeq) {
-            randomizePrefix();
-            resetSequential();
-        }
+    public String next() {
+        nextLock.lock();
+        try {
+            // Increment and capture.
+            seq += inc;
+            if (seq >= maxSeq) {
+                randomizePrefix();
+                resetSequential();
+            }
 
-        // Copy prefix
-        char[] b = new char[totalLen];
-        System.arraycopy(pre, 0, b, 0, preLen);
+            // Copy prefix
+            char[] b = new char[totalLen];
+            System.arraycopy(pre, 0, b, 0, preLen);
 
-        // copy in the seq
-        int i = b.length;
-        for (long l = seq; i > preLen; l /= base) {
-            b[--i] = digits[(int) (l % base)];
+            // copy in the seq
+            int i = b.length;
+            for (long l = seq; i > preLen; l /= base) {
+                b[--i] = digits[(int) (l % base)];
+            }
+            return new String(b);
         }
-        return new String(b);
+        finally {
+            nextLock.unlock();
+        }
     }
 
     /**
      * Generate the next NUID string from this instance and return only the sequence portion.
      * @return the next sequence portion of the NUID string from a shared global NUID instance
      */
-    public synchronized String nextSequence() {
-        // Increment and capture.
-        seq += inc;
-        if (seq >= maxSeq) {
-            randomizePrefix();
-            resetSequential();
-        }
+    public String nextSequence() {
+        nextLock.lock();
+        try {
+            // Increment and capture.
+            seq += inc;
+            if (seq >= maxSeq) {
+                randomizePrefix();
+                resetSequential();
+            }
 
-        char[] b = new char[seqLen];
-        // copy in the seq
-        int ix = seqLen;
-        for (long l = seq; ix > 0; l /= base) {
-            b[--ix] = digits[(int) (l % base)];
+            char[] b = new char[seqLen];
+            // copy in the seq
+            int ix = seqLen;
+            for (long l = seq; ix > 0; l /= base) {
+                b[--ix] = digits[(int) (l % base)];
+            }
+            return new String(b);
         }
-        return new String(b);
+        finally {
+            nextLock.unlock();
+        }
     }
 
     // Resets the sequential portion of the NUID

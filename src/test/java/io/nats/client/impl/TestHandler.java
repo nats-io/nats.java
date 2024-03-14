@@ -283,16 +283,24 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         System.out.println("[" + System.currentTimeMillis() + " TestHander." + func + "] " + message);
     }
 
-    private final Object listLock = new Object();
+    private final ReentrantLock listLock = new ReentrantLock();
     private <T> List<T> copy(List<T> list) {
-        synchronized (listLock) {
+        listLock.lock();
+        try {
             return new ArrayList<>(list);
+        }
+        finally {
+            listLock.unlock();
         }
     }
 
     private <T> void add(List<T> list, T t) {
-        synchronized (listLock) {
+        listLock.lock();
+        try {
             list.add(t);
+        }
+        finally {
+            listLock.unlock();
         }
     }
 
