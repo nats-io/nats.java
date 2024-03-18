@@ -27,7 +27,7 @@ class NatsStreamContext implements StreamContext {
     final NatsJetStream js;
     final NatsJetStreamManagement jsm;
 
-    // for when this is contructed from the NatsJetStream itself
+    // for when this is constructed from the NatsJetStream itself
     NatsStreamContext(String streamName, NatsJetStream js, NatsConnection connection, JetStreamOptions jsOptions) throws IOException, JetStreamApiException {
         this.streamName = streamName;
         this.js = js == null ? new NatsJetStream(connection, jsOptions) : js;
