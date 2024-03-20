@@ -71,6 +71,7 @@ public class NatsFeatureBase {
 
     protected void visitSubject(String subject, DeliverPolicy deliverPolicy, boolean headersOnly, boolean ordered, MessageHandler handler) throws IOException, JetStreamApiException, InterruptedException {
         PushSubscribeOptions pso = PushSubscribeOptions.builder()
+            .stream(streamName)
             .ordered(ordered)
             .configuration(
                 ConsumerConfiguration.builder()
