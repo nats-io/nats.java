@@ -16,18 +16,14 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.support.Status;
 
-import java.util.logging.Logger;
-
-public class ErrorListenerLoggerImpl implements ErrorListener {
-
-    private final static Logger LOGGER = Logger.getLogger(ErrorListenerLoggerImpl.class.getName());
+public class ErrorListenerConsoleImpl implements ErrorListener {
 
     /**
      * {@inheritDoc}
      */
     @Override
     public void errorOccurred(final Connection conn, final String error) {
-        LOGGER.severe(() -> supplyMessage("errorOccurred", conn, null, null, "Error: ", error));
+        System.out.println(supplyMessage("[SEVERE] errorOccurred", conn, null, null, "Error: ", error));
     }
 
     /**
@@ -35,7 +31,7 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void exceptionOccurred(final Connection conn, final Exception exp) {
-        LOGGER.severe(() -> supplyMessage("exceptionOccurred", conn, null, null, "Exception: ", exp));
+        System.out.println(supplyMessage("[SEVERE] exceptionOccurred", conn, null, null, "Exception: ", exp));
     }
 
     /**
@@ -43,7 +39,7 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void slowConsumerDetected(final Connection conn, final Consumer consumer) {
-        LOGGER.warning(() -> supplyMessage("slowConsumerDetected", conn, consumer, null));
+        System.out.println(supplyMessage("[WARN] slowConsumerDetected", conn, consumer, null));
     }
 
     /**
@@ -51,7 +47,7 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void messageDiscarded(final Connection conn, final Message msg) {
-        LOGGER.info(() -> supplyMessage("messageDiscarded", conn, null, null, "Message: ", msg));
+        System.out.println(supplyMessage("[INFO] messageDiscarded", conn, null, null, "Message: ", msg));
     }
 
     /**
@@ -60,7 +56,7 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
     @Override
     public void heartbeatAlarm(final Connection conn, final JetStreamSubscription sub,
                                final long lastStreamSequence, final long lastConsumerSequence) {
-        LOGGER.severe(() -> supplyMessage("heartbeatAlarm", conn, null, sub, "lastStreamSequence: ", lastStreamSequence, "lastConsumerSequence: ", lastConsumerSequence));
+        System.out.println(supplyMessage("[SEVERE] heartbeatAlarm", conn, null, sub, "lastStreamSequence: ", lastStreamSequence, "lastConsumerSequence: ", lastConsumerSequence));
     }
 
     /**
@@ -68,7 +64,7 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void unhandledStatus(final Connection conn, final JetStreamSubscription sub, final Status status) {
-        LOGGER.warning(() -> supplyMessage("unhandledStatus", conn, null, sub, "Status:", status));
+        System.out.println(supplyMessage("[WARN] unhandledStatus", conn, null, sub, "Status: ", status));
     }
 
     /**
@@ -76,7 +72,7 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {
-        LOGGER.warning(() -> supplyMessage("pullStatusWarning", conn, null, sub, "Status:", status));
+        System.out.println(supplyMessage("[WARN] pullStatusWarning", conn, null, sub, "Status: ", status));
     }
 
     /**
@@ -84,7 +80,7 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void pullStatusError(Connection conn, JetStreamSubscription sub, Status status) {
-        LOGGER.severe(() -> supplyMessage("pullStatusError", conn, null, sub, "Status:", status));
+        System.out.println(supplyMessage("[SEVERE] pullStatusError", conn, null, sub, "Status: ", status));
     }
 
     /**
@@ -92,7 +88,7 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String id, FlowControlSource source) {
-        LOGGER.info(() -> supplyMessage("flowControlProcessed", conn, null, sub, "FlowControlSource:", source));
+        System.out.println(supplyMessage("[INFO] flowControlProcessed", conn, null, sub, "FlowControlSource: ", source));
     }
 
     /**
@@ -100,6 +96,6 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void socketWriteTimeout(Connection conn) {
-        LOGGER.severe(() -> supplyMessage("socketWriteTimeout", conn, null, null));
+        System.out.println(supplyMessage("[SEVERE] socketWriteTimeout", conn, null, null));
     }
 }

@@ -66,8 +66,8 @@ class NatsConnection implements Connection {
     private CompletableFuture<Boolean> reconnectWaiter;
     private final HashMap<NatsUri, String> serverAuthErrors;
 
-    private final NatsConnectionReader reader;
-    private final NatsConnectionWriter writer;
+    private NatsConnectionReader reader;
+    private NatsConnectionWriter writer;
 
     private final AtomicReference<ServerInfo> serverInfo;
 
@@ -259,6 +259,15 @@ class NatsConnection implements Connection {
         }
     }
 
+    @Override
+    public void forceReconnect() throws IOException, InterruptedException {
+        updateStatus(Status.DISCONNECTED);
+        reader.stop();
+        writer.stop();
+        writer = new NatsConnectionWriter(writer);
+        reconnect();
+    }
+
     // Reconnect can only be called when the connection is disconnected
     void reconnect() throws InterruptedException {
         if (isClosed()) {
@@ -425,9 +434,13 @@ class NatsConnection implements Connection {
 
             // Make sure the reader and writer are stopped
             long timeoutNanos = timeCheck(end, "waiting for reader");
-            this.reader.stop().get(timeoutNanos, TimeUnit.NANOSECONDS);
+            if (reader.isRunning()) {
+                this.reader.stop().get(timeoutNanos, TimeUnit.NANOSECONDS);
+            }
             timeoutNanos = timeCheck(end, "waiting for writer");
-            this.writer.stop().get(timeoutNanos, TimeUnit.NANOSECONDS);
+            if (writer.isRunning()) {
+                this.writer.stop().get(timeoutNanos, TimeUnit.NANOSECONDS);
+            }
 
             timeCheck(end, "cleaning pong queue");
             cleanUpPongQueue();
@@ -619,7 +632,7 @@ class NatsConnection implements Connection {
     }
 
     // Close socket is called when another connect attempt is possible
-    // Close is called when the connection should shutdown, period
+    // Close is called when the connection should shut down, period
     void closeSocket(boolean tryReconnectIfConnected) throws InterruptedException {
         // Ensure we close the socket exclusively within one thread.
         closeSocketLock.lock();
@@ -653,7 +666,7 @@ class NatsConnection implements Connection {
                 statusLock.unlock();
             }
 
-            if (isClosing()) { // Bit of a misname, but closing means we are in the close method or were asked to be
+            if (isClosing()) { // isClosing() means we are in the close method or were asked to be
                 close();
             } else if (wasConnected && tryReconnectIfConnected) {
                 reconnect();
@@ -794,7 +807,6 @@ class NatsConnection implements Connection {
         } catch (Exception ex) {
             processException(ex);
         }
-
     }
 
     void cleanUpPongQueue() {

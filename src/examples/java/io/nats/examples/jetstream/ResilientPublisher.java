@@ -15,11 +15,14 @@ package io.nats.examples.jetstream;
 
 import io.nats.client.*;
 import io.nats.client.api.MessageInfo;
+import io.nats.client.api.PublishAck;
 import io.nats.client.api.StorageType;
+import io.nats.client.impl.ErrorListenerConsoleImpl;
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
@@ -36,10 +39,29 @@ import static io.nats.examples.jetstream.NatsJsUtils.report;
  */
 public class ResilientPublisher implements Runnable {
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect()) {
+        Options options = Options.builder()
+            .socketWriteTimeout(20_000)
+            .connectionListener((conn, type) -> System.out.println(type))
+            .errorListener(new ErrorListenerConsoleImpl())
+            .build();
+        try (Connection nc = Nats.connect(options)) {
+
+// JetStream PUBLISHER EXAMPLE
             JetStreamManagement jsm = nc.jetStreamManagement();
-            createOrReplaceStream(jsm, "stream", StorageType.Memory, "subject");
-            ResilientPublisher rp = newInstanceReportingAndDelay(jsm, "stream", "subject", "prefix", 100, 1000);
+            createOrReplaceStream(jsm, "js-stream", StorageType.Memory, "js-subject");
+            ResilientPublisher rp = new ResilientPublisher(nc, jsm, "js-stream", "js-subject")
+                .basicDataPrefix("data")
+                .delay(1)
+                .reportFrequency(1000);
+// END JetStream PUBLISHER EXAMPLE
+
+// CORE PUBLISHER EXAMPLE
+//            ResilientPublisher rp = new ResilientPublisher(nc, "core-subject")
+//                .basicDataPrefix("data")
+//                .delay(1)
+//                .reportFrequency(1000);
+// END CORE PUBLISHER EXAMPLE
+
             Thread t = new Thread(rp);
             t.start();
             t.join();
@@ -49,48 +71,104 @@ public class ResilientPublisher implements Runnable {
         }
     }
 
-    public static ResilientPublisher newInstanceReportingAndDelay(JetStreamManagement jsm, String stream, String subject, String prefix, long delay, long reportFrequency) {
-        return new ResilientPublisher(jsm, stream, subject, prefix, -1, delay, reportFrequency);
-    }
-
-    public static ResilientPublisher newInstanceReportingAndJitter(JetStreamManagement jsm, String stream, String subject, String prefix, long jitter, long reportFrequency) {
-        return new ResilientPublisher(jsm, stream, subject, prefix, jitter, -1, reportFrequency);
-    }
-
-    public static ResilientPublisher newInstanceQuietAndDelay(JetStreamManagement jsm, String stream, String subject, String prefix, long delay) {
-        return new ResilientPublisher(jsm, stream, subject, prefix, -1, delay, null);
-    }
-
-    public static ResilientPublisher newInstanceQuietAndJitter(JetStreamManagement jsm, String stream, String subject, String prefix, long jitter) {
-        return new ResilientPublisher(jsm, stream, subject, prefix, jitter, -1, null);
-    }
-
+    private final Connection nc;
     private final JetStreamManagement jsm;
     private final JetStream js;
     private final String stream;
     private final String subject;
-    private final String prefix;
-    private final long jitter;
-    private final long delay;
-    private final boolean reporting;
-    private final Long reportFrequency;
-    private final AtomicBoolean keepGoing = new AtomicBoolean(true);
     private final AtomicLong lastPub;
-    private final Function<Long, byte[]> dataProvider;
+    private final AtomicBoolean keepGoing;
 
-    public ResilientPublisher(JetStreamManagement jsm, String stream, String subject, String prefix, long jitter, long delay, Long reportFrequency) {
-        this.jsm = jsm;
-        js = jsm.jetStream();
-        this.stream = stream;
+    private boolean expectationCheck;
+    private long jitter;
+    private long delay;
+    private boolean reporting;
+    private long reportFrequency;
+    private Function<Long, byte[]> dataProvider;
+    private java.util.function.BiConsumer<Connection, Long> beforePublish;
+    private java.util.function.BiConsumer<Connection, PublishAck> afterPublish;
+    private java.util.function.BiConsumer<Connection, Long> publishReporter;
+    private java.util.function.BiConsumer<Connection, Exception> exceptionReporter;
+
+    public ResilientPublisher(Connection nc, String subject) {
+        this(nc, null, null, subject);
+    }
+
+    public ResilientPublisher(Connection nc, JetStreamManagement jsm, String stream, String subject) {
+        this.nc = nc;
+        if (jsm == null) {
+            this.jsm = null;
+            js = null;
+            this.stream = null;
+        }
+        else {
+            this.jsm = jsm;
+            js = jsm.jetStream();
+            this.stream = stream;
+        }
         this.subject = subject;
-        this.prefix = prefix;
-        this.jitter = jitter;
-        this.delay = delay;
-        this.reporting = reportFrequency != null;
-        this.reportFrequency = reportFrequency;
         lastPub = new AtomicLong();
+        keepGoing = new AtomicBoolean(true);
+        basicDataPrefix(null);
+        beforePublish(null);
+        afterPublish(null);
+        publishReporter(null);
+        exceptionReporter(null);
+    }
 
+    public ResilientPublisher expectationCheck(boolean expectationCheck) {
+        this.expectationCheck = expectationCheck;
+        return this;
+    }
+
+    public ResilientPublisher jitter(long jitter) {
+        this.jitter = jitter;
+        return this;
+    }
+
+    public ResilientPublisher delay(long delay) {
+        this.delay = delay;
+        return this;
+    }
+
+    public ResilientPublisher reportFrequency(long reportFrequency) {
+        this.reportFrequency = reportFrequency;
+        reporting = reportFrequency > 0;
+        return this;
+    }
+
+    public ResilientPublisher basicDataPrefix(String prefix) {
         dataProvider = prefix == null ? l -> null : l -> (prefix + "-" + l).getBytes();
+        return this;
+    }
+
+    public ResilientPublisher dataProvider(Function<Long, byte[]> dataProvider) {
+        this.dataProvider = dataProvider == null ? l -> null : dataProvider;
+        return this;
+    }
+
+    public ResilientPublisher beforePublish(BiConsumer<Connection, Long> beforePublish) {
+        this.beforePublish = beforePublish == null ? (c, l) -> {} : beforePublish;
+        return this;
+    }
+
+    public ResilientPublisher afterPublish(BiConsumer<Connection, PublishAck> afterPublish) {
+        this.afterPublish = afterPublish == null ? (c, l) -> {} : afterPublish;
+        return this;
+    }
+
+    public ResilientPublisher publishReporter(BiConsumer<Connection, Long> publishReporter) {
+        this.publishReporter = publishReporter == null
+            ? (c, l) -> report("Published Id: " + l)
+            : publishReporter;
+        return this;
+    }
+
+    public ResilientPublisher exceptionReporter(BiConsumer<Connection, Exception> exceptionReporter) {
+        this.exceptionReporter = exceptionReporter == null
+            ? (c, e) -> report("Publish Exception: " + e)
+            : exceptionReporter;
+        return this;
     }
 
     public void stop() {
@@ -103,7 +181,7 @@ public class ResilientPublisher implements Runnable {
 
     @Override
     public void run() {
-        boolean lastWasOk = false;
+        Exception lastEx = null;
         long reportAt = 0;
         while (keepGoing.get()) {
             try {
@@ -119,21 +197,32 @@ public class ResilientPublisher implements Runnable {
                 // it's possible that the publish was not recorded
                 // but we won't find out until the next round
                 // at which time we will get the 10071
-                PublishOptions po = PublishOptions.builder()
-                    .expectedLastSequence(lastPub.get())
-                    .build();
-                js.publish(subject, dataProvider.apply(lastPub.incrementAndGet()), po);
+                long lastPubId = lastPub.get();
+                long pubId = lastPub.incrementAndGet();
+
+                beforePublish.accept(nc, pubId);
+                if (js == null) {
+                    nc.publish(subject, dataProvider.apply(pubId));
+                }
+                else {
+                    PublishOptions po = expectationCheck
+                        ? PublishOptions.builder().expectedLastSequence(lastPubId).build()
+                        : null;
+                    PublishAck pa = js.publish(subject, dataProvider.apply(pubId), po);
+                    afterPublish.accept(nc, pa);
+                }
 
                 if (reporting) {
-                    if (!lastWasOk || System.currentTimeMillis() > reportAt) {
-                        report("Published Sequence: " + lastPub.get());
+                    if (lastEx != null || System.currentTimeMillis() > reportAt) {
+                        publishReporter.accept(nc, pubId);
                         reportAt = System.currentTimeMillis() + reportFrequency;
                     }
                 }
 
-                lastWasOk = true;
+                lastEx = null;
             }
             catch (Exception e) {
+                boolean diff = lastEx == null;
                 if (e instanceof JetStreamApiException) {
                     JetStreamApiException j = (JetStreamApiException)e;
                     if (j.getApiErrorCode() == 10071) {
@@ -145,12 +234,18 @@ public class ResilientPublisher implements Runnable {
                             // ignore, it will happen again!
                         }
                     }
+                    if (!diff && lastEx instanceof JetStreamApiException) {
+                        diff = j.getApiErrorCode() != ((JetStreamApiException)lastEx).getApiErrorCode();
+                    }
                 }
-                if (lastWasOk || System.currentTimeMillis() > reportAt) {
-                    report("Publish Exception: " + e);
+                if (!diff && lastEx.getClass().getSimpleName().equals(e.getClass().getSimpleName())){
+                    diff = true;
+                }
+                if (diff || System.currentTimeMillis() > reportAt) {
+                    exceptionReporter.accept(nc, e);
                     reportAt = System.currentTimeMillis() + reportFrequency;
                 }
-                lastWasOk = false;
+                lastEx = e;
             }
         }
     }

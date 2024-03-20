@@ -75,6 +75,27 @@ class NatsConnectionWriter implements Runnable {
         reconnectBufferSize = options.getReconnectBufferSize();
     }
 
+    NatsConnectionWriter(NatsConnectionWriter sourceWriter) {
+        this.connection = sourceWriter.connection;
+        writerLock = new ReentrantLock();
+
+        this.running = new AtomicBoolean(false);
+        this.reconnectMode = new AtomicBoolean(false);
+        this.startStopLock = new ReentrantLock();
+        this.stopped = new CompletableFuture<>();
+        ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
+
+        int sbl = sourceWriter.sendBufferLength.get();
+        sendBufferLength = new AtomicInteger();
+        sendBuffer = new byte[sbl];
+
+        outgoing = new MessageQueue(sourceWriter.outgoing);
+
+        // The "reconnect" buffer contains internal messages, and we will keep it unlimited in size
+        reconnectOutgoing = new MessageQueue(sourceWriter.reconnectOutgoing);
+        reconnectBufferSize = sourceWriter.reconnectBufferSize;
+    }
+
     // Should only be called if the current thread has exited.
     // Use the Future from stop() to determine if it is ok to call this.
     // This method resets that future so mistiming can result in badness.
@@ -95,21 +116,28 @@ class NatsConnectionWriter implements Runnable {
     // Returns a future that is completed when the thread completes, not when this
     // method does.
     Future<Boolean> stop() {
-        this.running.set(false);
-        this.startStopLock.lock();
-        try {
-            this.outgoing.pause();
-            this.reconnectOutgoing.pause();
-            // Clear old ping/pong requests
-            this.outgoing.filter((msg) ->
-                msg.isProtocol() &&
-                    (msg.protocolBab.equals(OP_PING_BYTES) || msg.protocolBab.equals(OP_PONG_BYTES)));
+        if (running.get()) {
+            running.set(false);
+            startStopLock.lock();
+            try {
+                this.outgoing.pause();
+                this.reconnectOutgoing.pause();
+                // Clear old ping/pong requests
+                this.outgoing.filter((msg) ->
+                    msg.isProtocol() &&
+                        (msg.protocolBab.equals(OP_PING_BYTES) || msg.protocolBab.equals(OP_PONG_BYTES)));
 
-        } finally {
-            this.startStopLock.unlock();
+            }
+            finally {
+                this.startStopLock.unlock();
+            }
         }
 
         return this.stopped;
+    }
+
+    boolean isRunning() {
+        return running.get();
     }
 
     void sendMessageBatch(NatsMessage msg, DataPort dataPort, StatisticsCollector stats) throws IOException {
@@ -194,7 +222,10 @@ class NatsConnectionWriter implements Runnable {
                 sendMessageBatch(msg, dataPort, stats);
             }
         } catch (IOException | BufferOverflowException io) {
-            this.connection.handleCommunicationIssue(io);
+            // if already not running, an IOE is not unreasonable in a transition state
+            if (running.get()) {
+                this.connection.handleCommunicationIssue(io);
+            }
         } catch (CancellationException | ExecutionException | InterruptedException ex) {
             // Exit
         } finally {

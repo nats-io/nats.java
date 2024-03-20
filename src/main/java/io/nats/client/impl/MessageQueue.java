@@ -33,11 +33,13 @@ class MessageQueue {
     protected final AtomicLong length;
     protected final AtomicLong sizeInBytes;
     protected final AtomicInteger running;
-    protected final boolean singleThreadedReader;
+    protected final boolean singleReaderMode;
     protected final LinkedBlockingQueue<NatsMessage> queue;
     protected final Lock filterLock;
+    protected final int publishHighwaterMark;
     protected final boolean discardWhenFull;
     protected final long offerTimeoutMillis;
+    protected final Duration requestCleanupInterval;
 
     // Poison pill is a graphic, but common term for an item that breaks loops or stop something.
     // In this class the poisonPill is used to break out of timed waits on the blocking queue.
@@ -59,6 +61,7 @@ class MessageQueue {
      * @param requestCleanupInterval is used to figure the offerTimeoutMillis
      */
     MessageQueue(boolean singleReaderMode, int publishHighwaterMark, boolean discardWhenFull, Duration requestCleanupInterval) {
+        this.publishHighwaterMark = publishHighwaterMark;
         this.queue = publishHighwaterMark > 0 ? new LinkedBlockingQueue<>(publishHighwaterMark) : new LinkedBlockingQueue<>();
         this.discardWhenFull = discardWhenFull;
         this.running = new AtomicInteger(RUNNING);
@@ -71,7 +74,14 @@ class MessageQueue {
 
         this.filterLock = new ReentrantLock();
         
-        this.singleThreadedReader = singleReaderMode;
+        this.singleReaderMode = singleReaderMode;
+        this.requestCleanupInterval = requestCleanupInterval;
+    }
+
+    MessageQueue(MessageQueue source) {
+        this(source.singleReaderMode, source.publishHighwaterMark, source.discardWhenFull, source.requestCleanupInterval);
+        source.queue.drainTo(queue);
+        length.set(queue.size());
     }
 
     private static long calculateOfferTimeoutMillis(Duration requestCleanupInterval) {
@@ -79,7 +89,7 @@ class MessageQueue {
     }
 
     boolean isSingleReaderMode() {
-        return singleThreadedReader;
+        return singleReaderMode;
     }
 
     boolean isRunning() {
@@ -210,7 +220,7 @@ class MessageQueue {
     NatsMessage accumulate(long maxSize, long maxMessages, Duration timeout)
             throws InterruptedException {
 
-        if (!this.singleThreadedReader) {
+        if (!this.singleReaderMode) {
             throw new IllegalStateException("Accumulate is only supported in single reader mode.");
         }
 
