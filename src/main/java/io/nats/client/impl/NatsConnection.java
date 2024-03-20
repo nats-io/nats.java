@@ -261,10 +261,16 @@ class NatsConnection implements Connection {
 
     @Override
     public void forceReconnect() throws IOException, InterruptedException {
-        updateStatus(Status.DISCONNECTED);
-        reader.stop();
-        writer.stop();
-        writer = new NatsConnectionWriter(writer);
+        closeSocketLock.lock();
+        try {
+            updateStatus(Status.DISCONNECTED);
+            reader.stop();
+            writer.stop();
+            writer = new NatsConnectionWriter(writer);
+        }
+        finally {
+            closeSocketLock.unlock();
+        }
         reconnect();
     }
 
