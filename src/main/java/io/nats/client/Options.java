@@ -1935,7 +1935,7 @@ public class Options {
         else {
             dp = (DataPort) Options.createInstanceOf(dataPortType);
         }
-        dp.afterContruct(this);
+        dp.afterConstruct(this);
         return dp;
     }
 

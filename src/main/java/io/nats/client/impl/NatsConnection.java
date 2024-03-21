@@ -66,7 +66,7 @@ class NatsConnection implements Connection {
     private CompletableFuture<Boolean> reconnectWaiter;
     private final HashMap<NatsUri, String> serverAuthErrors;
 
-    private NatsConnectionReader reader;
+    private final NatsConnectionReader reader;
     private NatsConnectionWriter writer;
 
     private final AtomicReference<ServerInfo> serverInfo;

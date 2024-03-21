@@ -51,7 +51,7 @@ public class SocketDataPortBlockSimulator extends SocketDataPort {
     }
 
     @Override
-    public void afterContruct(Options options) {
+    public void afterConstruct(Options options) {
         long writeTimeoutMillis;
         if (options.getSocketWriteTimeout() == null) {
             writeTimeoutMillis = Options.DEFAULT_SOCKET_WRITE_TIMEOUT.toMillis();

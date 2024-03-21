@@ -30,7 +30,7 @@ public interface DataPort {
         connect(uri.toString(), conn, timeoutNanos);
     }
 
-    default void afterContruct(Options options) {}
+    default void afterConstruct(Options options) {}
 
     /**
      * Upgrade the port to SSL. If it is already secured, this is a no-op.
