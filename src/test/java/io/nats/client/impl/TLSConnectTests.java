@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
 import java.time.Duration;
 import java.util.Properties;
 import java.util.concurrent.Future;
@@ -65,17 +67,17 @@ public class TLSConnectTests {
         return new Options.Builder()
             .server(servers)
             .maxReconnects(0)
-            .sslContextFactory(new TestSSLContextFactory())
+            .sslContextFactory(new SSLContextFactoryForTesting())
             .build();
     }
 
     private static Options createTestOptionsViaFactoryClassName(String servers) {
         Properties properties = new Properties();
-        properties.setProperty(PROP_SSL_CONTEXT_FACTORY_CLASS, TestSSLContextFactory.class.getCanonicalName());
+        properties.setProperty(PROP_SSL_CONTEXT_FACTORY_CLASS, SSLContextFactoryForTesting.class.getCanonicalName());
         return new Options.Builder(properties)
             .server(servers)
             .maxReconnects(0)
-            .sslContextFactory(new TestSSLContextFactory())
+            .sslContextFactory(new SSLContextFactoryForTesting())
             .build();
     }
 
@@ -284,14 +286,14 @@ public class TLSConnectTests {
                     reconnectWait(Duration.ofMillis(10)).
                     build();
             nc = standardConnection(options);
-            assertTrue(((NatsConnection)nc).getDataPort() instanceof SocketDataPort, "Correct data port class");
+            assertInstanceOf(SocketDataPort.class, ((NatsConnection) nc).getDataPort(), "Correct data port class");
             handler.prepForStatusChange(Events.DISCONNECTED);
         }
 
         flushAndWaitLong(nc, handler);
         handler.prepForStatusChange(Events.RESUBSCRIBED);
 
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", newPort, false)) {
+        try (NatsTestServer ignored = new NatsTestServer("src/test/resources/tlsverify.conf", newPort, false)) {
             standardConnectionWait(nc, handler, 10000);
         }
 
@@ -347,15 +349,9 @@ public class TLSConnectTests {
         AtomicReference<Exception> listenedException = new AtomicReference<>();
         ErrorListener el = new ErrorListener() {
             @Override
-            public void errorOccurred(Connection conn, String error) {}
-
-            @Override
             public void exceptionOccurred(Connection conn, Exception exp) {
                 listenedException.set(exp);
             }
-
-            @Override
-            public void slowConsumerDetected(Connection conn, Consumer consumer) {}
         };
 
         assertThrows(IOException.class, () -> {
@@ -373,6 +369,32 @@ public class TLSConnectTests {
 
         Exception e = listenedException.get();
         assertNotNull(e);
-        assertTrue(e.getCause().getCause() instanceof java.security.cert.CertificateException);
+        assertInstanceOf(CertificateException.class, e.getCause().getCause());
+    }
+
+    @Test
+    public void testSSLContextFactoryPropertiesPassOnCorrectly() throws NoSuchAlgorithmException {
+        SSLContextFactoryForTesting factory = new SSLContextFactoryForTesting();
+        new Options.Builder()
+            .sslContextFactory(factory)
+            .keystorePath("keystorePath")
+            .keystorePassword("ksp".toCharArray())
+            .truststorePath("truststorePath")
+            .truststorePassword("tsp".toCharArray())
+            .secure()
+            .opentls()
+            .tlsAlgorithm("tlsAlgorithm")
+            .build();
+
+        assertEquals("keystorePath", factory.properties.keystorePath);
+        assertEquals("keystorePath", factory.properties.getKeystorePath());
+        assertEquals("ksp", new String(factory.properties.keystorePassword));
+        assertEquals("ksp", new String(factory.properties.getKeystorePassword()));
+        assertEquals("truststorePath", factory.properties.truststorePath);
+        assertEquals("truststorePath", factory.properties.getTruststorePath());
+        assertEquals("tsp", new String(factory.properties.truststorePassword));
+        assertEquals("tsp", new String(factory.properties.getTruststorePassword()));
+        assertEquals("tlsAlgorithm", factory.properties.tlsAlgorithm);
+        assertEquals("tlsAlgorithm", factory.properties.getTlsAlgorithm());
     }
 }

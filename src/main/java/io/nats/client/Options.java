@@ -1651,8 +1651,6 @@ public class Options {
             if (sslContext == null) {
                 if (sslContextFactory != null) {
                     sslContext = sslContextFactory.createSSLContext(new SSLContextFactoryProperties.Builder()
-                        .useDefaultTls(useDefaultTls)
-                        .useTrustAllTls(useTrustAllTls)
                         .keystore(keystore)
                         .keystorePassword(keystorePassword)
                         .truststore(truststore)

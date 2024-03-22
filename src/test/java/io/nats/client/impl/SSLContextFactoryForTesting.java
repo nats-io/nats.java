@@ -17,9 +17,12 @@ import io.nats.client.TestSSLUtils;
 
 import javax.net.ssl.SSLContext;
 
-public class TestSSLContextFactory implements SSLContextFactory {
+public class SSLContextFactoryForTesting implements SSLContextFactory {
+    public SSLContextFactoryProperties properties;
+
     @Override
     public SSLContext createSSLContext(SSLContextFactoryProperties properties) {
+        this.properties = properties;
         try {
             return TestSSLUtils.createTestSSLContext();
         }

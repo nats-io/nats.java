@@ -13,47 +13,31 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.support.NatsUri;
-
-import java.util.List;
-
 public class SSLContextFactoryProperties {
-    public final boolean useDefaultTls;
-    public final boolean useTrustAllTls;
-    public final String keystore;
+    public final String keystorePath;
     public final char[] keystorePassword;
-    public final String truststore;
+    public final String truststorePath;
     public final char[] truststorePassword;
     public final String tlsAlgorithm;
 
     private SSLContextFactoryProperties(Builder b) {
-        this.useDefaultTls = b.useDefaultTls;
-        this.useTrustAllTls = b.useTrustAllTls;
-        this.keystore = b.keystore;
+        this.keystorePath = b.keystore;
         this.keystorePassword = b.keystorePassword;
-        this.truststore = b.truststore;
+        this.truststorePath = b.truststore;
         this.truststorePassword = b.truststorePassword;
         this.tlsAlgorithm = b.tlsAlgorithm;
     }
 
-    public boolean isUseDefaultTls() {
-        return useDefaultTls;
-    }
-
-    public boolean isUseTrustAllTls() {
-        return useTrustAllTls;
-    }
-
-    public String getKeystore() {
-        return keystore;
+    public String getKeystorePath() {
+        return keystorePath;
     }
 
     public char[] getKeystorePassword() {
         return keystorePassword;
     }
 
-    public String getTruststore() {
-        return truststore;
+    public String getTruststorePath() {
+        return truststorePath;
     }
 
     public char[] getTruststorePassword() {
@@ -65,25 +49,11 @@ public class SSLContextFactoryProperties {
     }
 
     public static class Builder {
-        boolean useDefaultTls;
-        boolean useTrustAllTls;
         String keystore;
         char[] keystorePassword;
         String truststore;
         char[] truststorePassword;
         String tlsAlgorithm;
-        List<NatsUri> natsServerUris;
-        boolean checkUrisForSecure;
-
-        public Builder useDefaultTls(boolean useDefaultTls) {
-            this.useDefaultTls = useDefaultTls;
-            return this;
-        }
-
-        public Builder useTrustAllTls(boolean useTrustAllTls) {
-            this.useTrustAllTls = useTrustAllTls;
-            return this;
-        }
 
         public Builder keystore(String keystore) {
             this.keystore = keystore;
