@@ -19,11 +19,9 @@ import io.nats.client.support.NatsUri;
 import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * This class is not thread-safe.  Caller must ensure thread safety.
- */
-public class SocketDataPortWithWriteTimeout extends SocketDataPort {
+public class SocketDataPortBlockSimulator extends SocketDataPort {
 
     private long writeTimeoutNanos;
     private long delayPeriodMillis;
@@ -42,6 +40,8 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
                     out.close();
                 }
                 catch (IOException ignore) {}
+                blocking.set(0);
+                SIMULATE_SOCKET_BLOCK.set(0);
                 try {
                     connection.forceReconnect();
                 }
@@ -71,8 +71,18 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
         writeWatcherTimer.schedule(writeWatcherTask, delayPeriodMillis, delayPeriodMillis);
     }
 
+    public static AtomicLong SIMULATE_SOCKET_BLOCK = new AtomicLong();
+    AtomicLong blocking = new AtomicLong();
     public void write(byte[] src, int toWrite) throws IOException {
         writeMustBeDoneBy = System.nanoTime() + writeTimeoutNanos;
+        blocking.set(SIMULATE_SOCKET_BLOCK.get());
+        while (blocking.get() > 0) {
+            try {
+                Thread.sleep(100);
+                blocking.addAndGet(-100);
+            }
+            catch (InterruptedException ignore) {}
+        }
         out.write(src, 0, toWrite);
         writeMustBeDoneBy = Long.MAX_VALUE;
     }

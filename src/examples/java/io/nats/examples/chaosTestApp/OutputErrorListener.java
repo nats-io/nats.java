@@ -30,7 +30,8 @@ public class OutputErrorListener implements ErrorListener {
         this.watcher = watcher;
     }
 
-    private String supplyMessage(String label, Connection conn, Consumer consumer, Subscription sub, Object... pairs) {
+    @Override
+    public String supplyMessage(String label, Connection conn, Consumer consumer, Subscription sub, Object... pairs) {
         StringBuilder sb = new StringBuilder(label);
         if (conn != null) {
             ServerInfo si = conn.getServerInfo();
@@ -128,5 +129,10 @@ public class OutputErrorListener implements ErrorListener {
     @Override
     public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String id, FlowControlSource source) {
         Output.controlMessage(this.id, supplyMessage("INFO flowControlProcessed", conn, null, sub, "FlowControlSource:", source));
+    }
+
+    @Override
+    public void socketWriteTimeout(Connection conn) {
+        Output.controlMessage(this.id, supplyMessage("SEVERE socketWriteTimeout", conn, null, null));
     }
 }

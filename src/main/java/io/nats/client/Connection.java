@@ -546,6 +546,14 @@ public interface Connection extends AutoCloseable {
     void flushBuffer() throws IOException;
 
     /**
+     * Forces reconnect behavior. Stops the current connection including the reading and writing,
+     * copies already queued outgoing messages, and then begins the reconnect logic.
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    void forceReconnect() throws IOException, InterruptedException;
+
+    /**
      * Calculates the round trip time between this client and the server.
      * @return the RTT as a duration
      * @throws IOException various IO exception such as timeout or interruption

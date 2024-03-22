@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import io.nats.client.api.ServerInfo;
 import io.nats.client.support.Status;
 
 /**
@@ -129,4 +130,46 @@ public interface ErrorListener {
      * @param source enum indicating flow control handling in response to which type of message
      */
     default void flowControlProcessed(Connection conn, JetStreamSubscription sub, String subject, FlowControlSource source) {}
+
+    /**
+     * Called by the connection when a low level socket write timeout occurs.
+     *
+     * @param conn The connection that had the issue
+     */
+    default void socketWriteTimeout(Connection conn) {}
+
+    /**
+     * General message producing function which understands the possible parameters to listener calls.
+     * @param label the label for the message
+     * @param conn The connection that had the issue, if provided.
+     * @param consumer The consumer that is being marked slow, if applicable
+     * @param sub the JetStreamSubscription that this occurred on, if applicable
+     * @param pairs custom string pairs. I.E. "foo: ", fooObject, "bar-", barObject will be appended
+     *              to the message like ", foo: &lt;fooValue&gt;, bar-&lt;barValue&gt;".
+     * @return
+     */
+    default String supplyMessage(String label, Connection conn, Consumer consumer, Subscription sub, Object... pairs) {
+        StringBuilder sb = new StringBuilder(label == null ? "" : label);
+        if (conn != null) {
+            ServerInfo si = conn.getServerInfo();
+            if (si != null) {
+                sb.append(", Connection: ").append(conn.getServerInfo().getClientId());
+            }
+        }
+        if (consumer != null) {
+            sb.append(", Consumer: ").append(consumer.hashCode());
+        }
+        if (sub != null) {
+            sb.append(", Subscription: ").append(sub.hashCode());
+            if (sub instanceof JetStreamSubscription) {
+                JetStreamSubscription jssub = (JetStreamSubscription)sub;
+                sb.append(", Consumer Name: ").append(jssub.getConsumerName());
+            }
+        }
+        for (int x = 0; x < pairs.length; x++) {
+            sb.append(", ").append(pairs[x]).append(pairs[++x]);
+        }
+        return sb.toString();
+    }
+
 }
