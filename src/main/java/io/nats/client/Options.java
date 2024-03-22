@@ -423,6 +423,11 @@ public class Options {
      */
     public static final String PROP_DISPATCHER_FACTORY_CLASS = "dispatcher.factory.class";
     /**
+     * Property used to set class name for the SSLContextFactory
+     * {@link Builder#sslContextFactory(SSLContextFactory) sslContextFactory}.
+     */
+    public static final String PROP_SSL_CONTEXT_FACTORY_CLASS = "ssl.context.factory.class";
+    /**
      * Property for the keystore path used to create an SSLContext
      */
     public static final String PROP_KEYSTORE = PFX + "keyStore";
@@ -681,6 +686,7 @@ public class Options {
         private boolean verbose = false;
         private boolean pedantic = false;
         private SSLContext sslContext = null;
+        private SSLContextFactory sslContextFactory = null;
         private int maxControlLine = DEFAULT_MAX_CONTROL_LINE;
         private int maxReconnect = DEFAULT_MAX_RECONNECT;
         private Duration reconnectWait = DEFAULT_RECONNECT_WAIT;
@@ -787,9 +793,11 @@ public class Options {
             charArrayProperty(props, PROP_USERNAME, ca -> this.username = ca);
             charArrayProperty(props, PROP_PASSWORD, ca -> this.password = ca);
             charArrayProperty(props, PROP_TOKEN, ca -> this.token = ca);
+
             booleanProperty(props, PROP_SECURE, b -> this.useDefaultTls = b);
             booleanProperty(props, PROP_OPENTLS, b -> this.useTrustAllTls = b);
 
+            classnameProperty(props, PROP_SSL_CONTEXT_FACTORY_CLASS, o -> this.sslContextFactory = (SSLContextFactory) o);
             stringProperty(props, PROP_KEYSTORE, s -> this.keystore = s);
             charArrayProperty(props, PROP_KEYSTORE_PASSWORD, ca -> this.keystorePassword = ca);
             stringProperty(props, PROP_TRUSTSTORE, s -> this.truststore = s);
@@ -1061,11 +1069,24 @@ public class Options {
         /**
          * Set the SSL context, requires that the server supports TLS connections and
          * the URI specifies TLS.
+         * If provided, the context takes precedence over any other TLS/SSL properties
+         * set in the builder, including the sslContextFactory
          * @param ctx the SSL Context to use for TLS connections
          * @return the Builder for chaining
          */
         public Builder sslContext(SSLContext ctx) {
             this.sslContext = ctx;
+            return this;
+        }
+
+        /**
+         * Set the factory that provides the ssl context. The factory is superseded
+         * by an instance of SSLContext
+         * @param sslContextFactory the SSL Context for use to create a ssl context
+         * @return the Builder for chaining
+         */
+        public Builder sslContextFactory(SSLContextFactory sslContextFactory) {
+            this.sslContextFactory = sslContextFactory;
             return this;
         }
 
@@ -1625,52 +1646,67 @@ public class Options {
                 checkUrisForSecure = false;
             }
 
+            // ssl context can be directly provided, but if it's not
+            // there might be a factory, or just see if we should make it ourselves
             if (sslContext == null) {
-                // ssl context can be directly provided, but if it's not
-                if (keystore != null || truststore != null) {
-                    try {
-                        sslContext = SSLUtils.createSSLContext(keystore, keystorePassword, truststore, truststorePassword, tlsAlgorithm);
-                    }
-                    catch (Exception e) {
-                        throw new IllegalStateException("Unable to create SSL context", e);
-                    }
+                if (sslContextFactory != null) {
+                    sslContext = sslContextFactory.createSSLContext(new SSLContextFactoryProperties.Builder()
+                        .useDefaultTls(useDefaultTls)
+                        .useTrustAllTls(useTrustAllTls)
+                        .keystore(keystore)
+                        .keystorePassword(keystorePassword)
+                        .truststore(truststore)
+                        .truststorePassword(truststorePassword)
+                        .tlsAlgorithm(tlsAlgorithm)
+                        .build());
                 }
                 else {
-                    // the sslContext has not been requested via keystore/truststore properties
-                    // If we haven't been told to use the default or the trust all context
-                    // and the server isn't the default url, check to see if the server uris
-                    // suggest we need the ssl context.
-                    if (!useDefaultTls && !useTrustAllTls && checkUrisForSecure) {
-                        for (int i = 0; sslContext == null && i < natsServerUris.size(); i++) {
-                            NatsUri natsUri = natsServerUris.get(i);
-                            switch (natsUri.getScheme()) {
-                                case TLS_PROTOCOL:
-                                case SECURE_WEBSOCKET_PROTOCOL:
-                                    useDefaultTls = true;
-                                    break;
-                                case OPENTLS_PROTOCOL:
-                                    useTrustAllTls = true;
-                                    break;
-                            }
-                        }
-                    }
-
-                    // check trust all (open) first, in case they provided both
-                    // PROP_SECURE (secure) and PROP_OPENTLS (opentls)
-                    if (useTrustAllTls) {
+                    if (keystore != null || truststore != null) {
+                        // the user provided keystore/truststore properties, the want us to make the sslContext that way
                         try {
-                            this.sslContext = SSLUtils.createTrustAllTlsContext();
+                            sslContext = SSLUtils.createSSLContext(keystore, keystorePassword, truststore, truststorePassword, tlsAlgorithm);
                         }
-                        catch (GeneralSecurityException e) {
+                        catch (Exception e) {
                             throw new IllegalStateException("Unable to create SSL context", e);
                         }
                     }
-                    else if (useDefaultTls) {
-                        try {
-                            this.sslContext = SSLContext.getDefault();
+                    else {
+                        // the sslContext has not been requested via factory or keystore/truststore properties
+                        // If we haven't been told to use the default or the trust all context
+                        // and the server isn't the default url, check to see if the server uris
+                        // suggest we need the ssl context.
+                        if (!useDefaultTls && !useTrustAllTls && checkUrisForSecure) {
+                            for (int i = 0; sslContext == null && i < natsServerUris.size(); i++) {
+                                NatsUri natsUri = natsServerUris.get(i);
+                                switch (natsUri.getScheme()) {
+                                    case TLS_PROTOCOL:
+                                    case SECURE_WEBSOCKET_PROTOCOL:
+                                        useDefaultTls = true;
+                                        break;
+                                    case OPENTLS_PROTOCOL:
+                                        useTrustAllTls = true;
+                                        break;
+                                }
+                            }
                         }
-                        catch (NoSuchAlgorithmException e) {
-                            throw new IllegalStateException("Unable to create default SSL context", e);
+
+                        // check trust all (open) first, in case they provided both
+                        // PROP_SECURE (secure) and PROP_OPENTLS (opentls)
+                        if (useTrustAllTls) {
+                            try {
+                                this.sslContext = SSLUtils.createTrustAllTlsContext();
+                            }
+                            catch (GeneralSecurityException e) {
+                                throw new IllegalStateException("Unable to create SSL context", e);
+                            }
+                        }
+                        else if (useDefaultTls) {
+                            try {
+                                this.sslContext = SSLContext.getDefault();
+                            }
+                            catch (NoSuchAlgorithmException e) {
+                                throw new IllegalStateException("Unable to create default SSL context", e);
+                            }
                         }
                     }
                 }

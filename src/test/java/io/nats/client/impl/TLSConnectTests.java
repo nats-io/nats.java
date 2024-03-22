@@ -27,6 +27,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.nats.client.Options.PROP_SSL_CONTEXT_FACTORY_CLASS;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -60,6 +61,24 @@ public class TLSConnectTests {
         return options;
     }
 
+    private static Options createTestOptionsViaFactoryInstance(String servers) {
+        return new Options.Builder()
+            .server(servers)
+            .maxReconnects(0)
+            .sslContextFactory(new TestSSLContextFactory())
+            .build();
+    }
+
+    private static Options createTestOptionsViaFactoryClassName(String servers) {
+        Properties properties = new Properties();
+        properties.setProperty(PROP_SSL_CONTEXT_FACTORY_CLASS, TestSSLContextFactory.class.getCanonicalName());
+        return new Options.Builder(properties)
+            .server(servers)
+            .maxReconnects(0)
+            .sslContextFactory(new TestSSLContextFactory())
+            .build();
+    }
+
     @Test
     public void testSimpleTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
@@ -67,6 +86,8 @@ public class TLSConnectTests {
             String servers = ts.getURI();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaFactoryInstance(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaFactoryClassName(servers));
         }
     }
 
@@ -93,6 +114,8 @@ public class TLSConnectTests {
             String servers = convertToProtocol("tls", ts);
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaFactoryInstance(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaFactoryClassName(servers));
         }
     }
 
@@ -105,6 +128,8 @@ public class TLSConnectTests {
             String servers = convertToProtocol("tls", server1, server2);
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaFactoryInstance(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaFactoryClassName(servers));
         }
     }
 
@@ -115,6 +140,8 @@ public class TLSConnectTests {
             String servers = "127.0.0.1:" + ts.getPort();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaFactoryInstance(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaFactoryClassName(servers));
         }
     }
 
@@ -124,6 +151,8 @@ public class TLSConnectTests {
             String servers = ts.getURI();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaFactoryInstance(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaFactoryClassName(servers));
         }
     }
 
@@ -152,6 +181,8 @@ public class TLSConnectTests {
             String servers = "tls://localhost:"+ts.getPort();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaFactoryInstance(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaFactoryClassName(servers));
         }
     }
 
@@ -161,6 +192,8 @@ public class TLSConnectTests {
             String servers = "tls://127.0.0.1:"+ts.getPort();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaFactoryInstance(servers));
+            assertCanConnectAndPubSub(createTestOptionsViaFactoryClassName(servers));
         }
     }
 
