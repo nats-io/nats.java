@@ -1,6 +1,6 @@
 # Change Log
 
-## 2.17.3
+## 2.17.4
 
 #### Core
 * Fix reconnect() calls close() when simultaneously 'disconnecting' in another thread #1082 @MauriceVanVeen
