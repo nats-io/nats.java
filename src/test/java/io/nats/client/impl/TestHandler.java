@@ -55,6 +55,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     private final List<StatusEvent> pullStatusErrors = new ArrayList<>();
     private final List<HeartbeatAlarmEvent> heartbeatAlarms = new ArrayList<>();
     private final List<FlowControlProcessedEvent> flowControlProcessedEvents = new ArrayList<>();
+    public final AtomicInteger socketWriteTimeoutCount = new AtomicInteger();
 
     private final boolean printExceptions;
     private final boolean verbose;
@@ -92,6 +93,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         pullStatusErrors.clear();
         heartbeatAlarms.clear();
         flowControlProcessedEvents.clear();
+        socketWriteTimeoutCount.set(0);
     }
 
     private boolean waitForBooleanFuture(CompletableFuture<Boolean> future, long timeout, TimeUnit units) {
@@ -141,9 +143,9 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
         if (exp != null) {
             if (verbose) {
-                report("exceptionOccurred",  exp);
+                report("exceptionOccurred",  "conn:" + conn.hashCode() + ", " + exp);
             }
-            else if (printExceptions) {
+            if (printExceptions) {
                 exp.printStackTrace();
             }
         }
@@ -280,19 +282,27 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     private void report(String func, Object message) {
-        System.out.println("[" + System.currentTimeMillis() + " TestHander." + func + "] " + message);
+        System.out.println("[" + System.currentTimeMillis() + " TestHandler." + func + "] " + message);
     }
 
-    private final Object listLock = new Object();
+    private final ReentrantLock listLock = new ReentrantLock();
     private <T> List<T> copy(List<T> list) {
-        synchronized (listLock) {
+        listLock.lock();
+        try {
             return new ArrayList<>(list);
+        }
+        finally {
+            listLock.unlock();
         }
     }
 
     private <T> void add(List<T> list, T t) {
-        synchronized (listLock) {
+        listLock.lock();
+        try {
             list.add(t);
+        }
+        finally {
+            listLock.unlock();
         }
     }
 
@@ -334,6 +344,10 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     public List<FlowControlProcessedEvent> getFlowControlProcessedEvents() {
         return flowControlProcessedEvents;
+    }
+
+    public int getSocketWriteTimeoutCount() {
+        return socketWriteTimeoutCount.get();
     }
 
     public int getCount() {
@@ -500,6 +514,11 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     @Override
     public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String subject, FlowControlSource source) {
         flowControlProcessedEvents.add(new FlowControlProcessedEvent(sub, subject, source));
+    }
+
+    @Override
+    public void socketWriteTimeout(Connection conn) {
+        socketWriteTimeoutCount.incrementAndGet();
     }
 
     public static class StatusEvent {

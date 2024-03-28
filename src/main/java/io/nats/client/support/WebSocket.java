@@ -29,6 +29,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -39,15 +40,17 @@ public class WebSocket extends Socket {
     private static final String WEBSOCKET_RESPONSE_LINE =
         "HTTP/1.1 101 Switching Protocols";
 
-    private Socket wrap;
-    private WebsocketInputStream in;
-    private WebsocketOutputStream out;
+    private final Socket wrappedSocket;
+    private final WebsocketInputStream in;
+    private final WebsocketOutputStream out;
+    private final ReentrantLock closeLock;
 
-    public WebSocket(Socket wrap, String host, List<Consumer<HttpRequest>> interceptors) throws IOException {
-        this.wrap = wrap;
-        handshake(wrap, host, interceptors);
-        this.in = new WebsocketInputStream(wrap.getInputStream());
-        this.out = new WebsocketOutputStream(wrap.getOutputStream(), true);
+    public WebSocket(Socket wrappedSocket, String host, List<Consumer<HttpRequest>> interceptors) throws IOException {
+        closeLock = new ReentrantLock();
+        this.wrappedSocket = wrappedSocket;
+        handshake(wrappedSocket, host, interceptors);
+        this.in = new WebsocketInputStream(wrappedSocket.getInputStream());
+        this.out = new WebsocketOutputStream(wrappedSocket.getOutputStream(), true);
     }
 
     private static void handshake(Socket socket, String host, List<Consumer<HttpRequest>> interceptors) throws IOException {
@@ -195,172 +198,178 @@ public class WebSocket extends Socket {
 
     @Override
     public InetAddress getInetAddress() {
-        return wrap.getInetAddress();
+        return wrappedSocket.getInetAddress();
     }
 
     @Override
     public InetAddress getLocalAddress() {
-        return wrap.getLocalAddress();
+        return wrappedSocket.getLocalAddress();
     }
 
     @Override
     public int getPort() {
-        return wrap.getPort();
+        return wrappedSocket.getPort();
     }
 
     @Override
     public int getLocalPort() {
-        return wrap.getLocalPort();
+        return wrappedSocket.getLocalPort();
     }
 
     @Override
     public SocketAddress getRemoteSocketAddress() {
-        return wrap.getRemoteSocketAddress();
+        return wrappedSocket.getRemoteSocketAddress();
     }
 
     @Override
     public SocketAddress getLocalSocketAddress() {
-        return wrap.getLocalSocketAddress();
+        return wrappedSocket.getLocalSocketAddress();
     }
 
     @Override
     public void setTcpNoDelay(boolean on) throws SocketException {
-        wrap.setTcpNoDelay(on);
+        wrappedSocket.setTcpNoDelay(on);
     }
 
     @Override
     public boolean getTcpNoDelay() throws SocketException {
-        return wrap.getTcpNoDelay();
+        return wrappedSocket.getTcpNoDelay();
     }
 
     @Override
     public void setSoLinger(boolean on, int linger) throws SocketException {
-        wrap.setSoLinger(on, linger);
+        wrappedSocket.setSoLinger(on, linger);
     }
 
     @Override
     public int getSoLinger() throws SocketException {
-        return wrap.getSoLinger();
+        return wrappedSocket.getSoLinger();
     }
 
     @Override
     public void sendUrgentData(int data) throws IOException {
-        wrap.sendUrgentData(data);
+        wrappedSocket.sendUrgentData(data);
     }
 
     @Override
     public void setOOBInline(boolean on) throws SocketException {
-        wrap.setOOBInline(on);
+        wrappedSocket.setOOBInline(on);
     }
 
     @Override
     public boolean getOOBInline() throws SocketException {
-        return wrap.getOOBInline();
+        return wrappedSocket.getOOBInline();
     }
 
     @Override
     public void setSoTimeout(int timeout) throws SocketException {
-        wrap.setSoTimeout(timeout);
+        wrappedSocket.setSoTimeout(timeout);
     }
 
     @Override
     public int getSoTimeout() throws SocketException {
-        return wrap.getSoTimeout();
+        return wrappedSocket.getSoTimeout();
     }
 
     @Override
     public void setSendBufferSize(int size) throws SocketException {
-        wrap.setSendBufferSize(size);
+        wrappedSocket.setSendBufferSize(size);
     }
 
     @Override
     public int getSendBufferSize() throws SocketException {
-        return wrap.getSendBufferSize();
+        return wrappedSocket.getSendBufferSize();
     }
 
     @Override
     public void setReceiveBufferSize(int size) throws SocketException {
-        wrap.setReceiveBufferSize(size);
+        wrappedSocket.setReceiveBufferSize(size);
     }
 
     @Override
     public int getReceiveBufferSize() throws SocketException {
-        return wrap.getReceiveBufferSize();
+        return wrappedSocket.getReceiveBufferSize();
     }
 
     @Override
     public void setKeepAlive(boolean on) throws SocketException {
-        wrap.setKeepAlive(on);
+        wrappedSocket.setKeepAlive(on);
     }
 
     @Override
     public boolean getKeepAlive() throws SocketException {
-        return wrap.getKeepAlive();
+        return wrappedSocket.getKeepAlive();
     }
 
     @Override
     public void setTrafficClass(int tc) throws SocketException {
-        wrap.setTrafficClass(tc);
+        wrappedSocket.setTrafficClass(tc);
     }
 
     @Override
     public int getTrafficClass() throws SocketException {
-        return wrap.getTrafficClass();
+        return wrappedSocket.getTrafficClass();
     }
 
     @Override
     public void setReuseAddress(boolean on) throws SocketException {
-        wrap.setReuseAddress(on);
+        wrappedSocket.setReuseAddress(on);
     }
 
     @Override
     public boolean getReuseAddress() throws SocketException {
-        return wrap.getReuseAddress();
+        return wrappedSocket.getReuseAddress();
     }
 
     @Override
-    public synchronized void close() throws IOException {
-        // TODO: send websocket close:
-        wrap.close();
+    public void close() throws IOException {
+        closeLock.lock();
+        try {
+            // TODO: send websocket close:
+            wrappedSocket.close();
+        }
+        finally {
+            closeLock.unlock();
+        }
     }
 
     @Override
     public void shutdownInput() throws IOException {
-        wrap.shutdownInput();
+        wrappedSocket.shutdownInput();
     }
 
     @Override
     public void shutdownOutput() throws IOException {
-        wrap.shutdownOutput();
+        wrappedSocket.shutdownOutput();
     }
 
     @Override
     public boolean isConnected() {
-        return wrap.isConnected();
+        return wrappedSocket.isConnected();
     }
 
     @Override
     public boolean isBound() {
-        return wrap.isBound();
+        return wrappedSocket.isBound();
     }
 
     @Override
     public boolean isClosed() {
-        return wrap.isClosed();
+        return wrappedSocket.isClosed();
     }
 
     @Override
     public boolean isInputShutdown() {
-        return wrap.isInputShutdown();
+        return wrappedSocket.isInputShutdown();
     }
 
     @Override
     public boolean isOutputShutdown() {
-        return wrap.isOutputShutdown();
+        return wrappedSocket.isOutputShutdown();
     }
 
     @Override
     public void setPerformancePreferences(int connectionTime, int latency, int bandwidth) {
-        wrap.setPerformancePreferences(connectionTime, latency, bandwidth);
+        wrappedSocket.setPerformancePreferences(connectionTime, latency, bandwidth);
     }
 }

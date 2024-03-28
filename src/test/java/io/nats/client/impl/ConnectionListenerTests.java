@@ -155,4 +155,23 @@ public class ConnectionListenerTests {
 
         assertEquals(expectedEvents, capturedEvents);
     }
+
+    @Test
+    public void testConnectionListenerEventCoverage() {
+        assertTrue(Events.CONNECTED.isConnectionEvent());
+        assertTrue(Events.CLOSED.isConnectionEvent());
+        assertTrue(Events.DISCONNECTED.isConnectionEvent());
+        assertTrue(Events.RECONNECTED.isConnectionEvent());
+        assertFalse(Events.RESUBSCRIBED.isConnectionEvent());
+        assertFalse(Events.DISCOVERED_SERVERS.isConnectionEvent());
+        assertFalse(Events.LAME_DUCK.isConnectionEvent());
+
+        assertEquals("opened", Events.CONNECTED.getEvent());
+        assertEquals("nats: connection opened", Events.CONNECTED.getNatsEvent());
+        assertEquals(Events.CONNECTED.getNatsEvent(), Events.CONNECTED.toString());
+
+        assertEquals("lame duck mode", Events.LAME_DUCK.getEvent());
+        assertEquals("nats: lame duck mode", Events.LAME_DUCK.getNatsEvent());
+        assertEquals(Events.LAME_DUCK.getNatsEvent(), Events.LAME_DUCK.toString());
+    }
 }

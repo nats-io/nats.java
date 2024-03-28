@@ -12,7 +12,6 @@
 // limitations under the License.
 
 package io.nats.client.support;
-
 import io.nats.client.PurgeOptions;
 import io.nats.client.impl.Headers;
 import io.nats.client.utils.ResourceUtils;

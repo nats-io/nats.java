@@ -25,7 +25,6 @@ public class BaseConsumeOptions {
     public static final int DEFAULT_THRESHOLD_PERCENT = 25;
     public static final long DEFAULT_EXPIRES_IN_MILLIS = 30000;
     public static final long MIN_EXPIRES_MILLS = 1000;
-    public static final long MIN_NOWAIT_EXPIRES_MILLS = 100;
     public static final long MAX_HEARTBEAT_MILLIS = 30000;
     public static final int MAX_IDLE_HEARTBEAT_PERCENT = 50;
 
@@ -105,14 +104,7 @@ public class BaseConsumeOptions {
                 }
             }
             else if (expiresInMillis < MIN_EXPIRES_MILLS) {
-                if (noWait) {
-                    if (expiresInMillis < MIN_NOWAIT_EXPIRES_MILLS) {
-                        throw new IllegalArgumentException("Expires when No Wait must be greater than or equal to " + MIN_NOWAIT_EXPIRES_MILLS);
-                    }
-                }
-                else {
-                    throw new IllegalArgumentException("Expires must be greater than or equal to " + MIN_EXPIRES_MILLS);
-                }
+                throw new IllegalArgumentException("Expires must be greater than or equal to " + MIN_EXPIRES_MILLS);
             }
             else {
                 expiresIn = expiresInMillis;

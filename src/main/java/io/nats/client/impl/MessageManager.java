@@ -22,13 +22,14 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
 abstract class MessageManager {
     public enum ManageResult {MESSAGE, STATUS_HANDLED, STATUS_TERMINUS, STATUS_ERROR}
 
     protected static final int THRESHOLD = 3;
 
-    protected final Object stateChangeLock;
+    protected final ReentrantLock stateChangeLock;
     protected final NatsConnection conn;
     protected final SubscribeOptions so;
     protected final boolean syncMode;
@@ -47,7 +48,7 @@ abstract class MessageManager {
     protected Timer heartbeatTimer;
 
     protected MessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
-        stateChangeLock = new Object();
+        stateChangeLock = new ReentrantLock();
 
         this.conn = conn;
         this.so = so;
@@ -87,10 +88,14 @@ abstract class MessageManager {
     abstract protected ManageResult manage(Message msg);
 
     protected void trackJsMessage(Message msg) {
-        synchronized (stateChangeLock) {
+        stateChangeLock.lock();
+        try {
             NatsJetStreamMetaData meta = msg.metaData();
             lastStreamSeq = meta.streamSequence();
             lastConsumerSeq++;
+        }
+        finally {
+            stateChangeLock.unlock();
         }
     }
 
@@ -99,7 +104,8 @@ abstract class MessageManager {
     }
 
     protected void configureIdleHeartbeat(Duration configIdleHeartbeat, long configMessageAlarmTime) {
-        synchronized (stateChangeLock) {
+        stateChangeLock.lock();
+        try {
             idleHeartbeatSetting = configIdleHeartbeat == null ? 0 : configIdleHeartbeat.toMillis();
             if (idleHeartbeatSetting <= 0) {
                 alarmPeriodSetting = 0;
@@ -114,6 +120,9 @@ abstract class MessageManager {
                 }
                 hb = true;
             }
+        }
+        finally {
+            stateChangeLock.unlock();
         }
     }
 
@@ -160,7 +169,8 @@ abstract class MessageManager {
     }
 
     protected void initOrResetHeartbeatTimer() {
-        synchronized (stateChangeLock) {
+        stateChangeLock.lock();
+        try {
             if (heartbeatTimer != null) {
                 // Same settings, just reuse the existing timer
                 if (heartbeatTimerTask.alarmPeriod == alarmPeriodSetting) {
@@ -178,16 +188,23 @@ abstract class MessageManager {
             heartbeatTimer.schedule(heartbeatTimerTask, alarmPeriodSetting, alarmPeriodSetting);
             updateLastMessageReceived();
         }
+        finally {
+            stateChangeLock.unlock();
+        }
     }
 
     protected void shutdownHeartbeatTimer() {
-        synchronized (stateChangeLock) {
+        stateChangeLock.lock();
+        try {
             if (heartbeatTimer != null) {
                 heartbeatTimerTask.shutdown();
                 heartbeatTimerTask = null;
                 heartbeatTimer.cancel();
                 heartbeatTimer = null;
             }
+        }
+        finally {
+            stateChangeLock.unlock();
         }
     }
 }

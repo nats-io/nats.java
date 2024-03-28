@@ -20,31 +20,52 @@ package io.nats.client;
 public interface ConnectionListener {
     public enum Events {
         /** The connection has successfully completed the handshake with the nats-server. */
-        CONNECTED("nats: connection opened"),
+        CONNECTED(true, "opened"),
         /** The connection is permanently closed, either by manual action or failed reconnects. */
-        CLOSED("nats: connection closed"),
+        CLOSED(true, "closed"),
         /** The connection lost its connection, but may try to reconnect if configured to. */
-        DISCONNECTED("nats: connection disconnected"), 
+        DISCONNECTED(true, "disconnected"),
         /** The connection was connected, lost its connection and successfully reconnected. */
-        RECONNECTED("nats: connection reconnected"), 
+        RECONNECTED(true, "reconnected"),
         /** The connection was reconnected and the server has been notified of all subscriptions. */
-        RESUBSCRIBED("nats: subscriptions re-established"),
+        RESUBSCRIBED(false, "subscriptions re-established"),
         /** The connection was told about new servers from, from the current server. */ 
-        DISCOVERED_SERVERS("nats: discovered servers"),
+        DISCOVERED_SERVERS(false, "discovered servers"),
         /** Server Sent a lame duck mode. */
-        LAME_DUCK("nats: lame duck mode");
+        LAME_DUCK(false, "lame duck mode");
 
-        private String event;
+        private final boolean connectionEvent;
+        private final String event;
+        private final String natsEvent;
 
-        Events(String err) {
-            this.event = err;
+        Events(boolean connectionEvent, String event) {
+            this.connectionEvent = connectionEvent;
+            this.event = event;
+            if (connectionEvent) {
+                this.natsEvent = "nats: connection " + event;
+            }
+            else {
+                this.natsEvent = "nats: " + event;
+            }
+        }
+
+        public boolean isConnectionEvent() {
+            return connectionEvent;
+        }
+
+        public String getEvent() {
+            return event;
+        }
+
+        public String getNatsEvent() {
+            return natsEvent;
         }
 
         /**
          * @return the string value for this event
          */
         public String toString() {
-            return this.event;
+            return this.natsEvent;
         }
     }
 

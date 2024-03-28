@@ -1,0 +1,6 @@
+{
+  "type": "io.nats.jetstream.api.v1.consumer_pause_response",
+  "paused": true,
+  "pause_until": "2024-03-02T13:21:45.198423724Z",
+  "pause_remaining": 30000000000
+}

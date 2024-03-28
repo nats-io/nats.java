@@ -4,7 +4,7 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-**Current Release**: 2.17.3 &nbsp; **Current Snapshot**: 2.17.4-SNAPSHOT 
+**Current Release**: 2.17.4 &nbsp; **Current Snapshot**: 2.17.5-SNAPSHOT 
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
@@ -47,6 +47,12 @@ The API is [simple to use](#listening-for-incoming-messages) and highly [perform
 Version 2+ uses a simplified versioning scheme. Any issues will be fixed in the incremental version number. As a major release, the major version has been updated to 2 to allow clients to limit there use of this new API. With the addition of drain() we updated to 2.1, NKey support moved us to 2.2.
 
 Previous versions are still available in the repo.
+
+#### Version 2.17.4 Core Improvements
+
+This release was full of core improvements which improve use of more asynchronous behaviors including
+* removing use of `synchronized` in favor of `ReentrantLock`
+* The ability to have a dispatcher use an executor to dispatch messages instead of the dispatcher thread being blocking to deliver a message.
 
 #### Version 2.17.3 Socket Write Timeout
 
@@ -414,9 +420,9 @@ Replace `{major.minor.patch}` with the correct version in the examples.
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.3/jnats-2.17.3.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.3/jnats-2.17.3.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.4/jnats-2.17.4.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.4/jnats-2.17.4.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.3/jnats-2.17.3-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.3/jnats-2.17.3-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.4/jnats-2.17.4-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.4/jnats-2.17.4-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 

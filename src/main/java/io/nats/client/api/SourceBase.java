@@ -48,8 +48,7 @@ public abstract class SourceBase implements JsonSerializable {
         subjectTransforms = SubjectTransform.optionalListOf(readValue(jv, SUBJECT_TRANSFORMS));
     }
 
-    @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
-    SourceBase(SourceBaseBuilder b) {
+    SourceBase(SourceBaseBuilder<?> b) {
         this.name = b.name;
         this.startSeq = b.startSeq;
         this.startTime = b.startTime;
@@ -132,6 +131,7 @@ public abstract class SourceBase implements JsonSerializable {
             this.startTime = base.startTime;
             this.filterSubject = base.filterSubject;
             this.external = base.external;
+            this.subjectTransforms = base.getSubjectTransforms();
         }
 
         public T sourceName(String name) {

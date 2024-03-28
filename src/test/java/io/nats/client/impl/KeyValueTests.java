@@ -15,6 +15,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsKeyValueUtil;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -544,6 +545,63 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.purge(key);
             list = kv.history(key);
             assertEquals(1, list.size());
+        });
+    }
+
+    @Test
+    public void testAtomicDeleteAtomicPurge() throws Exception {
+        jsServer.run(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            // create bucket
+            String bucket = bucket();
+            kvm.create(KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .maxHistoryPerKey(64)
+                .build());
+
+            KeyValue kv = nc.keyValue(bucket);
+            String key = key();
+            kv.put(key, "a");
+            kv.put(key, "b");
+            kv.put(key, "c");
+            assertEquals(3, kv.get(key).getRevision());
+
+            // Delete wrong revision rejected
+            assertThrows(JetStreamApiException.class, () -> kv.delete(key, 1));
+
+            // Correct revision writes tombstone and bumps revision
+            kv.delete(key, 3);
+
+            assertHistory(Arrays.asList(
+                    kv.get(key, 1L),
+                    kv.get(key, 2L),
+                    kv.get(key, 3L),
+                    KeyValueOperation.DELETE),
+                kv.history(key));
+
+            // Wrong revision rejected again
+            assertThrows(JetStreamApiException.class, () -> kv.delete(key, 3));
+
+            // Delete is idempotent: two consecutive tombstones
+            kv.delete(key, 4);
+
+            assertHistory(Arrays.asList(
+                    kv.get(key, 1L),
+                    kv.get(key, 2L),
+                    kv.get(key, 3L),
+                    KeyValueOperation.DELETE,
+                    KeyValueOperation.DELETE),
+                kv.history(key));
+
+            // Purge wrong revision rejected
+            assertThrows(JetStreamApiException.class, () -> kv.purge(key, 1));
+
+            // Correct revision writes roll-up purge tombstone
+            kv.purge(key, 5);
+
+            assertHistory(Arrays.asList(KeyValueOperation.PURGE), kv.history(key));
         });
     }
 
@@ -1335,7 +1393,7 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testMirrorSoureceBuilderPrefixConversion() throws Exception {
+    public void testMirrorSourceBuilderPrefixConversion() throws Exception {
         String bucket = bucket();
         String name = variant();
         String kvName = "KV_" + name;
@@ -1460,5 +1518,63 @@ public class KeyValueTests extends JetStreamTestBase {
             }
             validateWatcher(new Object[]{"bb0", "aaa" + num, KeyValueOperation.DELETE}, oWatcher);
         }
+    }
+
+    @Test
+    public void testKeyValueTransform() throws Exception {
+        jsServer.run(TestBase::atLeast2_10_3, nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            String kvName1 = variant();
+            String kvName2 = kvName1 + "-mir";
+            String mirrorSegment = "MirrorMe";
+            String dontMirrorSegment = "DontMirrorMe";
+            String generic = "foo";
+
+            kvm.create(KeyValueConfiguration.builder()
+                .name(kvName1)
+                .storageType(StorageType.Memory)
+                .build());
+
+            SubjectTransform transform = SubjectTransform.builder()
+                .source("$KV." + kvName1 + "." + mirrorSegment + ".*")
+                .destination("$KV." + kvName2 + "." + mirrorSegment + ".{{wildcard(1)}}")
+                .build();
+
+            Mirror mirr = Mirror.builder()
+                .name(kvName1)
+                .subjectTransforms(transform)
+                .build();
+
+            kvm.create(KeyValueConfiguration.builder()
+                .name(kvName2)
+                .mirror(mirr)
+                .storageType(StorageType.Memory)
+                .build());
+
+            KeyValue kv1 = nc.keyValue(kvName1);
+
+            String key1 = mirrorSegment + "." + generic;
+            String key2 = dontMirrorSegment + "." + generic;
+            kv1.put(key1, mirrorSegment.getBytes());
+            kv1.put(key2, dontMirrorSegment.getBytes());
+
+            Thread.sleep(1000); // transforming takes some amount of time, otherwise the kv2.getKeys() fails
+
+            List<String> keys = kv1.keys();
+            assertTrue(keys.contains(key1));
+            assertTrue(keys.contains(key2));
+            // TODO COME BACK ONCE SERVER IS FIXED
+//            assertNotNull(kv1.get(key1));
+//            assertNotNull(kv1.get(key2));
+
+            KeyValue kv2 = nc.keyValue(kvName2);
+            keys = kv2.keys();
+            assertTrue(keys.contains(key1));
+            assertFalse(keys.contains(key2));
+            // TODO COME BACK ONCE SERVER IS FIXED
+//            assertNotNull(kv2.get(key1));
+//            assertNull(kv2.get(key2));
+        });
     }
 }
