@@ -24,12 +24,27 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
     private boolean wasCancelledClosing;
     private boolean wasCancelledTimedOut;
     private final boolean useTimeoutException;
+    private final ReplyActionHandler actionHandler;
+
 
     public NatsRequestCompletableFuture(CancelAction cancelAction, Duration timeout, boolean useTimeoutException) {
         this.cancelAction = cancelAction;
         timeOutAfter = System.currentTimeMillis() + 10 + (timeout == null ? DEFAULT_TIMEOUT : timeout.toMillis());
         // 10 extra millis allows for communication time, probably more than needed but...
         this.useTimeoutException = useTimeoutException;
+
+        switch (cancelAction) {
+            case COMPLETE:
+                this.actionHandler = new CompleteActionHandler();
+                break;
+            case REPORT:
+                this.actionHandler = new ReportActionHandler();
+                break;
+            case CANCEL:
+            default:
+                this.actionHandler = new CancelActionHandler();
+                break;
+        }
     }
 
     public void cancelClosing() {
@@ -63,5 +78,9 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
 
     public boolean wasCancelledTimedOut() {
         return wasCancelledTimedOut;
+    }
+
+    public void handleReply(Message msg) {
+        actionHandler.handleReply(this, msg);
     }
 }

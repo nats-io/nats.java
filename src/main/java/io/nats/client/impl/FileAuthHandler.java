@@ -23,6 +23,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
+import static io.nats.client.impl.AuthHandlerUtil.extract;
+
 class FileAuthHandler implements AuthHandler {
     private String jwtFile;
     private String nkeyFile;
@@ -37,77 +39,6 @@ class FileAuthHandler implements AuthHandler {
         this.nkeyFile = nkeyFile;
     }
 
-    private char[] extract(CharBuffer data, int headers) {
-        CharBuffer buff = CharBuffer.allocate(data.length());
-        boolean skipLine = false;
-        int headerCount = 0;
-        int linePos = -1;
-
-        while (data.length() > 0) {
-            char c = data.get();
-            linePos++;
-
-            // End of line, either we got it, or we should keep reading the new line
-            if (c == '\n' || c=='\r') {
-                if (buff.position() > 0) { // we wrote something
-                    break;
-                }
-                skipLine = false;
-                linePos = -1; // so we can start right up
-                continue;
-            }
-
-            // skip to the new line
-            if (skipLine) {
-                continue;
-            }
-
-            // Ignore whitespace
-            if (Character.isWhitespace(c)) {
-                continue;
-            }
-
-            // If we are on a - skip that line, bump the header count
-            if (c == '-' && linePos == 0) {
-                skipLine = true;
-                headerCount++;
-                continue;
-            }
-
-            // Skip the line, or add to buff
-            if (!skipLine && headerCount==headers) {
-                buff.put(c);
-            }
-        }
-
-        // check for naked value
-        if (buff.position() == 0 && headers==1) {
-            data.position(0);
-            while (data.length() > 0) {
-                char c = data.get();
-                if (c == '\n' || c=='\r' || Character.isWhitespace(c)) {
-                    if (buff.position() > 0) { // we wrote something
-                        break;
-                    }
-                    continue;
-                }
-    
-                buff.put(c);
-            }
-            buff.flip();
-        } else {
-            buff.flip();
-        }
-
-        char[] retVal = new char[buff.length()];
-        buff.get(retVal);
-        buff.clear();
-        for (int i=0; i<buff.capacity();i++) {
-            buff.put('\0');
-        }
-        return retVal;
-    }
-
     private char[] readKeyChars() throws IOException {
         char[] keyChars = null;
 
@@ -115,7 +46,7 @@ class FileAuthHandler implements AuthHandler {
             byte[] data = Files.readAllBytes(Paths.get(this.credsFile));
             ByteBuffer bb = ByteBuffer.wrap(data);
             CharBuffer chars = StandardCharsets.UTF_8.decode(bb);
-            keyChars = this.extract(chars, 3); // we are 2nd so 3 headers
+            keyChars = extract(chars, 3); // we are 2nd so 3 headers
             // Clear things up as best we can
             chars.clear();
             for (int i=0; i<chars.capacity();i++) {
@@ -128,7 +59,7 @@ class FileAuthHandler implements AuthHandler {
             byte[] data = Files.readAllBytes(Paths.get(this.nkeyFile));
             ByteBuffer bb = ByteBuffer.wrap(data);
             CharBuffer chars = StandardCharsets.UTF_8.decode(bb);
-            keyChars = this.extract(chars, 1);
+            keyChars = extract(chars, 1);
             // Clear things up as best we can
             chars.clear();
             for (int i=0; i<chars.capacity();i++) {
@@ -204,7 +135,7 @@ class FileAuthHandler implements AuthHandler {
             byte[] data = Files.readAllBytes(Paths.get(fileToUse));
             ByteBuffer bb = ByteBuffer.wrap(data);
             CharBuffer chars = StandardCharsets.UTF_8.decode(bb);
-            jwtChars = this.extract(chars, 1); // jwt is always first
+            jwtChars = extract(chars, 1); // jwt is always first
             // Clear things up as best we can
             chars.clear();
             for (int i=0; i<chars.capacity();i++) {

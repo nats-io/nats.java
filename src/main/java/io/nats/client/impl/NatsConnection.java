@@ -1243,17 +1243,7 @@ class NatsConnection implements Connection {
             }
             statistics.decrementOutstandingRequests();
             if (msg.isStatusMessage() && msg.getStatus().getCode() == 503) {
-                switch (f.getCancelAction()) {
-                    case COMPLETE:
-                        f.complete(msg);
-                        break;
-                    case REPORT:
-                        f.completeExceptionally(new JetStreamStatusException(msg.getStatus()));
-                        break;
-                    case CANCEL:
-                    default:
-                        f.cancel(true);
-                }
+                f.handleReply(msg);
             }
             else {
                 f.complete(msg);
