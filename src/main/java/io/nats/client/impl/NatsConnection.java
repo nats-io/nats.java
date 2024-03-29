@@ -316,8 +316,8 @@ class NatsConnection implements Connection {
                         else {
                             updateStatus(Status.RECONNECTING);
 
+                            timeTraceLogger.trace("reconnecting to server %s", cur);
                             NatsUri resolved = resolvedList.remove(0);
-                            timeTraceLogger.trace("reconnecting to server %s", resolved.toString());
                             tryToConnect(cur, resolved, System.nanoTime());
 
                             if (isConnected()) {
