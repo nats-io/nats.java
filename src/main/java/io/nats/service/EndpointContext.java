@@ -17,7 +17,7 @@ class EndpointContext {
     private final Connection conn;
     private final ServiceEndpoint se;
     private final ServiceMessageHandler handler;
-    private final boolean recordStats;
+    private final boolean shouldRecordStats;
     private final String qGroup;
 
     private final boolean internalDispatcher;
@@ -35,7 +35,7 @@ class EndpointContext {
         this.conn = conn;
         this.se = se;
         handler = se.getHandler();
-        this.recordStats = !internalEndpoint;
+        this.shouldRecordStats = !internalEndpoint;
         qGroup = internalEndpoint ? null : se.getQueueGroup();
 
         if (se.getDispatcher() == null) {
@@ -64,26 +64,31 @@ class EndpointContext {
         long start = System.nanoTime();
         ServiceMessage smsg = new ServiceMessage(msg);
         try {
-            if (recordStats) {
+            if (shouldRecordStats) {
                 numRequests.incrementAndGet();
             }
             handler.onMessage(smsg);
         }
         catch (Throwable t) {
-            if (recordStats) {
-                numErrors.incrementAndGet();
-                lastError = t.toString();
+            if (shouldRecordStats) {
+                handleServiceMessageError(smsg, t);
             }
-            try {
-                smsg.respondStandardError(conn, lastError, 500);
-            } catch (RuntimeException ignore) {}
         }
         finally {
-            if (recordStats) {
+            if (shouldRecordStats) {
                 processingTime.addAndGet(System.nanoTime() - start);
             }
         }
     }
+
+    private void handleServiceMessageError(ServiceMessage smsg, Throwable t) {
+        numErrors.incrementAndGet();
+        lastError = t.toString();
+        try {
+            smsg.respondStandardError(conn, lastError, 500);
+        } catch (RuntimeException ignore) {}
+    }
+
 
     EndpointStats getEndpointStats() {
         return new EndpointStats(
