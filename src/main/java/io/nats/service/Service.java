@@ -87,11 +87,10 @@ public class Service {
         pingResponse = new PingResponse(id, b.name, b.version, b.metadata);
         infoResponse = new InfoResponse(id, b.name, b.version, b.metadata, b.description, b.serviceEndpoints.values());
 
-        if (b.pingDispatcher == null || b.infoDispatcher == null || b.schemaDispatcher == null || b.statsDispatcher == null) {
+        if (isDispatcherCreationNeeded(b)) {
             dTemp = conn.createDispatcher();
             dInternals.add(dTemp);
-        }
-        else {
+        } else {
             dTemp = null;
         }
 
@@ -99,6 +98,11 @@ public class Service {
         addDiscoveryContexts(SRV_PING, pingResponse, b.pingDispatcher, dTemp);
         addDiscoveryContexts(SRV_INFO, infoResponse, b.infoDispatcher, dTemp);
         addStatsContexts(b.statsDispatcher, dTemp);
+    }
+
+    private boolean isDispatcherCreationNeeded(ServiceBuilder serviceBuilder) {
+        return serviceBuilder.pingDispatcher == null || serviceBuilder.infoDispatcher == null ||
+                serviceBuilder.schemaDispatcher == null || serviceBuilder.statsDispatcher == null;
     }
 
     private void addDiscoveryContexts(String discoveryName, Dispatcher dUser, Dispatcher dInternal, ServiceMessageHandler handler) {
