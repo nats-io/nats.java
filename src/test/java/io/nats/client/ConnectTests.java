@@ -370,6 +370,32 @@ public class ConnectTests {
     }
 
     @Test
+    public void testReconnectLogging() throws Exception {
+        List<String> traces = new ArrayList<>();
+        TimeTraceLogger l = (f, a) -> traces.add(String.format(f, a));
+
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = new Options.Builder()
+                    .server(ts.getURI())
+                    .traceConnection()
+                    .timeTraceLogger(l)
+                    .reconnectWait(Duration.ofSeconds(1))
+                    .maxReconnects(1)
+                    .connectionTimeout(Duration.ofSeconds(2))
+                    .build();
+
+            try (Connection nc = Nats.connect(options)) {
+                assertConnected(nc);
+                ts.close();
+                Thread.sleep(3000);
+            }
+        }
+
+        boolean foundReconnectLog = traces.stream().anyMatch(s -> s.contains("reconnecting to server"));
+        assertTrue(foundReconnectLog, "Reconnect log not found");
+    }
+
+    @Test
     public void testConnectExceptionHasURLS() {
         try {
             Nats.connect("nats://testserver.notnats:4222, nats://testserver.alsonotnats:4223");
